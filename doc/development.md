@@ -52,3 +52,13 @@ Install the dependencies into the virtualenv:
 cd server
 pip install -r requirements.txt
 ```
+
+## Run the development server
+
+To run the Django development server, enter the following command from the
+`server` directory:
+```
+./manage.py runserver
+```
+
+[Django documentation](https://docs.djangoproject.com/en/2.2/)
