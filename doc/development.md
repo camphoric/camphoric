@@ -27,7 +27,7 @@ source /usr/local/bin/virtualenvwrapper.sh
 ```
 and finally: `source ~/.bash_profile`
 
-Move to this [section](#set-up-the-virtual-environment).
+Move to this section [Set up the virtual environment](#set-up-the-virtual-environment).
 
 ### Ubuntu 18.04
 
