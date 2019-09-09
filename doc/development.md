@@ -7,18 +7,19 @@ to create a self-contained Python environment for the server and its
 dependencies. To set these up:
 
 ### MacOS
+
 A newish version of MacOS is expected and so is [Homebrew](https://brew.sh/).
 
-Install Python 3 (This will take care of pip3) with:
- ```
- brew install python3
- ```
+Install Python 3 (this will take care of pip3) with:
+```
+brew install python3
+```
 
 Create a virtual environment for Camphoric with [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/) (choose another if that makes you happy):
 ```
 pip3 install virtualenvwrapper
 ```
-Edit (or create) the file ~/.bashrc or add this to ~./bash_profile, adding the following lines (if you add a ~/.bashrc don't forget to source it in your ~/bash_profile):
+Edit (or create) the file ~/.bashrc or add this to ~/.bash_profile, adding the following lines (if you add a ~/.bashrc don't forget to source it in your ~/bash_profile):
 ```
 export VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python3
 export WORKON_HOME=$HOME/.virtualenvs
@@ -26,7 +27,7 @@ source /usr/local/bin/virtualenvwrapper.sh
 ```
 and finally: `source ~/.bash_profile`
 
-Move to this [section](#-Set-up-the-virtual-environment).
+Move to this [section](#set-up-the-virtual-environment).
 
 ### Ubuntu 18.04
 
