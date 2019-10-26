@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework.serializers import ModelSerializer
 
 import camphoric.models
@@ -6,7 +7,6 @@ import camphoric.models
 class OrganizationSerializer(ModelSerializer):
     class Meta:
         model = camphoric.models.Organization
-        # fields = ['id', 'name', 'created_at', 'updated_at', 'deleted_at']
         fields = '__all__'
 
 

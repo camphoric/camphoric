@@ -13,10 +13,19 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf.urls import include
 from django.contrib import admin
 from django.urls import include, path
+from rest_framework.authtoken.views import obtain_auth_token
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('camphoric.urls'))
+    path('api/', include('camphoric.urls')),
+
+    # Cookie based authentication for browsable API.
+    path('api-auth/', include('rest_framework.urls')),
+
+    # Token based authentication for JSON API.
+    path('api-token-auth/', obtain_auth_token),
 ]
