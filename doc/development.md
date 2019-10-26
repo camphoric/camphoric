@@ -1,5 +1,7 @@
 # Server development
 
+Camphoric Server is implemented using Django REST framework.
+
 ## Prerequisites
 
 Python 3 and pip are required. virtualenv and virtualenvwrapper are recommended
@@ -78,10 +80,37 @@ pip install -r requirements.txt
 
 ## Run the development server
 
+
+To setup the database and create a user to access the site run from the server directory:
+```
+./manage.py migrate
+./manage.py createsuperuser
+```
+Follow onscreen instructions in the shell.
+
 To run the Django development server, enter the following command from the
-`server` directory:
 ```
 ./manage.py runserver
 ```
+To access the browsable API open this url in your browser:
+```
+http://127.0.0.1:8000/api/
+```
+
+## Authentication
+
+There are two options now.
+* Its possible to login to the browsable API by clicking on the login link at the top right corner of the page.
+
+* Or using curl (and jq if you have it) you can interact with JSON API by requesting the token for your previously created user with:
+	```
+	curl -d username=<user name> -d password=<password> http://127.0.0.1:8000/api-token-auth/ | jq
+	```
+	If you want to request a resource that requires authentication run:
+	```
+	curl -H 'Authorization: Token <token>'
+	```
+
+
 
 [Django documentation](https://docs.djangoproject.com/en/2.2/)
