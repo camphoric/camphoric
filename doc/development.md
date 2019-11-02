@@ -4,13 +4,20 @@ Camphoric Server is implemented using Django REST framework.
 
 ## Prerequisites
 
-Python 3 and pip are required. virtualenv and virtualenvwrapper are recommended
-to create a self-contained Python environment for the server and its
-dependencies. To set these up:
+To get started, install the following prerequisites:
 
-### MacOS
+- Python 3 and pip
+- virtualenv and virtualenvwrapper (recommended)
+- PostgreSQL and libpq
+
+### Installing prerequisites on MacOS
 
 A newish version of MacOS is expected and so is [Homebrew](https://brew.sh/).
+Install PostgreSQL:
+```
+brew install openssl postgresql
+brew services start postgresql
+```
 
 Install Python 3 (this will take care of pip3) with:
 ```
@@ -31,7 +38,13 @@ and finally: `source ~/.bash_profile`
 
 Move to this section [Set up the virtual environment](#set-up-the-virtual-environment).
 
-### Ubuntu 18.04
+### Installing prerequisites on Ubuntu 18.04
+
+Install and start up PostgreSQL server:
+```
+sudo apt install postgresql libpq-dev
+sudo service postgresql start
+```
 
 Ubuntu includes Python 3 by default.
 
@@ -77,12 +90,34 @@ Install the dependencies into the virtualenv:
 cd server
 pip install -r requirements.txt
 ```
+Note: On Mac if this fails with `ld: library not found for -lssl` export these variables and try again.
+```
+export LDFLAGS="-L/usr/local/opt/openssl/lib"
+export CPPFLAGS="-I/usr/local/opt/openssl/include"
+```
+
+## Set up the Database
+In the cmd line
+for Linux run:
+```
+sudo -i -u postgres
+psql
+```
+For MacOS run:
+```
+psql postgres
+```
+Then in psql in either system (get help with `\?`) run:
+```
+CREATE USER camphoric;
+CREATE DATABASE camphoric OWNER camphoric;
+```
 
 ## Run the development server
 
-
-To setup the database and create a user to access the site run from the server directory:
+To create the database tables and django user:
 ```
+cd server
 ./manage.py migrate
 ./manage.py createsuperuser
 ```
