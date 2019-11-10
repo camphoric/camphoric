@@ -109,13 +109,28 @@ psql postgres
 ```
 Then in psql in either system (get help with `\?`) run:
 ```
-CREATE USER camphoric;
+CREATE USER camphoric PASSWORD 'make-up-a-database-password-and-put-here';
 CREATE DATABASE camphoric OWNER camphoric;
 ```
 
+Hit Ctrl-D to log out of psql (on Linux, also hit Ctrl-D to log out of the
+postgres account).
+
 ## Run the development server
 
-To create the database tables and django user:
+Create a file `server/camphoric_server/.env` with the following lines
+```
+DEBUG=on
+SECRET_KEY=your-django-secret-key-here
+DATABASE_URL=postgres://camphoric:your-database-password-here@127.0.0.1/camphoric
+```
+Fill in the database password, and fill in a value for `SECRET_KEY` from the
+output of the following command:
+```
+python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+```
+
+Create the database tables and Django superuser:
 ```
 cd server
 ./manage.py migrate
