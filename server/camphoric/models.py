@@ -74,6 +74,9 @@ class Registration(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
 
+    def __str__(self):
+        return "Registration #{} ({})".format(self.id, self.event.name)
+
 
 class Lodging(TimeStampedModel):
     '''
@@ -105,7 +108,7 @@ class Deposit(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     deposited_on = models.DateTimeField(null=True)
-    attributes = JSONField(null=True)
+    attributes = JSONField(null=True)  # TODO: Add schema or remove attributes. Is it needed?
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
 
