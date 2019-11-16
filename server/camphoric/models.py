@@ -1,9 +1,10 @@
 from decimal import Decimal
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils import timezone
 
-# from django.contrib.postgres.fields import JSONField
+
 # Users are built into Django. No class needed.
 # Do we need tags given that we will have JSONFields?
 # Sign Model not yet implemented. Needs more discussion.
@@ -38,6 +39,9 @@ class Organization(TimeStampedModel):
     '''
     name = models.CharField(max_length=255)
 
+    def __str__(self):
+        return self.name
+
 
 class Event(TimeStampedModel):
     '''
@@ -50,11 +54,13 @@ class Event(TimeStampedModel):
     registration_end = models.DateTimeField(null=True)
     start = models.DateTimeField(null=True)
     end = models.DateTimeField(null=True)
-    # TBD with Will and Zia
-    # camper_schema = JSONField(null=True)
-    # payment_schema = JSONField(null=True)
-    # registration_schema = JSONField(null=True)
-    # lodging_schema = JSONField(null=True)
+    camper_schema = JSONField(null=True)
+    payment_schema = JSONField(null=True)
+    registration_schema = JSONField(null=True)
+    lodging_schema = JSONField(null=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Registration(TimeStampedModel):
@@ -66,7 +72,7 @@ class Registration(TimeStampedModel):
     - Has many Payments
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    # attributes = JSONField(null=True)
+    attributes = JSONField(null=True)
 
 
 class Lodging(TimeStampedModel):
@@ -90,7 +96,7 @@ class Camper(TimeStampedModel):
     '''
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE)
-    # attributes = models.JSONField(null=True)
+    attributes = JSONField(null=True)
 
 
 class Deposit(TimeStampedModel):
@@ -99,7 +105,7 @@ class Deposit(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     deposited_on = models.DateTimeField(null=True)
-    # attributes = models.JSONField(null=True)
+    attributes = JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
 
@@ -112,5 +118,5 @@ class Payment(TimeStampedModel):
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
     deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE)
     paid_on = models.DateTimeField(null=True)
-    # attributes = models.JSONField(null=True)
+    attributes = JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
