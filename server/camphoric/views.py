@@ -24,7 +24,7 @@ class RegistrationViewSet(ModelViewSet):
 
 
 class LodgingViewSet(ModelViewSet):
-    queryset = models.Registration.objects.all()
+    queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
     permission_classes = [permissions.IsAdminUser]
 
