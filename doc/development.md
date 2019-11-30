@@ -109,9 +109,10 @@ psql postgres
 ```
 Then in psql in either system (get help with `\?`) run:
 ```
-CREATE USER camphoric PASSWORD 'make-up-a-database-password-and-put-here';
+CREATE USER camphoric CREATEDB PASSWORD 'make-up-a-database-password-and-put-here';
 CREATE DATABASE camphoric OWNER camphoric;
 ```
+(Camphoric user is given the CREATEDB privilege for the purpose of creating test databases.)
 
 Hit Ctrl-D to log out of psql (on Linux, also hit Ctrl-D to log out of the
 postgres account).
@@ -146,6 +147,14 @@ To access the browsable API open this url in your browser:
 ```
 http://127.0.0.1:8000/api/
 ```
+
+## Testing
+
+To test that the setup went correctly run
+```
+./manage.py test
+```
+from the server directory.
 
 ## Authentication
 
