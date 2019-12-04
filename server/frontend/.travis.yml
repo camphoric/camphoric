@@ -1,0 +1,27 @@
+matrix:
+  include:
+    - language: php
+      services:
+        - mysql
+      php:
+        - 7.2
+      env:
+        - ENV_FILE=.env-travis EMAIL_TEST_PATH=$TRAVIS_BUILD_DIR/php-tests/emails
+      before_install:
+        - mysql -u root -e "CREATE DATABASE IF NOT EXISTS larkreg;"
+        - mysql -u root --database=larkreg < $TRAVIS_BUILD_DIR/create.sql
+        - mkdir -p "$TRAVIS_BUILD_DIR/php-tests/emails"
+        - touch "$TRAVIS_BUILD_DIR/php-tests/emails/message"
+      install:
+        - nvm install node
+        - yarn install
+        - composer install
+      script: phpunit --testdox --colors=always --bootstrap vendor/autoload.php php-tests
+    - language: node_js
+      env:
+        - CI=1
+      before_install:
+        - nvm install --lts
+        - nvm use --lts
+      install:
+        - yarn install
