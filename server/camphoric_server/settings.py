@@ -128,7 +128,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend/build")
+REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
 
 STATIC_URL = '/static/'
 
