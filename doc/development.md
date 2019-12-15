@@ -7,7 +7,7 @@ Camphoric Server is implemented using Django REST framework.
 To get started, install the following prerequisites:
 
 - Python 3 and pip
-- virtualenv and virtualenvwrapper (recommended)
+- pipenv
 - PostgreSQL and libpq
 
 ### Installing prerequisites on MacOS
@@ -19,24 +19,12 @@ brew install openssl postgresql
 brew services start postgresql
 ```
 
-Install Python 3 (this will take care of pip3) with:
+Install Python 3 (this will take care of pip3) and pipenv with:
 ```
-brew install python3
+brew install python3 pipenv
 ```
 
-Create a virtual environment for Camphoric with [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/) (choose another if that makes you happy):
-```
-pip3 install virtualenvwrapper
-```
-Edit (or create) the file ~/.bashrc or add this to ~/.bash_profile, adding the following lines (if you add a ~/.bashrc don't forget to source it in your ~/bash_profile):
-```
-export VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python3
-export WORKON_HOME=$HOME/.virtualenvs
-source /usr/local/bin/virtualenvwrapper.sh
-```
-and finally: `source ~/.bash_profile`
-
-Move to this section [Set up the virtual environment](#set-up-the-virtual-environment).
+Move to the following section: [Set up the Python environment](#set-up-the-python-environment).
 
 ### Installing prerequisites on Ubuntu 18.04
 
@@ -53,60 +41,45 @@ Install pip:
 sudo apt install python3-pip
 ```
 
-Install virtualenv and virtualenvwrapper:
+Install pipenv:
 ```
-pip3 install virtualenvwrapper
-```
-
-Add the following lines to `~/.bashrc`:
-```
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
-export VIRTUALENVWRAPPER_VIRTUALENV=$HOME/.local/bin/virtualenv
-export WORKON_HOME=$HOME/.virtualenvs
-source $HOME/.local/bin/virtualenvwrapper.sh
+pip3 install --user pipenv
 ```
 
-Then `source ~/.bashrc`.
+## Set up the Python environment
 
-[virtualenvwrapper documentation](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
-
-## Set up the virtual environment
-
-Create a new Python 3 virtual environment for camphoric:
-```
-cd PATH_TO/camphoric
-mkvirtualenv -a . camphoric
-```
-
-The virtualenv is now active, which is indicated by `(camphoric)` at the
-beginning of your shell prompt. To deactivate it, enter the command
-`deactivate`. To activate it again later, enter the command `workon camphoric`.
-(This will automatically `cd` you to the camphoric directory; if you don't want
-that behavior, omit the `-a .` from the `mkvirtualenv` command). To delete this
-virtualenv, `deactivate` it and then enter `rmvirtualenv camphoric`.
-
-Install the dependencies into the virtualenv:
-```
-cd server
-pip install -r requirements.txt
-```
-Note: On Mac if this fails with `ld: library not found for -lssl` export these variables and try again.
+MacOS: First, export these variables to prevent the following error:
+`ld: library not found for -lssl`:
 ```
 export LDFLAGS="-L/usr/local/opt/openssl/lib"
 export CPPFLAGS="-I/usr/local/opt/openssl/include"
 ```
 
-## Set up the Database
-In the cmd line
-for Linux run:
+Install Python dependencies:
+```
+cd server
+pipenv install --dev --three
+```
+
+From this point forward, it's assumed that this environment is active when
+running python and manage.py commands. To activate it:
+```
+pipenv shell
+```
+
+## Set up the database
+
+MacOS:
+```
+psql postgres
+```
+
+Ubuntu:
 ```
 sudo -i -u postgres
 psql
 ```
-For MacOS run:
-```
-psql postgres
-```
+
 Then in psql in either system (get help with `\?`) run:
 ```
 CREATE USER camphoric CREATEDB PASSWORD 'make-up-a-database-password-and-put-here';
@@ -117,7 +90,7 @@ CREATE DATABASE camphoric OWNER camphoric;
 Hit Ctrl-D to log out of psql (on Linux, also hit Ctrl-D to log out of the
 postgres account).
 
-## Run the API development server
+## Configure Django
 
 Create a file `server/camphoric_server/.env` with the following lines
 ```
@@ -131,7 +104,18 @@ output of the following command:
 python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
-Create the database tables and Django superuser:
+## Run the tests
+
+To test that the setup went correctly run
+```
+./manage.py test
+```
+from the server directory.
+
+## Run the API development server
+
+Before running the development server for the first time,
+create the database tables and Django superuser:
 ```
 cd server
 ./manage.py migrate
@@ -147,6 +131,22 @@ To access the browsable API open this url in your browser:
 ```
 http://127.0.0.1:8000/api/
 ```
+
+## Authentication
+
+There are two options now.
+* Its possible to login to the browsable API by clicking on the login link at the top right corner of the page.
+
+* Or using curl (and jq if you have it) you can interact with JSON API by requesting the token for your previously created user with:
+	```
+	curl -d username=<user name> -d password=<password> http://127.0.0.1:8000/api-token-auth/ | jq
+	```
+	If you want to request a resource that requires authentication run:
+	```
+	curl -H 'Authorization: Token <token>'
+	```
+
+# Client development
 
 ## Run the Client development server
 
@@ -171,31 +171,5 @@ http://127.0.0.1:3000/
 In order to build the production version of Camphoric client, run `yarn build`
 in the `client/` folder. This will build the prod version and copy the files
 into the correct static directory in the `server/` for serving. After that,
-running `python migrate.py runserver` will serve the newly built frontend
+running `python manage.py runserver` will serve the newly built frontend
 from the appropriate bootstrap urls.
-
-## Testing
-
-To test that the setup went correctly run
-```
-./manage.py test
-```
-from the server directory.
-
-## Authentication
-
-There are two options now.
-* Its possible to login to the browsable API by clicking on the login link at the top right corner of the page.
-
-* Or using curl (and jq if you have it) you can interact with JSON API by requesting the token for your previously created user with:
-	```
-	curl -d username=<user name> -d password=<password> http://127.0.0.1:8000/api-token-auth/ | jq
-	```
-	If you want to request a resource that requires authentication run:
-	```
-	curl -H 'Authorization: Token <token>'
-	```
-
-
-
-[Django documentation](https://docs.djangoproject.com/en/2.2/)
