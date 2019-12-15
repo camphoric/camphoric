@@ -24,6 +24,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "rm -rf ../server/frontend_bootstrap/build && mkdir ../server/frontend_bootstrap/build && mv ./build/* ../server/frontend_bootstrap/build/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
