@@ -117,7 +117,7 @@ CREATE DATABASE camphoric OWNER camphoric;
 Hit Ctrl-D to log out of psql (on Linux, also hit Ctrl-D to log out of the
 postgres account).
 
-## Run the development server
+## Run the API development server
 
 Create a file `server/camphoric_server/.env` with the following lines
 ```
@@ -147,6 +147,32 @@ To access the browsable API open this url in your browser:
 ```
 http://127.0.0.1:8000/api/
 ```
+
+## Run the Client development server
+
+From the client directory, install dependencies and run the client server using
+[yarn](https://yarnpkg.com/lang/en/):
+
+```
+cd ./client/
+yarn
+yarn start
+```
+
+With both the API and Client developments servers running, you can access the
+development version of Camphoric at this url: 
+
+```
+http://127.0.0.1:3000/
+```
+
+## Building for Production
+
+In order to build the production version of Camphoric client, run `yarn build`
+in the `client/` folder. This will build the prod version and copy the files
+into the correct static directory in the `server/` for serving. After that,
+running `python migrate.py runserver` will serve the newly built frontend
+from the appropriate bootstrap urls.
 
 ## Testing
 

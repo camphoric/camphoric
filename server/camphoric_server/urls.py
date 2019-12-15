@@ -28,4 +28,7 @@ urlpatterns = [
 
     # Token based authentication for JSON API.
     path('api-token-auth/', obtain_auth_token),
+
+    # Frontend Bootstrap
+    path('', include('frontend_bootstrap.urls')),
 ]

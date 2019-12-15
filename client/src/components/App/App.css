@@ -1,0 +1,100 @@
+.App {
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  background-color: #057e36;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+.App > section {
+  padding: 36px 0;
+  max-width: 750px;
+  flex-grow: 1;
+  background-color: white;
+  box-shadow: 0 0 5px black;
+
+}
+
+form {
+    padding: 15px;
+    text-align: left;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.PriceTicker {
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+fieldset#root div.field-object {
+    border: 1px solid #e5e5e5;
+    padding: 1em;
+    background-color: #eee;
+}
+
+button .glyphicon-plus {
+    display: none;
+}
+
+fieldset#root_campers .array-item-toolbox {
+    width: 15%;
+    float: right;
+}
+
+fieldset#root_campers .array-item-toolbox .btn {
+    white-space: inherit;
+}
+
+fieldset#root_campers > .array-item-list .array-item .col-xs-9 {
+    width: 85%;
+}
+
+.array-item-add, button[type=submit] {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    height: 3em;
+}
+
+fieldset#root_campers > .row:last-child .array-item-add button,
+fieldset#root_parking_passes .array-item-add:last-child button,
+button[type=submit] {
+    width: 100%;
+    height: 100%;
+    font-size: 1.5em;
+}
+
+fieldset#root_campers .array-item-toolbox button.array-item-remove::after {
+    content: " Remove This Camper";
+}
+
+fieldset#root_campers > .row:last-child .array-item-add button::after {
+    content: "Add An Additional Camper";
+}
+
+fieldset#root_campers .accomodations button.btn-add::after {
+    content: "Add A Camper Sharing With You";
+}
+
+fieldset#root_campers .accomodations button.array-item-remove::after {
+    content: "";
+}
+
+fieldset#root_campers .accomodations .btn-group {
+    bottom: -34px;
+}
+
+fieldset#root_campers .accomodations .array-item-toolbox {
+}
+
+fieldset#root_parking_passes .array-item-add button::after {
+    content: "Add A Parking Pass";
+}
+
+.react-phone-number-input__icon img {
+    vertical-align: baseline;
+}
