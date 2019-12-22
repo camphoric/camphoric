@@ -49,7 +49,7 @@ class PaymentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
-class RegistrationFormView(APIView):
+class RegisterView(APIView):
     def get(self, request, format=None):
         return Response(
             {"hello": "world"}
