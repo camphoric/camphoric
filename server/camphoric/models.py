@@ -57,7 +57,7 @@ class Event(TimeStampedModel):
     camper_schema = JSONField(null=True)
     payment_schema = JSONField(null=True)
     registration_schema = JSONField(null=True)
-    lodging_schema = JSONField(null=True)
+    deposit_schema = JSONField(null=True)
 
     def __str__(self):
         return self.name
@@ -88,6 +88,7 @@ class Lodging(TimeStampedModel):
     name = models.CharField(max_length=255)
     capacity = models.IntegerField(default=0)
     notes = models.TextField()
+    # is_visible = models.boolean()
 
 
 class Camper(TimeStampedModel):
