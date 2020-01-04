@@ -51,9 +51,26 @@ class PaymentViewSet(ModelViewSet):
 
 class RegisterView(APIView):
     def get(self, request, format=None):
-        return Response(
-            {"hello": "world"}
-            )
+        event_id = request.query_params['event_id']
+        event = models.Event.objects.get(id=event_id)
+        return Response({
+            'dataSchema': get_data_schema(event)
+        })
 
 
-
+def get_data_schema(event):
+    return {
+        **event.registration_schema,
+        'definitions': {
+            'camper': event.camper_schema,
+         },
+        'properties': {
+            **event.registration_schema['properties'],
+            'campers': {
+                'type': 'array',
+                'items': {
+                    '$ref': '#/definitions/camper',
+                },
+            },
+        },
+   }
