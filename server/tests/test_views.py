@@ -26,7 +26,7 @@ class RegisterTests(APITestCase):
             },
         )
 
-        response = self.client.get('/api/register?event_id=' + str(event.id))
+        response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"dataSchema": {
             'type': 'object',

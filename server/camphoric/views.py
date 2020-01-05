@@ -50,8 +50,8 @@ class PaymentViewSet(ModelViewSet):
 
 
 class RegisterView(APIView):
-    def get(self, request, format=None):
-        event_id = request.query_params['event_id']
+    def get(self, request, event_id=None, format=None):
+        # event_id = request.query_params['event_id']
         event = models.Event.objects.get(id=event_id)
         return Response({
             'dataSchema': get_data_schema(event)
