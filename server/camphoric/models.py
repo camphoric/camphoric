@@ -59,6 +59,10 @@ class Event(TimeStampedModel):
     registration_schema = JSONField(null=True)
     registration_ui_schema = JSONField(null=True)
     deposit_schema = JSONField(null=True)
+    pricing = JSONField(null=True)
+    camper_pricing_logic = JSONField(null=True)
+    registration_pricing_logic = JSONField(null=True)
+
 
     def __str__(self):
         return self.name

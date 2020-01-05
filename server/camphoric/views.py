@@ -51,13 +51,15 @@ class PaymentViewSet(ModelViewSet):
 
 class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
-        # event_id = request.query_params['event_id']
         event = models.Event.objects.get(id=event_id)
         return Response({
             'dataSchema': get_data_schema(event),
             'uiSchema': event.registration_ui_schema or {},
-            # 'pricingLogic': get_pricing_logic(event),
-            # 'princing': get_price(event),
+            'pricing': event.pricing or {},
+            'pricingLogic': {
+                'camper': event.camper_pricing_logic or {},
+                'registration': event.registration_pricing_logic or {},
+            },
         })
 
 
@@ -68,7 +70,7 @@ def get_data_schema(event):
         **event.registration_schema,
         'definitions': {
             'camper': event.camper_schema,
-         },
+        },
         'properties': {
             **event.registration_schema['properties'],
             'campers': {
@@ -78,11 +80,8 @@ def get_data_schema(event):
                 },
             },
         },
-   }
+    }
 
 
 def get_pricing_logic(event):
-    pass
-
-def get_price(event):
     pass
