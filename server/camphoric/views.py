@@ -94,7 +94,3 @@ def get_data_schema(event):
             },
         },
     }
-
-
-def get_pricing_logic(event):
-    pass
