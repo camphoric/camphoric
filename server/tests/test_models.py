@@ -15,7 +15,10 @@ class OrganizationTests(TestCase):
 
     def test_created_at(self):
         self.assertEqual(self.organization.name, "Test Organization")
-        self.assertEqual(self.organization.created_at, datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc))
+        self.assertEqual(
+            self.organization.created_at,
+            datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc)
+        )
 
     @freeze_time("2019-03-26 09:52:01")
     def test_update(self):
@@ -23,14 +26,20 @@ class OrganizationTests(TestCase):
         self.organization.save()
         self.organization.refresh_from_db()
         self.assertEqual(self.organization.name, "New Test Organization")
-        self.assertEqual(self.organization.updated_at, datetime.datetime(2019, 3, 26, 9, 52, 1, tzinfo=timezone.utc))
+        self.assertEqual(
+            self.organization.updated_at,
+            datetime.datetime(2019, 3, 26, 9, 52, 1, tzinfo=timezone.utc)
+        )
 
     @freeze_time("2019-08-26 09:52:01")
     def test_soft_delete_undelete(self):
         self.assertIsNone(self.organization.deleted_at)
         self.organization.soft_delete()
         self.organization.refresh_from_db()
-        self.assertEqual(self.organization.deleted_at, datetime.datetime(2019, 8, 26, 9, 52, 1, tzinfo=timezone.utc))
+        self.assertEqual(
+            self.organization.deleted_at,
+            datetime.datetime(2019, 8, 26, 9, 52, 1, tzinfo=timezone.utc)
+        )
         self.organization.soft_undelete()
         self.organization.refresh_from_db()
         self.assertIsNone(self.organization.deleted_at)

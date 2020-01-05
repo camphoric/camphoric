@@ -63,7 +63,6 @@ class Event(TimeStampedModel):
     camper_pricing_logic = JSONField(null=True)
     registration_pricing_logic = JSONField(null=True)
 
-
     def __str__(self):
         return self.name
 
@@ -86,7 +85,8 @@ class Registration(TimeStampedModel):
 class Lodging(TimeStampedModel):
     '''
     - Recursive table that contains a series of lodging groups
-    - Should be able to track capacity so that lodging options are removed from registration as they fill up
+    - Should be able to track capacity so that lodging options are
+        removed from registration as they fill up
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
@@ -101,7 +101,8 @@ class Camper(TimeStampedModel):
     - Is owned by one Registration
     - Has one Lodgings
     - Has many attributes (probably in JSON form) that are custom added
-    - In the future, it would be nice to tie campers to multiple events, so we can track attendance over the years
+    - In the future, it would be nice to tie campers to multiple events,
+        so we can track attendance over the years.
     '''
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE)

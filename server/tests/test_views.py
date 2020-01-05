@@ -91,4 +91,3 @@ class RegisterTests(APITestCase):
             'camper': event.camper_pricing_logic,
             'registration': event.registration_pricing_logic,
         })
-
