@@ -28,7 +28,7 @@ class RegisterTests(APITestCase):
 
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, {"dataSchema": {
+        self.assertEqual(response.data['dataSchema'], {
             'type': 'object',
             'definitions': {
                 'camper': {
@@ -49,4 +49,23 @@ class RegisterTests(APITestCase):
                 'billing_name': {'type': 'string'},
                 'billing_address': {'type': 'string'},
             },
-        }})
+        })
+
+    def test_uiSchema(self):
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name="Test uiSchema Event",
+            registration_ui_schema={
+                'ui:title': "Test UI Schema",
+                'ui:description': "Test Description",
+            }
+        )
+        response = self.client.get(f'/api/events/{event.id}/register')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['uiSchema'], {
+                'ui:title': "Test UI Schema",
+                'ui:description': "Test Description",
+            }
+        )
+
+

@@ -54,11 +54,16 @@ class RegisterView(APIView):
         # event_id = request.query_params['event_id']
         event = models.Event.objects.get(id=event_id)
         return Response({
-            'dataSchema': get_data_schema(event)
+            'dataSchema': get_data_schema(event),
+            'uiSchema': event.registration_ui_schema or {},
+            # 'pricingLogic': get_pricing_logic(event),
+            # 'princing': get_price(event),
         })
 
 
 def get_data_schema(event):
+    if not event.registration_schema:
+        return None
     return {
         **event.registration_schema,
         'definitions': {
@@ -74,3 +79,10 @@ def get_data_schema(event):
             },
         },
    }
+
+
+def get_pricing_logic(event):
+    pass
+
+def get_price(event):
+    pass

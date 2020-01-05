@@ -57,6 +57,7 @@ class Event(TimeStampedModel):
     camper_schema = JSONField(null=True)
     payment_schema = JSONField(null=True)
     registration_schema = JSONField(null=True)
+    registration_ui_schema = JSONField(null=True)
     deposit_schema = JSONField(null=True)
 
     def __str__(self):
