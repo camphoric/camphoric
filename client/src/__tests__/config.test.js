@@ -1,6 +1,6 @@
 import fs from 'fs';
 import jsonLogic from 'json-logic-js';
-import { calculatePrice } from '../components/utils';
+import { calculatePrice } from '../components/RegisterPage/utils';
 const config = fs.readFileSync('public/config.json');
   
 
