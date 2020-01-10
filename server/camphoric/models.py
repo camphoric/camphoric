@@ -5,11 +5,6 @@ from django.db import models
 from django.utils import timezone
 
 
-# Users are built into Django. No class needed.
-# Do we need tags given that we will have JSONFields?
-# Sign Model not yet implemented. Needs more discussion.
-
-
 class TimeStampedModel(models.Model):
     '''
     - Base class for most models.
@@ -47,6 +42,14 @@ class Event(TimeStampedModel):
     '''
     - Is owned by one Organization
     - Has many Registrations
+
+    Many models associated with an event have an `attributes` JSON field. The
+    Event model defines the JSON schemas for those fields in the various
+    *_schema fields.
+
+    Pricing for an event is determined by the `pricing`,
+    `registration_pricing_logic`, and `camper_pricing_logic` fields.
+    See camphoric.views.RegisterView for more info.
     '''
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
@@ -54,14 +57,14 @@ class Event(TimeStampedModel):
     registration_end = models.DateTimeField(null=True)
     start = models.DateTimeField(null=True)
     end = models.DateTimeField(null=True)
-    camper_schema = JSONField(null=True)
-    payment_schema = JSONField(null=True)
-    registration_schema = JSONField(null=True)
-    registration_ui_schema = JSONField(null=True)
-    deposit_schema = JSONField(null=True)
-    pricing = JSONField(null=True)
-    camper_pricing_logic = JSONField(null=True)
-    registration_pricing_logic = JSONField(null=True)
+    camper_schema = JSONField(null=True, help_text="JSON schema for Camper.attributes")
+    payment_schema = JSONField(null=True, help_text="JSON schema for Payment.attributes")
+    registration_schema = JSONField(null=True, help_text="JSON schema for Registration.attributes")
+    registration_ui_schema = JSONField(null=True, help_text="react-jsonschema-form uiSchema for registration form")
+    deposit_schema = JSONField(null=True, help_text="JSON schema for Deposit.attributes")
+    pricing = JSONField(null=True, help_text="key-value object with pricing variables")
+    camper_pricing_logic = JSONField(null=True, help_text="JsonLogic Camper-level pricing components")
+    registration_pricing_logic = JSONField(null=True, help_text="JsonLogic Registration-level pricing components")
 
     def __str__(self):
         return self.name
@@ -93,7 +96,6 @@ class Lodging(TimeStampedModel):
     name = models.CharField(max_length=255)
     capacity = models.IntegerField(default=0)
     notes = models.TextField()
-    # is_visible = models.boolean()
 
 
 class Camper(TimeStampedModel):
@@ -115,7 +117,7 @@ class Deposit(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     deposited_on = models.DateTimeField(null=True)
-    attributes = JSONField(null=True)  # TODO: Add schema or remove attributes. Is it needed?
+    attributes = JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
 

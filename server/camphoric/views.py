@@ -53,16 +53,18 @@ class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
         '''
         Return an object with the following keys:
-        - dataSchema: JSONSchema to be used to render the registration form
+        - dataSchema: JSON schema to be used to render the registration form
         - uiSchema: react-jsonschema-form uses this to control form layout
-        - pricing: Key-Value object with pricing variables
+        - pricing: key-value object with pricing variables
         - pricingLogic: Has keys: camper (camper level calculations) and
             registration (registration level calculations), which are each key-value
             objects describing the pricing components at the camper and registration
             level respectively. The key is an identifier for pricing component and
-            the value is a JSONLogic expression to calculate that component. All
+            the value is a JsonLogic* expression to calculate that component. All
             components will be summed together to calculate the final price. See
             test_pricing_fields() in test_views.py for an example.
+
+        * http://jsonlogic.com/
         '''
         event = models.Event.objects.get(id=event_id)
         return Response({
