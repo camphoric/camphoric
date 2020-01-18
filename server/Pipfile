@@ -12,6 +12,6 @@ djangorestframework = "*"
 django-environ = "*"
 jsonschema = "*"
 psycopg2 = "*"
-json-logic = "*"
+json-logic-qubit = "*"
 
 [requires]

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bb8c8b58af3fd4d3e851eb3bc370137755516facce44f038b2a2fe21e58486e2"
+            "sha256": "90b6acb67e8ffc750009ab11cace9afaad05ea5227c7349af6b5f8ea21da9cd1"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -60,13 +60,12 @@
             "markers": "python_version < '3.8'",
             "version": "==1.4.0"
         },
-        "json-logic": {
+        "json-logic-qubit": {
             "hashes": [
-                "sha256:d67d4656f4f5b427858141fa8247bf3062d612ebed99005b069d92e31139375f",
-                "sha256:dd873af85ae44292cdd708357c16d7788cf7590befa8fa1250cced27589fa7f0"
+                "sha256:d024ff0c77659eb97ddf742e0bd1b7caacd44bc53fdfc8f3977f4062a3c3b056"
             ],
             "index": "pypi",
-            "version": "==0.6.3"
+            "version": "==0.9.1"
         },
         "jsonschema": {
             "hashes": [
