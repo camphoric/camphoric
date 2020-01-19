@@ -2,6 +2,9 @@ import unittest
 
 from json_logic import jsonLogic
 
+from camphoric import models
+from camphoric import pricing
+
 
 class TestJsonLogic(unittest.TestCase):
 
@@ -45,3 +48,48 @@ class TestJsonLogic(unittest.TestCase):
         }
         self.assertEqual(
             jsonLogic(logic, data), 40)
+
+
+class TestCalculatePrice(unittest.TestCase):
+
+    def setUp(self):
+        self.organization = models.Organization(name="Test Organization")
+
+    def test_calculate_registration(self):
+        event = models.Event(
+            organization=self.organization,
+            name="Test Event",
+            pricing={
+                "cabin": 100,
+                "parking_pass": 50
+            },
+            registration_pricing_logic={
+                "cabins": {
+                    "*": [
+                        {"var": "registration.number_of_cabins"},
+                        {"var": "pricing.cabin"},
+
+                    ]
+                },
+                "parking_passes": {
+                    "*": [
+                        {"var": "registration.number_of_parking_passes"},
+                        {"var": "pricing.parking_pass"}
+                    ]
+                }
+            },
+            camper_pricing_logic={}
+        )
+        registration = models.Registration(
+            event=event,
+            attributes={
+                "number_of_cabins": 3,
+                "number_of_parking_passes": 2
+            }
+        )
+        registration_price = pricing.calculate_price(registration)
+        self.assertEqual(registration_price, {
+            "cabins": 300,
+            "parking_passes": 100,
+            "total": 400,
+        })
