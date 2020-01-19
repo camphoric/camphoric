@@ -9,8 +9,8 @@ def calculate_price(registration, campers):
     registration: camphoric.models.Registration
     campers: [camphoric.models.Camper]
 
-    In order to calculate the price without writing to the database, campers are passed as a
-    separate array.
+    In order to calculate the price without writing to the database,
+    campers are passed as a separate array.
 
     Returns
     -------
