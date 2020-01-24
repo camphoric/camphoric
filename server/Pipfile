@@ -13,5 +13,6 @@ django-environ = "*"
 jsonschema = "*"
 psycopg2 = "*"
 json-logic-qubit = "*"
+gunicorn = "*"
 
 [requires]
