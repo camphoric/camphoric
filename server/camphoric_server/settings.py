@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-
+import django_heroku
 import environ
 
 # read .env file
@@ -33,7 +33,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = ['camphoric.herokuapp.com', 'camphoric.com', 'www.camphoric.com']
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -142,3 +142,6 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ]
 }
+
+if not DEBUG:
+    django_heroku.settings(locals())
