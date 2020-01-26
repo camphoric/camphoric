@@ -130,7 +130,11 @@ USE_TZ = True
 
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
 
-STATIC_URL = '/s/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+
+# Ensure STATIC_ROOT exists.
+os.makedirs(STATIC_ROOT, exist_ok=True)
 
 STATICFILES_DIRS = [
     REACT_BUILD_DIR,
@@ -145,3 +149,5 @@ REST_FRAMEWORK = {
 
 if not DEBUG:
     django_heroku.settings(locals())
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
