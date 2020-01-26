@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "proxy": "http://localhost:8000/",
-  "homepage": "static/",
   "dependencies": {
     "@types/jest": "^24.0.18",
     "@types/lodash": "^4.14.138",
@@ -26,7 +25,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "postbuild": "rm -rf ../server/frontend_bootstrap/build && mkdir ../server/frontend_bootstrap/build && mv ./build/* ../server/frontend_bootstrap/build/",
+    "postbuild": "rm -rf ../server/frontend_bootstrap/build && mkdir ../server/frontend_bootstrap/build && mv ./build/* ../server/frontend_bootstrap/build/ && mv ../server/frontend_bootstrap/build/static/* ../server/frontend_bootstrap/build/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
