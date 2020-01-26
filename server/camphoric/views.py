@@ -1,3 +1,6 @@
+import jsonschema  # Using Draft-7
+
+from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -68,7 +71,7 @@ class RegisterView(APIView):
         '''
         event = models.Event.objects.get(id=event_id)
         return Response({
-            'dataSchema': get_data_schema(event),
+            'dataSchema': self.get_form_schema(event),
             'uiSchema': event.registration_ui_schema or {},
             'pricing': event.pricing or {},
             'pricingLogic': {
@@ -77,22 +80,41 @@ class RegisterView(APIView):
             },
         })
 
-
-def get_data_schema(event):
-    if not event.registration_schema:
-        return None
-    return {
-        **event.registration_schema,
-        'definitions': {
-            'camper': event.camper_schema,
-        },
-        'properties': {
-            **event.registration_schema['properties'],
-            'campers': {
-                'type': 'array',
-                'items': {
-                    '$ref': '#/definitions/camper',
+    @classmethod
+    def get_form_schema(cls, event):
+        if not event.registration_schema:
+            return None
+        return {
+            **event.registration_schema,
+            'definitions': {
+                'camper': event.camper_schema,
+            },
+            'properties': {
+                **event.registration_schema['properties'],
+                'campers': {
+                    'type': 'array',
+                    'items': {
+                        '$ref': '#/definitions/camper',
+                    },
                 },
             },
-        },
-    }
+        }
+
+    @classmethod
+    def validate_form_data(cls, event, form_data):
+        schema = cls.get_form_schema(event)
+        try:
+            jsonschema.validate(form_data, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            path = '.'.join(e.absolute_path)
+            raise ValidationError(f'{path}: {e.message}')
+
+    @classmethod
+    def deserialize_form_data(cls, event, form_data):
+        registration_data = {k: v for k, v in form_data.items() if k != 'campers'}
+        registration = models.Registration(event=event, attributes=registration_data)
+        campers = [
+            models.Camper(registration=registration, attributes=camper_attributes)
+            for camper_attributes in form_data['campers']
+        ]
+        return registration, campers

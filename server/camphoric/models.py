@@ -108,7 +108,7 @@ class Camper(TimeStampedModel):
     '''
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
-    lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE)
+    lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
     attributes = JSONField(null=True)
 
 
