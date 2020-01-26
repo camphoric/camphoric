@@ -141,7 +141,4 @@ REST_FRAMEWORK = {
     ]
 }
 
-if not DEBUG:
-    django_heroku.settings(locals())
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-
+django_heroku.settings(locals())
