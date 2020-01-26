@@ -130,7 +130,7 @@ USE_TZ = True
 
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
 
-STATIC_URL = '/static/'
+STATIC_URL = '/s/'
 
 STATICFILES_DIRS = [
     REACT_BUILD_DIR,
