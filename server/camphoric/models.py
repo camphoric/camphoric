@@ -106,7 +106,8 @@ class Camper(TimeStampedModel):
     - In the future, it would be nice to tie campers to multiple events,
         so we can track attendance over the years.
     '''
-    registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
+    registration = models.ForeignKey(
+        Registration, related_name="campers", on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
 
