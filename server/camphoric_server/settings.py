@@ -35,6 +35,7 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
+STATIC_URL='/static/'
 
 # Application definition
 
@@ -134,6 +135,8 @@ STATICFILES_DIRS = [
     os.path.join(REACT_BUILD_DIR, 'static'),
 ]
 
+WHITENOISE_ROOT = os.path.join(REACT_BUILD_DIR)
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -141,5 +144,4 @@ REST_FRAMEWORK = {
     ]
 }
 
-if not DEBUG:
-    django_heroku.settings(locals())
+django_heroku.settings(locals(), databases = not DEBUG)
