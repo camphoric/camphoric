@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "proxy": "http://localhost:8000/",
+  "hostname": "static",
   "dependencies": {
     "@types/jest": "^24.0.18",
     "@types/lodash": "^4.14.138",
