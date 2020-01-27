@@ -141,4 +141,5 @@ REST_FRAMEWORK = {
     ]
 }
 
-django_heroku.settings(locals())
+if not DEBUG:
+    django_heroku.settings(locals())
