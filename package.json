@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "heroku-postbuild": "cd client && yarn install && yarn run build"
+  }
+}

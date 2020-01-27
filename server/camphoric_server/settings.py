@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-
+import django_heroku
 import environ
 
 # read .env file
@@ -35,6 +35,7 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
+STATIC_URL='/static/'
 
 # Application definition
 
@@ -130,11 +131,11 @@ USE_TZ = True
 
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
 
-STATIC_URL = '/static/'
-
 STATICFILES_DIRS = [
-    REACT_BUILD_DIR,
+    os.path.join(REACT_BUILD_DIR, 'static'),
 ]
+
+WHITENOISE_ROOT = os.path.join(REACT_BUILD_DIR)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -142,3 +143,5 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ]
 }
+
+django_heroku.settings(locals(), databases = not DEBUG)
