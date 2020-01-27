@@ -109,7 +109,7 @@ class App extends React.Component {
     let config: RegistrationConfig;
 
     try {
-      const res = await fetch("/static/legacy_lark_config.json");
+      const res = await fetch("/legacy_lark_config.json");
       config = await res.json();
     } catch (e) {
       console.error(e);
