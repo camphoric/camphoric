@@ -1,5 +1,5 @@
+from django.shortcuts import get_object_or_404
 import jsonschema  # Using Draft-7
-
 from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -80,6 +80,21 @@ class RegisterView(APIView):
             },
         })
 
+    def post(self, request, event_id=None, format=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        form_data = request.data.get('formData')
+        if not form_data:
+            raise ValidationError({'formData': 'This field is required.'})
+        self.validate_form_data(event, form_data)
+        registration, campers = self.deserialize_form_data(
+            event, form_data)
+        # pricing gets called
+        # email registrant and registrar
+        registration.save()
+        for camper in campers:
+            camper.save()
+        return Response({'success': True})
+
     @classmethod
     def get_form_schema(cls, event):
         if not event.registration_schema:
@@ -107,7 +122,7 @@ class RegisterView(APIView):
             jsonschema.validate(form_data, schema)
         except jsonschema.exceptions.ValidationError as e:
             path = '.'.join(e.absolute_path)
-            raise ValidationError(f'{path}: {e.message}')
+            raise ValidationError({path: e.message})
 
     @classmethod
     def deserialize_form_data(cls, event, form_data):
