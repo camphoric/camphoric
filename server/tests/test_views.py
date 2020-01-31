@@ -1,3 +1,4 @@
+import json
 from rest_framework.test import APITestCase
 from rest_framework.serializers import ValidationError
 
@@ -127,28 +128,41 @@ class RegisterPostTests(APITestCase):
             'billing_address': '1234 Average Street',
         }
 
-    def test_validate_form_data_invalid(self):
-        with self.assertRaisesRegex(ValidationError, 'billing_name'):
-            views.RegisterView.validate_form_data(self.event, {
-                **self.valid_form_data, 'billing_name': 2})
+    def test_post_errors(self):
+        response = self.client.post(f'/api/events/0/register',{})
+        self.assertEqual(response.status_code, 404)
 
-    def test_validate_form_data_valid(self):
-        views.RegisterView.validate_form_data(self.event, self.valid_form_data)
+        response = self.client.post(f'/api/events/{self.event.id}/register',{})
+        self.assertEqual(response.status_code, 400)
+        self.assertRegex(json.dumps(response.data), r'formData.*required')
 
-    def test_deserialize_form_data(self):
-        registration, campers = views.RegisterView.deserialize_form_data(
-            self.event, self.valid_form_data)
-        self.assertIsInstance(registration, models.Registration)
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {'formData': {
+                **self.valid_form_data, 'billing_name': 2}
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertRegex(json.dumps(response.data), r'billing_name')
+
+    def test_post_success(self):
+        self.assertEqual(models.Registration.objects.count(), 0)
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {'formData': self.valid_form_data},
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        registrations = models.Registration.objects.all()
+        registration = registrations[0]
+        campers = registration.campers.all()
         self.assertEqual(registration.attributes['billing_name'], 'Testi McTesterton')
         self.assertEqual(registration.attributes['billing_address'], '1234 Average Street')
         self.assertEqual(registration.event, self.event)
-        self.assertIsInstance(campers, list)
         self.assertEqual(len(campers), 2)
-        self.assertIsInstance(campers[0], models.Camper)
-        self.assertIsInstance(campers[1], models.Camper)
         self.assertEqual(campers[0].attributes['name'], 'Testi McTesterton')
         self.assertEqual(campers[1].attributes['name'], 'Testi McTesterton Junior')
         self.assertEqual(campers[0].registration, registration)
         self.assertEqual(campers[1].registration, registration)
-
 
