@@ -2,7 +2,7 @@ import json
 from rest_framework.test import APITestCase
 from rest_framework.serializers import ValidationError
 
-from camphoric import models, views
+from camphoric import models
 
 
 class RegisterGetTests(APITestCase):
@@ -118,6 +118,13 @@ class RegisterPostTests(APITestCase):
                     'name': {'type': 'string'},
                 },
             },
+            pricing={},
+            registration_pricing_logic={
+                'cabins': {'*': [1, 100]},
+            },
+            camper_pricing_logic={
+                'tuition': {'*': [1, 100]},
+            }
         )
         self.valid_form_data = {
             'campers': [
@@ -129,18 +136,27 @@ class RegisterPostTests(APITestCase):
         }
 
     def test_post_errors(self):
-        response = self.client.post(f'/api/events/0/register',{})
+        response = self.client.post(f'/api/events/0/register', {}, format='json')
         self.assertEqual(response.status_code, 404)
 
-        response = self.client.post(f'/api/events/{self.event.id}/register',{})
+        response = self.client.post(f'/api/events/{self.event.id}/register', {}, format='json')
         self.assertEqual(response.status_code, 400)
-        self.assertRegex(json.dumps(response.data), r'formData.*required')
+        self.assertRegex(json.dumps(response.data), r'formData.*required', )
 
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
-            {'formData': {
-                **self.valid_form_data, 'billing_name': 2}
+            {'formData': {}},
+            format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertRegex(json.dumps(response.data), r'pricingResults.*required')
+
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'formData': {**self.valid_form_data, 'billing_name': 2},
+                'pricingResults': {},
             },
+
             format='json'
         )
         self.assertEqual(response.status_code, 400)
@@ -148,9 +164,17 @@ class RegisterPostTests(APITestCase):
 
     def test_post_success(self):
         self.assertEqual(models.Registration.objects.count(), 0)
+        expected_pricing_results = {
+            'cabins': 100,
+            'tuition': 200,
+            'total': 300,
+        }
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
-            {'formData': self.valid_form_data},
+            {
+                'formData': self.valid_form_data,
+                'pricingResults': expected_pricing_results,
+            },
             format='json'
         )
         self.assertEqual(response.status_code, 200)
@@ -165,4 +189,6 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].attributes['name'], 'Testi McTesterton Junior')
         self.assertEqual(campers[0].registration, registration)
         self.assertEqual(campers[1].registration, registration)
-
+        self.assertEqual(registration.server_pricing_results, expected_pricing_results)
+        self.assertEqual(registration.client_pricing_results, expected_pricing_results)
+        self.assertEqual(response.data, {'serverPricingPesults': expected_pricing_results})
