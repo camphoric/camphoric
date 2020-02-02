@@ -59,12 +59,20 @@ class Event(TimeStampedModel):
     end = models.DateTimeField(null=True)
     camper_schema = JSONField(null=True, help_text="JSON schema for Camper.attributes")
     payment_schema = JSONField(null=True, help_text="JSON schema for Payment.attributes")
-    registration_schema = JSONField(null=True, help_text="JSON schema for Registration.attributes")
-    registration_ui_schema = JSONField(null=True, help_text="react-jsonschema-form uiSchema for registration form")
+    registration_schema = JSONField(
+        null=True,
+        help_text="JSON schema for Registration.attributes")
+    registration_ui_schema = JSONField(
+        null=True,
+        help_text="react-jsonschema-form uiSchema for registration form")
     deposit_schema = JSONField(null=True, help_text="JSON schema for Deposit.attributes")
     pricing = JSONField(null=True, help_text="key-value object with pricing variables")
-    camper_pricing_logic = JSONField(null=True, help_text="JsonLogic Camper-level pricing components")
-    registration_pricing_logic = JSONField(null=True, help_text="JsonLogic Registration-level pricing components")
+    camper_pricing_logic = JSONField(
+        null=True,
+        help_text="JsonLogic Camper-level pricing components")
+    registration_pricing_logic = JSONField(
+        null=True,
+        help_text="JsonLogic Registration-level pricing components")
 
     def __str__(self):
         return self.name
@@ -80,6 +88,8 @@ class Registration(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
+    server_pricing_results = JSONField(null=True)
+    client_pricing_results = JSONField(null=True)
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)

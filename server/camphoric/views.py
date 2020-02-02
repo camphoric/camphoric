@@ -7,6 +7,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import permissions
 
 from camphoric import models
+from camphoric import pricing
 from camphoric import serializers
 
 
@@ -83,17 +84,23 @@ class RegisterView(APIView):
     def post(self, request, event_id=None, format=None):
         event = get_object_or_404(models.Event, id=event_id)
         form_data = request.data.get('formData')
-        if not form_data:
+        if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
+        client_pricing_results = request.data.get('pricingResults')
+        if client_pricing_results is None:
+            raise ValidationError({'pricingResults': 'This field is required.'})
         self.validate_form_data(event, form_data)
         registration, campers = self.deserialize_form_data(
             event, form_data)
-        # pricing gets called
+        server_pricing_results = pricing.calculate_price(registration, campers)
+        registration.server_pricing_results = server_pricing_results
+        registration.client_pricing_results = client_pricing_results
+        #   calculate the price, save it to DB, return price to client
         # email registrant and registrar
         registration.save()
         for camper in campers:
             camper.save()
-        return Response({'success': True})
+        return Response({'serverPricingPesults': server_pricing_results})
 
     @classmethod
     def get_form_schema(cls, event):
