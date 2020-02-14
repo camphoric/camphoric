@@ -190,5 +190,5 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[0].registration, registration)
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
-        self.assertEqual(registration.client_pricing_results, expected_pricing_results)
+        self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
         self.assertEqual(response.data, {'serverPricingPesults': expected_pricing_results})
