@@ -89,7 +89,7 @@ class Registration(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
     server_pricing_results = JSONField(null=True)
-    client_pricing_results = JSONField(null=True)
+    client_reported_pricing = JSONField(null=True)
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)

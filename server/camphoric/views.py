@@ -86,17 +86,16 @@ class RegisterView(APIView):
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
-        client_pricing_results = request.data.get('pricingResults')
-        if client_pricing_results is None:
+        client_reported_pricing = request.data.get('pricingResults')
+        if client_reported_pricing is None:
             raise ValidationError({'pricingResults': 'This field is required.'})
         self.validate_form_data(event, form_data)
         registration, campers = self.deserialize_form_data(
             event, form_data)
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
-        registration.client_pricing_results = client_pricing_results
-        #   calculate the price, save it to DB, return price to client
-        # email registrant and registrar
+        registration.client_reported_pricing = client_reported_pricing
+        # TODO: email registrant and registrar
         registration.save()
         for camper in campers:
             camper.save()
