@@ -110,7 +110,16 @@ class RegisterView(APIView):
             'definitions': {
                 'camper': event.camper_schema,
             },
+            'required': [
+                *event.registration_schema.get('required', []),
+                'registrant_email',
+            ],
             'properties': {
+                'registrant_email': {
+                    'type': 'string',
+                    'format': 'email',
+                    'title': 'Registrant email',
+                },
                 **event.registration_schema['properties'],
                 'campers': {
                     'type': 'array',

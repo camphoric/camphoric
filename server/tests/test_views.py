@@ -1,4 +1,6 @@
 import json
+
+import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase
 from rest_framework.serializers import ValidationError
 
@@ -31,6 +33,7 @@ class RegisterGetTests(APITestCase):
 
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
+        jsonschema.Draft7Validator.check_schema(response.data['dataSchema'])
         self.assertEqual(response.data['dataSchema'], {
             'type': 'object',
             'definitions': {
@@ -42,7 +45,13 @@ class RegisterGetTests(APITestCase):
 
                 },
             },
+            'required': ['registrant_email'],
             'properties': {
+                'registrant_email': {
+                    'type': 'string',
+                    'format': 'email',
+                    'title': 'Registrant email',
+                },
                 'campers': {
                     'type': 'array',
                     'items': {
@@ -127,6 +136,7 @@ class RegisterPostTests(APITestCase):
             }
         )
         self.valid_form_data = {
+            'registrant_email': 'testi@mctesterson.com',
             'campers': [
                 {'name': 'Testi McTesterton'},
                 {'name': 'Testi McTesterton Junior'},
