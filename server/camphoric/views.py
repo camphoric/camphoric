@@ -1,3 +1,7 @@
+import logging
+from smtplib import SMTPException
+
+from django.core import mail
 from django.shortcuts import get_object_or_404
 import jsonschema  # Using Draft-7
 from rest_framework.serializers import ValidationError
@@ -9,6 +13,9 @@ from rest_framework import permissions
 from camphoric import models
 from camphoric import pricing
 from camphoric import serializers
+
+
+logger = logging.getLogger(__name__)
 
 
 class OrganizationViewSet(ModelViewSet):
@@ -95,11 +102,30 @@ class RegisterView(APIView):
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
-        # TODO: email registrant and registrar
         registration.save()
         for camper in campers:
             camper.save()
-        return Response({'serverPricingPesults': server_pricing_results})
+
+        email_error = None
+        try:
+            sent = mail.send_mail(
+                event.confirmation_email_subject,
+                event.confirmation_email_body,
+                event.confirmation_email_from,
+                [registration.registrant_email],
+                fail_silently=False)
+            if not sent:
+                email_error = 'mail not sent'
+        except SMTPException as e:
+            email_error = str(e)
+
+        if email_error:
+            logger.error(f'error sending confirmation email: {email_error}')
+
+        return Response({
+            'serverPricingPesults': server_pricing_results,
+            'emailError': bool(email_error),
+        })
 
     @classmethod
     def get_form_schema(cls, event):
@@ -141,8 +167,15 @@ class RegisterView(APIView):
 
     @classmethod
     def deserialize_form_data(cls, event, form_data):
-        registration_data = {k: v for k, v in form_data.items() if k != 'campers'}
-        registration = models.Registration(event=event, attributes=registration_data)
+        registration_attributes = {
+            k: v for k, v in form_data.items()
+            if not k in ['campers', 'registrant_email']
+        }
+        registration = models.Registration(
+            event=event,
+            registrant_email=form_data['registrant_email'],
+            attributes=registration_attributes,
+        )
         campers = [
             models.Camper(registration=registration, attributes=camper_attributes)
             for camper_attributes in form_data['campers']

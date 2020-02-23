@@ -1,5 +1,6 @@
 import json
 
+from django.core import mail
 import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase
 from rest_framework.serializers import ValidationError
@@ -133,7 +134,10 @@ class RegisterPostTests(APITestCase):
             },
             camper_pricing_logic={
                 'tuition': {'*': [1, 100]},
-            }
+            },
+            confirmation_email_subject='Registration confirmation',
+            confirmation_email_body='Thanks for registering!',
+            confirmation_email_from='reg@camp.org',
         )
         self.valid_form_data = {
             'registrant_email': 'testi@mctesterson.com',
@@ -201,4 +205,15 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
-        self.assertEqual(response.data, {'serverPricingPesults': expected_pricing_results})
+
+        self.assertEqual(response.data, {
+            'emailError': False,
+            'serverPricingPesults': expected_pricing_results,
+        })
+
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, 'Registration confirmation')
+        self.assertEqual(message.body, 'Thanks for registering!')
+        self.assertEqual(message.from_email, 'reg@camp.org')
+        self.assertEqual(message.to, ['testi@mctesterson.com'])
