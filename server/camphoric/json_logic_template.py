@@ -7,6 +7,9 @@ event-specific confirmation emails).
 One of these templates is just a list where each element is either:
 - just a string, or
 - a JsonLogic dict, which will be evaluated with the given `data`
+
+Each piece of JsonLogic may return a list, which will itself be rendered as a
+template.
 """
 
 # TODO: Add validate function
@@ -20,5 +23,7 @@ def render(template, data):
 
 def _render_chunk(chunk, data):
     if isinstance(chunk, dict):
-         return str(jsonLogic(chunk, data))
+        chunk = jsonLogic(chunk, data)
+    if isinstance(chunk, list):
+        chunk = render(chunk, data)
     return str(chunk)

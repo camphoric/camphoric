@@ -21,3 +21,27 @@ class TestJsonLogicTemplate(unittest.TestCase):
         ]
         data = {'foo': 1, 'bar': 0}
         self.assertEqual(render(template, data), 'generic text\nsomething about foo\nmore generic text\n')
+
+    def test_map(self):
+        template = [
+            {'var': 'parent_name'},
+            '\n',
+            {
+                'map': [
+                    {'var': 'kids'},
+                    [{'var': 'name'}, ', age ', {'var': 'age'}, '\n']
+                ]
+            }
+        ]
+        data = {
+            'parent_name': 'Bob',
+            'kids': [
+                {'name': 'Billy', 'age': 8},
+                {'name': 'Suzy', 'age': 9},
+            ]
+        }
+        self.assertEqual(render(template, data), """
+Bob
+Billy, age 8
+Suzy, age 9
+""".lstrip())
