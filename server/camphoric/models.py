@@ -74,6 +74,11 @@ class Event(TimeStampedModel):
         null=True,
         help_text="JsonLogic Registration-level pricing components")
 
+    confirmation_page_template = JSONField(default=list, help_text="JsonLogic template")
+    confirmation_email_subject = models.CharField(default='', max_length=100)
+    confirmation_email_template = JSONField(default=list, help_text="JsonLogic template")
+    confirmation_email_from = models.EmailField()
+
     def __str__(self):
         return self.name
 
@@ -88,6 +93,7 @@ class Registration(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
+    registrant_email = models.EmailField()
     server_pricing_results = JSONField(null=True)
     client_reported_pricing = JSONField(null=True)
 

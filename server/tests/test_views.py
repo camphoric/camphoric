@@ -1,4 +1,7 @@
 import json
+
+from django.core import mail
+import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase
 from rest_framework.serializers import ValidationError
 
@@ -31,6 +34,7 @@ class RegisterGetTests(APITestCase):
 
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
+        jsonschema.Draft7Validator.check_schema(response.data['dataSchema'])
         self.assertEqual(response.data['dataSchema'], {
             'type': 'object',
             'definitions': {
@@ -42,7 +46,13 @@ class RegisterGetTests(APITestCase):
 
                 },
             },
+            'required': ['registrant_email'],
             'properties': {
+                'registrant_email': {
+                    'type': 'string',
+                    'format': 'email',
+                    'title': 'Registrant email',
+                },
                 'campers': {
                     'type': 'array',
                     'items': {
@@ -124,9 +134,22 @@ class RegisterPostTests(APITestCase):
             },
             camper_pricing_logic={
                 'tuition': {'*': [1, 100]},
-            }
+            },
+            confirmation_page_template=[],
+            confirmation_email_subject='Registration confirmation',
+            confirmation_email_template=[
+                'Thanks for registering, ',
+                {'var': 'registration.billing_name'},
+                '!\n\nCampers:\n',
+                {'map': [{'var': 'campers'}, [{'var': 'name'}, '\n']]},
+                '\nTotal due: $',
+                {'var': 'pricing_results.total'},
+                '\n'
+            ],
+            confirmation_email_from='reg@camp.org',
         )
         self.valid_form_data = {
+            'registrant_email': 'testi@mctesterson.com',
             'campers': [
                 {'name': 'Testi McTesterton'},
                 {'name': 'Testi McTesterton Junior'},
@@ -191,4 +214,23 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
-        self.assertEqual(response.data, {'serverPricingPesults': expected_pricing_results})
+
+        self.assertEqual(response.data, {
+            'emailError': False,
+            'serverPricingPesults': expected_pricing_results,
+        })
+
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, 'Registration confirmation')
+        self.assertEqual(message.body, """
+Thanks for registering, Testi McTesterton!
+
+Campers:
+Testi McTesterton
+Testi McTesterton Junior
+
+Total due: $300
+""".lstrip())
+        self.assertEqual(message.from_email, 'reg@camp.org')
+        self.assertEqual(message.to, ['testi@mctesterson.com'])
