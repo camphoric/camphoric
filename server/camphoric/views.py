@@ -10,9 +10,12 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import permissions
 
-from camphoric import models
-from camphoric import pricing
-from camphoric import serializers
+from camphoric import (
+    json_logic_template,
+    models,
+    pricing,
+    serializers,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -106,11 +109,19 @@ class RegisterView(APIView):
         for camper in campers:
             camper.save()
 
+        confirmation_email_body = json_logic_template.render(
+            event.confirmation_email_template,
+            {
+                'registration': registration.attributes,
+                'campers': [camper.attributes for camper in campers],
+                'pricing_results': server_pricing_results,
+            })
+
         email_error = None
         try:
             sent = mail.send_mail(
                 event.confirmation_email_subject,
-                event.confirmation_email_body,
+                confirmation_email_body,
                 event.confirmation_email_from,
                 [registration.registrant_email],
                 fail_silently=False)

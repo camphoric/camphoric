@@ -135,8 +135,17 @@ class RegisterPostTests(APITestCase):
             camper_pricing_logic={
                 'tuition': {'*': [1, 100]},
             },
+            confirmation_page_template=[],
             confirmation_email_subject='Registration confirmation',
-            confirmation_email_body='Thanks for registering!',
+            confirmation_email_template=[
+                'Thanks for registering, ',
+                {'var': 'registration.billing_name'},
+                '!\n\nCampers:\n',
+                {'map': [{'var': 'campers'}, [{'var': 'name'}, '\n']]},
+                '\nTotal due: $',
+                {'var': 'pricing_results.total'},
+                '\n'
+            ],
             confirmation_email_from='reg@camp.org',
         )
         self.valid_form_data = {
@@ -214,6 +223,14 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         self.assertEqual(message.subject, 'Registration confirmation')
-        self.assertEqual(message.body, 'Thanks for registering!')
+        self.assertEqual(message.body, """
+Thanks for registering, Testi McTesterton!
+
+Campers:
+Testi McTesterton
+Testi McTesterton Junior
+
+Total due: $300
+""".lstrip())
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi@mctesterson.com'])
