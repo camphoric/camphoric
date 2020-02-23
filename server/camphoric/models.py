@@ -74,6 +74,11 @@ class Event(TimeStampedModel):
         null=True,
         help_text="JsonLogic Registration-level pricing components")
 
+    confirmation_page_html = models.TextField(help_text="will be passed through str.format")
+    confirmation_email_subject = models.CharField(max_length=100)
+    confirmation_email_body = models.TextField(help_text="will be passed through str.format")
+    confirmation_email_from = models.EmailField()
+
     def __str__(self):
         return self.name
 
