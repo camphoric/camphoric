@@ -12,13 +12,18 @@ def calculate_price(registration, campers):
     In order to calculate the price without writing to the database,
     campers are passed as a separate array.
 
+    See server/tests/test_pricing.py for examples.
+
     Returns
     -------
     dict:
-        keys: registration level components, camper level components and total.
-        values: subtotals of respective components and the total.
+        keys: registration level components, camper level components, 'campers',
+            and 'total'
+        values: subtotals of respective components, campers (list of dicts with
+            camper components and totals) and the total
     '''
     results = defaultdict(int)
+    results['campers'] = []
     event = registration.event
 
     data = {
@@ -26,7 +31,9 @@ def calculate_price(registration, campers):
         "pricing": event.pricing
     }
     for reg_component, logic in event.registration_pricing_logic.items():
-        results[reg_component] = jsonLogic(logic, data)
+        amount = jsonLogic(logic, data)
+        results[reg_component] = amount
+        results['total'] += amount
 
     for camper in campers:
         camper_data = {
@@ -34,9 +41,15 @@ def calculate_price(registration, campers):
             "pricing": event.pricing,
             "camper": camper.attributes
         }
-        for camper_component, logic in event.camper_pricing_logic.items():
-            results[camper_component] += jsonLogic(logic, camper_data)
+        camper_results = defaultdict(int)
 
-    results['total'] = sum(results.values())
+        for camper_component, logic in event.camper_pricing_logic.items():
+            amount = jsonLogic(logic, camper_data)
+            camper_results[camper_component] = amount
+            camper_results['total'] += amount
+            results[camper_component] += amount
+            results['total'] += amount
+
+        results['campers'].append(camper_results)
 
     return dict(results)
