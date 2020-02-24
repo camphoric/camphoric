@@ -112,6 +112,7 @@ class TestCalculatePrice(unittest.TestCase):
         self.assertEqual(price_components, {
             "cabins": 300,
             "parking_passes": 100,
+            "campers": [],
             "total": 400,
         })
 
@@ -134,6 +135,12 @@ class TestCalculatePrice(unittest.TestCase):
         self.assertEqual(price_components, {
             "tuition": 1200,
             "meals": 700,
+            "campers": [
+                {"meals": 50, "total": 250, "tuition": 200},
+                {"meals": 50, "total": 250, "tuition": 200},
+                {'meals': 300, 'total': 700, 'tuition': 400}, 
+                {"meals": 300, "total": 700, "tuition": 400},
+            ],
             "total": 1900,
         })
 
@@ -164,5 +171,11 @@ class TestCalculatePrice(unittest.TestCase):
             "meals": 700,
             "cabins": 300,
             "parking_passes": 100,
+            "campers": [
+                {"meals": 50, "total": 250, "tuition": 200},
+                {"meals": 50, "total": 250, "tuition": 200},
+                {"meals": 300, "total": 700, "tuition": 400},
+                {"meals": 300, "total": 700, "tuition": 400},
+            ],
             "total": 2300,
         })

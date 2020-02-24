@@ -190,6 +190,10 @@ class RegisterPostTests(APITestCase):
         expected_pricing_results = {
             'cabins': 100,
             'tuition': 200,
+            'campers': [
+                {'total': 100, 'tuition': 100},
+                {'total': 100, 'tuition': 100},
+            ],
             'total': 300,
         }
         response = self.client.post(
