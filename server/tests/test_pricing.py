@@ -1,5 +1,7 @@
+import datetime
 import unittest
 
+from django.utils import timezone 
 from json_logic import jsonLogic
 
 from camphoric import models
@@ -97,6 +99,7 @@ class TestCalculatePrice(unittest.TestCase):
         event = models.Event(
             organization=self.organization,
             name="Test Registration Event",
+            start=datetime.datetime(2020, 6, 28, 0, 0, 0, tzinfo=timezone.utc),
             pricing=self.pricing,
             registration_pricing_logic=self.registration_pricing_logic,
             camper_pricing_logic={}

@@ -79,6 +79,9 @@ class Event(TimeStampedModel):
     confirmation_email_template = JSONField(default=list, help_text="JsonLogic template")
     confirmation_email_from = models.EmailField()
 
+    registration_computed_attributes_logic = JSONField(default=dict)
+    camper_computed_attributes_logic = JSONField(default=dict)
+
     def __str__(self):
         return self.name
 
@@ -92,7 +95,8 @@ class Registration(TimeStampedModel):
     - Has many Payments
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    attributes = JSONField(null=True)
+    attributes = JSONField(default=dict, null=True)
+    computed_attributes = JSONField(default=dict)
     registrant_email = models.EmailField()
     server_pricing_results = JSONField(null=True)
     client_reported_pricing = JSONField(null=True)
@@ -125,7 +129,8 @@ class Camper(TimeStampedModel):
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
-    attributes = JSONField(null=True)
+    attributes = JSONField(default=dict, null=True)
+    computed_attributes = JSONField(default=dict)
 
 
 class Deposit(TimeStampedModel):
