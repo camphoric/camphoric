@@ -48,13 +48,22 @@ class TestCalculateComputedAttributes(unittest.TestCase):
             start=datetime.datetime(2020, 6, 28, 0, 0, 0, tzinfo=timezone.utc),
             camper_computed_attributes_logic={
                 'age': {
-                    '/': [
-                        {'-': [
-                            {'var': 'event.start_yyyymmdd'},
-                            {'var': 'camper.birthdate_yyyymmdd'}
+                    '-': [
+                        {'-': [{'var': 'event.start.year'}, {'var': 'camper.birthdate_date.year'}]},
+
+                        {'if': [
+                            {'<': [{'var': 'event.start.month'}, {'var': 'camper.birthdate_date.month'}]},
+                            1,
+
+                            {'and': [
+                                {'==': [{'var': 'event.start.month'},{'var': 'camper.birthdate_date.month'}]},
+                                {'<': [{'var': 'event.start.day'}, {'var': 'camper.birthdate_date.day'}]},
+                            ]},
+                            1,
+
+                            0
                         ]},
-                        10000
-                    ]
+                    ],
                 },
             }
         )

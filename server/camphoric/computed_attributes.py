@@ -6,13 +6,12 @@ Computed attributes are useful as intermediate variables in price calculations
 and for inclusion in confirmation emails and reports.
 
 The current use case is calculating the age of each camper based on the entered
-birthdate. To enable this use case, this code makes available to JsonLogic an
-integer representation of various date fields:
-- event.start, as event.start_yyyymmdd
-- top-level camper attributes in YYYY-MM-DD format, as camper.<attr>_yyyymmdd
-The integer value looks like, for example, 20201103 (for '2020-11-03').
+birthdate. To allow JsonLogic to work with dates, we pass them in as
+{ year, month, day } objects. The available date variables are:
 
-Also to support the 'age' use case, all floating-point values are truncated.
+- event.start
+- top-level camper attributes in YYYY-MM-DD format, appending '_date' to the
+  name (e.g. camper.birthdate_date)
 
 See server/tests/test_computed_attributes.py for examples.
 '''
@@ -46,10 +45,14 @@ def calculate_computed_attributes(registration, campers):
         'event': {},
     }
     if event.start:
-        data['event']['start_yyyymmdd'] = int(event.start.strftime('%Y%m%d'))
+        data['event']['start'] = {
+            'year': event.start.year,
+            'month': event.start.month,
+            'day': event.start.day,
+        }
 
     registration_results = {
-        k: truncate_if_float(jsonLogic(logic, data))
+        k: jsonLogic(logic, data)
         for k, logic in event.registration_computed_attributes_logic.items()
     }
 
@@ -57,11 +60,11 @@ def calculate_computed_attributes(registration, campers):
     for camper in campers:
         data['camper'] = {
             **camper.attributes,
-            **get_int_dates(camper.attributes),
+            **get_dates(camper.attributes),
         }
 
         camper_results.append({
-            k: truncate_if_float(jsonLogic(logic, data))
+            k: jsonLogic(logic, data)
             for k, logic in event.camper_computed_attributes_logic.items()
         })
 
@@ -72,15 +75,14 @@ def calculate_computed_attributes(registration, campers):
 looks_like_date = re.compile(r'^\d{4}-\d\d-\d\d$')
 
 
-def get_int_dates(attributes):
+def get_dates(attributes):
     result = {}
     for k, v in attributes.items():
         if isinstance(v, str) and looks_like_date.match(v):
-            result[f'{k}_yyyymmdd'] = int(v.replace('-', ''))
+            year, month, day = v.split('-')
+            result[f'{k}_date'] = {
+                'year': int(year),
+                'month': int(month),
+                'day': int(day),
+            }
     return result
-
-
-def truncate_if_float(value):
-    if isinstance(value, float):
-        return int(value)
-    return value
