@@ -43,7 +43,7 @@ class TestJsonLogic(unittest.TestCase):
                 "parking_passes": ["honda", "volkswagen", "mercedes", "ford"]
             },
             "pricing": {
-                "parking_pass": 10
+                "parking_pass": 10,
             }
         }
         self.assertEqual(
@@ -54,36 +54,77 @@ class TestCalculatePrice(unittest.TestCase):
 
     def setUp(self):
         self.organization = models.Organization(name="Test Organization")
-        self.registration_pricing_logic = {
-            "cabins": {
-                "*": [
-                    {"var": "registration.number_of_cabins"},
-                    {"var": "pricing.cabin"},
-                ]
+        self.registration_pricing_logic = [
+            {
+                "label": "Cabins",
+                "var": "cabins",
+                "exp": {
+                    "*": [
+                        {"var": "registration.number_of_cabins"},
+                        {"var": "pricing.cabin"},
+                    ]
+                },
             },
-            "parking_passes": {
-                "*": [
-                    {"var": "registration.number_of_parking_passes"},
-                    {"var": "pricing.parking_pass"}
-                ]
-            }
-        }
-        self.camper_pricing_logic = {
-            "tuition": {
-                "if": [
-                    {">=": [{"var": "camper.age"}, 18]},
-                    {"var": "pricing.tuition_adult"},
-                    {"var": "pricing.tuition_child"}
-                ]
+            {
+                "label": "Parking Passes",
+                "var": "parking_passes",
+                "exp":  {
+                    "*": [
+                        {"var": "registration.number_of_parking_passes"},
+                        {"var": "pricing.parking_pass"}
+                    ]
+                },
             },
-            "meals": {
-                "if": [
-                    {">=": [{"var": "camper.age"}, 18]},
-                    {"var": "pricing.meals_adult"},
-                    {"var": "pricing.meals_child"}
-                ]
-            }
-        }
+            {
+                "label": "Total",
+                "var": "total",
+                "exp":  {
+                    "+": [
+                        {"var": "cabins"},
+                        {"var": "parking_passes"}
+                    ]
+                },
+            },
+        ]
+        self.camper_pricing_logic = [
+            {
+                "label": "Is Adult",
+                "var": "is_adult",
+                "exp": {">=": [{"var": "camper.age"}, 18]},
+            },
+            {
+                "label": "Tuition",
+                "var": "tuition",
+                "exp": {
+                    "if": [
+                        {"var": "is_adult"},
+                        {"var": "pricing.tuition_adult"},
+                        {"var": "pricing.tuition_child"}
+                    ]
+                },
+            },
+            {
+                "label": "Meals",
+                "var": "meals",
+                "exp": {
+                    "if": [
+                        {"var": "is_adult"},
+                        {"var": "pricing.meals_adult"},
+                        {"var": "pricing.meals_child"}
+                    ]
+                },
+            },
+            {
+                "label": "Camper total",
+                "var": "total",
+                "exp": {
+                    "+": [
+                        {"var": "tuition"},
+                        {"var": "meals"}
+                    ]
+                },
+            },
+        ]
         self.pricing = {
             "cabin": 100,
             "parking_pass": 50,
@@ -99,13 +140,13 @@ class TestCalculatePrice(unittest.TestCase):
             name="Test Registration Event",
             pricing=self.pricing,
             registration_pricing_logic=self.registration_pricing_logic,
-            camper_pricing_logic={}
+            camper_pricing_logic=[],
         )
         registration = models.Registration(
             event=event,
             attributes={
                 "number_of_cabins": 3,
-                "number_of_parking_passes": 2
+                "number_of_parking_passes": 2,
             }
         )
         price_components = pricing.calculate_price(registration, [])
@@ -121,25 +162,26 @@ class TestCalculatePrice(unittest.TestCase):
             organization=self.organization,
             name="Test Camper Event",
             pricing=self.pricing,
-            registration_pricing_logic={},
-            camper_pricing_logic=self.camper_pricing_logic
+            registration_pricing_logic=[],
+            camper_pricing_logic=self.camper_pricing_logic,
         )
         registration = models.Registration(event=event)
         campers = [
             models.Camper(attributes={"age": 2}),
             models.Camper(attributes={"age": 17}),
             models.Camper(attributes={"age": 18}),
-            models.Camper(attributes={"age": 42})
+            models.Camper(attributes={"age": 42}),
         ]
         price_components = pricing.calculate_price(registration, campers)
         self.assertEqual(price_components, {
+            "is_adult": 2,
             "tuition": 1200,
             "meals": 700,
             "campers": [
-                {"meals": 50, "total": 250, "tuition": 200},
-                {"meals": 50, "total": 250, "tuition": 200},
-                {'meals': 300, 'total': 700, 'tuition': 400}, 
-                {"meals": 300, "total": 700, "tuition": 400},
+                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
             ],
             "total": 1900,
         })
@@ -150,32 +192,33 @@ class TestCalculatePrice(unittest.TestCase):
             name="Test Camper/Registration Event",
             pricing=self.pricing,
             registration_pricing_logic=self.registration_pricing_logic,
-            camper_pricing_logic=self.camper_pricing_logic
+            camper_pricing_logic=self.camper_pricing_logic,
         )
         registration = models.Registration(
             event=event,
             attributes={
                 "number_of_cabins": 3,
-                "number_of_parking_passes": 2
+                "number_of_parking_passes": 2,
             }
         )
         campers = [
             models.Camper(attributes={"age": 2}),
             models.Camper(attributes={"age": 17}),
             models.Camper(attributes={"age": 18}),
-            models.Camper(attributes={"age": 42})
+            models.Camper(attributes={"age": 42}),
         ]
         price_components = pricing.calculate_price(registration, campers)
         self.assertEqual(price_components, {
+            "is_adult": 2,
             "tuition": 1200,
             "meals": 700,
             "cabins": 300,
             "parking_passes": 100,
             "campers": [
-                {"meals": 50, "total": 250, "tuition": 200},
-                {"meals": 50, "total": 250, "tuition": 200},
-                {"meals": 300, "total": 700, "tuition": 400},
-                {"meals": 300, "total": 700, "tuition": 400},
+                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
             ],
             "total": 2300,
         })

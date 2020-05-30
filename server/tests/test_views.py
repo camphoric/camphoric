@@ -88,13 +88,31 @@ class RegisterGetTests(APITestCase):
                 'adult': 790,
                 'teen': 680,
             },
-            camper_pricing_logic={
-                'tuition': {'+': [1, 2]},
-                'meals': {'*': [2, 3]}
-            },
-            registration_pricing_logic={
-                'donation': {'var': 'registration.donation'}
-            },
+            camper_pricing_logic=[
+                {
+                    'var': 'tuition',
+                    'exp': {'+': [1, 2]},
+                },
+                {
+                    'var': 'meals',
+                    'exp': {'*': [2, 3]},
+                },
+                {
+                    'var': 'total',
+                    'exp': {'+': [{'var': 'tuition'}, {'var': 'meals'}]},
+                },
+
+            ],
+            registration_pricing_logic=[
+                {
+                    'var': 'donation',
+                    'exp': {'var': 'registration.donation'},
+                },
+                {
+                    'var': 'total',
+                    'exp': {'var': 'donation'},
+                },
+            ]
         )
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
@@ -129,12 +147,26 @@ class RegisterPostTests(APITestCase):
                 },
             },
             pricing={},
-            registration_pricing_logic={
-                'cabins': {'*': [1, 100]},
-            },
-            camper_pricing_logic={
-                'tuition': {'*': [1, 100]},
-            },
+            registration_pricing_logic=[
+                {
+                    'var': 'cabins',
+                    'exp': {'*': [1, 100]},
+                },
+                {
+                    'var': 'total',
+                    'exp': {'var': 'cabins'},
+                },
+            ],
+            camper_pricing_logic=[
+                {
+                    'var': 'tuition',
+                    'exp': {'*': [1, 100]},
+                },
+                {
+                    'var': 'total',
+                    'exp': {'var': 'tuition'},
+                },
+            ],
             confirmation_page_template=[],
             confirmation_email_subject='Registration confirmation',
             confirmation_email_template=[
