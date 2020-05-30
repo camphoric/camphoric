@@ -12,15 +12,30 @@ def calculate_price(registration, campers):
     In order to calculate the price without writing to the database,
     campers are passed as a separate array.
 
+    The registration_pricing_logic and camper_pricing_logic of corresponding
+    Event are expected to have the following structure:
+        [
+            {
+                "label": "Optional Label",
+                "var": "variable_name",
+                "exp": {"JsonLogic expression http://jsonlogic.com/"}
+            },
+            {
+                "label": ..., "var": ..., "exp": ...,
+            },
+            ...
+        ]
+    Every JsonLogic expression can refer to variables defined by
+    previous components.
+
     See server/tests/test_pricing.py for examples.
 
     Returns
     -------
     dict:
-        keys: registration level components, camper level components, 'campers',
-            and 'total'
+        keys: registration level components, camper level components, 'campers'
         values: subtotals of respective components, campers (list of dicts with
-            camper components and totals) and the total
+            camper components)
     '''
     results = defaultdict(int)
     results['campers'] = []
@@ -28,27 +43,24 @@ def calculate_price(registration, campers):
 
     data = {
         "registration": registration.attributes,
-        "pricing": event.pricing
+        "pricing": event.pricing,
     }
-    for reg_component, logic in event.registration_pricing_logic.items():
-        amount = jsonLogic(logic, data)
-        results[reg_component] = amount
-        results['total'] += amount
+    for reg_component in event.registration_pricing_logic:
+        var = reg_component["var"]
+        value = jsonLogic(reg_component["exp"], data)
+        results[var] = value
+        data[var] = value
 
     for camper in campers:
-        camper_data = {
-            "registration": registration.attributes,
-            "pricing": event.pricing,
-            "camper": camper.attributes
-        }
-        camper_results = defaultdict(int)
+        data["camper"] = camper.attributes
+        camper_results = {}
 
-        for camper_component, logic in event.camper_pricing_logic.items():
-            amount = jsonLogic(logic, camper_data)
-            camper_results[camper_component] = amount
-            camper_results['total'] += amount
-            results[camper_component] += amount
-            results['total'] += amount
+        for camper_component in event.camper_pricing_logic:
+            var = camper_component["var"]
+            value = jsonLogic(camper_component["exp"], data)
+            camper_results[var] = value
+            results[var] += value
+            data[var] = value
 
         results['campers'].append(camper_results)
 
