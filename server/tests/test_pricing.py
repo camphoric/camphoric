@@ -1,5 +1,7 @@
+import datetime
 import unittest
 
+from django.utils import timezone
 from json_logic import jsonLogic
 
 from camphoric import models
@@ -7,6 +9,12 @@ from camphoric import pricing
 
 
 class TestJsonLogic(unittest.TestCase):
+
+    def test_array(self):
+        self.assertEqual(
+            jsonLogic([{"var": "a"}, {"var": "b"}], {"a": 1, "b": 2}),
+            [1, 2]
+        )
 
     def test_operations(self):
         self.assertEqual(jsonLogic({"+": [2, 2]}), 4)
@@ -68,7 +76,7 @@ class TestCalculatePrice(unittest.TestCase):
             {
                 "label": "Parking Passes",
                 "var": "parking_passes",
-                "exp":  {
+                "exp": {
                     "*": [
                         {"var": "registration.number_of_parking_passes"},
                         {"var": "pricing.parking_pass"}
@@ -78,7 +86,7 @@ class TestCalculatePrice(unittest.TestCase):
             {
                 "label": "Total",
                 "var": "total",
-                "exp":  {
+                "exp": {
                     "+": [
                         {"var": "cabins"},
                         {"var": "parking_passes"}
@@ -133,6 +141,35 @@ class TestCalculatePrice(unittest.TestCase):
             "meals_adult": 300,
             "meals_child": 50,
         }
+
+    def test_dates(self):
+        event = models.Event(
+            organization=self.organization,
+            name="Test Registration Event",
+            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+            pricing=self.pricing,
+            registration_pricing_logic=[
+                {
+                    "var": "date_parts",
+                    "exp": [
+                        {"var": "event.start.year"},
+                        {"var": "event.start.month"},
+                        {"var": "event.start.day"},
+                    ],
+                },
+            ],
+            camper_pricing_logic=[],
+        )
+        self.assertIsNotNone(event.start)
+        registration = models.Registration(
+            event=event,
+            attributes={}
+        )
+        price_components = pricing.calculate_price(registration, [])
+        self.assertEqual(price_components, {
+            "date_parts": [2019, 2, 25],
+            "campers": [],
+        })
 
     def test_calculate_registration(self):
         event = models.Event(

@@ -44,7 +44,13 @@ def calculate_price(registration, campers):
     data = {
         "registration": registration.attributes,
         "pricing": event.pricing,
+        "event": {},
     }
+
+    for field in ["registration_start", "registration_end", "start", "end"]:
+        if getattr(event, field):
+            data["event"][field] = datetime_to_dict(getattr(event, field))
+
     for reg_component in event.registration_pricing_logic:
         var = reg_component["var"]
         value = jsonLogic(reg_component["exp"], data)
@@ -65,3 +71,11 @@ def calculate_price(registration, campers):
         results['campers'].append(camper_results)
 
     return dict(results)
+
+
+def datetime_to_dict(d):
+    return {
+        "year": d.year,
+        "month": d.month,
+        "day": d.day,
+    }
