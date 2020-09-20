@@ -1,17 +1,17 @@
 data = [
     {
         'var': 'age',
-        'value': {
+        'exp': {
             '-': [
-                {'-': [{'var': 'event.start.year'}, {'var': 'birthdate_date.year'}]},
+                {'-': [{'var': 'event.start.year'}, {'var': 'camper.birthdate.year'}]},
 
                 {'if': [
-                    {'<': [{'var': 'event.start.month'}, {'var': 'birthdate_date.month'}]},
+                    {'<': [{'var': 'event.start.month'}, {'var': 'camper.birthdate.month'}]},
                     1,
 
                     {'and': [
-                        {'==': [{'var': 'event.start.month'},{'var': 'birthdate_date.month'}]},
-                        {'<': [{'var': 'event.start.day'}, {'var': 'birthdate_date.day'}]},
+                        {'==': [{'var': 'event.start.month'},{'var': 'camper.birthdate.month'}]},
+                        {'<': [{'var': 'event.start.day'}, {'var': 'camper.birthdate.day'}]},
                     ]},
                     1,
 
@@ -22,7 +22,7 @@ data = [
     },
     {
         'var': 'base',
-        'value': {
+        'exp': {
             'if': [
                 {
                     'and': [
@@ -47,7 +47,7 @@ data = [
                     'if': [
                         {'==': [{'var': 'registration.registration_type'}, 'talent']},
                         {'var': 'pricing.talent_additional_adult'},
-                        {'var': 'pricing.additiona_adult'}
+                        {'var': 'pricing.additional_adult'}
                     ]
                 },
 
@@ -84,7 +84,7 @@ data = [
     },
     {
         'var': 'work_trade_discount',
-        'value': {
+        'exp': {
             'if': [
                 {'var': 'camper.work_trade'},
                 {
@@ -112,7 +112,7 @@ data = [
     },
     {
         'var': 'late_fee',
-        'value': {
+        'exp': {
             'if': [
                 {'>': [{'var': 'now'}, {'var': 'event.late_registration_start'},]},
                 {'var': 'pricing.late_fee'},
@@ -122,7 +122,7 @@ data = [
     },
     {
         'var': 'total',
-        'value': {
+        'exp': {
             '+': [
                 {'var': 'base'},
                 {'var': 'work_trade_discount'},

@@ -1,6 +1,6 @@
 data = [
-	{
-		'var': 'total',
-		'value': {'var': 'registration.donation',},
-	},
+    {
+        'var': 'total',
+        'exp': {'var': 'registration.donation'},
+    },
 ]
