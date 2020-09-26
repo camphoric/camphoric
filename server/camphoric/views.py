@@ -84,6 +84,7 @@ class RegisterView(APIView):
         return Response({
             'dataSchema': self.get_form_schema(event),
             'uiSchema': event.registration_ui_schema or {},
+            'event': pricing.get_event_attributes(event),
             'pricing': event.pricing or {},
             'pricingLogic': {
                 'camper': event.camper_pricing_logic or {},
@@ -180,7 +181,7 @@ class RegisterView(APIView):
     def deserialize_form_data(cls, event, form_data):
         registration_attributes = {
             k: v for k, v in form_data.items()
-            if not k in ['campers', 'registrant_email']
+            if k not in ['campers', 'registrant_email']
         }
         registration = models.Registration(
             event=event,

@@ -46,12 +46,8 @@ def calculate_price(registration, campers):
     data = {
         "registration": registration.attributes,
         "pricing": event.pricing,
-        "event": {},
+        "event": get_event_attributes(event),
     }
-
-    for field in ["registration_start", "registration_end", "start", "end"]:
-        if getattr(event, field):
-            data["event"][field] = datetime_to_dict(getattr(event, field))
 
     date_props = get_date_props(event.camper_schema)
 
@@ -105,3 +101,11 @@ def get_date_props(camper_schema):
         if prop_schema.get("type") == "string" and prop_schema.get("format") == "date":
             date_props.append(prop_name)
     return date_props
+
+
+def get_event_attributes(event):
+    attributes = {}
+    for field in ["registration_start", "registration_end", "start", "end"]:
+        if getattr(event, field):
+            attributes[field] = datetime_to_dict(getattr(event, field))
+    return attributes

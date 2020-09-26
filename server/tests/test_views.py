@@ -1,9 +1,10 @@
+import datetime
 import json
 
 from django.core import mail
+from django.utils import timezone
 import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase
-from rest_framework.serializers import ValidationError
 
 from camphoric import models
 
@@ -84,6 +85,7 @@ class RegisterGetTests(APITestCase):
         event = models.Event.objects.create(
             organization=self.organization,
             name='Test Price Fields',
+            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
             pricing={
                 'adult': 790,
                 'teen': 680,
@@ -112,7 +114,7 @@ class RegisterGetTests(APITestCase):
                     'var': 'total',
                     'exp': {'var': 'donation'},
                 },
-            ]
+            ],
         )
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
@@ -121,6 +123,7 @@ class RegisterGetTests(APITestCase):
             'camper': event.camper_pricing_logic,
             'registration': event.registration_pricing_logic,
         })
+        self.assertEqual(response.data['event'], {'start': {'day': 25, 'month': 2, 'year': 2019}})
 
 
 class RegisterPostTests(APITestCase):
@@ -191,7 +194,7 @@ class RegisterPostTests(APITestCase):
         }
 
     def test_post_errors(self):
-        response = self.client.post(f'/api/events/0/register', {}, format='json')
+        response = self.client.post('/api/events/0/register', {}, format='json')
         self.assertEqual(response.status_code, 404)
 
         response = self.client.post(f'/api/events/{self.event.id}/register', {}, format='json')
