@@ -147,6 +147,15 @@ class TestCalculatePrice(unittest.TestCase):
             organization=self.organization,
             name="Test Registration Event",
             start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+            camper_schema={
+                "type": "object",
+                "properties": {
+                    "birthdate": {
+                        "type": "string",
+                        "format": "date",
+                    },
+                },
+            },
             pricing=self.pricing,
             registration_pricing_logic=[
                 {
@@ -158,17 +167,32 @@ class TestCalculatePrice(unittest.TestCase):
                     ],
                 },
             ],
-            camper_pricing_logic=[],
+            camper_pricing_logic=[
+                {
+                    "var": "birthdate_parts",
+                    "exp": [
+                        {"var": "camper.birthdate.year"},
+                        {"var": "camper.birthdate.month"},
+                        {"var": "camper.birthdate.day"},
+                    ],
+                },
+            ],
         )
         self.assertIsNotNone(event.start)
         registration = models.Registration(
             event=event,
             attributes={}
         )
-        price_components = pricing.calculate_price(registration, [])
+        camper = models.Camper(
+            registration=registration,
+            attributes={
+                "birthdate": "2000-12-31",
+            },
+        )
+        price_components = pricing.calculate_price(registration, [camper])
         self.assertEqual(price_components, {
             "date_parts": [2019, 2, 25],
-            "campers": [],
+            "campers": [{"birthdate_parts": [2000, 12, 31]}],
         })
 
     def test_calculate_registration(self):
