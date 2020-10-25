@@ -43,3 +43,12 @@ class OrganizationTests(TestCase):
         self.organization.soft_undelete()
         self.organization.refresh_from_db()
         self.assertIsNone(self.organization.deleted_at)
+
+
+class InvitationTests(TestCase):
+
+    def test_invitation_code(self):
+        self.invitation = models.Invitation.objects.create(
+            recipient_email='test@example.com',
+        )
+        self.assertRegex(self.invitation.invitation_code, r'^[abcdefghjkmnpqrstuvwxyz23456789]{8}$')

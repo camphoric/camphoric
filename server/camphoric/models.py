@@ -1,3 +1,5 @@
+import random
+
 from decimal import Decimal
 
 from django.contrib.postgres.fields import JSONField
@@ -83,6 +85,17 @@ class Event(TimeStampedModel):
         return self.name
 
 
+class RegistrationType(TimeStampedModel):
+    '''
+    Registration type for special pricing options (Ex: Staff).
+    Contains the email template to send out to a special registrant.
+    '''
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, help_text="value exposed to JsonLogic")
+    label = models.CharField(max_length=255, help_text="Human readable name")
+    invitation_email_template = JSONField(null=True)
+
+
 class Registration(TimeStampedModel):
     '''
     Group of campers registering together.
@@ -92,6 +105,7 @@ class Registration(TimeStampedModel):
     - Has many Payments
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
     attributes = JSONField(null=True)
     registrant_email = models.EmailField()
     server_pricing_results = JSONField(null=True)
@@ -99,6 +113,32 @@ class Registration(TimeStampedModel):
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
+
+
+class Invitation(TimeStampedModel):
+    '''
+    An Invitations is emailed as a link with a code for Registration types and is associated
+    with a modiefied Registration page.
+    random.choices takes visually unambigious characters and numbers so they can be read as
+    text without confusions (0 vs O etc.).
+    '''
+    def invitation_code_default():
+        return ''.join(random.choices('abcdefghjkmnpqrstuvwxyz23456789', k=8))
+
+    registration = models.ForeignKey(Registration, null=True, on_delete=models.CASCADE)
+    registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
+    invitation_code = models.CharField(max_length=8, default=invitation_code_default)
+    recipient_email = models.EmailField()
+    sent_time = models.DateTimeField(null=True)
+    expiration_time = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['invitation_code', 'recipient_email'],
+                name='email_invitation_code'
+            ),
+        ]
 
 
 class Lodging(TimeStampedModel):

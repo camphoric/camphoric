@@ -39,6 +39,18 @@ class RegistrationViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+class RegistrationTypeViewSet(ModelViewSet):
+    queryset = models.RegistrationType.objects.all()
+    serializer_class = serializers.RegistrationTypeSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class InvitationViewSet(ModelViewSet):
+    queryset = models.Invitation.objects.all()
+    serializer_class = serializers.InvitationSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
 class LodgingViewSet(ModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
