@@ -40,13 +40,13 @@ class RegistrationViewSet(ModelViewSet):
 
 
 class RegistrationTypeViewSet(ModelViewSet):
-    queryset = models.Registration.objects.all()
+    queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
     permission_classes = [permissions.IsAdminUser]
 
 
 class InvitationViewSet(ModelViewSet):
-    queryset = models.Registration.objects.all()
+    queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
     permission_classes = [permissions.IsAdminUser]
 
