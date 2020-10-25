@@ -3,6 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import React from "react";
 import { UiSchema } from "react-jsonschema-form";
 import { JSONSchema6 } from "json-schema";
+import { RouteComponentProps, withRouter } from "react-router";
 import Form, { IChangeEvent } from "react-jsonschema-form";
 import Spinner from "../Spinner";
 
@@ -15,6 +16,12 @@ import { calculatePrice } from "./utils";
 
 import "react-phone-number-input/style.css";
 import "./RegisterPage.css";
+
+type PathParams = {
+    eventId: string,
+}
+
+type Props = RouteComponentProps<PathParams>;
 
 export type RegistrationConfig = {
   uiSchema: UiSchema;
@@ -79,12 +86,12 @@ const widgetMap: any = {
   )
 };
 
-class App extends React.Component {
+class App extends React.Component<Props> {
   state: RegistrationState = {
     status: "fetching"
   };
 
-  constructor(props = {}) {
+  constructor(props: Props) {
     super(props);
 
     this.getConfig();
@@ -109,7 +116,7 @@ class App extends React.Component {
     let config: RegistrationConfig;
 
     try {
-      const res = await fetch("/legacy_lark_config.json");
+      const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`);
       config = await res.json();
     } catch (e) {
       console.error(e);
@@ -239,4 +246,4 @@ class App extends React.Component {
   }
 }
 
-export default App;
+export default withRouter(App);
