@@ -37,6 +37,18 @@ class RegistrationSerializer(ModelSerializer):
         return validate_attributes(data, data['event'].registration_schema)
 
 
+class RegistrationTypeSerializer(ModelSerializer):
+    class Meta:
+        model = camphoric.models.RegistrationType
+        fields = '__all__'
+
+
+class InvitationSerializer(ModelSerializer):
+    class Meta:
+        model = camphoric.models.Invitation
+        fields = '__all__'
+
+
 class LodgingSerializer(ModelSerializer):
     class Meta:
         model = camphoric.models.Lodging
