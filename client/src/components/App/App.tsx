@@ -11,9 +11,10 @@ const App = () => (
     <Route path="/" exact={true}>
       <h1>Camphoric!</h1>
       <p><Link to="/register">Registration Page</Link></p>
+      <p><Link to="/events/1/register">Registration Page (event 1)</Link></p>
       <p><Link to="/admin">Admin Page</Link></p>
     </Route>
-    <Route path="/register">
+    <Route path="/events/:eventId/register">
       <Suspense fallback={<Spinner />}>
         <RegisterPage />
       </Suspense>
@@ -22,7 +23,6 @@ const App = () => (
       <Suspense fallback={<Spinner />}>
         <AdminPage />
       </Suspense>
-
     </Route>
   </Router>
 );
