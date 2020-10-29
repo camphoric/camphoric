@@ -1,2 +1,2 @@
-import AdminPage from "./AdminPage";
-export default AdminPage;
+import AdminLoginCheck from "./AdminLoginCheck";
+export default AdminLoginCheck;

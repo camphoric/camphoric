@@ -4,15 +4,14 @@ import React from "react";
 
 import "./AdminPage.css";
 
+type AdminPageProps = {
+  authToken?: string,
+};
 
-class App extends React.Component {
-  constructor(props = {}) {
-    super(props);
-  }
-
+class AdminPage extends React.Component<AdminPageProps> {
   render() {
-    return <div className="App">admin interface</div>;
+    return <div className="AdminPage">admin interface - {this.props.authToken} </div>;
   }
 }
 
-export default App;
+export default AdminPage;
