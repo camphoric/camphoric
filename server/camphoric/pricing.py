@@ -38,6 +38,9 @@ def calculate_price(registration, campers):
         keys: registration level components, camper level components, 'campers'
         values: subtotals of respective components, campers (list of dicts with
             camper components)
+
+        This should produce identical results to `calculatePrice` in
+        client/src/components/RegisterPage/utils.ts.
     '''
     results = defaultdict(int)
     results['campers'] = []
