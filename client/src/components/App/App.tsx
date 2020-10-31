@@ -10,7 +10,6 @@ const App = () => (
   <Router>
     <Route path="/" exact={true}>
       <h1>Camphoric!</h1>
-      <p><Link to="/register">Registration Page</Link></p>
       <p><Link to="/events/1/register">Registration Page (event 1)</Link></p>
       <p><Link to="/admin">Admin Page</Link></p>
     </Route>
