@@ -1,3 +1,4 @@
+import get from 'lodash/get';
 import jsonLogic from "json-logic-js";
 import { JSONSchema6 } from "json-schema";
 
@@ -13,7 +14,6 @@ type PricingData = {
 type PricingResults = {
   [key: string]: any;
   campers: Array<{ [key: string]: any }>;
-  total: number;
 };
 
 export function calculatePrice(config: RegistrationConfig, formData: FormData) {
@@ -23,10 +23,7 @@ export function calculatePrice(config: RegistrationConfig, formData: FormData) {
 
   const { event, pricingLogic, pricing } = config;
 
-  const results: PricingResults = {
-    campers: [],
-    total: 0,
-  };
+  const results: PricingResults = { campers: [] };
 
   const data: PricingData = {
     event,
@@ -34,16 +31,24 @@ export function calculatePrice(config: RegistrationConfig, formData: FormData) {
     pricing,
   };
 
+  const camperSchema = get(config.dataSchema, 'properties.campers.items') as JSONSchema6;
+  const camperDateProps = getDateProps(camperSchema);
+
   pricingLogic.registration.forEach(component => {
     const varName = component.var;
     const value = jsonLogic.apply(component.exp, data);
-    results[varName] = isNaN(value) ? 0 : value;
+    results[varName] = Number.isNaN(value) ? 0 : value;
     data[varName] = value;
   });
 
   formData.campers.forEach(camper => {
-    data.camper = camper;
     const camperResults: { [key: string]: any } = {};
+
+    data.camper = { ...camper };
+    camperDateProps.forEach(dateProp => {
+      data.camper[dateProp] = dateStringToObject(data.camper[dateProp]);
+    });
+
     pricingLogic.camper.forEach(component => {
       const varName = component.var;
       const value = jsonLogic.apply(component.exp, data);
@@ -54,8 +59,28 @@ export function calculatePrice(config: RegistrationConfig, formData: FormData) {
         data[varName] = value;
       }
     });
+
     results.campers.push(camperResults);
   });
 
   return results;
+}
+
+function getDateProps(schema: JSONSchema6 | undefined): Array<string> {
+  if (!schema) {
+    return [];
+  }
+
+  return Object.entries(schema.properties || {})
+    .filter(([propName, propSchema]) =>
+      typeof propSchema === 'object'
+      && propSchema.type === 'string'
+      && propSchema.format === 'date'
+    )
+    .map(([propName, propSchema]) => propName);
+}
+
+function dateStringToObject(s: string) {
+  const [year, month, day] = s.split('-').map(Number);
+  return { year, month, day };
 }
