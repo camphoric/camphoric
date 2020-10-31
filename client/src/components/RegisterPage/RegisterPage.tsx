@@ -12,7 +12,7 @@ import DescriptionField from "../DescriptionField";
 import ObjectFieldTemplate from "../ObjectFieldTemplate";
 import NaturalNumberInput from "../NaturalNumberInput";
 import PriceTicker from "../PriceTicker";
-import { calculatePrice } from "./utils";
+import { calculatePrice, PricingResults } from "./utils";
 
 import "react-phone-number-input/style.css";
 import "./RegisterPage.css";
@@ -48,9 +48,7 @@ export type FormData = {
 interface FormDataState {
   config: RegistrationConfig;
   formData: FormData;
-  totals: {
-    [key: string]: number;
-  };
+  totals: PricingResults;
 }
 
 interface FetchingState {
@@ -97,7 +95,7 @@ const widgetMap: any = {
   )
 };
 
-class App extends React.Component<Props> {
+class App extends React.Component<Props, RegistrationState> {
   state: RegistrationState = {
     status: "fetching"
   };
@@ -137,8 +135,8 @@ class App extends React.Component<Props> {
     this.setState({
       status: "loaded",
       config,
-      formData: undefined,
-      totals: {}
+      formData: { campers: [] },
+      totals: { campers: [] },
     });
 
     // Because of the way that react-jsonschema-form works, this is the
@@ -154,9 +152,8 @@ class App extends React.Component<Props> {
     });
   };
 
-  onChange = ({ formData }: IChangeEvent) => {
-    console.log(formData);
-    this.setState({ formData });
+  onChange = ({ formData }: IChangeEvent<FormData>) => {
+    this.setState(({ formData }) as LoadedState);
   };
 
   transformErrors = (errors: Array<any>) =>
@@ -207,7 +204,7 @@ class App extends React.Component<Props> {
                 </button>
               </div>
             </Form>
-            <PriceTicker price={calculatePrice(this.state).total || 0} />
+            <PriceTicker price={calculatePrice(this.state.config, this.state.formData).total || 0} />
           </section>
         );
         break;

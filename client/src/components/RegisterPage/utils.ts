@@ -11,7 +11,7 @@ type PricingData = {
   [key: string]: any;
 };
 
-type PricingResults = {
+export type PricingResults = {
   [key: string]: any;
   campers: Array<{ [key: string]: any }>;
 };
