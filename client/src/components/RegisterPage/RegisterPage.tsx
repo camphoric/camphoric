@@ -18,25 +18,36 @@ import "react-phone-number-input/style.css";
 import "./RegisterPage.css";
 
 type PathParams = {
-    eventId: string,
+    eventId: string;
 }
 
 type Props = RouteComponentProps<PathParams>;
 
+export type PricingLogic = Array<{
+  label?: string;
+  var: string;
+  exp: any; // JsonLogic
+}>;
+
 export type RegistrationConfig = {
-  uiSchema: UiSchema;
   dataSchema: JSONSchema6;
-  pricingLogic: any;
-  pricing: any;
+  uiSchema: UiSchema;
+  event: { [key: string]: any };
+  pricingLogic: {
+    camper: PricingLogic;
+    registration: PricingLogic;
+  };
+  pricing: { [key: string]: any };
+};
+
+export type FormData = {
+  [key: string]: any;
+  campers: Array<Object>;
 };
 
 interface FormDataState {
   config: RegistrationConfig;
-  /* An opaque type is probably correct here. */
-  formData: {
-    campers: Array<Object>;
-  };
-
+  formData: FormData;
   totals: {
     [key: string]: number;
   };
