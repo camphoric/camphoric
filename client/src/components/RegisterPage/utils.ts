@@ -16,7 +16,13 @@ export type PricingResults = {
   campers: Array<{ [key: string]: any }>;
 };
 
-export function calculatePrice(config: RegistrationConfig, formData: FormData) {
+/**
+ * Calculate pricing results for the given config and form data
+ *
+ * This should produce identical results to camphoric.pricing.calculate_price
+ * (see server/camphoric/pricing.py)
+ */
+export function calculatePrice(config: RegistrationConfig, formData: FormData): PricingResults {
   // calculation should be done in whole dollars for sake of
   // avoiding funky issues with floats. If sub-dollar amounts
   // are necessary, we should switch this to cents.
