@@ -1,3 +1,5 @@
+@import "node_modules/bootstrap/dist/css/bootstrap.min";
+
 html {
   background-color: #057e36;
 }
@@ -15,3 +17,26 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+form {
+  padding: 15px;
+  text-align: left;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+div#root > div {
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  background-color: #057e36;
+}
+
+div#root > div > section {
+  padding: 36px 0;
+  max-width: 750px;
+  flex-grow: 1;
+  background-color: white;
+  box-shadow: 0 0 5px black;
+}
+

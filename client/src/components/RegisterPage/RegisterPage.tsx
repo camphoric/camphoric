@@ -1,5 +1,3 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-
 import React from "react";
 import { UiSchema } from "react-jsonschema-form";
 import { JSONSchema6 } from "json-schema";
@@ -15,7 +13,7 @@ import PriceTicker from "../PriceTicker";
 import { calculatePrice, PricingResults } from "./utils";
 
 import "react-phone-number-input/style.css";
-import "./RegisterPage.css";
+import "./RegisterPage.scss";
 
 type PathParams = {
     eventId: string;
@@ -250,7 +248,7 @@ class App extends React.Component<Props, RegistrationState> {
       default:
         pageContent = <Spinner />;
     }
-    return <div className="App">{pageContent}</div>;
+    return <div className="RegisterPage">{pageContent}</div>;
   }
 }
 
