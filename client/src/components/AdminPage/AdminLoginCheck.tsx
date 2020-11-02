@@ -1,9 +1,5 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-
 import React, { Suspense } from "react";
 import Spinner from "../Spinner";
-
-import "./AdminPage.css";
 
 const Login = React.lazy(() => import('../Login'));
 const AdminPage = React.lazy(() => import('./AdminPage'));

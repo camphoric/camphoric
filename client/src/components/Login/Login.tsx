@@ -1,5 +1,3 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-
 import React from 'react';
 
 import Spinner from "../Spinner";
@@ -62,7 +60,7 @@ class Login extends React.Component<LoginProps, LoginState> {
 
   render() {
     return (
-      <div>
+      <form>
         <h1>Login</h1>
         <div className="form-group">
           <label>Login:</label>
@@ -95,7 +93,7 @@ class Login extends React.Component<LoginProps, LoginState> {
         <div className="processing">
           { !!this.state.processing && <Spinner text="Logging in..." color="black" /> }
         </div>
-      </div>
+      </form>
     );
   }
 }

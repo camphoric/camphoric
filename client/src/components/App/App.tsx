@@ -1,4 +1,3 @@
-import "bootstrap/dist/css/bootstrap.min.css";
 import React, { Suspense } from "react";
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
 import Spinner from "../Spinner";
