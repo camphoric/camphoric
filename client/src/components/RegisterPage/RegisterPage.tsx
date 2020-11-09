@@ -192,6 +192,7 @@ class App extends React.Component<Props, RegistrationState> {
                   <a
                     href="http://www.larkcamp.org/campterms.html"
                     target="_blank"
+                    rel="noreferrer"
                   >
                     Terms of Registration
                   </a>
