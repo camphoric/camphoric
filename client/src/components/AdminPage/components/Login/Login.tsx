@@ -1,6 +1,6 @@
 import React from 'react';
 
-import Spinner from "../Spinner";
+import Spinner from '../../../Spinner';
 
 /**
  * A login form
@@ -54,7 +54,7 @@ class Login extends React.Component<LoginProps, LoginState> {
   onPasswordKeyPress = (target: React.KeyboardEvent) => {
     if (target.charCode === 13) {
       this.attemptLogin();
-    } 
+    }
   }
 
 
