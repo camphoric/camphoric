@@ -4,8 +4,7 @@ with open('main_description.html') as f:
 	main_description = f.read()
 
 data = {
-	# 'ui:description': {'__html': re.sub(r'\s+', ' ', main_description)},
-	'ui:description': re.sub(r'\s+', ' ', main_description),
+	'ui:description': {'__html': re.sub(r'\s+', ' ', main_description)},
 	'address': {
         'street_address':       { 'classNames': 'col-xs-12 col-sm-12' },
         'city':                 { 'classNames': 'col-xs-12 col-sm-12'  },
