@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+
 from camphoric import views
 
 router = DefaultRouter()
@@ -12,5 +13,5 @@ router.register('campers', views.CamperViewSet, basename='camper')
 router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
 urlpatterns = router.urls + [
-    path('events/<int:event_id>/register', views.RegisterView.as_view())
+    path('events/<int:event_id>/register', views.RegisterView.as_view()),
 ]
