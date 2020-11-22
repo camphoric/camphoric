@@ -1,5 +1,9 @@
 {
   "scripts": {
     "heroku-postbuild": "cd client && yarn install && yarn run build"
+  },
+  "devDependencies": {
+    "inquirer": "^7.3.3",
+    "node-fetch": "^2.6.1"
   }
 }
