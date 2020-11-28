@@ -2,7 +2,6 @@ import random
 
 from decimal import Decimal
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils import timezone
 
@@ -59,26 +58,26 @@ class Event(TimeStampedModel):
     registration_end = models.DateTimeField(null=True)
     start = models.DateTimeField(null=True)
     end = models.DateTimeField(null=True)
-    camper_schema = JSONField(null=True, help_text="JSON schema for Camper.attributes")
-    payment_schema = JSONField(null=True, help_text="JSON schema for Payment.attributes")
-    registration_schema = JSONField(
+    camper_schema = models.JSONField(null=True, help_text="JSON schema for Camper.attributes")
+    payment_schema = models.JSONField(null=True, help_text="JSON schema for Payment.attributes")
+    registration_schema = models.JSONField(
         null=True,
         help_text="JSON schema for Registration.attributes")
-    registration_ui_schema = JSONField(
+    registration_ui_schema = models.JSONField(
         null=True,
         help_text="react-jsonschema-form uiSchema for registration form")
-    deposit_schema = JSONField(null=True, help_text="JSON schema for Deposit.attributes")
-    pricing = JSONField(null=True, help_text="key-value object with pricing variables")
-    camper_pricing_logic = JSONField(
+    deposit_schema = models.JSONField(null=True, help_text="JSON schema for Deposit.attributes")
+    pricing = models.JSONField(null=True, help_text="key-value object with pricing variables")
+    camper_pricing_logic = models.JSONField(
         null=True,
         help_text="JsonLogic Camper-level pricing components")
-    registration_pricing_logic = JSONField(
+    registration_pricing_logic = models.JSONField(
         null=True,
         help_text="JsonLogic Registration-level pricing components")
 
-    confirmation_page_template = JSONField(default=list, help_text="JsonLogic template")
+    confirmation_page_template = models.JSONField(default=list, help_text="JsonLogic template")
     confirmation_email_subject = models.CharField(default='', max_length=100)
-    confirmation_email_template = JSONField(default=list, help_text="JsonLogic template")
+    confirmation_email_template = models.JSONField(default=list, help_text="JsonLogic template")
     confirmation_email_from = models.EmailField()
 
     def __str__(self):
@@ -93,7 +92,7 @@ class RegistrationType(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, help_text="value exposed to JsonLogic")
     label = models.CharField(max_length=255, help_text="Human readable name")
-    invitation_email_template = JSONField(null=True)
+    invitation_email_template = models.JSONField(null=True)
 
 
 class Registration(TimeStampedModel):
@@ -106,10 +105,10 @@ class Registration(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
-    attributes = JSONField(null=True)
+    attributes = models.JSONField(null=True)
     registrant_email = models.EmailField()
-    server_pricing_results = JSONField(null=True)
-    client_reported_pricing = JSONField(null=True)
+    server_pricing_results = models.JSONField(null=True)
+    client_reported_pricing = models.JSONField(null=True)
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
@@ -165,7 +164,7 @@ class Camper(TimeStampedModel):
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
-    attributes = JSONField(null=True)
+    attributes = models.JSONField(null=True)
 
 
 class Deposit(TimeStampedModel):
@@ -174,7 +173,7 @@ class Deposit(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     deposited_on = models.DateTimeField(null=True)
-    attributes = JSONField(null=True)
+    attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
 
@@ -187,5 +186,5 @@ class Payment(TimeStampedModel):
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
     deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE)
     paid_on = models.DateTimeField(null=True)
-    attributes = JSONField(null=True)
+    attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
