@@ -20,12 +20,15 @@ class NaturalNumberInput extends React.Component<ControllableInput> {
   }
 
   render(){
-    return <input
-      type="number" 
-      className="form-control"
-      step={0}
-      value={this.props.value || ''}
-      onChange={this.onChange} />
+    return (
+      <input
+        type="number" 
+        className="form-control"
+        step={0}
+        value={this.props.value || ''}
+        onChange={this.onChange}
+      />
+    );
   }
 }
 

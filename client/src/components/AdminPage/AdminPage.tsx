@@ -34,7 +34,7 @@ function AdminPage () {
         subroutes.map(
           ([route, Comp]) => (
             <GuardedRoute path={`${url}/${route}`} key={route}>
-              <section> <Comp /> </section>
+              <Comp />
             </GuardedRoute>
           )
         )

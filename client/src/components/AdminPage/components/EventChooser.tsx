@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useLocation, } from 'react-router-dom';
 
+import { Container, Row, Col } from 'react-bootstrap';
+
 import { useEvents } from '../hooks';
 import Spinner from '../../Spinner';
 
@@ -11,7 +13,7 @@ function EventChooser() {
   if (!events.length) return <Spinner />;
 
   return (
-    <div>
+    <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
           events.map(
@@ -25,7 +27,7 @@ function EventChooser() {
           )
         }
       </ul>
-    </div>
+    </Col></Row></Container>
   );
 }
 

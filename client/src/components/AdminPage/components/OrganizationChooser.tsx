@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
+import { Container, Row, Col } from 'react-bootstrap';
+
 import { useOrganizations } from '../hooks';
 import Spinner from '../../Spinner';
 
@@ -11,7 +13,7 @@ function OrganizationChooser() {
   if (!organizations.length) return <Spinner />;
 
   return (
-    <div>
+    <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
           organizations.map(
@@ -23,7 +25,7 @@ function OrganizationChooser() {
           )
         }
       </ul>
-    </div>
+    </Col></Row></Container>
   );
 };
 
