@@ -1,8 +1,8 @@
 import React from "react";
-import { UiSchema } from "react-jsonschema-form";
-import { JSONSchema6 } from "json-schema";
+import { IChangeEvent, UiSchema } from "@rjsf/core";
+import Form from "@rjsf/bootstrap-4";
+import { JSONSchema7 } from "json-schema";
 import { RouteComponentProps, withRouter } from "react-router";
-import Form, { IChangeEvent } from "react-jsonschema-form";
 import Spinner from "../Spinner";
 
 import PhoneInput from "react-phone-number-input";
@@ -28,7 +28,7 @@ export type PricingLogic = Array<{
 }>;
 
 export type RegistrationConfig = {
-  dataSchema: JSONSchema6;
+  dataSchema: JSONSchema7;
   uiSchema: UiSchema;
   event: { [key: string]: any };
   pricingLogic: {
