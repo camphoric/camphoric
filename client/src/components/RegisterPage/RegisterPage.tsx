@@ -1,19 +1,21 @@
-import React from "react";
-import { IChangeEvent, UiSchema } from "@rjsf/core";
-import Form from "@rjsf/bootstrap-4";
-import { JSONSchema7 } from "json-schema";
-import { RouteComponentProps, withRouter } from "react-router";
-import Spinner from "../Spinner";
+import React from 'react';
+import { IChangeEvent, UiSchema } from '@rjsf/core';
+import Form from '@rjsf/bootstrap-4';
+import { JSONSchema7 } from 'json-schema';
+import { RouteComponentProps, withRouter } from 'react-router';
+import { Container, Row, Col } from 'react-bootstrap';
 
-import PhoneInput from "react-phone-number-input";
-import DescriptionField from "../DescriptionField";
-import ObjectFieldTemplate from "../ObjectFieldTemplate";
-import NaturalNumberInput from "../NaturalNumberInput";
-import PriceTicker from "../PriceTicker";
-import { calculatePrice, PricingResults } from "./utils";
+import Spinner from '../Spinner';
 
-import "react-phone-number-input/style.css";
-import "./RegisterPage.scss";
+import PhoneInput from 'react-phone-number-input';
+import DescriptionField from '../DescriptionField';
+import ObjectFieldTemplate from '../ObjectFieldTemplate';
+import NaturalNumberInput from '../NaturalNumberInput';
+import PriceTicker from '../PriceTicker';
+import { calculatePrice, PricingResults } from './utils';
+
+import 'react-phone-number-input/style.css';
+import './RegisterPage.scss';
 
 type PathParams = {
     eventId: string;
@@ -249,7 +251,12 @@ class App extends React.Component<Props, RegistrationState> {
       default:
         pageContent = <Spinner />;
     }
-    return <div className="RegisterPage">{pageContent}</div>;
+
+    return (
+      <Container><Row className="justify-content-md-center"><Col className="RegisterPage">
+        {pageContent}
+      </Col></Row></Container>
+    );
   }
 }
 

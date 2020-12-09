@@ -1,0 +1,10 @@
+.row {
+  background-color: transparent;
+}
+
+#root > .container {
+  background-color: white;
+  box-shadow: 0 0 5px black;
+  border-radius: 0 0 1rem 1rem;
+  padding-bottom: 2rem;
+}
