@@ -16,7 +16,7 @@ type RouteTuple = [string, string, () => JSX.Element];
 export type RouteList = Array<RouteTuple>
 
 function EventAdmin() {
-  const { eventId } = useParams();
+  const { eventId } = useParams<RouterUrlParams>();
   const { pathname } = useLocation();
   const { url } = useRouteMatch();
   const event = useEvent(eventId);

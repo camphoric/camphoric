@@ -25,7 +25,7 @@ export function useAuthToken() {
   return { authToken, setAuthToken };
 }
 
-export function useEvent(eventId: number) {
+export function useEvent(eventId?: string | number) {
   const { authToken } = useAuthToken();
   const [event, setEvent] = React.useState<ApiEvent>();
 

@@ -18,7 +18,7 @@ type RouteDuple = [string, () => JSX.Element];
 function AdminPage () {
   const { url } = useRouteMatch();
   const { pathname } = useLocation();
-  const { organizationId } = useParams();
+  const { organizationId } = useParams<RouterUrlParams>();
 
   const subroutes: Array<RouteDuple> = [
     ['organization/:organizationId/event/:eventId', () => (<EventAdmin />)],
