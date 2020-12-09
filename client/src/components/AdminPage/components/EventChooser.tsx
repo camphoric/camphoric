@@ -1,57 +1,25 @@
 import React from 'react';
-import {
-  Link,
-  useParams,
-} from 'react-router-dom';
+import { Link, useLocation, } from 'react-router-dom';
 
+import { Container, Row, Col } from 'react-bootstrap';
+
+import { useEvents } from '../hooks';
 import Spinner from '../../Spinner';
 
-interface Props {
-  authToken: string,
-  path: string,
-  location?: Object,
-}
+function EventChooser() {
+  const { pathname } = useLocation();
+  const events = useEvents();
 
-function EventChooser(props: Props) {
-  const [events, setEvents] = React.useState<ApiEvent[]>([]);
-  const { organizationId } = useParams();
-
-  React.useEffect(() => {
-    const getEvents = async () => {
-      try {
-        const response = await fetch(
-          '/api/events/',
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${props.authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        const events = await response.json();
-
-        setEvents(events);
-      } catch (e) {
-        // TODO: create some sort of dev level logging
-      }
-
-    };
-
-    getEvents();
-  }, [props.authToken]);
-
-  if (!events.length) return <Spinner />;
+  if (!events.value.length) return <Spinner />;
 
   return (
-    <div>
+    <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          events.map(
+          events.value.map(
             (event) => (
               <li key={event.id}>
-                <Link to={`${props.path}/organization/${organizationId}/event/${event.id}`}>
+                <Link to={`${pathname}/${event.id}`}>
                   {event.name}
                 </Link>
               </li>
@@ -59,7 +27,7 @@ function EventChooser(props: Props) {
           )
         }
       </ul>
-    </div>
+    </Col></Row></Container>
   );
 }
 

@@ -1,58 +1,31 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
+import { Container, Row, Col } from 'react-bootstrap';
+
+import { useOrganizations } from '../hooks';
 import Spinner from '../../Spinner';
 
-interface Props {
-  authToken: string,
-  path: string,
-}
+function OrganizationChooser() {
+  const { pathname } = useLocation();
+  const organizations = useOrganizations();
 
-function OrganizationChooser(props: Props) {
-  const [organizations, setOrganizations] = React.useState<ApiOrganization[]>([]);
-
-  React.useEffect(() => {
-    const getOrganizations = async () => {
-      let organizations
-      try {
-        const response = await fetch(
-          '/api/organizations/',
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${props.authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        organizations = await response.json();
-
-        setOrganizations(organizations);
-      } catch (e) {
-        // throw e;
-      }
-    };
-
-    getOrganizations();
-  }, [props.authToken]);
-
-  if (!organizations.length) return <Spinner />;
+  if (!organizations.value.length) return <Spinner />;
 
   return (
-    <div>
+    <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          organizations.map(
+          organizations.value.map(
             (org) => (
               <li key={org.id}>
-                <Link to={`${props.path}/organization/${org.id}/event`}>{org.name}</Link>
+                <Link to={`${pathname}/${org.id}/event`}>{org.name}</Link>
               </li>
             )
           )
         }
       </ul>
-    </div>
+    </Col></Row></Container>
   );
 };
 

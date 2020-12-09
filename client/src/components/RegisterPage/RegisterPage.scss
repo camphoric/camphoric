@@ -9,10 +9,21 @@
 }
 
 .RegisterPage {
-  text-align: center;
+  background-color: #057e36;
   display: flex;
   justify-content: center;
-  background-color: #057e36;
+  text-align: center;
+
+  form.rjsf {
+    background-color: white;
+    box-shadow: 0 0 5px black;
+    flex-grow: 1;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 75rem;
+    padding: 4rem 1rem;
+    text-align: left;
+  }
 }
 
 .App-link {
@@ -20,22 +31,22 @@
 }
 
 .App>section {
-  padding: 36px 0;
-  max-width: 750px;
-  flex-grow: 1;
   background-color: white;
   box-shadow: 0 0 5px black;
+  flex-grow: 1;
+  max-width: 750px;
+  padding: 36px 0;
 }
 
 .PriceTicker {
-  font-size: 16pt;
+  font-size: 17pt;
   font-weight: bold;
 }
 
 fieldset#root div.field-object {
+  background-color: #eee;
   border: 1px solid #e5e5e5;
   padding: 1em;
-  background-color: #eee;
 }
 
 button .glyphicon-plus {

@@ -4,9 +4,10 @@ import {
   Redirect,
   useRouteMatch,
   useParams,
-} from "react-router-dom";
+  useLocation,
+} from 'react-router-dom';
 
-import GuardedRouteFactory from './GuardedRoute';
+import GuardedRoute from './GuardedRoute';
 
 import OrganizationChooser from './components/OrganizationChooser';
 import EventChooser from './components/EventChooser';
@@ -14,46 +15,31 @@ import EventAdmin from './components/EventAdmin';
 
 type RouteDuple = [string, () => JSX.Element];
 
-function AdminPage (props: {}) {
-  const { path } = useRouteMatch();
-  const { organizationId } = useParams();
-
-  const [authToken, setAuthToken] = React.useState(
-    localStorage.getItem('AUTH_TOKEN') || ''
-  );
-
-  React.useEffect(() => {
-    localStorage.setItem('AUTH_TOKEN', authToken);
-  }, [authToken]);
-
+function AdminPage () {
+  const { url } = useRouteMatch();
+  const { pathname } = useLocation();
+  const { organizationId } = useParams<RouterUrlParams>();
 
   const subroutes: Array<RouteDuple> = [
-    ['organization/:organizationId/event/:eventId', () => (<EventAdmin path={path} authToken={authToken} />)],
-    ['organization/:organizationId/event', () => (<EventChooser path={path} authToken={authToken} />)],
-    ['organization/:organizationId', () => (<Redirect to={`${path}/organization/${organizationId}/event`} />)],
-    ['organization', () => (<OrganizationChooser path={path} authToken={authToken} />)],
+    ['organization/:organizationId/event/:eventId', () => (<EventAdmin />)],
+    ['organization/:organizationId/event', () => (<EventChooser />)],
+    ['organization/:organizationId', () => (<Redirect to={`${url}/organization/${organizationId}/event`} />)],
+    ['organization', () => (<OrganizationChooser />)],
   ];
-
-  const GuardedRoute = GuardedRouteFactory(setAuthToken);
 
   return (
     <Switch>
-      <GuardedRoute path={path} exact isAuthenticated={!!authToken}>
-        <Redirect to={`${path}/organization`} />
-      </GuardedRoute>
+      <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
       {
         subroutes.map(
           ([route, Comp]) => (
-            <GuardedRoute
-              path={`${path}/${route}`}
-              isAuthenticated={!!authToken}
-              key={route}
-            >
-              <section> <Comp /> </section>
+            <GuardedRoute path={`${url}/${route}`} key={route}>
+              <Comp />
             </GuardedRoute>
           )
         )
       }
+      <Redirect from={url} to={`${url}/organization`} />
     </Switch>
   );
 }
