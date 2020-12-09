@@ -6,6 +6,7 @@ import {
   useParams,
 } from 'react-router-dom';
 
+import { useAuthToken } from './hooks';
 import GuardedRouteFactory from './GuardedRoute';
 
 import OrganizationChooser from './components/OrganizationChooser';
@@ -17,15 +18,7 @@ type RouteDuple = [string, () => JSX.Element];
 function AdminPage (props: {}) {
   const { path } = useRouteMatch();
   const { organizationId } = useParams();
-
-  const [authToken, setAuthToken] = React.useState(
-    localStorage.getItem('AUTH_TOKEN') || ''
-  );
-
-  React.useEffect(() => {
-    localStorage.setItem('AUTH_TOKEN', authToken);
-  }, [authToken]);
-
+  const { authToken, setAuthToken } = useAuthToken();
 
   const subroutes: Array<RouteDuple> = [
     ['organization/:organizationId/event/:eventId', () => (<EventAdmin authToken={authToken} />)],

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation, } from 'react-router-dom';
 
+import { useEvents } from '../hooks';
 import Spinner from '../../Spinner';
 
 interface Props {
@@ -9,34 +10,8 @@ interface Props {
 }
 
 function EventChooser(props: Props) {
-  const [events, setEvents] = React.useState<ApiEvent[]>([]);
   const { pathname } = useLocation();
-
-  React.useEffect(() => {
-    const getEvents = async () => {
-      try {
-        const response = await fetch(
-          '/api/events/',
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${props.authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        const events = await response.json();
-
-        setEvents(events);
-      } catch (e) {
-        // TODO: create some sort of dev level logging
-      }
-
-    };
-
-    getEvents();
-  }, [props.authToken]);
+  const events = useEvents();
 
   if (!events.length) return <Spinner />;
 
@@ -47,7 +22,7 @@ function EventChooser(props: Props) {
           events.map(
             (event) => (
               <li key={event.id}>
-                <Link to={`${pathname}${event.id}`}>
+                <Link to={`${pathname}/${event.id}`}>
                   {event.name}
                 </Link>
               </li>

@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 
 import Spinner from '../../../Spinner';
+import { useEvent } from '../../hooks';
 import NavBar from './components/NavBar';
 
 interface Props {
@@ -16,42 +17,16 @@ interface Props {
 
 function EventAdmin(props: Props) {
   const { eventId } = useParams();
-
-  const [event, setEvent] = React.useState<ApiEvent>();
-
-  React.useEffect(() => {
-    const getEvent = async () => {
-      try {
-        const response = await fetch(
-          `/api/events/${eventId}`,
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${props.authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        const event = await response.json();
-
-        setEvent(event);
-      } catch (e) {
-      }
-
-    };
-
-    getEvent();
-  }, [props.authToken, eventId]);
+  const event = useEvent(eventId);
 
   if (!event) return <Spinner />;
 
   return (
     <div>
       <NavBar />
-      <section>
+      <Switch>
         <h1>{event.name}</h1>
-      </section>
+      </Switch>
     </div>
   );
 }
