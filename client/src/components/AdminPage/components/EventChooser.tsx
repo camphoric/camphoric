@@ -1,20 +1,16 @@
 import React from 'react';
-import {
-  Link,
-  useParams,
-} from 'react-router-dom';
+import { Link, useLocation, } from 'react-router-dom';
 
 import Spinner from '../../Spinner';
 
 interface Props {
   authToken: string,
-  path: string,
   location?: Object,
 }
 
 function EventChooser(props: Props) {
   const [events, setEvents] = React.useState<ApiEvent[]>([]);
-  const { organizationId } = useParams();
+  const { pathname } = useLocation();
 
   React.useEffect(() => {
     const getEvents = async () => {
@@ -51,7 +47,7 @@ function EventChooser(props: Props) {
           events.map(
             (event) => (
               <li key={event.id}>
-                <Link to={`${props.path}/organization/${organizationId}/event/${event.id}`}>
+                <Link to={`${pathname}${event.id}`}>
                   {event.name}
                 </Link>
               </li>

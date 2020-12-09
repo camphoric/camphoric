@@ -1,17 +1,23 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import {
+  Switch,
+  Redirect,
+  useParams,
+  useLocation,
+} from 'react-router-dom';
 
-import Spinner from '../../Spinner';
+import Spinner from '../../../Spinner';
+import NavBar from './components/NavBar';
 
 interface Props {
   authToken: string,
-  path: string,
   location?: Object,
 }
 
 function EventAdmin(props: Props) {
-  const [event, setEvent] = React.useState<ApiEvent>();
   const { eventId } = useParams();
+
+  const [event, setEvent] = React.useState<ApiEvent>();
 
   React.useEffect(() => {
     const getEvent = async () => {
@@ -42,7 +48,10 @@ function EventAdmin(props: Props) {
 
   return (
     <div>
-      <h1>{event.name}</h1>
+      <NavBar />
+      <section>
+        <h1>{event.name}</h1>
+      </section>
     </div>
   );
 }

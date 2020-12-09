@@ -4,7 +4,7 @@ import {
   Redirect,
   useRouteMatch,
   useParams,
-} from "react-router-dom";
+} from 'react-router-dom';
 
 import GuardedRouteFactory from './GuardedRoute';
 
@@ -28,10 +28,10 @@ function AdminPage (props: {}) {
 
 
   const subroutes: Array<RouteDuple> = [
-    ['organization/:organizationId/event/:eventId', () => (<EventAdmin path={path} authToken={authToken} />)],
-    ['organization/:organizationId/event', () => (<EventChooser path={path} authToken={authToken} />)],
+    ['organization/:organizationId/event/:eventId', () => (<EventAdmin authToken={authToken} />)],
+    ['organization/:organizationId/event', () => (<EventChooser authToken={authToken} />)],
     ['organization/:organizationId', () => (<Redirect to={`${path}/organization/${organizationId}/event`} />)],
-    ['organization', () => (<OrganizationChooser path={path} authToken={authToken} />)],
+    ['organization', () => (<OrganizationChooser authToken={authToken} />)],
   ];
 
   const GuardedRoute = GuardedRouteFactory(setAuthToken);
