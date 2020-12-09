@@ -4,11 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useOrganizations } from '../hooks';
 import Spinner from '../../Spinner';
 
-interface Props {
-  authToken: string,
-}
-
-function OrganizationChooser(props: Props) {
+function OrganizationChooser() {
   const { pathname } = useLocation();
   const organizations = useOrganizations();
 

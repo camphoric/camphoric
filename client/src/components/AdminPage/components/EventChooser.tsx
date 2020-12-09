@@ -4,12 +4,7 @@ import { Link, useLocation, } from 'react-router-dom';
 import { useEvents } from '../hooks';
 import Spinner from '../../Spinner';
 
-interface Props {
-  authToken: string,
-  location?: Object,
-}
-
-function EventChooser(props: Props) {
+function EventChooser() {
   const { pathname } = useLocation();
   const events = useEvents();
 

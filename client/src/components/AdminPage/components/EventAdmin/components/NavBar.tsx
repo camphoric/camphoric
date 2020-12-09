@@ -1,15 +1,26 @@
 import React from 'react';
 import { NavLink, useRouteMatch } from 'react-router-dom';
+import { RouteList } from '../EventAdmin';
 
-function NavBar () {
+interface Props {
+  routes: RouteList;
+}
+
+function NavBar (props: Props) {
   const { url } = useRouteMatch();
 
   return(
     <nav className="navBar">
       <ul>
-        <li><NavLink to={`${url}/home`}>Home</NavLink></li>
-        <li><NavLink to={`${url}/about`}>About</NavLink></li>
-        <li><NavLink to={`${url}/contact`}>Contact</NavLink></li>
+        {
+          props.routes.map(
+            ([route, title]) => (
+              <li key={route}>
+                <NavLink to={`${url}/${route}`}>{title}</NavLink>
+              </li>
+            )
+          )
+        }
       </ul>
     </nav>
   );
