@@ -12,13 +12,13 @@ type Props =  {
 };
 
 function GuardedRoute({ children, ...rest }: Props) {
-  const { authToken, setAuthToken } = useAuthToken();
+  const authToken = useAuthToken();
 
   return (
     <Route {...rest} render={(props) => (
-      authToken ? children : (
+      authToken.value ? children : (
         <Login
-          onLoginSuccess={setAuthToken}
+          onLoginSuccess={authToken.set}
           onLoginFail={(e) => console.log(e)}
         />
       )
