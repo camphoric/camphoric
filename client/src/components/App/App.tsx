@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Route, Link } from 'react-router-dom';
-import { Container, Row, Col } from 'react-bootstrap';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
 import Spinner from '../Spinner';
+
+import Splash from './Splash';
 
 const AdminPage = React.lazy(() => import('../AdminPage'));
 const RegisterPage = React.lazy(() => import('../RegisterPage'));
@@ -9,11 +10,7 @@ const RegisterPage = React.lazy(() => import('../RegisterPage'));
 const App = () => (
     <Router>
       <Route path="/" exact={true}>
-        <Container><Row className="justify-content-md-center"><Col>
-          <h1>Camphoric!</h1>
-          <p><Link to="/events/1/register">Registration Page (event 1)</Link></p>
-          <p><Link to="/admin">Admin Page</Link></p>
-        </Col></Row></Container>
+        <Splash />
       </Route>
       <Route path="/events/:eventId/register">
         <Suspense fallback={<Spinner />}>
