@@ -30,6 +30,8 @@ export function useEvent(eventId?: string | number) {
   const [event, setEvent] = React.useState<ApiEvent>();
 
   React.useEffect(() => {
+    if (!eventId) return;
+
     const getEvent = async () => {
       try {
         const response = await fetch(
