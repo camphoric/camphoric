@@ -10,13 +10,13 @@ function OrganizationChooser() {
   const { pathname } = useLocation();
   const organizations = useOrganizations();
 
-  if (!organizations.length) return <Spinner />;
+  if (!organizations.value.length) return <Spinner />;
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          organizations.map(
+          organizations.value.map(
             (org) => (
               <li key={org.id}>
                 <Link to={`${pathname}/${org.id}/event`}>{org.name}</Link>

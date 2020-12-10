@@ -1,126 +1,51 @@
 import React from 'react';
 
+export const AuthContext = React.createContext({
+  set: (value: string) => {},
+  value: '',
+});
+
+export const EventsContext = React.createContext({
+  poll: async () => Promise.resolve(),
+  value: [] as Array<ApiEvent>,
+});
+
+export const OrganizationsContext = React.createContext({
+  poll: async () => Promise.resolve(),
+  value: [] as Array<ApiOrganization>,
+});
+
 export function useAuthToken() {
-  const [authToken, setAuthToken] = React.useState(
-    localStorage.getItem('AUTH_TOKEN') || ''
-  );
+  const authToken = React.useContext(AuthContext);
 
-  React.useEffect(() => {
-    localStorage.setItem('AUTH_TOKEN', authToken);
-
-    const authLocalStorageListener = function(event: StorageEvent) {
-      if (event.storageArea !== localStorage) return;
-      const newAuthToken = localStorage.getItem('AUTH_TOKEN') || '';
-      if (newAuthToken === authToken) return;
-
-      setAuthToken(newAuthToken);
-    }
-
-    window.addEventListener('storage', authLocalStorageListener);
-
-    return () => window.removeEventListener('storage', authLocalStorageListener);
-
-  }, [authToken]);
-
-  return { authToken, setAuthToken };
-}
-
-export function useEvent(eventId?: string | number) {
-  const { authToken } = useAuthToken();
-  const [event, setEvent] = React.useState<ApiEvent>();
-
-  React.useEffect(() => {
-    if (!eventId) return;
-
-    const getEvent = async () => {
-      try {
-        const response = await fetch(
-          `/api/events/${eventId}`,
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        const event = await response.json();
-
-        setEvent(event);
-      } catch (e) {
-      }
-
-    };
-
-    getEvent();
-  }, [authToken, eventId]);
-
-  return event;
+  return authToken;
 }
 
 export function useEvents() {
-  const { authToken } = useAuthToken();
-  const [events, setEvents] = React.useState<ApiEvent[]>([]);
+  const events = React.useContext(EventsContext);
 
-  React.useEffect(() => {
-    const getEvents = async () => {
-      try {
-        const response = await fetch(
-          '/api/events/',
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        const events = await response.json();
-
-        setEvents(events);
-      } catch (e) {
-        // TODO: create some sort of dev level logging
-      }
-
-    };
-
-    getEvents();
-  }, [authToken]);
+  if (!events.value || !events.value.length) events.poll();
 
   return events;
 }
 
+export function useEvent(eventId?: string | number) {
+  const events = React.useContext(EventsContext);
+
+  if (!events.value || !events.value.length) events.poll();
+
+  const eventIdStr = eventId && eventId.toString();
+
+  return {
+    poll: events.poll,
+    value: events.value.find(e => e.id.toString() === eventIdStr),
+  };
+}
+
 export function useOrganizations() {
-  const { authToken } = useAuthToken();
-  const [organizations, setOrganizations] = React.useState<ApiOrganization[]>([]);
+  const organizations = React.useContext(OrganizationsContext);
 
-  React.useEffect(() => {
-    const getOrganizations = async () => {
-      let organizations
-      try {
-        const response = await fetch(
-          '/api/organizations/',
-          {
-            method: 'GET',
-            headers: new Headers({
-              'Authorization': `Token ${authToken}`, 
-              'Content-Type': 'application/json'
-            }),
-          },
-        );
-
-        organizations = await response.json();
-
-        setOrganizations(organizations);
-      } catch (e) {
-        // throw e;
-      }
-    };
-
-    getOrganizations();
-  }, [authToken]);
+  if (!organizations.value || !organizations.value.length) organizations.poll();
 
   return organizations;
 }

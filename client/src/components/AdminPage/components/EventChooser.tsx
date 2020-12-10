@@ -10,13 +10,13 @@ function EventChooser() {
   const { pathname } = useLocation();
   const events = useEvents();
 
-  if (!events.length) return <Spinner />;
+  if (!events.value.length) return <Spinner />;
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          events.map(
+          events.value.map(
             (event) => (
               <li key={event.id}>
                 <Link to={`${pathname}/${event.id}`}>

@@ -32,19 +32,19 @@ function EventAdmin() {
   const { url } = useRouteMatch();
   const event = useEvent(eventId);
 
-  if (!event) return <Spinner />;
+  if (!event.value) return <Spinner />;
 
   const subroutes: RouteList = [
-    ['home', 'Home', () => <Home event={event} />],
-    ['registrations', 'Registrations', () => <Registrations event={event} />],
-    ['lodging', 'Lodging', () => <Lodging event={event} />],
-    ['reports', 'Reports', () => <Reports event={event} />],
-    ['settings', 'Settings', () => <Settings event={event} />],
+    ['home', 'Home', () => <Home event={event.value} />],
+    ['registrations', 'Registrations', () => <Registrations event={event.value} />],
+    ['lodging', 'Lodging', () => <Lodging event={event.value} />],
+    ['reports', 'Reports', () => <Reports event={event.value} />],
+    ['settings', 'Settings', () => <Settings event={event.value} />],
   ];
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
-      <NavBar routes={subroutes} title={event.name} homeUrl={`${url}/home`} />
+      <NavBar routes={subroutes} title={event.value.name} homeUrl={`${url}/home`} />
       <Switch>
         <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
         {
