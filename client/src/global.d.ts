@@ -1,4 +1,4 @@
-import { JSONSchema6 } from "json-schema";
+import { JSONSchema7 } from "json-schema";
 
 type JSONLogic = any;
 type Template = any;
@@ -16,8 +16,8 @@ declare global {
     registration_end: null;
     start: string | null;
     end: string | null;
-    camper_schema: JSONSchema6;
-    payment_schema: JSONSchema6;
+    camper_schema: JSONSchema7;
+    payment_schema: JSONSchema7;
     registration_schema: { };
     registration_ui_schema: { };
     deposit_schema: null;
