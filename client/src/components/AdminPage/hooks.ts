@@ -29,7 +29,12 @@ export function useEvents() {
   return events;
 }
 
-export function useEvent(eventId?: string | number) {
+type UseEventReturn = {
+  poll: () => Promise<any>,
+  value?: ApiEvent,
+}
+
+export function useEvent(eventId?: string | number): UseEventReturn {
   const events = React.useContext(EventsContext);
 
   if (!events.value || !events.value.length) events.poll();

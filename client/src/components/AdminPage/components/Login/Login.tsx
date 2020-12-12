@@ -1,4 +1,5 @@
 import React from 'react';
+import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from '../../../Spinner';
 
@@ -32,7 +33,6 @@ class Login extends React.Component<LoginProps, LoginState> {
     formData.append('password', this.state.password);
 
     try {
-      console.log('logging in');
       const response = await fetch(
         '/api-token-auth/',
         { method: 'POST', body: formData },
@@ -60,40 +60,42 @@ class Login extends React.Component<LoginProps, LoginState> {
 
   render() {
     return (
-      <form>
-        <h1>Login</h1>
-        <div className="form-group">
-          <label>Login:</label>
-          <input
-            className="form-control"
-            type="text"
-            name="username"
-            disabled={this.state.processing}
-            onChange={e => this.setState({ username: e.target.value })}
-          />
-        </div>
-        <div className="form-group">
-          <label>Password:</label>
-          <input
-            className="form-control"
-            type="password"
-            name="password"
-            disabled={this.state.processing}
-            onChange={e => this.setState({ password: e.target.value })}
-            onKeyPress={this.onPasswordKeyPress}
-          />
-        </div>
+      <Container><Row className="justify-content-md-center"><Col>
+        <form>
+          <h1>Login</h1>
+          <div className="form-group">
+            <label>Login:</label>
+            <input
+              className="form-control"
+              type="text"
+              name="username"
+              disabled={this.state.processing}
+              onChange={e => this.setState({ username: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Password:</label>
+            <input
+              className="form-control"
+              type="password"
+              name="password"
+              disabled={this.state.processing}
+              onChange={e => this.setState({ password: e.target.value })}
+              onKeyPress={this.onPasswordKeyPress}
+            />
+          </div>
 
-        <button
-          onClick={this.attemptLogin}
-          disabled={this.state.processing}
-        >
-          Login
-        </button>
-        <div className="processing">
-          { !!this.state.processing && <Spinner text="Logging in..." color="black" /> }
-        </div>
-      </form>
+          <button
+            onClick={this.attemptLogin}
+            disabled={this.state.processing}
+          >
+            Login
+          </button>
+          <div className="processing">
+            { !!this.state.processing && <Spinner text="Logging in..." color="black" /> }
+          </div>
+        </form>
+      </Col></Row></Container>
     );
   }
 }
