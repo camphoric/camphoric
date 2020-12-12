@@ -155,7 +155,6 @@ class RegisterView(APIView):
     def get_form_schema(cls, event):
         if not event.registration_schema:
             return None
-        print(event)
         return {
             **event.registration_schema,
             'definitions': {
