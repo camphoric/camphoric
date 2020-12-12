@@ -44,7 +44,7 @@ function EventAdmin() {
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
-      <NavBar routes={subroutes} title={event.value.name} homeUrl={`${url}/home`} />
+      <NavBar routes={subroutes} event={event.value} homeUrl={`${url}/home`} />
       <Switch>
         <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
         {
