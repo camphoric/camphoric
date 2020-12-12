@@ -109,9 +109,17 @@ class App extends React.Component<Props, RegistrationState> {
   onSubmit = async ({ formData }: any) => {
     this.setState({ status: "submitting" });
     try {
-      const res = await fetch("/register.php", {
+      const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
         method: "POST",
-        body: JSON.stringify(formData)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formData,
+          pricingResults: this.state.status === "fetching"
+            ? {}
+            : this.state.totals,
+        }),
       });
       const text = await res.text();
       console.log("response", res.status, text);
