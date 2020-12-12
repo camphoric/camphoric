@@ -12,15 +12,15 @@ declare global {
     updated_at: string | null;
     deleted_at: string | null;
     name: string;
-    registration_start: null;
-    registration_end: null;
+    registration_start: string | null;
+    registration_end: string | null;
     start: string | null;
     end: string | null;
     camper_schema: JSONSchema7;
     payment_schema: JSONSchema7;
-    registration_schema: { };
-    registration_ui_schema: { };
-    deposit_schema: null;
+    registration_schema: JSONSchema7;
+    registration_ui_schema: JSONSchema7;
+    deposit_schema: JSONSchema7;
     pricing: {
       [id: string]: number;
     };
