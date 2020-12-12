@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEvent } from '../../../hooks';
+// import { useEvent } from '../../../hooks';
 
 interface Props {
   event?: ApiEvent,

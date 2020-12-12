@@ -54,7 +54,13 @@ class App extends React.Component<{}, State> {
   }
 
   setAuthToken = (value: string) => {
+    const authToken = {
+      set: this.setAuthToken,
+      value: value,
+    };
+
     localStorage.setItem('AUTH_TOKEN', value);
+    this.setState({ authToken });
   }
 
   authLocalStorageListener = (event: StorageEvent) => {
@@ -62,12 +68,7 @@ class App extends React.Component<{}, State> {
     const newAuthToken = localStorage.getItem('AUTH_TOKEN') || '';
     if (newAuthToken === this.state.authToken.value) return;
 
-    const authToken = {
-      set: this.setAuthToken,
-      value: newAuthToken,
-    };
-
-    this.setState({ authToken });
+    this.setAuthToken(newAuthToken);
   }
 
   pollOrganizations = async () => {
