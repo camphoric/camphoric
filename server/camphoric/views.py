@@ -158,6 +158,7 @@ class RegisterView(APIView):
         return {
             **event.registration_schema,
             'definitions': {
+                **event.registration_schema.get('definitions', {}),
                 'camper': event.camper_schema,
             },
             'required': [
