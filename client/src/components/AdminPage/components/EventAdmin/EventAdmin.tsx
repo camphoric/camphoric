@@ -51,7 +51,7 @@ function EventAdmin() {
           subroutes.map(
             ([route,, Comp]) => (
               <GuardedRoute path={`${url}/${route}`} key={route}>
-                <Comp />
+                <div className={`event-admin-section-${route}`}><Comp /></div>
               </GuardedRoute>
             )
           )

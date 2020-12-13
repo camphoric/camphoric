@@ -16,5 +16,19 @@
       font-size: 0.75rem;
     }
   }
+}
 
+div.event-admin-show-raw {
+  button {
+    margin: 2rem 0;
+  }
+
+  pre {
+    color: lightgray;
+    background-color: black;
+    padding: 1rem;
+  }
+}
+
+.event-admin-section-home {
 }
