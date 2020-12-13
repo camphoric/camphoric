@@ -71,7 +71,7 @@ def calculate_price(registration, campers):
             value = jsonLogic(camper_component["exp"], data)
             camper_results[var] = value
             if isinstance(value, numbers.Number):
-                results[var] += value
+                results[var] = (results[var] or 0) + value
             data[var] = value
 
         results['campers'].append(camper_results)
