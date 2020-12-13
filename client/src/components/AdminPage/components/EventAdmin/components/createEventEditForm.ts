@@ -15,7 +15,7 @@ export default function createEventEditForm(event: ApiEvent): Returns {
       label: 'Name',
       field: 'name',
       Input: FormControl,
-      passProps: {},
+      passProps: { defaultValue: event.name },
     },
     {
       label: 'Event Starts',

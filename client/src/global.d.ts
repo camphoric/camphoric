@@ -41,6 +41,22 @@ declare global {
     name: string;
   }
 
+  export interface ApiRegistration{
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    name: string;
+  }
+
+  export interface ApiCamper{
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    name: string;
+  }
+
   export interface RouterUrlParams {
     eventId?: string;
     organizationId?: string;
