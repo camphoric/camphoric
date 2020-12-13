@@ -1,15 +1,24 @@
 import React from 'react';
-// import { useEvent } from '../../../hooks';
+// import {
+//  InputGroup,
+// } from 'react-bootstrap';
+
+import ShowRawJSON from './ShowRawJSON';
+
+import { useRegistrations, useCampers } from '../../../hooks';
 
 interface Props {
   event?: ApiEvent,
 }
 
 function EventAdminRegistrations({ event }: Props) {
+  const registrations = useRegistrations();
+  const campers = useCampers();
+
   return (
     <React.Fragment>
-      <h1>Registrations</h1>
-      <pre>{JSON.stringify(event, null, 2)}</pre>
+      <ShowRawJSON label="registrations" json={registrations.value} />
+      <ShowRawJSON label="campers" json={campers.value} />
     </React.Fragment>
   );
 }

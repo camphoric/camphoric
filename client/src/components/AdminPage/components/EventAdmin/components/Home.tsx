@@ -1,10 +1,9 @@
 import React from 'react';
 import {
-  Button,
-  Collapse,
   InputGroup,
 } from 'react-bootstrap';
 
+import ShowRawJSON from './ShowRawJSON';
 import createEventEditForm from './createEventEditForm';
 
 interface Props {
@@ -12,9 +11,7 @@ interface Props {
 }
 
 function EventAdminHome({ event }: Props) {
-  const [showRawJson, setShowRawJson] = React.useState(false);
   const formItems = createEventEditForm(event);
-
 
   return (
     <>
@@ -29,26 +26,13 @@ function EventAdminHome({ event }: Props) {
               <Input
                 placeholder={label}
                 aria-label={label}
-                defaultValue={event[field]}
                 {...passProps}
               />
             </InputGroup>
           )
         )
       } 
-      <div className="event-admin-show-raw">
-        <Button
-          variant="outline-primary"
-          size="sm"
-          onClick={() => setShowRawJson(!showRawJson)}
-          aria-expanded={showRawJson}
-        >
-          Show Raw JSON
-        </Button>
-        <Collapse in={showRawJson}>
-          <pre className="event-admin-raw-json">{JSON.stringify(event, null, 2)}</pre>
-        </Collapse>
-      </div>
+      <ShowRawJSON json={event} />
     </>
   );
 }

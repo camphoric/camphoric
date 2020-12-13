@@ -2,15 +2,20 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
 import Spinner from '../Spinner';
 import {
+  AuthContext,
   OrganizationsContext,
   EventsContext,
-  AuthContext,
+  RegistrationsContext,
+  CampersContext,
 } from '../AdminPage/hooks';
+
 
 import Splash from './Splash';
 
 const AdminPage = React.lazy(() => import('../AdminPage'));
 const RegisterPage = React.lazy(() => import('../RegisterPage'));
+
+type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
 
 type State = {
   authToken: {
@@ -18,12 +23,20 @@ type State = {
     value: string,
   },
   events: {
-    poll: () => Promise<any>,
+    get: () => Promise<any>,
     value: Array<ApiEvent>,
   },
   organizations: {
-    poll: () => Promise<any>,
+    get: () => Promise<any>,
     value: Array<ApiOrganization>,
+  },
+  registrations: {
+    get: () => Promise<any>,
+    value: Array<ApiRegistration>,
+  },
+  campers: {
+    get: () => Promise<any>,
+    value: Array<ApiCamper>,
   },
 }
 
@@ -39,11 +52,19 @@ class App extends React.Component<{}, State> {
         value: localStorage.getItem('AUTH_TOKEN') || ''
       },
       events: {
-        poll: this.pollEvents,
+        get: this.getFactory<ApiEvent>('events'),
         value: [],
       },
       organizations: {
-        poll: this.pollOrganizations,
+        get: this.getFactory<ApiOrganization>('organizations'),
+        value: [],
+      },
+      registrations: {
+        get: this.getFactory<ApiRegistration>('registrations'),
+        value: [],
+      },
+      campers: {
+        get: this.getFactory<ApiCamper>('campers'),
         value: [],
       },
     };
@@ -71,12 +92,13 @@ class App extends React.Component<{}, State> {
     this.setAuthToken(newAuthToken);
   }
 
-  pollOrganizations = async () => {
+  async apiFetch<P>(endpoint: ApiEndpoint): Promise<P[]> {
     const { authToken } = this.state;
+    let value = [];
 
     try {
       const response = await fetch(
-        '/api/organizations/',
+        `/api/${endpoint}/`,
         {
           method: 'GET',
           headers: new Headers({
@@ -86,45 +108,27 @@ class App extends React.Component<{}, State> {
         },
       );
 
-      const value = await response.json();
-
-      const organizations = {
-        poll: this.pollOrganizations,
-        value,
-      };
-
-      this.setState({ organizations });
+      value = await response.json();
     } catch (e) {
-      console.error('error getting Organizations', e);
+      console.error(`error getting ${endpoint}`, e);
     }
+
+    return value;
   }
 
-  pollEvents = async () => {
-    const { authToken } = this.state;
+  getFactory<P>(endpoint: ApiEndpoint) {
+    return async () => {
+      console.log('getting', endpoint);
+      const value = await this.apiFetch<P>(endpoint);
 
-    try {
-      const response = await fetch(
-        '/api/events/',
-        {
-          method: 'GET',
-          headers: new Headers({
-            'Authorization': `Token ${authToken.value}`, 
-            'Content-Type': 'application/json'
-          }),
-        },
-      );
-
-      const value = await response.json();
-
-      this.setState({
-        events: {
-          poll: this.pollEvents,
+      this.setState((prevState: State) => ({
+        ...prevState,
+        [endpoint]: {
+          get: this.getFactory(endpoint),
           value,
         },
-      });
-    } catch (e) {
-      console.error('error getting Events', e);
-    }
+      }));
+    };
   }
 
   router() {
@@ -149,13 +153,17 @@ class App extends React.Component<{}, State> {
 
   render() {
     return (
-      <OrganizationsContext.Provider value={this.state.organizations}>
-        <EventsContext.Provider value={this.state.events}>
-          <AuthContext.Provider value={this.state.authToken}>
-            {this.router()}
-          </AuthContext.Provider>
-        </EventsContext.Provider>
-      </OrganizationsContext.Provider>
+      <CampersContext.Provider value={this.state.campers}>
+        <RegistrationsContext.Provider value={this.state.registrations}>
+          <OrganizationsContext.Provider value={this.state.organizations}>
+            <EventsContext.Provider value={this.state.events}>
+              <AuthContext.Provider value={this.state.authToken}>
+                {this.router()}
+              </AuthContext.Provider>
+            </EventsContext.Provider>
+          </OrganizationsContext.Provider>
+        </RegistrationsContext.Provider>
+      </CampersContext.Provider>
     );
   }
 }
