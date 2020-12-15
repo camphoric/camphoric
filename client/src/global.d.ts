@@ -68,5 +68,22 @@ declare global {
     eventId?: string;
     organizationId?: string;
   }
+
+  export interface AugmentedCamper extends ApiCamper {
+    searchStr: string;
+    searchStrJson: string;
+    label: string;
+  }
+
+  export interface AugmentedRegistration extends ApiRegistration {
+    searchStr: string;
+    searchStrJson: string;
+    campers: Array<AugmentedCamper>;
+  }
+
+  export type CombinedEventInfo = {
+    [id: string]: AugmentedRegistration,
+  }
+
 }
 

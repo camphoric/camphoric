@@ -30,5 +30,10 @@ div.event-admin-show-raw {
   }
 }
 
-.event-admin-section-home {
+.search-query-snippet pre {
+  color: gray;
+
+  .highlight {
+    color: red;
+  }
 }
