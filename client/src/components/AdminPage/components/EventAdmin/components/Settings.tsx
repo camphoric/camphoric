@@ -2,7 +2,7 @@ import React from 'react';
 // import { useEvent } from '../../../hooks';
 
 interface Props {
-  event?: ApiEvent,
+  event: ApiEvent,
 }
 
 function EventAdminSettings({ event }: Props) {

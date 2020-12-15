@@ -10,7 +10,7 @@ function OrganizationChooser() {
   const { pathname } = useLocation();
   const organizations = useOrganizations();
 
-  if (!organizations.value.length) return <Spinner />;
+  if (organizations.status !== 'done') return <Spinner />;
 
   return (
     <Container><Row className="justify-content-md-center"><Col>

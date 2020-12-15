@@ -28,9 +28,9 @@ export type RouteList = Array<RouteTuple>
 
 function EventAdmin() {
   const { eventId } = useParams<RouterUrlParams>();
+  const { value: event } = useEvent(eventId);
   const { pathname } = useLocation();
   const { url } = useRouteMatch();
-  const { value: event } = useEvent(eventId);
 
   if (!event) return <Spinner />;
 
@@ -45,7 +45,7 @@ function EventAdmin() {
   return (
     <Container>
       <Row className="justify-content-md-center"><Col>
-      <NavBar routes={subroutes} event={event} homeUrl={`${url}/home`} />
+      <NavBar url={url} routes={subroutes} event={event} homeUrl={`${url}/home`} />
       <Switch>
         <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
         {
