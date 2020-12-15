@@ -67,7 +67,7 @@ export const useCampers = apiContextHookFactory<ApiCamper>(CampersContext);
 type CtxId = string | number;
 type ContextFilteredFunc<P> = (id?: CtxId) => {
   get: () => void,
-  value?: P,
+  value: P | undefined,
 }
 
 /**
@@ -87,6 +87,7 @@ function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>):
     return {
       get: ctx.get,
       value: ctx.value.find(e => e.id.toString() === ctxIdStr),
+      status: ctx.status,
     };
   }
 }

@@ -54,7 +54,7 @@ function EventAdminRegistrations({ event }: Props) {
             )
           }
         </Col>
-        <Col>
+        <Col md="9">
           <ShowRawJSON label="registrations" json={registrations} />
         </Col>
       </Row>

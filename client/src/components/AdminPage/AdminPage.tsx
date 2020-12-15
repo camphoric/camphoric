@@ -1,9 +1,9 @@
 import React from 'react';
 import {
   Switch,
+  Route,
   Redirect,
   useRouteMatch,
-  useParams,
   useLocation,
 } from 'react-router-dom';
 
@@ -18,13 +18,11 @@ type RouteDuple = [string, () => JSX.Element];
 function AdminPage () {
   const { url } = useRouteMatch();
   const { pathname } = useLocation();
-  const { organizationId } = useParams<RouterUrlParams>();
 
   const subroutes: Array<RouteDuple> = [
-    ['organization/:organizationId/event/:eventId', () => (<EventAdmin />)],
-    ['organization/:organizationId/event', () => (<EventChooser />)],
-    ['organization/:organizationId', () => (<Redirect to={`${url}/organization/${organizationId}/event`} />)],
-    ['organization', () => (<OrganizationChooser />)],
+    ['organization/:organizationId/event/:eventId', EventAdmin],
+    ['organization/:organizationId/event', EventChooser],
+    ['organization', OrganizationChooser],
   ];
 
   return (
@@ -39,6 +37,9 @@ function AdminPage () {
           )
         )
       }
+      <Route path="organization/:organizationId">
+        <Redirect from={url} to={`${url}/event`} />
+      </Route>
       <Redirect from={url} to={`${url}/organization`} />
     </Switch>
   );

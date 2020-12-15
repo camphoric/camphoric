@@ -132,37 +132,35 @@ class App extends React.Component<{}, State> {
 
   router() {
     return (
-      <Router>
-        <Route path="/" exact={true}>
-          <Splash />
-        </Route>
-        <Route path="/events/:eventId/register">
-          <Suspense fallback={<Spinner />}>
+      <Suspense fallback={<Spinner />}>
+        <Router>
+          <Route path="/" exact={true}>
+            <Splash />
+          </Route>
+          <Route path="/events/:eventId/register">
             <RegisterPage />
-          </Suspense>
-        </Route>
-        <Route path="/admin">
-          <Suspense fallback={<Spinner />}>
+          </Route>
+          <Route path="/admin">
             <AdminPage />
-          </Suspense>
-        </Route>
-      </Router>
+          </Route>
+        </Router>
+      </Suspense>
     );
   }
 
   render() {
     return (
-      <CampersContext.Provider value={this.state.campers}>
-        <RegistrationsContext.Provider value={this.state.registrations}>
-          <OrganizationsContext.Provider value={this.state.organizations}>
-            <EventsContext.Provider value={this.state.events}>
-              <AuthContext.Provider value={this.state.authToken}>
+      <AuthContext.Provider value={this.state.authToken}>
+        <CampersContext.Provider value={this.state.campers}>
+          <RegistrationsContext.Provider value={this.state.registrations}>
+            <OrganizationsContext.Provider value={this.state.organizations}>
+              <EventsContext.Provider value={this.state.events}>
                 {this.router()}
-              </AuthContext.Provider>
-            </EventsContext.Provider>
-          </OrganizationsContext.Provider>
-        </RegistrationsContext.Provider>
-      </CampersContext.Provider>
+              </EventsContext.Provider>
+            </OrganizationsContext.Provider>
+          </RegistrationsContext.Provider>
+        </CampersContext.Provider>
+      </AuthContext.Provider>
     );
   }
 }
