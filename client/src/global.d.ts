@@ -41,20 +41,27 @@ declare global {
     name: string;
   }
 
-  export interface ApiRegistration{
+  export interface ApiRegistration {
     id: number;
     created_at: string | null;
     updated_at: string | null;
     deleted_at: string | null;
-    name: string;
+    attributes: any;
+    registrant_email: string;
+    server_pricing_results: any;
+    client_reported_pricing: any;
+    event: number | string;
+    registration_type: any;
   }
 
-  export interface ApiCamper{
+  export interface ApiCamper {
     id: number;
     created_at: string | null;
     updated_at: string | null;
     deleted_at: string | null;
-    name: string;
+    attributes: any;
+    registration: number | string;
+    lodging: any;
   }
 
   export interface RouterUrlParams {

@@ -9,7 +9,6 @@ import {
   CampersContext,
 } from '../AdminPage/hooks';
 
-
 import Splash from './Splash';
 
 const AdminPage = React.lazy(() => import('../AdminPage'));
@@ -118,7 +117,7 @@ class App extends React.Component<{}, State> {
 
   getFactory<P>(endpoint: ApiEndpoint) {
     return async () => {
-      console.log('getting', endpoint);
+      // console.log('getting', endpoint);
       const value = await this.apiFetch<P>(endpoint);
 
       this.setState((prevState: State) => ({

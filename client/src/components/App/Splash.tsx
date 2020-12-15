@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 
-function Splash() {
+function Splash(props: {}) {
   return (
     <Container><Row className="justify-content-md-center"><Col>
       <h1>Camphoric!</h1>

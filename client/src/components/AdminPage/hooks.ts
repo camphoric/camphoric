@@ -100,3 +100,82 @@ function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>):
 export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
+
+interface AugmentedCamper extends ApiCamper {
+  searchStr: string;
+  searchStrJson: string;
+  label: string;
+}
+
+interface AugmentedRegistration extends ApiRegistration {
+  searchStr: string;
+  searchStrJson: string;
+  campers: Array<AugmentedCamper>;
+}
+
+type CombinedEventInfo = {
+  [id: string]: AugmentedRegistration,
+}
+
+export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
+  const { value: registrations } = useRegistrations();
+  const { value: campers } = useCampers();
+
+  if (!registrations || !campers) return {};
+
+  const eventIdStr = eventId.toString();
+
+  return registrations
+    .filter(r => r.event.toString() === eventIdStr)
+    .map(r => {
+      const augmentedReg = {
+        ...r,
+        campers: campers
+          .filter(c => c.registration.toString() === r.id.toString())
+          .map(
+            c => ({
+              ...c,
+              // look for any 'name' type attributes and concat as label
+              label: Object.keys(c.attributes)
+                .filter(a => a.toLowerCase().includes('name'))
+                .map(k => c.attributes[k])
+                .join(', '),
+              searchStrJson: JSON.stringify(c),
+              searchStr: createSearchStr(c),
+            }),
+          ),
+        searchStr: '',
+      };
+
+      return {
+        ...augmentedReg,
+        searchStr: createSearchStr({
+          ...augmentedReg,
+          campers: augmentedReg.campers.map(c => c.searchStr).join(),
+        }),
+        searchStrJson: JSON.stringify(r),
+      };
+    })
+    .reduce(
+      (acc, r) => ({
+        ...acc,
+        [r.id]: r,
+      }),
+      {},
+    );
+}
+
+// This is used for creating search strings on the above values, which are used
+// in the EventAdmin pages for searching objects.
+function createSearchStr(obj: Object): string {
+  if (!obj) return '';
+  return Object.values(obj)
+    .reduce(
+      (acc, v) => `${acc}${
+        (typeof v === 'object' && !Array.isArray(v))
+          ? createSearchStr(v)
+          : JSON.stringify(v)
+      }`,
+      ''
+    ).replaceAll(/"+/g, ' ').toLowerCase();
+}
