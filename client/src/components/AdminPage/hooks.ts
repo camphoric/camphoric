@@ -1,53 +1,47 @@
 import React from 'react';
 
-type ContextValue<P> = {
-  value: P[],
-  get: () => Promise<void>,
-}
-
-type ApiHook<P> = React.Context<ContextValue<P>>;
-
-/**
- * Contexts for Persistent Global State
- *
- */
-export const AuthContext = React.createContext({
-  set: (value: string) => {},
-  value: '',
-});
-
-export const EventsContext = React.createContext({
-  get: async () => Promise.resolve(),
-  value: [] as Array<ApiEvent>,
-});
-
-export const OrganizationsContext = React.createContext({
-  get: async () => Promise.resolve(),
-  value: [] as Array<ApiOrganization>,
-});
-
-export const RegistrationsContext = React.createContext({
-  get: async () => Promise.resolve(),
-  value: [] as Array<ApiRegistration>,
-});
-
-export const CampersContext = React.createContext({
-  get: async () => Promise.resolve(),
-  value: [] as Array<ApiCamper>,
-});
-
-
 /**
  * useAuthToken hook
  *
  * This hook is not created via a factory, because it's value type is different
  * than all others.
  */
+export const AuthContext = React.createContext({
+  set: (value: string) => {},
+  value: '',
+});
+
 export function useAuthToken() {
   const authToken = React.useContext(AuthContext);
 
   return authToken;
 }
+
+type ContextValueStatus = 'undef' | 'fetching' | 'done';
+export type ContextValue<P> = {
+  value: P[],
+  get: () => void,
+  status: ContextValueStatus,
+};
+
+type ApiHook<P> = React.Context<ContextValue<P>>;
+
+function contextFactory<P>(): React.Context<ContextValue<P>> {
+  return React.createContext({
+    value: [] as Array<P>,
+    get: () => {},
+    status: 'undef' as ContextValueStatus,
+  });
+}
+
+/**
+ * Contexts for Persistent Global State
+ *
+ */
+export const EventsContext = contextFactory<ApiEvent>();
+export const OrganizationsContext = contextFactory<ApiOrganization>();
+export const RegistrationsContext = contextFactory<ApiRegistration>();
+export const CampersContext = contextFactory<ApiCamper>();
 
 /**
  * Context hooks for api calls
@@ -59,7 +53,7 @@ function apiContextHookFactory<P>(hook: ApiHook<P>): () => ContextValue<P> {
   return () => {
     const ctx = React.useContext(hook);
 
-    if (!ctx.value || !ctx.value.length) ctx.get();
+    if (ctx.status === 'undef') ctx.get();
 
     return ctx;
   }
@@ -72,7 +66,7 @@ export const useCampers = apiContextHookFactory<ApiCamper>(CampersContext);
 
 type CtxId = string | number;
 type ContextFilteredFunc<P> = (id?: CtxId) => {
-  get: () => Promise<any>,
+  get: () => void,
   value?: P,
 }
 
@@ -86,7 +80,7 @@ function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>):
   return (ctxId?: CtxId) => {
     const ctx = React.useContext(hook);
 
-    if (!ctx.value || !ctx.value.length) ctx.get();
+    if (ctx.status === 'undef') ctx.get();
 
     const ctxIdStr = ctxId && ctxId.toString();
 
@@ -100,22 +94,6 @@ function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>):
 export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
-
-interface AugmentedCamper extends ApiCamper {
-  searchStr: string;
-  searchStrJson: string;
-  label: string;
-}
-
-interface AugmentedRegistration extends ApiRegistration {
-  searchStr: string;
-  searchStrJson: string;
-  campers: Array<AugmentedCamper>;
-}
-
-type CombinedEventInfo = {
-  [id: string]: AugmentedRegistration,
-}
 
 export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
   const { value: registrations } = useRegistrations();

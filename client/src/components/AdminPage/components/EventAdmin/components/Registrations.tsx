@@ -10,6 +10,7 @@ import {
 import Spinner from '../../../../Spinner';
 
 import ShowRawJSON from './ShowRawJSON';
+import RegistrationSearchResult from './RegistrationSearchResult';
 
 import { useCombinedEventInfo } from '../../../hooks';
 
@@ -23,7 +24,7 @@ function EventAdminRegistrations({ event }: Props) {
 
   if (!registrations || !registrations.length) return <Spinner />;
 
-  if (searchQuery.length) {
+  if (searchQuery.length > 2) {
     registrations = registrations.filter(
       r => r.searchStr.includes(searchQuery.toLowerCase())
     );
@@ -43,7 +44,13 @@ function EventAdminRegistrations({ event }: Props) {
           </InputGroup>
           {
             registrations.map(
-              r => <div key={r.id}>{r.id}: {r.campers.length && r.campers.map(c => c.label).join(' - ') }</div>
+              r => (
+                <RegistrationSearchResult
+                  key={r.id}
+                  registration={r}
+                  searchQuery={searchQuery}
+                />
+              )
             )
           }
         </Col>

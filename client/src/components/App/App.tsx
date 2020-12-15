@@ -7,6 +7,7 @@ import {
   EventsContext,
   RegistrationsContext,
   CampersContext,
+  ContextValue,
 } from '../AdminPage/hooks';
 
 import Splash from './Splash';
@@ -21,22 +22,10 @@ type State = {
     set: (value: string) => void,
     value: string,
   },
-  events: {
-    get: () => Promise<any>,
-    value: Array<ApiEvent>,
-  },
-  organizations: {
-    get: () => Promise<any>,
-    value: Array<ApiOrganization>,
-  },
-  registrations: {
-    get: () => Promise<any>,
-    value: Array<ApiRegistration>,
-  },
-  campers: {
-    get: () => Promise<any>,
-    value: Array<ApiCamper>,
-  },
+  events: ContextValue<ApiEvent>,
+  organizations: ContextValue<ApiOrganization>,
+  registrations: ContextValue<ApiRegistration>,
+  campers: ContextValue<ApiCamper>,
 }
 
 class App extends React.Component<{}, State> {
@@ -53,18 +42,22 @@ class App extends React.Component<{}, State> {
       events: {
         get: this.getFactory<ApiEvent>('events'),
         value: [],
+        status: 'undef',
       },
       organizations: {
         get: this.getFactory<ApiOrganization>('organizations'),
         value: [],
+        status: 'undef',
       },
       registrations: {
         get: this.getFactory<ApiRegistration>('registrations'),
         value: [],
+        status: 'undef',
       },
       campers: {
         get: this.getFactory<ApiCamper>('campers'),
         value: [],
+        status: 'undef',
       },
     };
   }
@@ -115,9 +108,15 @@ class App extends React.Component<{}, State> {
     return value;
   }
 
+
   getFactory<P>(endpoint: ApiEndpoint) {
-    return async () => {
-      // console.log('getting', endpoint);
+    return () => this.setState((prevState: State) => ({
+      ...prevState,
+      [endpoint]: {
+        ...prevState[endpoint],
+        status: 'fetching',
+      }
+    }), async () => {
       const value = await this.apiFetch<P>(endpoint);
 
       this.setState((prevState: State) => ({
@@ -125,9 +124,10 @@ class App extends React.Component<{}, State> {
         [endpoint]: {
           get: this.getFactory(endpoint),
           value,
+          status: 'done',
         },
       }));
-    };
+    });
   }
 
   router() {
