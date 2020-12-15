@@ -1,4 +1,5 @@
 import React from 'react';
+import memoize from 'lodash/memoize';
 
 /**
  * useAuthToken hook
@@ -96,57 +97,9 @@ export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
 
-export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
-  const { value: registrations } = useRegistrations();
-  const { value: campers } = useCampers();
-
-  if (!registrations || !campers) return {};
-
-  const eventIdStr = eventId.toString();
-
-  return registrations
-    .filter(r => r.event.toString() === eventIdStr)
-    .map(r => {
-      const augmentedReg = {
-        ...r,
-        campers: campers
-          .filter(c => c.registration.toString() === r.id.toString())
-          .map(
-            c => ({
-              ...c,
-              // look for any 'name' type attributes and concat as label
-              label: Object.keys(c.attributes)
-                .filter(a => a.toLowerCase().includes('name'))
-                .map(k => c.attributes[k])
-                .join(', '),
-              searchStrJson: JSON.stringify(c),
-              searchStr: createSearchStr(c),
-            }),
-          ),
-        searchStr: '',
-      };
-
-      return {
-        ...augmentedReg,
-        searchStr: createSearchStr({
-          ...augmentedReg,
-          campers: augmentedReg.campers.map(c => c.searchStr).join(),
-        }),
-        searchStrJson: JSON.stringify(r),
-      };
-    })
-    .reduce(
-      (acc, r) => ({
-        ...acc,
-        [r.id]: r,
-      }),
-      {},
-    );
-}
-
-// This is used for creating search strings on the above values, which are used
-// in the EventAdmin pages for searching objects.
-function createSearchStr(obj: Object): string {
+// This is used for creating search strings on the useCombinedEventInfo values,
+// which are used in the EventAdmin pages for searching objects.
+const createSearchStr = memoize((obj: Object): string => {
   if (!obj) return '';
   return Object.values(obj)
     .reduce(
@@ -157,4 +110,59 @@ function createSearchStr(obj: Object): string {
       }`,
       ''
     ).replaceAll(/"+/g, ' ').toLowerCase();
+});
+
+const createAugmentedRegistrations = memoize(
+  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CombinedEventInfo => {
+    const eventIdStr = eventId.toString();
+
+    return registrations
+      .filter(r => r.event.toString() === eventIdStr)
+      .map(r => {
+        const augmentedReg = {
+          ...r,
+          campers: campers
+          .filter(c => c.registration.toString() === r.id.toString())
+          .map(
+            c => ({
+              ...c,
+              // look for any 'name' type attributes and concat as label
+              label: Object.keys(c.attributes)
+              .filter(a => a.toLowerCase().includes('name'))
+              .map(k => c.attributes[k])
+              .join(', '),
+              searchStrJson: JSON.stringify(c),
+              searchStr: createSearchStr(c),
+            }),
+          ),
+          searchStr: '',
+        };
+
+        return {
+          ...augmentedReg,
+          searchStr: createSearchStr({
+            ...augmentedReg,
+            campers: augmentedReg.campers.map(c => c.searchStr).join(),
+          }),
+          searchStrJson: JSON.stringify(r),
+        };
+      })
+      .reduce(
+        (acc, r) => ({
+          ...acc,
+          [r.id]: r,
+        }),
+        {},
+      )
+  }
+);
+
+export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
+  const { value: registrations } = useRegistrations();
+  const { value: campers } = useCampers();
+
+  if (!registrations || !campers) return {};
+
+  return createAugmentedRegistrations(registrations, campers, eventId);
 }
+
