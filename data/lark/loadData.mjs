@@ -73,7 +73,7 @@ const event = {
 if (existingEvent) {
 	event.id = existingEvent.id;
 }
-response = await fetch(`${urlBase}/api/events/${event.id}/`, {
+response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
 	method: existingEvent ? 'PUT' : 'POST',
 	headers: {
 		'Authorization': `Token ${token}`,
