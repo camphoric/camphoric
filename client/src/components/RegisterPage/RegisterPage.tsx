@@ -1,6 +1,6 @@
 import React from 'react';
 import { IChangeEvent, UiSchema } from '@rjsf/core';
-import Form from '@rjsf/bootstrap-4';
+import Form from '@rjsf/core';
 import { JSONSchema7 } from 'json-schema';
 import { RouteComponentProps, withRouter } from 'react-router';
 import { Container, Row, Col } from 'react-bootstrap';
