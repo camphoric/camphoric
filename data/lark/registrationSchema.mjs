@@ -237,7 +237,7 @@ export default {
         }
     },
     "required": [
-        "payer_first_name", "payer_last_name", "payer_email", "payer_number",
+        "payer_first_name", "payer_last_name", "payer_number",
         "payment_type", "payment_full_or_deposit",
         "campers", "tshirt_sizes", "sweatshirt_sizes"
     ],
@@ -255,11 +255,6 @@ export default {
         "payer_billing_address": {
             "$ref": "#/definitions/address"
         },
-        "payer_email": {
-            "type": "string",
-            "format": "email",
-            "title": "Email"
-        },
         "payer_number": {
             "type": "string",
             "maxLength": 20,
@@ -269,15 +264,22 @@ export default {
         "payment_type": {
             "type": "string",
             "title": "Payment Type",
+            "enum": [
+                "check",
+                "credit_card",
+                "paypal",
+            ],
             "enumNames": [
                 "Check",
-                "Credit Card or PayPal"
-            ],
-            "enum": [
-                "Discount Price - payment by check, bank check or money order",
-                "Full Price - payment by credit card or Paypal"
+                "Credit Card",
+                "PayPal",
             ],
             "default": "Discount Price - payment by check, bank check or money order"
+        },
+        "paypal_email": {
+            "type": "string",
+            "format": "email",
+            "title": "PayPal Email"
         },
         "payment_full_or_deposit": {
             "type": "string",
