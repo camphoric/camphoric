@@ -275,11 +275,11 @@ export default {
                         "paypal",
                     ],
                     "enumNames": [
-                        "Check",
-                        "Credit Card",
+                        "Check (personal check, bank check or money order)",
+                        "Credit card",
                         "PayPal",
                     ],
-                    "default": "Discount Price - payment by check, bank check or money order"
+                    "default": "check",
                 },
                 "payment_full_or_deposit": {
                     "type": "string",
