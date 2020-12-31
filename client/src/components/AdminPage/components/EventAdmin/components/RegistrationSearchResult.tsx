@@ -1,23 +1,27 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface Props {
   registration: AugmentedRegistration;
   searchQuery: string;
+  selected: boolean;
+  path: string;
 }
 
-function RegistrationSearchResult({ registration, searchQuery }: Props) {
+function RegistrationSearchResult({ registration, ...props }: Props) {
   return (
-    <div>
+    <Link to={props.path} className={props.selected ? 'selected' : ''}>
+      {props.selected ? '✔ ' : ''}
       {
         !!registration.campers.length &&
           registration.campers.map(c => c.label).join(' - ')
       }
       {
-        searchQuery.length > 2 && (
-          <div className="search-query-snippet">{searchQuerySnippet(registration, searchQuery)}</div>
+        props.searchQuery.length > 2 && (
+          <div className="search-query-snippet">{searchQuerySnippet(registration, props.searchQuery)}</div>
         )
       }
-    </div>
+    </Link>
   );
 }
 

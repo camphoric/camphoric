@@ -57,7 +57,7 @@ function EventAdmin() {
             )
           )
         }
-        <Redirect from={url} to={`${url}/home`} />
+        <Redirect to={`${url}/home`} />
       </Switch>
     </Col></Row></Container>
   );
