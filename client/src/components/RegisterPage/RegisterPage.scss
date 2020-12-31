@@ -72,26 +72,26 @@ fieldset#root_campers {
   }
 
   .array-item-toolbox button.array-item-remove::after {
-    content: " Remove This Camper";
+    content: "Remove This Camper";
   }
 
   & > .row:last-child .array-item-add button::after {
     content: "Add An Additional Camper";
   }
 
-  .accomodations button.btn-add::after {
+  .accommodations .array-item-add button::after {
     content: "Add A Camper Sharing With You";
   }
 
-  .accomodations button.array-item-remove::after {
-    content: "";
+  .accommodations button.array-item-remove::after {
+    content: "Remove";
   }
 
-  .accomodations .btn-group {
+  .accommodations .btn-group {
     bottom: -34px;
   }
 
-  .accomodations .array-item-toolbox {}
+  .accommodations .array-item-toolbox {}
 } 
 
 
