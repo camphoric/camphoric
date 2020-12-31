@@ -24,7 +24,10 @@ export default {
             "ui:widget": "PhoneInput"
         },
         "payment_type": {
-            "ui:description": { "__html": "<p>A per camper discount will be automatically applied if paying by check - <span class=\"pricing_check_discount_full\"></span> for full camp, <span class=\"pricing_check_discount_half\"></span> for half camp</p>" }
+            "ui:description": { "__html": `<p>A per camper discount will be automatically applied if paying 
+            by check - <span class=\"pricing_check_discount_full\"></span> for full camp, 
+            <span class=\"pricing_check_discount_half\"></span> for half camp. If you're paying by PayPal or 
+            credit card, we'll be sending you a confirmation with payment instructions within the next week.</p>` }
         },
         "payment_full_or_deposit": {
             "ui:description": { "__html": "<p>Full Payment - Pay your full registration now</p><p>Deposit 50% Tuition - Reserve your space with a deposit, due June 20th.</p>" }
