@@ -82,7 +82,7 @@ export type RegistrationState =
 const widgetMap: any = {
   PhoneInput: (props: any) => (
     <PhoneInput
-      country="US"
+      defaultCountry="US"
       value={props.value}
       onChange={(value: string) => props.onChange(value)}
     />
