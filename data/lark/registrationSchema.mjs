@@ -237,62 +237,91 @@ export default {
         }
     },
     "required": [
-        "payer_first_name", "payer_last_name", "payer_number",
-        "payment_type", "payment_full_or_deposit",
-        "campers", "tshirt_sizes", "sweatshirt_sizes"
+        "campers", "tshirt_sizes", "sweatshirt_sizes", "payment",
     ],
     "properties": {
-        "payer_first_name": {
-            "type": "string",
-            "maxLength": 50,
-            "title": "Billing First Name"
-        },
-        "payer_last_name": {
-            "type": "string",
-            "maxLength": 50,
-            "title": "Billing Last Name"
-        },
-        "payer_billing_address": {
-            "$ref": "#/definitions/address"
-        },
-        "payer_number": {
-            "type": "string",
-            "maxLength": 20,
-            "pattern": "^\\+[0-9]+$",
-            "title": "Phone Number"
-        },
-        "payment_type": {
-            "type": "string",
-            "title": "Payment Type",
-            "enum": [
-                "check",
-                "credit_card",
-                "paypal",
+        "payment": {
+            "type": "object",
+            "required": [
+                "payer_first_name", "payer_last_name", "payer_number",
+                "payment_type", "payment_full_or_deposit",
             ],
-            "enumNames": [
-                "Check",
-                "Credit Card",
-                "PayPal",
-            ],
-            "default": "Discount Price - payment by check, bank check or money order"
-        },
-        "paypal_email": {
-            "type": "string",
-            "format": "email",
-            "title": "PayPal Email"
-        },
-        "payment_full_or_deposit": {
-            "type": "string",
-            "title": "Full Payment or Deposit Only",
-            "enum": [
-                "full",
-                "deposit"
-            ],
-            "enumNames": [
-                "Full Payment",
-                "50% Deposit"
-            ],
-            "default": "full"
+            "properties": {
+                "payer_first_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "title": "Billing First Name"
+                },
+                "payer_last_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "title": "Billing Last Name"
+                },
+                "payer_billing_address": {
+                    "$ref": "#/definitions/address"
+                },
+                "payer_number": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^\\+[0-9]+$",
+                    "title": "Phone Number"
+                },
+                "payment_type": {
+                    "type": "string",
+                    "title": "Payment Type",
+                    "enum": [
+                        "check",
+                        "credit_card",
+                        "paypal",
+                    ],
+                    "enumNames": [
+                        "Check",
+                        "Credit Card",
+                        "PayPal",
+                    ],
+                    "default": "Discount Price - payment by check, bank check or money order"
+                },
+                "payment_full_or_deposit": {
+                    "type": "string",
+                    "title": "Full Payment or Deposit Only",
+                    "enum": [
+                        "full",
+                        "deposit"
+                    ],
+                    "enumNames": [
+                        "Full Payment",
+                        "50% Deposit"
+                    ],
+                    "default": "full"
+                },
+            },
+            "dependencies": {
+                "payment_type": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "payment_type": {
+                                    "enum": ["", "check", "credit_card"]
+                                }
+                            },
+                        },
+                        {
+                            "properties": {
+                                "payment_type": {
+                                    "enum": ["paypal"]
+                                },
+                                "paypal_email": {
+                                    "type": "string",
+                                    "format": "email",
+                                    "title": "PayPal Email"
+                                },
+                            },
+                            "required": ["paypal_email"]
+
+                        }
+                    ]
+                },
+            },
         },
         "parking_passes": {
             "type": "array",
