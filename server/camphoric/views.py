@@ -174,6 +174,7 @@ class RegisterView(APIView):
                 **event.registration_schema['properties'],
                 'campers': {
                     'type': 'array',
+                    'minItems': 1,
                     'items': {
                         '$ref': '#/definitions/camper',
                     },

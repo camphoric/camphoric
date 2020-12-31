@@ -143,7 +143,7 @@ class App extends React.Component<Props, RegistrationState> {
     this.setState({
       status: "loaded",
       config,
-      formData: { campers: [] },
+      formData: { campers: [{}] },
       totals: { campers: [] },
     });
 
