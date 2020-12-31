@@ -34,7 +34,7 @@ export default [
     },
     {
         var: "donation",
-        exp: {"var": ["lta_donation", 0]}
+        exp: {"var": ["registration.lta_donation", 0]}
     },
     {
         var: "total",
