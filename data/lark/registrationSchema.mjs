@@ -90,6 +90,7 @@ export default {
                                 "cabinmates": {
                                     "type": "array",
                                     "title": "Who would you like to share a cabin with?",
+                                    "maxItems": 4,
                                     "items": {
                                         "type": "string",
                                         "maxLength": 50,
@@ -106,6 +107,7 @@ export default {
                                 "tent_or_vehicle_mates": {
                                     "type": "array",
                                     "title": "Are you sharing your tent with anyone? If so, add their names below.",
+                                    "maxItems": 4,
                                     "items": {
                                         "type": "string",
                                         "maxLength": 50,
