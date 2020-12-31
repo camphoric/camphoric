@@ -1,5 +1,6 @@
 import React from 'react';
 import memoize from 'lodash/memoize';
+// const memoize = (func: Function) => func;
 
 /**
  * useAuthToken hook
@@ -162,7 +163,10 @@ export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
   const { value: campers } = useCampers();
 
   if (!registrations || !campers) return {};
+  if (!registrations.length || !campers.length) return {};
 
-  return createAugmentedRegistrations(registrations, campers, eventId);
+  const result = createAugmentedRegistrations(registrations, campers, eventId);
+
+  return result;
 }
 
