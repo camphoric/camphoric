@@ -30,22 +30,22 @@ export default [
                         {  "if": [
                             { "and": [
                                 {"===": ["F", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment_type" }, "Check" ]}
+                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
                             ]}, {"var": "pricing.check_discount_full"},
                             { "and": [
                                 {"===": ["A", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment_type" }, "Check" ]}
+                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
                             ]}, {"var": "pricing.check_discount_half"},
                             { "and": [
                                 { "===": ["B", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment_type" }, "Check" ]}
+                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
                             ]}, {"var": "pricing.check_discount_half"},
                             0
                         ]}
                     ]
                 },
                 {  "if": [
-                    { "===": ["deposit", {"var": "registration.payment_full_or_deposit"}]}, 0.5,
+                    { "===": ["deposit", {"var": "registration.payment.payment_full_or_deposit"}]}, 0.5,
                     1
                 ]}
             ]

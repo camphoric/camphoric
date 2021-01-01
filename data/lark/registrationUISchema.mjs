@@ -1,22 +1,42 @@
 export default {
     "ui:description": { "__html": "<p>Please read <a href='http://www.larkcamp.org/campterms.html' target='_blank'>Terms of Registration</a> before filling out this form.</p><p>Fill out this form to complete your registration for Lark Camp 2020 online. Please note that registrations are accepted in the order they are received; your camping preferences are processed on a “first come - first served” basis. Your early payment will not be cashed or charged until January 2020.</p><p>Fields marked with an asterisk (*) are required.</p><p><strong>There are no refunds</strong>; please consider purchasing trip insurance if you know something could prevent your attendance.</p>" },
-    "payer_billing_address": {
-        "ui:title": "Billing Address",
-        "contentClassNames": "row",
-        "street_address":       { "classNames": "col-xs-12 col-sm-12" },
-        "city":                 { "classNames": "col-xs-12 col-sm-12"  },
-        "state_or_province":    { "classNames": "col-xs-6  col-sm-6"  },
-        "zip_code":             { "classNames": "col-xs-6  col-sm-6"  },
-        "country":              { "classNames": "col-xs-12 col-sm-6"  }
-    },
-    "payer_number": {
-        "ui:widget": "PhoneInput"
-    },
-    "payment_type": {
-        "ui:description": { "__html": "<p>A per camper discount will be automatically applied if paying by check - <span class=\"pricing_check_discount_full\"></span> for full camp, <span class=\"pricing_check_discount_half\"></span> for half camp</p>" }
-    },
-    "payment_full_or_deposit": {
-        "ui:description": { "__html": "<p>Full Payment - Pay your full registration now</p><p>Deposit 50% Tuition - Reserve your space with a deposit, due June 20th.</p>" }
+    "payment": {
+        "ui:title": "Payment information",
+        "ui:order": [
+            "payer_first_name",
+            "payer_last_name",
+            "payer_billing_address",
+            "payer_number",
+            "payment_type",
+            "paypal_email",
+            "payment_full_or_deposit",
+        ],
+        "payer_billing_address": {
+            "ui:title": "Billing Address",
+            "contentClassNames": "row",
+            "street_address":       { "classNames": "col-xs-12 col-sm-12" },
+            "city":                 { "classNames": "col-xs-12 col-sm-12"  },
+            "state_or_province":    { "classNames": "col-xs-6  col-sm-6"  },
+            "zip_code":             { "classNames": "col-xs-6  col-sm-6"  },
+            "country":              { "classNames": "col-xs-12 col-sm-6"  }
+        },
+        "payer_number": {
+            "ui:widget": "PhoneInput"
+        },
+        "payment_type": {
+            "ui:description": { "__html": `<p>A per camper discount will be automatically applied if paying 
+            by check - <span class=\"pricing_check_discount_full\"></span> for full camp, 
+            <span class=\"pricing_check_discount_half\"></span> for half camp. If you're paying by PayPal or 
+            credit card, we'll be sending you a confirmation with payment instructions within the next week.</p>` }
+        },
+        "payment_full_or_deposit": {
+            "ui:description": { "__html": `
+                <ul>
+                    <li>Full Payment - Pay your full registration now</li>
+                    <li>Deposit 50% Tuition - Reserve your space with a deposit, due June 20th.</li>
+                </ul>
+                ` }
+        },
     },
     "parking_passes": {
         "ui:description": { "__html": "<p>The Mendocino Woodlands asks us to carpool when possible to reduce the number of cars in the State Park. <a href='https://www.larkcamp.org/carpool.html' target='_blank'>Go to larkcamp.org to find out about sharing rides.</a></p><p><strong>ALL vehicles and trailers are required to have a parking pass.</strong><br><u>Mendocino Woodlands vehicle requirements:</u> If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space <u>before</u> you register.</p><ul><li>You can pre-purchase parking passes for <span class=\"pricing_parking_pass\"></span>; you’ll receive your parking pass when you arrive at camp.</li><li>If you purchase your parking pass at camp, the cost will be <span class=\"pricing_parking_pass_at_camp\"></span> (note: NO credit cards accepted at that time).</li></ul>" }
