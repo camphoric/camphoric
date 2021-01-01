@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRouteMatch } from 'react-router-dom';
 import {
   InputGroup,
   FormControl,
@@ -9,17 +10,21 @@ import {
 
 import Spinner from '../../../../Spinner';
 
-import ShowRawJSON from './ShowRawJSON';
 import RegistrationSearchResult from './RegistrationSearchResult';
+import RegistrationEdit from './RegistrationEdit';
 
-import { useCombinedEventInfo } from '../../../hooks';
+import { useCombinedEventInfo, useQuery } from '../../../hooks';
 
 interface Props {
   event: ApiEvent,
 }
 
 function EventAdminRegistrations({ event }: Props) {
-  let registrations = Object.values(useCombinedEventInfo(event.id));
+  const { url } = useRouteMatch();
+  const registrationId = useQuery('registrationId');
+  const registrationMap = useCombinedEventInfo(event.id);
+
+  let registrations = Object.values(registrationMap);
   const [searchQuery, setSearchQuery] = React.useState('');
 
   if (!registrations || !registrations.length) return <Spinner />;
@@ -49,13 +54,22 @@ function EventAdminRegistrations({ event }: Props) {
                   key={r.id}
                   registration={r}
                   searchQuery={searchQuery}
+                  path={`${url}?registrationId=${r.id}`}
+                  selected={r.id.toString() === registrationId}
                 />
               )
             )
           }
         </Col>
         <Col md="9">
-          <ShowRawJSON label="registrations" json={registrations} />
+          {
+            !!registrationMap[registrationId] && (
+              <RegistrationEdit
+                registration={registrationMap[registrationId]}
+                event={event}
+              />
+            )
+          }
         </Col>
       </Row>
     </Container>

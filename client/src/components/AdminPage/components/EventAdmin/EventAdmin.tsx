@@ -37,6 +37,7 @@ function EventAdmin() {
   const subroutes: RouteList = [
     ['home', 'Home', () => <Home event={event} />],
     ['registrations', 'Registrations', () => <Registrations event={event} />],
+    ['campers', 'Campers', () => <Registrations event={event} />],
     ['lodging', 'Lodging', () => <Lodging event={event} />],
     ['reports', 'Reports', () => <Reports event={event} />],
     ['settings', 'Settings', () => <Settings event={event} />],
@@ -57,7 +58,7 @@ function EventAdmin() {
             )
           )
         }
-        <Redirect from={url} to={`${url}/home`} />
+        <Redirect to={`${url}/home`} />
       </Switch>
     </Col></Row></Container>
   );

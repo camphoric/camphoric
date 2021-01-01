@@ -1,5 +1,7 @@
 import React from 'react';
 import memoize from 'lodash/memoize';
+import { useLocation } from 'react-router-dom';
+// const memoize = (func: Function) => func;
 
 /**
  * useAuthToken hook
@@ -50,6 +52,7 @@ export const CampersContext = contextFactory<ApiCamper>();
  * Because all api endpoints return an array of some type of value, we have
  * created factory functions that abstract their creation.
  */
+
 function apiContextHookFactory<P>(hook: ApiHook<P>): () => ContextValue<P> {
   return () => {
     const ctx = React.useContext(hook);
@@ -162,7 +165,21 @@ export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
   const { value: campers } = useCampers();
 
   if (!registrations || !campers) return {};
+  if (!registrations.length || !campers.length) return {};
 
-  return createAugmentedRegistrations(registrations, campers, eventId);
+  const result = createAugmentedRegistrations(registrations, campers, eventId);
+
+  return result;
 }
 
+// A custom hook that builds on useLocation to parse
+// the query string for you.
+export function useQuery(type: undefined): URLSearchParams;
+export function useQuery(type: string): string;
+export function useQuery(name?: string) {
+  const params = new URLSearchParams(useLocation().search);
+
+  if (name) return params.get(name);
+
+  return params;
+}

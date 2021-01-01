@@ -67,6 +67,7 @@ declare global {
   export interface RouterUrlParams {
     eventId?: string;
     organizationId?: string;
+    registrationId?: string;
   }
 
   export interface AugmentedCamper extends ApiCamper {
