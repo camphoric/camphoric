@@ -52,6 +52,7 @@ export const CampersContext = contextFactory<ApiCamper>();
  * Because all api endpoints return an array of some type of value, we have
  * created factory functions that abstract their creation.
  */
+
 function apiContextHookFactory<P>(hook: ApiHook<P>): () => ContextValue<P> {
   return () => {
     const ctx = React.useContext(hook);

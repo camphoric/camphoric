@@ -13,7 +13,7 @@ import Spinner from '../../../../Spinner';
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
-import { useCombinedEventInfo, useQuery  } from '../../../hooks';
+import { useCombinedEventInfo, useQuery } from '../../../hooks';
 
 interface Props {
   event: ApiEvent,
@@ -66,6 +66,7 @@ function EventAdminRegistrations({ event }: Props) {
             !!registrationMap[registrationId] && (
               <RegistrationEdit
                 registration={registrationMap[registrationId]}
+                event={event}
               />
             )
           }
