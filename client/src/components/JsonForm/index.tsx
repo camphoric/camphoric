@@ -1,8 +1,62 @@
+import React from 'react';
+import Form, { FormProps } from '@rjsf/core';
+import { JSONSchema7 } from 'json-schema';
+import jsonLogic from 'json-logic-js';
 import get from 'lodash/get';
-import jsonLogic from "json-logic-js";
-import { JSONSchema6 } from "json-schema";
+import {
+  IChangeEvent,
+} from '@rjsf/core';
 
-import { RegistrationConfig, FormData } from "./RegisterPage";
+import PhoneInput from 'react-phone-input-2';
+import DescriptionField from '../DescriptionField';
+import ObjectFieldTemplate from '../ObjectFieldTemplate';
+import NaturalNumberInput from '../NaturalNumberInput';
+
+import 'react-phone-input-2/lib/style.css'
+import './JsonForm.scss';
+
+export type JsonFormChangeEvent<P> = IChangeEvent<P>;
+
+export type FormData = {
+  [key: string]: any;
+  campers: Array<Object>;
+};
+
+// TODO(evinism): Make this better typed
+const widgetMap: any = {
+  PhoneInput: (props: any) => (
+    <PhoneInput
+      country="us"
+      value={props.value}
+      onChange={(value: string) => props.onChange(value)}
+    />
+    ),
+  NaturalNumberInput: (props: any) => (
+    <NaturalNumberInput
+      value={props.value}
+      onChange={(value: string) => props.onChange(value)}
+    />
+    )
+};
+
+interface Props extends FormProps<any> {
+
+}
+
+function JsonForm(props: Props) {
+
+  return (
+    <Form
+      {...props}
+      widgets={widgetMap}
+      fields={{ DescriptionField: DescriptionField }}
+      ObjectFieldTemplate={ObjectFieldTemplate}
+      // liveValidate={true}
+    >
+      {props.children}
+    </Form>
+  );
+}
 
 type PricingData = {
   event: { [key: string]: any };
@@ -22,7 +76,7 @@ export type PricingResults = {
  * This should produce identical results to camphoric.pricing.calculate_price
  * (see server/camphoric/pricing.py)
  */
-export function calculatePrice(config: RegistrationConfig, formData: FormData): PricingResults {
+export function calculatePrice(config: ApiRegister, formData: FormData): PricingResults {
   // calculation should be done in whole dollars for sake of
   // avoiding funky issues with floats. If sub-dollar amounts
   // are necessary, we should switch this to cents.
@@ -37,7 +91,8 @@ export function calculatePrice(config: RegistrationConfig, formData: FormData): 
     pricing,
   };
 
-  const camperSchema = get(config.dataSchema, 'properties.campers.items') as JSONSchema6;
+
+  const camperSchema = get(config.dataSchema, 'properties.campers.items') as JSONSchema7;
   const camperDateProps = getDateProps(camperSchema);
 
   pricingLogic.registration.forEach(component => {
@@ -72,21 +127,23 @@ export function calculatePrice(config: RegistrationConfig, formData: FormData): 
   return results;
 }
 
-function getDateProps(schema: JSONSchema6 | undefined): Array<string> {
+function getDateProps(schema: JSONSchema7 | undefined): Array<string> {
   if (!schema) {
     return [];
   }
 
   return Object.entries(schema.properties || {})
-    .filter(([propName, propSchema]) =>
-      typeof propSchema === 'object'
-      && propSchema.type === 'string'
-      && propSchema.format === 'date'
-    )
-    .map(([propName, propSchema]) => propName);
+  .filter(([propName, propSchema]) =>
+    typeof propSchema === 'object'
+    && propSchema.type === 'string'
+    && propSchema.format === 'date'
+  )
+  .map(([propName, propSchema]) => propName);
 }
 
 function dateStringToObject(s: string) {
   const [year, month, day] = s.split('-').map(Number);
   return { year, month, day };
 }
+
+export default JsonForm;

@@ -1,118 +1,18 @@
-@mixin standard-button {
-  width: 100%;
-  height: 100%;
-  font-size: 1.5em;
-
-  margin-left: 0;
-  margin-right: 0;
-  height: 3em;
-}
-
 .RegisterPage {
   background-color: #057e36;
   display: flex;
   justify-content: center;
   text-align: center;
 
-  form.rjsf {
+  .App-link {
+    color: #61dafb;
+  }
+
+  .App>section {
     background-color: white;
     box-shadow: 0 0 5px black;
     flex-grow: 1;
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 75rem;
-    padding: 4rem 1rem;
-    text-align: left;
-
-    .field-description {
-      font-size: 90%;
-    }
+    max-width: 750px;
+    padding: 36px 0;
   }
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-.App>section {
-  background-color: white;
-  box-shadow: 0 0 5px black;
-  flex-grow: 1;
-  max-width: 750px;
-  padding: 36px 0;
-}
-
-.PriceTicker {
-  font-size: 17pt;
-  font-weight: bold;
-}
-
-fieldset#root div.field-object {
-  background-color: #eee;
-  border: 1px solid #e5e5e5;
-  padding: 1em;
-}
-
-button .glyphicon-plus {
-  display: none;
-}
-
-fieldset#root_campers {
-  .array-item-toolbox {
-    width: 15%;
-    float: right;
-  }
-
-  .array-item-toolbox .btn {
-    white-space: inherit;
-  }
-
-  & > .array-item-list .array-item .col-xs-9 {
-    width: 85%;
-  }
-
-  & > .row:last-child .array-item-add button{
-    @include standard-button;
-  }
-
-  .array-item-toolbox button.array-item-remove::after {
-    content: "Remove This Camper";
-  }
-
-  & > .row:last-child .array-item-add button::after {
-    content: "Add An Additional Camper";
-  }
-
-  .accommodations .array-item-add button::after {
-    content: "Add A Camper Sharing With You";
-  }
-
-  .accommodations button.array-item-remove::after {
-    content: "Remove";
-  }
-
-  .accommodations .btn-group {
-    bottom: -34px;
-  }
-
-  .accommodations .array-item-toolbox {}
-} 
-
-
-.array-item-add, button[type=submit] {
-  @include standard-button;
-}
-
-fieldset#root_parking_passes .array-item-add {
-  &:last-child button {
-    @include standard-button;
-  }
-
-  button::after {
-    content: "Add A Parking Pass";
-  }
-}
-
-.react-phone-number-input__icon img {
-  vertical-align: baseline;
 }

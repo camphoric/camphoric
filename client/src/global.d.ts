@@ -1,4 +1,7 @@
 import { JSONSchema7 } from "json-schema";
+import {
+  UiSchema as JsonFormUiSchema,
+} from '@rjsf/core';
 
 type JSONLogic = any;
 type Template = any;
@@ -62,6 +65,23 @@ declare global {
     attributes: any;
     registration: number | string;
     lodging: any;
+  }
+
+  export type JsonLogicPricing = Array<{
+    label?: string;
+    var: string;
+    exp: any; // JsonLogic
+  }>;
+
+  export interface ApiRegister {
+    dataSchema: JSONSchema7;
+    uiSchema: JsonFormUiSchema;
+    event: { [key: string]: any };
+    pricingLogic: {
+      camper: JsonLogicPricing;
+      registration: JsonLogicPricing;
+    };
+    pricing: { [key: string]: any };
   }
 
   export interface RouterUrlParams {

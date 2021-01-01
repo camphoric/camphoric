@@ -1,6 +1,6 @@
 import React from 'react';
 import ShowRawJSON from './ShowRawJSON';
-import { IChangeEvent, UiSchema } from '@rjsf/core';
+// import { IChangeEvent, UiSchema } from '@rjsf/core';
 import Form from '@rjsf/core';
 
 interface Props {

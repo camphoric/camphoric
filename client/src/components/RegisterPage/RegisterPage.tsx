@@ -1,20 +1,17 @@
 import React from 'react';
-import { IChangeEvent, UiSchema } from '@rjsf/core';
-import Form from '@rjsf/core';
-import { JSONSchema7 } from 'json-schema';
 import { RouteComponentProps, withRouter } from 'react-router';
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from '../Spinner';
-
-import PhoneInput from 'react-phone-number-input';
-import DescriptionField from '../DescriptionField';
-import ObjectFieldTemplate from '../ObjectFieldTemplate';
-import NaturalNumberInput from '../NaturalNumberInput';
 import PriceTicker from '../PriceTicker';
-import { calculatePrice, PricingResults } from './utils';
 
-import 'react-phone-number-input/style.css';
+import JsonForm, { 
+  calculatePrice,
+  PricingResults,
+  FormData,
+  JsonFormChangeEvent,
+} from '../JsonForm';
+
 import './RegisterPage.scss';
 
 type PathParams = {
@@ -23,36 +20,14 @@ type PathParams = {
 
 type Props = RouteComponentProps<PathParams>;
 
-export type PricingLogic = Array<{
-  label?: string;
-  var: string;
-  exp: any; // JsonLogic
-}>;
-
-export type RegistrationConfig = {
-  dataSchema: JSONSchema7;
-  uiSchema: UiSchema;
-  event: { [key: string]: any };
-  pricingLogic: {
-    camper: PricingLogic;
-    registration: PricingLogic;
-  };
-  pricing: { [key: string]: any };
-};
-
-export type FormData = {
-  [key: string]: any;
-  campers: Array<Object>;
-};
-
-interface FormDataState {
-  config: RegistrationConfig;
-  formData: FormData;
-  totals: PricingResults;
-}
-
 interface FetchingState {
   status: "fetching";
+}
+
+interface FormDataState {
+  config: ApiRegister;
+  formData: FormData;
+  totals: PricingResults;
 }
 
 interface LoadedState extends FormDataState {
@@ -77,23 +52,6 @@ export type RegistrationState =
   | SubmittingState
   | SubmittedState
   | SubmissionErrorState;
-
-// TODO(evinism): Make this better typed
-const widgetMap: any = {
-  PhoneInput: (props: any) => (
-    <PhoneInput
-      defaultCountry="US"
-      value={props.value}
-      onChange={(value: string) => props.onChange(value)}
-    />
-  ),
-  NaturalNumberInput: (props: any) => (
-    <NaturalNumberInput
-      value={props.value}
-      onChange={(value: string) => props.onChange(value)}
-    />
-  )
-};
 
 class App extends React.Component<Props, RegistrationState> {
   state: RegistrationState = {
@@ -140,7 +98,7 @@ class App extends React.Component<Props, RegistrationState> {
   };
 
   getConfig = async () => {
-    let config: RegistrationConfig;
+    let config: ApiRegister;
 
     try {
       const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`);
@@ -160,7 +118,7 @@ class App extends React.Component<Props, RegistrationState> {
     this.populateDescriptionsWithPrices(config);
   };
 
-  populateDescriptionsWithPrices(config: RegistrationConfig) {
+  populateDescriptionsWithPrices(config: ApiRegister) {
     // Because of the way that react-jsonschema-form works, this is the
     // simplest way to "templatify" the pricing
     Object.keys(config.pricing).forEach(key => {
@@ -174,7 +132,7 @@ class App extends React.Component<Props, RegistrationState> {
     });
   }
 
-  onChange = ({ formData }: IChangeEvent<FormData>) => {
+  onChange = ({ formData }: JsonFormChangeEvent<FormData>) => {
     if (this.state.status === "fetching") {
       return;
     }
@@ -204,12 +162,9 @@ class App extends React.Component<Props, RegistrationState> {
       case "submitting":
         pageContent = (
           <section>
-            <Form
+            <JsonForm
               schema={this.state.config.dataSchema}
               uiSchema={this.state.config.uiSchema}
-              widgets={widgetMap}
-              fields={{ DescriptionField: DescriptionField }}
-              ObjectFieldTemplate={ObjectFieldTemplate}
               onChange={this.onChange}
               onSubmit={this.onSubmit}
               onError={() => console.log("errors")}
@@ -233,7 +188,7 @@ class App extends React.Component<Props, RegistrationState> {
                   Submit Registration
                 </button>
               </div>
-            </Form>
+            </JsonForm>
             <PriceTicker price={this.state.totals.total || 0} />
           </section>
         );
