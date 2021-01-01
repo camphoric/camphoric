@@ -106,6 +106,16 @@ class App extends React.Component<Props, RegistrationState> {
     this.getConfig();
   }
 
+  componentDidUpdate(prevProps: Props, prevState: RegistrationState) {
+    if (this.state.status === "fetching" || prevState.status === "fetching") {
+      return;
+    }
+
+    if (this.state.formData.campers.length !== prevState.formData.campers.length) {
+      this.populateDescriptionsWithPrices(this.state.config);
+    }
+  }
+
   onSubmit = async ({ formData }: any) => {
     this.setState({ status: "submitting" });
     try {
@@ -147,6 +157,10 @@ class App extends React.Component<Props, RegistrationState> {
       totals: { campers: [] },
     });
 
+    this.populateDescriptionsWithPrices(config);
+  };
+
+  populateDescriptionsWithPrices(config: RegistrationConfig) {
     // Because of the way that react-jsonschema-form works, this is the
     // simplest way to "templatify" the pricing
     Object.keys(config.pricing).forEach(key => {
@@ -158,10 +172,17 @@ class App extends React.Component<Props, RegistrationState> {
         els[i].innerHTML = "$" + Math.abs(price);
       }
     });
-  };
+  }
 
   onChange = ({ formData }: IChangeEvent<FormData>) => {
-    this.setState(({ formData }) as LoadedState);
+    if (this.state.status === "fetching") {
+      return;
+    }
+    
+    this.setState(({ 
+      formData,
+      totals: calculatePrice(this.state.config, formData),
+    }) as LoadedState);
   };
 
   transformErrors = (errors: Array<any>) =>
@@ -213,7 +234,7 @@ class App extends React.Component<Props, RegistrationState> {
                 </button>
               </div>
             </Form>
-            <PriceTicker price={calculatePrice(this.state.config, this.state.formData).total || 0} />
+            <PriceTicker price={this.state.totals.total || 0} />
           </section>
         );
         break;
