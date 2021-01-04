@@ -1,4 +1,5 @@
 import React from 'react';
+import CustomDescriptionField from '../fields/Description';
 
 /**
  * Modified version of DefaultObjectFieldTemplate from react-jsonschema-form:
@@ -9,7 +10,7 @@ import React from 'react';
  * See https://react-jsonschema-form.readthedocs.io/en/latest/advanced-customization/#object-field-template
  */
 export default function ObjectFieldTemplate(props: any) {
-  const { TitleField, DescriptionField } = props;
+  const { TitleField } = props;
   return (
     <fieldset id={props.idSchema.$id}>
       {(props.uiSchema["ui:title"] || props.title) && (
@@ -21,10 +22,9 @@ export default function ObjectFieldTemplate(props: any) {
         />
       )}
       {props.description && (
-        <DescriptionField
+        <CustomDescriptionField
           id={`${props.idSchema.$id}__description`}
           description={props.description}
-          formContext={props.formContext}
         />
       )}
       <div className={props.uiSchema.contentClassNames || "content"}>

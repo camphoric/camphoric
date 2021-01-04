@@ -1,5 +1,13 @@
 export default {
     "title": "Lark Camp Registration",
+	  "description": `
+Please read [Terms of Registration](http://www.larkcamp.org/campterms.html) before filling out this form.
+
+Fill out this form to complete your registration for Lark Camp 2020 online. Please note that registrations are accepted in the order they are received; your camping preferences are processed on a “first come - first served” basis. Your early payment will not be cashed or charged until January 2020.
+
+Fields marked with an asterisk (*) are required.
+
+**There are no refunds**; please consider purchasing trip insurance if you know something could prevent your attendance.`,
     "type": "object",
     "definitions": {
         "camping_preference": {
@@ -90,6 +98,7 @@ export default {
                                 "cabinmates": {
                                     "type": "array",
                                     "title": "Who would you like to share a cabin with?",
+																	  "description": "Let us know and we will try to accommodate your request.",
                                     "maxItems": 4,
                                     "items": {
                                         "type": "string",
@@ -117,6 +126,7 @@ export default {
                                 "tenting_area_preference": {
                                     "type": "object",
                                     "title": "What are your tent area preferences, in order?",
+  																	"description": "<p>Fill in your tenting preference below. To see a map of camp click on the links to open another window. Area A-C are in <a href='https://www.larkcamp.org/wp-content/uploads/2020/01/camp1-1024x775.gif' target='_blank'>Camp One</a>, D-H are in <a href='https://www.larkcamp.org/wp-content/uploads/2020/01/camp2-1024x735.gif' target='_blank'>Camp Two</a>, I-L are in <a href='https://www.larkcamp.org/wp-content/uploads/2020/01/camp3-1024x747.gif' target='_blank'>Camp Three</a></p>",
                                     "properties": {
                                         "first_choice": {
                                             "$ref": "#/definitions/camping_preference",
@@ -174,6 +184,15 @@ export default {
         "meals": {
             "type": "object",
             "title": "Meal Plans",
+  					"description": `Meal plans must be paid in full (we cannot accept partial payments) NO LATER THAN JUNE 20, 2020\. Food prices include sales tax. You may buy individual meals (at a higher rate!) at camp if you would prefer not to purchase a full meal plan. (NOTE: You may only cook if you have a vehicle with a built-in kitchen. No white gas or propane stoves are allowed in the State Park.)
+
+This is a significant savings over buying meals at camp. Full meals includes breakfast, lunch, and dinner.
+
+**Meal Plan Pricing (adult / child 11 and under)**
+
+*   Full camp, full meals \`pricing_meals_adult_full\`adults / \`pricing_meals_teen_full\`kids
+*   Full camp, just dinners: \`pricing_meals_adult_dinners\`adults / \`pricing_meals_teen_dinners\`kids
+*   Half camp, full meals: \`pricing_meals_adult_half\`adults / \`pricing_meals_teen_half\`kids`,
             "properties": {
                 "meal_plan": {
                     "type": "string",
@@ -241,6 +260,7 @@ export default {
     ],
     "properties": {
         "payment": {
+					  "title": "Payment information",
             "type": "object",
             "required": [
                 "payer_first_name", "payer_last_name", "payer_number",
@@ -258,6 +278,7 @@ export default {
                     "title": "Billing Last Name"
                 },
                 "payer_billing_address": {
+										"title": "Billing Address",
                     "$ref": "#/definitions/address"
                 },
                 "payer_number": {
@@ -269,6 +290,7 @@ export default {
                 "payment_type": {
                     "type": "string",
                     "title": "Payment Type",
+									  "description": "A per camper discount will be automatically applied if paying by check - `pricing_check_discount_full` for full camp, `pricing_check_discount_half` for half camp. If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week.",
                     "enum": [
                         "check",
                         "credit_card",
@@ -284,6 +306,9 @@ export default {
                 "payment_full_or_deposit": {
                     "type": "string",
                     "title": "Full Payment or Deposit Only",
+									  "ui:description": `
+- Full Payment - Pay your full registration now
+- Deposit 50% Tuition - Reserve your space with a deposit, due June 20th.`,
                     "enum": [
                         "full",
                         "deposit"
@@ -326,6 +351,13 @@ export default {
         "parking_passes": {
             "type": "array",
             "title": "Parking Passes",
+						"description": `The Mendocino Woodlands asks us to carpool when possible to reduce the number of cars in the State Park. [Go to larkcamp.org to find out about sharing rides.](https://www.larkcamp.org/carpool.html)
+
+**ALL vehicles and trailers are required to have a parking pass.**  
+*Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
+
+*   You can pre-purchase parking passes for \`pricing_parking_pass\`; you’ll receive your parking pass when you arrive at camp.
+*   If you purchase your parking pass at camp, the cost will be \`pricing_parking_pass_at_camp\`(note: NO credit cards accepted at that time).`,
             "minItems": 0,
             "maxItems": 4,
             "items": {
@@ -343,16 +375,29 @@ export default {
         },
         "tshirt_sizes": {
             "$ref": "#/definitions/sizes",
-            "title": "T-shirt Sizes"
+            "title": "T-shirt Sizes",
+					"description": `All sizes \`pricing_tshirt\`. Price includes sales tax.  
+[More Information About Lark Camp Shirts](https://www.larkcamp.org/shirt.html)
+
+T-shirts are straight cut by default; if you want a fitted cut t-shirt, let us know in the comments box below.
+
+We use the language “Straight Cut”, and “Fitted Cut” for the two different scales called Unisex/Men’s and Women’s by the garment industry.
+
+Fitted cut garments are typically 1 size smaller than the equivalent straight cut. For example if you typically wear a large fitted garment you would typically wear a small in straight cut sizing.`,
         },
         "sweatshirt_sizes": {
             "$ref": "#/definitions/sizes",
-            "title": "Sweatshirt Sizes"
+            "title": "Sweatshirt Sizes",
+						"description": "All sizes \`pricing_sweatshirt\`",
         },
         "lta_donation": {
             "type": "integer",
             "minimum": 0,
-            "title": "Donation to Lark Traditional Arts (Tax Deductible, Dollars)"
+            "title": "Donation to Lark Traditional Arts (Tax Deductible, Dollars)",
+					  "description": `
+**DONATE TO LARK CAMP**  
+Lark Traditional Arts (EIN 83-2424940) is the nonprofit organization that runs Lark Camp. If you would like to support camp with a tax-deductible donation in addition to your registration today, please use the space below to add the amount. Or you may go to: [https://www.larkcamp.org/](https://www.larkcamp.org/)
+				`,
         },
         "how_did_you_hear": {
             "type": "string",

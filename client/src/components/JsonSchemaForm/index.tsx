@@ -1,5 +1,7 @@
 import React from 'react';
-import Form, { FormProps } from '@rjsf/core';
+import { FormProps } from '@rjsf/core';
+// import Form from '@rjsf/bootstrap-4';
+import { withTheme } from '@rjsf/core';
 import { JSONSchema7 } from 'json-schema';
 import jsonLogic from 'json-logic-js';
 import get from 'lodash/get';
@@ -7,50 +9,51 @@ import {
   IChangeEvent,
 } from '@rjsf/core';
 
-import PhoneInput from 'react-phone-input-2';
-import DescriptionField from '../DescriptionField';
-import ObjectFieldTemplate from '../ObjectFieldTemplate';
-import NaturalNumberInput from '../NaturalNumberInput';
+import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 
-import 'react-phone-input-2/lib/style.css'
-import './JsonForm.scss';
+import FieldTemplate from './templates/Field';
+import ObjectTemplate from './templates/Object';
 
-export type JsonFormChangeEvent<P> = IChangeEvent<P>;
+import DescriptionField from './fields/Description';
+import CampersField from './fields/Campers';
+
+import NaturalNumberInput from './widgets/NaturalNumberInput';
+import PhoneInput from './widgets/PhoneInput';
+
+import './JsonSchemaForm.scss';
+
+export type JsonSchemaFormChangeEvent<P> = IChangeEvent<P>;
 
 export type FormData = {
   [key: string]: any;
   campers: Array<Object>;
 };
 
-// TODO(evinism): Make this better typed
-const widgetMap: any = {
-  PhoneInput: (props: any) => (
-    <PhoneInput
-      country="us"
-      value={props.value}
-      onChange={(value: string) => props.onChange(value)}
-    />
-    ),
-  NaturalNumberInput: (props: any) => (
-    <NaturalNumberInput
-      value={props.value}
-      onChange={(value: string) => props.onChange(value)}
-    />
-    )
+Bootstrap4Theme.widgets = {
+  ...Bootstrap4Theme.widgets,
+  PhoneInput,
+  NaturalNumberInput,
 };
 
-interface Props extends FormProps<any> {
+Bootstrap4Theme.fields = {
+  ...Bootstrap4Theme.fields,
+  DescriptionField,
+  Campers: CampersField,
+};
 
+const Form = withTheme(Bootstrap4Theme);
+
+interface Props extends FormProps<any> {
+  // custom props here
 }
 
-function JsonForm(props: Props) {
 
+function JsonForm(props: Props) {
   return (
     <Form
       {...props}
-      widgets={widgetMap}
-      fields={{ DescriptionField: DescriptionField }}
-      ObjectFieldTemplate={ObjectFieldTemplate}
+      ObjectFieldTemplate={ObjectTemplate}
+      FieldTemplate={FieldTemplate}
       // liveValidate={true}
     >
       {props.children}

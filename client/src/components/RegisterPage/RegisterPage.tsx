@@ -5,17 +5,17 @@ import { Container, Row, Col } from 'react-bootstrap';
 import Spinner from '../Spinner';
 import PriceTicker from '../PriceTicker';
 
-import JsonForm, { 
+import JsonSchemaForm, {
   calculatePrice,
   PricingResults,
   FormData,
-  JsonFormChangeEvent,
-} from '../JsonForm';
+  JsonSchemaFormChangeEvent,
+} from '../JsonSchemaForm';
 
 import './RegisterPage.scss';
 
 type PathParams = {
-    eventId: string;
+  eventId: string;
 }
 
 type Props = RouteComponentProps<PathParams>;
@@ -132,7 +132,7 @@ class App extends React.Component<Props, RegistrationState> {
     });
   }
 
-  onChange = ({ formData }: JsonFormChangeEvent<FormData>) => {
+  onChange = ({ formData }: JsonSchemaFormChangeEvent<FormData>) => {
     if (this.state.status === "fetching") {
       return;
     }
@@ -162,7 +162,7 @@ class App extends React.Component<Props, RegistrationState> {
       case "submitting":
         pageContent = (
           <section>
-            <JsonForm
+            <JsonSchemaForm
               schema={this.state.config.dataSchema}
               uiSchema={this.state.config.uiSchema}
               onChange={this.onChange}
@@ -188,7 +188,7 @@ class App extends React.Component<Props, RegistrationState> {
                   Submit Registration
                 </button>
               </div>
-            </JsonForm>
+            </JsonSchemaForm>
             <PriceTicker price={this.state.totals.total || 0} />
           </section>
         );
