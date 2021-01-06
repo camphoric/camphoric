@@ -20,6 +20,44 @@ form.rjsf {
 
   ul { padding-inline-start: 2rem; }
 
+  div.jsonschema-address {
+    display: flex;
+    flex-wrap: wrap;
+
+    label {
+      white-space: nowrap;
+    }
+
+    .form-group {
+      padding-right: 0.2rem;
+    }
+
+    div.street_address { width: 100%; }
+    div.city { width: 100% }
+    div.state_or_province { width: 100% }
+    div.zip_code { width: 100% }
+    div.country { width: 100% }
+
+    @media (min-width: 768px) { 
+      div.street_address { width: 100%; }
+      div.city { width: 40% }
+      div.state_or_province { width: 25% }
+      div.zip_code { width: 25% }
+      div.country { width: auto }
+    }
+  }
+
+  fieldset.jsonschema-array .array-item {
+    // hide individual array item titles
+    & > div:first-child fieldset .my-1 {
+      display: none;
+    }
+
+    .remove-array-item {
+      margin: auto;
+    }
+  }
+
   .form-group.form-row {
     margin-right: auto;
     margin-left: auto;

@@ -13,9 +13,11 @@ import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 
 import FieldTemplate from './templates/Field';
 import ObjectTemplate from './templates/Object';
+import ArrayTemplate from './templates/Array';
 
 import DescriptionField from './fields/Description';
 import CampersField from './fields/Campers';
+import AddressField from './fields/Address';
 
 import NaturalNumberInput from './widgets/NaturalNumberInput';
 import PhoneInput from './widgets/PhoneInput';
@@ -39,6 +41,9 @@ Bootstrap4Theme.fields = {
   ...Bootstrap4Theme.fields,
   DescriptionField,
   Campers: CampersField,
+  // The typedefs of rjsf are still being refined
+  // @ts-expect-error
+  Address: AddressField,
 };
 
 const Form = withTheme(Bootstrap4Theme);
@@ -53,6 +58,7 @@ function JsonForm(props: Props) {
     <Form
       {...props}
       ObjectFieldTemplate={ObjectTemplate}
+      ArrayFieldTemplate={ArrayTemplate}
       FieldTemplate={FieldTemplate}
       // liveValidate={true}
     >

@@ -1,3 +1,14 @@
+const address = {
+	"ui:field": "Address",
+  "ui:order": [
+    "street_address",
+    "city",
+    "state_or_province",
+    "zip_code",
+    "country",
+  ],
+};
+
 export default {
     "payment": {
       "contentClassNames": "camphoric-payment",
@@ -10,14 +21,7 @@ export default {
           "paypal_email",
           "payment_full_or_deposit",
         ],
-        "payer_billing_address": {
-          "contentClassNames": "address",
-          "street_address":       { "classNames": "address" },
-          "city":                 { "classNames": "city"  },
-          "state_or_province":    { "classNames": "state"  },
-          "zip_code":             { "classNames": "zip"  },
-          "country":              { "classNames": "country"  }
-        },
+        "payer_billing_address": address,
         "payer_number": {
           "ui:widget": "PhoneInput"
         },
@@ -32,18 +36,27 @@ export default {
         "orderable": false
       },
       "items": {
-        "camper_address": {
-          "contentClassNames": "address",
-          "street_address":       { "classNames": "address" },
-          "city":                 { "classNames": "city"  },
-          "state_or_province":    { "classNames": "state"  },
-          "zip_code":             { "classNames": "zip"  },
-          "country":              { "classNames": "country"  }
-        },
+				"ui:order": [
+					"first_name",
+					"last_name",
+					"gender",
+					"age",
+					"camper_address",
+					"session",
+					"accommodations",
+					"meals",
+				],
+        "camper_address": address,
       }
     },
     "accommodations": {
       "classNames": "accommodations",
+    },
+    "parking_passes": {
+      "ui:options":  {
+        "addable": true,
+        "removable": true,
+      },
     },
     "comments": {
       "ui:widget": "textarea",
