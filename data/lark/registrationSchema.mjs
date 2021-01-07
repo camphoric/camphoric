@@ -190,9 +190,9 @@ This is a significant savings over buying meals at camp. Full meals includes bre
 
 **Meal Plan Pricing (adult / child 11 and under)**
 
-*   Full camp, full meals \`pricing_meals_adult_full\`adults / \`pricing_meals_teen_full\`kids
-*   Full camp, just dinners: \`pricing_meals_adult_dinners\`adults / \`pricing_meals_teen_dinners\`kids
-*   Half camp, full meals: \`pricing_meals_adult_half\`adults / \`pricing_meals_teen_half\`kids`,
+*   Full camp, full meals \${{pricing.meals_adult_full}} adults / \${{pricing.meals_teen_full}} kids
+*   Full camp, just dinners: \${{pricing.meals_adult_dinners}} adults / \${{pricing.meals_teen_dinners}} kids
+*   Half camp, full meals: \${{pricing.meals_adult_half}} adults / \${{pricing.meals_teen_half}} kids`,
             "properties": {
                 "meal_plan": {
                     "type": "string",
@@ -290,7 +290,7 @@ This is a significant savings over buying meals at camp. Full meals includes bre
                 "payment_type": {
                     "type": "string",
                     "title": "Payment Type",
-									  "description": "A per camper discount will be automatically applied if paying by check - `pricing_check_discount_full` for full camp, `pricing_check_discount_half` for half camp. If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week.",
+									  "description": "A per camper discount will be automatically applied if paying by check - \${{abs pricing.check_discount_full}} for full camp, \${{abs pricing.check_discount_half}} for half camp. If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week.",
                     "enum": [
                         "check",
                         "credit_card",
@@ -356,8 +356,8 @@ This is a significant savings over buying meals at camp. Full meals includes bre
 **ALL vehicles and trailers are required to have a parking pass.**  
 *Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
 
-*   You can pre-purchase parking passes for \`pricing_parking_pass\`; you’ll receive your parking pass when you arrive at camp.
-*   If you purchase your parking pass at camp, the cost will be \`pricing_parking_pass_at_camp\`(note: NO credit cards accepted at that time).`,
+*   You can pre-purchase parking passes for \${{pricing.parking_pass}}; you’ll receive your parking pass when you arrive at camp.
+*   If you purchase your parking pass at camp, the cost will be \${{pricing.parking_pass_at_camp}} (note: NO credit cards accepted at that time).`,
             "minItems": 0,
             "maxItems": 4,
             "items": {
@@ -376,7 +376,7 @@ This is a significant savings over buying meals at camp. Full meals includes bre
         "tshirt_sizes": {
             "$ref": "#/definitions/sizes",
             "title": "T-shirt Sizes",
-					"description": `All sizes \`pricing_tshirt\`. Price includes sales tax.  
+					"description": `All sizes \${{pricing.tshirt}}. Price includes sales tax.  
 [More Information About Lark Camp Shirts](https://www.larkcamp.org/shirt.html)
 
 T-shirts are straight cut by default; if you want a fitted cut t-shirt, let us know in the comments box below.
@@ -388,7 +388,7 @@ Fitted cut garments are typically 1 size smaller than the equivalent straight cu
         "sweatshirt_sizes": {
             "$ref": "#/definitions/sizes",
             "title": "Sweatshirt Sizes",
-						"description": "All sizes \`pricing_sweatshirt\`",
+						"description": "All sizes \${{pricing.sweatshirt}}",
         },
         "lta_donation": {
             "type": "integer",

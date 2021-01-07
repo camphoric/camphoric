@@ -35,12 +35,12 @@ export default {
 *First half camp* begins Friday, July 31, 2020 at 3:00 pm and ends before noon on Tuesday, August 4.  
 *Second half camp* begins at noon on Tuesday, August 4, 2020 and ends August 8 at 9:00 am.
 
-A discount of \`pricing_check_discount_full\`(\`pricing_check_discount_half\` for half camp) is given if you are paying by check.
+A discount of \${{abs pricing.check_discount_full}} (\${{abs pricing.check_discount_half}} for half camp) is given if you are paying by check.
 
-*   Full camp (adult):\`pricing_full_adult\`
-*   Full camp (11 and under):\`pricing_full_teen\`
-*   Half camp (adult):\`pricing_half_adult\`
-*   Half camp (11 and under):\`pricing_half_teen\``,
+*   Full camp (adult): \${{pricing.full_adult}}
+*   Full camp (11 and under): \${{pricing.full_teen}}
+*   Half camp (adult): \${{pricing.half_adult}}
+*   Half camp (11 and under): \${{pricing.half_teen}}`,
             "enumNames": [
                 "Full camp",
                 "Half camp (1st half)",

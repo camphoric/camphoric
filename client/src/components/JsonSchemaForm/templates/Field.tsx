@@ -16,51 +16,57 @@ import { FieldTemplateProps } from '@rjsf/core';
 import Form from 'react-bootstrap/Form';
 import ListGroup from 'react-bootstrap/ListGroup';
 
-import Markdown from '../../Markdown';
+const FieldTemplate = (props: FieldTemplateProps) => {
+  const {
+    id,
+    children,
+    displayLabel,
+    rawErrors = [],
+    rawHelp,
+    rawDescription,
+  } = props;
 
-const FieldTemplate = ({
-  id,
-  children,
-  displayLabel,
-  rawErrors = [],
-  rawHelp,
-  rawDescription,
-}: FieldTemplateProps) => (
-  <Form.Group>
-    {children}
-    {
-      displayLabel && rawDescription ? (
-        <Form.Text className={rawErrors.length > 0 ? 'text-danger' : 'text-muted'}>
-          <Markdown markdown={rawDescription} />
-        </Form.Text>
-      ) : null
-    }
-    {
-      rawErrors.length > 0 && (
-        <ListGroup as="ul">
-          {
-            rawErrors.map((error: string) => (
-              <ListGroup.Item as="li" key={error} className="border-0 m-0 p-0">
-                <small className="m-0 text-danger">
-                  <Markdown markdown={error} />
-                </small>
-              </ListGroup.Item>
-            ))
-          }
-        </ListGroup>
-      )
-    }
-    {
-      rawHelp && (
-        <Form.Text
-          className={rawErrors.length > 0 ? 'text-danger' : 'text-muted'}
-          id={id}
-        >
-          <Markdown markdown={rawHelp} />
-        </Form.Text>
-      )
-    }
-  </Form.Group>
-);
+  // The typedefs of rjsf are still being refined
+  // @ts-expect-error
+  const { DescriptionField } = props.fields;
+
+  return (
+    <Form.Group>
+      {children}
+      {
+        displayLabel && rawDescription ? (
+          <Form.Text className={rawErrors.length > 0 ? 'text-danger' : 'text-muted'}>
+            {props.description}
+          </Form.Text>
+        ) : null
+      }
+      {
+        rawErrors.length > 0 && (
+          <ListGroup as="ul">
+            {
+              rawErrors.map((error: string) => (
+                <ListGroup.Item as="li" key={error} className="border-0 m-0 p-0">
+                  <small className="m-0 text-danger">
+                    <DescriptionField description={error} />
+                  </small>
+                </ListGroup.Item>
+              ))
+            }
+          </ListGroup>
+        )
+      }
+      {
+        rawHelp && (
+          <Form.Text
+            className={rawErrors.length > 0 ? 'text-danger' : 'text-muted'}
+            id={id}
+          >
+            <DescriptionField description={rawHelp} />
+          </Form.Text>
+        )
+      }
+    </Form.Group>
+  );
+};
 
 export default FieldTemplate;

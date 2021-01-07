@@ -41,8 +41,6 @@ const Address = (props: Props) => {
       [name]: value === "" ? props.options.emptyValue : value,
     });
 
-  console.log(props);
-
   const keys: Array<Keys> = [
     'street_address',
     'city',

@@ -1,12 +1,12 @@
-import { FormData, RegistrationConfig, PricingLogic } from '../RegisterPage';
-import { calculatePrice } from '../utils';
+import { calculatePrice, FormData } from '../../JsonSchemaForm';
 
 // These tests are based on server/tests/test_pricing.py
+type PricingLogic = ApiRegister['pricingLogic'];
 
 describe('calculatePrice', () => {
 
   it('returns empty results for an empty form', () => {
-    const config: RegistrationConfig = {
+    const config: ApiRegister = {
       dataSchema: {},
       uiSchema: {},
       event: {},
@@ -27,7 +27,7 @@ describe('calculatePrice', () => {
 
   it('returns the correct totals for a populated form', () => {
 
-    const registrationPricingLogic: PricingLogic = [
+    const registrationPricingLogic: PricingLogic['registration'] = [
       {
           "label": "Cabins",
           "var": "cabins",
@@ -60,7 +60,7 @@ describe('calculatePrice', () => {
       },
     ];
 
-    const camperPricingLogic: PricingLogic = [
+    const camperPricingLogic: PricingLogic['camper'] = [
       {
           "label": "Is Adult",
           "var": "is_adult",
@@ -100,7 +100,7 @@ describe('calculatePrice', () => {
       },
     ];
 
-    const config: RegistrationConfig = {
+    const config: ApiRegister = {
       dataSchema: {},
       uiSchema: {},
       event: {},
@@ -146,7 +146,7 @@ describe('calculatePrice', () => {
 
   it('handles date calculations correctly', () => {
 
-    const registrationPricingLogic: PricingLogic = [
+    const registrationPricingLogic: PricingLogic['registration'] = [
       {
         var: "date_parts",
         exp: [
@@ -157,7 +157,7 @@ describe('calculatePrice', () => {
       },
     ];
 
-    const camperPricingLogic: PricingLogic = [
+    const camperPricingLogic: PricingLogic['camper'] = [
       {
           var: "birthdate_parts",
           exp: [
@@ -167,7 +167,7 @@ describe('calculatePrice', () => {
           ],
       },
     ];
-    const config: RegistrationConfig = {
+    const config: ApiRegister = {
       dataSchema: {
         type: 'object',
         properties: {

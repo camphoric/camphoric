@@ -1,20 +1,35 @@
 import React from 'react';
 import { FieldProps } from '@rjsf/core';
-import Markdown from '../../Markdown';
+import Handlebars from 'handlebars';
+import memoize from 'lodash/memoize';
+import ReactMarkdown from 'react-markdown'
+import { JsonSchemaFormTemplateContext } from '../index';
 
 interface Props extends Partial<FieldProps> {
   description?: string;
 }
 
-function DescriptionField({ id, description }: Props) {
+Handlebars.registerHelper('abs', function(num) {
+  const abs = Math.abs(num);
+
+  if (!abs) return num;
+
+  return abs;
+});
+
+// compile once please!
+const compileTemplate = memoize(Handlebars.compile);
+
+function DescriptionField(props: Props) {
+  const templateVars =  React.useContext(JsonSchemaFormTemplateContext);
+  const md = compileTemplate(props.description || '')(templateVars);
+
   return (
     <div
-      id={id}
+      id={props.id}
       className="field-description"
     >
-      <Markdown
-        markdown={description || ''}
-      />
+      <ReactMarkdown children={md || ''} />
     </div>
   );
 }

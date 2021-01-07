@@ -3,7 +3,6 @@ import { RouteComponentProps, withRouter } from 'react-router';
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from '../Spinner';
-import PriceTicker from '../PriceTicker';
 
 import JsonSchemaForm, {
   calculatePrice,
@@ -68,10 +67,6 @@ class App extends React.Component<Props, RegistrationState> {
     if (this.state.status === "fetching" || prevState.status === "fetching") {
       return;
     }
-
-    if (this.state.formData.campers.length !== prevState.formData.campers.length) {
-      this.populateDescriptionsWithPrices(this.state.config);
-    }
   }
 
   onSubmit = async ({ formData }: any) => {
@@ -114,23 +109,7 @@ class App extends React.Component<Props, RegistrationState> {
       formData: { campers: [{}] },
       totals: { campers: [] },
     });
-
-    this.populateDescriptionsWithPrices(config);
   };
-
-  populateDescriptionsWithPrices(config: ApiRegister) {
-    // Because of the way that react-jsonschema-form works, this is the
-    // simplest way to "templatify" the pricing
-    Object.keys(config.pricing).forEach(key => {
-      const price = config.pricing[key];
-
-      const els = document.getElementsByClassName("pricing_" + key);
-
-      for (let i = 0; i < els.length; i++) {
-        els[i].innerHTML = "$" + Math.abs(price);
-      }
-    });
-  }
 
   onChange = ({ formData }: JsonSchemaFormChangeEvent<FormData>) => {
     if (this.state.status === "fetching") {
@@ -170,6 +149,12 @@ class App extends React.Component<Props, RegistrationState> {
               onError={() => console.log("errors")}
               formData={this.state.formData}
               transformErrors={this.transformErrors}
+
+              templateData={{
+                pricing: this.state.config.pricing,
+                formData: this.state.formData,
+                totals: this.state.totals,
+              }}
               // liveValidate={true}
             >
               <div>
@@ -189,7 +174,9 @@ class App extends React.Component<Props, RegistrationState> {
                 </button>
               </div>
             </JsonSchemaForm>
-            <PriceTicker price={this.state.totals.total || 0} />
+            <div className="PriceTicker">
+              Total: ${(this.state.totals.total || 0).toFixed(2)}
+            </div>
           </section>
         );
         break;

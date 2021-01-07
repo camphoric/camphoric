@@ -50,20 +50,24 @@ const Form = withTheme(Bootstrap4Theme);
 
 interface Props extends FormProps<any> {
   // custom props here
+  templateData: Object,
 }
 
+export const JsonSchemaFormTemplateContext = React.createContext({});
 
-function JsonForm(props: Props) {
+function JsonSchemaForm(props: Props) {
   return (
-    <Form
-      {...props}
-      ObjectFieldTemplate={ObjectTemplate}
-      ArrayFieldTemplate={ArrayTemplate}
-      FieldTemplate={FieldTemplate}
-      // liveValidate={true}
-    >
-      {props.children}
-    </Form>
+    <JsonSchemaFormTemplateContext.Provider value={props.templateData}>
+      <Form
+        {...props}
+        ObjectFieldTemplate={ObjectTemplate}
+        ArrayFieldTemplate={ArrayTemplate}
+        FieldTemplate={FieldTemplate}
+        // liveValidate={true}
+      >
+        {props.children}
+      </Form>
+    </JsonSchemaFormTemplateContext.Provider>
   );
 }
 
@@ -155,4 +159,4 @@ function dateStringToObject(s: string) {
   return { year, month, day };
 }
 
-export default JsonForm;
+export default JsonSchemaForm;
