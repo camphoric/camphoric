@@ -283,3 +283,53 @@ class TestCalculatePrice(unittest.TestCase):
             ],
             "total": 2300,
         })
+
+    def test_registration_type(self):
+        event = models.Event(
+            organization=self.organization,
+            name="Test Registration Event",
+            pricing=self.pricing,
+            registration_pricing_logic=[
+                {
+                    'var': 'total',
+                    'exp': {
+                        'if': [
+                            {'==': [
+                                {'var': 'registration.registration_type'},
+                                'worktrade',
+                            ]},
+                            100,
+                            200,
+                        ]
+                    },
+                },
+            ],
+            camper_pricing_logic=[],
+        )
+
+        # default registration type (None)
+        registration = models.Registration(
+            event=event,
+            attributes={},
+        )
+        price_components = pricing.calculate_price(registration, [])
+        self.assertEqual(price_components, {
+            'campers': [],
+            'total': 200,
+        })
+
+        # 'worktrade' registration type
+        registration = models.Registration(
+            event=event,
+            attributes={},
+            registration_type=models.RegistrationType(
+                event=event,
+                name='worktrade',
+                label='Work-trade',
+            ),
+        )
+        price_components = pricing.calculate_price(registration, [])
+        self.assertEqual(price_components, {
+            'campers': [],
+            'total': 100,
+        })
