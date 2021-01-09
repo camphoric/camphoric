@@ -9,9 +9,9 @@ import {
 
 import GuardedRoute from './GuardedRoute';
 
-import OrganizationChooser from './components/OrganizationChooser';
-import EventChooser from './components/EventChooser';
-import EventAdmin from './components/EventAdmin';
+import OrganizationChooser from './OrganizationChooser';
+import EventChooser from './EventChooser';
+import EventAdmin from './EventAdmin';
 
 type RouteDuple = [string, () => JSX.Element];
 

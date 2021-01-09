@@ -8,12 +8,12 @@ import {
   Col,
 } from 'react-bootstrap';
 
-import Spinner from '../../../../Spinner';
+import Spinner from '../../Spinner';
 
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
-import { useCombinedEventInfo, useQuery } from '../../../hooks';
+import { useCombinedEventInfo, useQuery } from '../hooks';
 
 interface Props {
   event: ApiEvent,
@@ -44,7 +44,6 @@ function EventAdminRegistrations({ event }: Props) {
               placeholder="search"
               aria-label="search"
               onChange={e => setSearchQuery(e.currentTarget.value)}
-              
             />
           </InputGroup>
           {

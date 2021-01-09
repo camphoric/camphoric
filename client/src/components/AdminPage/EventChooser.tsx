@@ -3,8 +3,8 @@ import { Link, useLocation, } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import { useEvents } from '../hooks';
-import Spinner from '../../Spinner';
+import { useEvents } from './hooks';
+import Spinner from '../Spinner';
 
 function EventChooser() {
   const { pathname } = useLocation();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route } from 'react-router-dom';
 
-import Login from './components/Login';
+import Login from './Login';
 import { useAuthToken } from './hooks';
 
 type Props =  {

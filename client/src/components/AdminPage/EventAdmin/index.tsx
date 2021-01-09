@@ -9,16 +9,16 @@ import {
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import Spinner from '../../../Spinner';
-import GuardedRoute from '../../GuardedRoute';
-import { useEvent } from '../../hooks';
+import Spinner from '../../Spinner';
+import GuardedRoute from '../GuardedRoute';
+import { useEvent } from '../hooks';
 
-import NavBar from './components/NavBar';
-import Home from './components/Home';
-import Registrations from './components/Registrations';
-import Lodging from './components/Lodging';
-import Reports from './components/Reports';
-import Settings from './components/Settings';
+import NavBar from './NavBar';
+import Home from './Home';
+import Registrations from './Registrations';
+import Lodging from './Lodging';
+import Reports from './Reports';
+import Settings from './Settings';
 
 import './EventAdmin.scss';
 

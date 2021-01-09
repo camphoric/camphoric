@@ -1,7 +1,7 @@
 import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 
-import Spinner from '../../../Spinner';
+import Spinner from '../../Spinner';
 
 /**
  * A login form
