@@ -93,7 +93,8 @@ class RegisterView(APIView):
         * http://jsonlogic.com/
         '''
         event = models.Event.objects.get(id=event_id)
-        return Response({
+
+        response_data = {
             'dataSchema': self.get_form_schema(event),
             'uiSchema': event.registration_ui_schema or {},
             'event': pricing.get_event_attributes(event),
@@ -102,7 +103,30 @@ class RegisterView(APIView):
                 'camper': event.camper_pricing_logic or {},
                 'registration': event.registration_pricing_logic or {},
             },
-        })
+        }
+
+        params = request.query_params
+        email = params.get('email')
+        code = params.get('code')
+        if email and code:
+            try:
+                invitation = models.Invitation.objects.get(
+                    recipient_email=email,
+                    invitation_code=code,
+                )
+                # TODO: check for expired invitation
+                response_data['invitation'] = {
+                    'email': email,
+                    'code': code,
+                }
+                response_data['registrationType'] = {
+                    'name': invitation.registration_type.name,
+                    'label': invitation.registration_type.label,
+                }
+            except models.Invitation.DoesNotExist:
+                response_data['invitationError'] = f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"'
+
+        return Response(response_data)
 
     def post(self, request, event_id=None, format=None):
         event = get_object_or_404(models.Event, id=event_id)

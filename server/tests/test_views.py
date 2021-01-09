@@ -126,6 +126,38 @@ class RegisterGetTests(APITestCase):
         })
         self.assertEqual(response.data['event'], {'start': {'day': 25, 'month': 2, 'year': 2019}})
 
+    def test_invitation_code(self):
+        event = models.Event.objects.create(organization=self.organization)
+        registration_type = models.RegistrationType.objects.create(
+            event=event,
+            name='worktrade',
+            label="Work-trade"
+        )
+        invitation = models.Invitation.objects.create(
+            registration_type=registration_type,
+            recipient_email='camper@example.com',
+        )
+
+        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['invitation'], {
+            'email': invitation.recipient_email,
+            'code': invitation.invitation_code,
+        })
+        self.assertEqual(response.data['registrationType'], {
+            'name': 'worktrade',
+            'label': 'Work-trade',
+        })
+        self.assertNotIn('invitationError', response.data)
+
+        response = self.client.get(f'/api/events/{event.id}/register?email=nobody@example.com&code=blahblah')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('invitation', response.data)
+        self.assertEqual(
+            response.data['invitationError'],
+            'Sorry, we couldn\'t find an invitation for "nobody@example.com" with code "blahblah"'
+        )
+
 
 class RegisterPostTests(APITestCase):
 
