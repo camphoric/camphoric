@@ -249,8 +249,6 @@ class RegisterView(APIView):
 
     @classmethod
     def find_invitation(cls, request):
-        invitation = None
-        
         email, code = None, None
         if request.method == 'POST' and 'invitation' in request.data:
             email = request.data['invitation'].get('recipient_email')
@@ -260,15 +258,20 @@ class RegisterView(APIView):
             email = params.get('email')
             code = params.get('code')
 
-        if email and code:
-            try:
-                invitation = models.Invitation.objects.get(
-                    recipient_email=email,
-                    invitation_code=code,
-                )
-                # TODO: check for expired invitation
-                # TODO: check for already-redeemed invitation
-            except models.Invitation.DoesNotExist:
-                raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+        if not (email and code):
+            return None
+
+        invitation = None
+        try:
+            invitation = models.Invitation.objects.get(
+                recipient_email=email,
+                invitation_code=code,
+            )
+            # TODO: check for expired invitation
+        except models.Invitation.DoesNotExist:
+            raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+
+        if invitation.registration:
+            raise InvitationError('Sorry, that invitation code has already been redeemed')
 
         return invitation

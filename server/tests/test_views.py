@@ -138,6 +138,7 @@ class RegisterGetTests(APITestCase):
             recipient_email='camper@example.com',
         )
 
+        # good email/code
         response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['invitation'], {
@@ -150,6 +151,7 @@ class RegisterGetTests(APITestCase):
         })
         self.assertNotIn('invitationError', response.data)
 
+        # bad email/code
         response = self.client.get(f'/api/events/{event.id}/register?email=nobody@example.com&code=blahblah')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('invitation', response.data)
@@ -158,6 +160,19 @@ class RegisterGetTests(APITestCase):
             'Sorry, we couldn\'t find an invitation for "nobody@example.com" with code "blahblah"'
         )
 
+        # already-redeemed invitation
+        invitation.registration = models.Registration.objects.create(
+            event=event,
+            registrant_email='camper@example.com',
+        )
+        invitation.save()
+        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('invitation', response.data)
+        self.assertEqual(
+            response.data['invitationError'],
+            'Sorry, that invitation code has already been redeemed',
+        )
 
 class RegisterPostTests(APITestCase):
 
