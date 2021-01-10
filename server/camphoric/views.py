@@ -75,6 +75,11 @@ class PaymentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+class InvitationError(Exception):
+    def __init__(self, user_message):
+        self.user_message = user_message
+
+
 class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
         '''
@@ -105,26 +110,20 @@ class RegisterView(APIView):
             },
         }
 
-        params = request.query_params
-        email = params.get('email')
-        code = params.get('code')
-        if email and code:
-            try:
-                invitation = models.Invitation.objects.get(
-                    recipient_email=email,
-                    invitation_code=code,
-                )
-                # TODO: check for expired invitation
-                response_data['invitation'] = {
-                    'email': email,
-                    'code': code,
-                }
-                response_data['registrationType'] = {
-                    'name': invitation.registration_type.name,
-                    'label': invitation.registration_type.label,
-                }
-            except models.Invitation.DoesNotExist:
-                response_data['invitationError'] = f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"'
+        invitation = None
+        try:
+            invitation = self.find_invitation(request)
+        except InvitationError as e:
+            response_data['invitationError'] = e.user_message
+        if invitation:
+            response_data['invitation'] = {
+                'recipient_email': invitation.recipient_email,
+                'invitation_code': invitation.invitation_code,
+            }
+            response_data['registrationType'] = {
+                'name': invitation.registration_type.name,
+                'label': invitation.registration_type.label,
+            }
 
         return Response(response_data)
 
@@ -231,3 +230,21 @@ class RegisterView(APIView):
             for camper_attributes in form_data['campers']
         ]
         return registration, campers
+
+    @classmethod
+    def find_invitation(cls, request):
+        invitation = None
+        params = request.query_params
+        email = params.get('email')
+        code = params.get('code')
+        if email and code:
+            try:
+                invitation = models.Invitation.objects.get(
+                    recipient_email=email,
+                    invitation_code=code,
+                )
+                # TODO: check for expired invitation
+            except models.Invitation.DoesNotExist:
+                raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+
+        return invitation

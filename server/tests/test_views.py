@@ -141,8 +141,8 @@ class RegisterGetTests(APITestCase):
         response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['invitation'], {
-            'email': invitation.recipient_email,
-            'code': invitation.invitation_code,
+            'recipient_email': 'camper@example.com',
+            'invitation_code': invitation.invitation_code,
         })
         self.assertEqual(response.data['registrationType'], {
             'name': 'worktrade',
