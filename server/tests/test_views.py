@@ -136,6 +136,7 @@ class RegisterGetTests(APITestCase):
         invitation = models.Invitation.objects.create(
             registration_type=registration_type,
             recipient_email='camper@example.com',
+            expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
 
         # good email/code
@@ -172,6 +173,18 @@ class RegisterGetTests(APITestCase):
         self.assertEqual(
             response.data['invitationError'],
             'Sorry, that invitation code has already been redeemed',
+        )
+
+        # expired invitation
+        invitation.registration = None
+        invitation.expiration_time = datetime.datetime(2010, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        invitation.save()
+        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('invitation', response.data)
+        self.assertEqual(
+            response.data['invitationError'],
+            'Sorry, that invitation code has expired',
         )
 
 class RegisterPostTests(APITestCase):

@@ -3,6 +3,7 @@ from smtplib import SMTPException
 
 from django.core import mail
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 import jsonschema  # Using Draft-7
 from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
@@ -267,11 +268,13 @@ class RegisterView(APIView):
                 recipient_email=email,
                 invitation_code=code,
             )
-            # TODO: check for expired invitation
         except models.Invitation.DoesNotExist:
             raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
 
         if invitation.registration:
             raise InvitationError('Sorry, that invitation code has already been redeemed')
+
+        if invitation.expiration_time and invitation.expiration_time < timezone.now():
+            raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
