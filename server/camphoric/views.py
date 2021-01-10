@@ -129,6 +129,7 @@ class RegisterView(APIView):
 
     def post(self, request, event_id=None, format=None):
         event = get_object_or_404(models.Event, id=event_id)
+
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
@@ -136,12 +137,27 @@ class RegisterView(APIView):
         if client_reported_pricing is None:
             raise ValidationError({'pricingResults': 'This field is required.'})
         self.validate_form_data(event, form_data)
+
         registration, campers = self.deserialize_form_data(
             event, form_data)
+
+        invitation = None
+        try:
+            invitation = self.find_invitation(request)
+        except InvitationError as e:
+            raise ValidationError(e.user_message)
+        if invitation:
+            registration.registration_type = invitation.registration_type
+
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
         registration.save()
+
+        if invitation:
+            invitation.registration = registration
+            invitation.save()
+
         for camper in campers:
             camper.save()
 
@@ -234,9 +250,16 @@ class RegisterView(APIView):
     @classmethod
     def find_invitation(cls, request):
         invitation = None
-        params = request.query_params
-        email = params.get('email')
-        code = params.get('code')
+        
+        email, code = None, None
+        if request.method == 'POST' and 'invitation' in request.data:
+            email = request.data['invitation'].get('recipient_email')
+            code = request.data['invitation'].get('invitation_code')
+        else:
+            params = request.query_params
+            email = params.get('email')
+            code = params.get('code')
+
         if email and code:
             try:
                 invitation = models.Invitation.objects.get(
@@ -244,6 +267,7 @@ class RegisterView(APIView):
                     invitation_code=code,
                 )
                 # TODO: check for expired invitation
+                # TODO: check for already-redeemed invitation
             except models.Invitation.DoesNotExist:
                 raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
 

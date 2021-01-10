@@ -189,8 +189,21 @@ class RegisterPostTests(APITestCase):
                     'exp': {'*': [1, 100]},
                 },
                 {
+                    'var': 'worktrade_discount',
+                    'exp': {
+                        'if': [
+                            {'==': [
+                                {'var': 'registration.registration_type'},
+                                'worktrade',
+                            ]},
+                            -100,
+                            0,
+                        ],
+                    },
+                },
+                {
                     'var': 'total',
-                    'exp': {'var': 'cabins'},
+                    'exp': {'+': [{'var': 'cabins'}, {'var': 'worktrade_discount'}]},
                 },
             ],
             camper_pricing_logic=[
@@ -262,6 +275,7 @@ class RegisterPostTests(APITestCase):
                 {'total': 100, 'tuition': 100},
                 {'total': 100, 'tuition': 100},
             ],
+            'worktrade_discount': 0,
             'total': 300,
         }
         response = self.client.post(
@@ -306,3 +320,61 @@ Total due: $300
 """.lstrip())
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi@mctesterson.com'])
+
+    def test_post_invitation(self):
+        registration_type = models.RegistrationType.objects.create(
+            event=self.event,
+            name='worktrade',
+            label="Work-trade"
+        )
+        invitation = models.Invitation.objects.create(
+            registration_type=registration_type,
+            recipient_email='camper@example.com',
+        )
+
+        # bad invitation email/code
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'formData': self.valid_form_data,
+                'pricingResults': {},
+                'invitation': {
+                    'recipient_email': 'nobody@example.com',
+                    'invitation_code': 'blahblah',
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 400)
+
+        # good invitation email/code
+        self.assertEqual(models.Registration.objects.count(), 0)
+        expected_pricing_results = {
+            'cabins': 100,
+            'tuition': 200,
+            'campers': [
+                {'total': 100, 'tuition': 100},
+                {'total': 100, 'tuition': 100},
+            ],
+            'worktrade_discount': -100,
+            'total': 200,
+        }
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'formData': self.valid_form_data,
+                'pricingResults': expected_pricing_results,
+                'invitation': {
+                    'recipient_email': 'camper@example.com',
+                    'invitation_code': invitation.invitation_code,
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        registrations = models.Registration.objects.all()
+        registration = registrations[0]
+        self.assertEqual(registration.server_pricing_results, expected_pricing_results)
+        self.assertEqual(registration.registration_type.id, registration_type.id)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.registration.id, registration.id)
