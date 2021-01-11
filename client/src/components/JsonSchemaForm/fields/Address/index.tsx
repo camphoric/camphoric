@@ -2,20 +2,21 @@ import React from 'react';
 import { FieldProps } from '@rjsf/core';
 import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 import Form from 'react-bootstrap/Form';
+import AddressField from './AddressField';
 
-type Keys = 'street_address' | 'city' | 'state_or_province' | 'zip_code';
+export type Keys = 'street_address' | 'city' | 'state_or_province' | 'zip_code';
 
-type FormData = {
+export type FormData = {
   [K in (Keys | 'country')]?: string;
 }
 
-interface CountrySchema extends JSONSchema7 {
+export interface CountrySchema extends JSONSchema7 {
   title: string;
   enum: string[];
   default: string;
 }
 
-interface AddressSchema extends JSONSchema7 {
+export interface AddressSchema extends JSONSchema7 {
   properties: {
     [K in Keys]: JSONSchema7Definition;
   } & {
@@ -23,7 +24,7 @@ interface AddressSchema extends JSONSchema7 {
   };
 }
 
-interface Props extends FieldProps<FormData> {
+export interface Props extends FieldProps<FormData> {
   schema: AddressSchema;
   formData: FormData;
 }
@@ -33,13 +34,17 @@ const Address = (props: Props) => {
   const { SelectWidget } = props.registry.widgets;
   const title = props.schema.title || props.uiSchema["ui:title"] || props.title;
 
-  const _onChange = (name: string) => ({
+  const makeOnChange = (name: string) => ({
     target: { value },
   }: React.ChangeEvent<HTMLInputElement>) =>
     props.onChange({
       ...props.formData,
-      [name]: value === "" ? props.options.emptyValue : value,
+      [name]: value === '' ? props.options?.emptyValue : value,
     });
+
+  const onChangeWholeAddress = (address: FormData) => {
+    props.onChange(address);
+  };
 
   const keys: Array<Keys> = [
     'street_address',
@@ -58,11 +63,13 @@ const Address = (props: Props) => {
           keys.map(
             (key: Keys) => (
               <AddressField
+                idBase={props.idSchema.$id} 
                 key={key}
                 {...props}
                 name={key}
                 value={props.formData[key]}
-                onChange={_onChange(key)}
+                onChange={makeOnChange(key)}
+                onChangeWholeAddress={onChangeWholeAddress}
               />
             )
           )
@@ -84,7 +91,7 @@ const Address = (props: Props) => {
                 label="Country"
                 required
                 value={props.formData.country}
-                onChange={_onChange('country')}
+                onChange={makeOnChange('country')}
                 uiSchema={props.uiSchema.country}
                 disabled={false}
                 readonly={false}
@@ -99,42 +106,6 @@ const Address = (props: Props) => {
           )
         }
       </div>
-    </Form.Group>
-  );
-}
-
-interface AddressProps extends Props {
-  name: Keys;
-  value?: string;
-  onChange: (evt: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-function AddressField (props: AddressProps) {
-  const rawErrors = props.rawErrors || [];
-  const classes = [
-    props.name,
-    (rawErrors.length ? 'is-invalid' : ''),
-  ].filter(Boolean).join(' ');
-
-  const required = props.schema.required && props.schema.required.includes(props.name);
-
-  const properties = props.schema.properties &&
-    props.schema.properties[props.name];
-
-  const label = typeof properties === 'boolean' ? props.name : properties?.title;
-
-  return (
-    <Form.Group className={`${props.name} mb-0`}>
-      <Form.Label className={rawErrors.length > 0 ? 'text-danger' : ''}>
-        {label}{label && props.required ? "*" : null}
-      </Form.Label>
-      <Form.Control
-        required={required}
-        className={classes}
-        type={props.type || (props.schema.type as string)}
-        value={props.value || ''}
-        onChange={props.onChange}
-      />
     </Form.Group>
   );
 }

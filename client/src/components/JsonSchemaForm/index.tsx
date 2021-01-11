@@ -11,6 +11,9 @@ import {
 
 import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 
+import Spinner from '../Spinner';
+import injectGoogleApis from './injectGoogleApis';
+
 import FieldTemplate from './templates/Field';
 import ObjectTemplate from './templates/Object';
 import ArrayTemplate from './templates/Array';
@@ -56,6 +59,37 @@ interface Props extends FormProps<any> {
 export const JsonSchemaFormTemplateContext = React.createContext({});
 
 function JsonSchemaForm(props: Props) {
+  const [googleMapsLoaded, setGoogleMapsLoaded] = React.useState(!process.env.REACT_APP_GOOGLE_API_KEY);
+
+  // If we need to inject google maps, wait until finished injecting, and just
+  // load a nice spinner in the mean time
+  React.useEffect(() => {
+    const tryLoadingGoogleMaps = async () => {
+      if (!process.env.REACT_APP_GOOGLE_API_KEY) {
+        setGoogleMapsLoaded(true);
+
+        return;
+      }
+
+      try {
+        await injectGoogleApis(process.env.REACT_APP_GOOGLE_API_KEY);
+
+        setGoogleMapsLoaded(true);
+      } catch (e) {
+        console.error(e);
+        console.log('trying again...');
+
+        tryLoadingGoogleMaps();
+      }
+    };
+
+    tryLoadingGoogleMaps();
+  }, []);
+
+  if (!googleMapsLoaded) {
+    return <Spinner />;
+  }
+
   return (
     <JsonSchemaFormTemplateContext.Provider value={props.templateData}>
       <Form
