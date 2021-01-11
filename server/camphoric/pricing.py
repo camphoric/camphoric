@@ -45,9 +45,13 @@ def calculate_price(registration, campers):
     results = defaultdict(int)
     results['campers'] = []
     event = registration.event
+    registration_type = registration.registration_type
 
     data = {
-        "registration": registration.attributes,
+        "registration": {
+            **(registration.attributes or {}),
+            "registration_type": registration_type.name if registration_type else None,
+        },
         "pricing": event.pricing,
         "event": get_event_attributes(event),
     }

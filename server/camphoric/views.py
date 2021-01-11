@@ -3,6 +3,7 @@ from smtplib import SMTPException
 
 from django.core import mail
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 import jsonschema  # Using Draft-7
 from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
@@ -75,6 +76,11 @@ class PaymentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+class InvitationError(Exception):
+    def __init__(self, user_message):
+        self.user_message = user_message
+
+
 class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
         '''
@@ -93,7 +99,8 @@ class RegisterView(APIView):
         * http://jsonlogic.com/
         '''
         event = models.Event.objects.get(id=event_id)
-        return Response({
+
+        response_data = {
             'dataSchema': self.get_form_schema(event),
             'uiSchema': event.registration_ui_schema or {},
             'event': pricing.get_event_attributes(event),
@@ -102,10 +109,28 @@ class RegisterView(APIView):
                 'camper': event.camper_pricing_logic or {},
                 'registration': event.registration_pricing_logic or {},
             },
-        })
+        }
+
+        invitation = None
+        try:
+            invitation = self.find_invitation(request)
+        except InvitationError as e:
+            response_data['invitationError'] = e.user_message
+        if invitation:
+            response_data['invitation'] = {
+                'recipient_email': invitation.recipient_email,
+                'invitation_code': invitation.invitation_code,
+            }
+            response_data['registrationType'] = {
+                'name': invitation.registration_type.name,
+                'label': invitation.registration_type.label,
+            }
+
+        return Response(response_data)
 
     def post(self, request, event_id=None, format=None):
         event = get_object_or_404(models.Event, id=event_id)
+
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
@@ -113,12 +138,27 @@ class RegisterView(APIView):
         if client_reported_pricing is None:
             raise ValidationError({'pricingResults': 'This field is required.'})
         self.validate_form_data(event, form_data)
+
         registration, campers = self.deserialize_form_data(
             event, form_data)
+
+        invitation = None
+        try:
+            invitation = self.find_invitation(request)
+        except InvitationError as e:
+            raise ValidationError(e.user_message)
+        if invitation:
+            registration.registration_type = invitation.registration_type
+
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
         registration.save()
+
+        if invitation:
+            invitation.registration = registration
+            invitation.save()
+
         for camper in campers:
             camper.save()
 
@@ -207,3 +247,34 @@ class RegisterView(APIView):
             for camper_attributes in form_data['campers']
         ]
         return registration, campers
+
+    @classmethod
+    def find_invitation(cls, request):
+        email, code = None, None
+        if request.method == 'POST' and 'invitation' in request.data:
+            email = request.data['invitation'].get('recipient_email')
+            code = request.data['invitation'].get('invitation_code')
+        else:
+            params = request.query_params
+            email = params.get('email')
+            code = params.get('code')
+
+        if not (email and code):
+            return None
+
+        invitation = None
+        try:
+            invitation = models.Invitation.objects.get(
+                recipient_email=email,
+                invitation_code=code,
+            )
+        except models.Invitation.DoesNotExist:
+            raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+
+        if invitation.registration:
+            raise InvitationError('Sorry, that invitation code has already been redeemed')
+
+        if invitation.expiration_time and invitation.expiration_time < timezone.now():
+            raise InvitationError('Sorry, that invitation code has expired')
+
+        return invitation
