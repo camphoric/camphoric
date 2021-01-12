@@ -82,6 +82,15 @@ declare global {
       registration: JsonLogicPricing;
     };
     pricing: { [key: string]: any };
+    invitation?: {
+      recipient_email: string;
+      invitation_code: string;
+    };
+    invitationError?: string;
+    registrationType?: {
+      name: string;
+      label: string;
+    };
   }
 
   export interface RouterUrlParams {
