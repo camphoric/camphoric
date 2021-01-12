@@ -1,5 +1,5 @@
 const address = {
-	"ui:field": "Address",
+  "ui:field": "Address",
   "ui:order": [
     "street_address",
     "city",
@@ -36,16 +36,17 @@ export default {
         "orderable": false
       },
       "items": {
-				"ui:order": [
-					"first_name",
-					"last_name",
-					"gender",
-					"age",
-					"camper_address",
-					"session",
-					"accommodations",
-					"meals",
-				],
+        "ui:order": [
+          "first_name",
+          "last_name",
+          "gender",
+          "age",
+          "address_different_than_payer",
+          "camper_address",
+          "session",
+          "accommodations",
+          "meals",
+        ],
         "camper_address": address,
       }
     },

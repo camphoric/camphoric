@@ -19,23 +19,6 @@ Fields marked with an asterisk (*) are required.
             "minimum": 0,
             "default": 0
         },
-        "shirt_count": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9,
-            "default": 0
-        },
-        "sizes": {
-            "type": "object",
-            "title": "Sizes",
-            "properties": {
-                "small": { "$ref": "#/definitions/shirt_count" },
-                "medium": { "$ref": "#/definitions/shirt_count" },
-                "large": { "$ref": "#/definitions/shirt_count" },
-                "xl": { "$ref": "#/definitions/shirt_count" },
-                "xxl": { "$ref": "#/definitions/shirt_count" }
-            }
-        },
         "address": {
             "type": "object",
             "title": "Address",
@@ -152,7 +135,7 @@ Fields marked with an asterisk (*) are required.
                         {
                             "properties": {
                                 "accommodation_preference": {
-                                    "enum": ["Vehicle Camping"]
+                                    "enum": ["Vehicle Camping"],
                                 },
                                 "tent_or_vehicle_mates": {
                                     "title": "Are you sharing your vehicle camping with anyone? If so, add their names below.",
@@ -173,9 +156,9 @@ Fields marked with an asterisk (*) are required.
                                     "type": "integer",
                                     "minimum": 10,
                                     "maximum": 25,
-                                    "default": 15
-                                }
-                            }
+                                },
+                            },
+													  "required": ["vehicle_make", "vehicle_length"],
                         }
                     ]
                 }
@@ -256,7 +239,7 @@ This is a significant savings over buying meals at camp. Full meals includes bre
         }
     },
     "required": [
-        "campers", "tshirt_sizes", "sweatshirt_sizes", "payment",
+        "campers", "payment",
     ],
     "properties": {
         "payment": {
@@ -372,23 +355,6 @@ This is a significant savings over buying meals at camp. Full meals includes bre
                 },
                 "required": ["holder"]
             }
-        },
-        "tshirt_sizes": {
-            "$ref": "#/definitions/sizes",
-            "title": "T-shirt Sizes",
-					"description": `All sizes \${{pricing.tshirt}}. Price includes sales tax.  
-[More Information About Lark Camp Shirts](https://www.larkcamp.org/shirt.html)
-
-T-shirts are straight cut by default; if you want a fitted cut t-shirt, let us know in the comments box below.
-
-We use the language “Straight Cut”, and “Fitted Cut” for the two different scales called Unisex/Men’s and Women’s by the garment industry.
-
-Fitted cut garments are typically 1 size smaller than the equivalent straight cut. For example if you typically wear a large fitted garment you would typically wear a small in straight cut sizing.`,
-        },
-        "sweatshirt_sizes": {
-            "$ref": "#/definitions/sizes",
-            "title": "Sweatshirt Sizes",
-						"description": "All sizes \${{pricing.sweatshirt}}",
         },
         "lta_donation": {
             "type": "integer",

@@ -1,6 +1,31 @@
 export default {
     "type": "object",
-    "required": ["first_name", "last_name", "gender", "camper_address", "session", "accommodations", "meals"],
+    "required": ["first_name", "last_name", "gender", "session", "accommodations", "meals"],
+    "dependencies": {
+        "address_different_than_payer": {
+					  "oneOf": [
+							{
+								"properties": {
+									"address_different_than_payer": {
+										"enum": [false],
+									},
+								},
+							},
+							{
+								"properties": {
+									"address_different_than_payer": {
+										"enum": [true],
+									},
+									"camper_address": {
+										"title": "Address",
+										"$ref": "#/definitions/address"
+									},
+								},
+								"required": ["camper_address"],
+							},
+						],
+				},
+    },
     "properties": {
         "first_name": {
             "type": "string",
@@ -24,14 +49,17 @@ export default {
             "maximum": 17,
             "title": "Age, if under 18"
         },
-        "camper_address": {
-						"title": "Address",
-            "$ref": "#/definitions/address"
+        "address_different_than_payer": {
+            "type": "string",
+            "title": "Is this campers address different than the billing address?",
+					  "enum": [false, true],
+					"enumNames": ["No", "Yes"],
+					"default": false,
         },
         "session": {
             "type": "string",
             "title": "When will you attend?",
-					  "description": `*Full camp* begins Friday, July 31, 2020 at 3:00 pm, and ends Saturday, August 8 at 9:00am.  
+            "description": `*Full camp* begins Friday, July 31, 2020 at 3:00 pm, and ends Saturday, August 8 at 9:00am.  
 *First half camp* begins Friday, July 31, 2020 at 3:00 pm and ends before noon on Tuesday, August 4.  
 *Second half camp* begins at noon on Tuesday, August 4, 2020 and ends August 8 at 9:00 am.
 
