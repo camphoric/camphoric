@@ -134,7 +134,12 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
 
   const data: PricingData = {
     event,
-    registration: formData,
+    registration: {
+      ...formData,
+      ...(config.registrationType && {
+        registration_type: config.registrationType.name
+      }),
+    },
     pricing,
   };
 

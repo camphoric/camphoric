@@ -213,4 +213,60 @@ describe('calculatePrice', () => {
       campers: [{ birthdate_parts: [2000, 12, 31] }],
     });
   });
+
+  it('it handles registration_type', () => {
+    const registrationPricingLogic = [
+        {
+            'var': 'total',
+            'exp': {
+                'if': [
+                    {'==': [
+                        {'var': 'registration.registration_type'},
+                        'worktrade',
+                    ]},
+                    100,
+                    200,
+                ]
+            },
+        },
+    ];
+
+    let config: ApiRegister = {
+      dataSchema: {
+        type: 'object',
+        properties: {
+          campers: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {}
+            },
+          },
+        },
+      },
+      uiSchema: {},
+      event: {},
+      pricingLogic: {
+        camper: [],
+        registration: registrationPricingLogic,
+      },
+      pricing: {},
+    };
+
+    const formData: FormData = { campers: [] };
+
+    expect(calculatePrice(config, formData)).toStrictEqual({
+      campers: [],
+      total: 200,
+    });
+
+    config.registrationType = {
+      name: 'worktrade',
+      label: 'Work-trade',
+    };
+    expect(calculatePrice(config, formData)).toStrictEqual({
+      campers: [],
+      total: 100,
+    });
+  });
 });
