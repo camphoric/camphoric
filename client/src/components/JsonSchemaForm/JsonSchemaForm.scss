@@ -20,6 +20,8 @@ form.rjsf {
 
   ul { padding-inline-start: 2rem; }
 
+
+
   div.jsonschema-address {
     display: flex;
     flex-wrap: wrap;
@@ -142,8 +144,11 @@ form.rjsf {
 
   }
 
-  .react-phone-number-input__icon img {
-    vertical-align: baseline;
+
+  div.jsonschema-phonenumber {
+    .PhoneInputInput {
+      border: 0;
+    }
   }
 }
 

@@ -1,6 +1,6 @@
-import ReactPhoneInput from 'react-phone-input-2';
+import ReactPhoneInput from 'react-phone-number-input';
 import { WidgetProps } from '@rjsf/core';
-import 'react-phone-input-2/lib/style.css'
+import 'react-phone-number-input/style.css'
 import Form from 'react-bootstrap/Form';
 
 export default function PhoneInput (props: WidgetProps) {
@@ -12,9 +12,13 @@ export default function PhoneInput (props: WidgetProps) {
         {props.label}{props.label && props.required ? "*" : null}
       </Form.Label>
       <ReactPhoneInput
-        country="us"
+        // typdefs are wrong
+        // @ts-expect-error
+        defaultCountry="US"
         value={props.value}
         onChange={props.onChange}
+        className="form-control"
+        id={props.id}
       />
     </Form.Group>
   );

@@ -29,6 +29,7 @@ function NaturalNumberInput(props: Props) {
         {(props.label || props.schema.title) && props.required ? '*' : null}
       </Form.Label>
       <input
+        id={props.id}
         type="number" 
         className="form-control"
         step={0}
