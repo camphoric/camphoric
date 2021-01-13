@@ -1,4 +1,10 @@
-// https://github.com/Tintef/react-google-places-autocomplete/blob/master/src/helpers/injectScript.ts
+/**
+ * injectScript
+ *
+ * Taken from the following:
+ *
+ * https://github.com/Tintef/react-google-places-autocomplete/blob/master/src/helpers/injectScript.ts
+ */
 
 const constants = {
   INJECTION_STATE_NOT_YET: 'NOT_YET',

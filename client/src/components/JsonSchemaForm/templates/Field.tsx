@@ -20,10 +20,8 @@ const FieldTemplate = (props: FieldTemplateProps) => {
   const {
     id,
     children,
-    displayLabel,
     rawErrors = [],
     rawHelp,
-    rawDescription,
   } = props;
 
   // The typedefs of rjsf are still being refined
@@ -31,15 +29,8 @@ const FieldTemplate = (props: FieldTemplateProps) => {
   const { DescriptionField } = props.fields;
 
   return (
-    <Form.Group>
+    <Form.Group className="jsonform-field">
       {children}
-      {
-        displayLabel && rawDescription ? (
-          <Form.Text className={rawErrors.length > 0 ? 'text-danger' : 'text-muted'}>
-            {props.description}
-          </Form.Text>
-        ) : null
-      }
       {
         rawErrors.length > 0 && (
           <ListGroup as="ul">

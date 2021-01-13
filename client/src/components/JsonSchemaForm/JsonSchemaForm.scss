@@ -18,9 +18,14 @@ form.rjsf {
   padding: 4rem 1rem;
   text-align: left;
 
-  ul { padding-inline-start: 2rem; }
+  label.form-label {
+    font-size: 1.1rem;
+    margin-bottom: 0.2rem;
+  }
 
-
+  .jsonform-field.form-group {
+    margin-top: 0.5rem;
+  }
 
   div.jsonschema-address {
     display: flex;
@@ -80,7 +85,19 @@ form.rjsf {
   }
 
   .field-description {
-    font-size: 90%;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+
+    p {
+      margin-bottom: 0.1rem;
+    }
+
+    ul {
+      padding-inline-start: 2rem;
+      p {
+        margin-bottom: 0.2rem;
+      }
+    }
   }
 
   fieldset#root div.field-object {

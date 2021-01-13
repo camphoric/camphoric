@@ -24,6 +24,8 @@ import AddressField from './fields/Address';
 
 import NaturalNumberInput from './widgets/NaturalNumberInput';
 import PhoneInput from './widgets/PhoneInput';
+import SelectWidget from './widgets/Select';
+import TextWidget from './widgets/Text';
 
 import './JsonSchemaForm.scss';
 
@@ -38,6 +40,8 @@ Bootstrap4Theme.widgets = {
   ...Bootstrap4Theme.widgets,
   PhoneInput,
   NaturalNumberInput,
+  SelectWidget,
+  TextWidget,
 };
 
 Bootstrap4Theme.fields = {

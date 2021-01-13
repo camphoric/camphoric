@@ -29,7 +29,7 @@ export default function ArrayFieldTemplate(props: any) {
   const description = props.schema.description || props.uiSchema["ui:description"] || props.description;
 
   return (
-    <fieldset id={props.idSchema.$id} className="jsonschema-array">
+    <div id={props.idSchema.$id} className="jsonschema-array">
       {(title) && (
         <TitleField
           id={`${props.idSchema.$id}__title`}
@@ -57,6 +57,6 @@ export default function ArrayFieldTemplate(props: any) {
           </Button>
         )
       }
-    </fieldset>
+    </div>
   );
 }
