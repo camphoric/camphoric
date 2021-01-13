@@ -3,28 +3,28 @@ export default {
     "required": ["first_name", "last_name", "gender", "session", "accommodations", "meals"],
     "dependencies": {
         "address_different_than_payer": {
-					  "oneOf": [
-							{
-								"properties": {
-									"address_different_than_payer": {
-										"enum": [false],
-									},
-								},
-							},
-							{
-								"properties": {
-									"address_different_than_payer": {
-										"enum": [true],
-									},
-									"camper_address": {
-										"title": "Address",
-										"$ref": "#/definitions/address"
-									},
-								},
-								"required": ["camper_address"],
-							},
-						],
-				},
+            "oneOf": [
+              {
+                "properties": {
+                  "address_different_than_payer": {
+                    "enum": [false],
+                  },
+                },
+              },
+              {
+                "properties": {
+                  "address_different_than_payer": {
+                    "enum": [true],
+                  },
+                  "camper_address": {
+                    "title": "Address",
+                    "$ref": "#/definitions/address"
+                  },
+                },
+                "required": ["camper_address"],
+              },
+            ],
+        },
     },
     "properties": {
         "first_name": {
@@ -52,23 +52,22 @@ export default {
         "address_different_than_payer": {
             "type": "string",
             "title": "Is this campers address different than the billing address?",
-					  "enum": [false, true],
-					"enumNames": ["No", "Yes"],
-					"default": false,
+            "enum": [false, true],
+          "enumNames": ["No", "Yes"],
+          "default": false,
         },
         "session": {
             "type": "string",
             "title": "When will you attend?",
-            "description": `*Full camp* begins Friday, July 31, 2020 at 3:00 pm, and ends Saturday, August 8 at 9:00am.  
-*First half camp* begins Friday, July 31, 2020 at 3:00 pm and ends before noon on Tuesday, August 4.  
-*Second half camp* begins at noon on Tuesday, August 4, 2020 and ends August 8 at 9:00 am.
+            "description": `*Full camp* begins {full_camp_start_date_time}, and ends {full_camp_end_date_time}.  
+*First half camp* begins {first_half_camp_start_date_time}, and ends {first_half_camp_end_date_time}.  
+*Second half camp* begins {second_half_camp_start_date_time}, and ends {second_half_camp_end_date_time}.  
 
-A discount of \${{abs pricing.check_discount_full}} (\${{abs pricing.check_discount_half}} for half camp) is given if you are paying by check.
-
-*   Full camp (adult): \${{pricing.full_adult}}
-*   Full camp (11 and under): \${{pricing.full_teen}}
-*   Half camp (adult): \${{pricing.half_adult}}
-*   Half camp (11 and under): \${{pricing.half_teen}}`,
+* Full camp (adult): \${{pricing.full_adult}}
+* Full camp (11 and under): \${{pricing.full_teen}}
+* Half camp (adult): \${{pricing.half_adult}}
+* Half camp (11 and under): \${{pricing.half_teen}}
+* Children under 3 are free, but may not take up a cabin bed.`,
             "enumNames": [
                 "Full camp",
                 "Half camp (1st half)",

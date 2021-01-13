@@ -27,21 +27,6 @@ export default [
                                 ]}
                             ]}
                         ]},
-                        {  "if": [
-                            { "and": [
-                                {"===": ["F", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
-                            ]}, {"var": "pricing.check_discount_full"},
-                            { "and": [
-                                {"===": ["A", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
-                            ]}, {"var": "pricing.check_discount_half"},
-                            { "and": [
-                                { "===": ["B", {"var": "camper.session"}]},
-                                {"===": [{ "var": "registration.payment.payment_type" }, "check" ]}
-                            ]}, {"var": "pricing.check_discount_half"},
-                            0
-                        ]}
                     ]
                 },
                 {  "if": [

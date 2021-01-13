@@ -10,6 +10,16 @@ const address = {
 };
 
 export default {
+    "ui:order": [
+      "registrant_email",
+      "payment",
+      "campers",
+      "parking_passes",
+      "lta_donation",
+      "how_did_you_hear",
+      "comments",
+      "payment_full_or_deposit",
+    ],
     "payment": {
       "contentClassNames": "camphoric-payment",
         "ui:order": [
@@ -64,21 +74,5 @@ export default {
       "ui:options": {
         "rows": 5
       }
-    },
-    "tshirt_sizes": {
-      "contentClassNames": "form-group form-row",
-      "small":  { "ui:widget": "NaturalNumberInput"},
-      "medium": { "ui:widget": "NaturalNumberInput" },
-      "large":  { "ui:widget": "NaturalNumberInput" },
-      "xl":     { "ui:widget": "NaturalNumberInput" },
-      "xxl":    { "ui:widget": "NaturalNumberInput" },
-    },
-    "sweatshirt_sizes": {
-      "contentClassNames": "form-group form-row",
-      "small":  { "ui:widget": "NaturalNumberInput" },
-      "medium": { "ui:widget": "NaturalNumberInput" },
-      "large":  { "ui:widget": "NaturalNumberInput" },
-      "xl":     { "ui:widget": "NaturalNumberInput" },
-      "xxl":    { "ui:widget": "NaturalNumberInput" },
     },
 };
