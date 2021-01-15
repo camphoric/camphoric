@@ -1,6 +1,6 @@
 import React from 'react';
 import { RouteComponentProps, withRouter } from 'react-router';
-import { Container, Row, Col } from 'react-bootstrap';
+import { Alert, Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from '../Spinner';
 
@@ -143,9 +143,30 @@ class App extends React.Component<Props, RegistrationState> {
     let pageContent: JSX.Element;
     switch (this.state.status) {
       case "loaded":
-      case "submitting":
+      case "submitting": {
+        const { invitation, invitationError, registrationType } = this.state.config;
         pageContent = (
           <section>
+            {
+              !!invitation &&
+              <Alert variant="success">
+                <p>
+                  { `Welcome, ${invitation.recipient_email}!` }
+                </p>
+                <p>
+                  {
+                    !!registrationType &&
+                    `Special registration: ${registrationType.label}`
+                  }
+                </p>
+              </Alert>
+            }
+            {
+              !!invitationError &&
+              <Alert variant="warning">
+                { invitationError }
+              </Alert>
+            }
             <JsonSchemaForm
               schema={this.state.config.dataSchema}
               uiSchema={this.state.config.uiSchema}
@@ -185,6 +206,7 @@ class App extends React.Component<Props, RegistrationState> {
           </section>
         );
         break;
+      }
       case "submitted":
         pageContent = (
           <section className="reciept">
