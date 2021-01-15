@@ -95,8 +95,13 @@ class App extends React.Component<Props, RegistrationState> {
   getConfig = async () => {
     let config: ApiRegister;
 
+    const { eventId } = this.props.match.params;
+
+    // for invitation params, e.g. ?email=foo@bar.baz&code=abc123
+    const { search } = this.props.location;
+
     try {
-      const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`);
+      const res = await fetch(`/api/events/${eventId}/register${search}`);
       config = await res.json();
     } catch (e) {
       console.error(e);
