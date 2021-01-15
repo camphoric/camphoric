@@ -70,6 +70,10 @@ class App extends React.Component<Props, RegistrationState> {
   }
 
   onSubmit = async ({ formData }: any) => {
+    if (this.state.status === "fetching") {
+      return;
+    }
+    const { invitation } = this.state.config;
     this.setState({ status: "submitting" });
     try {
       const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
@@ -79,9 +83,8 @@ class App extends React.Component<Props, RegistrationState> {
         },
         body: JSON.stringify({
           formData,
-          pricingResults: this.state.status === "fetching"
-            ? {}
-            : this.state.totals,
+          pricingResults: this.state.totals,
+          ...(!!invitation && { invitation }),
         }),
       });
       const text = await res.text();
