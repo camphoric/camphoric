@@ -15,5 +15,6 @@ psycopg2 = "*"
 json-logic-qubit = "*"
 gunicorn = "*"
 django-heroku = "*"
+chevron = "*"
 
 [requires]
