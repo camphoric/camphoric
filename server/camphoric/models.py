@@ -92,7 +92,7 @@ class RegistrationType(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, help_text="value exposed to JsonLogic")
     label = models.CharField(max_length=255, help_text="Human readable name")
-    invitation_email_template = models.JSONField(null=True)
+    invitation_email_template = models.TextField(null=True, blank=True)
 
 
 class Registration(TimeStampedModel):
