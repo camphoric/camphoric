@@ -1,15 +1,18 @@
 import logging
+import re
 from smtplib import SMTPException
 
+import chevron
 from django.core import mail
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 import jsonschema  # Using Draft-7
 from rest_framework.serializers import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-from rest_framework import permissions
+from rest_framework import permissions, status
 
 from camphoric import (
     json_logic_template,
@@ -76,6 +79,9 @@ class PaymentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+
+
+
 class InvitationError(Exception):
     def __init__(self, user_message):
         self.user_message = user_message
@@ -98,7 +104,7 @@ class RegisterView(APIView):
 
         * http://jsonlogic.com/
         '''
-        event = models.Event.objects.get(id=event_id)
+        event = get_object_or_404(models.Event, id=event_id)
 
         response_data = {
             'dataSchema': self.get_form_schema(event),
@@ -278,3 +284,63 @@ class RegisterView(APIView):
             raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
+
+
+class SendInvitationView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, invitation_id=None):
+        '''
+        - Takes an invitation
+        - generates an email with a link to the registration form that will redeem that invitation
+        - sends the email
+        - sets the sent_time on the invitation
+        '''
+        invitation = get_object_or_404(models.Invitation, id=invitation_id)
+        event = invitation.registration_type.event
+        invitation_body = chevron.render(
+            invitation.registration_type.invitation_email_template,
+            {
+                'register_link': register_page_url(request, event.id, invitation)
+            }
+        )
+        email_error = None
+        try:
+            sent = mail.send_mail(
+                invitation.registration_type.invitation_email_subject,
+                invitation_body,
+                event.confirmation_email_from, #TODO: figure out what this should be
+                [invitation.recipient_email],
+                fail_silently=False)
+            if not sent:
+                email_error = 'mail not sent'
+        except SMTPException as e:
+            email_error = str(e)
+
+        if email_error:
+            return Response(
+                {"detail": email_error},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        invitation.sent_time = timezone.now()
+        invitation.save()
+
+        return Response({
+            'success': True,
+        })
+
+
+def register_page_url(request, event_id, invitation=None):
+    path = reverse('register', kwargs={'event_id': event_id})    
+    if invitation:
+        query = f'?email={invitation.recipient_email}&code={invitation.invitation_code}'
+    else:
+        query = ''
+    url = request.build_absolute_uri(path + query)
+
+    # transform api url into frontend url
+    url = re.sub(r':8000', ':3000', url, count=1)
+    url = re.sub(r'/api/', '/', url, count=1)
+
+    return url

@@ -14,5 +14,10 @@ router.register('campers', views.CamperViewSet, basename='camper')
 router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
 urlpatterns = router.urls + [
-    path('events/<int:event_id>/register', views.RegisterView.as_view())
+    path(
+        'events/<int:event_id>/register', 
+        views.RegisterView.as_view(),
+        name='register',
+    ),
+    path('invitations/<int:invitation_id>/send', views.SendInvitationView.as_view(),),
 ]
