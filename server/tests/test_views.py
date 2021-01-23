@@ -136,6 +136,7 @@ class RegisterGetTests(APITestCase):
         )
         invitation = models.Invitation.objects.create(
             registration_type=registration_type,
+            recipient_name='Campy McCampface',
             recipient_email='camper@example.com',
             expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
@@ -144,6 +145,7 @@ class RegisterGetTests(APITestCase):
         response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['invitation'], {
+            'recipient_name': 'Campy McCampface',
             'recipient_email': 'camper@example.com',
             'invitation_code': invitation.invitation_code,
         })
@@ -425,10 +427,11 @@ class SendInvitationPostTests(APITestCase):
             name='worktrade',
             label="Work-trade",
             invitation_email_subject="Invitation to register",
-            invitation_email_template='Here is your link: {{{register_link}}}',
+            invitation_email_template='Hi {{recipient_name}}, here is your link: {{{register_link}}}',
         )
         invitation = models.Invitation.objects.create(
             registration_type=registration_type,
+            recipient_name='Campy McCampface',
             recipient_email='camper@example.com',
             invitation_code='abc123',
         )
@@ -448,11 +451,11 @@ class SendInvitationPostTests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         self.assertEqual(message.from_email, "registrar@example.com")
-        self.assertEqual(message.to, ["camper@example.com"])
+        self.assertEqual(message.to, ['"Campy McCampface" <camper@example.com>'])
         self.assertEqual(message.subject, "Invitation to register")
         self.assertEqual(
             message.body, 
-            "Here is your link: http://testserver/events/1/register?email=camper@example.com&code=abc123")
+            "Hi Campy McCampface, here is your link: http://testserver/events/1/register?email=camper@example.com&code=abc123")
         
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)

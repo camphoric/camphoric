@@ -79,9 +79,6 @@ class PaymentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
-
-
-
 class InvitationError(Exception):
     def __init__(self, user_message):
         self.user_message = user_message
@@ -124,6 +121,7 @@ class RegisterView(APIView):
             response_data['invitationError'] = e.user_message
         if invitation:
             response_data['invitation'] = {
+                'recipient_name': invitation.recipient_name,
                 'recipient_email': invitation.recipient_email,
                 'invitation_code': invitation.invitation_code,
             }
@@ -297,20 +295,26 @@ class SendInvitationView(APIView):
         - sets the sent_time on the invitation
         '''
         invitation = get_object_or_404(models.Invitation, id=invitation_id)
+        to_name = invitation.recipient_name
+        to_email = invitation.recipient_email
         event = invitation.registration_type.event
         invitation_body = chevron.render(
             invitation.registration_type.invitation_email_template,
             {
+                'recipient_name': to_name or to_email,
+                'recipient_email': to_email,
+                'invitation_code': invitation.invitation_code,
                 'register_link': register_page_url(request, event.id, invitation)
             }
         )
+        
         email_error = None
         try:
             sent = mail.send_mail(
                 invitation.registration_type.invitation_email_subject,
                 invitation_body,
                 event.confirmation_email_from, #TODO: figure out what this should be
-                [invitation.recipient_email],
+                [f'"{to_name}" <{to_email}>' if to_name else to_email],
                 fail_silently=False)
             if not sent:
                 email_error = 'mail not sent'

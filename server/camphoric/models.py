@@ -128,6 +128,7 @@ class Invitation(TimeStampedModel):
     registration = models.ForeignKey(Registration, null=True, on_delete=models.CASCADE)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
     invitation_code = models.CharField(max_length=8, default=invitation_code_default)
+    recipient_name = models.CharField(max_length=100, blank=True)
     recipient_email = models.EmailField()
     sent_time = models.DateTimeField(null=True)
     expiration_time = models.DateTimeField(null=True)
