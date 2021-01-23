@@ -249,15 +249,14 @@ class RegisterPostTests(APITestCase):
             ],
             confirmation_page_template=[],
             confirmation_email_subject='Registration confirmation',
-            confirmation_email_template=[
-                'Thanks for registering, ',
-                {'var': 'registration.billing_name'},
-                '!\n\nCampers:\n',
-                {'map': [{'var': 'campers'}, [{'var': 'name'}, '\n']]},
-                '\nTotal due: $',
-                {'var': 'pricing_results.total'},
-                '\n'
-            ],
+            confirmation_email_template=''.join([
+                'Thanks for registering, {{registration.billing_name}}!\n',
+                '\nCampers:\n',
+                '{{#campers}}',
+                '{{name}}\n',
+                '{{/campers}}',
+                '\n\nTotal due: ${{pricing_results.total}}\n',
+            ]),
             confirmation_email_from='reg@camp.org',
         )
         self.valid_form_data = {

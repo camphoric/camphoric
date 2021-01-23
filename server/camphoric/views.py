@@ -15,7 +15,6 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import permissions, status
 
 from camphoric import (
-    json_logic_template,
     models,
     pricing,
     serializers,
@@ -166,7 +165,7 @@ class RegisterView(APIView):
         for camper in campers:
             camper.save()
 
-        confirmation_email_body = json_logic_template.render(
+        confirmation_email_body = chevron.render(
             event.confirmation_email_template,
             {
                 'registration': registration.attributes,

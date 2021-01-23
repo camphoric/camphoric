@@ -75,9 +75,9 @@ class Event(TimeStampedModel):
         null=True,
         help_text="JsonLogic Registration-level pricing components")
 
-    confirmation_page_template = models.JSONField(default=list, help_text="JsonLogic template")
+    confirmation_page_template = models.TextField(blank=True, default='', help_text="Mustache template")
     confirmation_email_subject = models.CharField(default='', max_length=100)
-    confirmation_email_template = models.JSONField(default=list, help_text="JsonLogic template")
+    confirmation_email_template = models.TextField(blank=True, default='', help_text="Mustache template")
     confirmation_email_from = models.EmailField()
 
     def __str__(self):
