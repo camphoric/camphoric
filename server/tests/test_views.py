@@ -1,6 +1,7 @@
 import datetime
 import json
 
+from django.contrib.auth.models import User
 from django.core import mail
 from django.utils import timezone
 import jsonschema  # Using Draft-7
@@ -406,3 +407,53 @@ Total due: $300
         self.assertEqual(registration.registration_type.id, registration_type.id)
         invitation.refresh_from_db()
         self.assertEqual(invitation.registration.id, registration.id)
+
+
+class SendInvitationPostTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.organization = models.Organization.objects.create(name='Test Organization')
+        self.event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test Data Event',
+            confirmation_email_from="registrar@example.com"
+        )
+
+    def test_post(self):
+        registration_type = models.RegistrationType.objects.create(
+            event=self.event,
+            name='worktrade',
+            label="Work-trade",
+            invitation_email_subject="Invitation to register",
+            invitation_email_template='Here is your link: {{{register_link}}}',
+        )
+        invitation = models.Invitation.objects.create(
+            registration_type=registration_type,
+            recipient_email='camper@example.com',
+            invitation_code='abc123',
+        )
+
+        #  Test unauthenticated request
+        response = self.client.post(
+            f'/api/invitations/{invitation.id}/send'
+        )
+        self.assertEqual(response.status_code, 401)
+
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(
+            f'/api/invitations/{invitation.id}/send'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.from_email, "registrar@example.com")
+        self.assertEqual(message.to, ["camper@example.com"])
+        self.assertEqual(message.subject, "Invitation to register")
+        self.assertEqual(
+            message.body, 
+            "Here is your link: http://testserver/events/1/register?email=camper@example.com&code=abc123")
+        
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.sent_time)
+        
