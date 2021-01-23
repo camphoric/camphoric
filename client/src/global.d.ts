@@ -83,6 +83,7 @@ declare global {
     };
     pricing: { [key: string]: any };
     invitation?: {
+      recipient_name: string;
       recipient_email: string;
       invitation_code: string;
     };

@@ -154,7 +154,7 @@ class App extends React.Component<Props, RegistrationState> {
               !!invitation &&
               <Alert variant="success">
                 <p>
-                  { `Welcome, ${invitation.recipient_email}!` }
+                  { `Welcome, ${invitation.recipient_name || invitation.recipient_email}!` }
                 </p>
                 <p>
                   {
