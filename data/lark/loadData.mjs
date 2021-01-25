@@ -7,6 +7,7 @@ const urlBase = 'http://127.0.0.1:8000';
 const modules = {
 	camper_pricing_logic: (await import ('./camperPricingLogic.mjs')).default,
 	camper_schema: (await import ('./camperSchema.mjs')).default,
+    confirmation_page_template: (await import ('./confirmationPageTemplate.mjs')).default,
 	pricing: (await import ('./pricing.mjs')).default,
 	registration_pricing_logic: (await import ('./registrationPricingLogic.mjs')).default,
 	registration_schema: (await import ('./registrationSchema.mjs')).default,

@@ -190,7 +190,8 @@ class RegisterView(APIView):
             logger.error(f'error sending confirmation email: {email_error}')
 
         return Response({
-            'serverPricingPesults': server_pricing_results,
+            'confirmationPageTemplate': event.confirmation_page_template,
+            'serverPricingResults': server_pricing_results,
             'emailError': bool(email_error),
         })
 

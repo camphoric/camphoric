@@ -247,7 +247,7 @@ class RegisterPostTests(APITestCase):
                     'exp': {'var': 'tuition'},
                 },
             ],
-            confirmation_page_template=[],
+            confirmation_page_template='{{client renders this}}',
             confirmation_email_subject='Registration confirmation',
             confirmation_email_template=''.join([
                 'Thanks for registering, {{registration.billing_name}}!\n',
@@ -332,8 +332,9 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
 
         self.assertEqual(response.data, {
+            'confirmationPageTemplate': '{{client renders this}}',
             'emailError': False,
-            'serverPricingPesults': expected_pricing_results,
+            'serverPricingResults': expected_pricing_results,
         })
 
         self.assertEqual(len(mail.outbox), 1)
