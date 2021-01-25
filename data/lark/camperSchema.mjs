@@ -50,7 +50,7 @@ export default {
             "title": "Age, if under 18"
         },
         "address_different_than_payer": {
-            "type": "string",
+            "type": "boolean",
             "title": "Is this campers address different than the billing address?",
             "enum": [false, true],
           "enumNames": ["No", "Yes"],

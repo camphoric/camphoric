@@ -1,6 +1,8 @@
 import React from 'react';
 import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
+import Handlebars from 'handlebars';
+import ReactMarkdown from 'react-markdown'
 
 import Spinner from '../Spinner';
 
@@ -39,6 +41,7 @@ interface SubmittingState extends FormDataState {
 
 interface SubmittedState extends FormDataState {
   status: "submitted";
+  confirmationText: string;
 }
 
 interface SubmissionErrorState extends FormDataState {
@@ -87,9 +90,16 @@ class App extends React.Component<Props, RegistrationState> {
           ...(!!invitation && { invitation }),
         }),
       });
-      const text = await res.text();
-      console.log("response", res.status, text);
-      this.setState({ status: "submitted" });
+      const data = await res.json();
+      console.log("response", res.status, data);
+      const confirmationText = Handlebars.compile(data.confirmationPageTemplate)({
+        pricing_results: data.serverPricingResults,
+      });
+      console.log(confirmationText);
+      this.setState({
+        status: "submitted",
+        confirmationText,
+      });
     } catch {
       this.setState({ status: "submissionError" });
     }
@@ -212,40 +222,8 @@ class App extends React.Component<Props, RegistrationState> {
       }
       case "submitted":
         pageContent = (
-          <section className="reciept">
-            <h1>You're all set!</h1>
-            <h2>See you at Lark Camp 2020!</h2>
-            <p>
-              {" "}
-              If you're paying by PayPal or credit card, we'll be sending you a
-              confirmation with payment instructions within the next week. If
-              you're paying by check, please make it for{" "}
-              <strong> ${this.state.totals.total} </strong>
-              payable to "Lark Camp", and mail it to:{" "}
-            </p>
-
-            <address>
-              {" "}
-              Lark Camp
-              <br /> PO Box 1724
-              <br /> Mendocino, CA 95460
-              <br /> USA{" "}
-            </address>
-
-            <p>
-              Do you need approval for your vehicle or trailer, have questions
-              about carpooling, payments, meals, ordering t-shirts, or anything
-              else? Email us at
-              <a href="mailto: registration@larkcamp.org">
-                {" "}
-                registration@larkcamp.org{" "}
-              </a>
-              or call 707-397-5275.
-            </p>
-
-            <a href="https://www.larkcamp.org">
-              Visit our website at www.larkcamp.org for more information!
-            </a>
+          <section className="confirmation">
+            <ReactMarkdown children={this.state.confirmationText} />
           </section>
         );
         break;
