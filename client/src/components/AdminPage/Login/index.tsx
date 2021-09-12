@@ -9,7 +9,7 @@ import Spinner from '../../Spinner';
 
 type LoginProps = {
   onLoginSuccess: (authToken: string) => void,
-  onLoginFail: (error: Error) => void,
+  onLoginFail: (error: any) => void, // catch errors are always type any
 };
 
 type LoginState = {
