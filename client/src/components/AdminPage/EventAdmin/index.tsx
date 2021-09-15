@@ -9,9 +9,9 @@ import {
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import Spinner from '../../Spinner';
+import Spinner from 'components/Spinner';
 import GuardedRoute from '../GuardedRoute';
-import { useEvent } from '../hooks';
+import { useEvent } from 'hooks/admin';
 
 import NavBar from './NavBar';
 import Home from './Home';

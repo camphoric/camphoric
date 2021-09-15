@@ -3,7 +3,7 @@ import { Link, useLocation, } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import { useEvents } from './hooks';
+import { useEvents } from 'hooks/admin';
 import Spinner from '../Spinner';
 
 function EventChooser() {

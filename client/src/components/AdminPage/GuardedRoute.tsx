@@ -2,7 +2,7 @@ import React from 'react';
 import { Route } from 'react-router-dom';
 
 import Login from './Login';
-import { useAuthToken } from './hooks';
+import { useAuthToken } from 'hooks/admin';
 
 type Props =  {
   children: React.ReactNode,
