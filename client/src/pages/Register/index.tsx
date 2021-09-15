@@ -4,14 +4,14 @@ import { Alert, Container, Row, Col } from 'react-bootstrap';
 import Handlebars from 'handlebars';
 import ReactMarkdown from 'react-markdown'
 
-import Spinner from '../Spinner';
+import Spinner from 'components/Spinner';
 
 import JsonSchemaForm, {
   calculatePrice,
   PricingResults,
   FormData,
   JsonSchemaFormChangeEvent,
-} from '../JsonSchemaForm';
+} from 'components/JsonSchemaForm';
 
 import './RegisterPage.scss';
 

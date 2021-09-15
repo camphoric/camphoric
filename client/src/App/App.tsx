@@ -12,8 +12,8 @@ import {
 
 import Splash from './Splash';
 
-const AdminPage = React.lazy(() => import('components/AdminPage'));
-const RegisterPage = React.lazy(() => import('components/RegisterPage'));
+const AdminPage = React.lazy(() => import('pages/Admin'));
+const RegisterPage = React.lazy(() => import('pages/Register'));
 
 type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
 

@@ -8,7 +8,7 @@ import {
   Col,
 } from 'react-bootstrap';
 
-import Spinner from '../../Spinner';
+import Spinner from 'components/Spinner';
 
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
