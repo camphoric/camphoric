@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Navbar, Nav } from 'react-bootstrap';
 
 import { RouteList } from '../EventAdmin';
-import { useOrganizations } from '../hooks';
+import { useOrganizations } from 'hooks/admin';
 
 interface Props {
   routes: RouteList;

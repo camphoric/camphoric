@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
-import Spinner from '../Spinner';
+import Spinner from 'components/Spinner';
 import {
   AuthContext,
   OrganizationsContext,
@@ -8,12 +8,12 @@ import {
   RegistrationsContext,
   CampersContext,
   ContextValue,
-} from '../AdminPage/hooks';
+} from 'hooks/admin';
 
 import Splash from './Splash';
 
-const AdminPage = React.lazy(() => import('../AdminPage'));
-const RegisterPage = React.lazy(() => import('../RegisterPage'));
+const AdminPage = React.lazy(() => import('components/AdminPage'));
+const RegisterPage = React.lazy(() => import('components/RegisterPage'));
 
 type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
 

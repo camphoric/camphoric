@@ -13,7 +13,7 @@ import Spinner from '../../Spinner';
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
-import { useCombinedEventInfo, useQuery } from '../hooks';
+import { useCombinedEventInfo, useQuery } from 'hooks/admin';
 
 interface Props {
   event: ApiEvent,

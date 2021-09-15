@@ -22,7 +22,8 @@
       "./types",
       "./node_modules/@types"
     ],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": "src"
   },
   "exclude": [
     "node_modules",
