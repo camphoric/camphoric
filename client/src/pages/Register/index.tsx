@@ -13,7 +13,7 @@ import JsonSchemaForm, {
   JsonSchemaFormChangeEvent,
 } from 'components/JsonSchemaForm';
 
-import './RegisterPage.scss';
+import './styles.scss';
 
 type PathParams = {
   eventId: string;

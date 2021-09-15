@@ -20,7 +20,7 @@ import Lodging from './Lodging';
 import Reports from './Reports';
 import Settings from './Settings';
 
-import './EventAdmin.scss';
+import './styles.scss';
 
 //                 rel-url label         component
 type RouteTuple = [string, string, () => JSX.Element];

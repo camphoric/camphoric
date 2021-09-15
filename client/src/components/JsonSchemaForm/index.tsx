@@ -27,7 +27,7 @@ import PhoneInput from './widgets/PhoneInput';
 import SelectWidget from './widgets/Select';
 import TextWidget from './widgets/Text';
 
-import './JsonSchemaForm.scss';
+import './styles.scss';
 
 export type JsonSchemaFormChangeEvent<P> = IChangeEvent<P>;
 
