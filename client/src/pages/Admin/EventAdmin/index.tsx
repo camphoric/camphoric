@@ -10,7 +10,7 @@ import {
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
-import GuardedRoute from '../GuardedRoute';
+import GuardedRoute from 'navigation/GuardedRoute';
 import { useEvent } from 'hooks/admin';
 
 import NavBar from './NavBar';
