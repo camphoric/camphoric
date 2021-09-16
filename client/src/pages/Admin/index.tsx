@@ -7,7 +7,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 
-import GuardedRoute from './GuardedRoute';
+import GuardedRoute from 'navigation/GuardedRoute';
 
 import OrganizationChooser from './OrganizationChooser';
 import EventChooser from './EventChooser';
