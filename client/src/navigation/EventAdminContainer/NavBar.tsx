@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom';
 
 import { Navbar, Nav } from 'react-bootstrap';
 
-import { RouteList } from '../EventAdmin';
+import { RouteList } from '../RouterConfig';
 import { useOrganizations } from 'hooks/admin';
 
 interface Props {
   routes: RouteList;
   event: ApiEvent;
   homeUrl: string;
-  url: string;
 }
 
 function ExportedNavBar (props: Props) {
@@ -30,7 +29,7 @@ function ExportedNavBar (props: Props) {
           {
             props.routes.map(
               ([route, title]) => (
-                <Nav.Link key={route} as={Link} to={`${props.url}/${route}`}>{title}</Nav.Link>
+                <Nav.Link key={route} as={Link} to={route}>{title}</Nav.Link>
               )
             )
           }
