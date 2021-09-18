@@ -12,7 +12,27 @@ const RegisterPage = React.lazy(() => import('pages/Register'));
 
 const OrganizationChooser = React.lazy(() => import('pages/OrganizationChooser'));
 const EventChooser = React.lazy(() => import('pages/EventChooser'));
-const EventAdmin = React.lazy(() => import('pages/EventAdmin'));
+const EventAdmin = React.lazy(() => import('./EventAdminContainer'));
+
+const Home = React.lazy(() => import('pages/EventAdmin/Home'));
+const Registrations = React.lazy(() => import('pages/EventAdmin/Registrations'));
+const Lodging = React.lazy(() => import('pages/EventAdmin/Lodging'));
+const Reports = React.lazy(() => import('pages/EventAdmin/Reports'));
+const Settings = React.lazy(() => import('pages/EventAdmin/Settings'));
+
+//                        rel-url label   component
+export type RouteTuple = [string, string, React.ComponentType];
+export type RouteList = Array<RouteTuple>;
+
+const eventAdminRoutes: RouteList = [
+  ['/admin/organization/:organizationId/event/:eventId/home', 'Home', Home],
+  ['/admin/organization/:organizationId/event/:eventId/registrations', 'Registrations', Registrations],
+  ['/admin/organization/:organizationId/event/:eventId/campers', 'Campers', Registrations],
+  ['/admin/organization/:organizationId/event/:eventId/lodging', 'Lodging', Lodging],
+  ['/admin/organization/:organizationId/event/:eventId/reports', 'Reports', Reports],
+  ['/admin/organization/:organizationId/event/:eventId/settings', 'Settings', Settings],
+];
+
 
 const RouterConfig = () => {
   const { pathname } = useLocation();
@@ -30,7 +50,9 @@ const RouterConfig = () => {
         to="/admin/organization/:organizationId/event"
       />
       <Route exact path="/admin/organization/:organizationId/event" component={EventChooser} />
-      <Route path="/admin/organization/:organizationId/event/:eventId" component={EventAdmin} />
+      <Route path="/admin/organization/:organizationId/event/:eventId">
+        <EventAdmin routes={eventAdminRoutes} />
+      </Route>
     </Switch>
   );
 };
