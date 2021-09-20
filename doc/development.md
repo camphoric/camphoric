@@ -132,6 +132,22 @@ To access the browsable API open this url in your browser:
 http://127.0.0.1:8000/api/
 ```
 
+## Loading Sample Data
+
+Once your server is running, use the scripts in data directory to seed sample data.
+```
+cd data
+yarn
+cd lark
+node loadData.mjs
+``` 
+
+To load the family week fixture data:
+```
+cd server
+./manage.py loaddata ../data/familyweek-seed-data.json
+```
+
 ## Authentication
 
 There are two options now.
