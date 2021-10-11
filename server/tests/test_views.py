@@ -5,9 +5,92 @@ from django.contrib.auth.models import User
 from django.core import mail
 from django.utils import timezone
 import jsonschema  # Using Draft-7
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 
 from camphoric import models
+
+
+class LoginTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            'tom', 'tom@example.com', 'password')
+
+    def test_bad_login(self):
+        response = self.client.post('/api/login', format='json')
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(
+            '/api/login',
+            {'username': 'tom', 'password': 'wrongpassword'},
+            format='json')
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.get('/api/organizations/')
+        self.assertEqual(response.status_code, 401)
+
+    def test_good_login(self):
+        response = self.client.post(
+            '/api/login',
+            {'username': 'tom', 'password': 'password'},
+            format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.cookies['sessionid']['httponly'])
+
+        response = self.client.get('/api/organizations/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_logout(self):
+        self.client.login(username='tom', password='password')
+
+        response = self.client.get('/api/organizations/')
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post('/api/logout')
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get('/api/organizations/')
+        self.assertEqual(response.status_code, 401)
+
+
+class CSRFTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient(enforce_csrf_checks=True)
+        self.admin_user = User.objects.create_superuser(
+            'tom', 'tom@example.com', 'password')
+
+    def test_login_csrf(self):
+        credentials = {'username': 'tom', 'password': 'password'}
+
+        response = self.client.post('/api/login', credentials, format='json')
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('CSRF verification failed', str(response.content))
+
+        response = self.client.get('/api/set-csrf-cookie', {}, format='json')
+        csrftoken = response.cookies['csrftoken'].value
+
+        response = self.client.post(
+            '/api/login',
+            credentials,
+            HTTP_X_CSRFTOKEN=csrftoken,  # set the X-CSRFToken header
+            format='json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_crud_csrf(self):
+        self.client.login(username='tom', password='password')
+
+        response = self.client.post('/api/organizations/', {}, format='json')
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('CSRF Failed', str(response.content))
+
+        response = self.client.get('/api/set-csrf-cookie', {}, format='json')
+        csrftoken = response.cookies['csrftoken'].value
+
+        response = self.client.post(
+            '/api/organizations/',
+            {},
+            HTTP_X_CSRFTOKEN=csrftoken,  # set the X-CSRFToken header
+            format='json')
+        self.assertEqual(response.status_code, 400)
 
 
 class RegisterGetTests(APITestCase):

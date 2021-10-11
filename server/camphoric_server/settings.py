@@ -147,4 +147,6 @@ REST_FRAMEWORK = {
     ]
 }
 
+SESSION_COOKIE_SECURE = True
+
 django_heroku.settings(locals(), databases = not DEBUG)

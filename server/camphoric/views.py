@@ -3,16 +3,21 @@ import re
 from smtplib import SMTPException
 
 import chevron
+from django.contrib.auth import authenticate, login, logout
 from django.core import mail
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+
 import jsonschema  # Using Draft-7
-from rest_framework.serializers import ValidationError
+from rest_framework import permissions, status
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-from rest_framework import permissions, status
 
 from camphoric import (
     models,
@@ -22,6 +27,59 @@ from camphoric import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class SetCSRFCookieView(APIView):
+    '''
+    This endpoint sets the 'csrftoken' cookie, required for session-cookie-based
+    authentication. Include the value of this cookie in the X-CSRFToken header
+    for authenticated POST, PUT, PATCH, and DELETE requests, as well as
+    /api/login requests.
+
+    See also:
+    - https://docs.djangoproject.com/en/3.2/ref/csrf/#ajax
+    - https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication
+    - https://yoongkang.com/blog/cookie-based-authentication-spa-django/
+    '''
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        return Response({'detail': 'CSRF cookie set'})
+
+
+class LoginView(APIView):
+    '''
+    Log in with session-cookie-based authentication. Requires a CSRF token. The
+    request body should be JSON like:
+
+        {"username": "myname", "password": "mypassword"}
+
+    See also:
+    - https://docs.djangoproject.com/en/3.2/topics/auth/default/#django.contrib.auth.login
+    - https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication
+    '''
+
+    parser_classes = [JSONParser]
+
+    # By default, Django REST Framework requires CSRF tokens for authenticated
+    # views only, so we need to explicitly add CSRF protection for the login endpoint
+    @method_decorator(csrf_protect)
+    def post(self, request, format=None):
+        user = authenticate(
+            request,
+            username=request.data.get('username'),
+            password=request.data.get('password'))
+        if user is not None:
+            login(request, user)
+            return Response({'detail': 'Success'})
+        return Response({'detail': 'Login failed'}, status=400)
+
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+
+        return Response({'detail': 'Logged out'})
 
 
 class OrganizationViewSet(ModelViewSet):
