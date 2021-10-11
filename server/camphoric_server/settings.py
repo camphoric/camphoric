@@ -91,6 +91,8 @@ DATABASES = {
     'default': env.db(),
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Password validation
@@ -144,5 +146,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ]
 }
+
+SESSION_COOKIE_SECURE = True
 
 django_heroku.settings(locals(), databases = not DEBUG)

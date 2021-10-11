@@ -5,6 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 freezegun = "*"
+flake8 = "*"
 
 [packages]
 django = "*"
