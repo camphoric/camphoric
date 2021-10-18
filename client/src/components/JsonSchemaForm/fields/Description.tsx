@@ -2,7 +2,8 @@ import React from 'react';
 import { FieldProps } from '@rjsf/core';
 import Handlebars from 'handlebars';
 import memoize from 'lodash/memoize';
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { JsonSchemaFormTemplateContext } from '../index';
 
 interface Props extends Partial<FieldProps> {
@@ -22,14 +23,19 @@ const compileTemplate = memoize(Handlebars.compile);
 
 function DescriptionField(props: Props) {
   const templateVars =  React.useContext(JsonSchemaFormTemplateContext);
-  const md = compileTemplate(props.description || '')(templateVars);
+  let md = '';
+  if (typeof props.description === 'object') {
+    md = compileTemplate(props.description.__html || '')(templateVars);
+  } else {
+    md = compileTemplate(props.description || '')(templateVars);
+  }
 
   return (
     <div
       id={props.id}
       className="field-description"
     >
-      <ReactMarkdown children={md || ''} />
+      <ReactMarkdown children={md || ''} remarkPlugins={[remarkGfm]} />
     </div>
   );
 }
