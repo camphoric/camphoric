@@ -1,14 +1,17 @@
+/**
+ * A login form
+ */
+
 import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
 
-/**
- * A login form
- */
+import { UserInfo } from 'hooks/admin';
+import './styles.scss';
 
 type LoginProps = {
-  onLoginSuccess: (authToken: string) => void,
+  onLoginSuccess: (user: UserInfo) => void,
   onLoginFail: (error: any) => void, // catch errors are always type any
 };
 
@@ -28,24 +31,38 @@ class Login extends React.Component<LoginProps, LoginState> {
 
   attemptLogin = async () => {
     this.setState({ processing: true });
-    const formData = new FormData();
-    formData.append('username', this.state.username);
-    formData.append('password', this.state.password);
+
+    const credentials = {
+      username: this.state.username,
+      password: this.state.password,
+    };
 
     try {
+      const match = document.cookie.match(/\bcsrftoken=([^;]+)/);
+      const csrf = (match && match[1]) || '';
+
       const response = await fetch(
-        '/api-token-auth/',
-        { method: 'POST', body: formData },
+        '/api/login',
+        {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+        },
       );
 
-      const json = await response.json();
+      if (!response.ok) throw new Error('login failed');
 
-      const token = json.token;
+      const user = await response.json();
+
+      if (!user.loggedIn) throw new Error('login failed');
+
       this.setState({ processing: false });
 
-      this.props.onLoginSuccess(token);
+      this.props.onLoginSuccess(user);
     } catch (e) {
-      console.log(e);
       this.props.onLoginFail(e);
       this.setState({ processing: false });
     }
@@ -60,7 +77,7 @@ class Login extends React.Component<LoginProps, LoginState> {
 
   render() {
     return (
-      <Container><Row className="justify-content-md-center"><Col>
+      <Container className="login-form"><Row className="justify-content-md-center"><Col>
         <form>
           <h1>Login</h1>
           <div className="form-group">

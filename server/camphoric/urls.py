@@ -18,6 +18,7 @@ router.register('payments', views.PaymentViewSet, basename='payment')
 urlpatterns = router.urls + [
     path('set-csrf-cookie', views.SetCSRFCookieView.as_view()),
     path('login', views.LoginView.as_view()),
+    path('user', views.UserView.as_view()),
     path('logout', views.LogoutView.as_view()),
     path(
         'events/<int:event_id>/register', 

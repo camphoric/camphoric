@@ -1,23 +1,20 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, RouteProps } from 'react-router-dom';
 
 import Login from './Login';
-import { useAuthToken } from 'hooks/admin';
+import { useUser } from 'hooks/admin';
 
-type Props =  {
-  children: React.ReactNode,
-  path: string,
-  exact?: boolean,
-};
+type Props = Omit<RouteProps, 'component'>;
 
 function GuardedRoute({ children, ...rest }: Props) {
-  const authToken = useAuthToken();
+  const userInfo = useUser();
+  const user = userInfo.value;
 
   return (
     <Route {...rest} render={(props) => (
-      authToken.value ? children : (
+      user.loggedIn ? children : (
         <Login
-          onLoginSuccess={authToken.set}
+          onLoginSuccess={userInfo.set}
           onLoginFail={(e) => console.log(e)}
         />
       )

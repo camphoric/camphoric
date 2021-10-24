@@ -29,12 +29,24 @@ class LoginTests(APITestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_good_login(self):
+        response = self.client.get('/api/user')
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            str(response.content, encoding='utf8'),
+            {'email': 'none', 'loggedIn': False})
+
         response = self.client.post(
             '/api/login',
             {'username': 'tom', 'password': 'password'},
             format='json')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.cookies['sessionid']['httponly'])
+
+        response = self.client.get('/api/user')
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            str(response.content, encoding='utf8'),
+            {'email': 'tom@example.com', 'loggedIn': True})
 
         response = self.client.get('/api/organizations/')
         self.assertEqual(response.status_code, 200)

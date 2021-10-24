@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 
 import Default from 'components/Default';
+import GuardedRoute from './GuardedRoute';
 
 const RegisterPage = React.lazy(() => import('pages/Register'));
 
@@ -20,7 +21,7 @@ const Lodging = React.lazy(() => import('pages/EventAdmin/Lodging'));
 const Reports = React.lazy(() => import('pages/EventAdmin/Reports'));
 const Settings = React.lazy(() => import('pages/EventAdmin/Settings'));
 
-//                        rel-url label   component
+//                        url     label   component
 export type RouteTuple = [string, string, React.ComponentType];
 export type RouteList = Array<RouteTuple>;
 
@@ -44,15 +45,19 @@ const RouterConfig = () => {
       <Route exact path="/events/:eventId/register" component={RegisterPage} />
       <Redirect exact from="/admin" to="/admin/organization" />
 
-      <Route exact path="/admin/organization" component={OrganizationChooser} />
+      <GuardedRoute exact path="/admin/organization">
+        <OrganizationChooser />
+      </GuardedRoute>
       <Redirect exact
         from="/admin/organization/:organizationId"
         to="/admin/organization/:organizationId/event"
       />
-      <Route exact path="/admin/organization/:organizationId/event" component={EventChooser} />
-      <Route path="/admin/organization/:organizationId/event/:eventId">
+      <GuardedRoute exact path="/admin/organization/:organizationId/event">
+        <EventChooser />
+      </GuardedRoute>
+      <GuardedRoute path="/admin/organization/:organizationId/event/:eventId">
         <EventAdmin routes={eventAdminRoutes} />
-      </Route>
+      </GuardedRoute>
     </Switch>
   );
 };

@@ -1,19 +1,21 @@
 import React from 'react';
 import {
-  AuthContext,
+  UserContext,
   OrganizationsContext,
   EventsContext,
   RegistrationsContext,
   CampersContext,
   ContextValue,
+  UserInfo,
+  unauthenticatedUser,
 } from './admin';
 
 type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
 
 type State = {
-  authToken: {
-    set: (value: string) => void,
-    value: string,
+  user: {
+    set: (value: UserInfo) => void,
+    value: UserInfo,
   },
   events: ContextValue<ApiEvent>,
   organizations: ContextValue<ApiOrganization>,
@@ -21,16 +23,18 @@ type State = {
   campers: ContextValue<ApiCamper>,
 }
 
-export default class StateProvider extends React.Component<{}, State> {
-  constructor(props: {}) {
+type Props = {
+  initialUser: UserInfo,
+}
+
+export default class StateProvider extends React.Component<Props, State> {
+  constructor(props: Props) {
     super(props);
 
-    window.addEventListener('storage', this.authLocalStorageListener);
-
     this.state = {
-      authToken: {
-        set: this.setAuthToken,
-        value: localStorage.getItem('AUTH_TOKEN') || ''
+      user: {
+        set: this.setUser,
+        value: this.props.initialUser,
       },
       events: {
         get: this.getFactory<ApiEvent>('events'),
@@ -55,30 +59,16 @@ export default class StateProvider extends React.Component<{}, State> {
     };
   }
 
-  componentWillUnmount() {
-    window.removeEventListener('storage', this.authLocalStorageListener);
-  }
-
-  setAuthToken = (value: string) => {
-    const authToken = {
-      set: this.setAuthToken,
-      value: value,
+  setUser = (value: UserInfo) => {
+    const user = {
+      set: this.setUser,
+      value,
     };
 
-    localStorage.setItem('AUTH_TOKEN', value);
-    this.setState({ authToken });
-  }
-
-  authLocalStorageListener = (event: StorageEvent) => {
-    if (event.storageArea !== localStorage) return;
-    const newAuthToken = localStorage.getItem('AUTH_TOKEN') || '';
-    if (newAuthToken === this.state.authToken.value) return;
-
-    this.setAuthToken(newAuthToken);
+    this.setState({ user });
   }
 
   async apiFetch<P>(endpoint: ApiEndpoint): Promise<P[]> {
-    const { authToken } = this.state;
     let value = [];
 
     try {
@@ -87,11 +77,12 @@ export default class StateProvider extends React.Component<{}, State> {
         {
           method: 'GET',
           headers: new Headers({
-            'Authorization': `Token ${authToken.value}`, 
             'Content-Type': 'application/json'
           }),
         },
       );
+
+      if (response.status === 401) this.setUser(unauthenticatedUser);
 
       value = await response.json();
     } catch (e) {
@@ -125,7 +116,7 @@ export default class StateProvider extends React.Component<{}, State> {
 
   render() {
     return (
-      <AuthContext.Provider value={this.state.authToken}>
+      <UserContext.Provider value={this.state.user}>
         <CampersContext.Provider value={this.state.campers}>
           <RegistrationsContext.Provider value={this.state.registrations}>
             <OrganizationsContext.Provider value={this.state.organizations}>
@@ -135,7 +126,7 @@ export default class StateProvider extends React.Component<{}, State> {
             </OrganizationsContext.Provider>
           </RegistrationsContext.Provider>
         </CampersContext.Provider>
-      </AuthContext.Provider>
+      </UserContext.Provider>
     );
   }
 }
