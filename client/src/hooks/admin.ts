@@ -4,20 +4,30 @@ import { useLocation } from 'react-router-dom';
 // const memoize = (func: Function) => func;
 
 /**
- * useAuthToken hook
+ * useUser hook
  *
  * This hook is not created via a factory, because it's value type is different
  * than all others.
  */
-export const AuthContext = React.createContext({
-  set: (value: string) => {},
-  value: '',
+export type UserInfo = {
+  email: string,
+  loggedIn: boolean,
+}
+
+export const unauthenticatedUser = {
+  email: 'none',
+  loggedIn: false,
+};
+
+export const UserContext = React.createContext({
+  set: (value: UserInfo) => {},
+  value: unauthenticatedUser as UserInfo,
 });
 
-export function useAuthToken() {
-  const authToken = React.useContext(AuthContext);
+export function useUser() {
+  const user = React.useContext(UserContext);
 
-  return authToken;
+  return user;
 }
 
 type ContextValueStatus = 'undef' | 'fetching' | 'done';

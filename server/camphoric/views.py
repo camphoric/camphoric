@@ -71,7 +71,8 @@ class LoginView(APIView):
             password=request.data.get('password'))
         if user is not None:
             login(request, user)
-            return Response({'detail': 'Success'})
+            return Response({'email': user.email, 'loggedIn': True})
+
         return Response({'detail': 'Login failed'}, status=400)
 
 
@@ -79,8 +80,18 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
 
-        return Response({'detail': 'Logged out'})
+        return Response({'email': 'none', 'loggedIn': False})
 
+# TODO: create a user serializer so that we can have CRUDy users
+# see https://github.com/camphoric/camphoric/issues/133
+class UserView(APIView):
+    def get(self, request):
+        user = self.request.user
+
+        if user.is_authenticated:
+            return Response({'email': user.email, 'loggedIn': True})
+
+        return Response({'email': 'none', 'loggedIn': False})
 
 class OrganizationViewSet(ModelViewSet):
     queryset = models.Organization.objects.all()
