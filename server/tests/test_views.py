@@ -550,7 +550,7 @@ class SendInvitationPostTests(APITestCase):
         self.assertEqual(message.subject, "Invitation to register")
         self.assertEqual(
             message.body, 
-            "Hi Campy McCampface, here is your link: http://testserver/events/1/register?email=camper@example.com&code=abc123")
+            f'Hi Campy McCampface, here is your link: http://testserver/events/{self.event.id}/register?email=camper@example.com&code=abc123')
         
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)
