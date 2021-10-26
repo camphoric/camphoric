@@ -1,4 +1,4 @@
-version: "3"
+version: "3.9"
 
 volumes:
     db:
@@ -12,13 +12,16 @@ services:
       - "5434:5432"
     volumes:
       - db:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   web:
     build: .
     env_file:
       - .env/local/django
-    depends_on:
-      - postgres
     volumes:
       - ./camphoric:/app/camphoric
       - ./camphoric_server:/app/camphoric_server
@@ -32,3 +35,6 @@ services:
                ./manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
