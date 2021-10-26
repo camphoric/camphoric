@@ -1,0 +1,3 @@
+DEBUG=on
+SECRET_KEY=your-django-secret-key-here
+DATABASE_URL=postgres://camphoric:camphoric@postgres/camphoric
