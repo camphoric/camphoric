@@ -1,0 +1,34 @@
+version: "3"
+
+volumes:
+    db:
+
+services:
+  postgres:
+    image: postgres:13
+    env_file:
+      - .env/local/postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - db:/var/lib/postgresql/data/pgdata
+
+  web:
+    build: .
+    env_file:
+      - .env/local/django
+    depends_on:
+      - postgres
+    volumes:
+      - ./camphoric:/app/camphoric
+      - ./camphoric_server:/app/camphoric_server
+      - ./frontend_bootstrap:/app/frontend_bootstrap
+      - ./tests:/app/tests
+      - ./setup.cfg:/app/setup.cfg
+      - ./manage.py:/app/manage.py
+      - ./.env:/app/.env
+    command: >
+      bash -c "./manage.py migrate &&
+               ./manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
