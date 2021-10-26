@@ -7,6 +7,8 @@ import Spinner from 'components/Spinner';
 import ShowRawJSON from './ShowRawJSON';
 import createEventEditForm from './createEventEditForm';
 
+import './Home.scss'
+
 function EventAdminHome() {
   const { eventId } = useParams<RouterUrlParams>();
   const { value: event } = useEvent(eventId);
@@ -22,7 +24,7 @@ function EventAdminHome() {
         formItems.map(
           ({ label, field, Input, passProps }) => (
             <InputGroup key={field}>
-              <InputGroup.Prepend>
+              <InputGroup.Prepend className="home-input-group">
                 <InputGroup.Text>{label}</InputGroup.Text>
               </InputGroup.Prepend>
               <Input
