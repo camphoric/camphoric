@@ -29,6 +29,7 @@ services:
       - ./tests:/app/tests
       - ./setup.cfg:/app/setup.cfg
       - ./manage.py:/app/manage.py
+      - ../data:/app/fixtures
       - ./.env:/app/.env
     command: >
       bash -c "./manage.py migrate &&
