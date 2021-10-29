@@ -1,8 +1,9 @@
-Server development
-==================
+Camphoric is implemented using the Django REST framework, postgres, and
+Create React App.  This guide assumes that you're running on a MacOS or Linux
+development machine.
 
-Camphoric Server is implemented using Django REST framework.  This guide
-assumes that you're running on a MacOS or Linux development machine.
+Creating the docker services
+============================
 
 Prerequisites
 -------------
@@ -16,12 +17,6 @@ For homebrew users: `brew cask install docker`
 Setting up your containerized development servers
 -------------------------------------------------
 
-It is assumed that all of this is performed inside of the server dir, so:
-
-```
-cd server
-```
-
 ### Creating and editing your server's .env files
 
 First, copy the example .env files to use as a template:
@@ -30,10 +25,11 @@ First, copy the example .env files to use as a template:
 cp -R .env.example .env
 ```
 
-This will result in two .env files.
+This will result in these .env files.
 
-- .env/local/postgres
-- .env/local/django
+- .env/local/django.env
+- .env/local/postgres.env
+- .env/local/react.env
 
 The only one you'll need to edit is '.env/local/django' file where it says
 'your-django-secret-key-here'. You'll do this in the next step.
@@ -49,24 +45,27 @@ First you'll need to build the web and db docker containers for the server:
 docker-compose up --build -d
 ```
 
-After this finishes, run `docker ps`. You should now see both your postgres and
-web services running:
+After this finishes, run `docker ps`. You should now see both your postgres,
+django and react services running:
 
 ```
 ❯ docker ps
-CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS                    PORTS                    NAMES
-7fdca954842d   server_web    "bash -c './manage.p…"   20 seconds ago   Up 19 seconds             0.0.0.0:8000->8000/tcp   server_web_1
-7cd4f71eaeb5   postgres:13   "docker-entrypoint.s…"   31 seconds ago   Up 30 seconds (healthy)   0.0.0.0:5434->5432/tcp   server_postgres_1
+CONTAINER ID   IMAGE              COMMAND                  CREATED              STATUS                    PORTS                    NAMES
+c3fc38546a07   camphoric_react    "docker-entrypoint.s…"   About a minute ago   Up About a minute         0.0.0.0:3000->3000/tcp   camphoric_react_1
+feba46e79c59   camphoric_django   "bash -c './manage.p…"   2 minutes ago        Up 2 minutes (healthy)    0.0.0.0:8000->8000/tcp   camphoric_django_1
+9a600e45e1ce   postgres:13        "docker-entrypoint.s…"   15 minutes ago       Up 15 minutes (healthy)   0.0.0.0:5434->5432/tcp   camphoric_postgres_1
 ```
 
 Run the following command to get your secret key:
 
 ```
-docker-compose exec web python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+docker-compose exec django python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
 Copy the resulting secret key.  Open the '.env/local/django' file and replace
-'your-django-secret-key-here' with the secret key created above.
+'your-django-secret-key-here' with the secret key created above.  You'll likely
+want to put it in quotes since it sometimes has special characters that break
+things.
 
 ### Running the server containers
 
@@ -81,7 +80,7 @@ docker-compose up --build -d
 To test that the setup went correctly run
 
 ```
-docker-compose exec web bash -c "./manage.py test"
+docker-compose exec django python manage.py test
 ```
 
 ### Create the Django superuser
@@ -90,7 +89,7 @@ This user is the one that you'll use to log in with on the front end.  Run the
 following and follow onscreen instructions in the shell:
 
 ```
-docker-compose exec web bash -c "./manage.py createsuperuser"
+docker-compose exec django bash -c "./manage.py createsuperuser"
 ```
 
 ### Load the sample data
@@ -101,14 +100,14 @@ data.
 First, load the family week fixture data:
 
 ```
-docker-compose exec web bash -c "./manage.py loaddata fixtures/familyweek-seed-data.json"
+docker-compose exec django bash -c "./manage.py loaddata fixtures/familyweek-seed-data.json"
 ```
 
 Second, load the Lark Camp sample data (when asked to log in, user your superuser
 credentials):
 
 ```
-cd ../data/lark; yarn; rm -f .auth-token; node loadData.mjs; cd -
+rm -f data/lark/.auth-token; node data/lark/loadData.mjs
 ```
 
 ### View loaded data
@@ -116,6 +115,32 @@ cd ../data/lark; yarn; rm -f .auth-token; node loadData.mjs; cd -
 To access the browsable API open this url in your browser: [http://127.0.0.1:8000/api/](http://127.0.0.1:8000/api/)
 
 You'll want to login using your superuser credentials to see all the data.
+
+### View the app
+
+Go to [http://localhost:3000/](http://localhost:3000/)
+
+Frontend development process
+----------------------------
+
+The frontend was created using [CRA](https://create-react-app.dev/), and will
+automatically reload when it detects edits.  The react server is running the
+[development server](https://create-react-app.dev/docs/available-scripts#npm-start).
+It doesn’t handle backend logic or databases; it just creates a frontend build
+pipeline.  Under the hood, it uses Babel and webpack, but you don’t need to
+know anything about them.
+
+If for some reason you need to restart the service you can run this command:
+
+```
+docker-compose restart react
+```
+
+If you need to do a full rebuild of the container, you can do this:
+
+```
+docker-compose up -d --no-deps --build react
+```
 
 Server development process
 --------------------------
@@ -139,7 +164,7 @@ Note:
 ### Writing tests
 
 It is recommended that you write tests. All tests are run when you run the
-`docker-compose exec web bash -c "./manage.py test"` command.
+`docker-compose exec django python manage.py test` command.
 
 It is recommended that you look at the existing tests in the 'server/tests/'
 directory.  These should give you a good idea about what tests exist, and how
@@ -157,40 +182,6 @@ or [pgAdmin](https://www.pgadmin.org/), you can use the following to connect:
 - The server is exposed on port 5434
 
 If using the env defaults, this should be [postgres://camphoric:camphoric@localhost:5434/camphoric](postgres://camphoric:camphoric@localhost:5434/camphoric)
-
-
-Frontend Client development
-===========================
-
-Prerequisites
--------------
-
-The frontend requires the backend - run through the [instructions for setting
-up containerized development servers above](#server-development)
-
-Setting up your containerized react server
-------------------------------------------
-
-It is assumed that all of this is performed inside of the client dir, so:
-
-```
-cd client
-```
-
-Then, you'll need to build the react service:
-
-```
-docker-compose up --build -d
-```
-
-After this finishes, run `docker ps`. You should now see your react service
-running:
-
-```
-❯ docker ps
-CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS        PORTS                    NAMES
-182f11b452f4   client_react   "docker-entrypoint.s…"  31 seconds ago   Up 40 seconds 0.0.0.0:3000->3000/tcp   client_react_1
-```
 
 Tips for working with docker
 ============================
@@ -216,11 +207,12 @@ the -d.
 ### Rebuilding only one service
 
 If you need to just rebuild one service (ex you're iterating on the
-docker-compose file) you can use the `--no-deps` flag and specify the service
-to rebuild a service individually.  Example of rebuilding only the web service:
+docker-compose file or the client/package.json) you can use the `--no-deps`
+flag and specify the service to rebuild a service individually.  Example of
+rebuilding only the web service:
 
 ```
-(cd server; docker-compose up -d --no-deps --build web
+docker-compose up -d --no-deps --build react
 ```
 
 Additional flags that may be handy here:
@@ -233,8 +225,8 @@ Additional flags that may be handy here:
 You can use the [docker-compose exec](https://docs.docker.com/compose/reference/exec/)
 command to run arbitrary commands inside of a container:
 
-- Open a shell in the web container: `(cd server; docker-compose exec web bash)`
-- Run a command (like `ls`): `(cd server; docker-compose exec web ls -la)`
+- Open a shell in the web container: `(cd server; docker-compose exec django bash)`
+- Run a command (like `ls`): `(cd server; docker-compose exec django ls -la)`
 - Find out what yarn version we're running: `(cd client; docker-compose exec react yarn --version)`
 
 ### Seeing server log output
@@ -252,3 +244,9 @@ If you'd prefer to use the command line, you can use the [docker logs command](h
 ```
 (cd server; docker-compose logs -f web)
 ```
+
+### Cache removal
+
+- clean unused images: `docker rmi $(docker images -a --filter=dangling=true -q)`
+- removed processes: `docker rm $(docker ps --filter=status=exited --filter=status=created -q)`
+- remove build cache `docker builder prune`

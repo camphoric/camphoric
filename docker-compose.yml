@@ -1,0 +1,67 @@
+version: "3.9"
+
+volumes:
+    db:
+
+services:
+  postgres:
+    image: postgres:13
+    env_file:
+      - ./.env/local/postgres.env
+    ports:
+      - "5434:5432"
+    volumes:
+      - db:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  django:
+    env_file:
+      - ./.env/local/django.env
+    build: server/
+    volumes:
+      - ./server/camphoric:/app/camphoric
+      - ./server/camphoric_server:/app/camphoric_server
+      - ./server/frontend_bootstrap:/app/frontend_bootstrap
+      - ./server/tests:/app/tests
+      - ./server/setup.cfg:/app/setup.cfg
+      - ./server/manage.py:/app/manage.py
+      - ./.env:/app/.env
+      - ./data:/app/fixtures
+    command: >
+      bash -c "./manage.py migrate &&
+               ./manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8000/api/user || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  react:
+    env_file:
+      - ./.env/local/react.env
+    build: client/
+    volumes:
+      - ./client:/app
+      - ./client/package.json:/app/package.json
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: yarn start
+    depends_on:
+      django:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
