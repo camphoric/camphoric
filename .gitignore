@@ -1,8 +1,7 @@
-# vim swapfiles
-*.swp
-*.swo
-
-node_modules/
+# IDE/Editor files
+*.swp # vim swap
+*.swo # vim swap
+.idea # IntelliJ’s project specific settings
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -62,10 +61,6 @@ coverage.xml
 local_settings.py
 db.sqlite3
 
-# Flask stuff:
-instance/
-.webassets-cache
-
 # Scrapy stuff:
 .scrapy
 
@@ -110,8 +105,9 @@ venv.bak/
 .mypy_cache/
 
 # Data import tool
-data/.auth-token
+.auth-token
 
 # Camphoric frontend 
 frontend_bootstrap/build/
-.idea
+node_modules/
+
