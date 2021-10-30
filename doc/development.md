@@ -2,17 +2,40 @@ Camphoric is implemented using the Django REST framework, postgres, and
 Create React App.  This guide assumes that you're running on a MacOS or Linux
 development machine.
 
-Creating the docker services
-============================
-
 Prerequisites
--------------
+=============
 
-To get started, install the following prerequisites:
+To get started, install [docker](https://docs.docker.com/get-docker/). We
+recommend the docker desktop version for your environment.
 
-- [docker](https://docs.docker.com/get-docker/) - We recommend the docker desktop version for your environment.
+For homebrew users: `brew cask install docker;`
 
-For homebrew users: `brew cask install docker`
+Using the development setup wizard
+==================================
+
+We have a setup wizard which will guide you through the process of setting up
+the docker containers and services.  If you'd rather do it manually because
+you like to learn by doing or you don't like installing unnecessary
+dependencies, just [skip to the next section.](#setting-up-your-containerized-development-servers)
+
+Install the following:
+
+- [node](https://nodejs.org/en/download/)
+- [yarn](https://yarnpkg.com/)
+
+For homebrew users: `brew install node yarn`
+
+Run the following and follow the prompts:
+
+```
+yarn install; ./development-setup-wizard.mjs
+```
+
+Creating the docker services (the hard way)
+===========================================
+
+Keep reading if you want do set up all the docker containers yourself.  You'll
+learn a lot about docker!
 
 Setting up your containerized development servers
 -------------------------------------------------
@@ -69,15 +92,15 @@ things.
 
 ### Running the server containers
 
-Run the following to rebuild the database and django services:
+Run the following to rebuild the django services with your new key:
 
 ```
-docker-compose up --build -d
+docker-compose up -d --force-recreate --no-deps --build django
 ```
 
 ### Run the tests
 
-To test that the setup went correctly run
+To test that the setup went correctly run:
 
 ```
 docker-compose exec django python manage.py test
@@ -107,7 +130,7 @@ Second, load the Lark Camp sample data (when asked to log in, user your superuse
 credentials):
 
 ```
-rm -f data/lark/.auth-token; node data/lark/loadData.mjs
+docker-compose exec react node fixtures/lark/loadData.mjs
 ```
 
 ### View loaded data
@@ -178,7 +201,7 @@ and the [Django REST api test docs](https://www.django-rest-framework.org/api-gu
 If you like using a database GUI tool like [Beekeeper Studio](https://www.beekeeperstudio.io/)
 or [pgAdmin](https://www.pgadmin.org/), you can use the following to connect:
 
-- The username, password, and database name is in 'server/.env/local/postgres'
+- The username, password, and database name is in '.env/local/postgres'
 - The server is exposed on port 5434
 
 If using the env defaults, this should be [postgres://camphoric:camphoric@localhost:5434/camphoric](postgres://camphoric:camphoric@localhost:5434/camphoric)
@@ -225,9 +248,10 @@ Additional flags that may be handy here:
 You can use the [docker-compose exec](https://docs.docker.com/compose/reference/exec/)
 command to run arbitrary commands inside of a container:
 
-- Open a shell in the web container: `(cd server; docker-compose exec django bash)`
-- Run a command (like `ls`): `(cd server; docker-compose exec django ls -la)`
-- Find out what yarn version we're running: `(cd client; docker-compose exec react yarn --version)`
+- Open a shell in the web container: `docker-compose exec django bash`
+- Run a command (like `ls`): `docker-compose exec django ls -la`
+- Find out what yarn version we're running: `docker-compose exec react yarn --version`
+- Install a new npm package for the client: `docker-compose exec react yarn add <pkgname>`
 
 ### Seeing server log output
 
@@ -245,8 +269,18 @@ If you'd prefer to use the command line, you can use the [docker logs command](h
 (cd server; docker-compose logs -f web)
 ```
 
-### Cache removal
+### Container/image/volume removal
 
-- clean unused images: `docker rmi $(docker images -a --filter=dangling=true -q)`
-- removed processes: `docker rm $(docker ps --filter=status=exited --filter=status=created -q)`
-- remove build cache `docker builder prune`
+There is a script that will do this for you:
+
+```
+./remove-all-docker-artifacts
+```
+
+This script will:
+
+- delete any containers created with docker-compose
+- delete any images not associated with containers
+- delete any volumes not associated with containers
+
+If you want to be targeted about it, we recommend using the docker desktop GUI.
