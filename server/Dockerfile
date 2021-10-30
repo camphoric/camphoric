@@ -17,5 +17,5 @@ COPY . .
 RUN addgroup -S backend && adduser -S backend -G backend \
     && chown -R backend:backend .
 USER backend
-
+RUN mkdir -p frontend_bootstrap/build/static
 # RUN ls -la && mkdir -p frontend_bootstrap/build/static && ./manage.py collectstatic --no-input
