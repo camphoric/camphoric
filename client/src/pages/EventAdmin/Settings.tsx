@@ -1,13 +1,11 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
-
-import { useEvent } from 'hooks/admin';
 import Spinner from 'components/Spinner';
 
-function EventAdminSettings() {
-  const { eventId } = useParams<RouterUrlParams>();
-  const { value: event } = useEvent(eventId);
+interface Props {
+  event: ApiEvent,
+}
 
+function EventAdminSettings({ event }: Props) {
   if (!event) return <Spinner />;
 
   return (

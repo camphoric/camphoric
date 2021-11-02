@@ -2,14 +2,15 @@ import React from 'react';
 import {
   Switch,
   Redirect,
+  Route,
   useParams,
   useLocation,
+  useRouteMatch,
 } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
-import GuardedRoute from 'navigation/GuardedRoute';
 import { useEvent } from 'hooks/admin';
 
 import NavBar from './NavBar';
@@ -25,6 +26,7 @@ function EventAdmin({ routes }: Props) {
   const { eventId } = useParams<RouterUrlParams>();
   const { value: event } = useEvent(eventId);
   const { pathname } = useLocation();
+  const { url } = useRouteMatch();
 
   if (!event) return <Spinner />;
 
@@ -37,13 +39,13 @@ function EventAdmin({ routes }: Props) {
         {
           routes.map(
             ([route,, Comp]) => (
-              <GuardedRoute path={route} key={route}>
-                <div className={`event-admin-section-${route}`}><Comp /></div>
-              </GuardedRoute>
+              <Route path={`${url}/${route}`} key={route}>
+                <div className={`event-admin-section-${route}`}><Comp event={event} /></div>
+              </Route>
             )
           )
         }
-        <Redirect to="/admin/organization/:organizationId/event/:eventId/home" />
+        <Redirect to={`${url}/home`} />
       </Switch>
     </Col></Row></Container>
   );
