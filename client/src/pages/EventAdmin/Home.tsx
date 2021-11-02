@@ -1,18 +1,17 @@
 import React from 'react';
 import { InputGroup } from 'react-bootstrap';
-import { useParams } from 'react-router-dom';
 
-import { useEvent } from 'hooks/admin';
 import Spinner from 'components/Spinner';
 import ShowRawJSON from './ShowRawJSON';
 import createEventEditForm from './createEventEditForm';
 
 import './Home.scss'
 
-function EventAdminHome() {
-  const { eventId } = useParams<RouterUrlParams>();
-  const { value: event } = useEvent(eventId);
+interface Props {
+  event: ApiEvent,
+}
 
+function EventAdminHome({ event }: Props) {
   if (!event) return <Spinner />;
 
   const formItems = createEventEditForm(event);

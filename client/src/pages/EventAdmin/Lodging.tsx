@@ -1,11 +1,10 @@
 import React from 'react';
-import { useEvent } from 'hooks/admin';
-import { useParams } from 'react-router-dom';
 
-function EventAdminLodging() {
-  const { eventId } = useParams<RouterUrlParams>();
-  const { value: event } = useEvent(eventId);
+interface Props {
+  event: ApiEvent,
+}
 
+function EventAdminLodging({ event }: Props) {
   return (
     <React.Fragment>
       <h1>Lodging</h1>

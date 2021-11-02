@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouteMatch, useParams } from 'react-router-dom';
+import { useRouteMatch } from 'react-router-dom';
 import {
   InputGroup,
   FormControl,
@@ -9,17 +9,18 @@ import {
 } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
-import { useEvent } from 'hooks/admin';
 
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
 import { useCombinedEventInfo, useQuery } from 'hooks/admin';
 
-function EventAdminRegistrations() {
+interface Props {
+  event: ApiEvent,
+}
+
+function EventAdminRegistrations({ event }: Props) {
   const { url } = useRouteMatch();
-  const { eventId } = useParams<RouterUrlParams>();
-  const { value: event } = useEvent(eventId);
   const registrationId = useQuery('registrationId');
   const registrationMap = useCombinedEventInfo(event?.id || 0);
   const [searchQuery, setSearchQuery] = React.useState('');
