@@ -40,21 +40,21 @@ learn a lot about docker!
 Setting up your containerized development servers
 -------------------------------------------------
 
-### Creating and editing your server's .env files
+### Creating and editing your server's env files
 
-First, copy the example .env files to use as a template:
+First, copy the example env files to use as a template:
 
 ```
-cp -R .env.example .env
+cp -R .env.example env
 ```
 
-This will result in these .env files.
+This will result in these env files.
 
-- .env/local/django.env
-- .env/local/postgres.env
-- .env/local/react.env
+- env/local/django.env
+- env/local/postgres.env
+- env/local/react.env
 
-The only one you'll need to edit is '.env/local/django' file where it says
+The only one you'll need to edit is 'env/local/django' file where it says
 'your-django-secret-key-here'. You'll do this in the next step.
 
 You can edit most of the other values in these files if you know what you're
@@ -85,7 +85,7 @@ Run the following command to get your secret key:
 docker-compose exec django python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
-Copy the resulting secret key.  Open the '.env/local/django' file and replace
+Copy the resulting secret key.  Open the 'env/local/django' file and replace
 'your-django-secret-key-here' with the secret key created above.  You'll likely
 want to put it in quotes since it sometimes has special characters that break
 things.
@@ -201,7 +201,7 @@ and the [Django REST api test docs](https://www.django-rest-framework.org/api-gu
 If you like using a database GUI tool like [Beekeeper Studio](https://www.beekeeperstudio.io/)
 or [pgAdmin](https://www.pgadmin.org/), you can use the following to connect:
 
-- The username, password, and database name is in '.env/local/postgres'
+- The username, password, and database name is in 'env/local/postgres'
 - The server is exposed on port 5434
 
 If using the env defaults, this should be [postgres://camphoric:camphoric@localhost:5434/camphoric](postgres://camphoric:camphoric@localhost:5434/camphoric)
@@ -266,7 +266,7 @@ Here you can view the logs, stats, environment variables, mount points, etc.
 If you'd prefer to use the command line, you can use the [docker logs command](https://docs.docker.com/engine/reference/commandline/logs/).
 
 ```
-(cd server; docker-compose logs -f web)
+docker-compose logs -f django
 ```
 
 ### Container/image/volume removal

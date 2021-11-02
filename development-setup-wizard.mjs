@@ -48,7 +48,7 @@ async function checkPrereqs() {
 
 
 async function createEnvFiles() {
-  const dir = './.env';
+  const dir = './env';
   let envDir;
 
   try {
@@ -69,9 +69,19 @@ async function createEnvFiles() {
     await fs.rm(dir, { recursive: true, force: true });
   }
 
-  await fs.cp('./.env.example', dir, { recursive: true, force: true });
+  // fs.cp is an experimental feature; when it's not experimental, use next line
+  // await fs.cp('./.env.example', dir, { recursive: true, force: true });
+  const localDir = `${dir}/local`;
+  const exampleDir = `./.env.example/local`;
+  await fs.mkdir(localDir, { recursive: true });
 
-  hooray('Successfully created .env files');
+  const files = await fs.readdir(exampleDir);
+  await Promise.all(
+    files.map(f => fs.copyFile(`${exampleDir}/${f}`, `${localDir}/${f}`))
+  );
+
+
+  hooray('Successfully created env files');
 }
 
 async function checkNodeModulesFolder() {
@@ -131,7 +141,7 @@ function dockerComposeUp() {
 
 // for now, no customization, we're keeping it simple
 async function setEnvValues() {
-  const filename = './.env/local/django.env';
+  const filename = './env/local/django.env';
   let contents = await fs.readFile(filename, 'utf-8').then(c => c.toString().trim());
 
   let currentKey = '';

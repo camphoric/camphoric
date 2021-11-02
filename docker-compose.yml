@@ -7,7 +7,7 @@ services:
   postgres:
     image: postgres:13
     env_file:
-      - ./.env/local/postgres.env
+      - ./env/local/postgres.env
     ports:
       - "5434:5432"
     volumes:
@@ -20,7 +20,7 @@ services:
 
   django:
     env_file:
-      - ./.env/local/django.env
+      - ./env/local/django.env
     build: server/
     volumes:
       - ./server/camphoric:/app/camphoric
@@ -29,7 +29,6 @@ services:
       - ./server/tests:/app/tests
       - ./server/setup.cfg:/app/setup.cfg
       - ./server/manage.py:/app/manage.py
-      - ./.env:/app/.env
       - ./data:/app/fixtures
     command: >
       bash -c "./manage.py migrate &&
@@ -47,7 +46,7 @@ services:
 
   react:
     env_file:
-      - ./.env/local/react.env
+      - ./env/local/react.env
     build: client/
     volumes:
       - ./client:/app
