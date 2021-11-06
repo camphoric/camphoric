@@ -555,3 +555,38 @@ class SendInvitationPostTests(APITestCase):
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)
         
+class UsersTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.client.login(username='tom', password='password')
+
+    def test_list_unauthorized(self):
+        self.client.logout()
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, 401)
+
+    def test_list_authorized(self):
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.data, list)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['username'], 'tom')
+        self.assertNotIn('password', response.data[0])
+
+    def test_create(self):
+        # TODO finish test
+
+        response = self.client.post(
+            '/api/users/',
+            {'username': 'jerry'},
+            format='json'
+        )
+
+        user = User.objects.get(username='jerry')
+        self.assertFalse(user.has_usable_password())
+
+    # TODO: make tests for get/edit/delete user endpoints
+
+            
+       
+

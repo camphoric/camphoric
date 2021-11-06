@@ -1,4 +1,5 @@
 from rest_framework.serializers import ModelSerializer, ValidationError
+from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
 
 import camphoric.models
@@ -77,6 +78,17 @@ class PaymentSerializer(ModelSerializer):
 
     def validate(self, data):
         return validate_attributes(data, data['registration'].event.payment_schema)
+
+
+class UserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ['password']
+
+    def create(self, validated_data):
+        kwargs = dict(validated_data)
+        del kwargs['username']
+        return User.objects.create_user(validated_data['username'], **kwargs)
 
 
 def validate_schema(schema):
