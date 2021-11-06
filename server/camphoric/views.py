@@ -4,6 +4,7 @@ from smtplib import SMTPException
 
 import chevron
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.core import mail
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -144,6 +145,12 @@ class DepositViewSet(ModelViewSet):
 class PaymentViewSet(ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class UserViewSet(ModelViewSet):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = serializers.UserSerializer
     permission_classes = [permissions.IsAdminUser]
 
 

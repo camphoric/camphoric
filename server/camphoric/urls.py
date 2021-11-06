@@ -14,6 +14,8 @@ router.register('lodgings', views.LodgingViewSet, basename='lodging')
 router.register('campers', views.CamperViewSet, basename='camper')
 router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
+router.register('users', views.UserViewSet, basename='user')
+
 
 urlpatterns = router.urls + [
     path('set-csrf-cookie', views.SetCSRFCookieView.as_view()),
