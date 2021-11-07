@@ -51,7 +51,6 @@ services:
     volumes:
       - ./client:/app
       - ./data:/app/fixtures
-      - ./client/package.json:/app/package.json
       - /app/node_modules
     ports:
       - "3000:3000"

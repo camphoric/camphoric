@@ -3,4 +3,4 @@ ENV PATH="/app/node_modules/.bin:${PATH}"
 WORKDIR /app
 COPY . .
 RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
-RUN yarn
+RUN yarn install --frozen-lockfile
