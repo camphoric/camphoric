@@ -271,16 +271,23 @@ docker-compose logs -f django
 
 ### Container/image/volume removal
 
-There is a script that will do this for you:
+**Delete all containers**
+
+If you want to PERMENANTLY delete images, volumes, and containers associated
+with camphoric:
 
 ```
 ./remove-all-docker-artifacts
 ```
 
-This script will:
+use `./remove-all-docker-artifacts -h` for more details
 
-- delete any containers created with docker-compose
-- delete any images not associated with containers
-- delete any volumes not associated with containers
+**Delete unused artifacts**
 
-If you want to be targeted about it, we recommend using the docker desktop GUI.
+If you just want to clean up some hard drive space:
+
+```
+./remove-unused-docker-artifacts
+```
+
+use `./remove-unused-docker-artifacts -h` for more details

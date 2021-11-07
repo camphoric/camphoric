@@ -2,10 +2,9 @@
 
 function usage() {
     cat <<EOF
-Usage: $0 [-yf] [image-name]
+Usage: $0 [-yf]
 
-This will PERMENANTLY delete images, volumes, and containers associated with
-${PWD##*/}.  If you omit the optional image name, it will delete all of them.
+This will PERMENANTLY delete ALL unused images and volumes.
 EOF
 
 }
@@ -20,18 +19,14 @@ do
     esac
 done
 
-shift $((OPTIND-1)) # remove all flag arguments
-
 if [ -z "$force" ]
 then
     RED='\033[1;31m'
     NC='\033[0m' # No Color
-
-    echo "$*"
-
+    
     printf "${RED}WARNING: THIS CANNOT BE UNDONE${NC}\n"
-    echo "This will delete all images, volumes, and containers associate with ${PWD##*/}"
-
+    echo "This will delete all unused images and volumes"
+    
     while true; do
         read -p "Do you wish to proceed [y/n]? " yn
         case $yn in
@@ -42,5 +37,5 @@ then
     done
 fi
 
-docker-compose rm -sf $*
-./remove-unused-docker-artifacts -f
+docker image prune -af
+docker volume prune -f
