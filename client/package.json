@@ -36,6 +36,7 @@
     "build": "react-scripts build",
     "postbuild": "rm -rf ../server/frontend_bootstrap/build && mkdir ../server/frontend_bootstrap/build && mv ./build/* ../server/frontend_bootstrap/build/",
     "test": "react-scripts test",
+    "e2e": "jest --config=tests-e2e/jest.config.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -55,6 +56,8 @@
   },
   "devDependencies": {
     "inquirer": "^8.2.0",
-    "node-fetch": "^3.0.0"
+    "jest-puppeteer": "^6.0.0",
+    "node-fetch": "^3.0.0",
+    "puppeteer-core": "^11.0.0"
   }
 }
