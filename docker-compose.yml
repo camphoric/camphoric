@@ -47,7 +47,9 @@ services:
   react:
     env_file:
       - ./env/local/react.env
-    build: client/
+    build:
+      context: client
+      shm_size: '2gb'
     volumes:
       - ./client:/app
       - ./data:/app/fixtures
