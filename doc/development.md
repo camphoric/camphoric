@@ -196,6 +196,21 @@ you might write new ones.
 For information about writing tests in Django, see the [Django test docs](https://docs.djangoproject.com/en/3.2/topics/testing/overview/)
 and the [Django REST api test docs](https://www.django-rest-framework.org/api-guide/testing/).
 
+### Database migrations
+
+To make changes to the models (database schema), e.g. to add a model field
+(database column), refer to the [Django documentation on
+migrations](https://docs.djangoproject.com/en/3.2/topics/migrations/). There are
+a few differences due to the Docker setup. The `manage.py makemigrations`
+command may fail with "Permission denied" unless you (temporarily) loosen the
+permissions on the migations directory. Here's the sequence of commands you
+might use after editing models.py:
+
+    chmod 777 server/camphoric/migrations
+    docker-compose exec django python manage.py makemigrations
+    chmod 755 server/camphoric/migrations
+    docker-compose exec django python manage.py migrate
+
 ### Connecting to the database from the host
 
 If you like using a database GUI tool like [Beekeeper Studio](https://www.beekeeperstudio.io/)
