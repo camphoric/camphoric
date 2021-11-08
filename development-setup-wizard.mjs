@@ -22,7 +22,6 @@ async function main() {
   await checkNodeModulesFolder();
   await dockerComposeUp();
   await setEnvValues();
-  await dockerComposeUp();
   await createDjangoSuperUser();
   await loadSampleData();
   await runTests();
@@ -172,6 +171,9 @@ async function setEnvValues() {
   contents = contents.replace(/SECRET_KEY=.*/, `SECRET_KEY='${secretKey}'`);
   await fs.writeFile(filename, contents, 'utf-8');
   hooray(`Successfully wrote secret key to ${filename}`);
+	
+	// Rebuild if we added secret key
+	await dockerComposeUp();
 }
 
 async function getSecretKey() {
