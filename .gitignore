@@ -3,6 +3,9 @@
 *.swo # vim swap
 .idea # IntelliJ’s project specific settings
 
+# OS files
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
