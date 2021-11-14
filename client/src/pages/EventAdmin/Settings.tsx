@@ -1,11 +1,7 @@
 import React from 'react';
 import Spinner from 'components/Spinner';
 
-interface Props {
-  event: ApiEvent,
-}
-
-function EventAdminSettings({ event }: Props) {
+function EventAdminSettings({ event }: EventAdminPageProps) {
   if (!event) return <Spinner />;
 
   return (

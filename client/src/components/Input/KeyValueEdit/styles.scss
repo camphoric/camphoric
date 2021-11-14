@@ -1,0 +1,16 @@
+.keyvalue-input {
+  div.row { margin-left: 0 }
+  label { display: none }
+
+  .form-group {
+    margin-bottom: 0.2rem
+  }
+
+  i.glyphicon { display: none; }
+  .btn-add::after { content: 'Add'; }
+  .array-item-move-up::after { content: 'Move Up'; }
+  .array-item-move-down::after { content: 'Move Down'; }
+  .array-item-remove::after { content: 'Remove'; }
+
+  button[type=submit] { display: none; }
+}

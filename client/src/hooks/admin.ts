@@ -30,19 +30,25 @@ export function useUser() {
   return user;
 }
 
-type ContextValueStatus = 'undef' | 'fetching' | 'done';
-export type ContextValue<P> = {
+export interface MinimumApiObject {
+  id: number,
+}
+
+type ContextValueStatus = 'undef' | 'fetching' | 'setting' | 'done';
+export type ContextValue<P extends MinimumApiObject>= {
   value: P[],
   get: () => void,
+  set: (value: P) => void,
   status: ContextValueStatus,
 };
 
-type ApiHook<P> = React.Context<ContextValue<P>>;
+type ApiHook<P extends MinimumApiObject> = React.Context<ContextValue<P>>;
 
-function contextFactory<P>(): React.Context<ContextValue<P>> {
+function contextFactory<P extends MinimumApiObject>(): React.Context<ContextValue<P>> {
   return React.createContext({
     value: [] as Array<P>,
     get: () => {},
+    set: (value) => {},
     status: 'undef' as ContextValueStatus,
   });
 }
@@ -63,7 +69,7 @@ export const CampersContext = contextFactory<ApiCamper>();
  * created factory functions that abstract their creation.
  */
 
-function apiContextHookFactory<P>(hook: ApiHook<P>): () => ContextValue<P> {
+function apiContextHookFactory<P extends MinimumApiObject>(hook: ApiHook<P>): () => ContextValue<P> {
   return () => {
     const ctx = React.useContext(hook);
 
@@ -79,9 +85,11 @@ export const useRegistrations = apiContextHookFactory<ApiRegistration>(Registrat
 export const useCampers = apiContextHookFactory<ApiCamper>(CampersContext);
 
 type CtxId = string | number;
-type ContextFilteredFunc<P> = (id?: CtxId) => {
+type ContextFilteredFunc<P extends MinimumApiObject> = (id?: CtxId) => {
   get: () => void,
+  set: (value: P) => void,
   value: P | undefined,
+  status: ContextValueStatus,
 }
 
 /**
@@ -90,7 +98,7 @@ type ContextFilteredFunc<P> = (id?: CtxId) => {
  * Because all api endpoints return an array of some type of value, we have
  * created factory functions that abstract the filtering of those values.
  */
-function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>): ContextFilteredFunc<P> {
+function apiContextHookFilterFactory<P extends MinimumApiObject>(hook: ApiHook<P>): ContextFilteredFunc<P> {
   return (ctxId?: CtxId) => {
     const ctx = React.useContext(hook);
 
@@ -100,6 +108,7 @@ function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>):
 
     return {
       get: ctx.get,
+      set: ctx.set,
       value: ctx.value.find(e => e.id.toString() === ctxIdStr),
       status: ctx.status,
     };
@@ -110,56 +119,18 @@ export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
 
-// This is used for creating search strings on the useCombinedEventInfo values,
-// which are used in the EventAdmin pages for searching objects.
-const createSearchStr = memoize((obj: Object): string => {
-  if (!obj) return '';
-  return Object.values(obj)
-    .reduce(
-      (acc, v) => `${acc}${
-        (typeof v === 'object' && !Array.isArray(v))
-          ? createSearchStr(v)
-          : JSON.stringify(v)
-      }`,
-      ''
-    ).replaceAll(/"+/g, ' ').toLowerCase();
-});
-
-const createAugmentedRegistrations = memoize(
-  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CombinedEventInfo => {
+const createRegistrationLookup = memoize(
+  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): RegistrationLookup => {
     const eventIdStr = eventId.toString();
 
     return registrations
       .filter(r => r.event.toString() === eventIdStr)
-      .map(r => {
-        const augmentedReg = {
-          ...r,
-          campers: campers
-          .filter(c => c.registration.toString() === r.id.toString())
-          .map(
-            c => ({
-              ...c,
-              // look for any 'name' type attributes and concat as label
-              label: Object.keys(c.attributes)
-              .filter(a => a.toLowerCase().includes('name'))
-              .map(k => c.attributes[k])
-              .join(', '),
-              searchStrJson: JSON.stringify(c),
-              searchStr: createSearchStr(c),
-            }),
-          ),
-          searchStr: '',
-        };
-
-        return {
-          ...augmentedReg,
-          searchStr: createSearchStr({
-            ...augmentedReg,
-            campers: augmentedReg.campers.map(c => c.searchStr).join(),
-          }),
-          searchStrJson: JSON.stringify(r),
-        };
-      })
+      .map(r => ({
+        ...r,
+        campers: campers.filter(
+          c => c.registration.toString() === r.id.toString()
+        ),
+      }))
       .reduce(
         (acc, r) => ({
           ...acc,
@@ -170,14 +141,48 @@ const createAugmentedRegistrations = memoize(
   }
 );
 
-export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
+export function useRegistrationLookup(eventId: CtxId): RegistrationLookup {
   const { value: registrations } = useRegistrations();
   const { value: campers } = useCampers();
 
   if (!registrations || !campers) return {};
   if (!registrations.length || !campers.length) return {};
 
-  const result = createAugmentedRegistrations(registrations, campers, eventId);
+  const result = createRegistrationLookup(registrations, campers, eventId);
+
+  return result;
+}
+
+const createCamperLookup = memoize(
+  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CamperLookup => {
+    const eventIdStr = eventId.toString();
+
+    const registrationsIdsForEvent = registrations
+      .filter(r => r.event.toString() === eventIdStr)
+      .map(r => r.id.toString());
+
+    return campers
+      .filter(
+        c => registrationsIdsForEvent.includes(c.registration.toString())
+      )
+      .reduce(
+        (acc, c) => ({
+          ...acc,
+          [c.id]: c,
+        }),
+        {},
+      );
+  }
+);
+
+export function useCamperLookup(eventId: CtxId): CamperLookup {
+  const { value: registrations } = useRegistrations();
+  const { value: campers } = useCampers();
+
+  if (!registrations || !campers) return {};
+  if (!registrations.length || !campers.length) return {};
+
+  const result = createCamperLookup(registrations, campers, eventId);
 
   return result;
 }

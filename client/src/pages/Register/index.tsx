@@ -3,6 +3,7 @@ import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
 import Handlebars from 'handlebars';
 import ReactMarkdown from 'react-markdown'
+import { getCsrfToken } from 'utils/fetch';
 
 import Spinner from 'components/Spinner';
 
@@ -83,6 +84,7 @@ class App extends React.Component<Props, RegistrationState> {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
         },
         body: JSON.stringify({
           formData,
@@ -180,39 +182,41 @@ class App extends React.Component<Props, RegistrationState> {
                 { invitationError }
               </Alert>
             }
-            <JsonSchemaForm
-              schema={this.state.config.dataSchema}
-              uiSchema={this.state.config.uiSchema}
-              onChange={this.onChange}
-              onSubmit={this.onSubmit}
-              onError={() => console.log("errors")}
-              formData={this.state.formData}
-              transformErrors={this.transformErrors}
+            <div className="registration-form">
+              <JsonSchemaForm
+                schema={this.state.config.dataSchema}
+                uiSchema={this.state.config.uiSchema}
+                onChange={this.onChange}
+                onSubmit={this.onSubmit}
+                onError={() => console.log("errors")}
+                formData={this.state.formData}
+                transformErrors={this.transformErrors}
 
-              templateData={{
-                pricing: this.state.config.pricing,
-                formData: this.state.formData,
-                totals: this.state.totals,
-              }}
-              // liveValidate={true}
-            >
-              <div>
-                <p>
-                  By submitting this form, you agree to the{" "}
-                  <a
-                    href="http://www.larkcamp.org/campterms.html"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Terms of Registration
-                  </a>
-                  .
-                </p>
-                <button type="submit" className="btn btn-info">
-                  Submit Registration
-                </button>
-              </div>
-            </JsonSchemaForm>
+                templateData={{
+                  pricing: this.state.config.pricing,
+                  formData: this.state.formData,
+                  totals: this.state.totals,
+                }}
+                // liveValidate={true}
+              >
+                <div>
+                  <p>
+                    By submitting this form, you agree to the{" "}
+                    <a
+                      href="http://www.larkcamp.org/campterms.html"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Terms of Registration
+                    </a>
+                    .
+                  </p>
+                  <button type="submit" className="btn btn-info">
+                    Submit Registration
+                  </button>
+                </div>
+              </JsonSchemaForm>
+            </div>
             <div className="PriceTicker">
               Total: ${(this.state.totals.total || 0).toFixed(2)}
             </div>

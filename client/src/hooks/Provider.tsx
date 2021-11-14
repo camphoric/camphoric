@@ -1,4 +1,5 @@
 import React from 'react';
+import { getCsrfToken } from 'utils/fetch';
 import {
   UserContext,
   OrganizationsContext,
@@ -7,10 +8,11 @@ import {
   CampersContext,
   ContextValue,
   UserInfo,
+  MinimumApiObject,
   unauthenticatedUser,
 } from './admin';
 
-type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
+type ApiResource = 'events' | 'organizations' | 'registrations' | 'campers';
 
 type State = {
   user: {
@@ -38,21 +40,25 @@ export default class StateProvider extends React.Component<Props, State> {
       },
       events: {
         get: this.getFactory<ApiEvent>('events'),
+        set: this.setFactory<ApiEvent>('events'),
         value: [],
         status: 'undef',
       },
       organizations: {
         get: this.getFactory<ApiOrganization>('organizations'),
+        set: this.setFactory<ApiOrganization>('organizations'),
         value: [],
         status: 'undef',
       },
       registrations: {
         get: this.getFactory<ApiRegistration>('registrations'),
+        set: this.setFactory<ApiRegistration>('registrations'),
         value: [],
         status: 'undef',
       },
       campers: {
         get: this.getFactory<ApiCamper>('campers'),
+        set: this.setFactory<ApiCamper>('campers'),
         value: [],
         status: 'undef',
       },
@@ -68,16 +74,18 @@ export default class StateProvider extends React.Component<Props, State> {
     this.setState({ user });
   }
 
-  async apiFetch<P>(endpoint: ApiEndpoint): Promise<P[]> {
+  async apiFetch<P extends MinimumApiObject>(resource: ApiResource): Promise<P[]> {
     let value = [];
 
     try {
       const response = await fetch(
-        `/api/${endpoint}/`,
+        `/api/${resource}/`,
         {
           method: 'GET',
+          credentials: 'include',
           headers: new Headers({
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
           }),
         },
       );
@@ -86,31 +94,66 @@ export default class StateProvider extends React.Component<Props, State> {
 
       value = await response.json();
     } catch (e) {
-      console.error(`error getting ${endpoint}`, e);
+      console.error(`error getting ${resource}`, e);
     }
 
     return value;
   }
 
+  async apiPut<P extends MinimumApiObject>(resource: ApiResource, value: P): Promise<void> {
+    try {
+      const response = await fetch(
+        `/api/${resource}/${value.id}/`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: new Headers({
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+          }),
+          body: JSON.stringify(value),
+        },
+      );
 
-  getFactory<P>(endpoint: ApiEndpoint) {
+      if (response.status === 401) this.setUser(unauthenticatedUser);
+
+    } catch (e) {
+      console.error(`error getting ${resource}`, e);
+    }
+  }
+
+  getFactory<P extends MinimumApiObject>(resource: ApiResource) {
     return () => this.setState((prevState: State) => ({
       ...prevState,
-      [endpoint]: {
-        ...prevState[endpoint],
+      [resource]: {
+        ...prevState[resource],
         status: 'fetching',
       }
     }), async () => {
-      const value = await this.apiFetch<P>(endpoint);
+      const value = await this.apiFetch<P>(resource);
 
       this.setState((prevState: State) => ({
         ...prevState,
-        [endpoint]: {
-          get: this.getFactory(endpoint),
+        [resource]: {
+          get: this.getFactory(resource),
+          set: this.setFactory(resource),
           value,
           status: 'done',
         },
       }));
+    });
+  }
+
+  setFactory<P extends MinimumApiObject>(resource: ApiResource) {
+    return (newValue: P) => this.setState((prevState: State) => ({
+      ...prevState,
+      [resource]: {
+        ...prevState[resource],
+        status: 'setting',
+      }
+    }), async () => {
+      await this.apiPut<P>(resource, newValue);
+      await this.state[resource].get();
     });
   }
 

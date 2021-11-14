@@ -15,20 +15,21 @@ const OrganizationChooser = React.lazy(() => import('pages/OrganizationChooser')
 const EventChooser = React.lazy(() => import('pages/EventChooser'));
 const EventAdmin = React.lazy(() => import('./EventAdminContainer'));
 
-const Home = React.lazy(() => import('pages/EventAdmin/Home'));
-const Registrations = React.lazy(() => import('pages/EventAdmin/Registrations'));
+const EventAdminHome = React.lazy(() => import('pages/EventAdminHome'));
+const Registrations = React.lazy(() => import('pages/EventAdminRegistrations'));
+const Campers = React.lazy(() => import('pages/EventAdminCampers'));
 const Lodging = React.lazy(() => import('pages/EventAdmin/Lodging'));
 const Reports = React.lazy(() => import('pages/EventAdmin/Reports'));
 const Settings = React.lazy(() => import('pages/EventAdmin/Settings'));
 
 //                        url     label   component
-export type RouteTuple = [string, string, React.ComponentType<{ event: ApiEvent }>];
+export type RouteTuple = [string, string, React.ComponentType<EventAdminPageProps>];
 export type RouteList = Array<RouteTuple>;
 
 const eventAdminRoutes: RouteList = [
-  ['home', 'Home', Home],
+  ['home', 'Home', EventAdminHome],
   ['registrations', 'Registrations', Registrations],
-  ['campers', 'Campers', Registrations],
+  ['campers', 'Campers', Campers],
   ['lodging', 'Lodging', Lodging],
   ['reports', 'Reports', Reports],
   ['settings', 'Settings', Settings],

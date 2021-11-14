@@ -2,6 +2,7 @@ import { JSONSchema7 } from "json-schema";
 import {
   UiSchema as JsonFormUiSchema,
 } from '@rjsf/core';
+import Fuse from 'fuse.js';
 
 type JSONLogic = any;
 type Template = any;
@@ -100,21 +101,27 @@ declare global {
     registrationId?: string;
   }
 
-  export interface AugmentedCamper extends ApiCamper {
-    searchStr: string;
-    searchStrJson: string;
-    label: string;
-  }
-
   export interface AugmentedRegistration extends ApiRegistration {
-    searchStr: string;
-    searchStrJson: string;
-    campers: Array<AugmentedCamper>;
+    campers: Array<ApiCamper>;
   }
 
-  export type CombinedEventInfo = {
+  export type RegistrationLookup = {
     [id: string]: AugmentedRegistration,
   }
 
+  export type CamperLookup = {
+    [id: string]: ApiCamper,
+  }
+
+  interface EventAdminPageProps {
+    event: ApiEvent,
+    registrationLookup: RegistrationLookup,
+    registrationSearch: Fuze<AugmentedRegistration>,
+    registrations: Array<AugmentedRegistration>,
+    camperLookup: CamperLookup,
+    camperSearch: Fuze<ApiCamper>,
+    campers: Array<ApiCamper>,
+
+  }
 }
 

@@ -9,9 +9,14 @@ import {
 } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
+import Fuse from 'fuse.js';
 
 import Spinner from 'components/Spinner';
-import { useEvent } from 'hooks/admin';
+import {
+  useEvent,
+  useRegistrationLookup,
+  useCamperLookup,
+} from 'hooks/admin';
 
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';
@@ -22,11 +27,69 @@ interface Props {
   routes: RouteList;
 }
 
+const basicSearchOptions = {
+  isCaseSensitive: true,
+  includeScore: true,
+  shouldSort: true,
+  includeMatches: true,
+  // findAllMatches: false,
+  minMatchCharLength: 3,
+  location: 0,
+  threshold: 0.6,
+  distance: 100,
+  // useExtendedSearch: false,
+  // ignoreLocation: false,
+  // ignoreFieldNorm: false,
+};
+
+const registrationSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'registration_type',
+    'campers.attributes.last_name',
+    'campers.attributes.first_name',
+    'attributes.payment.payer_last_name',
+    'attributes.payment.payer_first_name',
+    'attributes.payment.payer_number',
+    'attributes.payment.payer_billing_address.city',
+    'attributes.payment.payer_billing_address.country',
+    'attributes.payment.payer_billing_address.zip_code',
+    'attributes.payment.payer_billing_address.street_address',
+    'attributes.payment.payer_billing_address.state_or_province',
+  ]
+}
+
+const camperSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'attributes.last_name',
+    'attributes.first_name',
+    'attributes.accommodations.accommodation_preference',
+    'attributes.accommodations.camp_preference',
+  ]
+}
+
+
+
 function EventAdmin({ routes }: Props) {
   const { eventId } = useParams<RouterUrlParams>();
   const { value: event } = useEvent(eventId);
   const { pathname } = useLocation();
   const { url } = useRouteMatch();
+
+  const registrationLookup = useRegistrationLookup(eventId || 0);
+  const registrations = Object.values(registrationLookup);
+  const registrationSearch = new Fuse<AugmentedRegistration>(
+    registrations,
+    registrationSearchOptions,
+  );
+
+  const camperLookup = useCamperLookup(eventId || 0);
+  const campers = Object.values(camperLookup);
+  const camperSearch = new Fuse<ApiCamper>(
+    campers,
+    camperSearchOptions,
+  );
 
   if (!event) return <Spinner />;
 
@@ -40,7 +103,17 @@ function EventAdmin({ routes }: Props) {
           routes.map(
             ([route,, Comp]) => (
               <Route path={`${url}/${route}`} key={route}>
-                <div className={`event-admin-section-${route}`}><Comp event={event} /></div>
+                <div className={`event-admin-section-${route}`}>
+                  <Comp
+                    event={event}
+                    registrationLookup={registrationLookup}
+                    registrationSearch={registrationSearch}
+                    registrations={registrations}
+                    camperLookup={camperLookup}
+                    camperSearch={camperSearch}
+                    campers={campers}
+                  />
+                </div>
               </Route>
             )
           )
