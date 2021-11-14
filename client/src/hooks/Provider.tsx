@@ -73,6 +73,12 @@ export default class StateProvider extends React.Component<Props, State> {
     this.setState({ user });
   }
 
+  getCsrfToken = () => {
+    const match = document.cookie.match(/\bcsrftoken=([^;]+)/);
+
+    return (match && match[1]) || '';
+  }
+
   async apiFetch<P extends MinimumApiObject>(endpoint: ApiEndpoint): Promise<P[]> {
     let value = [];
 
@@ -81,8 +87,10 @@ export default class StateProvider extends React.Component<Props, State> {
         `/api/${endpoint}/`,
         {
           method: 'GET',
+          credentials: 'include',
           headers: new Headers({
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken(),
           }),
         },
       );
@@ -100,11 +108,13 @@ export default class StateProvider extends React.Component<Props, State> {
   async apiPut<P extends MinimumApiObject>(endpoint: ApiEndpoint, value: P): Promise<void> {
     try {
       const response = await fetch(
-        `/api/${endpoint}/${value.id}`,
+        `/api/${endpoint}/${value.id}/`,
         {
           method: 'PUT',
+          credentials: 'include',
           headers: new Headers({
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken(),
           }),
           body: JSON.stringify(value),
         },

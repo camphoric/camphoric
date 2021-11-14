@@ -106,6 +106,7 @@ function apiContextHookFilterFactory<P extends MinimumApiObject>(hook: ApiHook<P
 
     return {
       get: ctx.get,
+      set: ctx.set,
       value: ctx.value.find(e => e.id.toString() === ctxIdStr),
       status: ctx.status,
     };
