@@ -555,6 +555,7 @@ class SendInvitationPostTests(APITestCase):
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)
         
+
 class UsersTests(APITestCase):
     def setUp(self):
         self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
@@ -574,7 +575,6 @@ class UsersTests(APITestCase):
         self.assertNotIn('password', response.data[0])
 
     def test_create(self):
-        # TODO finish test
 
         response = self.client.post(
             '/api/users/',
@@ -582,11 +582,34 @@ class UsersTests(APITestCase):
             format='json'
         )
 
+        self.assertEqual(response.status_code, 201)
         user = User.objects.get(username='jerry')
         self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.get_username(), 'jerry')
+        self.assertIsInstance(user, User)
+        self.assertEqual(len(User.objects.all()), 2)
 
-    # TODO: make tests for get/edit/delete user endpoints
+    def test_edit(self):
 
-            
-       
+        user = User.objects.create_user(username='jerry')
+        self.assertEqual(user.email, '')
 
+        response = self.client.put(
+            f'/api/users/{user.id}/',
+            {'username': 'jerry', 'email': 'jerry@example.com'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        updated_user = User.objects.get(username='jerry')
+        self.assertEqual(updated_user.email, 'jerry@example.com')
+
+    def test_delete(self):
+
+        user = User.objects.create_user(username='jerry')
+
+        response = self.client.delete(f'/api/users/{user.id}/')
+        self.assertEqual(response.status_code, 204)
+
+        with self.assertRaises(User.DoesNotExist):
+            User.objects.get(id=user.id)
