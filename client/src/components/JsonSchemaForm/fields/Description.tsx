@@ -23,12 +23,7 @@ const compileTemplate = memoize(Handlebars.compile);
 
 function DescriptionField(props: Props) {
   const templateVars =  React.useContext(JsonSchemaFormTemplateContext);
-  let md = '';
-  if (typeof props.description === 'object') {
-    md = compileTemplate(props.description.__html || '')(templateVars);
-  } else {
-    md = compileTemplate(props.description || '')(templateVars);
-  }
+  const md = compileTemplate(props.description || "")(templateVars);
 
   return (
     <div
