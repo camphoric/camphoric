@@ -7,6 +7,7 @@ import {
   CampersContext,
   ContextValue,
   UserInfo,
+  MinimumApiObject,
   unauthenticatedUser,
 } from './admin';
 
@@ -38,21 +39,25 @@ export default class StateProvider extends React.Component<Props, State> {
       },
       events: {
         get: this.getFactory<ApiEvent>('events'),
+        set: this.setFactory<ApiEvent>('events'),
         value: [],
         status: 'undef',
       },
       organizations: {
         get: this.getFactory<ApiOrganization>('organizations'),
+        set: this.setFactory<ApiOrganization>('organizations'),
         value: [],
         status: 'undef',
       },
       registrations: {
         get: this.getFactory<ApiRegistration>('registrations'),
+        set: this.setFactory<ApiRegistration>('registrations'),
         value: [],
         status: 'undef',
       },
       campers: {
         get: this.getFactory<ApiCamper>('campers'),
+        set: this.setFactory<ApiCamper>('campers'),
         value: [],
         status: 'undef',
       },
@@ -68,7 +73,7 @@ export default class StateProvider extends React.Component<Props, State> {
     this.setState({ user });
   }
 
-  async apiFetch<P>(endpoint: ApiEndpoint): Promise<P[]> {
+  async apiFetch<P extends MinimumApiObject>(endpoint: ApiEndpoint): Promise<P[]> {
     let value = [];
 
     try {
@@ -92,8 +97,27 @@ export default class StateProvider extends React.Component<Props, State> {
     return value;
   }
 
+  async apiPut<P extends MinimumApiObject>(endpoint: ApiEndpoint, value: P): Promise<void> {
+    try {
+      const response = await fetch(
+        `/api/${endpoint}/${value.id}`,
+        {
+          method: 'PUT',
+          headers: new Headers({
+            'Content-Type': 'application/json'
+          }),
+          body: JSON.stringify(value),
+        },
+      );
 
-  getFactory<P>(endpoint: ApiEndpoint) {
+      if (response.status === 401) this.setUser(unauthenticatedUser);
+
+    } catch (e) {
+      console.error(`error getting ${endpoint}`, e);
+    }
+  }
+
+  getFactory<P extends MinimumApiObject>(endpoint: ApiEndpoint) {
     return () => this.setState((prevState: State) => ({
       ...prevState,
       [endpoint]: {
@@ -107,10 +131,24 @@ export default class StateProvider extends React.Component<Props, State> {
         ...prevState,
         [endpoint]: {
           get: this.getFactory(endpoint),
+          set: this.setFactory(endpoint),
           value,
           status: 'done',
         },
       }));
+    });
+  }
+
+  setFactory<P extends MinimumApiObject>(endpoint: ApiEndpoint) {
+    return (newValue: P) => this.setState((prevState: State) => ({
+      ...prevState,
+      [endpoint]: {
+        ...prevState[endpoint],
+        status: 'setting',
+      }
+    }), async () => {
+      await this.apiPut<P>(endpoint, newValue);
+      await this.state[endpoint].get();
     });
   }
 

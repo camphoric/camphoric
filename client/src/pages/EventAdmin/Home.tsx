@@ -14,6 +14,8 @@ interface Props {
 function EventAdminHome({ event }: Props) {
   if (!event) return <Spinner />;
 
+  console.log(event);
+
   const formItems = createEventEditForm(event);
 
   return (

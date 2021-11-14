@@ -30,19 +30,25 @@ export function useUser() {
   return user;
 }
 
-type ContextValueStatus = 'undef' | 'fetching' | 'done';
-export type ContextValue<P> = {
+export interface MinimumApiObject {
+  id: number,
+}
+
+type ContextValueStatus = 'undef' | 'fetching' | 'setting' | 'done';
+export type ContextValue<P extends MinimumApiObject>= {
   value: P[],
   get: () => void,
+  set: (value: P) => void,
   status: ContextValueStatus,
 };
 
-type ApiHook<P> = React.Context<ContextValue<P>>;
+type ApiHook<P extends MinimumApiObject> = React.Context<ContextValue<P>>;
 
-function contextFactory<P>(): React.Context<ContextValue<P>> {
+function contextFactory<P extends MinimumApiObject>(): React.Context<ContextValue<P>> {
   return React.createContext({
     value: [] as Array<P>,
     get: () => {},
+    set: (value) => {},
     status: 'undef' as ContextValueStatus,
   });
 }
@@ -63,7 +69,7 @@ export const CampersContext = contextFactory<ApiCamper>();
  * created factory functions that abstract their creation.
  */
 
-function apiContextHookFactory<P>(hook: ApiHook<P>): () => ContextValue<P> {
+function apiContextHookFactory<P extends MinimumApiObject>(hook: ApiHook<P>): () => ContextValue<P> {
   return () => {
     const ctx = React.useContext(hook);
 
@@ -79,7 +85,7 @@ export const useRegistrations = apiContextHookFactory<ApiRegistration>(Registrat
 export const useCampers = apiContextHookFactory<ApiCamper>(CampersContext);
 
 type CtxId = string | number;
-type ContextFilteredFunc<P> = (id?: CtxId) => {
+type ContextFilteredFunc<P extends MinimumApiObject> = (id?: CtxId) => {
   get: () => void,
   value: P | undefined,
 }
@@ -90,7 +96,7 @@ type ContextFilteredFunc<P> = (id?: CtxId) => {
  * Because all api endpoints return an array of some type of value, we have
  * created factory functions that abstract the filtering of those values.
  */
-function apiContextHookFilterFactory<P extends { id: CtxId }>(hook: ApiHook<P>): ContextFilteredFunc<P> {
+function apiContextHookFilterFactory<P extends MinimumApiObject>(hook: ApiHook<P>): ContextFilteredFunc<P> {
   return (ctxId?: CtxId) => {
     const ctx = React.useContext(hook);
 
