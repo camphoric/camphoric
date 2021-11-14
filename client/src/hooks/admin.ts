@@ -87,7 +87,9 @@ export const useCampers = apiContextHookFactory<ApiCamper>(CampersContext);
 type CtxId = string | number;
 type ContextFilteredFunc<P extends MinimumApiObject> = (id?: CtxId) => {
   get: () => void,
+  set: (value: P) => void,
   value: P | undefined,
+  status: ContextValueStatus,
 }
 
 /**

@@ -13,23 +13,19 @@ interface Props {
 }
 
 function EventAdminHome({ event: originalEvent }: Props) {
-  const eventContext = useEvent(originalEvent.id);
-  const [event, setEvent] = React.useState<ApiEvent>(eventContext.value);
+  const [event, setEvent] = React.useState<ApiEvent>(originalEvent);
+  const { set: apiPutEvent } = useEvent(originalEvent.id);
 
-  if (!event) return <Spinner />;
-
-  console.log(event);
+  if (!originalEvent) return <Spinner />;
 
   const formItems = createEventEditForm(event);
 
-  const handleChange = (field) => (changeEvent) => setEvent({
+  const handleChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
     ...event,
     [field]: changeEvent.target.value,
   });
 
-  const save = () => {
-    eventContext.set(event);
-  };
+  const save = () => apiPutEvent(event);
 
   return (
     <>
