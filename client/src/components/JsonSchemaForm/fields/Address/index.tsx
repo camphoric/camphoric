@@ -57,54 +57,52 @@ const Address = (props: Props) => {
 
   return (
     <Form.Group id={props.idSchema.$id} className="address">
-      <TitleField {...props} id={`${props.idSchema.$id}__title`} title={title} />
+      <TitleField
+        {...props}
+        id={`${props.idSchema.$id}__title`}
+        title={title}
+      />
       <div className="jsonschema-address">
-        {
-          keys.map(
-            (key: Keys) => (
-              <AddressField
-                idBase={props.idSchema.$id} 
-                key={key}
-                {...props}
-                name={key}
-                value={props.formData[key]}
-                onChange={makeOnChange(key)}
-                onChangeWholeAddress={onChangeWholeAddress}
-              />
-            )
-          )
-        }
-        {
-          !!countrySchema && typeof countrySchema !== 'boolean' && (
-            <div className="country">
-              <SelectWidget
-                schema={countrySchema}
-                id={`${props.idSchema.$id}__country`}
-                options={{
-                  enumOptions: countrySchema.enum?.map(
-                    (str: string) => ({
-                      value: str,
-                      label: str,
-                    }),
-                  )
-                }}
-                label="Country"
-                required
-                value={props.formData.country}
-                onChange={makeOnChange('country')}
-                uiSchema={props.uiSchema.country}
-                disabled={false}
-                readonly={false}
-                autofocus={false}
-                formContext={{}}
-                multiple={false}
-                rawErrors={[]}
-                onBlur={() => {}}
-                onFocus={() => {}}
-              />
-            </div>
-          )
-        }
+        {keys.map((key: Keys) => (
+          <AddressField
+            idBase={props.idSchema.$id}
+            key={key}
+            {...props}
+            name={key}
+            value={props.formData[key]}
+            onChange={makeOnChange(key)}
+            onChangeWholeAddress={onChangeWholeAddress}
+          />
+        ))}
+        {!!countrySchema && typeof countrySchema !== "boolean" && (
+          <div className="country">
+            <SelectWidget
+              schema={countrySchema}
+              id={`${props.idSchema.$id}__country`}
+              options={{
+                enumOptions: countrySchema.enum?.map((str: string) => ({
+                  value: str,
+                  label: str,
+                })),
+              }}
+              label="Country"
+              required
+              value={props.formData.country}
+              onChange={makeOnChange("country")}
+              uiSchema={props.uiSchema.country}
+              disabled={false}
+              readonly={false}
+              autofocus={false}
+              formContext={{}}
+              multiple={false}
+              rawErrors={[]}
+              onBlur={() => {}}
+              onFocus={() => {}}
+              placeholder="Country"
+              registry={props.registry}
+            />
+          </div>
+        )}
       </div>
     </Form.Group>
   );
