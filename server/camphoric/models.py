@@ -151,7 +151,8 @@ class Lodging(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=255)
-    capacity = models.IntegerField(default=0, help_text="total camper capacity")
+    # For non-leaf nodes, "capacity" and "reserved" should be set to zero. 
+    capacity = models.IntegerField(default=0, help_text="total camper capacity") 
     reserved = models.IntegerField(default=0, help_text="number of reserved spots remaining")
     visible = models.BooleanField(default=False, help_text="true if visible on registration form")
     notes = models.TextField()
