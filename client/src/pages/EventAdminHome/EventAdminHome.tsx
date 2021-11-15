@@ -2,11 +2,9 @@ import React from 'react';
 import { InputGroup, Button } from 'react-bootstrap';
 
 import { useEvent } from 'hooks/admin';
+import ShowRawJSON from 'components/ShowRawJSON';
 import Spinner from 'components/Spinner';
-import ShowRawJSON from './ShowRawJSON';
 import createEventEditForm from './createEventEditForm';
-
-import './Home.scss'
 
 interface Props {
   event: ApiEvent,
@@ -17,6 +15,8 @@ function EventAdminHome({ event: originalEvent }: Props) {
   const { set: apiPutEvent } = useEvent(originalEvent.id);
 
   if (!originalEvent) return <Spinner />;
+
+  console.log(event)
 
   const formItems = createEventEditForm(event);
 

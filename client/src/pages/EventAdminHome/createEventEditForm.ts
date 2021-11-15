@@ -28,12 +28,12 @@ export default function createEventEditForm(event: ApiEvent): Returns {
     },
     {
       label: 'Event Ends',
-        field: 'end',
-        Input: FormControl,
-        passProps: {
-          type: 'date',
-            defaultValue: formatDate(event.end),
-        },
+      field: 'end',
+      Input: FormControl,
+      passProps: {
+        type: 'date',
+        defaultValue: formatDate(event.end),
+      },
     },
     {
       label: 'Reg Starts',

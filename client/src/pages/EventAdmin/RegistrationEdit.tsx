@@ -4,7 +4,7 @@ import Form from '@rjsf/core';
 
 import { useEvent } from 'hooks/admin';
 import Spinner from 'components/Spinner';
-import ShowRawJSON from './ShowRawJSON';
+import ShowRawJSON from 'components/ShowRawJSON';
 
 interface Props {
   registration: AugmentedRegistration;
