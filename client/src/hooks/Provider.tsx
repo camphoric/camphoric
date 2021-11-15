@@ -11,7 +11,7 @@ import {
   unauthenticatedUser,
 } from './admin';
 
-type ApiEndpoint = 'events' | 'organizations' | 'registrations' | 'campers';
+type ApiResource = 'events' | 'organizations' | 'registrations' | 'campers';
 
 type State = {
   user: {
@@ -79,12 +79,12 @@ export default class StateProvider extends React.Component<Props, State> {
     return (match && match[1]) || '';
   }
 
-  async apiFetch<P extends MinimumApiObject>(endpoint: ApiEndpoint): Promise<P[]> {
+  async apiFetch<P extends MinimumApiObject>(resource: ApiResource): Promise<P[]> {
     let value = [];
 
     try {
       const response = await fetch(
-        `/api/${endpoint}/`,
+        `/api/${resource}/`,
         {
           method: 'GET',
           credentials: 'include',
@@ -99,16 +99,16 @@ export default class StateProvider extends React.Component<Props, State> {
 
       value = await response.json();
     } catch (e) {
-      console.error(`error getting ${endpoint}`, e);
+      console.error(`error getting ${resource}`, e);
     }
 
     return value;
   }
 
-  async apiPut<P extends MinimumApiObject>(endpoint: ApiEndpoint, value: P): Promise<void> {
+  async apiPut<P extends MinimumApiObject>(resource: ApiResource, value: P): Promise<void> {
     try {
       const response = await fetch(
-        `/api/${endpoint}/${value.id}/`,
+        `/api/${resource}/${value.id}/`,
         {
           method: 'PUT',
           credentials: 'include',
@@ -123,25 +123,25 @@ export default class StateProvider extends React.Component<Props, State> {
       if (response.status === 401) this.setUser(unauthenticatedUser);
 
     } catch (e) {
-      console.error(`error getting ${endpoint}`, e);
+      console.error(`error getting ${resource}`, e);
     }
   }
 
-  getFactory<P extends MinimumApiObject>(endpoint: ApiEndpoint) {
+  getFactory<P extends MinimumApiObject>(resource: ApiResource) {
     return () => this.setState((prevState: State) => ({
       ...prevState,
-      [endpoint]: {
-        ...prevState[endpoint],
+      [resource]: {
+        ...prevState[resource],
         status: 'fetching',
       }
     }), async () => {
-      const value = await this.apiFetch<P>(endpoint);
+      const value = await this.apiFetch<P>(resource);
 
       this.setState((prevState: State) => ({
         ...prevState,
-        [endpoint]: {
-          get: this.getFactory(endpoint),
-          set: this.setFactory(endpoint),
+        [resource]: {
+          get: this.getFactory(resource),
+          set: this.setFactory(resource),
           value,
           status: 'done',
         },
@@ -149,16 +149,16 @@ export default class StateProvider extends React.Component<Props, State> {
     });
   }
 
-  setFactory<P extends MinimumApiObject>(endpoint: ApiEndpoint) {
+  setFactory<P extends MinimumApiObject>(resource: ApiResource) {
     return (newValue: P) => this.setState((prevState: State) => ({
       ...prevState,
-      [endpoint]: {
-        ...prevState[endpoint],
+      [resource]: {
+        ...prevState[resource],
         status: 'setting',
       }
     }), async () => {
-      await this.apiPut<P>(endpoint, newValue);
-      await this.state[endpoint].get();
+      await this.apiPut<P>(resource, newValue);
+      await this.state[resource].get();
     });
   }
 
