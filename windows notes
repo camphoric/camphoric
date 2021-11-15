@@ -1,0 +1,13 @@
+When installing Docker on Windows (v4.2.0), you may encounter the following error:
+
+Component CommunityInstaller.EnableFeaturesAction failed
+
+To resolve this, run the Docker installer again, and on the Configuration screen, uncheck the "Install required Windows components for WSL 2" option.
+https://stackoverflow.com/a/68056806/619177
+
+When running the development setup wizard on Windows, as of 2021/11/14, the following error may occur:
+
+/usr/bin/env: ‘node --no-warnings’: No such file or directory
+
+In this case, you will need to follow the manual setup.
+

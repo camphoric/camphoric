@@ -52,3 +52,15 @@ class InvitationTests(TestCase):
             recipient_email='test@example.com',
         )
         self.assertRegex(self.invitation.invitation_code, r'^[abcdefghjkmnpqrstuvwxyz23456789]{8}$')
+
+class LodgingTests(TestCase):
+
+    def setUp(self):
+        self.organization = models.Organization.objects.create()
+        self.event = models.Event.objects.create(organization=self.organization)
+        self.lodging = models.Lodging.objects.create(name="Test Lodging",event=self.event)
+
+    def test_lodging_default_blank(self):
+        self.assertEqual(self.lodging.notes,'')
+        
+

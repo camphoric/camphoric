@@ -17,5 +17,6 @@ json-logic-qubit = "*"
 gunicorn = "*"
 django-heroku = "*"
 chevron = "*"
+psycopg2-binary = "*"
 
 [requires]

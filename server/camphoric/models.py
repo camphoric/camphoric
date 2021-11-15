@@ -158,7 +158,7 @@ class Lodging(TimeStampedModel):
     capacity = models.IntegerField(default=0, help_text="total camper capacity") 
     reserved = models.IntegerField(default=0, help_text="number of reserved spots remaining")
     visible = models.BooleanField(default=False, help_text="true if visible on registration form")
-    notes = models.TextField()
+    notes = models.TextField(blank=True, default='')
 
 
 class Camper(TimeStampedModel):

@@ -96,7 +96,7 @@ postgres account).
 
 ## Configure Django
 
-Create a file `server/camphoric_server/.env` with the following lines
+Create a file `server/.env/local/django` with the following lines
 ```
 DEBUG=on
 SECRET_KEY=your-django-secret-key-here
