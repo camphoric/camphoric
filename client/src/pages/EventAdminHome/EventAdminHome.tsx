@@ -23,6 +23,16 @@ function EventAdminHome({ event: originalEvent }: Props) {
     [field]: changeEvent.target.value,
   });
 
+  const handleFormDateChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = changeEvent.target;
+    const dateValue = `${value}T00:00Z`;
+
+    setEvent({
+      ...event,
+      [field]: dateValue,
+    });
+  }
+
   const handleChange = (field: string) => (value: any) => setEvent({
     ...event,
     [field]: value,
@@ -42,25 +52,25 @@ function EventAdminHome({ event: originalEvent }: Props) {
       />
       <Input
         label="Event Starts"
-        onChange={handleFormChange('start')}
+        onChange={handleFormDateChange('start')}
         type="date"
         defaultValue={formatDate(event.start)}
       />
       <Input
         label="Event Ends"
-        onChange={handleFormChange('end')}
+        onChange={handleFormDateChange('end')}
         type="date"
         defaultValue={formatDate(event.end)}
       />
       <Input
         label="Reg Starts"
-        onChange={handleFormChange('registration_start')}
+        onChange={handleFormDateChange('registration_start')}
         type="date"
         defaultValue={formatDate(event.registration_start)}
       />
       <Input
         label="Reg Ends"
-        onChange={handleFormChange('registration_end')}
+        onChange={handleFormDateChange('registration_end')}
         type="date"
         defaultValue={formatDate(event.registration_end)}
       />
