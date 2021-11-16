@@ -5,6 +5,7 @@ import Input, { TextArea, KeyValueEdit } from 'components/Input';
 import { useEvent } from 'hooks/admin';
 import ShowRawJSON from 'components/ShowRawJSON';
 import Spinner from 'components/Spinner';
+import { formatDateTimeForForm, formatDateTimeForApi } from 'utils/time';
 
 interface Props {
   event: ApiEvent,
@@ -25,7 +26,9 @@ function EventAdminHome({ event: originalEvent }: Props) {
 
   const handleFormDateChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = changeEvent.target;
-    const dateValue = `${value}T00:00Z`;
+    const dateValue = formatDateTimeForApi(value);
+
+    // console.log(dateValue);
 
     setEvent({
       ...event,
@@ -53,26 +56,26 @@ function EventAdminHome({ event: originalEvent }: Props) {
       <Input
         label="Event Starts"
         onChange={handleFormDateChange('start')}
-        type="date"
-        defaultValue={formatDate(event.start)}
+        type="datetime-local"
+        defaultValue={formatDateTimeForForm(event.start)}
       />
       <Input
         label="Event Ends"
         onChange={handleFormDateChange('end')}
-        type="date"
-        defaultValue={formatDate(event.end)}
+        type="datetime-local"
+        defaultValue={formatDateTimeForForm(event.end)}
       />
       <Input
         label="Reg Starts"
         onChange={handleFormDateChange('registration_start')}
-        type="date"
-        defaultValue={formatDate(event.registration_start)}
+        type="datetime-local"
+        defaultValue={formatDateTimeForForm(event.registration_start)}
       />
       <Input
         label="Reg Ends"
         onChange={handleFormDateChange('registration_end')}
-        type="date"
-        defaultValue={formatDate(event.registration_end)}
+        type="datetime-local"
+        defaultValue={formatDateTimeForForm(event.registration_end)}
       />
 
       <h2>Confirmation Page</h2>
@@ -109,18 +112,6 @@ function EventAdminHome({ event: originalEvent }: Props) {
       <ShowRawJSON json={event} />
     </>
   );
-}
-
-function formatDate(dateStr: string | null) {
-  const date = new Date(dateStr || '');
-
-  if (!date) return undefined;
-
-  const year = date.getFullYear();
-  const month = (1 + date.getMonth()).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-
-  return [year, month, day].join('-');
 }
 
 export default EventAdminHome;
