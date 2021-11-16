@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { Button } from 'react-bootstrap';
-import Input, { TextArea } from 'components/Input';
+import Input, { TextArea, KeyValueEdit } from 'components/Input';
 import { useEvent } from 'hooks/admin';
 import ShowRawJSON from 'components/ShowRawJSON';
 import Spinner from 'components/Spinner';
@@ -18,9 +18,14 @@ function EventAdminHome({ event: originalEvent }: Props) {
 
   console.log(event)
 
-  const handleChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
+  const handleFormChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
     ...event,
     [field]: changeEvent.target.value,
+  });
+
+  const handleChange = (field: string) => (value: any) => setEvent({
+    ...event,
+    [field]: value,
   });
 
   const save = () => apiPutEvent(event);
@@ -32,30 +37,30 @@ function EventAdminHome({ event: originalEvent }: Props) {
       <h2>Basic</h2>
       <Input
         label="Name"
-        onChange={handleChange('name')}
+        onChange={handleFormChange('name')}
         defaultValue={event.name}
       />
       <Input
         label="Event Starts"
-        onChange={handleChange('start')}
+        onChange={handleFormChange('start')}
         type="date"
         defaultValue={formatDate(event.start)}
       />
       <Input
         label="Event Ends"
-        onChange={handleChange('end')}
+        onChange={handleFormChange('end')}
         type="date"
         defaultValue={formatDate(event.end)}
       />
       <Input
         label="Reg Starts"
-        onChange={handleChange('registration_start')}
+        onChange={handleFormChange('registration_start')}
         type="date"
         defaultValue={formatDate(event.registration_start)}
       />
       <Input
         label="Reg Ends"
-        onChange={handleChange('registration_end')}
+        onChange={handleFormChange('registration_end')}
         type="date"
         defaultValue={formatDate(event.registration_end)}
       />
@@ -63,25 +68,33 @@ function EventAdminHome({ event: originalEvent }: Props) {
       <h2>Confirmation Page</h2>
       <TextArea
         label="Confirmation page message"
-        onChange={handleChange('confirmation_page_template')}
+        onChange={handleFormChange('confirmation_page_template')}
         defaultValue={event.confirmation_page_template}
       />
 
       <h2>Confirmation Email</h2>
       <Input
         label="From"
-        onChange={handleChange('confirmation_email_from')}
+        onChange={handleFormChange('confirmation_email_from')}
         defaultValue={event.confirmation_email_from}
       />
       <Input
         label="Subject"
-        onChange={handleChange('confirmation_email_subject')}
+        onChange={handleFormChange('confirmation_email_subject')}
         defaultValue={event.confirmation_email_subject}
       />
       <TextArea
         label="Confirmation email body"
-        onChange={handleChange('confirmation_email_template')}
+        onChange={handleFormChange('confirmation_email_template')}
         defaultValue={event.confirmation_email_template}
+      />
+      <h2>Pricing</h2>
+      <KeyValueEdit
+        onChange={(data) => {
+          console.log(data);
+          // handleChange('pricing')
+        }}
+        defaultValue={event.pricing}
       />
       
       <Button variant="primary" onClick={save} className="mt-5">Save</Button>
