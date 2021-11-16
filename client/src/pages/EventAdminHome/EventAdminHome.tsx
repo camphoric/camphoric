@@ -16,7 +16,7 @@ function EventAdminHome({ event: originalEvent }: Props) {
 
   if (!originalEvent) return <Spinner />;
 
-  console.log(event)
+  // console.log(event);
 
   const handleFormChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
     ...event,
@@ -90,10 +90,8 @@ function EventAdminHome({ event: originalEvent }: Props) {
       />
       <h2>Pricing</h2>
       <KeyValueEdit
-        onChange={(data) => {
-          console.log(data);
-          // handleChange('pricing')
-        }}
+        onChange={handleChange('pricing')}
+        schemaType="integer"
         defaultValue={event.pricing}
       />
       
