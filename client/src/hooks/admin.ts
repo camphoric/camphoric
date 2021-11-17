@@ -120,7 +120,7 @@ export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(Regi
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
 
 const createAugmentedRegistrations = memoize(
-  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CombinedEventInfo => {
+  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): RegistrationLookup => {
     const eventIdStr = eventId.toString();
 
     return registrations
@@ -141,7 +141,7 @@ const createAugmentedRegistrations = memoize(
   }
 );
 
-export function useCombinedEventInfo(eventId: CtxId): CombinedEventInfo {
+export function useRegistrationLookup(eventId: CtxId): RegistrationLookup {
   const { value: registrations } = useRegistrations();
   const { value: campers } = useCampers();
 

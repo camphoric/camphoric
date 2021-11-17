@@ -105,15 +105,23 @@ declare global {
     campers: Array<ApiCamper>;
   }
 
-  export type CombinedEventInfo = {
+  export type RegistrationLookup = {
     [id: string]: AugmentedRegistration,
+  }
+
+  export type CamperLookup = {
+    [id: string]: ApiCamper,
   }
 
   interface EventAdminPageProps {
     event: ApiEvent,
-    registrationLookup: CombinedEventInfo,
+    registrationLookup: RegistrationLookup,
     registrationSearch: Fuze<AugmentedRegistration>,
     registrations: Array<AugmentedRegistration>,
+    camperLookup: CamperLookup,
+    camperSearch: Fuze<ApiCamper>,
+    campers: Array<ApiCamper>,
+
   }
 }
 

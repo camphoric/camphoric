@@ -12,7 +12,7 @@ import { Container, Row, Col } from 'react-bootstrap';
 import Fuse from 'fuse.js';
 
 import Spinner from 'components/Spinner';
-import { useEvent, useCombinedEventInfo } from 'hooks/admin';
+import { useEvent, useRegistrationLookup } from 'hooks/admin';
 
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';
@@ -58,7 +58,7 @@ function EventAdmin({ routes }: Props) {
   const { pathname } = useLocation();
   const { url } = useRouteMatch();
 
-  const registrationLookup = useCombinedEventInfo(eventId || 0);
+  const registrationLookup = useRegistrationLookup(eventId || 0);
   const registrations = Object.values(registrationLookup);
   const registrationSearch = new Fuse<AugmentedRegistration>(
     registrations,
