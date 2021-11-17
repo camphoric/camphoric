@@ -37,11 +37,11 @@ function EventAdminCampers(props: EventAdminPageProps) {
           </InputGroup>
           {
             results.map(
-              (r: Fuse.FuseResult<ApiCamper>) => (
+              (c: Fuse.FuseResult<ApiCamper>) => (
                 <CamperSearchResult
-                  key={r.item.id}
-                  result={r}
-                  selected={r.item.id.toString() === camperId}
+                  key={c.item.id}
+                  result={c}
+                  selected={c.item.id.toString() === camperId}
                 />
               )
             )
@@ -52,7 +52,7 @@ function EventAdminCampers(props: EventAdminPageProps) {
             !!camperLookup[camperId] && (
               <CamperEdit
                 event={event}
-                result={camperLookup[camperId]}
+                camper={camperLookup[camperId]}
               />
             )
           }

@@ -10,27 +10,31 @@ import JsonSchemaForm, {
 import ShowRawJSON from 'components/ShowRawJSON';
 
 interface Props {
-  registration: AugmentedRegistration;
+  camper: ApiCamper;
   event: ApiEvent,
 }
 
-function RegistrationEdit({ registration, event }: Props) {
-  // console.log(event);
+function CamperEdit({ camper, event }: Props) {
+  // Typescript is dumb sometimes...
+  const camperUISchema = (event.registration_ui_schema as any).campers;
+
   return (
     <div>
       <JsonSchemaForm
-        schema={event.registration_schema}
-        uiSchema={event.registration_ui_schema}
-        formData={registration.attributes}
+        schema={{
+          definitions: event.registration_schema.definitions,
+          ...event.camper_schema
+        }}
+        uiSchema={camperUISchema}
+        formData={camper.attributes}
         templateData={{
           pricing: event.pricing,
-          formData: registration.attributes,
-          totals: registration.server_pricing_results,
+          formData: camper.attributes,
         }}
       />
-      <ShowRawJSON label="registration" json={registration} />
+      <ShowRawJSON label="camper" json={camper} />
     </div>
   );
 }
 
-export default RegistrationEdit;
+export default CamperEdit;
