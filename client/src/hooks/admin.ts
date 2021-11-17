@@ -119,56 +119,18 @@ export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
 
-// This is used for creating search strings on the useCombinedEventInfo values,
-// which are used in the EventAdmin pages for searching objects.
-const createSearchStr = memoize((obj: Object): string => {
-  if (!obj) return '';
-  return Object.values(obj)
-    .reduce(
-      (acc, v) => `${acc}${
-        (typeof v === 'object' && !Array.isArray(v))
-          ? createSearchStr(v)
-          : JSON.stringify(v)
-      }`,
-      ''
-    ).replaceAll(/"+/g, ' ').toLowerCase();
-});
-
 const createAugmentedRegistrations = memoize(
   (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CombinedEventInfo => {
     const eventIdStr = eventId.toString();
 
     return registrations
       .filter(r => r.event.toString() === eventIdStr)
-      .map(r => {
-        const augmentedReg = {
-          ...r,
-          campers: campers
-          .filter(c => c.registration.toString() === r.id.toString())
-          .map(
-            c => ({
-              ...c,
-              // look for any 'name' type attributes and concat as label
-              label: Object.keys(c.attributes)
-              .filter(a => a.toLowerCase().includes('name'))
-              .map(k => c.attributes[k])
-              .join(', '),
-              searchStrJson: JSON.stringify(c),
-              searchStr: createSearchStr(c),
-            }),
-          ),
-          searchStr: '',
-        };
-
-        return {
-          ...augmentedReg,
-          searchStr: createSearchStr({
-            ...augmentedReg,
-            campers: augmentedReg.campers.map(c => c.searchStr).join(),
-          }),
-          searchStrJson: JSON.stringify(r),
-        };
-      })
+      .map(r => ({
+        ...r,
+        campers: campers.filter(
+          c => c.registration.toString() === r.id.toString()
+        ),
+      }))
       .reduce(
         (acc, r) => ({
           ...acc,

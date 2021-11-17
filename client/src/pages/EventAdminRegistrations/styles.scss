@@ -1,0 +1,9 @@
+.registration-results .card {
+  color: inherit;
+  margin-bottom: .5rem;
+
+  &.selected {
+    background-color: rgba(50,189,82,.5);
+
+  }
+}

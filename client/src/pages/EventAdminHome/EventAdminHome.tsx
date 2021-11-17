@@ -7,11 +7,7 @@ import ShowRawJSON from 'components/ShowRawJSON';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForForm, formatDateTimeForApi } from 'utils/time';
 
-interface Props {
-  event: ApiEvent,
-}
-
-function EventAdminHome({ event: originalEvent }: Props) {
+function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
   const [event, setEvent] = React.useState<ApiEvent>(originalEvent);
   const { set: apiPutEvent } = useEvent(originalEvent.id);
 

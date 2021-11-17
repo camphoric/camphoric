@@ -1,10 +1,6 @@
 import React from 'react';
 
-interface Props {
-  event: ApiEvent,
-}
-
-function EventAdminLodging({ event }: Props) {
+function EventAdminLodging({ event }: EventAdminPageProps) {
   return (
     <React.Fragment>
       <h1>Lodging</h1>
