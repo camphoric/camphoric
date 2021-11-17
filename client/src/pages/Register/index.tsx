@@ -3,6 +3,7 @@ import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
 import Handlebars from 'handlebars';
 import ReactMarkdown from 'react-markdown'
+import { getCsrfToken } from 'utils/fetch';
 
 import Spinner from 'components/Spinner';
 
@@ -83,6 +84,7 @@ class App extends React.Component<Props, RegistrationState> {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
         },
         body: JSON.stringify({
           formData,
