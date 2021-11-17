@@ -119,7 +119,7 @@ export const useEvent = apiContextHookFilterFactory<ApiEvent>(EventsContext);
 export const useRegistration = apiContextHookFilterFactory<ApiRegistration>(RegistrationsContext);
 export const useCamper = apiContextHookFilterFactory<ApiCamper>(CampersContext);
 
-const createAugmentedRegistrations = memoize(
+const createRegistrationLookup = memoize(
   (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): RegistrationLookup => {
     const eventIdStr = eventId.toString();
 
@@ -148,7 +148,41 @@ export function useRegistrationLookup(eventId: CtxId): RegistrationLookup {
   if (!registrations || !campers) return {};
   if (!registrations.length || !campers.length) return {};
 
-  const result = createAugmentedRegistrations(registrations, campers, eventId);
+  const result = createRegistrationLookup(registrations, campers, eventId);
+
+  return result;
+}
+
+const createCamperLookup = memoize(
+  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CamperLookup => {
+    const eventIdStr = eventId.toString();
+
+    const registrationsIdsForEvent = registrations
+      .filter(r => r.event.toString() === eventIdStr)
+      .map(r => r.id.toString());
+
+    return campers
+      .filter(
+        c => registrationsIdsForEvent.includes(c.registration.toString())
+      )
+      .reduce(
+        (acc, c) => ({
+          ...acc,
+          [c.id]: c,
+        }),
+        {},
+      );
+  }
+);
+
+export function useCamperLookup(eventId: CtxId): CamperLookup {
+  const { value: registrations } = useRegistrations();
+  const { value: campers } = useCampers();
+
+  if (!registrations || !campers) return {};
+  if (!registrations.length || !campers.length) return {};
+
+  const result = createCamperLookup(registrations, campers, eventId);
 
   return result;
 }

@@ -1,4 +1,4 @@
-// import EventAdminCampers from './EventAdminCampers';
-// import './styles.scss';
-// 
-// export default EventAdminCampers;
+import EventAdminCampers from './EventAdminCampers';
+import './styles.scss';
+
+export default EventAdminCampers;

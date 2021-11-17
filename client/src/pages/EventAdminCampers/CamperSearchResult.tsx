@@ -5,7 +5,7 @@ import { useRouteMatch } from 'react-router-dom';
 import Fuse from 'fuse.js';
 
 interface Props {
-  result: Fuse.FuseResult<AugmentedCamper>;
+  result: Fuse.FuseResult<ApiCamper>;
   selected: boolean;
 }
 
@@ -13,18 +13,18 @@ const label = (c: ApiCamper) => `${c.attributes.first_name} ${c.attributes.last_
 
 function CamperSearchResult({ result, ...props }: Props) {
   const { url } = useRouteMatch();
-  const registration = result.item;
+  const camper = result.item;
 
   return (
     <Card
       className={props.selected ? 'selected' : ''}
       as={Link}
-      to={`${url}?registrationId=${registration.id}`}
+      to={`${url}?camperId=${camper.id}`}
     >
-      <Card.Header>{ label(registration.campers[0]) }</Card.Header>
+      <Card.Header>{ label(camper) }</Card.Header>
       <Card.Body>
         <Card.Text>
-          { registration.campers.slice(1).map(c => label(c)).join('; ') }
+          Something here
         </Card.Text>
       </Card.Body>
     </Card>

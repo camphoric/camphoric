@@ -12,7 +12,11 @@ import { Container, Row, Col } from 'react-bootstrap';
 import Fuse from 'fuse.js';
 
 import Spinner from 'components/Spinner';
-import { useEvent, useRegistrationLookup } from 'hooks/admin';
+import {
+  useEvent,
+  useRegistrationLookup,
+  useCamperLookup,
+} from 'hooks/admin';
 
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';
@@ -23,7 +27,7 @@ interface Props {
   routes: RouteList;
 }
 
-const registrationSearchOptions = {
+const basicSearchOptions = {
   isCaseSensitive: true,
   includeScore: true,
   shouldSort: true,
@@ -36,6 +40,10 @@ const registrationSearchOptions = {
   // useExtendedSearch: false,
   // ignoreLocation: false,
   // ignoreFieldNorm: false,
+};
+
+const registrationSearchOptions = {
+  ...basicSearchOptions,
   keys: [
     'registration_type',
     'campers.attributes.last_name',
@@ -51,6 +59,17 @@ const registrationSearchOptions = {
   ]
 }
 
+const camperSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'attributes.last_name',
+    'attributes.first_name',
+    'attributes.accommodations.accommodation_preference',
+    'attributes.accommodations.camp_preference',
+  ]
+}
+
+
 
 function EventAdmin({ routes }: Props) {
   const { eventId } = useParams<RouterUrlParams>();
@@ -63,6 +82,13 @@ function EventAdmin({ routes }: Props) {
   const registrationSearch = new Fuse<AugmentedRegistration>(
     registrations,
     registrationSearchOptions,
+  );
+
+  const camperLookup = useCamperLookup(eventId || 0);
+  const campers = Object.values(camperLookup);
+  const camperSearch = new Fuse<ApiCamper>(
+    campers,
+    camperSearchOptions,
   );
 
   if (!event) return <Spinner />;
@@ -83,6 +109,9 @@ function EventAdmin({ routes }: Props) {
                     registrationLookup={registrationLookup}
                     registrationSearch={registrationSearch}
                     registrations={registrations}
+                    camperLookup={camperLookup}
+                    camperSearch={camperSearch}
+                    campers={campers}
                   />
                 </div>
               </Route>
