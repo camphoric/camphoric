@@ -1,3 +1,11 @@
+/**
+ * getKeys
+ *
+ * This function walks through an object and provides a list of keys/paths that
+ * this object has.  This is useful when you want to document what variables
+ * an end user will have when creating handlebars templates.
+ */
+
 const isObject = (a) => typeof a === 'object';
 const isEmptyObject = (a) => !Object.keys(a).length;
 const isSimple = (a) => !a || !isObject(a) || isEmptyObject(a);
