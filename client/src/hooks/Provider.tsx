@@ -1,4 +1,5 @@
 import React from 'react';
+import { getCsrfToken } from 'utils/fetch';
 import {
   UserContext,
   OrganizationsContext,
@@ -73,12 +74,6 @@ export default class StateProvider extends React.Component<Props, State> {
     this.setState({ user });
   }
 
-  getCsrfToken = () => {
-    const match = document.cookie.match(/\bcsrftoken=([^;]+)/);
-
-    return (match && match[1]) || '';
-  }
-
   async apiFetch<P extends MinimumApiObject>(resource: ApiResource): Promise<P[]> {
     let value = [];
 
@@ -90,7 +85,7 @@ export default class StateProvider extends React.Component<Props, State> {
           credentials: 'include',
           headers: new Headers({
             'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCsrfToken(),
+            'X-CSRFToken': getCsrfToken(),
           }),
         },
       );
@@ -114,7 +109,7 @@ export default class StateProvider extends React.Component<Props, State> {
           credentials: 'include',
           headers: new Headers({
             'Content-Type': 'application/json',
-            'X-CSRFToken': this.getCsrfToken(),
+            'X-CSRFToken': getCsrfToken(),
           }),
           body: JSON.stringify(value),
         },
