@@ -9,6 +9,7 @@ router.register('organizations', views.OrganizationViewSet, basename='organizati
 router.register('events', views.EventViewSet, basename='event')
 router.register('registrations', views.RegistrationViewSet, basename='registration')
 router.register('registrationtypes', views.RegistrationTypeViewSet, basename='registrationtype')
+router.register('reports', views.ReportViewSet, basename='report')
 router.register('invitations', views.InvitationViewSet, basename='invitation')
 router.register('lodgings', views.LodgingViewSet, basename='lodging')
 router.register('campers', views.CamperViewSet, basename='camper')
