@@ -75,9 +75,9 @@ class Event(TimeStampedModel):
         null=True,
         help_text="JsonLogic Registration-level pricing components")
 
-    confirmation_page_template = models.TextField(blank=True, default='', help_text="Mustache template")
+    confirmation_page_template = models.TextField(blank=True, default='', help_text="Handlebars template")
     confirmation_email_subject = models.CharField(default='', max_length=100)
-    confirmation_email_template = models.TextField(blank=True, default='', help_text="Mustache template")
+    confirmation_email_template = models.TextField(blank=True, default='', help_text="Handlebars template")
     confirmation_email_from = models.EmailField()
 
     def __str__(self):
@@ -113,6 +113,20 @@ class Registration(TimeStampedModel):
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
+
+class Report(TimeStampedModel):
+    '''
+    Report for a given event.
+    - Is owned by one Event
+    - Has a title
+    - Has a handlebars template
+    '''
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    template = models.TextField(blank=True, default='', help_text="Handlebars template")
+
+    def __str__(self):
+        return "Report #{} ({})".format(self.id, self.event.name)
 
 
 class Invitation(TimeStampedModel):

@@ -112,6 +112,12 @@ class RegistrationViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+class ReportViewSet(ModelViewSet):
+    queryset = models.Report.objects.all()
+    serializer_class = serializers.ReportSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
 class RegistrationTypeViewSet(ModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
