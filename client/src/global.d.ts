@@ -45,6 +45,16 @@ declare global {
     name: string;
   }
 
+  export interface ApiReport {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    event: number | string;
+    title: string;
+    template: string;
+  }
+
   export interface ApiRegistration {
     id: number;
     created_at: string | null;
