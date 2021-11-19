@@ -19,7 +19,7 @@ const EventAdminHome = React.lazy(() => import('pages/EventAdminHome'));
 const Registrations = React.lazy(() => import('pages/EventAdminRegistrations'));
 const Campers = React.lazy(() => import('pages/EventAdminCampers'));
 const Lodging = React.lazy(() => import('pages/EventAdmin/Lodging'));
-const Reports = React.lazy(() => import('pages/EventAdmin/Reports'));
+const Reports = React.lazy(() => import('pages/EventAdminReports'));
 const Settings = React.lazy(() => import('pages/EventAdmin/Settings'));
 
 //                        url     label   component

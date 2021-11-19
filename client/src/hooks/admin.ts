@@ -198,3 +198,9 @@ export function useQuery(name?: string) {
 
   return params;
 }
+
+export function useQueryLookup() {
+  const searchParams = new URLSearchParams(useLocation().search);
+
+  return Object.fromEntries(searchParams.entries());
+}

@@ -19,7 +19,6 @@ function TextArea(props: Props) {
       <InputComponent
         aria-label={label}
         as="textarea"
-        style={{ height: '100px' }}
         {...passProps}
       />
     </Form.Group>
