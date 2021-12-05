@@ -2,7 +2,7 @@ import React from 'react';
 import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
 import Handlebars from 'handlebars';
-import ReactMarkdown from 'react-markdown'
+import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
 
 import Spinner from 'components/Spinner';
@@ -227,7 +227,7 @@ class App extends React.Component<Props, RegistrationState> {
       case "submitted":
         pageContent = (
           <section className="confirmation">
-            <ReactMarkdown children={this.state.confirmationText} />
+            <Template markdown={this.state.confirmationText} />
           </section>
         );
         break;
