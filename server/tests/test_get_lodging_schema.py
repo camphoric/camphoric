@@ -1,5 +1,8 @@
-from django.test import TestCase
 import json
+
+from django.conf import settings
+from django.db import connection, reset_queries
+from django.test import TestCase
 
 from camphoric import models
 from camphoric.lodging import get_lodging_schema
@@ -23,7 +26,7 @@ class TestGetLodgingSchema(TestCase):
         )
     
     def test_no_lodging(self):
-        with self.assertRaises(models.Lodging.DoesNotExist):
+        with self.assertRaises(RuntimeError):
             get_lodging_schema(self.event)
     
 
@@ -143,7 +146,11 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
+        # make sure the lodging schema is built with one DB query
+        settings.DEBUG=True
+        reset_queries()
         schema = get_lodging_schema(self.event)
+        self.assertEqual(len(connection.queries), 1)
 
         self.assertEqual(schema, {
             'title': 'Test Lodging',
