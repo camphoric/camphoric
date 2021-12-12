@@ -57,8 +57,6 @@ class Login extends React.Component<LoginProps, LoginState> {
 
       const user = await response.json();
 
-      if (!user.loggedIn) throw new Error('login failed');
-
       this.setState({ processing: false });
 
       this.props.onLoginSuccess(user);

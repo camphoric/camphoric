@@ -12,7 +12,7 @@ function GuardedRoute({ children, ...rest }: Props) {
 
   return (
     <Route {...rest} render={(props) => (
-      user.loggedIn ? children : (
+      user.username ? children : (
         <Login
           onLoginSuccess={userInfo.set}
           onLoginFail={(e) => console.log(e)}

@@ -31,9 +31,12 @@ class LoginTests(APITestCase):
     def test_good_login(self):
         response = self.client.get('/api/user')
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'email': 'none', 'loggedIn': False})
+        self.assertEqual(response.data['username'], '')
+        self.assertEqual(response.data['last_login'], None)
+        self.assertEqual(response.data['is_superuser'], False)
+        self.assertEqual(response.data['is_staff'], False)
+        self.assertEqual(response.data['is_active'], False)
+        self.assertNotIn('email', response.data)
 
         response = self.client.post(
             '/api/login',
@@ -42,11 +45,23 @@ class LoginTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.cookies['sessionid']['httponly'])
 
+        self.assertEqual(response.data['email'], 'tom@example.com')
+        self.assertEqual(response.data['first_name'], '')
+        self.assertEqual(response.data['is_active'], True)
+        self.assertEqual(response.data['is_staff'], True)
+        self.assertEqual(response.data['is_superuser'], True)
+        self.assertEqual(response.data['last_name'], '')
+        self.assertEqual(response.data['username'], 'tom')
+
         response = self.client.get('/api/user')
         self.assertEqual(response.status_code, 200)
-        self.assertJSONEqual(
-            str(response.content, encoding='utf8'),
-            {'email': 'tom@example.com', 'loggedIn': True})
+        self.assertEqual(response.data['email'], 'tom@example.com')
+        self.assertEqual(response.data['first_name'], '')
+        self.assertEqual(response.data['is_active'], True)
+        self.assertEqual(response.data['is_staff'], True)
+        self.assertEqual(response.data['is_superuser'], True)
+        self.assertEqual(response.data['last_name'], '')
+        self.assertEqual(response.data['username'], 'tom')
 
         response = self.client.get('/api/organizations/')
         self.assertEqual(response.status_code, 200)
@@ -62,6 +77,15 @@ class LoginTests(APITestCase):
 
         response = self.client.get('/api/organizations/')
         self.assertEqual(response.status_code, 401)
+
+        response = self.client.get('/api/user')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['username'], '')
+        self.assertEqual(response.data['last_login'], None)
+        self.assertEqual(response.data['is_superuser'], False)
+        self.assertEqual(response.data['is_staff'], False)
+        self.assertEqual(response.data['is_active'], False)
+        self.assertNotIn('email', response.data)
 
 
 class CSRFTests(APITestCase):
