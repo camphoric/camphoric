@@ -10,6 +10,30 @@ type Template = any;
 // TODO: maybe get the backend team to auto-generate these types?
 
 declare global {
+  export interface ApiUser {
+    id: number;
+    date_joined: string;
+    email: string;
+    first_name: string;
+    groups: object[];
+    is_active: boolean;
+    is_staff: boolean;
+    is_superuser: boolean;
+    last_login: string;
+    last_name: string;
+    user_permissions: object[];
+    username: string;
+  }
+  export interface ApiAnonymousUser {
+    id: null;
+    groups: [];
+    is_active: false;
+    is_staff: false;
+    is_superuser: false;
+    last_login: null;
+    user_permissions: [];
+    username: '';
+  }
   export interface ApiEvent {
     id: number;
     created_at: string | null;

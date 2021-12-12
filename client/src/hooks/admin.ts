@@ -9,14 +9,17 @@ import { useLocation } from 'react-router-dom';
  * This hook is not created via a factory, because it's value type is different
  * than all others.
  */
-export type UserInfo = {
-  email: string,
-  loggedIn: boolean,
-}
+export type UserInfo = ApiUser | ApiAnonymousUser;
 
-export const unauthenticatedUser = {
-  email: 'none',
-  loggedIn: false,
+export const unauthenticatedUser: ApiAnonymousUser = {
+  id: null,
+  groups: [],
+  is_active: false,
+  is_staff: false,
+  is_superuser: false,
+  last_login: null,
+  user_permissions: [],
+  username: '',
 };
 
 export const UserContext = React.createContext({
