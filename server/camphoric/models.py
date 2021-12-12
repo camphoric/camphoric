@@ -58,27 +58,27 @@ class Event(TimeStampedModel):
     registration_end = models.DateTimeField(null=True)
     start = models.DateTimeField(null=True)
     end = models.DateTimeField(null=True)
-    camper_schema = models.JSONField(null=True, help_text="JSON schema for Camper.attributes")
-    payment_schema = models.JSONField(null=True, help_text="JSON schema for Payment.attributes")
+    camper_schema = models.JSONField(default=dict, help_text="JSON schema for Camper.attributes")
+    payment_schema = models.JSONField(default=dict, help_text="JSON schema for Payment.attributes")
     registration_schema = models.JSONField(
-        null=True,
+        default=dict,
         help_text="JSON schema for Registration.attributes")
     registration_ui_schema = models.JSONField(
-        null=True,
+        default=dict,
         help_text="react-jsonschema-form uiSchema for registration form")
-    deposit_schema = models.JSONField(null=True, help_text="JSON schema for Deposit.attributes")
-    pricing = models.JSONField(null=True, help_text="key-value object with pricing variables")
+    deposit_schema = models.JSONField(default=dict, help_text="JSON schema for Deposit.attributes")
+    pricing = models.JSONField(default=dict, help_text="key-value object with pricing variables")
     camper_pricing_logic = models.JSONField(
-        null=True,
+        default=dict,
         help_text="JsonLogic Camper-level pricing components")
     registration_pricing_logic = models.JSONField(
-        null=True,
+        default=dict,
         help_text="JsonLogic Registration-level pricing components")
 
     confirmation_page_template = models.TextField(blank=True, default='', help_text="Handlebars template")
-    confirmation_email_subject = models.CharField(default='', max_length=100)
+    confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
     confirmation_email_template = models.TextField(blank=True, default='', help_text="Handlebars template")
-    confirmation_email_from = models.EmailField()
+    confirmation_email_from = models.EmailField(blank=True, default='')
 
     def __str__(self):
         return self.name

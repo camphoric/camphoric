@@ -613,3 +613,42 @@ class UsersTests(APITestCase):
 
         with self.assertRaises(User.DoesNotExist):
             User.objects.get(id=user.id)
+
+class EventTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.client.login(username='tom', password='password')
+        self.organization = models.Organization.objects.create(name='Test Organization')
+
+    def test_event_create(self):
+        response = self.client.post(
+            '/api/events/',
+            {
+                'organization': self.organization.id,
+                'name': 'Test Data Event',
+                'registration_schema': {
+                    'type': 'object',
+                    'properties': {
+                        'billing_name': {'type': 'string'},
+                        'billing_address': {'type': 'string'},
+                    },
+                },
+                'camper_schema': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'},
+                    },
+                },
+            },
+            format='json'
+        );
+
+        self.assertEqual(response.status_code, 201, 'should return status code 201 on create')
+        events = models.Event.objects.all().filter(id=response.data['id'])
+
+        self.assertEqual(events.count(), 1, 'should only have the one event')
+        event = events.first();
+
+        reports = models.Report.objects.all().filter(event=event)
+        self.assertEqual(reports.count(), 1, 'should find sample reports')
+
