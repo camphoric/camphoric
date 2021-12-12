@@ -125,10 +125,13 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
+        # camp1 grandchildren (visible)
+
         tents_camp1 = self.event.lodging_set.create(
             name='Tents in Camp 1',
             parent=camp1,
             capacity=30,
+            visible=True,
             notes=''
         )
 
@@ -136,13 +139,41 @@ class TestGetLodgingSchema(TestCase):
             name='Cabins in Camp 1',
             parent=camp1,
             capacity=30,
+            visible=True,
             notes=''
         )
 
-        rv_camp1 = self.event.lodging_set.create(
+        rvs_camp1 = self.event.lodging_set.create(
             name='RVs in Camp 1',
             parent=camp1,
             capacity=30,
+            visible=True,
+            notes=''
+        )
+
+        # camp2 grandchildren (invisible)
+
+        tents_camp2 = self.event.lodging_set.create(
+            name='Tents in Camp 2',
+            parent=camp2,
+            capacity=30,
+            visible=False,
+            notes=''
+        )
+
+        cabins_camp2 = self.event.lodging_set.create(
+            name='Cabins in Camp 2',
+            parent=camp2,
+            capacity=30,
+            visible=False,
+            notes=''
+        )
+
+        rvs_camp2 = self.event.lodging_set.create(
+            name='RVs in Camp 2',
+            parent=camp2,
+            capacity=30,
+            visible=False,
             notes=''
         )
 
@@ -184,7 +215,7 @@ class TestGetLodgingSchema(TestCase):
                                     'enum': [
                                         tents_camp1.id,
                                         cabins_camp1.id,
-                                        rv_camp1.id,
+                                        rvs_camp1.id,
                                     ],
                                     'enumNames': [
                                         'Tents in Camp 1',

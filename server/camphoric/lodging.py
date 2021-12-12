@@ -2,8 +2,8 @@ from collections import defaultdict
 
 from django.db.models import prefetch_related_objects
 
-def get_lodging_schema(event):
-    tree = LodgingTree(event).build()
+def get_lodging_schema(event, show_all=False):
+    tree = LodgingTree(event, show_all).build()
     
     def make_enum(node):
         children = node.visible_children
@@ -71,8 +71,9 @@ def get_lodging_schema(event):
 
 
 class LodgingTree:
-    def __init__(self, event):
+    def __init__(self, event, show_all):
         self.event = event
+        self.show_all = show_all
 
     def build(self):
         root_lodging = None
@@ -99,16 +100,21 @@ class LodgingTree:
             [
                 self._build_subtree(child_lodging, children_lookup)
                 for child_lodging in children_lookup[lodging.id]
-            ]
+            ],
+            show_all=self.show_all
         )
 
 
 class LodgingTreeNode:
-    def __init__(self, lodging, children):
+    def __init__(self, lodging, children, show_all=False):
         self.lodging = lodging
         self.children = children
+        self.show_all = show_all
 
     @property
     def visible_children(self):
-        # TODO: filter out nodes with no remaining capacity or which are not visible
-        return self.children
+        return [c for c in self.children if c.visible]
+
+    @property
+    def visible(self):
+        return self.show_all or self.lodging.visible
