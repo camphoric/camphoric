@@ -90,15 +90,23 @@ async function getEvent(token, org) {
   if (existingEvent) {
     event.id = existingEvent.id;
   }
-  response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
-    method: existingEvent ? 'PUT' : 'POST',
-    headers: {
-      'Authorization': `Token ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(event),
-  });
-  const json = await response.json();
+
+  let text, json;
+  try {
+    response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
+      method: existingEvent ? 'PUT' : 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    });
+    text = await response.text();
+
+    json = JSON.parse(text);
+  } catch(e) {
+    console.error(e, text);
+  }
 
   return json;
 }
