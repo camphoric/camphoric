@@ -4,6 +4,7 @@ import { Alert, Container, Row, Col } from 'react-bootstrap';
 import Handlebars from 'handlebars';
 import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
+import {Helmet} from "react-helmet";
 
 import Spinner from 'components/Spinner';
 
@@ -162,6 +163,9 @@ class App extends React.Component<Props, RegistrationState> {
         const { invitation, invitationError, registrationType } = this.state.config;
         pageContent = (
           <section>
+            <Helmet>
+              <title>{this.state.config.dataSchema.title}</title>
+            </Helmet>
             {
               !!invitation &&
               <Alert variant="success">
