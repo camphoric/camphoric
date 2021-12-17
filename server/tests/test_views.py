@@ -153,6 +153,22 @@ class RegisterGetTests(APITestCase):
             },
         )
 
+        lodging_root = event.lodging_set.create(
+            name='Lodging',
+            children_title='Please choose a lodging option',
+            visible=True,
+        )
+        cabin = event.lodging_set.create(
+            name='Cabin',
+            parent=lodging_root,
+            visible=True,
+        )
+        tent = event.lodging_set.create(
+            name='Tent',
+            parent=lodging_root,
+            visible=True,
+        )
+
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
         jsonschema.Draft7Validator.check_schema(response.data['dataSchema'])
@@ -163,8 +179,20 @@ class RegisterGetTests(APITestCase):
                     'type': 'object',
                     'properties': {
                         'name': {'type': 'string'},
+                        'lodging': {
+                            'type': 'object',
+                            'title': 'Lodging',
+                            'properties': {
+                                'lodging_1': {
+                                    'title': 'Please choose a lodging option',
+                                    'enum': [cabin.id, tent.id],
+                                    'enumNames': ['Cabin', 'Tent'],
+                                }
+                            },
+                            'required': ['lodging_1'],
+                            'dependencies': {},
+                        },
                     },
-
                 },
             },
             'required': ['registrant_email'],

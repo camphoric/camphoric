@@ -25,6 +25,7 @@ from camphoric import (
     pricing,
     serializers,
 )
+from camphoric.lodging import get_lodging_schema
 
 
 logger = logging.getLogger(__name__)
@@ -294,11 +295,20 @@ class RegisterView(APIView):
     def get_form_schema(cls, event):
         if not event.registration_schema:
             return None
+
+        lodging_schema = get_lodging_schema(event)
+
         return {
             **event.registration_schema,
             'definitions': {
                 **event.registration_schema.get('definitions', {}),
-                'camper': event.camper_schema,
+                'camper': {
+                    **event.camper_schema,
+                    'properties': {
+                        **event.camper_schema['properties'],
+                        'lodging': lodging_schema,
+                    },
+                } if lodging_schema else event.camper_schema,
             },
             'required': [
                 *event.registration_schema.get('required', []),
