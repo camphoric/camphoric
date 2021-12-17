@@ -49,6 +49,9 @@ def get_lodging_schema(event, show_all=False):
         }
 
     root = tree.root
+    if root is None:
+        return None
+
     children = root.visible_children
 
     if len(children) == 0:
@@ -74,6 +77,7 @@ class LodgingTree:
     def __init__(self, event, show_all):
         self.event = event
         self.show_all = show_all
+        self.root = None
 
     def build(self):
         root_lodging = None
@@ -87,10 +91,8 @@ class LodgingTree:
             else:
                 root_lodging = lodging
 
-        if not root_lodging:
-            raise RuntimeError('Event has no root Lodgings')
-
-        self.root = self._build_subtree(root_lodging, children_lookup)
+        if root_lodging:
+            self.root = self._build_subtree(root_lodging, children_lookup)
 
         return self
 

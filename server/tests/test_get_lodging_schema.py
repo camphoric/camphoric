@@ -26,9 +26,8 @@ class TestGetLodgingSchema(TestCase):
         )
     
     def test_no_lodging(self):
-        with self.assertRaises(RuntimeError):
-            get_lodging_schema(self.event)
-    
+        schema = get_lodging_schema(self.event)
+        self.assertEqual(schema, None)
 
     def test_lodging_with_single_node(self):
         self.event.lodging_set.create(
@@ -178,10 +177,12 @@ class TestGetLodgingSchema(TestCase):
         )
 
         # make sure the lodging schema is built with one DB query
+        old_debug = settings.DEBUG
         settings.DEBUG=True
         reset_queries()
         schema = get_lodging_schema(self.event)
         self.assertEqual(len(connection.queries), 1)
+        settings.DEBUG=old_debug
 
         self.assertEqual(schema, {
             'title': 'Test Lodging',
