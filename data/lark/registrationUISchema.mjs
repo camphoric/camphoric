@@ -56,6 +56,7 @@ export default {
           "session",
           "accommodations",
           "meals",
+          "lodging",
         ],
         "camper_address": address,
       }
