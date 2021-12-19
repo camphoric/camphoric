@@ -385,7 +385,7 @@ class RegisterView(APIView):
 
         lodging_id = None
         if 'lodging' in camper_data:
-            camper_data = dict(camper_data) # shallow copy
+            camper_data = dict(camper_data)  # shallow copy
             lodging_data = camper_data['lodging']
             del camper_data['lodging']
             lodging_key = max(

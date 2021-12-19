@@ -1,10 +1,9 @@
 from collections import defaultdict
 
-from django.db.models import prefetch_related_objects
 
 def get_lodging_schema(event, show_all=False):
     tree = LodgingTree(event, show_all).build()
-    
+
     def make_enum(node):
         children = node.visible_children
 
@@ -61,7 +60,7 @@ def get_lodging_schema(event, show_all=False):
             'properties': {},
             'dependencies': {},
         }
-        
+
     return {
         'type': 'object',
         'title': root.lodging.name,
