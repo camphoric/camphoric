@@ -499,6 +499,78 @@ Total due: $300
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi@mctesterson.com'])
 
+    def test_post_lodging(self):
+        lodging_root = self.event.lodging_set.create(
+            name='Lodging',
+            children_title='Please choose a lodging option',
+            visible=True,
+        )
+        cabin = self.event.lodging_set.create(
+            name='Cabin',
+            parent=lodging_root,
+            visible=True,
+        )
+        tent = self.event.lodging_set.create(
+            name='Tent',
+            parent=lodging_root,
+            visible=True,
+        )
+
+        cabins = [
+            self.event.lodging_set.create(
+                name=f'Cabin {i}',
+                parent=cabin,
+                visible=True,
+            )
+            for i in range(2)
+        ]
+
+        tent_areas = [
+            self.event.lodging_set.create(
+                name=f'Tent area {i}',
+                parent=tent,
+                visible=True,
+            )
+            for i in range(2)
+        ]
+
+        form_data = {
+            **self.valid_form_data,
+            'campers': [
+                {
+                    **self.valid_form_data['campers'][0],
+                    'lodging': {
+                        'lodging_1': cabin.id,
+                        'lodging_2': cabins[0].id,
+                    },
+                },
+                {
+                    **self.valid_form_data['campers'][1],
+                    'lodging': {
+                        'lodging_1': tent.id,
+                        'lodging_2': tent_areas[1].id,
+                    },
+                },
+            ],
+        }
+
+        self.assertEqual(models.Registration.objects.count(), 0)
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'formData': form_data,
+                'pricingResults': {},
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+
+        registrations = models.Registration.objects.all()
+        registration = registrations[0]
+        campers = registration.campers.all()
+        self.assertEqual(campers[0].lodging_id, cabins[0].id)
+        self.assertEqual(campers[1].lodging_id, tent_areas[1].id)
+
     def test_post_invitation(self):
         registration_type = models.RegistrationType.objects.create(
             event=self.event,

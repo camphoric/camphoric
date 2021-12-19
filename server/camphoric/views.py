@@ -351,11 +351,54 @@ class RegisterView(APIView):
             registrant_email=form_data['registrant_email'],
             attributes=registration_attributes,
         )
+
         campers = [
-            models.Camper(registration=registration, attributes=camper_attributes)
-            for camper_attributes in form_data['campers']
+            cls.deserialize_camper(registration, camper_data)
+            for camper_data in form_data['campers']
         ]
+
         return registration, campers
+
+    @classmethod
+    def deserialize_camper(cls, registration, camper_data):
+        '''
+        Transform a dict from the `campers` list in the form data into a Camper
+        model instance. The trickiest thing this does is to determine the
+        lodging_id. `camper_data` looks something like this:
+
+            {
+                # camper attributes corresponding to event.camper_schema, e.g.
+                'name': 'John',
+                'age': 12,
+
+                # lodging selection, not part of event.camper_schema
+                'lodging': {
+                    'lodging_1': 17,
+                    'lodging_2': 20,
+                    'lodging_3': 25
+                }
+            }
+
+        Each item in the `lodging` dict is a selection along the lodging tree.
+        The one with the highest number is the final selection.
+        '''
+
+        lodging_id = None
+        if 'lodging' in camper_data:
+            camper_data = dict(camper_data) # shallow copy
+            lodging_data = camper_data['lodging']
+            del camper_data['lodging']
+            lodging_key = max(
+                lodging_data.keys(),
+                key=lambda k: int(k.split('_')[1])
+            )
+            lodging_id = lodging_data[lodging_key]
+
+        return models.Camper(
+            registration=registration,
+            attributes=camper_data,
+            lodging_id=lodging_id,
+        )
 
     @classmethod
     def find_invitation(cls, request):
