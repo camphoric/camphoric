@@ -13,17 +13,20 @@ const modules = {
   registration_pricing_logic: (await import('./registrationPricingLogic.mjs')).default,
   registration_schema: (await import('./registrationSchema.mjs')).default,
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
+  lodgings: (await import('./lodgings.mjs')).default,
 };
 
 async function main() {
   const token = await getAuthToken();
   // console.log(token);
 
-  const org = await getOrganizations(token);
+  const org = await loadOrganization(token);
   // console.log(org);
 
-  const evt = await getEvent(token, org);
+  const evt = await loadEvent(token, org);
   // console.log(evt);
+
+  await loadLodgings(token, evt);
 
   return true;
 }
@@ -50,7 +53,7 @@ async function getAuthToken() {
 }
 
 
-async function getOrganizations(token) {
+async function loadOrganization(token) {
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
     headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
@@ -73,7 +76,7 @@ async function getOrganizations(token) {
   return org;
 }
 
-async function getEvent(token, org) {
+async function loadEvent(token, org) {
   let response = await fetch(`${urlBase}/api/events/`, {
     headers: { 'Authorization': `Token ${token}` },
   });
@@ -109,6 +112,43 @@ async function getEvent(token, org) {
   }
 
   return json;
+}
+
+async function loadLodgings(token, event) {
+  // delete existing lodgings
+  let response = await fetch(`${urlBase}/api/lodgings/`, {
+      method: 'GET',
+      headers: { 'Authorization': `Token ${token}` },
+  });
+  const existingLodgings = (await response.json())
+    .filter(lodging => lodging.event === event.id);
+  for (let lodging of existingLodgings) {
+    response = await fetch(`${urlBase}/api/lodgings/${lodging.id}/`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Token ${token}` }
+    });
+  }
+
+  // create new lodgings
+  const idLookup = {};
+  for (let [key, lodging] of Object.entries(modules.lodgings)) {
+    response = await fetch(`${urlBase}/api/lodgings/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: event.id,
+        parent: lodging.parentKey ? idLookup[lodging.parentKey] : null,
+        name: lodging.name,
+        children_title: lodging.children_title,
+        visible: lodging.visible,
+      }),
+    });
+    const createdLodging = await response.json();
+    idLookup[key] = createdLodging.id;
+  }
 }
 
 export default main;
