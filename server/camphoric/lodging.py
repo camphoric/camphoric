@@ -73,7 +73,7 @@ def get_lodging_schema(event, show_all=False):
 
 
 class LodgingTree:
-    def __init__(self, event, show_all):
+    def __init__(self, event, show_all=False):
         self.event = event
         self.show_all = show_all
         self.root = None
@@ -96,14 +96,30 @@ class LodgingTree:
         return self
 
     def _build_subtree(self, lodging, children_lookup):
+        children = [
+            self._build_subtree(child_lodging, children_lookup)
+            for child_lodging in children_lookup[lodging.id]
+        ]
+
         return LodgingTreeNode(
             lodging,
-            [
-                self._build_subtree(child_lodging, children_lookup)
-                for child_lodging in children_lookup[lodging.id]
-            ],
+            children,
             show_all=self.show_all
         )
+
+    def get(self, lodging_id):
+        return self._get(lodging_id, self.root)
+
+    def _get(self, lodging_id, current):
+        if current.lodging.id == lodging_id:
+            return current
+
+        for child in current.children:
+            node = self._get(lodging_id, child)
+            if node:
+                return node
+
+        return None
 
 
 class LodgingTreeNode:
@@ -111,6 +127,13 @@ class LodgingTreeNode:
         self.lodging = lodging
         self.children = children
         self.show_all = show_all
+
+        if len(children):
+            self.capacity = sum(child.capacity for child in children)
+            self.reserved = sum(child.reserved for child in children)
+        else:
+            self.capacity = lodging.capacity
+            self.reserved = lodging.reserved
 
     @property
     def visible_children(self):
