@@ -170,7 +170,7 @@ class Lodging(TimeStampedModel):
         help_text="title that goes on the dropdown field to select a child")
     # For non-leaf nodes, "capacity" and "reserved" should be set to zero. 
     capacity = models.IntegerField(default=0, help_text="total camper capacity") 
-    reserved = models.IntegerField(default=0, help_text="number of reserved spots remaining")
+    reserved = models.IntegerField(default=0, help_text="number of reserved spots")
     visible = models.BooleanField(default=False, help_text="true if visible on registration form")
     notes = models.TextField(blank=True, default='')
 
@@ -186,6 +186,9 @@ class Camper(TimeStampedModel):
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
+    lodging_reserved = models.BooleanField(
+        default=False,
+        help_text="true if this camper is assigned to a reserved lodging spot")
     attributes = models.JSONField(null=True)
 
 
