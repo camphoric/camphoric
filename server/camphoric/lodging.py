@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from django.db.models import Count, Q
+
 
 def get_lodging_schema(event, show_all=False):
     tree = LodgingTree(event, show_all).build()
@@ -82,7 +84,19 @@ class LodgingTree:
         root_lodging = None
         children_lookup = defaultdict(list)
 
-        for lodging in self.event.lodging_set.all():
+        camper_event_filter = Q(camper__registration__event__id=self.event.id)
+        camper_reserved_filter = Q(camper__lodging_reserved=True)
+
+        annotated_lodgings = self.event.lodging_set.annotate(
+            camper_count=Count(
+                'camper',
+                filter=camper_event_filter),
+            camper_reserved_count=Count(
+                'camper',
+                filter=(camper_event_filter & camper_reserved_filter)),
+        ).order_by('id')
+
+        for lodging in annotated_lodgings:
             if lodging.parent_id:
                 children_lookup[lodging.parent_id].append(lodging)
             elif root_lodging:
@@ -134,6 +148,11 @@ class LodgingTreeNode:
         else:
             self.capacity = lodging.capacity
             self.reserved = lodging.reserved
+
+        self.camper_count = lodging.camper_count + sum(
+            child.camper_count for child in children)
+        self.camper_reserved_count = lodging.camper_reserved_count + sum(
+            child.camper_reserved_count for child in children)
 
     @property
     def visible_children(self):

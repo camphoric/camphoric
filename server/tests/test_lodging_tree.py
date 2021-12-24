@@ -73,3 +73,40 @@ class TestLodgingTree(TestCase):
 
         self.assertEqual(tree.get(self.camp1.id).capacity, 36)
         self.assertEqual(tree.get(self.camp1.id).reserved, 4)
+
+    def test_camper_counts(self):
+        registration1 = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant1@example.com',
+        )
+        registration2 = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant2@example.com',
+        )
+
+        # test that multiple campers per registration are aggregated
+        registration1.campers.create(lodging=self.tents_camp1)
+        registration1.campers.create(lodging=self.tents_camp1)
+
+        # test that campers are aggregated across multiple registrations
+        registration2.campers.create(lodging=self.cabins_camp1)
+        registration2.campers.create(lodging=self.cabins_camp1)
+
+        # test that counts include leaf and non-leaf lodging assignments
+        # test reserved counts
+        registration2.campers.create(
+            lodging=self.cabins_camp1_A,
+            lodging_reserved=True)
+        registration2.campers.create(
+            lodging=self.cabins_camp1_A,
+            lodging_reserved=True)
+
+        tree = LodgingTree(self.event).build()
+
+        self.assertEqual(tree.get(self.camp1.id).camper_count, 6)
+        self.assertEqual(tree.get(self.camp1.id).camper_reserved_count, 2)
+
+        self.assertEqual(tree.get(self.cabins_camp1_A.id).camper_count, 2)
+        self.assertEqual(tree.get(self.cabins_camp1_A.id).camper_reserved_count, 2)

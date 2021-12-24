@@ -79,6 +79,7 @@ class TestGetLodgingSchema(TestCase):
 
         schema = get_lodging_schema(self.event)
 
+        self.maxDiff = None
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
