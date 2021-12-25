@@ -238,3 +238,41 @@ class TestGetLodgingSchema(TestCase):
         })
 
         self.assertEqual(ui_schema, {})
+
+    def test_ui_schema_with_full_lodging_options(self):
+        root = self.event.lodging_set.create(
+            name='root')
+
+        camp1 = self.event.lodging_set.create(
+            name='camp1', parent=root)
+        camp2 = self.event.lodging_set.create(
+            name='camp2', parent=root)
+
+        tents_camp1 = self.event.lodging_set.create(
+            name='tents_camp1', parent=camp1, capacity=2)
+        cabins_camp1 = self.event.lodging_set.create(
+            name='cabins_camp1', parent=camp1, capacity=2)
+
+        tents_camp2 = self.event.lodging_set.create(
+            name='tents_camp2', parent=camp2, capacity=2)
+        cabins_camp2 = self.event.lodging_set.create(
+            name='cabins_camp2', parent=camp2, capacity=2)
+
+        # fill all the cabins
+        registration = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant@example.com',
+        )
+        registration.campers.create(lodging=cabins_camp1)
+        registration.campers.create(lodging=cabins_camp1)
+        registration.campers.create(lodging=cabins_camp2)
+        registration.campers.create(lodging=cabins_camp2)
+
+        (schema, ui_schema) = get_lodging_schema(self.event)
+
+        self.assertEqual(ui_schema, {
+            'lodging_2': {
+                'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
+            },
+        })

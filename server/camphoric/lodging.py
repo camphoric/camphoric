@@ -85,7 +85,24 @@ def get_lodging_ui_schema(tree):
     if tree.root is None:
         return None
 
-    return {}
+    ui_schema = {}
+
+    def set_enum_disabled(node, depth):
+        unreserved_capacity = node.capacity - node.reserved
+        unreserved_campers = node.camper_count - node.camper_reserved_count
+
+        if unreserved_campers >= unreserved_capacity:
+            key = f'lodging_{depth}'
+            if key not in ui_schema:
+                ui_schema[key] = {'ui:enumDisabled': []}
+            ui_schema[key]['ui:enumDisabled'].append(node.lodging.id)
+
+        for child in node.children:
+            set_enum_disabled(child, depth + 1)
+
+    set_enum_disabled(tree.root, 0)
+
+    return ui_schema
 
 
 class LodgingTree:
