@@ -296,7 +296,7 @@ class RegisterView(APIView):
         if not event.registration_schema:
             return None
 
-        lodging_schema = get_lodging_schema(event)
+        (lodging_schema, lodging_ui_schema) = get_lodging_schema(event)
 
         return {
             **event.registration_schema,

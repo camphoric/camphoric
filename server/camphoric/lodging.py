@@ -6,6 +6,13 @@ from django.db.models import Count, Q
 def get_lodging_schema(event, show_all=False):
     tree = LodgingTree(event, show_all).build()
 
+    return (
+        get_lodging_json_schema(tree),
+        get_lodging_ui_schema(tree)
+    )
+
+
+def get_lodging_json_schema(tree):
     def make_enum(node):
         children = node.visible_children
 
@@ -72,6 +79,13 @@ def get_lodging_schema(event, show_all=False):
         'required': ['lodging_1'],
         'dependencies': make_dependencies(root, 1),
     }
+
+
+def get_lodging_ui_schema(tree):
+    if tree.root is None:
+        return None
+
+    return {}
 
 
 class LodgingTree:

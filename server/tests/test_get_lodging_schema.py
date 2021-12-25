@@ -26,8 +26,9 @@ class TestGetLodgingSchema(TestCase):
         )
     
     def test_no_lodging(self):
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(schema, None)
+        self.assertEqual(ui_schema, None)
 
     def test_lodging_with_single_node(self):
         self.event.lodging_set.create(
@@ -37,13 +38,14 @@ class TestGetLodgingSchema(TestCase):
             visible=True,
             notes=''
         )
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
             'properties': {},
             'dependencies': {},
         })
+        self.assertEqual(ui_schema, {})
 
     def test_lodging_with_node_with_children(self):
         root = self.event.lodging_set.create(
@@ -77,9 +79,8 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
 
-        self.maxDiff = None
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
@@ -101,6 +102,8 @@ class TestGetLodgingSchema(TestCase):
             'required': ['lodging_1'],
             'dependencies': {},
         })
+
+        self.assertEqual(ui_schema, {})
     
     def test_lodging_with_node_with_children_and_grandchildren(self):
         root = self.event.lodging_set.create(
@@ -181,7 +184,7 @@ class TestGetLodgingSchema(TestCase):
         old_debug = settings.DEBUG
         settings.DEBUG=True
         reset_queries()
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(len(connection.queries), 1)
         settings.DEBUG=old_debug
 
@@ -233,3 +236,5 @@ class TestGetLodgingSchema(TestCase):
                 }
             }
         })
+
+        self.assertEqual(ui_schema, {})
