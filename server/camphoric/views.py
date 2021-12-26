@@ -198,9 +198,11 @@ class RegisterView(APIView):
         '''
         event = get_object_or_404(models.Event, id=event_id)
 
+        (schema, ui_schema) = self.get_form_schema(event)
+
         response_data = {
-            'dataSchema': self.get_form_schema(event),
-            'uiSchema': event.registration_ui_schema or {},
+            'dataSchema': schema,
+            'uiSchema': ui_schema,
             'event': pricing.get_event_attributes(event),
             'pricing': event.pricing or {},
             'pricingLogic': {
@@ -293,19 +295,16 @@ class RegisterView(APIView):
 
     @classmethod
     def get_form_schema(cls, event):
-        if not event.registration_schema:
-            return None
-
         (lodging_schema, lodging_ui_schema) = get_lodging_schema(event)
 
-        return {
+        schema = {
             **event.registration_schema,
             'definitions': {
                 **event.registration_schema.get('definitions', {}),
                 'camper': {
                     **event.camper_schema,
                     'properties': {
-                        **event.camper_schema['properties'],
+                        **event.camper_schema.get('properties', {}),
                         'lodging': lodging_schema,
                     },
                 } if lodging_schema else event.camper_schema,
@@ -320,7 +319,7 @@ class RegisterView(APIView):
                     'format': 'email',
                     'title': 'Registrant email',
                 },
-                **event.registration_schema['properties'],
+                **event.registration_schema.get('properties', {}),
                 'campers': {
                     'type': 'array',
                     'minItems': 1,
@@ -331,9 +330,20 @@ class RegisterView(APIView):
             },
         }
 
+        ui_schema = {
+            **event.registration_ui_schema,
+            'campers': {
+                'items': {
+                    'lodging': lodging_ui_schema,
+                },
+            },
+        }
+
+        return schema, ui_schema
+
     @classmethod
     def validate_form_data(cls, event, form_data):
-        schema = cls.get_form_schema(event)
+        (schema, _) = cls.get_form_schema(event)
         try:
             jsonschema.validate(form_data, schema)
         except jsonschema.exceptions.ValidationError as e:
