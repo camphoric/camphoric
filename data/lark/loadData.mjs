@@ -144,6 +144,7 @@ async function loadLodgings(token, event) {
         name: lodging.name,
         children_title: lodging.children_title,
         visible: lodging.visible,
+        capacity: lodging.capacity || 0,
       }),
     });
     const createdLodging = await response.json();
