@@ -22,7 +22,12 @@ def get_lodging_json_schema(tree):
         return {
             'title': node.lodging.children_title,
             'enum': [child.lodging.id for child in children],
-            'enumNames': [child.lodging.name for child in children],
+            'enumNames': [
+                child.lodging.name
+                    if child.remaining_unreserved_capacity > 0
+                    else f'{child.lodging.name} (full)'
+                for child in children
+            ],
         }
 
     def make_dependencies(node, depth):
@@ -88,10 +93,7 @@ def get_lodging_ui_schema(tree):
     ui_schema = {}
 
     def set_enum_disabled(node, depth):
-        unreserved_capacity = node.capacity - node.reserved
-        unreserved_campers = node.camper_count - node.camper_reserved_count
-
-        if unreserved_campers >= unreserved_capacity:
+        if node.remaining_unreserved_capacity <= 0:
             key = f'lodging_{depth}'
             if key not in ui_schema:
                 ui_schema[key] = {'ui:enumDisabled': []}
@@ -192,3 +194,9 @@ class LodgingTreeNode:
     @property
     def visible(self):
         return self.show_all or self.lodging.visible
+
+    @property
+    def remaining_unreserved_capacity(self):
+        return (
+            (self.capacity - self.reserved)
+            - (self.camper_count - self.camper_reserved_count))

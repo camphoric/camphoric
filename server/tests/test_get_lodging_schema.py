@@ -239,24 +239,24 @@ class TestGetLodgingSchema(TestCase):
 
         self.assertEqual(ui_schema, {})
 
-    def test_ui_schema_with_full_lodging_options(self):
+    def test_full_lodging_options(self):
         root = self.event.lodging_set.create(
             name='root')
 
         camp1 = self.event.lodging_set.create(
-            name='camp1', parent=root)
+            name='camp1', visible=True, parent=root)
         camp2 = self.event.lodging_set.create(
-            name='camp2', parent=root)
+            name='camp2', visible=True, parent=root)
 
         tents_camp1 = self.event.lodging_set.create(
-            name='tents_camp1', parent=camp1, capacity=2)
+            name='tents_camp1', visible=True, parent=camp1, capacity=2)
         cabins_camp1 = self.event.lodging_set.create(
-            name='cabins_camp1', parent=camp1, capacity=2)
+            name='cabins_camp1', visible=True, parent=camp1, capacity=2)
 
         tents_camp2 = self.event.lodging_set.create(
-            name='tents_camp2', parent=camp2, capacity=2)
+            name='tents_camp2', visible=True, parent=camp2, capacity=2)
         cabins_camp2 = self.event.lodging_set.create(
-            name='cabins_camp2', parent=camp2, capacity=2)
+            name='cabins_camp2', visible=True, parent=camp2, capacity=2)
 
         # fill all the cabins
         registration = self.event.registration_set.create(
@@ -270,6 +270,47 @@ class TestGetLodgingSchema(TestCase):
         registration.campers.create(lodging=cabins_camp2)
 
         (schema, ui_schema) = get_lodging_schema(self.event)
+
+        # test just the part that's different when options are full
+        self.assertEqual(
+            schema['dependencies']['lodging_1']['oneOf'],
+            [
+                {
+                    'properties': {
+                        'lodging_1': {
+                            'enum': [camp1.id]
+                        },
+                        'lodging_2': {
+                            'title': '',
+                            'enum': [tents_camp1.id, cabins_camp1.id],
+                            'enumNames': [
+                                'tents_camp1',
+                                'cabins_camp1 (full)'
+                            ]
+                        }
+                    },
+                    'required': ['lodging_2'],
+                    'dependencies': {}
+                },
+                {
+                    'properties': {
+                        'lodging_1': {
+                            'enum': [camp2.id]
+                        },
+                        'lodging_2': {
+                            'title': '',
+                            'enum': [tents_camp2.id, cabins_camp2.id],
+                            'enumNames': [
+                                'tents_camp2',
+                                'cabins_camp2 (full)'
+                            ]
+                        }
+                    },
+                    'required': ['lodging_2'],
+                    'dependencies': {}
+                },
+            ]
+        )
 
         self.assertEqual(ui_schema, {
             'lodging_2': {

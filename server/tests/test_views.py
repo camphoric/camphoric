@@ -162,11 +162,13 @@ class RegisterGetTests(APITestCase):
             name='Cabin',
             parent=lodging_root,
             visible=True,
+            capacity=100,
         )
         tent = event.lodging_set.create(
             name='Tent',
             parent=lodging_root,
             visible=True,
+            capacity=100,
         )
 
         response = self.client.get(f'/api/events/{event.id}/register')
