@@ -231,7 +231,7 @@ class RegisterGetTests(APITestCase):
             name='root')
         camp1 = event.lodging_set.create(
             name='camp1', visible=True, parent=root, capacity=1)
-        camp2 = event.lodging_set.create(
+        event.lodging_set.create(
             name='camp2', visible=True, parent=root, capacity=1)
         registration = event.registration_set.create(
             event=event,

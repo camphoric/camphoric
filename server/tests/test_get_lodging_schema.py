@@ -1,5 +1,3 @@
-import json
-
 from django.conf import settings
 from django.db import connection, reset_queries
 from django.test import TestCase
@@ -24,7 +22,7 @@ class TestGetLodgingSchema(TestCase):
             confirmation_email_template='',
             confirmation_email_from='foo@example.com'
         )
-    
+
     def test_no_lodging(self):
         (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(schema, None)
@@ -104,7 +102,7 @@ class TestGetLodgingSchema(TestCase):
         })
 
         self.assertEqual(ui_schema, {})
-    
+
     def test_lodging_with_node_with_children_and_grandchildren(self):
         root = self.event.lodging_set.create(
             name='Test Lodging',
@@ -156,7 +154,7 @@ class TestGetLodgingSchema(TestCase):
 
         # camp2 grandchildren (invisible)
 
-        tents_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Tents in Camp 2',
             parent=camp2,
             capacity=30,
@@ -164,7 +162,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        cabins_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Cabins in Camp 2',
             parent=camp2,
             capacity=30,
@@ -172,7 +170,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        rvs_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='RVs in Camp 2',
             parent=camp2,
             capacity=30,
@@ -182,11 +180,11 @@ class TestGetLodgingSchema(TestCase):
 
         # make sure the lodging schema is built with one DB query
         old_debug = settings.DEBUG
-        settings.DEBUG=True
+        settings.DEBUG = True
         reset_queries()
         (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(len(connection.queries), 1)
-        settings.DEBUG=old_debug
+        settings.DEBUG = old_debug
 
         self.assertEqual(schema, {
             'title': 'Test Lodging',

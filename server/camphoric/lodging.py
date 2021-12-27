@@ -72,8 +72,8 @@ def get_lodging_json_schema(tree):
             'enum': [child.lodging.id for child in children],
             'enumNames': [
                 child.lodging.name
-                    if child.remaining_unreserved_capacity > 0
-                    else f'{child.lodging.name} (full)'
+                if child.remaining_unreserved_capacity > 0
+                else f'{child.lodging.name} (full)'
                 for child in children
             ],
         }
