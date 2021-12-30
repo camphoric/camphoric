@@ -1,5 +1,5 @@
 """
-JsonLogic-based templates 
+JsonLogic-based templates
 
 Provides a way of safely rendering text from user-supplied templates (e.g.
 event-specific confirmation emails).

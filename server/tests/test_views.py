@@ -315,7 +315,9 @@ class RegisterGetTests(APITestCase):
         )
 
         # good email/code
-        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=camper@example.com&code='
+            + invitation.invitation_code)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['invitation'], {
             'recipient_name': 'Campy McCampface',
@@ -329,7 +331,8 @@ class RegisterGetTests(APITestCase):
         self.assertNotIn('invitationError', response.data)
 
         # bad email/code
-        response = self.client.get(f'/api/events/{event.id}/register?email=nobody@example.com&code=blahblah')
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=nobody@example.com&code=blahblah')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('invitation', response.data)
         self.assertEqual(
@@ -343,7 +346,9 @@ class RegisterGetTests(APITestCase):
             registrant_email='camper@example.com',
         )
         invitation.save()
-        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=camper@example.com&code='
+            + invitation.invitation_code)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('invitation', response.data)
         self.assertEqual(
@@ -355,13 +360,16 @@ class RegisterGetTests(APITestCase):
         invitation.registration = None
         invitation.expiration_time = datetime.datetime(2010, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
         invitation.save()
-        response = self.client.get(f'/api/events/{event.id}/register?email=camper@example.com&code={invitation.invitation_code}')
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=camper@example.com&code='
+            + invitation.invitation_code)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('invitation', response.data)
         self.assertEqual(
             response.data['invitationError'],
             'Sorry, that invitation code has expired',
         )
+
 
 class RegisterPostTests(APITestCase):
 
@@ -672,7 +680,8 @@ class SendInvitationPostTests(APITestCase):
             name='worktrade',
             label="Work-trade",
             invitation_email_subject="Invitation to register",
-            invitation_email_template='Hi {{recipient_name}}, here is your link: {{{register_link}}}',
+            invitation_email_template=(
+                'Hi {{recipient_name}}, here is your link: {{{register_link}}}'),
         )
         invitation = models.Invitation.objects.create(
             registration_type=registration_type,
@@ -691,20 +700,22 @@ class SendInvitationPostTests(APITestCase):
         response = self.client.post(
             f'/api/invitations/{invitation.id}/send'
         )
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         self.assertEqual(message.from_email, "registrar@example.com")
         self.assertEqual(message.to, ['"Campy McCampface" <camper@example.com>'])
         self.assertEqual(message.subject, "Invitation to register")
-        self.assertEqual(
-            message.body, 
-            f'Hi Campy McCampface, here is your link: http://testserver/events/{self.event.id}/register?email=camper@example.com&code=abc123')
-        
+        expected_link = (
+            'http://testserver/events/'
+            + str(self.event.id)
+            + '/register?email=camper@example.com&code=abc123')
+        self.assertEqual(message.body, f'Hi Campy McCampface, here is your link: {expected_link}')
+
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)
-        
+
 
 class UsersTests(APITestCase):
     def setUp(self):
@@ -764,6 +775,7 @@ class UsersTests(APITestCase):
         with self.assertRaises(User.DoesNotExist):
             User.objects.get(id=user.id)
 
+
 class EventTests(APITestCase):
     def setUp(self):
         self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
@@ -791,14 +803,13 @@ class EventTests(APITestCase):
                 },
             },
             format='json'
-        );
+        )
 
         self.assertEqual(response.status_code, 201, 'should return status code 201 on create')
         events = models.Event.objects.all().filter(id=response.data['id'])
 
         self.assertEqual(events.count(), 1, 'should only have the one event')
-        event = events.first();
+        event = events.first()
 
         reports = models.Report.objects.all().filter(event=event)
         self.assertEqual(reports.count(), 1, 'should find sample reports')
-

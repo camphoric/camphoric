@@ -18,5 +18,5 @@ for module in [
         registration_schema,
         registration_ui_schema,
 ]:
-    with open(module.__name__ +'.json', 'w') as f:
+    with open(module.__name__ + '.json', 'w') as f:
         json.dump(module.data, f, indent=4)
