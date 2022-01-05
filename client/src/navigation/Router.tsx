@@ -1,11 +1,11 @@
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter as Router } from 'react-router-dom';
 import RouterConfig from './RouterConfig';
 
-const Router = () => (
-  <BrowserRouter>
+const CamphoricRouter = () => (
+  <Router>
     <RouterConfig />
-  </BrowserRouter>
+  </Router>
 );
 
-export default Router;
+export default CamphoricRouter;

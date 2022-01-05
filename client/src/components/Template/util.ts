@@ -5,9 +5,8 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
 
-import Handlebars from 'handlebars';
-
-Handlebars.registerHelper('abs', function(num) {
+// @ts-ignore
+window.Handlebars.registerHelper('abs', function(num: number) {
   const abs = Math.abs(num);
 
   if (!abs) return num;
@@ -27,7 +26,8 @@ export function markdown2Html(template: string): string {
 }
 
 export function processHandlebarsTemplate(template: string, vars: {} = {}): string {
-  return Handlebars.compile(template)(vars);
+  // @ts-ignore
+  return window.Handlebars.compile(template)(vars);
 }
 
 // used for dangerouslySetInnerHTML

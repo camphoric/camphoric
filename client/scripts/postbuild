@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm -rf ../server/frontend_bootstrap/build
+mkdir ../server/frontend_bootstrap/build
+mv ./build/* ../server/frontend_bootstrap/build/
