@@ -6,7 +6,10 @@
  */
 
 import React from 'react';
-import JsonEditorModule, { JSONEditorOptions } from 'jsoneditor';
+import { JSONEditorOptions } from 'jsoneditor';
+
+// @ts-ignore
+const JSONEditor = window.JSONEditor;
 
 interface Props {
   json: object;
@@ -19,7 +22,7 @@ interface State {
 
 class Editor extends React.PureComponent<Props, State> {
   private container = React.createRef<HTMLDivElement>();
-  editor?: JsonEditorModule;
+  editor?: any;
   state: State = { json: {} }
 
   componentDidMount() {
@@ -39,7 +42,7 @@ class Editor extends React.PureComponent<Props, State> {
       onChangeJSON: (json: object) => this.onChange(json),
     };
 
-    this.editor = new JsonEditorModule(this.container.current, options);
+    this.editor = new JSONEditor(this.container.current, options);
     this.editor.set(this.props.json);
   }
 

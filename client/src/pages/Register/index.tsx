@@ -1,10 +1,9 @@
 import React from 'react';
 import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
-import Handlebars from 'handlebars';
 import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
-import {Helmet} from "react-helmet";
+import {Helmet} from 'react-helmet';
 
 import Spinner from 'components/Spinner';
 
@@ -95,10 +94,13 @@ class App extends React.Component<Props, RegistrationState> {
       });
       const data = await res.json();
       console.log("response", res.status, data);
-      const confirmationText = Handlebars.compile(data.confirmationPageTemplate)({
+
+      // @ts-ignore
+      const confirmationText = window.Handlebars.compile(data.confirmationPageTemplate)({
         pricing_results: data.serverPricingResults,
       });
       console.log(confirmationText);
+
       this.setState({
         status: "submitted",
         confirmationText,
