@@ -75,9 +75,11 @@ class Event(TimeStampedModel):
         default=dict,
         help_text="JsonLogic Registration-level pricing components")
 
-    confirmation_page_template = models.TextField(blank=True, default='', help_text="Handlebars template")
+    confirmation_page_template = models.TextField(
+        blank=True, default='', help_text="Handlebars template")
     confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
-    confirmation_email_template = models.TextField(blank=True, default='', help_text="Handlebars template")
+    confirmation_email_template = models.TextField(
+        blank=True, default='', help_text="Handlebars template")
     confirmation_email_from = models.EmailField(blank=True, default='')
 
     def __str__(self):
@@ -113,6 +115,7 @@ class Registration(TimeStampedModel):
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
+
 
 class Report(TimeStampedModel):
     '''
@@ -168,8 +171,8 @@ class Lodging(TimeStampedModel):
     children_title = models.CharField(
         max_length=255, blank=True, default='',
         help_text="title that goes on the dropdown field to select a child")
-    # For non-leaf nodes, "capacity" and "reserved" should be set to zero. 
-    capacity = models.IntegerField(default=0, help_text="total camper capacity") 
+    # For non-leaf nodes, "capacity" and "reserved" should be set to zero.
+    capacity = models.IntegerField(default=0, help_text="total camper capacity")
     reserved = models.IntegerField(default=0, help_text="number of reserved spots")
     visible = models.BooleanField(default=False, help_text="true if visible on registration form")
     notes = models.TextField(blank=True, default='')

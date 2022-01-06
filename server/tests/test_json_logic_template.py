@@ -20,7 +20,9 @@ class TestJsonLogicTemplate(unittest.TestCase):
             {'if': [{'>': [{'var': 'bar'}, 0]}, 'something about bar\n', '']},
         ]
         data = {'foo': 1, 'bar': 0}
-        self.assertEqual(render(template, data), 'generic text\nsomething about foo\nmore generic text\n')
+        self.assertEqual(
+            render(template, data),
+            'generic text\nsomething about foo\nmore generic text\n')
 
     def test_map(self):
         template = [

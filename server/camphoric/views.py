@@ -105,18 +105,18 @@ class EventViewSet(ModelViewSet):
         event_response = super().create(request)
         event = models.Event.objects.all().filter(id=event_response.data['id']).first()
         models.Report.objects.create(
-            event = event,
-            title = "All Campers Sample Report",
-            template = """
+            event=event,
+            title="All Campers Sample Report",
+            template="""
 # All Campers
 
 | Last Name | First Name | Age |
 | --------- | ---------- | --- |
 {{#each campers}}
-| {{this.attributes.first_name}} | {{this.attributes.last_name}} | {{this.attributes.age}} | 
+| {{this.attributes.first_name}} | {{this.attributes.last_name}} | {{this.attributes.age}} |
 {{/each}}
 """
-            )
+        )
         return event_response
 
 
@@ -431,7 +431,8 @@ class RegisterView(APIView):
                 invitation_code=code,
             )
         except models.Invitation.DoesNotExist:
-            raise InvitationError(f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+            raise InvitationError(
+                f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
 
         if invitation.registration:
             raise InvitationError('Sorry, that invitation code has already been redeemed')
@@ -465,13 +466,13 @@ class SendInvitationView(APIView):
                 'register_link': register_page_url(request, event.id, invitation)
             }
         )
-        
+
         email_error = None
         try:
             sent = mail.send_mail(
                 invitation.registration_type.invitation_email_subject,
                 invitation_body,
-                event.confirmation_email_from, #TODO: figure out what this should be
+                event.confirmation_email_from,  # TODO: figure out what this should be
                 [f'"{to_name}" <{to_email}>' if to_name else to_email],
                 fail_silently=False)
             if not sent:
@@ -494,7 +495,7 @@ class SendInvitationView(APIView):
 
 
 def register_page_url(request, event_id, invitation=None):
-    path = reverse('register', kwargs={'event_id': event_id})    
+    path = reverse('register', kwargs={'event_id': event_id})
     if invitation:
         query = f'?email={invitation.recipient_email}&code={invitation.invitation_code}'
     else:

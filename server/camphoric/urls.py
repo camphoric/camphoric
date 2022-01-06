@@ -24,7 +24,7 @@ urlpatterns = router.urls + [
     path('user', views.UserView.as_view()),
     path('logout', views.LogoutView.as_view()),
     path(
-        'events/<int:event_id>/register', 
+        'events/<int:event_id>/register',
         views.RegisterView.as_view(),
         name='register',
     ),

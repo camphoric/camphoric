@@ -43,10 +43,12 @@ class RegistrationTypeSerializer(ModelSerializer):
         model = camphoric.models.RegistrationType
         fields = '__all__'
 
+
 class ReportSerializer(ModelSerializer):
     class Meta:
         model = camphoric.models.Report
         fields = '__all__'
+
 
 class InvitationSerializer(ModelSerializer):
     class Meta:
