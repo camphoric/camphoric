@@ -1,5 +1,3 @@
-import json
-
 from django.conf import settings
 from django.db import connection, reset_queries
 from django.test import TestCase
@@ -24,10 +22,11 @@ class TestGetLodgingSchema(TestCase):
             confirmation_email_template='',
             confirmation_email_from='foo@example.com'
         )
-    
+
     def test_no_lodging(self):
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(schema, None)
+        self.assertEqual(ui_schema, None)
 
     def test_lodging_with_single_node(self):
         self.event.lodging_set.create(
@@ -37,13 +36,14 @@ class TestGetLodgingSchema(TestCase):
             visible=True,
             notes=''
         )
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
             'properties': {},
             'dependencies': {},
         })
+        self.assertEqual(ui_schema, {})
 
     def test_lodging_with_node_with_children(self):
         root = self.event.lodging_set.create(
@@ -77,7 +77,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
 
         self.assertEqual(schema, {
             'title': 'Test Lodging',
@@ -100,7 +100,9 @@ class TestGetLodgingSchema(TestCase):
             'required': ['lodging_1'],
             'dependencies': {},
         })
-    
+
+        self.assertEqual(ui_schema, {})
+
     def test_lodging_with_node_with_children_and_grandchildren(self):
         root = self.event.lodging_set.create(
             name='Test Lodging',
@@ -152,7 +154,7 @@ class TestGetLodgingSchema(TestCase):
 
         # camp2 grandchildren (invisible)
 
-        tents_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Tents in Camp 2',
             parent=camp2,
             capacity=30,
@@ -160,7 +162,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        cabins_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Cabins in Camp 2',
             parent=camp2,
             capacity=30,
@@ -168,7 +170,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        rvs_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='RVs in Camp 2',
             parent=camp2,
             capacity=30,
@@ -178,11 +180,11 @@ class TestGetLodgingSchema(TestCase):
 
         # make sure the lodging schema is built with one DB query
         old_debug = settings.DEBUG
-        settings.DEBUG=True
+        settings.DEBUG = True
         reset_queries()
-        schema = get_lodging_schema(self.event)
+        (schema, ui_schema) = get_lodging_schema(self.event)
         self.assertEqual(len(connection.queries), 1)
-        settings.DEBUG=old_debug
+        settings.DEBUG = old_debug
 
         self.assertEqual(schema, {
             'title': 'Test Lodging',
@@ -231,4 +233,85 @@ class TestGetLodgingSchema(TestCase):
                     ]
                 }
             }
+        })
+
+        self.assertEqual(ui_schema, {})
+
+    def test_full_lodging_options(self):
+        root = self.event.lodging_set.create(
+            name='root')
+
+        camp1 = self.event.lodging_set.create(
+            name='camp1', visible=True, parent=root)
+        camp2 = self.event.lodging_set.create(
+            name='camp2', visible=True, parent=root)
+
+        tents_camp1 = self.event.lodging_set.create(
+            name='tents_camp1', visible=True, parent=camp1, capacity=2)
+        cabins_camp1 = self.event.lodging_set.create(
+            name='cabins_camp1', visible=True, parent=camp1, capacity=2)
+
+        tents_camp2 = self.event.lodging_set.create(
+            name='tents_camp2', visible=True, parent=camp2, capacity=2)
+        cabins_camp2 = self.event.lodging_set.create(
+            name='cabins_camp2', visible=True, parent=camp2, capacity=2)
+
+        # fill all the cabins
+        registration = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant@example.com',
+        )
+        registration.campers.create(lodging=cabins_camp1)
+        registration.campers.create(lodging=cabins_camp1)
+        registration.campers.create(lodging=cabins_camp2)
+        registration.campers.create(lodging=cabins_camp2)
+
+        (schema, ui_schema) = get_lodging_schema(self.event)
+
+        # test just the part that's different when options are full
+        self.assertEqual(
+            schema['dependencies']['lodging_1']['oneOf'],
+            [
+                {
+                    'properties': {
+                        'lodging_1': {
+                            'enum': [camp1.id]
+                        },
+                        'lodging_2': {
+                            'title': '',
+                            'enum': [tents_camp1.id, cabins_camp1.id],
+                            'enumNames': [
+                                'tents_camp1',
+                                'cabins_camp1 (full)'
+                            ]
+                        }
+                    },
+                    'required': ['lodging_2'],
+                    'dependencies': {}
+                },
+                {
+                    'properties': {
+                        'lodging_1': {
+                            'enum': [camp2.id]
+                        },
+                        'lodging_2': {
+                            'title': '',
+                            'enum': [tents_camp2.id, cabins_camp2.id],
+                            'enumNames': [
+                                'tents_camp2',
+                                'cabins_camp2 (full)'
+                            ]
+                        }
+                    },
+                    'required': ['lodging_2'],
+                    'dependencies': {}
+                },
+            ]
+        )
+
+        self.assertEqual(ui_schema, {
+            'lodging_2': {
+                'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
+            },
         })

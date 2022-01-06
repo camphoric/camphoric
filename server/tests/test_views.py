@@ -162,11 +162,13 @@ class RegisterGetTests(APITestCase):
             name='Cabin',
             parent=lodging_root,
             visible=True,
+            capacity=100,
         )
         tent = event.lodging_set.create(
             name='Tent',
             parent=lodging_root,
             visible=True,
+            capacity=100,
         )
 
         response = self.client.get(f'/api/events/{event.id}/register')
@@ -223,11 +225,35 @@ class RegisterGetTests(APITestCase):
                 'ui:description': 'Test Description',
             }
         )
+
+        # lodging
+        root = event.lodging_set.create(
+            name='root')
+        camp1 = event.lodging_set.create(
+            name='camp1', visible=True, parent=root, capacity=1)
+        event.lodging_set.create(
+            name='camp2', visible=True, parent=root, capacity=1)
+        registration = event.registration_set.create(
+            event=event,
+            attributes={},
+            registrant_email='registrant@example.com',
+        )
+        registration.campers.create(lodging=camp1)
+
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['uiSchema'], {
             'ui:title': 'Test UI Schema',
             'ui:description': 'Test Description',
+            'campers': {
+                'items': {
+                    'lodging': {
+                        'lodging_1': {
+                            'ui:enumDisabled': [camp1.id],
+                        },
+                    },
+                },
+            },
         })
 
     def test_pricing_fields(self):

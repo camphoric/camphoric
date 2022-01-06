@@ -33,31 +33,37 @@ export default {
         parentKey: "camp1",
         name: "Camp 1: Tent",
         visible: true,
+        capacity: 10,
     },
     camp1_rv: {
         parentKey: "camp1",
         name: "Camp 1: RV",
         visible: true,
+        capacity: 10,
     },
     camp1_cabin: {
         parentKey: "camp1",
         name: "Camp 1: Cabin",
         visible: true,
+        capacity: 10,
     },
 
     camp2_tent: {
         parentKey: "camp2",
         name: "Camp 2: Tent",
         visible: true,
+        capacity: 10,
     },
     camp2_rv: {
         parentKey: "camp2",
         name: "Camp 2: RV",
         visible: true,
+        capacity: 10,
     },
     camp2_cabin: {
         parentKey: "camp2",
         name: "Camp 2: Cabin",
         visible: true,
+        capacity: 10,
     },
 };
