@@ -23,12 +23,7 @@ services:
       - ./env/local/django.env
     build: server/
     volumes:
-      - ./server/camphoric:/app/camphoric
-      - ./server/camphoric_server:/app/camphoric_server
-      - ./server/frontend_bootstrap:/app/frontend_bootstrap
-      - ./server/tests:/app/tests
-      - ./server/setup.cfg:/app/setup.cfg
-      - ./server/manage.py:/app/manage.py
+      - ./server:/app
       - ./data:/app/fixtures
     command: >
       bash -c "./manage.py migrate &&
