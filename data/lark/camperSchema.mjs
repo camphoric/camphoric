@@ -1,6 +1,6 @@
 export default {
     "type": "object",
-    "required": ["first_name", "last_name", "gender", "session", "accommodations", "meals"],
+    "required": ["first_name", "last_name", "gender", "session", "meals"],
     "dependencies": {
         "address_different_than_payer": {
             "oneOf": [
@@ -78,9 +78,6 @@ export default {
                 "A",
                 "B",
             ],
-        },
-        "accommodations": {
-            "$ref": "#/definitions/accommodations"
         },
         "meals": {
             "$ref": "#/definitions/meals"
