@@ -20,8 +20,7 @@ ENV CHROME_BIN=/usr/bin/chromium-browser \
 ENV PATH="/app/node_modules/.bin:${PATH}"
 WORKDIR /app
 RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
-COPY package.json .
-COPY yarn.lock .
-RUN yarn install --frozen-lockfile
-COPY . .
 
+COPY . .
+RUN ls -la
+RUN yarn install --frozen-lockfile

@@ -1,5 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
 rm -rf ../server/frontend_bootstrap/build
 mkdir ../server/frontend_bootstrap/build
+
+tar czf build.tar.gz build
 mv ./build/* ../server/frontend_bootstrap/build/
