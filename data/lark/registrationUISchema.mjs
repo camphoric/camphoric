@@ -54,15 +54,11 @@ export default {
           "address_different_than_payer",
           "camper_address",
           "session",
-          "accommodations",
           "meals",
           "lodging",
         ],
         "camper_address": address,
       }
-    },
-    "accommodations": {
-      "classNames": "accommodations",
     },
     "parking_passes": {
       "ui:options":  {
