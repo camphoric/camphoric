@@ -141,7 +141,7 @@ http://127.0.0.1:8000/api/
 Once your server is running, use the scripts in data directory to seed sample data.
 ```
 cd data
-yarn
+npm install
 cd lark
 node loadData.mjs
 ``` 
@@ -171,12 +171,12 @@ There are two options now.
 ## Run the Client development server
 
 From the client directory, install dependencies and run the client server using
-[yarn](https://yarnpkg.com/lang/en/):
+npm
 
 ```
 cd ./client/
-yarn
-yarn start
+npm install
+npm start
 ```
 
 With both the API and Client developments servers running, you can access the
@@ -188,7 +188,7 @@ http://127.0.0.1:3000/
 
 ## Building for Production
 
-In order to build the production version of Camphoric client, run `yarn build`
+In order to build the production version of Camphoric client, run `npm run build`
 in the `client/` folder. This will build the prod version and copy the files
 into the correct static directory in the `server/` for serving. After that,
 running `python manage.py runserver` will serve the newly built frontend

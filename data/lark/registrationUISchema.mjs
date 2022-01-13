@@ -46,6 +46,7 @@ export default {
         "orderable": false
       },
       "items": {
+        "ui:title": "Camper",
         "ui:order": [
           "first_name",
           "last_name",
@@ -65,6 +66,9 @@ export default {
         "addable": true,
         "removable": true,
       },
+      items: {
+        "ui:title": "parking pass",
+      }
     },
     "comments": {
       "ui:widget": "textarea",

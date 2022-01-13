@@ -14,12 +14,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from rest_framework.authtoken.views import obtain_auth_token
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django_admin/', admin.site.urls),
     path('api/', include('camphoric.urls')),
 
     # Cookie based authentication for browsable API.
@@ -29,5 +29,5 @@ urlpatterns = [
     path('api-token-auth/', obtain_auth_token),
 
     # Frontend Bootstrap
-    path('', include('frontend_bootstrap.urls')),
+    re_path(r'^.*', include('frontend_bootstrap.urls')),
 ]

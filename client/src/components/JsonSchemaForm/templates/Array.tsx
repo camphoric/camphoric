@@ -53,7 +53,7 @@ export default function ArrayFieldTemplate(props: any) {
       {
         !!props.canAdd && (
           <Button onClick={props.onAddClick}>
-            Add {props.schema.items.title || 'item'}
+            Add {props.schema.items.title || props.uiSchema.items['ui:title'] || 'item'}
           </Button>
         )
       }

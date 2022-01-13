@@ -1,19 +1,17 @@
 export default {
-    "title": "Lark Camp Registration",
+    "title": "Lark Camp 2022 Registration",
     "description": `
 Please read [Terms of Registration](http://www.larkcamp.org/campterms.html) before filling out this form.
 
-Fill out this form to complete your registration for Lark Camp 2020 online. Please note that registrations are accepted in the order they are received; your camping preferences are processed on a “first come - first served” basis. Your early payment will not be cashed or charged until January 2020.
+Fill out this form to complete your registration for Lark Camp 2022 online.
+Please note that registrations are accepted in the order they are received;
+your camping preferences are processed on a “first come - first served” basis.
 
 Fields marked with an asterisk (*) are required.
 
 `,
     "type": "object",
     "definitions": {
-        "camping_preference": {
-            "type": "string",
-            "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
-        },
         "natural": {
             "type": "integer",
             "minimum": 0,
@@ -235,6 +233,7 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
             "minItems": 0,
             "maxItems": 4,
             "items": {
+                "title": "parking pass",
                 "type": "object",
                 "properties": {
                     "holder": {

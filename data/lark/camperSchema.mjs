@@ -45,16 +45,32 @@ export default {
         },
         "age": {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 17,
-            "title": "Age, if under 18"
+            "title": "Age (at the beginning of camp)",
+            "description": "In order to help us abide by CDC recommendations, please select your age category at time of camp",
+            "enum": [
+                65,
+                64,
+                49,
+                17,
+                11,
+                4,
+            ],
+            "enumNames": [
+                "65 years old or older",
+                "50-64 years old",
+                "18-49 years old",
+                "12-17 years old",
+                "5-11 years old",
+                "0-4 years old",
+            ],
+            "default": 65,
         },
         "address_different_than_payer": {
             "type": "boolean",
             "title": "Is this campers address different than the billing address?",
             "enum": [false, true],
-          "enumNames": ["No", "Yes"],
-          "default": false,
+            "enumNames": ["No", "Yes"],
+            "default": false,
         },
         "session": {
             "type": "string",
@@ -78,6 +94,7 @@ export default {
                 "A",
                 "B",
             ],
+            "default": "F",
         },
         "meals": {
             "$ref": "#/definitions/meals"

@@ -144,14 +144,22 @@
     @include standard-button;
   }
 
-  fieldset#root_parking_passes .array-item-add {
-    &:last-child button {
-      @include standard-button;
+  #root_parking_passes {
+    & > button:last-child {
+        @include standard-button;
     }
 
-    button::after {
-      content: "Add A Parking Pass";
+  }
+
+  #root_campers {
+    button.btn {
+        padding: 0.375rem;
+
     }
+
+    & > button:last-child {
+          @include standard-button;
+      }
   }
 
   fieldset#root_payment {

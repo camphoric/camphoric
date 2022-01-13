@@ -2,7 +2,7 @@
   "scripts": {
     "loadData": "docker-compose exec react node fixtures/lark/loadData.mjs",
     "django-test": "docker-compose exec django python manage.py test",
-    "heroku-postbuild": "cd client && yarn install && yarn run build"
+    "heroku-postbuild": "cd client && npm install && npm run build"
   },
   "devDependencies": {
     "chalk": "^4.1.2",

@@ -8,6 +8,26 @@
     color: #61dafb;
   }
 
+  .confirmation {
+    background-color: white;
+    box-shadow: 0 0 5px black;
+    border-radius: 0 0 1rem 1rem ;
+    padding: 2rem;
+
+    .md-template {
+      background-color: 0;
+      border: 0;
+    }
+  }
+
+  #root_campers .items > .row {
+      padding: 0.3rem;
+      border-radius: 0.3rem;
+      margin: 0;
+      background-color: lightgray;
+
+  }
+
   .App>section {
     background-color: white;
     box-shadow: 0 0 5px black;
