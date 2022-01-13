@@ -22,11 +22,11 @@ const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark 2022';
 
 const modules = {
-  camper_pricing_logic: (await import('./camperPricingLogic.mjs')).default,
+  camper_pricing_logic: (await import('./pricing/camperPricingLogic.mjs')).default,
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
-  pricing: (await import('./pricing.mjs')).default,
-  registration_pricing_logic: (await import('./registrationPricingLogic.mjs')).default,
+  pricing: (await import('./pricing/pricing.mjs')).default,
+  registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
   registration_schema: (await import('./registrationSchema.mjs')).default,
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
   lodgings: (await import('./lodgings.mjs')).default,

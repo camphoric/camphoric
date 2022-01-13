@@ -21,14 +21,13 @@ dependencies, just [skip to the next section.](#setting-up-your-containerized-de
 Install the following:
 
 - [node](https://nodejs.org/en/download/)
-- [yarn](https://yarnpkg.com/)
 
-For homebrew users: `brew install node yarn`
+For homebrew users: `brew install node`
 
 Run the following and follow the prompts:
 
 ```
-yarn install; ./development-setup-wizard.mjs
+npm install; ./development-setup-wizard.mjs
 ```
 
 Creating the docker services (the hard way)
@@ -265,8 +264,8 @@ command to run arbitrary commands inside of a container:
 
 - Open a shell in the web container: `docker-compose exec django bash`
 - Run a command (like `ls`): `docker-compose exec django ls -la`
-- Find out what yarn version we're running: `docker-compose exec react yarn --version`
-- Install a new npm package for the client: `docker-compose exec react yarn add <pkgname>`
+- Find out what npm version we're running: `docker-compose exec react npm --version`
+- Install a new npm package for the client: `docker-compose exec react npm install <pkgname>`
 
 ### Seeing server log output
 

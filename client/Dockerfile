@@ -23,4 +23,4 @@ RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
 
 COPY . .
 RUN ls -la
-RUN yarn install --frozen-lockfile
+RUN npm ci

@@ -1,9 +1,6 @@
-from django.urls import path
+from django.urls import path, re_path 
 from . import views
 
-bootstrap_paths = ['', 'register', 'success']
-
 urlpatterns = [
-    path(bootstrap_path, views.FrontendBootstrapView.as_view())
-    for bootstrap_path in bootstrap_paths
+    re_path(r'^.*', views.FrontendBootstrapView.as_view())
 ]

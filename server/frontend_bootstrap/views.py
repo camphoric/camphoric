@@ -19,7 +19,7 @@ class FrontendBootstrapView(View):
             return HttpResponse(
                 """
         This URL is only used when you have built the production
-        version of the app. Run `yarn run build` to test the
+        version of the app. Run `npm run build` to test the
         production version.
         """,
                 status=501,

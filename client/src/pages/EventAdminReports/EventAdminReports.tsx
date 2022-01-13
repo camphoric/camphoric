@@ -46,7 +46,7 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
 
   const getReports = async () => {
     try {
-      const response = await apiFetch('/api/reports');
+      const response = await apiFetch('/api/reports/');
       const json = await response.json();
       const reportSearch = new Fuse<ApiReport>(json, reportSearchOptions);
 
