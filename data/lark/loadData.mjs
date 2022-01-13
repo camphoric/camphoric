@@ -1,9 +1,25 @@
 #!/usr/bin/env node --no-warnings
 
+/**
+ * Import test lark data
+ *
+ * The following env vars can be set if needed.  If both
+ * CAMPHORIC_SUPERUSER_USERNAME and CAMPHORIC_SUPERUSER_PASSWORD is set, this
+ * script will run without prompts
+ *
+ * - CAMPHORIC_URL = base url for your installation.  This defaults to the url
+ *   for the docker compose setup
+ * - CAMPHORIC_TEST_EVENT_NAME = the name of the event to check for and add or
+ *   overwrite it.
+ * - CAMPHORIC_SUPERUSER_USERNAME = the django superuser's username
+ * - CAMPHORIC_SUPERUSER_PASSWORD = the django superuser's password
+ */
+
 import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 
-const urlBase = 'http://django:8000';
+const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
+const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark 2022';
 
 const modules = {
   camper_pricing_logic: (await import('./camperPricingLogic.mjs')).default,
@@ -21,27 +37,39 @@ async function main() {
   // console.log(token);
 
   const org = await loadOrganization(token);
+	console.log('Processed organization');
   // console.log(org);
 
   const evt = await loadEvent(token, org);
+	console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
   await loadLodgings(token, evt);
+	console.log('Processed event lodging');
 
+	console.log('Finished!');
   return true;
 }
 
 
 async function getAuthToken() {
-  const answers = await inquirer.prompt([
-    { name: 'username' },
-    { name: 'password', type: 'password' },
-  ]);
+	let username = process.env.CAMPHORIC_SUPERUSER_USERNAME;
+	let password = process.env.CAMPHORIC_SUPERUSER_PASSWORD;
+
+	if (!username && !password) {
+		const answers = await inquirer.prompt([
+			{ name: 'username' },
+			{ name: 'password', type: 'password' },
+		]);
+
+		username = answers.username;
+		password = answers.password;
+	}
 
   const response = await fetch(`${urlBase}/api-token-auth/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `username=${answers.username}&password=${answers.password}`,
+    body: `username=${username}&password=${password}`,
   });
   const json = await response.json();
   const { token } = json;
@@ -71,6 +99,8 @@ async function loadOrganization(token) {
         name: "Lark Traditional Arts"
       }),
     }).then(res => res.json());
+
+		console.log('Lark Traditional Arts organization created!');
   }
 
   return org;
@@ -82,14 +112,15 @@ async function loadEvent(token, org) {
   });
   
   const events = await response.json();
-  const existingEvent = events.find(event => event.name === "Lark 2021");
+  const existingEvent = events.find(event => event.name === eventName);
   
   const event = {
     organization: org.id,
-    name: "Lark 2021",
-    confirmation_email_from: 'lark-test@example.com',
+    name: eventName,
+    confirmation_email_from: 'registration@larkcamp.org',
     ...modules,
   };
+
   if (existingEvent) {
     event.id = existingEvent.id;
   }
