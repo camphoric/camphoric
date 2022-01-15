@@ -223,6 +223,17 @@ class RegisterGetTests(APITestCase):
             registration_ui_schema={
                 'ui:title': 'Test UI Schema',
                 'ui:description': 'Test Description',
+
+                # to test that camper UI schema is merged correctly with lodging UI schema
+                'campers': {
+                    'ui:description': 'stuff about campers',
+                    'items': {
+                        'ui:description': 'stuff about a camper',
+                        'lodging': {
+                            'ui:description': 'stuff about lodging',
+                        },
+                    },
+                },
             }
         )
 
@@ -246,8 +257,11 @@ class RegisterGetTests(APITestCase):
             'ui:title': 'Test UI Schema',
             'ui:description': 'Test Description',
             'campers': {
+                'ui:description': 'stuff about campers',
                 'items': {
+                    'ui:description': 'stuff about a camper',
                     'lodging': {
+                        'ui:description': 'stuff about lodging',
                         'lodging_1': {
                             'ui:enumDisabled': [camp1.id],
                         },
