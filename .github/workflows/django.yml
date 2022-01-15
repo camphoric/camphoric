@@ -1,4 +1,4 @@
-name: Django CI
+name: Django Unit Tests
 
 on:
   push:
@@ -6,16 +6,38 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  SECRET_KEY: not-a-real-secret-key-really-not-a-real-secret-key
+  DATABASE_URL: postgres://postgres:postgres@localhost/postgres
+  DEBUG: on
+
 jobs:
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./server
+
     strategy:
       max-parallel: 4
       matrix:
         python-version: [3.9]
+
+    services:
+      db_service:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v2
@@ -24,7 +46,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
-        run: python -m pip install --upgrade pipenv psycopg2-binary
+        run: python -m pip install --upgrade pipenv wheel psycopg2-binary
+      - name: Make build dir
+        run: mkdir -p frontend_bootstrap/build/
       - id: cache-pipenv
         uses: actions/cache@v1
         with:
@@ -34,4 +58,4 @@ jobs:
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --deploy --dev
       - name: Run Tests
-        run: pipenv python manage.py test
+        run: pipenv run python manage.py test
