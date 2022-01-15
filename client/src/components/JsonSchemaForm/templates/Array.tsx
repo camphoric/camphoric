@@ -4,6 +4,7 @@ import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 import CustomDescriptionField from '../fields/Description';
+import getFromPath from 'lodash/get';
 
 /**
  * Modified version of DefaultObjectFieldTemplate from react-jsonschema-form:
@@ -25,8 +26,18 @@ function ArrayItems (props: any) {
 export default function ArrayFieldTemplate(props: any) {
   const { TitleField } = props;
 
-  const title = props.schema.title || props.uiSchema["ui:title"] || props.title;
-  const description = props.schema.description || props.uiSchema["ui:description"] || props.description;
+  const title = getFromPath(props, ['schema', 'title'])
+      || getFromPath(props, ['uiSchema', 'ui:title'])
+      || props.title;
+
+  const description = getFromPath(props, ['schema', 'description'])
+      || getFromPath(props, ['uiSchema', 'ui:description'])
+      || props.description;
+
+  const itemTitle = getFromPath(props, ['schema', 'items', 'title'])
+      || getFromPath(props, ['uiSchema', 'items', 'ui:title'])
+      || props.title;
+
 
   return (
     <div id={props.idSchema.$id} className="jsonschema-array">
@@ -53,7 +64,7 @@ export default function ArrayFieldTemplate(props: any) {
       {
         !!props.canAdd && (
           <Button onClick={props.onAddClick}>
-            Add {props.schema.items.title || props.uiSchema.items['ui:title'] || 'item'}
+            Add {itemTitle || 'item'}
           </Button>
         )
       }

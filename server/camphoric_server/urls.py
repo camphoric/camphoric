@@ -17,9 +17,8 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from rest_framework.authtoken.views import obtain_auth_token
 
-
 urlpatterns = [
-    path('django_admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/', include('camphoric.urls')),
 
     # Cookie based authentication for browsable API.
@@ -29,5 +28,5 @@ urlpatterns = [
     path('api-token-auth/', obtain_auth_token),
 
     # Frontend Bootstrap
-    re_path(r'^.*', include('frontend_bootstrap.urls')),
+    path('', include('frontend_bootstrap.urls')),
 ]
