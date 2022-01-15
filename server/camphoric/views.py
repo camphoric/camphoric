@@ -333,8 +333,16 @@ class RegisterView(APIView):
         ui_schema = {
             **event.registration_ui_schema,
             'campers': {
+                **event.registration_ui_schema.get('campers', {}),
                 'items': {
-                    'lodging': lodging_ui_schema,
+                    **event.registration_ui_schema.get('campers', {}).get('items', {}),
+                    'lodging': {
+                        **(event.registration_ui_schema
+                           .get('campers', {})
+                           .get('items', {})
+                           .get('lodging', {})),
+                        **(lodging_ui_schema or {}),
+                    }
                 },
             },
         }
