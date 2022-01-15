@@ -57,5 +57,7 @@ jobs:
       - name: Install dependencies
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --deploy --dev
+      - name: Run flake8
+        run: pipenv run flake8
       - name: Run Tests
         run: pipenv run python manage.py test
