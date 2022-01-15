@@ -66,6 +66,9 @@ class Event(TimeStampedModel):
     registration_ui_schema = models.JSONField(
         default=dict,
         help_text="react-jsonschema-form uiSchema for registration form")
+    registration_admin_schema = models.JSONField(
+        default=dict,
+        help_text="JSON schema for Registration.admin_attributes")
     deposit_schema = models.JSONField(default=dict, help_text="JSON schema for Deposit.attributes")
     pricing = models.JSONField(default=dict, help_text="key-value object with pricing variables")
     camper_pricing_logic = models.JSONField(
@@ -109,6 +112,9 @@ class Registration(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
     attributes = models.JSONField(null=True)
+    admin_attributes = models.JSONField(
+        default=dict,
+        help_text="custom attributes for administrative use")
     registrant_email = models.EmailField()
     server_pricing_results = models.JSONField(null=True)
     client_reported_pricing = models.JSONField(null=True)
