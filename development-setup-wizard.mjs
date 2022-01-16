@@ -206,12 +206,12 @@ async function createDjangoSuperUser() {
 
 
 async function loadSampleData() {
-  console.log(chalk.bold('Loading BACDS Family Week sample data...'));
-  await exec(
-    'docker-compose exec -T django bash -c "./manage.py loaddata fixtures/familyweek-seed-data.json"'
-  );
-
-  hooray('Successfully loaded BACDS Family Week sample data');
+  // currently not working
+  // console.log(chalk.bold('Loading BACDS Family Week sample data...'));
+  // await exec(
+  //   'docker-compose exec -T django bash -c "./manage.py loaddata fixtures/familyweek-seed-data.json"'
+  // );
+  // hooray('Successfully loaded BACDS Family Week sample data');
 
   console.log(chalk.bold('Loading Lark Camp sample data...'));
   console.log('You will need to use your superuser credentials');
