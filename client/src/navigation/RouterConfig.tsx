@@ -15,26 +15,9 @@ const OrganizationChooser = React.lazy(() => import('pages/OrganizationChooser')
 const EventChooser = React.lazy(() => import('pages/EventChooser'));
 const EventAdmin = React.lazy(() => import('./EventAdminContainer'));
 
-const EventAdminHome = React.lazy(() => import('pages/EventAdminHome'));
-const Registrations = React.lazy(() => import('pages/EventAdminRegistrations'));
-const Campers = React.lazy(() => import('pages/EventAdminCampers'));
-const Lodging = React.lazy(() => import('pages/EventAdmin/Lodging'));
-const Reports = React.lazy(() => import('pages/EventAdminReports'));
-const Settings = React.lazy(() => import('pages/EventAdmin/Settings'));
-
 //                        url     label   component
 export type RouteTuple = [string, string, React.ComponentType<EventAdminPageProps>];
 export type RouteList = Array<RouteTuple>;
-
-const eventAdminRoutes: RouteList = [
-  ['home', 'Home', EventAdminHome],
-  ['registrations', 'Registrations', Registrations],
-  ['campers', 'Campers', Campers],
-  ['lodging', 'Lodging', Lodging],
-  ['reports', 'Reports', Reports],
-  ['settings', 'Settings', Settings],
-];
-
 
 const RouterConfig = () => {
   const { pathname } = useLocation();
@@ -57,7 +40,7 @@ const RouterConfig = () => {
         <EventChooser />
       </GuardedRoute>
       <GuardedRoute path="/admin/organization/:organizationId/event/:eventId">
-        <EventAdmin routes={eventAdminRoutes} />
+        <EventAdmin />
       </GuardedRoute>
     </Switch>
   );

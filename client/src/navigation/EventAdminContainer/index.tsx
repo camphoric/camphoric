@@ -18,14 +18,29 @@ import {
   useCamperLookup,
 } from 'hooks/admin';
 
+import EventAdminHome from 'pages/EventAdminHome';
+import Registrations  from 'pages/EventAdminRegistrations';
+import Campers        from 'pages/EventAdminCampers';
+import Lodging        from 'pages/EventAdmin/Lodging';
+import Reports        from 'pages/EventAdminReports';
+import Settings       from 'pages/EventAdmin/Settings';
+
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';
 
 import './styles.scss';
 
-interface Props {
-  routes: RouteList;
-}
+
+const eventAdminRoutes: RouteList = [
+  ['home', 'Home', EventAdminHome],
+  ['registrations', 'Registrations', Registrations],
+  ['campers', 'Campers', Campers],
+  ['lodging', 'Lodging', Lodging],
+  ['reports', 'Reports', Reports],
+  ['settings', 'Settings', Settings],
+];
+
+
 
 const basicSearchOptions = {
   isCaseSensitive: true,
@@ -71,7 +86,7 @@ const camperSearchOptions = {
 
 
 
-function EventAdmin({ routes }: Props) {
+function EventAdmin() {
   const { eventId } = useParams<RouterUrlParams>();
   const { value: event } = useEvent(eventId);
   const { pathname } = useLocation();
@@ -96,11 +111,11 @@ function EventAdmin({ routes }: Props) {
   return(
     <Container>
       <Row className="justify-content-md-center"><Col>
-      <NavBar routes={routes} event={event} homeUrl="/admin/organization/:organizationId/event/:eventId/home" />
+      <NavBar routes={eventAdminRoutes} event={event} homeUrl="/admin/organization/:organizationId/event/:eventId/home" />
       <Switch>
         <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
         {
-          routes.map(
+          eventAdminRoutes.map(
             ([route,, Comp]) => (
               <Route path={`${url}/${route}`} key={route}>
                 <div className={`event-admin-section-${route}`}>
