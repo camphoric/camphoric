@@ -17,6 +17,22 @@
       font-size: 0.75rem;
     }
   }
+
+  .navbar-nav a.nav-link {
+    $color: #007bff;
+    color: rgba($color, 0.8);
+    &.selected {
+      color: $color;
+      font-weight: bold;
+    }
+  }
+
+}
+
+.nav-tabs {
+  a.nav-link {
+    color: rgba(0, 0, 0, 0.5);
+  }
 }
 
 div.event-admin-show-raw {
