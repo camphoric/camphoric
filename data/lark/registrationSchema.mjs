@@ -8,7 +8,6 @@ registrations are accepted in the order they are received and your camping
 preferences are processed on a "first come - first served" basis.
 
 Fields marked with an asterisk (*) are required.
-
 `,
     "type": "object",
     "definitions": {
