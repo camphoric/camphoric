@@ -46,7 +46,6 @@ export default {
         "orderable": false
       },
       "items": {
-        "ui:title": "Camper",
         "ui:order": [
           "first_name",
           "last_name",

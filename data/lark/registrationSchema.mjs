@@ -3,9 +3,9 @@ export default {
     "description": `
 Please read [Terms of Registration](http://www.larkcamp.org/campterms.html) before filling out this form.
 
-Fill out this form to complete your registration for Lark Camp 2022 online.
-Please note that registrations are accepted in the order they are received;
-your camping preferences are processed on a “first come - first served” basis.
+Fill out this form to register for Lark Camp 2022 online.  Please note that
+registrations are accepted in the order they are received and your camping
+preferences are processed on a "first come - first served" basis.
 
 Fields marked with an asterisk (*) are required.
 
@@ -180,7 +180,7 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
                     "title": "Full Payment or Deposit Only",
                     "description": `You may pay either your full registration fee or a 50% deposit to reserve your place at camp.
 
-**There are no refunds**; please consider purchasing trip insurance if you know something could prevent your attendance.`,
+Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is refundable.  Please consider purchasing trip insurance if you know something could prevent your attendance.`,
                     "enum": [
                         "full",
                         "deposit"
@@ -223,13 +223,13 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
         "parking_passes": {
             "type": "array",
             "title": "Parking Passes",
-            "description": `The Mendocino Woodlands asks us to carpool when possible to reduce the number of cars in the State Park. [Go to larkcamp.org to find out about sharing rides.](https://www.larkcamp.org/carpool.html)
+            "description": `The Mendocino Woodlands asks us to carpool when possible to reduce the number of cars in the State Park.
 
 **ALL vehicles and trailers are required to have a parking pass.**  
 *Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
 
 *   You can pre-purchase parking passes for \${{pricing.parking_pass}}; you’ll receive your parking pass when you arrive at camp.
-*   If you purchase your parking pass at camp, the cost will be \${{pricing.parking_pass_at_camp}} (note: NO credit cards accepted at that time).`,
+*   If you purchase your parking pass at camp, the cost will be \${{pricing.parking_pass_at_camp}} (no credit cards accepted at camp).`,
             "minItems": 0,
             "maxItems": 4,
             "items": {
