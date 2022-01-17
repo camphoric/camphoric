@@ -3,6 +3,7 @@ import Form from 'react-bootstrap/Form';
 import { WidgetProps } from '@rjsf/core';
 import { utils } from '@rjsf/core';
 import CustomDescriptionField from '../fields/Description';
+import { getSchemaValue } from '../utils';
 
 const { asNumber, guessType } = utils;
 
@@ -41,7 +42,6 @@ const processValue = (schema: any, value: any) => {
 const SelectWidget = (props: WidgetProps) => {
   const {
     schema,
-    uiSchema,
     id,
     options,
     label,
@@ -76,8 +76,8 @@ const SelectWidget = (props: WidgetProps) => {
     }
   }
 
-  const title = label || schema.title || (uiSchema && uiSchema["ui:title"]);
-  const description = schema.description || (uiSchema && uiSchema["ui:description"]);
+  const title = label || getSchemaValue(props, 'title');
+  const description = getSchemaValue(props, 'description');
 
   return (
     <Form.Group>

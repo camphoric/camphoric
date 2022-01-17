@@ -1,5 +1,6 @@
 import React from 'react';
 import CustomDescriptionField from '../fields/Description';
+import { getSchemaValue, getSchemaItemsValue } from '../utils';
 
 /**
  * Modified version of DefaultObjectFieldTemplate from react-jsonschema-form:
@@ -11,12 +12,16 @@ import CustomDescriptionField from '../fields/Description';
  */
 export default function ObjectFieldTemplate(props: any) {
   const { TitleField } = props;
+  const title = getSchemaValue(props, 'title');
+  const description = getSchemaValue(props, 'description');
+  const contentClassNames = getSchemaValue(props, 'contentClassNames');
+
   return (
     <fieldset id={props.idSchema.$id}>
-      {(props.uiSchema["ui:title"] || props.title) && (
+      {!!title && (
         <TitleField
           id={`${props.idSchema.$id}__title`}
-          title={props.title || props.uiSchema["ui:title"]}
+          title={title}
           required={props.required}
           formContext={props.formContext}
         />
@@ -24,10 +29,10 @@ export default function ObjectFieldTemplate(props: any) {
       {props.description && (
         <CustomDescriptionField
           id={`${props.idSchema.$id}__description`}
-          description={props.description}
+          description={description}
         />
       )}
-      <div className={props.uiSchema.contentClassNames || "content"}>
+      <div className={contentClassNames || "content"}>
           {props.properties.map((prop: any) => prop.content)}
       </div>
     </fieldset>
