@@ -1,7 +1,8 @@
 import React, { ChangeEvent } from 'react';
 import Form from "react-bootstrap/Form";
-
 import { WidgetProps } from "@rjsf/core";
+
+import { getSchemaValue } from '../utils';
 
 export interface Props extends WidgetProps {
   value: string;
@@ -20,13 +21,14 @@ function NaturalNumberInput(props: Props) {
     props.onChange(sanitized);
   }
 
+  const title = props.label || getSchemaValue(props, 'title');
   const rawErrors = props.rawErrors || [];
 
   return (
     <Form.Group className="natural-number-input mb-0 col-auto">
       <Form.Label className={rawErrors.length > 0 ? 'text-danger' : ''}>
-        {props.label || props.schema.title}
-        {(props.label || props.schema.title) && props.required ? '*' : null}
+        {title}
+        {!!title && props.required ? '*' : null}
       </Form.Label>
       <input
         id={props.id}

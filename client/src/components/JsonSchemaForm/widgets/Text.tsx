@@ -2,29 +2,30 @@ import React from 'react';
 import Form from 'react-bootstrap/Form';
 import { WidgetProps } from '@rjsf/core';
 import CustomDescriptionField from '../fields/Description';
+import { getSchemaValue } from '../utils';
 
 export interface TextWidgetProps extends WidgetProps {
   type?: string;
 }
 
-const TextWidget = ({
-  id,
-  required,
-  readonly,
-  disabled,
-  type,
-  label,
-  value,
-  onChange,
-  onBlur,
-  onFocus,
-  autofocus,
-  options,
-  schema,
-  uiSchema,
-  rawErrors = [],
+const TextWidget = (props: TextWidgetProps) => {
+  const {
+    id,
+    required,
+    readonly,
+    disabled,
+    type,
+    label,
+    value,
+    onChange,
+    onBlur,
+    onFocus,
+    autofocus,
+    options,
+    schema,
+    rawErrors = [],
+  } = props;
 
-}: TextWidgetProps) => {
   const _onChange = ({
     target: { value },
   }: React.ChangeEvent<HTMLInputElement>) =>
@@ -35,8 +36,8 @@ const TextWidget = ({
     target: { value },
   }: React.FocusEvent<HTMLInputElement>) => onFocus(id, value);
 
-  const title = label || schema.title || (uiSchema && uiSchema["ui:title"]);
-  const description = schema.description || (uiSchema && uiSchema["ui:description"]);
+  const title = label || getSchemaValue(props, 'title');
+  const description = getSchemaValue(props, 'description');
 
   return (
     <Form.Group>

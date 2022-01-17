@@ -3,6 +3,7 @@ import { FieldProps } from '@rjsf/core';
 import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 import Form from 'react-bootstrap/Form';
 import AddressField from './AddressField';
+import { getSchemaValue, getSchemaItemsValue } from '../../utils';
 
 export type Keys = 'street_address' | 'city' | 'state_or_province' | 'zip_code';
 
@@ -32,7 +33,7 @@ export interface Props extends FieldProps<FormData> {
 const Address = (props: Props) => {
   const { TitleField } = props.registry.fields;
   const { SelectWidget } = props.registry.widgets;
-  const title = props.schema.title || props.uiSchema["ui:title"] || props.title;
+  const title = getSchemaValue(props, 'title');
 
   const makeOnChange = (name: string) => ({
     target: { value },
