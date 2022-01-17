@@ -36,6 +36,7 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
+# TODO: https://github.com/camphoric/camphoric/issues/185
 STATIC_URL = '/static/'
 
 # Application definition
@@ -144,6 +145,7 @@ USE_TZ = True
 
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
 
+# TODO: https://github.com/camphoric/camphoric/issues/185
 STATICFILES_DIRS = [
     os.path.join(REACT_BUILD_DIR, 'static'),
 ]

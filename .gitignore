@@ -110,6 +110,10 @@ venv.bak/
 # Data import tool
 .auth-token
 
+# Django generated with manage.py collectstatic
+# TODO: https://github.com/camphoric/camphoric/issues/185
+staticfiles/
+
 # Camphoric frontend 
 frontend_bootstrap/build/
 node_modules/
