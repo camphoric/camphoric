@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useRouteMatch } from 'react-router-dom';
+import { Link, useRouteMatch, useLocation } from 'react-router-dom';
 
 import { Navbar, Nav } from 'react-bootstrap';
 
@@ -17,6 +17,8 @@ function ExportedNavBar (props: Props) {
     useOrganizations().value.find(o => o.id === props.event.organization)
     || { name: '' };
   const { url } = useRouteMatch();
+  const { pathname } = useLocation();
+  const selected = pathname.split('/').pop();
 
   return(
     <Navbar bg="light" expand="lg">
@@ -30,7 +32,14 @@ function ExportedNavBar (props: Props) {
           {
             props.routes.map(
               ([route, title]) => (
-                <Nav.Link key={route} as={Link} to={`${url}/${route}`}>{title}</Nav.Link>
+                <Nav.Link
+                  className={route === selected ? 'selected' : ''}
+                  key={route}
+                  as={Link}
+                  to={`${url}/${route}`}
+                >
+                  {title}
+                </Nav.Link>
               )
             )
           }
