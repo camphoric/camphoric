@@ -23,8 +23,8 @@ export default {
     camp1: { parentKey: "root", name: "Camp 1", children_title: "Select a lodging type", visible: true },
     camp1_tent: { parentKey: "camp1", name: "Camp 1: Tent", children_title: "Select a tent area", visible: true },
     camp1_tent_area_A: { parentKey: "camp1_tent", name: "Camp 1: Tent Area A", visible: true, capacity: 30, reserved: 5 },
-    camp1_tent_area_B: { parentKey: "camp1_tent", name: "Camp 1: Tent Brea B", visible: true, capacity: 60, reserved: 15 },
-    camp1_tent_area_C: { parentKey: "camp1_tent", name: "Camp 1: Tent Crea C", visible: true, capacity: 30, reserved: 5 },
+    camp1_tent_area_B: { parentKey: "camp1_tent", name: "Camp 1: Tent Area B", visible: true, capacity: 60, reserved: 15 },
+    camp1_tent_area_C: { parentKey: "camp1_tent", name: "Camp 1: Tent Area C", visible: true, capacity: 30, reserved: 5 },
 
     camp1_rv: { parentKey: "camp1", name: "Camp 1: RV", visible: true, children_title: "Select your RV size" },
     camp1_rv_sm: { parentKey: "camp1_rv", name: "Camp 1: RV under 15' long", visible: true, capacity: 20, reserved: 10 },

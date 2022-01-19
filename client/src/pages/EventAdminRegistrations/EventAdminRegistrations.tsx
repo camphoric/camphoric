@@ -7,6 +7,7 @@ import {
   Col,
 } from 'react-bootstrap';
 import Fuse from 'fuse.js';
+import * as fuseUtils from 'utils/fuse';
 
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
@@ -19,10 +20,12 @@ function EventAdminRegistrations(props: EventAdminPageProps) {
   const registrationId = useQuery('registrationId');
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  const results = registrationSearch.search(searchQuery);
-  // console.log(getAllKeys(props.registrations[0].attributes));
-  // console.log(props.registrations[0]);
-  // console.log('searchResults', results);
+  let results;
+  if (searchQuery.length) {
+    results = registrationSearch.search(searchQuery);
+  } else {
+    results = fuseUtils.getFirstNOf(registrationSearch, 10);
+  }
 
   return (
     <Container>

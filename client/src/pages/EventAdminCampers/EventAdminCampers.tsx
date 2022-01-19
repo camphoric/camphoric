@@ -7,6 +7,7 @@ import {
   Col,
 } from 'react-bootstrap';
 import Fuse from 'fuse.js';
+import * as fuseUtils from 'utils/fuse';
 
 import CamperSearchResult from './CamperSearchResult';
 import CamperEdit from './CamperEdit';
@@ -19,10 +20,12 @@ function EventAdminCampers(props: EventAdminPageProps) {
   const camperId = useQuery('camperId');
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  const results = camperSearch.search(searchQuery);
-  // console.log(getAllKeys(props.campers[0].attributes));
-  // console.log(props.campers[0]);
-  // console.log('searchResults', results);
+  let results;
+  if (searchQuery.length) {
+    results = camperSearch.search(searchQuery);
+  } else {
+    results = fuseUtils.getFirstNOf(camperSearch, 10);
+  }
 
   return (
     <Container>

@@ -1,11 +1,10 @@
 export default {
     "title": "Lark Camp 2022 Registration",
     "description": `
-Please read [Terms of Registration](http://www.larkcamp.org/campterms.html) before filling out this form.
+Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before you fill out this form.
 
-Fill out this form to register for Lark Camp 2022 online.  Please note that
-registrations are accepted in the order they are received and your camping
-preferences are processed on a "first come - first served" basis.
+Please note that registrations are accepted in the order they are received and
+your camping preferences are processed on a "first come - first served" basis.
 
 Fields marked with an asterisk (*) are required.
 `,
