@@ -1,6 +1,7 @@
-.registration-results .card {
+.camper-results .card {
   color: inherit;
   margin-bottom: .5rem;
+  border-color: rgba(0, 0, 0, 0.25);
 
   &.selected {
     background-color: rgba(50,189,82,.5);

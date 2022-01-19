@@ -138,11 +138,16 @@ class App extends React.Component<Props, RegistrationState> {
     if (this.state.status === "fetching") {
       return;
     }
-    
-    this.setState(({ 
+
+    const data = {
       formData,
       totals: calculatePrice(this.state.config, formData),
-    }) as LoadedState);
+    } as LoadedState;
+
+    // for debug
+    // console.log(data);
+
+    this.setState(data);
   };
 
   transformErrors = (errors: Array<any>) =>
