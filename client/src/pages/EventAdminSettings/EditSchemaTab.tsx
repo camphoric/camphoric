@@ -6,7 +6,7 @@ import {
 import Spinner from 'components/Spinner';
 import JsonEditor from 'components/JsonEditor';
 
-import { TabProps, EditableSchemaKeys } from './EventAdminHome';
+import { TabProps, EditableSchemaKeys } from './EventAdminSettings';
 
 interface Props extends TabProps {
   name: EditableSchemaKeys,
