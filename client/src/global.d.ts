@@ -2,7 +2,6 @@ import { JSONSchema7 } from "json-schema";
 import {
   UiSchema as JsonFormUiSchema,
 } from '@rjsf/core';
-import Fuse from 'fuse.js';
 
 type JSONLogic = any;
 type Template = any;
@@ -24,6 +23,7 @@ declare global {
     user_permissions: object[];
     username: string;
   }
+
   export interface ApiAnonymousUser {
     id: null;
     groups: [];
@@ -34,6 +34,7 @@ declare global {
     user_permissions: [];
     username: '';
   }
+
   export interface ApiEvent {
     id: number;
     created_at: string | null;
@@ -100,6 +101,18 @@ declare global {
     attributes: any;
     registration: number | string;
     lodging: any;
+  }
+
+  export interface ApiRegistrationType {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    event: number | string;
+    invitation_email_subject: string;
+    invitation_email_template: string;
+    label: string;
+    name: string;
   }
 
   export type JsonLogicPricing = Array<{
