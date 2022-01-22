@@ -1,10 +1,11 @@
 import React from 'react';
 
+import { Tabs, Tab } from 'react-bootstrap';
 import { useEvent } from 'hooks/admin';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForApi } from 'utils/time';
 
-import EventAdminHomeComponent from './EventAdminHomeComponent';
+import EditSchemaTab from './EditSchemaTab';
 
 export interface TabProps {
   handleFormChange: (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
@@ -13,6 +14,23 @@ export interface TabProps {
   event: ApiEvent;
   save: () => any;
 }
+
+type EditableSchemaConfig = {
+  order: number,
+  title: string,
+}
+
+export const editableSchemas = {
+  camper_schema:              { order: 1, title: 'Camper' },
+  registration_schema:        { order: 2, title: 'Registration' },
+  registration_ui_schema:     { order: 3, title: 'Form UI' },
+  camper_pricing_logic:       { order: 4, title: 'Camper Pricing' },
+  registration_pricing_logic: { order: 5, title: 'Reg Pricing' },
+  deposit_schema:             { order: 6, title: 'Deposits' },
+  payment_schema:             { order: 7, title: 'Payment' },
+}
+
+export type EditableSchemaKeys = keyof typeof editableSchemas;
 
 function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
   const [event, setEvent] = React.useState<ApiEvent>(originalEvent);
@@ -55,7 +73,24 @@ function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
   };
 
   return (
-    <EventAdminHomeComponent {...tabProps} />
+    <Tabs defaultActiveKey="camper_schema">
+      {
+        (Object.keys(editableSchemas) as Array<EditableSchemaKeys>)
+          .sort((a, b) => editableSchemas[a].order - editableSchemas[b].order)
+          .map((schemaName) => {
+            const schema = editableSchemas[schemaName] as EditableSchemaConfig;
+
+            return (
+              <Tab key={schemaName} eventKey={schemaName} title={schema.title}>
+                <EditSchemaTab
+                  {...tabProps}
+                  name={schemaName}
+                />
+              </Tab>
+            );
+          })
+      }
+    </Tabs>
   );
 }
 
