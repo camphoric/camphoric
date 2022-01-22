@@ -5,7 +5,7 @@ import Input, { TextArea, KeyValueEdit } from 'components/Input';
 import { formatDateTimeForForm } from 'utils/time';
 import ShowRawJSON from 'components/ShowRawJSON';
 
-function EditBasicTab(props: TabProps) {
+function EventAdminHomeComponent(props: TabProps) {
   return (
     <>
       <Input
@@ -75,4 +75,4 @@ function EditBasicTab(props: TabProps) {
   )
 }
 
-export default EditBasicTab;
+export default EventAdminHomeComponent;

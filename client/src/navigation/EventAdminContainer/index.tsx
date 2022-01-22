@@ -23,7 +23,7 @@ import Registrations  from 'pages/EventAdminRegistrations';
 import Campers        from 'pages/EventAdminCampers';
 import Lodging        from 'pages/EventAdmin/Lodging';
 import Reports        from 'pages/EventAdminReports';
-import Settings       from 'pages/EventAdmin/Settings';
+import Settings       from 'pages/EventAdminSettings';
 
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';

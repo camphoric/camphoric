@@ -1,0 +1,14 @@
+// Boostrap width utilities is limiting and only has a few percentage options.
+// Needed more dynamic custom styling than made sense inline.
+// https://stackoverflow.com/questions/50477193/bootstrap4-make-all-input-group-addons-same-width
+.home-input-group {
+    margin-right: -1px;
+    width: 30%;
+    max-width: 115px;
+    .input-group-text {
+        width: 100%;
+        overflow: hidden;
+        display: inline-flex;
+    }
+}
+
