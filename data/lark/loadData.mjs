@@ -28,6 +28,7 @@ const modules = {
   pricing: (await import('./pricing/pricing.mjs')).default,
   registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
   registration_schema: (await import('./registrationSchema.mjs')).default,
+  registration_types: (await import('./registrationTypes.mjs')).default,
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
   lodgings: (await import('./lodgings.mjs')).default,
 };
@@ -46,6 +47,9 @@ async function main() {
 
   await loadLodgings(token, evt);
 	console.log('Processed event lodging');
+
+  await loadRegTypes(token, evt);
+  console.log('Processed event registration types');
 
 	console.log('Finished!');
   return true;
@@ -183,6 +187,49 @@ async function loadLodgings(token, event) {
     idLookup[key] = createdLodging.id;
   }
 }
+
+async function loadRegTypes(token, event) {
+  // delete existing lodgings
+  let response = await fetch(`${urlBase}/api/registrationtypes/`, {
+      method: 'GET',
+      headers: { 'Authorization': `Token ${token}` },
+  });
+
+  const existingRegTypes = (await response.json())
+    .filter(regType => regType.event === event.id);
+
+  await Promise.all(
+    modules.registration_types.map(
+      async (regType) => {
+        const exists = existingRegTypes.find(r => r.name === regType.name);
+
+        if (exists) {
+          regType.id = exists.id;
+        }
+
+        regType.event = event.id
+
+        let text, json;
+        try {
+          response = await fetch(`${urlBase}/api/registrationtypes/${exists ? `${regType.id}/` : ''}`, {
+            method: exists ? 'PUT' : 'POST',
+            headers: {
+              'Authorization': `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(regType),
+          });
+          text = await response.text();
+
+          json = JSON.parse(text);
+        } catch(e) {
+          console.error(e, text);
+        }
+      }
+    )
+  );
+}
+
 
 export default main;
 
