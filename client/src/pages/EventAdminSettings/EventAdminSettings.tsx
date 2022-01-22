@@ -6,6 +6,7 @@ import Spinner from 'components/Spinner';
 import { formatDateTimeForApi } from 'utils/time';
 
 import EditSchemaTab from './EditSchemaTab';
+import EditRegistrationTypes from './EditRegistrationTypes';
 
 export interface TabProps {
   handleFormChange: (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
@@ -90,6 +91,9 @@ function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
             );
           })
       }
+      <Tab key="registrationTypes" eventKey="registrationTypes" title="Registration Types">
+        <EditRegistrationTypes {...tabProps} />
+      </Tab>
     </Tabs>
   );
 }
