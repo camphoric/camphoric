@@ -266,6 +266,7 @@ class RegisterGetTests(APITestCase):
                     'ui:description': 'stuff about a camper',
                     'lodging': {
                         'ui:description': 'stuff about lodging',
+                        'ui:order': ['lodging_1', 'lodging_shared', 'lodging_shared_with'],
                         'lodging_1': {
                             'ui:enumDisabled': [camp1.id],
                         },

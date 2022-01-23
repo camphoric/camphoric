@@ -51,7 +51,9 @@ class TestGetLodgingSchema(TestCase):
                 'lodging_shared': LODGING_SHARED_DEPENDENCY,
             },
         })
-        self.assertEqual(ui_schema, {})
+        self.assertEqual(ui_schema, {
+            'ui:order': ['lodging_shared', 'lodging_shared_with'],
+        })
 
     def test_lodging_with_node_with_children(self):
         root = self.event.lodging_set.create(
@@ -112,7 +114,9 @@ class TestGetLodgingSchema(TestCase):
             },
         })
 
-        self.assertEqual(ui_schema, {})
+        self.assertEqual(ui_schema, {
+            'ui:order': ['lodging_1', 'lodging_shared', 'lodging_shared_with'],
+        })
 
     def test_lodging_with_node_with_children_and_grandchildren(self):
         root = self.event.lodging_set.create(
@@ -248,7 +252,14 @@ class TestGetLodgingSchema(TestCase):
             }
         })
 
-        self.assertEqual(ui_schema, {})
+        self.assertEqual(ui_schema, {
+            'ui:order': [
+                'lodging_1',
+                'lodging_2',
+                'lodging_shared',
+                'lodging_shared_with',
+            ],
+        })
 
     def test_full_lodging_options(self):
         root = self.event.lodging_set.create(
@@ -324,6 +335,12 @@ class TestGetLodgingSchema(TestCase):
         )
 
         self.assertEqual(ui_schema, {
+            'ui:order': [
+                'lodging_1',
+                'lodging_2',
+                'lodging_shared',
+                'lodging_shared_with',
+            ],
             'lodging_2': {
                 'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
             },
