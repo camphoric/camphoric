@@ -601,6 +601,8 @@ Total due: $300
                     'lodging': {
                         'lodging_1': tent.id,
                         'lodging_2': tent_areas[1].id,
+                        'lodging_shared': True,
+                        'lodging_shared_with': 'my buddy',
                     },
                 },
             ],
@@ -620,8 +622,14 @@ Total due: $300
         registrations = models.Registration.objects.all()
         registration = registrations[0]
         campers = registration.campers.all()
+
         self.assertEqual(campers[0].lodging_id, cabins[0].id)
+        self.assertEqual(campers[0].lodging_shared, False)
+        self.assertEqual(campers[0].lodging_shared_with, '')
+
         self.assertEqual(campers[1].lodging_id, tent_areas[1].id)
+        self.assertEqual(campers[1].lodging_shared, True)
+        self.assertEqual(campers[1].lodging_shared_with, 'my buddy')
 
     def test_post_invitation(self):
         registration_type = models.RegistrationType.objects.create(

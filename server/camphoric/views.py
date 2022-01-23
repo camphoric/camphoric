@@ -394,28 +394,31 @@ class RegisterView(APIView):
                     'lodging_1': 17,
                     'lodging_2': 20,
                     'lodging_3': 25
+                    'lodging_shared': True,
+                    'lodging_shared_with': 'my buddy',
                 }
             }
 
-        Each item in the `lodging` dict is a selection along the lodging tree.
-        The one with the highest number is the final selection.
+        Each item in the `lodging` dict whose key has a numeric suffix is a
+        selection along the lodging tree. The one with the highest number is the
+        final selection.
         '''
 
-        lodging_id = None
+        lodging_data = {}
         if 'lodging' in camper_data:
-            camper_data = dict(camper_data)  # shallow copy
             lodging_data = camper_data['lodging']
             del camper_data['lodging']
-            lodging_key = max(
-                lodging_data.keys(),
-                key=lambda k: int(k.split('_')[1])
-            )
-            lodging_id = lodging_data[lodging_key]
+
+        matches = [re.match(r'^lodging_([0-9]+)$', key) for key in lodging_data.keys()]
+        depths = [int(match.group(1)) for match in matches if match]
+        lodging_id = lodging_data[f'lodging_{max(depths)}'] if len(depths) else None
 
         return models.Camper(
             registration=registration,
             attributes=camper_data,
             lodging_id=lodging_id,
+            lodging_shared=lodging_data.get('lodging_shared', False),
+            lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
         )
 
     @classmethod
