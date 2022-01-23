@@ -1,9 +1,45 @@
-.registration-results .card {
-  color: inherit;
-  margin-bottom: .5rem;
+.event-admin-section-registrations {
+  .control-buttons {
+    margin: .2rem;
 
-  &.selected {
-    background-color: rgba(50,189,82,.5);
+    button {
+      margin-right: .2rem;
+      flex-grow: 1;
 
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+
+  .card {
+    color: inherit;
+    margin-top: .5rem;
+
+    &.selected {
+      background-color: rgba(50,189,82,.5);
+
+    }
+  }
+
+
+
+  .registration-edit {
+  }
+
+  .special-registration {
+    .card {
+       cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      margin: .2rem;
+      border-collapse: collapse;
+      border: 1px solid black;
+      th { border: 1px solid black; }
+      td { border: 1px solid black; }
+
+    }
   }
 }

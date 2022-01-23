@@ -5,7 +5,6 @@ import {
   Container,
   Row,
   Col,
-  Tabs, Tab,
 } from 'react-bootstrap';
 import Fuse from 'fuse.js';
 import * as fuseUtils from 'utils/fuse';
@@ -28,10 +27,10 @@ function EditTab(props: EventAdminPageProps) {
   }
 
   return (
-    <Container>
+    <Container className="registration-edit">
       <Row>
         <Col md={3} className="registration-results">
-          <InputGroup className="mb-3">
+          <InputGroup className="mb-3 control-buttons">
             <FormControl
               placeholder="search"
               aria-label="search"
