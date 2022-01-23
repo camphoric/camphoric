@@ -3,7 +3,11 @@ from django.db import connection, reset_queries
 from django.test import TestCase
 
 from camphoric import models
-from camphoric.lodging import get_lodging_schema
+from camphoric.lodging import (
+    LODGING_SHARED_DEPENDENCY,
+    LODGING_SHARED_PROPERTY,
+    get_lodging_schema,
+)
 
 
 class TestGetLodgingSchema(TestCase):
@@ -40,8 +44,12 @@ class TestGetLodgingSchema(TestCase):
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
-            'properties': {},
-            'dependencies': {},
+            'properties': {
+                'lodging_shared': LODGING_SHARED_PROPERTY,
+            },
+            'dependencies': {
+                'lodging_shared': LODGING_SHARED_DEPENDENCY,
+            },
         })
         self.assertEqual(ui_schema, {})
 
@@ -96,9 +104,12 @@ class TestGetLodgingSchema(TestCase):
                         camp3.name
                     ],
                 },
+                'lodging_shared': LODGING_SHARED_PROPERTY,
             },
             'required': ['lodging_1'],
-            'dependencies': {},
+            'dependencies': {
+                'lodging_shared': LODGING_SHARED_DEPENDENCY,
+            },
         })
 
         self.assertEqual(ui_schema, {})
@@ -201,6 +212,7 @@ class TestGetLodgingSchema(TestCase):
                         'Camp 2',
                     ],
                 },
+                'lodging_shared': LODGING_SHARED_PROPERTY,
             },
             'required': ['lodging_1'],
             'dependencies': {
@@ -224,14 +236,15 @@ class TestGetLodgingSchema(TestCase):
                                         'Tents in Camp 1',
                                         'Cabins in Camp 1',
                                         'RVs in Camp 1',
-                                    ]
-                                }
+                                    ],
+                                },
                             },
                             'required': ['lodging_2'],
                             'dependencies': {},
-                        }
-                    ]
-                }
+                        },
+                    ],
+                },
+                'lodging_shared': LODGING_SHARED_DEPENDENCY,
             }
         })
 

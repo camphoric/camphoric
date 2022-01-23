@@ -8,6 +8,7 @@ import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase, APIClient
 
 from camphoric import models
+from camphoric.lodging import LODGING_SHARED_PROPERTY, LODGING_SHARED_DEPENDENCY
 
 
 class LoginTests(APITestCase):
@@ -189,10 +190,13 @@ class RegisterGetTests(APITestCase):
                                     'title': 'Please choose a lodging option',
                                     'enum': [cabin.id, tent.id],
                                     'enumNames': ['Cabin', 'Tent'],
-                                }
+                                },
+                                'lodging_shared': LODGING_SHARED_PROPERTY,
                             },
                             'required': ['lodging_1'],
-                            'dependencies': {},
+                            'dependencies': {
+                                'lodging_shared': LODGING_SHARED_DEPENDENCY,
+                            },
                         },
                     },
                 },
