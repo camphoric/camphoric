@@ -28,6 +28,33 @@ from collections import defaultdict
 from django.db.models import Count, Q
 
 
+LODGING_SHARED_PROPERTY = {
+    'type': 'boolean',
+    'title': 'I will be sharing this space with one or more other people',
+}
+
+
+LODGING_SHARED_DEPENDENCY = {
+    'oneOf': [
+        {
+            'properties': {
+                'lodging_shared': {'enum': [False]},
+            },
+        },
+        {
+            'properties': {
+                'lodging_shared': {'enum': [True]},
+                'lodging_shared_with': {
+                    'type': 'string',
+                    'title': 'Who will you be sharing this space with?',
+                },
+            },
+            'required': ['lodging_shared_with'],
+        },
+    ],
+}
+
+
 def get_lodging_schema(event, show_all=False):
     '''
     Return a tuple with the JSON schema and UI schema for the lodging for the
@@ -119,8 +146,12 @@ def get_lodging_json_schema(tree):
         return {
             'type': 'object',
             'title': root.lodging.name,
-            'properties': {},
-            'dependencies': {},
+            'properties': {
+                'lodging_shared': LODGING_SHARED_PROPERTY,
+            },
+            'dependencies': {
+                'lodging_shared': LODGING_SHARED_DEPENDENCY,
+            },
         }
 
     return {
@@ -128,9 +159,13 @@ def get_lodging_json_schema(tree):
         'title': root.lodging.name,
         'properties': {
             'lodging_1': make_enum(root),
+            'lodging_shared': LODGING_SHARED_PROPERTY,
         },
         'required': ['lodging_1'],
-        'dependencies': make_dependencies(root, 1),
+        'dependencies': {
+            **make_dependencies(root, 1),
+            'lodging_shared': LODGING_SHARED_DEPENDENCY,
+        },
     }
 
 
