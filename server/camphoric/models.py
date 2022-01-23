@@ -181,6 +181,9 @@ class Lodging(TimeStampedModel):
     capacity = models.IntegerField(default=0, help_text="total camper capacity")
     reserved = models.IntegerField(default=0, help_text="number of reserved spots")
     visible = models.BooleanField(default=False, help_text="true if visible on registration form")
+    sharing_multiplier = models.FloatField(
+        default=1,
+        help_text="campers with lodging_shared=True subtract this quantity from capacity")
     notes = models.TextField(blank=True, default='')
 
 
@@ -198,6 +201,14 @@ class Camper(TimeStampedModel):
     lodging_reserved = models.BooleanField(
         default=False,
         help_text="true if this camper is assigned to a reserved lodging spot")
+    lodging_shared = models.BooleanField(
+        default=False,
+        help_text="true if this camper is sharing a space with other camper(s)")
+    lodging_shared_with = models.CharField(
+        blank=True,
+        default='',
+        max_length=255,
+        help_text="names of other campers in shared space, relevant if lodging_shared=True")
     attributes = models.JSONField(null=True)
 
 
