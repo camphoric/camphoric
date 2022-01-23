@@ -29,24 +29,31 @@ class TestLodgingTree(TestCase):
             name='camp2', parent=self.root)
 
         self.tents_camp1 = self.event.lodging_set.create(
-            name='tents_camp1', parent=self.camp1)
+            name='tents_camp1', parent=self.camp1,
+            sharing_multiplier=0.5)
         self.cabins_camp1 = self.event.lodging_set.create(
             name='cabins_camp1', parent=self.camp1)
 
         self.tents_camp2 = self.event.lodging_set.create(
-            name='tents_camp2', parent=self.camp2)
+            name='tents_camp2', parent=self.camp2,
+            sharing_multiplier=0.5)
         self.cabins_camp2 = self.event.lodging_set.create(
             name='cabins_camp2', parent=self.camp2)
 
         self.tents_camp1_A = self.event.lodging_set.create(
-            name='tents_camp1_A', parent=self.tents_camp1, capacity=10)
+            name='tents_camp1_A', parent=self.tents_camp1, capacity=10,
+            sharing_multiplier=0.5)
         self.tents_camp1_B = self.event.lodging_set.create(
-            name='tents_camp1_B', parent=self.tents_camp1, capacity=20)
+            name='tents_camp1_B', parent=self.tents_camp1, capacity=20,
+            sharing_multiplier=0.5)
 
         self.tents_camp2_A = self.event.lodging_set.create(
-            name='tents_camp2_A', parent=self.tents_camp2, capacity=30)
+            name='tents_camp2_A', parent=self.tents_camp2, capacity=30,
+            sharing_multiplier=0.5)
+
         self.tents_camp2_B = self.event.lodging_set.create(
-            name='tents_camp2_B', parent=self.tents_camp2, capacity=40)
+            name='tents_camp2_B', parent=self.tents_camp2, capacity=40,
+            sharing_multiplier=0.5)
 
         self.cabins_camp1_A = self.event.lodging_set.create(
             name='cabins_camp1_A', parent=self.cabins_camp1, capacity=2, reserved=2)
@@ -103,10 +110,26 @@ class TestLodgingTree(TestCase):
             lodging=self.cabins_camp1_A,
             lodging_reserved=True)
 
+        # test that campers with lodging_shared=True count as a partial camper
+        # per Lodging.sharing_multiplier
+        registration2.campers.create(
+            lodging=self.tents_camp1_A, lodging_shared=True)
+        registration2.campers.create(
+            lodging=self.tents_camp1_A, lodging_shared=True)
+        registration2.campers.create(
+            lodging=self.tents_camp1_A, lodging_shared=True, lodging_reserved=True)
+
         tree = LodgingTree(self.event).build()
 
-        self.assertEqual(tree.get(self.camp1.id).camper_count, 6)
-        self.assertEqual(tree.get(self.camp1.id).camper_reserved_count, 2)
+        self.assertEqual(tree.get(self.camp1.id).camper_count, 9)
+        self.assertEqual(tree.get(self.camp1.id).camper_reserved_count, 3)
 
         self.assertEqual(tree.get(self.cabins_camp1_A.id).camper_count, 2)
         self.assertEqual(tree.get(self.cabins_camp1_A.id).camper_reserved_count, 2)
+
+        self.assertEqual(
+            tree.get(self.tents_camp1_A.id).camper_count_adjusted, 1.5)
+        self.assertEqual(
+            tree.get(self.tents_camp1_A.id).camper_reserved_count_adjusted, 0.5)
+        self.assertEqual(
+            tree.get(self.tents_camp1_A.id).remaining_unreserved_capacity, 9)
