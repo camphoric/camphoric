@@ -25,7 +25,7 @@ See also:
 
 from collections import defaultdict
 
-from django.db.models import Count, Q
+from django.db.models import Count, Sum, Q
 
 
 LODGING_SHARED_PROPERTY = {
@@ -210,6 +210,12 @@ class LodgingTree:
             camper_reserved_count=Count(
                 'camper',
                 filter=(camper_event_filter & camper_reserved_filter)),
+            camper_count_adjusted=Sum(
+                'camper__lodging__sharing_multiplier',
+                filter=camper_event_filter),
+            camper_reserved_count_adjusted=Sum(
+                'camper__lodging__sharing_multiplier',
+                filter=(camper_event_filter & camper_reserved_filter)),
         ).order_by('id')
 
         for lodging in annotated_lodgings:
@@ -270,6 +276,11 @@ class LodgingTreeNode:
         self.camper_reserved_count = lodging.camper_reserved_count + sum(
             child.camper_reserved_count for child in children)
 
+        self.camper_count_adjusted = (lodging.camper_count_adjusted or 0) + sum(
+            child.camper_count_adjusted for child in children)
+        self.camper_reserved_count_adjusted = (lodging.camper_reserved_count_adjusted or 0) + sum(
+            child.camper_reserved_count_adjusted for child in children)
+
     @property
     def visible_children(self):
         return [c for c in self.children if c.visible]
@@ -282,4 +293,4 @@ class LodgingTreeNode:
     def remaining_unreserved_capacity(self):
         return (
             (self.capacity - self.reserved)
-            - (self.camper_count - self.camper_reserved_count))
+            - (self.camper_count_adjusted - self.camper_reserved_count_adjusted))
