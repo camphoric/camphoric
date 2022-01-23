@@ -174,8 +174,12 @@ def get_lodging_ui_schema(tree):
         return None
 
     ui_schema = {}
+    max_depth = 0
 
-    def set_enum_disabled(node, depth):
+    def traverse(node, depth):
+        nonlocal max_depth
+        max_depth = max(max_depth, depth)
+
         if node.remaining_unreserved_capacity <= 0:
             key = f'lodging_{depth}'
             if key not in ui_schema:
@@ -183,9 +187,15 @@ def get_lodging_ui_schema(tree):
             ui_schema[key]['ui:enumDisabled'].append(node.lodging.id)
 
         for child in node.children:
-            set_enum_disabled(child, depth + 1)
+            traverse(child, depth + 1)
 
-    set_enum_disabled(tree.root, 0)
+    traverse(tree.root, 0)
+
+    ui_schema['ui:order'] = [
+        *(f'lodging_{depth}' for depth in range(1, max_depth + 1)),
+        'lodging_shared',
+        'lodging_shared_with',
+    ]
 
     return ui_schema
 
