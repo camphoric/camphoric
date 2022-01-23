@@ -8,7 +8,7 @@ freezegun = "*"
 flake8 = "*"
 
 [packages]
-django = "*"
+django = "<4.0"
 djangorestframework = "*"
 django-environ = "*"
 jsonschema = "*"
