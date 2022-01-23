@@ -115,6 +115,20 @@ declare global {
     name: string;
   }
 
+  export interface ApiInvitation {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    registration?: string | number;
+    registration_type?: string;
+    invitation_code: string;
+    recipient_name: string;
+    recipient_email: string;
+    sent_time?: string | number;
+    expiration_time?: string | number;
+  }
+
   export type JsonLogicPricing = Array<{
     label?: string;
     var: string;
