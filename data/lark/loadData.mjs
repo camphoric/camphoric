@@ -176,6 +176,7 @@ async function loadLodgings(token, event) {
         children_title: lodging.children_title,
         visible: lodging.visible,
         capacity: lodging.capacity || 0,
+        sharing_multiplier: lodging.sharing_multiplier || 1,
       }),
     });
     const createdLodging = await response.json();
