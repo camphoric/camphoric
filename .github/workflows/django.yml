@@ -53,10 +53,10 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
+          key: ${{ runner.os }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}
       - name: Install dependencies
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
-        run: pipenv install --deploy --dev
+        run: pipenv install --deploy --dev --three
       - name: Run flake8
         run: pipenv run flake8
       - name: Run Tests
