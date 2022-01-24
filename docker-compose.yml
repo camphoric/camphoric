@@ -7,6 +7,7 @@ services:
   postgres:
     image: postgres:13
     env_file:
+      - ./env/local/shared.env
       - ./env/local/postgres.env
     ports:
       - "5434:5432"
@@ -20,6 +21,7 @@ services:
 
   django:
     env_file:
+      - ./env/local/shared.env
       - ./env/local/django.env
     build: server/
     volumes:
@@ -41,6 +43,7 @@ services:
 
   react:
     env_file:
+      - ./env/local/shared.env
       - ./env/local/react.env
     build:
       context: client
