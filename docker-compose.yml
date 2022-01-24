@@ -19,11 +19,12 @@ services:
       retries: 3
 
   django:
+    env_file:
+      - ./env/local/django.env
     build: server/
     volumes:
       - ./server:/app
       - ./data:/app/fixtures
-      - ./env/local/django.env:/app/.env
     command: >
       bash -c "./manage.py migrate &&
                ./manage.py runserver 0.0.0.0:8000"
