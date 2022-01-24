@@ -7,11 +7,11 @@ import {
   Row,
   Col,
   Button,
-  Modal,
 } from 'react-bootstrap';
+import Fuse from 'fuse.js';
 import { useQueryLookup } from 'hooks/admin';
 import { apiFetch } from 'utils/fetch';
-import Fuse from 'fuse.js';
+import Modal from 'components/Modal';
 
 import ReportSearchResult from './ReportSearchResult';
 import ReportView from './ReportView';
@@ -36,7 +36,7 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
   const [reports, setReports] = React.useState<ApiReport[] | null>(null);
   const [reportSearch, setReportSearch] = React.useState<Fuse<ApiReport> | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [show, setShow] = React.useState(false);
+  const modalRef  = React.useRef<Modal>(null);
   const queryLookup = useQueryLookup();
 
   const [formValues, setFormValues] = React.useState<ReportEditFormValue>({
@@ -98,8 +98,7 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
   if (!reports) return <Spinner />;
   if (!reportSearch) return <Spinner />;
 
-  const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  const showModal = () => modalRef.current && modalRef.current.show()
   const saveReport = (report?: ApiReport) =>
     async () => {
       if (!report) {
@@ -109,7 +108,6 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
       }
 
       await getReports();
-      handleClose();
     };
 
   const report = reports.find(r => r.id.toString() === queryLookup['reportId']);
@@ -139,7 +137,7 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
               )
             )
           }
-          <Button onClick={handleShow}>Add New</Button>
+          <Button onClick={showModal}>Add New</Button>
         </Col>
         <Col md="9">
           {
@@ -154,21 +152,13 @@ function EventAdminReports({ event, ...props }: EventAdminPageProps) {
           }
         </Col>
       </Row>
-      <Modal size="xl" show={show} onHide={handleClose}>
-        <Modal.Header closeButton>
-          <Modal.Title>Create new report</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ReportEditForm onChange={setFormValues} />
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={saveReport()}>
-            Save Changes
-          </Button>
-        </Modal.Footer>
+      <Modal
+        ref={modalRef}
+        title="New report"
+        saveButtonLabel="Create"
+        handleSave={saveReport()}
+      >
+        <ReportEditForm onChange={setFormValues} />
       </Modal>
     </Container>
   );
