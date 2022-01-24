@@ -22,9 +22,9 @@ export default {
     // Add camps
     camp1: { parentKey: "root", name: "Camp 1", children_title: "Select a lodging type", visible: true },
     camp1_tent: { parentKey: "camp1", name: "Camp 1: Tent", children_title: "Select a tent area", visible: true },
-    camp1_tent_area_A: { parentKey: "camp1_tent", name: "Camp 1: Tent Area A", visible: true, capacity: 2, reserved: 0, sharing_multiplier: 0.5 },
-    camp1_tent_area_B: { parentKey: "camp1_tent", name: "Camp 1: Tent Area B", visible: true, capacity: 60, reserved: 15, sharing_multiplier: 0.5 },
-    camp1_tent_area_C: { parentKey: "camp1_tent", name: "Camp 1: Tent Area C", visible: true, capacity: 30, reserved: 5 , sharing_multiplier: 0.5 },
+    camp1_tent_area_A: { parentKey: "camp1_tent", name: "Camp 1: Tent Area A", visible: true, capacity: 20, reserved: 15, sharing_multiplier: 0.5 },
+    camp1_tent_area_B: { parentKey: "camp1_tent", name: "Camp 1: Tent Area B", visible: true, capacity: 60, reserved: 5 , sharing_multiplier: 0.5 },
+    camp1_tent_area_C: { parentKey: "camp1_tent", name: "Camp 1: Tent Area C", visible: true, capacity: 25, reserved: 5 , sharing_multiplier: 0.5 },
 
     camp1_rv: { parentKey: "camp1", name: "Camp 1: RV", visible: true, children_title: "Select your RV size" },
     camp1_rv_sm: { parentKey: "camp1_rv", name: "Camp 1: RV under 15' long", visible: true, capacity: 20, reserved: 10 },
@@ -50,16 +50,17 @@ export default {
         {},
     ),
 
+    camp1_cabin_cooks: { parentKey: "camp1_cabin", name: "Camp 1: Cooks Cabin", visible: false, capacity: 20 },
+
     // camp 2
     camp2: { parentKey: "root", name: "Camp 2", children_title: "Select a lodging type", visible: true },
     camp2_tent: { parentKey: "camp2", name: "Camp 2: Tent", children_title: "Select a tent area", visible: true },
 
-    camp2_tent_area_D: { parentKey: "camp2_tent", name: "Camp 2: Tent Area D", visible: true, capacity: 13, reserved: 3, sharing_multiplier: 0.5 },
+    camp2_tent_area_D: { parentKey: "camp2_tent", name: "Camp 2: Tent Area D", visible: true, capacity: 9 , reserved: 2, sharing_multiplier: 0.5 },
     camp2_tent_area_E: { parentKey: "camp2_tent", name: "Camp 2: Tent Area E", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
-    camp2_tent_area_F: { parentKey: "camp2_tent", name: "Camp 2: Tent Area F", visible: true, capacity: 13, reserved: 3, sharing_multiplier: 0.5 },
-    camp2_tent_area_G: { parentKey: "camp2_tent", name: "Camp 2: Tent Area G", visible: true, capacity: 26, reserved: 6, sharing_multiplier: 0.5 },
-    camp2_tent_area_H: { parentKey: "camp2_tent", name: "Camp 2: Tent Area H", visible: true, capacity: 15, reserved: 5, sharing_multiplier: 0.5 },
-
+    camp2_tent_area_F: { parentKey: "camp2_tent", name: "Camp 2: Tent Area F", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
+    camp2_tent_area_G: { parentKey: "camp2_tent", name: "Camp 2: Tent Area G", visible: true, capacity: 20, reserved: 2, sharing_multiplier: 0.5 },
+    camp2_tent_area_H: { parentKey: "camp2_tent", name: "Camp 2: Tent Area H", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
 
     camp2_rv: { parentKey: "camp2", name: "Camp 2: RV", visible: true, children_title: "Select your RV size" },
     camp2_rv_sm: { parentKey: "camp2_rv", name: "Camp 2: RV under 15' long", visible: true, capacity: 40, reserved: 10 },
@@ -95,7 +96,7 @@ export default {
 
     camp2_cabin_GH: {
         parentKey: "camp2_cabin",
-        name: `Camp 2: Gatehouse`,
+        name: "Camp 2: Gatehouse",
         visible: false,
         capacity: 6,
     },
@@ -104,10 +105,10 @@ export default {
     camp3: { parentKey: "root", name: "Camp 3", children_title: "Select a lodging type", visible: true },
     camp3_tent: { parentKey: "camp3", name: "Camp 3: Tent", children_title: "Select a tent area", visible: true },
 
-    camp3_tent_area_I: { parentKey: "camp3_tent", name: "Camp 3: Tent Area I", visible: true, capacity: 8, reserved: 5 , sharing_multiplier: 0.5 },
-    camp3_tent_area_J: { parentKey: "camp3_tent", name: "Camp 3: Tent Area J", visible: true, capacity: 20, reserved: 5, sharing_multiplier: 0.5 },
-    camp3_tent_area_K: { parentKey: "camp3_tent", name: "Camp 3: Tent Area K", visible: true, capacity: 10, reserved: 5, sharing_multiplier: 0.5 },
-    camp3_tent_area_L: { parentKey: "camp3_tent", name: "Camp 3: Tent Area L", visible: true, capacity: 20, reserved: 5, sharing_multiplier: 0.5 },
+    camp3_tent_area_I: { parentKey: "camp3_tent", name: "Camp 3: Tent Area I", visible: true, capacity: 5, reserved: 4, sharing_multiplier: 0.5 },
+    camp3_tent_area_J: { parentKey: "camp3_tent", name: "Camp 3: Tent Area J", visible: true, capacity: 20, reserved: 2, sharing_multiplier: 0.5 },
+    camp3_tent_area_K: { parentKey: "camp3_tent", name: "Camp 3: Tent Area K", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
+    camp3_tent_area_L: { parentKey: "camp3_tent", name: "Camp 3: Tent Area L", visible: true, capacity: 20, reserved: 2, sharing_multiplier: 0.5 },
 
     camp3_rv: { parentKey: "camp3", name: "Camp 3: RV", visible: true, children_title: "Select your RV size" },
     camp3_rv_sm: { parentKey: "camp3_rv", name: "Camp 3: RV under 15' long", visible: true, capacity: 20, reserved: 10 },
