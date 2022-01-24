@@ -19,7 +19,6 @@ function ReportView({ result, ...props }: Props) {
   return (
     <Tabs defaultActiveKey="View">
       <Tab eventKey="View" title="View">
-        <h1>{result.title}</h1>
         <Template
           markdown={result.template}
           templateVars={props.templateVars}
