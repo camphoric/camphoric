@@ -1,0 +1,49 @@
+#!/bin/bash
+
+function usage() {
+    cat <<EOF
+Usage: $0 [-yf]
+
+This will:
+  - PERMENANTLY delete all data in your camphoric database
+  - Recreate a camphoric superuser based on your shared.env
+  - Import data/lark data
+EOF
+
+}
+
+while getopts yfh flag
+do
+    case "${flag}" in
+        y) force=1;;
+        f) force=1;;
+        h) usage && exit 0;;
+        [?]) echo >&2 "$(usage)" && exit 1;;
+    esac
+done
+
+shift $((OPTIND-1)) # remove all flag arguments
+
+if [ -z "$force" ]
+then
+    RED='\033[1;31m'
+    NC='\033[0m' # No Color
+
+    echo "$*"
+
+    printf "${RED}WARNING: THIS CANNOT BE UNDONE${NC}\n"
+    echo "This will delete all data in your camphoric database"
+
+    while true; do
+        read -p "Do you wish to proceed [y/n]? " yn
+        case $yn in
+            [Yy]* ) break;;
+            [Nn]* ) exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+fi
+
+docker compose exec django python manage.py flush --noinput
+docker compose exec django python manage.py createsuperuser --noinput
+docker compose exec react node fixtures/lark/loadData.mjs

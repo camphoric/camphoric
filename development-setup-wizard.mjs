@@ -200,7 +200,7 @@ async function createDjangoSuperUser() {
   console.log(chalk.bold('Create your Django superuser:'));
   await spawn(
     'docker-compose',
-    ['exec', 'django', 'python', 'manage.py', 'createsuperuser'],
+    ['exec', 'django', 'python', 'manage.py', 'createsuperuser', '--noinput'],
   );
 }
 

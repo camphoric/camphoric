@@ -11,8 +11,8 @@
  *   for the docker compose setup
  * - CAMPHORIC_TEST_EVENT_NAME = the name of the event to check for and add or
  *   overwrite it.
- * - CAMPHORIC_SUPERUSER_USERNAME = the django superuser's username
- * - CAMPHORIC_SUPERUSER_PASSWORD = the django superuser's password
+ * - DJANGO_SUPERUSER_USERNAME = the django superuser's username
+ * - DJANGO_SUPERUSER_PASSWORD = the django superuser's password
  */
 
 import fetch from 'node-fetch';
@@ -57,8 +57,8 @@ async function main() {
 
 
 async function getAuthToken() {
-	let username = process.env.CAMPHORIC_SUPERUSER_USERNAME;
-	let password = process.env.CAMPHORIC_SUPERUSER_PASSWORD;
+	let username = process.env.DJANGO_SUPERUSER_USERNAME;
+	let password = process.env.DJANGO_SUPERUSER_PASSWORD;
 
 	if (!username && !password) {
 		const answers = await inquirer.prompt([
