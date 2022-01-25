@@ -31,7 +31,10 @@ const modules = {
   registration_types: (await import('./registrationTypes.mjs')).default,
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
   lodgings: (await import('./lodgings.mjs')).default,
+  test_registrations: (await import('./testRegistrations.mjs')).default,
 };
+
+const lodgingIdLookup = {};
 
 async function main() {
   const token = await getAuthToken();
@@ -50,6 +53,9 @@ async function main() {
 
   await loadRegTypes(token, evt);
   console.log('Processed event registration types');
+
+  await loadTestRegs(token, evt);
+  console.log('Processed test registrations');
 
 	console.log('Finished!');
   return true;
@@ -164,8 +170,6 @@ async function loadLodgings(token, event) {
     });
   }
 
-  // create new lodgings
-  const idLookup = {};
   for (let [key, lodging] of Object.entries(modules.lodgings)) {
     response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'POST',
@@ -175,7 +179,7 @@ async function loadLodgings(token, event) {
       },
       body: JSON.stringify({
         event: event.id,
-        parent: lodging.parentKey ? idLookup[lodging.parentKey] : null,
+        parent: lodging.parentKey ? lodgingIdLookup[lodging.parentKey] : null,
         name: lodging.name,
         children_title: lodging.children_title,
         visible: lodging.visible,
@@ -184,7 +188,7 @@ async function loadLodgings(token, event) {
       }),
     });
     const createdLodging = await response.json();
-    idLookup[key] = createdLodging.id;
+    lodgingIdLookup[key] = createdLodging.id;
   }
 }
 
@@ -227,6 +231,26 @@ async function loadRegTypes(token, event) {
         }
       }
     )
+  );
+}
+
+async function loadTestRegs(token, event) {
+
+  const postReg = async (testData) => {
+    const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': token,
+      },
+      body: JSON.stringify(testData),
+    });
+  }
+
+  const registrations = modules.test_registrations(lodgingIdLookup);
+
+  await Promise.all(
+    registrations.map(postReg)
   );
 }
 
