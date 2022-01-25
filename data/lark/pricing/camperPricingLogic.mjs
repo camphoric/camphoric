@@ -5,16 +5,18 @@ const regularTuitionPriceMatrix = [
   [ 65, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 64, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 49, 'pricing.full_adult',   'pricing.half_adult' ],
+  [ 25, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 17, 'pricing.full_teen',    'pricing.half_teen' ],
   [ 11, 'pricing.full_teen',    'pricing.half_teen' ],
-  [ 4,  'pricing.full_toddler', 'pricing.half_toddler'  ],
+  [ 4,  'pricing.full_toddler', 'pricing.half_toddler' ],
 ];
 
 const regularMealsPriceMatrix = [
   [ 65, 'pricing.meals_adult_full', 'pricing.meals_adult_dinners', 'pricing.meals_adult_half' ],
   [ 64, 'pricing.meals_adult_full', 'pricing.meals_adult_dinners', 'pricing.meals_adult_half' ],
   [ 49, 'pricing.meals_adult_full', 'pricing.meals_adult_dinners', 'pricing.meals_adult_half' ],
-  [ 17, 'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_dinners' ],
+  [ 25, 'pricing.meals_adult_full',  'pricing.meals_adult_dinners',  'pricing.meals_adult_dinners' ],
+  [ 17, 'pricing.meals_adult_full',  'pricing.meals_adult_dinners',  'pricing.meals_adult_dinners' ],
   [ 11, 'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_dinners' ],
   [ 4,  'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_dinners' ],
 ];
