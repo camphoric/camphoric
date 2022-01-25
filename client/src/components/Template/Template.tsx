@@ -14,10 +14,26 @@ function Template(props: Props) {
     markdown = '';
   }
 
+  let html;
+
+  try {
+    html = template2Html(markdown, templateVars);
+  } catch (e) {
+    html = {
+      __html: `
+<pre>
+error with template render
+
+${e}
+
+</pre>`,
+    }
+  }
+
   return (
     <div
       className="md-template"
-      dangerouslySetInnerHTML={template2Html(markdown, templateVars)}
+      dangerouslySetInnerHTML={html}
     />
   );
 }

@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
+import getFromPath from 'lodash/get';
 
 // @ts-ignore
 window.Handlebars.registerHelper('abs', function(num: number) {
@@ -13,6 +14,33 @@ window.Handlebars.registerHelper('abs', function(num: number) {
 
   return abs;
 });
+
+// @ts-ignore
+window.Handlebars.registerHelper('eachsort', function(arr: Array<any>, keyPath?: string, options) {
+  if (!options) {
+    options = keyPath;
+    keyPath = undefined;
+  }
+
+  const arrSorted =  arr.sort((a, b) => {
+    const aval = !!keyPath ? getFromPath(a, keyPath) : a;
+    const bval = !!keyPath ? getFromPath(b, keyPath) : b;
+
+    if (aval < bval) {
+      return -1;
+    }
+
+    if (aval > bval) {
+      return 1;
+    }
+
+    // names must be equal
+    return 0;
+  });
+
+  return arrSorted.map(options.fn).join('');
+});
+
 
 const processor = unified()
   .use(remarkParse)

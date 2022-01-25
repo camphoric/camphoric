@@ -51,6 +51,7 @@ export default {
         65,
         64,
         49,
+        25,
         17,
         11,
         4,
@@ -58,7 +59,8 @@ export default {
       "enumNames": [
         "65 years old or older",
         "50-64 years old",
-        "18-49 years old",
+        "26-49 years old",
+        "18-25 years old",
         "12-17 years old",
         "5-11 years old",
         "0-4 years old",

@@ -112,9 +112,9 @@ class EventViewSet(ModelViewSet):
 
 | Last Name | First Name | Age |
 | --------- | ---------- | --- |
-{{#each campers}}
-| {{this.attributes.first_name}} | {{this.attributes.last_name}} | {{this.attributes.age}} |
-{{/each}}
+{{#eachsort campers "attributes.last_name"}}
+| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} |
+{{/eachsort}}
 """
         )
         return event_response
