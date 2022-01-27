@@ -24,6 +24,7 @@ const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark 2022';
 const modules = {
   camper_pricing_logic: (await import('./pricing/camperPricingLogic.mjs')).default,
   camper_schema: (await import('./camperSchema.mjs')).default,
+  confirmation_email_template: (await import('./confirmationEmailTemplate.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
   pricing: (await import('./pricing/pricing.mjs')).default,
   registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
