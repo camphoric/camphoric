@@ -61,6 +61,11 @@ export default {
         "camper_address": address,
       }
     },
+    "lta_donation": {
+      "ui:prefix":  {
+        "prefix": "$",
+      },
+    },
     "parking_passes": {
       "ui:options":  {
         "addable": true,
