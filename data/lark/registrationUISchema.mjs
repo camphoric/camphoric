@@ -62,7 +62,7 @@ export default {
       }
     },
     "lta_donation": {
-      "ui:prefix":  {
+      "ui:options":  {
         "prefix": "$",
       },
     },

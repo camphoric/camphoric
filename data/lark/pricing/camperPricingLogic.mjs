@@ -30,7 +30,7 @@ const regularPrice = {
             ...acc,
             { '==': [age, camperAge] }, { 
               'if': [
-                ['===', 'F', {var: 'camper.session'}], 
+                {'===': ['F', {var: 'camper.session'}]}, 
                 {var: full }, {var: half}
               ]
             }
