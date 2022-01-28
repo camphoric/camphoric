@@ -2,7 +2,7 @@ import React from 'react';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import { WidgetProps } from '@rjsf/core';
-import ErrorBoundry from 'components/ErrorBoundry';
+import ErrorBoundary from 'components/ErrorBoundary';
 import CustomDescriptionField from '../fields/Description';
 import { getSchemaValue } from '../utils';
 
@@ -54,7 +54,7 @@ const TextWidget = (props: TextWidgetProps) => {
   }
 
   return (
-    <ErrorBoundry>
+    <ErrorBoundary>
       <Form.Group>
         <Form.Label className={rawErrors.length > 0 ? "text-danger" : ""}>
           {title}
@@ -98,7 +98,7 @@ const TextWidget = (props: TextWidgetProps) => {
           ) : null}
         </InputGroup>
       </Form.Group>
-    </ErrorBoundry>
+    </ErrorBoundary>
   );
 };
 
