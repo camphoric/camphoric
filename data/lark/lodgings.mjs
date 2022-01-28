@@ -65,6 +65,7 @@ export default {
     camp2_rv: { parentKey: "camp2", name: "Camp 2: RV", visible: true, children_title: "Select your RV size" },
     camp2_rv_sm: { parentKey: "camp2_rv", name: "Camp 2: RV under 15' long", visible: true, capacity: 40, reserved: 10 },
     camp2_rv_lg: { parentKey: "camp2_rv", name: "Camp 2: RV 15'-20' long", visible: true, capacity: 10, reserved: 5 },
+    camp2_rv_xl: { parentKey: "camp2_rv", name: "Camp 2: RV over 20' long (call ahead)", visible: true, capacity: 5, reserved: 3 },
 
     camp2_cabin: { parentKey: "camp2", name: "Camp 2: Cabin", visible: true, children_title: "Select your cabin preference" },
 

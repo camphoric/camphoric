@@ -1,3 +1,5 @@
+import meals from './camperMeals.mjs';
+
 export default {
   "type": "object",
   "required": ["first_name", "last_name", "gender", "session", "meals"],
@@ -25,6 +27,28 @@ export default {
         },
       ],
     },
+    "session": {
+      "oneOf": [
+        {
+          "properties": {
+            "session": { enum: ['F'] },
+            "meals": meals('F', 'D'),
+          }
+        },
+        {
+          "properties": {
+            "session": { enum: ['A'] },
+            "meals": meals('A'),
+          }
+        },
+        {
+          "properties": {
+            "session": { enum: ['B'] },
+            "meals": meals('B'),
+          }
+        },
+      ],
+    }
   },
   "properties": {
     "first_name": {
@@ -81,11 +105,12 @@ export default {
 *First half camp* begins {first_half_camp_start_date_time}, and ends {first_half_camp_end_date_time}.  
 *Second half camp* begins {second_half_camp_start_date_time}, and ends {second_half_camp_end_date_time}.  
 
-* Full camp (adult): \${{pricing.full_adult}}
-* Full camp (11 and under): \${{pricing.full_teen}}
-* Half camp (adult): \${{pricing.half_adult}}
-* Half camp (11 and under): \${{pricing.half_teen}}
-* Children under 3 are free, but may not take up a cabin bed.`,
+| Pricing (age range) | adult (18+) | child (5-17) | toddler¹ (0-4) |
+| --- | --- | --- | --- |
+| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_teen}} | \${{pricing.full_toddler}} |
+| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_teen}} | \${{pricing.half_toddler}} |
+
+1: Children 4 and under are free, but may not take up a cabin bed.`,
       "enumNames": [
         "Full camp",
         "Half camp (1st half)",
@@ -98,8 +123,5 @@ export default {
       ],
       "default": "F",
     },
-    "meals": {
-      "$ref": "#/definitions/meals"
-    }
   }
 };

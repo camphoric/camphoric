@@ -17,8 +17,8 @@ const regularMealsPriceMatrix = [
   [ 49, 'pricing.meals_adult_full', 'pricing.meals_adult_dinners', 'pricing.meals_adult_half' ],
   [ 25, 'pricing.meals_adult_full',  'pricing.meals_adult_dinners',  'pricing.meals_adult_dinners' ],
   [ 17, 'pricing.meals_adult_full',  'pricing.meals_adult_dinners',  'pricing.meals_adult_dinners' ],
-  [ 11, 'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_dinners' ],
-  [ 4,  'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_dinners' ],
+  [ 11, 'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_half' ],
+  [ 4,  'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_half' ],
 ];
 
 const regularPrice = {
