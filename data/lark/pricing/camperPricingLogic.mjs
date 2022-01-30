@@ -28,9 +28,9 @@ const regularPrice = {
         'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
             ...acc,
-            { '==': [age, camperAge] }, { 
+            { '==': [age, camperAge] }, {
               'if': [
-                {'===': ['F', {var: 'camper.session'}]}, 
+                {'===': ['F', {var: 'camper.session'}]},
                 {var: full }, {var: half}
               ]
             }
@@ -51,7 +51,7 @@ const regularPrice = {
         'if': regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
           return [
             ...acc,
-            { '==': [age, camperAge] }, { 
+            { '==': [age, camperAge] }, {
               'if': [
                 { '===': ['', {var: 'camper.meals.meal_plan'}] }, 0,
                 { '===': ['F', {var: 'camper.meals.meal_plan'}] }, {var: full},
