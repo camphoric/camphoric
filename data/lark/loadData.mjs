@@ -96,15 +96,15 @@ async function loadOrganization(token) {
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
     headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
-  
+
   let org = organizations.find(o => o.name === "Lark Traditional Arts");
   if (!org) {
     console.log('Could not find Lark Traditional Arts, creating');
     org = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`, 
+        'Authorization': `Token ${token}`,
       },
       body: JSON.stringify({
         name: "Lark Traditional Arts"
@@ -121,10 +121,10 @@ async function loadEvent(token, org) {
   let response = await fetch(`${urlBase}/api/events/`, {
     headers: { 'Authorization': `Token ${token}` },
   });
-  
+
   const events = await response.json();
   const existingEvent = events.find(event => event.name === eventName);
-  
+
   const event = {
     organization: org.id,
     name: eventName,
