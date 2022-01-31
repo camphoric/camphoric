@@ -1,3 +1,5 @@
+import { mealsLookup } from './pricing/camperPricingLogic.mjs';
+
 const dependencies = {
   "meal_plan": {
     "oneOf": [
@@ -12,38 +14,26 @@ const dependencies = {
         "properties": {
           "meal_plan": {
             "enum": [
-              "F",
-              "D",
-              "A",
-              "B"
+              "All meals",
+              "Just Dinners",
+              "All Meals - 1st half",
+              "All Meals - 2nd half"
             ]
           },
           "meal_type": {
             "type": "string",
             "title": "What types of meals do you want?",
-            "enumNames": [
+            "enum": [
               "Non-Vegetarian",
               "Vegetarian",
               "Vegan"
             ],
-            "enum": [
-              "O",
-              "V",
-              "E"
-            ]
           }
         }
       }
     ]
   }
 };
-
-const lookup = {
-  "F": "All Meals",
-  "D": "Just Dinners",
-  "A": "All Meals (first half)",
-  "B": "All Meals (second half)",
-}
 
 const createMeals = (...options) => ({
   "type": "object",
@@ -63,13 +53,9 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
     "meal_plan": {
       "type": "string",
       "title": "What meals will you purchase?",
-      "enumNames": [
-        "None",
-        ...options.map(o => lookup[o])
-      ],
       "enum": [
-        "",
-        ...options,
+        "None",
+        ...options.map(o => mealsLookup[o])
       ],
       "default": ""
     }

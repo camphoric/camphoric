@@ -31,19 +31,19 @@ export default {
       "oneOf": [
         {
           "properties": {
-            "session": { enum: ['F'] },
+            "session": { enum: ['Full camp'] },
             "meals": meals('F', 'D'),
           }
         },
         {
           "properties": {
-            "session": { enum: ['A'] },
+            "session": { enum: ['Half camp - 1st half'] },
             "meals": meals('A'),
           }
         },
         {
           "properties": {
-            "session": { enum: ['B'] },
+            "session": { enum: ['Half camp - 2nd half'] },
             "meals": meals('B'),
           }
         },
@@ -64,23 +64,13 @@ export default {
     "gender": {
       "type": "string",
       "title": "Gender",
-      "enumNames": ["Male", "Female", "Other"],
-      "enum": ["M", "F", "O"]
+      "enum": ["Male", "Female", "Other"],
     },
     "age": {
-      "type": "integer",
+      "type": "string",
       "title": "Age (at the beginning of camp)",
       "description": "In order to help us abide by CDC recommendations, please select your age category at time of camp",
       "enum": [
-        65,
-        64,
-        49,
-        25,
-        17,
-        11,
-        4,
-      ],
-      "enumNames": [
         "65 years old or older",
         "50-64 years old",
         "26-49 years old",
@@ -89,7 +79,7 @@ export default {
         "5-11 years old",
         "0-4 years old",
       ],
-      "default": 65,
+      "default": "65 years old or older",
     },
     "address_different_than_payer": {
       "type": "boolean",
@@ -111,17 +101,12 @@ export default {
 | Half Camp | \${{pricing.half_adult}} | \${{pricing.half_teen}} | \${{pricing.half_toddler}} |
 
 1: Children 4 and under are free, but may not take up a cabin bed.`,
-      "enumNames": [
-        "Full camp",
-        "Half camp (1st half)",
-        "Half camp (2nd half)",
-      ],
       "enum": [
-        "F",
-        "A",
-        "B",
+        "Full camp",
+        "Half camp - 1st half",
+        "Half camp - 2nd half",
       ],
-      "default": "F",
+      "default": "Full camp",
     },
   }
 };

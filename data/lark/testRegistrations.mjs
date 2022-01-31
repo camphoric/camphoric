@@ -1,7 +1,21 @@
+import { mealsLookup, ageLookup } from './pricing/camperPricingLogic.mjs';
+
+const genderLookup = {
+  M: 'Male',
+  F: 'Female',
+  O: 'Other',
+}
+
+const mealTypeLookup = {
+  "O": "Non-Vegetarian",
+  "V": "Vegetarian",
+  "E": "Vegan",
+}
+
 const registrations = [
   {
     address: ['1234 Easy St', 'Berkeley', 'CA', '94703'],
-    email: 'bobross123456@notasdfwedvicfake.com',
+    email: 'bobross123456@dontsend.com',
     parking_passes: 1,
     campers: [
       [64, 'M', 'Bob', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Jane Ross'],
@@ -10,7 +24,7 @@ const registrations = [
   },
   {
     address: ['5678 Hard St', 'Napa', 'CA', '94558'],
-    email: 'skywalker123456@notasdfwedvicfake.com',
+    email: 'skywalker123456@dontsend.com',
     parking_passes: 1,
     campers: [
       [64 , 'M' , 'Ani','Skywalker' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|V', 'Padmé Skywalker'] ,
@@ -21,7 +35,7 @@ const registrations = [
   },
   {
     address: ['1630 Revello Drive', 'Sunnydale', 'CA', '94008'],
-    email: 'vampslayer2345@notasdfwedvicfake.com',
+    email: 'vampslayer2345@dontsend.com',
     parking_passes: 1,
     campers: [
       [49 , 'F' , 'Buffy','Summers' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|V', 'Willow Rosenberg'] ,
@@ -33,7 +47,7 @@ const registrations = [
 
   {
     address: ['5932 Firefly Ln', 'Verse', 'CA', '94008'],
-    email: 'notarever3q450@notasdfwedvicfake.com',
+    email: 'notarever3q450@dontsend.com',
     parking_passes: 1,
     campers: [
       [49 , 'M' , 'Malcom','Reynolds' , 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
@@ -50,7 +64,7 @@ function makeRegistration(reg, lodgingMap) {
   return {
     "formData": {
       "payment": {
-        "payment_type": reg.payment_type || "paypal",
+        "payment_type": reg.payment_type || "PayPal",
         "payer_billing_address": {
           "country": "United States",
           "street_address": reg.address[0],
@@ -58,7 +72,7 @@ function makeRegistration(reg, lodgingMap) {
           "state_or_province": reg.address[2],
           "zip_code": reg.address[3],
         },
-        "payment_full_or_deposit": "full",
+        "payment_full_or_deposit": "Full Payment",
         "payer_first_name": reg.campers[0][2],
         "payer_last_name": reg.campers[0][3],
         "payer_number": "+15555555555",
@@ -68,16 +82,16 @@ function makeRegistration(reg, lodgingMap) {
         () => ({ "holder": `${reg.campers[0][2]} ${reg.campers[0][3]}` })
       ),
       "campers": reg.campers.map((c) => ({
-        "age": c[0],
+        "age": ageLookup[c[0]],
         "meals": {
 					...(
 						!c[7].length ? { meal_plan: '' } : {
-							meal_plan: c[7].split('|')[0],
-							meal_type: c[7].split('|')[1],
+							meal_plan: mealsLookup[c[7].split('|')[0]],
+							meal_type: mealTypeLookup[c[7].split('|')[1]],
 						}
 					)
         },
-        "session": "F",
+        "session": "Full camp",
         "address_different_than_payer": false,
         "lodging": {
           "lodging_1": lodgingMap[c[4]],
@@ -87,7 +101,7 @@ function makeRegistration(reg, lodgingMap) {
         },
         "first_name": c[2],
         "last_name": c[3],
-        "gender": c[1],
+        "gender": genderLookup[c[1]],
       })),
       "registrant_email": reg.email,
     },

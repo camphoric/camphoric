@@ -1,4 +1,21 @@
-const defaultCamperAge = 65;
+export const ageLookup = {
+  65: "65 years old or older",
+  64: "50-64 years old",
+  49: "26-49 years old",
+  25: "18-25 years old",
+  17: "12-17 years old",
+  11: "5-11 years old",
+  4:  "0-4 years old",
+};
+
+export const mealsLookup = {
+  "F": "All Meals",
+  "D": "Just Dinners",
+  "A": "All Meals - 1st half",
+  "B": "All Meals - 2nd half",
+}
+
+const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 
 const regularTuitionPriceMatrix = [
@@ -28,9 +45,9 @@ const regularPrice = {
         'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
             ...acc,
-            { '==': [age, camperAge] }, {
+            { '===': [ageLookup[age], camperAge] }, {
               'if': [
-                {'===': ['F', {var: 'camper.session'}]},
+                {'===': ['Full camp', {var: 'camper.session'}]},
                 {var: full }, {var: half}
               ]
             }
@@ -51,13 +68,13 @@ const regularPrice = {
         'if': regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
           return [
             ...acc,
-            { '==': [age, camperAge] }, {
+            { '===': [ageLookup[age], camperAge] }, {
               'if': [
-                { '===': ['', {var: 'camper.meals.meal_plan'}] }, 0,
-                { '===': ['F', {var: 'camper.meals.meal_plan'}] }, {var: full},
-                { '===': ['D', {var: 'camper.meals.meal_plan'}] }, {var: dinners},
-                { '===': ['A', {var: 'camper.meals.meal_plan'}] }, {var: half},
-                { '===': ['B', {var: 'camper.meals.meal_plan'}] }, {var: half},
+                { '===': ['None', {var: 'camper.meals.meal_plan'}] }, 0,
+                { '===': [mealsLookup['F'], {var: 'camper.meals.meal_plan'}] }, {var: full},
+                { '===': [mealsLookup['D'], {var: 'camper.meals.meal_plan'}] }, {var: dinners},
+                { '===': [mealsLookup['A'], {var: 'camper.meals.meal_plan'}] }, {var: half},
+                { '===': [mealsLookup['B'], {var: 'camper.meals.meal_plan'}] }, {var: half},
                 0
               ]
             }
