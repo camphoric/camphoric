@@ -272,15 +272,21 @@ class RegisterView(APIView):
             })
 
         email_error = None
+        sent = False
         try:
-            sent = mail.send_mail(
-                event.confirmation_email_subject,
-                confirmation_email_body,
-                event.confirmation_email_from,
-                [registration.registrant_email],
-                fail_silently=False)
+            if '@dontsend.com' in registration.registrant_email:
+                email_error = 'email contains @dontsend.com'
+                logger.error(confirmation_email_body)
+            else:
+                sent = mail.send_mail(
+                    event.confirmation_email_subject,
+                    confirmation_email_body,
+                    event.confirmation_email_from,
+                    [registration.registrant_email],
+                    fail_silently=False)
+
             if not sent:
-                email_error = 'mail not sent'
+                email_error = email_error or 'mail not sent'
         except SMTPException as e:
             email_error = str(e)
 
