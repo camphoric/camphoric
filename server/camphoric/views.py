@@ -260,14 +260,21 @@ class RegisterView(APIView):
             invitation.registration = registration
             invitation.save()
 
+        campers_template_value = []
+        camper_index = 0;
         for camper in campers:
+            campers_template_value.append({
+                    **camper.attributes,
+                    'pricing_result': server_pricing_results['campers'][camper_index],
+                })
+            camper_index += 1
             camper.save()
 
         confirmation_email_body = chevron.render(
             event.confirmation_email_template,
             {
                 'registration': registration.attributes,
-                'campers': [camper.attributes for camper in campers],
+                'campers': campers_template_value,
                 'pricing_results': server_pricing_results,
             })
 
