@@ -22,6 +22,7 @@ export default {
     // Add camps
     camp1: { parentKey: "root", name: "Camp 1", children_title: "Select a lodging type", visible: true },
     camp1_tent: { parentKey: "camp1", name: "Camp 1: Tent", children_title: "Select a tent area", visible: true },
+    camp1_tent_area_any: { parentKey: "camp1_tent", name: "Camp 1: Any Tent Area", visible: true, capacity: 20, sharing_multiplier: 0.5 },
     camp1_tent_area_A: { parentKey: "camp1_tent", name: "Camp 1: Tent Area A", visible: true, capacity: 20, reserved: 15, sharing_multiplier: 0.5 },
     camp1_tent_area_B: { parentKey: "camp1_tent", name: "Camp 1: Tent Area B", visible: true, capacity: 60, reserved: 5 , sharing_multiplier: 0.5 },
     camp1_tent_area_C: { parentKey: "camp1_tent", name: "Camp 1: Tent Area C", visible: true, capacity: 25, reserved: 5 , sharing_multiplier: 0.5 },
@@ -50,12 +51,14 @@ export default {
         {},
     ),
 
+    camp1_cabin_any: { parentKey: "camp1_cabin", name: "Camp 1: Any Cabin", visible: true, capacity: 20 },
     camp1_cabin_cooks: { parentKey: "camp1_cabin", name: "Camp 1: Cooks Cabin", visible: false, capacity: 20 },
 
     // camp 2
     camp2: { parentKey: "root", name: "Camp 2", children_title: "Select a lodging type", visible: true },
     camp2_tent: { parentKey: "camp2", name: "Camp 2: Tent", children_title: "Select a tent area", visible: true },
 
+    camp2_tent_area_any: { parentKey: "camp2_tent", name: "Camp 2: Any Tent Area", visible: true, capacity: 20, sharing_multiplier: 0.5 },
     camp2_tent_area_D: { parentKey: "camp2_tent", name: "Camp 2: Tent Area D", visible: true, capacity: 9 , reserved: 2, sharing_multiplier: 0.5 },
     camp2_tent_area_E: { parentKey: "camp2_tent", name: "Camp 2: Tent Area E", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
     camp2_tent_area_F: { parentKey: "camp2_tent", name: "Camp 2: Tent Area F", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
@@ -68,6 +71,7 @@ export default {
     camp2_rv_xl: { parentKey: "camp2_rv", name: "Camp 2: RV over 20' long (call ahead)", visible: true, capacity: 5, reserved: 3 },
 
     camp2_cabin: { parentKey: "camp2", name: "Camp 2: Cabin", visible: true, children_title: "Select your cabin preference" },
+    camp2_cabin_any: { parentKey: "camp2_cabin", name: "Camp 2: Any Cabin", visible: true, capacity: 20 },
 
     ...Array.apply(null, Array(32)).map(function () {}).reduce(
         (acc, v, i) => {
@@ -106,6 +110,7 @@ export default {
     camp3: { parentKey: "root", name: "Camp 3", children_title: "Select a lodging type", visible: true },
     camp3_tent: { parentKey: "camp3", name: "Camp 3: Tent", children_title: "Select a tent area", visible: true },
 
+    camp3_tent_area_any: { parentKey: "camp3_tent", name: "Camp 3: Any Tent Area", visible: true, capacity: 20, sharing_multiplier: 0.5 },
     camp3_tent_area_I: { parentKey: "camp3_tent", name: "Camp 3: Tent Area I", visible: true, capacity: 5, reserved: 4, sharing_multiplier: 0.5 },
     camp3_tent_area_J: { parentKey: "camp3_tent", name: "Camp 3: Tent Area J", visible: true, capacity: 20, reserved: 2, sharing_multiplier: 0.5 },
     camp3_tent_area_K: { parentKey: "camp3_tent", name: "Camp 3: Tent Area K", visible: true, capacity: 10, reserved: 2, sharing_multiplier: 0.5 },
@@ -116,7 +121,7 @@ export default {
     camp3_rv_lg: { parentKey: "camp3_rv", name: "Camp 3: RV 15'-20' long", visible: true, capacity: 5, reserved: 4 },
 
     camp3_cabin: { parentKey: "camp3", name: "Camp 3: Cabin", visible: true, children_title: "Select your cabin preference" },
-
+    camp3_cabin_any: { parentKey: "camp3_cabin", name: "Camp 3: Any Cabin", visible: true, capacity: 20 },
     ...Array.apply(null, Array(21)).map(function () {}).reduce(
         (acc, v, i) => {
             const cabinNum = i + 1;
