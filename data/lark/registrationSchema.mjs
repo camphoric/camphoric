@@ -85,18 +85,13 @@ Fields marked with an asterisk (*) are required.
                 "payment_type": {
                     "type": "string",
                     "title": "Payment Type",
-                    "description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week.",
+                    "description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week. Checks may be a personal check, bank check or money order",
                     "enum": [
-                        "check",
-                        "credit_card",
-                        "paypal",
-                    ],
-                    "enumNames": [
-                        "Check (personal check, bank check or money order)",
-                        "Credit card",
+                        "Check",
+                        "Credit Card",
                         "PayPal",
                     ],
-                    "default": "check",
+                    "default": "Check",
                 },
                 "payment_full_or_deposit": {
                     "type": "string",
@@ -105,14 +100,10 @@ Fields marked with an asterisk (*) are required.
 
 Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is refundable.  Please consider purchasing trip insurance if you know something could prevent your attendance.`,
                     "enum": [
-                        "full",
-                        "deposit"
-                    ],
-                    "enumNames": [
                         "Full Payment",
                         "50% Deposit"
                     ],
-                    "default": "full"
+                    "default": "Full Payment"
                 },
             },
             "dependencies": {
@@ -121,14 +112,14 @@ Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is ref
                         {
                             "properties": {
                                 "payment_type": {
-                                    "enum": ["", "check", "credit_card"]
+                                    "enum": ["", "Check", "Credit Card"]
                                 }
                             },
                         },
                         {
                             "properties": {
                                 "payment_type": {
-                                    "enum": ["paypal"]
+                                    "enum": ["PayPal"]
                                 },
                                 "paypal_email": {
                                     "type": "string",

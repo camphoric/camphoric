@@ -246,13 +246,17 @@ async function loadTestRegs(token, event) {
       },
       body: JSON.stringify(testData),
     });
+
+    return res.text();
   }
 
   const registrations = modules.test_registrations(lodgingIdLookup);
 
-  await Promise.all(
+  const responses = await Promise.all(
     registrations.map(postReg)
   );
+
+  // console.log(responses);
 }
 
 
