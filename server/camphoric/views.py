@@ -261,13 +261,11 @@ class RegisterView(APIView):
             invitation.save()
 
         campers_template_value = []
-        camper_index = 0;
-        for camper in campers:
+        for camper_index, camper in enumerate(campers):
             campers_template_value.append({
                     **camper.attributes,
                     'pricing_result': server_pricing_results['campers'][camper_index],
                 })
-            camper_index += 1
             camper.save()
 
         confirmation_email_body = chevron.render(
