@@ -452,8 +452,10 @@ class RegisterPostTests(APITestCase):
             confirmation_email_template=''.join([
                 'Thanks for registering, {{registration.billing_name}}!\n',
                 '\nCampers:\n',
+                '| Name | Total |\n',
+                '| ---- | ----- |\n',
                 '{{#campers}}',
-                '{{name}}\n',
+                '| {{name}} | {{pricing_result.total}} |\n',
                 '{{/campers}}',
                 '\n\nTotal due: ${{pricing_results.total}}\n',
             ]),
@@ -539,16 +541,46 @@ class RegisterPostTests(APITestCase):
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
+
         self.assertEqual(message.subject, 'Registration confirmation')
         self.assertEqual(message.body, """
 Thanks for registering, Testi McTesterton!
 
 Campers:
-Testi McTesterton
-Testi McTesterton Junior
+| Name | Total |
+| ---- | ----- |
+| Testi McTesterton | 100 |
+| Testi McTesterton Junior | 100 |
 
 Total due: $300
 """.lstrip())
+        self.assertEqual(len(message.alternatives), 1)
+        self.assertIsInstance(message.alternatives[0], tuple)
+        self.assertEqual(message.alternatives[0][1], "text/html")
+        self.assertEqual(message.alternatives[0][0], """
+<p>Thanks for registering, Testi McTesterton!</p>
+<p>Campers:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Testi McTesterton</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Testi McTesterton Junior</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<p>Total due: $300</p>
+""".lstrip())
+
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi@mctesterson.com'])
 
