@@ -18,6 +18,8 @@
 import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 
+import createTestRegs from './testRegistrations.mjs';
+
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark 2022';
 
@@ -32,7 +34,6 @@ const modules = {
   registration_types: (await import('./registrationTypes.mjs')).default,
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
   lodgings: (await import('./lodgings.mjs')).default,
-  test_registrations: (await import('./testRegistrations.mjs')).default,
 };
 
 const lodgingIdLookup = {};
@@ -250,7 +251,7 @@ async function loadTestRegs(token, event) {
     return res.text();
   }
 
-  const registrations = modules.test_registrations(lodgingIdLookup);
+  const registrations = createTestRegs(lodgingIdLookup);
 
   const responses = await Promise.all(
     registrations.map(postReg)
