@@ -7,7 +7,8 @@ WORKDIR /app
 COPY Pipfile .
 COPY Pipfile.lock .
 
-RUN apk add --no-cache --virtual build-deps gcc musl-dev postgresql-dev openssl bash
+RUN apk add --no-cache --virtual build-deps gcc musl-dev postgresql-dev \
+    openssl bash libffi-dev
 RUN pip install pipenv \
     && pipenv install --system --dev --three \
     && rm -f Pipfile \

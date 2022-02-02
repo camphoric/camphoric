@@ -19,5 +19,6 @@ django-heroku = "*"
 chevron = "*"
 psycopg2-binary = "*"
 importlib-resources = "*"
+cmarkgfm = "*"
 
 [requires]

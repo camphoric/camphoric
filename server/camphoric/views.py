@@ -2,10 +2,11 @@ import logging
 import re
 from smtplib import SMTPException
 
+import cmarkgfm
 import chevron
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.core import mail
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -268,7 +269,7 @@ class RegisterView(APIView):
                 })
             camper.save()
 
-        confirmation_email_body = chevron.render(
+        confirmation_email_body_text = chevron.render(
             event.confirmation_email_template,
             {
                 'registration': registration.attributes,
@@ -276,19 +277,23 @@ class RegisterView(APIView):
                 'pricing_results': server_pricing_results,
             })
 
+        confirmation_email_body_html = cmarkgfm.github_flavored_markdown_to_html(
+                confirmation_email_body_text
+            )
         email_error = None
         sent = False
         try:
             if '@dontsend.com' in registration.registrant_email:
-                email_error = 'email contains @dontsend.com'
-                logger.error(confirmation_email_body)
+                email_error = 'registration email contains @dontsend.com'
+                logger.error(confirmation_email_body_html)
             else:
-                sent = mail.send_mail(
+                msg = EmailMultiAlternatives(
                     event.confirmation_email_subject,
-                    confirmation_email_body,
+                    confirmation_email_body_text,
                     event.confirmation_email_from,
-                    [registration.registrant_email],
-                    fail_silently=False)
+                    [registration.registrant_email])
+                msg.attach_alternative(confirmation_email_body_html, "text/html")
+                sent = msg.send(fail_silently=False)
 
             if not sent:
                 email_error = email_error or 'mail not sent'
@@ -479,7 +484,7 @@ class SendInvitationView(APIView):
         to_name = invitation.recipient_name
         to_email = invitation.recipient_email
         event = invitation.registration_type.event
-        invitation_body = chevron.render(
+        invitation_body_text = chevron.render(
             invitation.registration_type.invitation_email_template,
             {
                 'recipient_name': to_name or to_email,
@@ -488,17 +493,27 @@ class SendInvitationView(APIView):
                 'register_link': register_page_url(request, event.id, invitation)
             }
         )
+        invitation_body_html = cmarkgfm.github_flavored_markdown_to_html(
+                invitation_body_text
+            )
 
         email_error = None
+        sent = False
         try:
-            sent = mail.send_mail(
-                invitation.registration_type.invitation_email_subject,
-                invitation_body,
-                event.confirmation_email_from,  # TODO: figure out what this should be
-                [f'"{to_name}" <{to_email}>' if to_name else to_email],
-                fail_silently=False)
-            if not sent:
-                email_error = 'mail not sent'
+            if '@dontsend.com' in to_email:
+                email_error = 'invitation email contains @dontsend.com'
+                logger.error(invitation_body_html)
+            else:
+                msg = EmailMultiAlternatives(
+                    invitation.registration_type.invitation_email_subject,
+                    invitation_body_text,
+                    event.confirmation_email_from,  # TODO: figure out what this should be
+                    [f'"{to_name}" <{to_email}>' if to_name else to_email]
+                )
+                msg.attach_alternative(invitation_body_html, "text/html")
+                sent = msg.send(fail_silently=False)
+                if not sent:
+                    email_error = 'mail not sent'
         except SMTPException as e:
             email_error = str(e)
 
