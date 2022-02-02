@@ -1,9 +1,8 @@
-export default `
-Lark Camp 2022 Registration Confirmation
-
+const subject = 'Lark Camp 2022 Registration Confirmation';
+const template = `
 Dear {{registration.payment.payer_first_name}} {{registration.payment.payer_last_name}},
 
-Your online registration for Lark Camp 2020 has been received. This is an acknowledgement of your online registration.
+Your online registration for Lark Camp 2022 has been received.
 
 You have registered for:
 
@@ -21,3 +20,8 @@ TOTAL DUE: \${{pricing_results.total}}
 
 Registration Number: 2022-{{ registration.id }}
 `;
+
+export default {
+  confirmation_email_template: template,
+  confirmation_email_subject: subject,
+};
