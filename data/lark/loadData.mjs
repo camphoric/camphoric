@@ -23,7 +23,7 @@ import createTestRegs from './testRegistrations.mjs';
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark 2022';
 
-const modules = {
+const eventAttributes = {
   camper_pricing_logic: (await import('./pricing/camperPricingLogic.mjs')).default,
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
@@ -130,7 +130,7 @@ async function loadEvent(token, org) {
     organization: org.id,
     name: eventName,
     confirmation_email_from: 'registration@larkcamp.org',
-    ...modules,
+    ...eventAttributes,
   };
 
   if (existingEvent) {
@@ -172,7 +172,7 @@ async function loadLodgings(token, event) {
     });
   }
 
-  for (let [key, lodging] of Object.entries(modules.lodgings)) {
+  for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
     response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'POST',
       headers: {
@@ -205,7 +205,7 @@ async function loadRegTypes(token, event) {
     .filter(regType => regType.event === event.id);
 
   await Promise.all(
-    modules.registration_types.map(
+    eventAttributes.registration_types.map(
       async (regType) => {
         const exists = existingRegTypes.find(r => r.name === regType.name);
 
