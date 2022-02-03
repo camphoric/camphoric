@@ -772,6 +772,18 @@ class SendInvitationPostTests(APITestCase):
             + '/register?email=camper@example.com&code=abc123')
         self.assertEqual(message.body, f'Hi Campy McCampface, here is your link: {expected_link}')
 
+        self.assertEqual(len(message.alternatives), 1)
+        self.assertIsInstance(message.alternatives[0], tuple)
+        self.assertEqual(message.alternatives[0][1], "text/html")
+
+        self.maxDiff = None
+        expected_link = expected_link.replace('&', '&amp;')
+        expected_html = (
+                '<p>Hi Campy McCampface, here is your link: <a href="'
+                + expected_link + '">'
+                + expected_link + '</a></p>\n')
+
+        self.assertEqual(message.alternatives[0][0], expected_html)
         invitation.refresh_from_db()
         self.assertIsNotNone(invitation.sent_time)
 
