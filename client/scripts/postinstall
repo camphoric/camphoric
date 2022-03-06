@@ -1,6 +1,2 @@
 #!/bin/sh
 
-cp node_modules/handlebars/dist/handlebars.js public/
-cp node_modules/jsoneditor/dist/jsoneditor.min.js public/
-cp node_modules/jsoneditor/dist/jsoneditor.min.css public/
-cp node_modules/jsoneditor/dist/jsoneditor.map public/

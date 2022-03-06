@@ -6,10 +6,8 @@
  */
 
 import React from 'react';
-import { JSONEditorOptions } from 'jsoneditor';
-
-// @ts-ignore
-const JSONEditor = window.JSONEditor;
+import JSONEditor, { JSONEditorOptions } from 'jsoneditor';
+import 'jsoneditor/dist/jsoneditor.css'
 
 interface Props {
   json: object;

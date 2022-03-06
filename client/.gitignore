@@ -17,8 +17,6 @@ jspm_packages/
 /node_modules
 /.pnp
 .pnp.js
-public/jsoneditor.*
-public/handlebars.*
 
 # npm stuff
 .npm
