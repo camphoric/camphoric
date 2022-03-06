@@ -5,9 +5,10 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
 import getFromPath from 'lodash/get';
+import Handlebars from 'handlebars//dist/cjs/handlebars';
 
 // @ts-ignore
-window.Handlebars.registerHelper('abs', function(num: number) {
+Handlebars.registerHelper('abs', function(num: number) {
   const abs = Math.abs(num);
 
   if (!abs) return num;
@@ -16,7 +17,7 @@ window.Handlebars.registerHelper('abs', function(num: number) {
 });
 
 // @ts-ignore
-window.Handlebars.registerHelper('eachsort', function(arr: Array<any>, keyPath?: string, options) {
+Handlebars.registerHelper('eachsort', function(arr: Array<any>, keyPath?: string, options) {
   if (!options) {
     options = keyPath;
     keyPath = undefined;
@@ -55,7 +56,7 @@ export function markdown2Html(template: string): string {
 
 export function processHandlebarsTemplate(template: string, vars: {} = {}): string {
   // @ts-ignore
-  return window.Handlebars.compile(template)(vars);
+  return Handlebars.compile(template)(vars);
 }
 
 // used for dangerouslySetInnerHTML
