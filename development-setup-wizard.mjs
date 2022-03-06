@@ -5,7 +5,13 @@
  *
  * This script leads you through the steps required to get a working
  * develompent version of camphoric up and running.  It should reflect what is
- * in the doc/development.md file.
+ * in the doc/development.md file.  There are a few environment variables that
+ * will affect the running of this script:
+ *
+ * - CAMPHORIC_SETUP_WIZARD_RECREATE_ENV: if this is undef, it will prompt, if
+ *   it is truthy, it will recreate, if it equals 'no', it will not recreate.
+ * - CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KEY: if this is undef, it will prompt, if
+ *   it is truthy, it will recreate, if it equals 'no', it will not recreate.
  */
 
 import inquirer from 'inquirer';
@@ -47,6 +53,10 @@ async function checkPrereqs() {
 
 
 async function createEnvFiles() {
+	if (process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_ENV === 'no') {
+		return;
+	}
+
   const dir = './env';
   let envDir;
 
@@ -57,13 +67,15 @@ async function createEnvFiles() {
   }
 
   if (envDir.isDirectory()) {
-    const { blowaway } = await inquirer.prompt([{
-      name: 'blowaway',
-      type: 'confirm',
-      message: `it looks like '${dir}' already exists, do you want to blow it away and start over?`,
-    }]);
+		if (process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_ENV === undefined) {
+			const { blowaway } = await inquirer.prompt([{
+				name: 'blowaway',
+				type: 'confirm',
+				message: `it looks like '${dir}' already exists, do you want to blow it away and start over?`,
+			}]);
 
-    if (!blowaway) return;
+			if (!blowaway) return;
+		}
 
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -140,6 +152,10 @@ function dockerComposeUp() {
 
 // for now, no customization, we're keeping it simple
 async function setEnvValues() {
+	if (process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KEY === 'no') {
+		return;
+	}
+
   const filename = './env/local/django.env';
   let contents = await fs.readFile(filename, 'utf-8').then(c => c.toString().trim());
 
@@ -156,7 +172,7 @@ async function setEnvValues() {
     contents += '\nSECRET_KEY=your-django-secret-key-here';
   }
   
-  if (currentKey !== 'your-django-secret-key-here') {
+	if (currentKey !== 'your-django-secret-key-here' && process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KE === undefined) {
     const { replaceKey } = await inquirer.prompt([{
       name: 'replaceKey',
       type: 'confirm',
