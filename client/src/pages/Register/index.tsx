@@ -96,9 +96,10 @@ class App extends React.Component<Props, RegistrationState> {
       console.log("response", res.status, data);
 
       // @ts-ignore
-      const confirmationText = Template.template2Html(data.confirmationPageTemplate)({
-        pricing_results: data.serverPricingResults,
-      });
+      const confirmationText = Template.template2Html(
+        data.confirmationPageTemplate,
+        { pricing_results: data.serverPricingResults },
+      );
       console.log(confirmationText);
 
       this.setState({
