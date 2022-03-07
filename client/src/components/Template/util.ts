@@ -5,7 +5,8 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
 import getFromPath from 'lodash/get';
-import Handlebars from 'handlebars//dist/cjs/handlebars';
+// @ts-ignore
+import Handlebars from 'handlebars/dist/cjs/handlebars';
 
 // @ts-ignore
 Handlebars.registerHelper('abs', function(num: number) {
@@ -55,7 +56,6 @@ export function markdown2Html(template: string): string {
 }
 
 export function processHandlebarsTemplate(template: string, vars: {} = {}): string {
-  // @ts-ignore
   return Handlebars.compile(template)(vars);
 }
 
