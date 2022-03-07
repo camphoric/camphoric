@@ -42,7 +42,7 @@ interface SubmittingState extends FormDataState {
 
 interface SubmittedState extends FormDataState {
   status: "submitted";
-  confirmationText: string;
+  confirmationProps: React.ComponentProps<typeof Template>;
 }
 
 interface SubmissionErrorState extends FormDataState {
@@ -95,16 +95,16 @@ class App extends React.Component<Props, RegistrationState> {
       const data = await res.json();
       console.log("response", res.status, data);
 
-      // @ts-ignore
-      const confirmationText = Template.template2Html(
-        data.confirmationPageTemplate,
-        { pricing_results: data.serverPricingResults },
-      );
-      console.log(confirmationText);
+      const confirmationProps = {
+        markdown: data.confirmationPageTemplate,
+        templateVars: { pricing_results: data.serverPricingResults },
+      };
+
+      console.log(confirmationProps);
 
       this.setState({
         status: "submitted",
-        confirmationText,
+        confirmationProps,
       });
     } catch {
       this.setState({ status: "submissionError" });
@@ -239,7 +239,7 @@ class App extends React.Component<Props, RegistrationState> {
       case "submitted":
         pageContent = (
           <section className="confirmation">
-            <Template markdown={this.state.confirmationText} />
+            <Template {...this.state.confirmationProps} />
           </section>
         );
         break;
