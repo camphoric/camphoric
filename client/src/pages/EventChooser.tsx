@@ -3,20 +3,22 @@ import { Link, useLocation, } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import { useEvents } from 'hooks/admin';
 import Spinner from 'components/Spinner';
+import api from 'store/api';
 
 function EventChooser() {
   const { pathname } = useLocation();
-  const events = useEvents();
+  const eventsApi = api.useGetEventsQuery();
 
-  if (!events.value.length) return <Spinner />;
+  if (eventsApi.isFetching || eventsApi.isLoading) return <Spinner />;
+
+  const events = eventsApi.data || [];
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          events.value.map(
+          events.map(
             (event) => (
               <li key={event.id}>
                 <Link to={`${pathname}/${event.id}`}>
