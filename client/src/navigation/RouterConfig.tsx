@@ -6,6 +6,9 @@ import {
   useLocation,
 } from 'react-router-dom';
 
+import { store } from 'store/store';
+import { Provider } from 'react-redux';
+
 import Default from 'components/Default';
 import GuardedRoute from './GuardedRoute';
 
@@ -27,20 +30,18 @@ const RouterConfig = () => {
       <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
       <Route exact path="/" component={Default} />
       <Route exact path="/events/:eventId/register" component={RegisterPage} />
-      <Redirect exact from="/admin" to="/admin/organization" />
-
-      <GuardedRoute exact path="/admin/organization">
-        <OrganizationChooser />
-      </GuardedRoute>
-      <Redirect exact
-        from="/admin/organization/:organizationId"
-        to="/admin/organization/:organizationId/event"
-      />
-      <GuardedRoute exact path="/admin/organization/:organizationId/event">
-        <EventChooser />
-      </GuardedRoute>
-      <GuardedRoute path="/admin/organization/:organizationId/event/:eventId">
-        <EventAdmin />
+      <GuardedRoute path="/admin">
+        <Provider store={store}>
+          <Route exact path={['/admin', '/admin/organization/']}>
+            <OrganizationChooser />
+          </Route>
+          <Route exact path="/admin/organization/:organizationId/event">
+            <EventChooser />
+          </Route>
+          <Route path="/admin/organization/:organizationId/event/:eventId">
+            <EventAdmin />
+          </Route>
+        </Provider>
       </GuardedRoute>
     </Switch>
   );

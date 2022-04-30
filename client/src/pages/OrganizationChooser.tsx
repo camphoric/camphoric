@@ -3,23 +3,24 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
-import { useOrganizations } from 'hooks/admin';
 import Spinner from 'components/Spinner';
+import api from 'store/api';
 
 function OrganizationChooser() {
-  const { pathname } = useLocation();
-  const organizations = useOrganizations();
+  const organizationsApi = api.useGetOrganizationsQuery();
 
-  if (organizations.status !== 'done') return <Spinner />;
+  if (organizationsApi.isFetching || organizationsApi.isLoading) return <Spinner />;
+
+  const organizations = organizationsApi.data || [];
 
   return (
     <Container><Row className="justify-content-md-center"><Col>
       <ul>
         {
-          organizations.value.map(
+          organizations.map(
             (org) => (
               <li key={org.id}>
-                <Link to={`${pathname}/${org.id}/event`}>{org.name}</Link>
+                <Link to={`/admin/organization/${org.id}/event`}>{org.name}</Link>
               </li>
             )
           )
