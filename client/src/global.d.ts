@@ -156,6 +156,45 @@ declare global {
     };
   }
 
+  export interface ApiLodging {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    event: number | string;
+    parent: number | string;
+    name: string | null;
+    children_title: string;
+    capacity: number;
+    reserved: number;
+    visible: boolean;
+    sharing_multiplier: number;
+    notes: string;
+  }
+
+  export interface ApiDeposit {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    event: number | string;
+    deposited_on: string | null;
+    attributes: any;
+    amount: number;
+  }
+
+  export interface ApiPayment {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    registration: number | string;
+    deposit: number | string;
+    paid_on: string | null;
+    attributes: any;
+    amount: number;
+  }
+
   export interface RouterUrlParams {
     eventId?: string;
     organizationId?: string;
