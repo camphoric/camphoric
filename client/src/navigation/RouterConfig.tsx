@@ -39,7 +39,7 @@ const RouterConfig = () => {
             <EventChooser />
           </Route>
           <Route path="/admin/organization/:organizationId/event/:eventId">
-            <EventAdmin />
+            <EventAdmin basePath="/admin/organization/:organizationId/event/:eventId" />
           </Route>
         </Provider>
       </GuardedRoute>

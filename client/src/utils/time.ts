@@ -4,7 +4,7 @@
  * All functions for dealing with time conversions, formatting, and timezone
  * info.
  */
-export function formatDateTimeForForm(dateStr: string | null) {
+export function formatDateTimeForForm(dateStr: string | null | undefined) {
   if (!dateStr) return undefined;
 
   const date = new Date(dateStr);

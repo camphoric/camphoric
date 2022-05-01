@@ -1,56 +1,62 @@
 import React from 'react';
 
-import { useEvent } from 'hooks/admin';
+import { useEvent } from 'store/hooks';
+import api from 'store/api';
+
 import Spinner from 'components/Spinner';
 import { formatDateTimeForApi } from 'utils/time';
 
 import EventAdminHomeComponent from './EventAdminHomeComponent';
 
 export interface TabProps {
-  handleFormChange: (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
-  handleFormDateChange: (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
-  handleChange: (field: string) => (value: any) => any;
-  event: ApiEvent;
+  handleFormChange: (field: keyof ApiEvent) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
+  handleFormDateChange: (field: keyof ApiEvent) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => any;
+  handleChange: (field: keyof ApiEvent) => (value: any) => any;
+  eventForm: Partial<ApiEvent>;
+  apiEvent: ApiEvent | undefined;
   save: () => any;
 }
 
-function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
-  const [event, setEvent] = React.useState<ApiEvent>(originalEvent);
-  const { set: apiPutEvent } = useEvent(originalEvent.id);
+function EventAdminHome() {
+  const [eventForm, setEvent] = React.useState<Partial<ApiEvent>>({});
+  const eventApi = useEvent();
+  const [updateEvent] = api.useUpdateEventMutation();
 
-  if (!originalEvent) return <Spinner />;
+  if (eventApi.isLoading || !eventApi.data) return <Spinner />;
 
-  // console.log(event);
-
-  const handleFormChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
-    ...event,
+  const handleFormChange = (field: keyof ApiEvent) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => setEvent({
+    ...eventForm,
     [field]: changeEvent.target.value,
   });
 
-  const handleFormDateChange = (field: string) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFormDateChange = (field: keyof ApiEvent) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = changeEvent.target;
     const dateValue = formatDateTimeForApi(value);
 
     // console.log(dateValue);
 
     setEvent({
-      ...event,
+      ...eventForm,
       [field]: dateValue,
     });
   }
 
-  const handleChange = (field: string) => (value: any) => setEvent({
-    ...event,
+  const handleChange = (field: keyof ApiEvent) => (value: any) => setEvent({
+    ...eventForm,
     [field]: value,
   });
 
-  const save = () => apiPutEvent(event);
+  const save = () => updateEvent({
+    ...eventForm,
+    id: eventApi.data?.id || 0,
+  });
 
   const tabProps: TabProps = {
     handleFormChange,
     handleFormDateChange,
     handleChange,
-    event,
+    eventForm,
+    apiEvent: eventApi.data,
     save,
   };
 
