@@ -9,6 +9,8 @@ type Template = any;
 // TODO: maybe get the backend team to auto-generate these types?
 
 declare global {
+  type Scalar = number | string;
+
   export interface ApiUser {
     id: number;
     date_joined: string;
@@ -215,10 +217,10 @@ declare global {
 
   interface EventAdminPageProps {
     event: ApiEvent,
-    registrationLookup: RegistrationLookup,
+    registrationLookup: RegistrationLookup | undefined,
     registrationSearch: Fuze<AugmentedRegistration>,
     registrations: Array<AugmentedRegistration>,
-    camperLookup: CamperLookup,
+    camperLookup: CamperLookup | undefined,
     camperSearch: Fuze<ApiCamper>,
     campers: Array<ApiCamper>,
 

@@ -13,13 +13,14 @@ export const api = createApi({
       return headers;
     },
   }),
+  tagTypes: ['Event'],
   // REMEMBER: our api needs trailing slashes
   endpoints: (builder) => ({
     /** /api/organizations */
     getOrganizations: builder.query<[ApiOrganization], void>({
       query: () => 'organizations/',
     }),
-    getOrganizationById: builder.query<ApiOrganization, number>({
+    getOrganizationById: builder.query<ApiOrganization, Scalar>({
       query: (id) => `organizations/${id}/`,
     }),
 
@@ -27,23 +28,34 @@ export const api = createApi({
     getEvents: builder.query<[ApiEvent], void>({
       query: () => 'events/',
     }),
-    getEventById: builder.query<ApiEvent, number>({
+    getEventById: builder.query<ApiEvent, Scalar>({
+      providesTags: (result, error, id) => [{ type: 'Event', id }],
       query: (id) => `events/${id}/`,
+    }),
+
+    updateEvent: builder.mutation<ApiEvent, Partial<ApiEvent> & Pick<ApiEvent, 'id'>>({
+      // note: an optional `queryFn` may be used in place of `query`
+      query: ({ id, ...patch }) => ({
+        url: `events/${id}/`,
+        method: 'PATCH',
+        body: patch,
+      }),
+      invalidatesTags: ['Event'],
     }),
 
     /** /api/registrations */
     getRegistrations: builder.query<[ApiRegistration], void>({
-      query: () => 'registraions/',
+      query: () => 'registrations/',
     }),
-    getRegistrationById: builder.query<ApiRegistration, number>({
-      query: (id) => `registraions/${id}/`,
+    getRegistrationById: builder.query<ApiRegistration, Scalar>({
+      query: (id) => `registrations/${id}/`,
     }),
 
     /** /api/registrationtypes */
     getRegistrationTypes: builder.query<[ApiRegistrationType], void>({
       query: () => 'registrationtypes/',
     }),
-    getRegistrationTypeById: builder.query<ApiRegistrationType, number>({
+    getRegistrationTypeById: builder.query<ApiRegistrationType, Scalar>({
       query: (id) => `registrationtypes/${id}/`,
     }),
 
@@ -51,7 +63,7 @@ export const api = createApi({
     getReports: builder.query<[ApiReport], void>({
       query: () => 'reports/',
     }),
-    getReportById: builder.query<ApiReport, number>({
+    getReportById: builder.query<ApiReport, Scalar>({
       query: (id) => `reports/${id}/`,
     }),
 
@@ -59,7 +71,7 @@ export const api = createApi({
     getInvitations: builder.query<[ApiInvitation], void>({
       query: () => 'invitations/',
     }),
-    getInvitationById: builder.query<ApiInvitation, number>({
+    getInvitationById: builder.query<ApiInvitation, Scalar>({
       query: (id) => `invitations/${id}/`,
     }),
 
@@ -67,7 +79,7 @@ export const api = createApi({
     getLodgings: builder.query<[ApiLodging], void>({
       query: () => 'lodgings/',
     }),
-    getLodgingById: builder.query<ApiLodging, number>({
+    getLodgingById: builder.query<ApiLodging, Scalar>({
       query: (id) => `lodgings/${id}/`,
     }),
 
@@ -75,7 +87,7 @@ export const api = createApi({
     getCampers: builder.query<[ApiCamper], void>({
       query: () => 'campers/',
     }),
-    getCamperById: builder.query<ApiCamper, number>({
+    getCamperById: builder.query<ApiCamper, Scalar>({
       query: (id) => `campers/${id}/`,
     }),
 
@@ -83,7 +95,7 @@ export const api = createApi({
     getDeposits: builder.query<[ApiDeposit], void>({
       query: () => 'deposits/',
     }),
-    getDepositById: builder.query<ApiDeposit, number>({
+    getDepositById: builder.query<ApiDeposit, Scalar>({
       query: (id) => `deposits/${id}/`,
     }),
 
@@ -91,7 +103,7 @@ export const api = createApi({
     getPayments: builder.query<[ApiPayment], void>({
       query: () => 'payments/',
     }),
-    getPaymentById: builder.query<ApiPayment, number>({
+    getPaymentById: builder.query<ApiPayment, Scalar>({
       query: (id) => `payments/${id}/`,
     }),
 
@@ -99,7 +111,7 @@ export const api = createApi({
     getUsers: builder.query<[ApiUser], void>({
       query: () => 'users/',
     }),
-    getUserById: builder.query<ApiUser, number>({
+    getUserById: builder.query<ApiUser, Scalar>({
       query: (id) => `users/${id}/`,
     }),
 
@@ -115,6 +127,7 @@ export const api = createApi({
 // export const {
 //   useGetOrganizationsQuery,
 //   useGetOrganizationByIdQuery,
+//   useUpdateEventMutation,
 // } = api;
 
 export default api;

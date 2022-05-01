@@ -9,6 +9,13 @@ import {
 import Fuse from 'fuse.js';
 import * as fuseUtils from 'utils/fuse';
 
+import {
+  useCamperLookup,
+  useCamperSearch,
+} from 'store/hooks';
+
+import Spinner from 'components/Spinner';
+
 import CamperSearchResult from './CamperSearchResult';
 import CamperEdit from './CamperEdit';
 
@@ -16,9 +23,14 @@ import { useQuery } from 'hooks/admin';
 // import getAllKeys from 'utils/objectKeys';
 
 function EventAdminCampers(props: EventAdminPageProps) {
-  const { event, camperLookup, camperSearch } = props;
+  const { event } = props;
+  const camperLookup = useCamperLookup();
+  const camperSearch = useCamperSearch();
+
   const camperId = useQuery('camperId');
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  if (!camperSearch || !camperLookup) return <Spinner />;
 
   let results;
   if (searchQuery.length) {

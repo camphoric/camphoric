@@ -15,7 +15,6 @@ function RegistrationSearchResult({ result, ...props }: Props) {
   const { url } = useRouteMatch();
   const registration = result.item;
 
-  console.log(registration);
   return (
     <Card
       className={props.selected ? 'selected' : ''}
