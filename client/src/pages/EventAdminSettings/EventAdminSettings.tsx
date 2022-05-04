@@ -3,7 +3,6 @@ import React from 'react';
 import { Tabs, Tab } from 'react-bootstrap';
 import { useEvent } from 'store/hooks';
 import Spinner from 'components/Spinner';
-import { formatDateTimeForApi } from 'utils/time';
 
 import EditSchemaTab from './EditSchemaTab';
 import EditRegistrationTypes from './EditRegistrationTypes';
