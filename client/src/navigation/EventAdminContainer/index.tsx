@@ -73,9 +73,7 @@ function EventAdmin(props: { basePath: string }) {
             ([route,, Comp]) => (
               <Route path={`${props.basePath}/${route}`} key={route}>
                 <div className={`event-admin-section-${route}`}>
-                  <Comp
-                    event={event}
-                  />
+                  <Comp />
                 </div>
               </Route>
             )

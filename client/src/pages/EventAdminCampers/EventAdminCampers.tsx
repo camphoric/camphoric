@@ -12,6 +12,7 @@ import * as fuseUtils from 'utils/fuse';
 import {
   useCamperLookup,
   useCamperSearch,
+  useEvent,
 } from 'store/hooks';
 
 import Spinner from 'components/Spinner';
@@ -22,15 +23,15 @@ import CamperEdit from './CamperEdit';
 import { useQuery } from 'hooks/navigation';
 // import getAllKeys from 'utils/objectKeys';
 
-function EventAdminCampers(props: EventAdminPageProps) {
-  const { event } = props;
+function EventAdminCampers() {
+  const eventApi = useEvent();
   const camperLookup = useCamperLookup();
   const camperSearch = useCamperSearch();
 
   const camperId = useQuery('camperId');
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  if (!camperSearch || !camperLookup) return <Spinner />;
+  if (!camperSearch || !camperLookup || !eventApi.data) return <Spinner />;
 
   let results;
   if (searchQuery.length) {
@@ -66,7 +67,7 @@ function EventAdminCampers(props: EventAdminPageProps) {
           {
             !!camperLookup[camperId] && (
               <CamperEdit
-                event={event}
+                event={eventApi.data}
                 camper={camperLookup[camperId]}
               />
             )

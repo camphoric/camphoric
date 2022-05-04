@@ -28,7 +28,7 @@ export const editableSchemas = {
 
 export type EditableSchemaKeys = keyof typeof editableSchemas;
 
-function EventAdminHome({ event: originalEvent }: EventAdminPageProps) {
+function EventAdminHome() {
   const eventApi = useEvent();
 
   if (eventApi.isLoading || !eventApi.data) return <Spinner />;

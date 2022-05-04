@@ -10,10 +10,10 @@ function EventAdminRegistrations(props: EventAdminPageProps) {
   return (
     <Tabs defaultActiveKey="reg_edit">
       <Tab eventKey="reg_edit" title="Edit">
-        <EditTab {...props} />
+        <EditTab />
       </Tab>
       <Tab eventKey="reg_special" title="Special Registrations">
-        <SpecialRegTab {...props} />
+        <SpecialRegTab />
       </Tab>
 
     </Tabs>
