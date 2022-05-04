@@ -5,7 +5,7 @@ import {
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
 
-import { apiFetch } from 'utils/fetch';
+import api from 'store/api';
 
 import { TabProps } from './EventAdminSettings';
 
@@ -13,25 +13,11 @@ interface Props extends TabProps {
 }
 
 function EditRegistrationTypes({ event, ...props }: Props) {
-  const [registrationTypes, setRegistrationTypes] = React.useState<ApiRegistrationType[] | null>(null);
+  const registrationTypesApi = api.useGetRegistrationTypesQuery();
 
-  const getRegistrationTypes = async () => {
-    try {
-      const response = await apiFetch('/api/registrationtypes/');
-      const json = await response.json();
+  if (registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
 
-      setRegistrationTypes(json);
-    } catch (error) {
-      console.log('error', error);
-    }
-  };
-
-  React.useEffect(() => {
-    getRegistrationTypes();
-  }, [event.id]);
-  // console.log(props.name, value);
-
-  if (!registrationTypes) return <Spinner />;
+  const registrationTypes = registrationTypesApi.data;
 
   console.log(registrationTypes);
 
