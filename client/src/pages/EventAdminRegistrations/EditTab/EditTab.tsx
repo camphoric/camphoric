@@ -14,7 +14,7 @@ import {
   useRegistrationSearch,
 } from 'store/hooks';
 
-import { useQuery } from 'hooks/admin';
+import { useQuery } from 'hooks/navigation';
 import Spinner from 'components/Spinner';
 
 import RegistrationSearchResult from './RegistrationSearchResult';

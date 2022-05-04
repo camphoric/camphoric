@@ -19,7 +19,7 @@ import Spinner from 'components/Spinner';
 import CamperSearchResult from './CamperSearchResult';
 import CamperEdit from './CamperEdit';
 
-import { useQuery } from 'hooks/admin';
+import { useQuery } from 'hooks/navigation';
 // import getAllKeys from 'utils/objectKeys';
 
 function EventAdminCampers(props: EventAdminPageProps) {

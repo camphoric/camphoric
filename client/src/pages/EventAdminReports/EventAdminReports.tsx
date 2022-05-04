@@ -9,7 +9,7 @@ import {
   Button,
 } from 'react-bootstrap';
 import Fuse from 'fuse.js';
-import { useQueryLookup } from 'hooks/admin';
+import { useQueryLookup } from 'hooks/navigation';
 import { apiFetch } from 'utils/fetch';
 import Modal from 'components/Modal';
 
