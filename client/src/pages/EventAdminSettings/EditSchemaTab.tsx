@@ -3,6 +3,7 @@ import {
   Container,
   Button,
 } from 'react-bootstrap';
+import api from 'store/api';
 import Spinner from 'components/Spinner';
 import JsonEditor from 'components/JsonEditor';
 
@@ -14,9 +15,8 @@ interface Props extends TabProps {
 
 function EditSchemaTab(props: Props) {
   const editor = React.useRef<JsonEditor>(null);
+  const [updateEvent] = api.useUpdateEventMutation();
   const value = props.event[props.name];
-
-  // console.log(props.name, value);
 
   if (!value) return <Spinner />;
 
@@ -25,8 +25,10 @@ function EditSchemaTab(props: Props) {
 
     const newValue = editor.current.getValue()
 
-    props.handleChange(props.name)(newValue);
-    props.save();
+    updateEvent({
+      [props.name]: newValue,
+      id: props.event.id,
+    });
   }
 
   return (
