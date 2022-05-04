@@ -6,16 +6,22 @@ import {
 } from 'react-bootstrap';
 import { apiFetch } from 'utils/fetch';
 import Spinner from 'components/Spinner';
+import {
+  useEvent,
+} from 'store/hooks';
 
 import ControlColumn from './ControlColumn';
 import InvitationReport from './InvitationReport';
 import { InvitePostValues } from './InviteModal';
 import { RegTypePostValues } from './RegTypeModal';
 
-function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
+function SpecialRegTab() {
+  const eventApi = useEvent();
   const [registrationTypes, setRegistrationTypes] = React.useState<ApiRegistrationType[] | null>(null);
   const [invitations, setInvitations] = React.useState<ApiInvitation[] | null>(null);
   const [fetching, setFetching] = React.useState<boolean>(true);
+
+  const eventId = eventApi.data?.id;
 
   const getValues = async () => {
     setFetching(true);
@@ -35,10 +41,12 @@ function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
   };
 
   const newInvitation = async (values: InvitePostValues) => {
+    if (!eventId) return;
+
     setFetching(true);
     try {
       await apiFetch('/api/invitations/', 'POST', {
-        event: event.id,
+        event: eventId,
         ...values
       });
     } catch (error) {
@@ -50,6 +58,8 @@ function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
   }
 
   const newRegType = async (values: RegTypePostValues) => {
+    if (!eventId) return;
+
     setFetching(true);
     const method = values.id ? 'PUT' : 'POST';
     let url = '/api/registrationtypes/';
@@ -60,7 +70,7 @@ function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
       }
 
       await apiFetch(url, method, {
-        event: event.id,
+        event: eventId,
         ...values
       });
     } catch (error) {
@@ -73,7 +83,7 @@ function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
 
   const deleteRegType = async (id: string | number) => {
     setFetching(true);
-    try {
+    try{
       await apiFetch(`/api/registrationtypes/${id}`, 'DELETE');
     } catch (error) {
       console.error('error /api/registrationtypes/ POST', error);
@@ -85,9 +95,10 @@ function SpecialRegTab({ event, ...props }: EventAdminPageProps) {
 
   React.useEffect(() => {
     getValues();
-  }, [event.id]);
+  }, [eventId]);
 
   if (fetching || !registrationTypes || !invitations) return <Spinner />;
+  if (!eventApi.data) return <Spinner />;
 
   // console.log(registrationTypes, invitations);
 

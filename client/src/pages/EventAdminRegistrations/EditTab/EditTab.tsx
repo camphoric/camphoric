@@ -12,6 +12,7 @@ import * as fuseUtils from 'utils/fuse';
 import {
   useRegistrationLookup,
   useRegistrationSearch,
+  useEvent,
 } from 'store/hooks';
 
 import { useQuery } from 'hooks/navigation';
@@ -20,8 +21,8 @@ import Spinner from 'components/Spinner';
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
-function EditTab(props: EventAdminPageProps) {
-  const { event } = props;
+function EditTab() {
+  const eventApi = useEvent();
   const registrationLookup = useRegistrationLookup();
   const registrationSearch = useRegistrationSearch();
 
@@ -29,6 +30,9 @@ function EditTab(props: EventAdminPageProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
 
   if (!registrationSearch || !registrationLookup) return <Spinner />;
+  if (eventApi.isLoading || !eventApi.data) return <Spinner />;
+
+  const event = eventApi.data;
 
   let results;
   if (searchQuery.length) {

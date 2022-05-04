@@ -1,10 +1,16 @@
 import React from 'react';
+import { useEvent } from 'store/hooks';
+import Spinner from 'components/Spinner';
 
-function EventAdminLodging({ event }: EventAdminPageProps) {
+function EventAdminLodging() {
+  const eventApi = useEvent();
+
+  if (eventApi.isLoading || !eventApi.data) return <Spinner />;
+
   return (
     <React.Fragment>
       <h1>Lodging</h1>
-      <pre>{JSON.stringify(event, null, 2)}</pre>
+      <pre>{JSON.stringify(eventApi.data, null, 2)}</pre>
     </React.Fragment>
   );
 }
