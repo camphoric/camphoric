@@ -16,7 +16,7 @@ const blankFormValue = {
   template: '',
 }
 
-function ReportEditForm({ result, onChange, ...props }: ReportEditFormProps) {
+function ReportEditForm({ result, onChange }: ReportEditFormProps) {
   const [reportValues, setReportValues] = React.useState<ReportEditFormValue>(blankFormValue);
 
   React.useEffect(() => {
