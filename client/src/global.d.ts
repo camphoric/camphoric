@@ -206,24 +206,5 @@ declare global {
   export interface AugmentedRegistration extends ApiRegistration {
     campers: Array<ApiCamper>;
   }
-
-  export type RegistrationLookup = {
-    [id: string]: AugmentedRegistration,
-  }
-
-  export type CamperLookup = {
-    [id: string]: ApiCamper,
-  }
-
-  interface EventAdminPageProps {
-    event: ApiEvent,
-    registrationLookup: RegistrationLookup | undefined,
-    registrationSearch: Fuze<AugmentedRegistration>,
-    registrations: Array<AugmentedRegistration>,
-    camperLookup: CamperLookup | undefined,
-    camperSearch: Fuze<ApiCamper>,
-    campers: Array<ApiCamper>,
-
-  }
 }
 

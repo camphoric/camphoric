@@ -1,9 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { createSelector } from '@reduxjs/toolkit';
-import { useSelector } from 'react-redux'
 import Fuse from 'fuse.js';
-import { store } from './store';
 import api from './api';
 
 type CtxId = string | number;
@@ -23,8 +20,6 @@ export type CamperLookup = {
 export type ReportLookup = {
   [id: string]: ApiReport,
 }
-
-
 
 export function useEvent() {
   const { eventId } = useParams<UrlParams>();

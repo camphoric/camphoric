@@ -12,6 +12,8 @@ import {
   useEvent,
   useRegistrationLookup,
   useCamperLookup,
+  RegistrationLookup,
+  CamperLookup,
 } from 'store/hooks';
 
 interface Props extends ReportEditFormProps {

@@ -7,7 +7,7 @@ import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
 
-import { UserInfo } from 'hooks/admin';
+import { UserInfo } from 'hooks/user';
 import './styles.scss';
 
 type LoginProps = {

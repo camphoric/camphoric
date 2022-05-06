@@ -3,7 +3,7 @@ import Spinner from 'components/Spinner';
 import StateProvider from 'hooks/Provider';
 import Router from 'navigation/Router';
 
-import { UserInfo } from 'hooks/admin';
+import { UserInfo } from 'hooks/user';
 
 const App = () => {
   const [csrfStatus, setCsrfStatus] = React.useState<'unfetched' | 'fetching' | 'set'>('unfetched');

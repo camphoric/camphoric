@@ -2,7 +2,7 @@ import React from 'react';
 import { Route, RouteProps } from 'react-router-dom';
 
 import Login from './Login';
-import { useUser } from 'hooks/admin';
+import { useUser } from 'hooks/user';
 
 type Props = Omit<RouteProps, 'component'>;
 
