@@ -6,7 +6,7 @@ import {
 import EditTab from './EditTab';
 import SpecialRegTab from './SpecialRegTab';
 
-function EventAdminRegistrations(props: EventAdminPageProps) {
+function EventAdminRegistrations() {
   return (
     <Tabs defaultActiveKey="reg_edit">
       <Tab eventKey="reg_edit" title="Edit">

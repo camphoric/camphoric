@@ -21,7 +21,6 @@ import CamperSearchResult from './CamperSearchResult';
 import CamperEdit from './CamperEdit';
 
 import { useQuery } from 'hooks/navigation';
-// import getAllKeys from 'utils/objectKeys';
 
 function EventAdminCampers() {
   const eventApi = useEvent();

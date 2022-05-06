@@ -1,6 +1,5 @@
 // Need to use the React-specific entry point to allow generating React hooks
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { EndpointBuilder } from '@reduxjs/toolkit/dist/query/endpointDefinitions';
 import { getCsrfToken } from 'utils/fetch';
 
 const apiObjectNames = [
@@ -67,7 +66,7 @@ export const api = createApi({
         providesTags: [apiObjectName],
       });
     const getByIdCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
-      builder.query<[R], Scalar>({
+      builder.query<R, Scalar>({
         query: (id) => `${apiObjectName.toLowerCase()}s/${id}/`,
         providesTags: (result, error, id) => [{ type: apiObjectName, id }],
       });

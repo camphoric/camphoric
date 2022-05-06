@@ -22,6 +22,11 @@ import ReportSearchResult from './ReportSearchResult';
 import ReportView from './ReportView';
 import ReportEditForm, { ReportEditFormValue } from './ReportEditForm';
 
+const blankForm = {
+  title: '',
+  template: '',
+};
+
 function EventAdminReports() {
   const reportSearch = useReportSearch();
   const reportLookup = useReportLookup();
@@ -34,10 +39,7 @@ function EventAdminReports() {
   const modalRef  = React.useRef<Modal>(null);
   const queryLookup = useQueryLookup();
 
-  const [formValues, setFormValues] = React.useState<ReportEditFormValue>({
-    title: '',
-    template: '',
-  });
+  const [formValues, setFormValues] = React.useState<ReportEditFormValue>(blankForm);
 
   if (
     !event ||
@@ -51,8 +53,6 @@ function EventAdminReports() {
   const showModal = () => modalRef.current && modalRef.current.show()
   const saveReport = (report?: ApiReport) =>
     async () => {
-      console.log('saveReport', report, formValues);
-
       if (!report) {
         await createReport({
           event: event.id,
@@ -64,10 +64,11 @@ function EventAdminReports() {
           ...formValues
         });
       }
+
+      setFormValues(blankForm);
     };
 
   const report = reportLookup[queryLookup['reportId']];
-  console.log('report', report, formValues);
   const searchResults = searchQuery
     ? reportSearch.search(searchQuery).map(c => c.item)
     : reports;

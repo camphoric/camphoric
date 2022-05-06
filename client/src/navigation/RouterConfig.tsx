@@ -19,7 +19,7 @@ const EventChooser = React.lazy(() => import('pages/EventChooser'));
 const EventAdmin = React.lazy(() => import('./EventAdminContainer'));
 
 //                        url     label   component
-export type RouteTuple = [string, string, React.ComponentType<EventAdminPageProps>];
+export type RouteTuple = [string, string, React.ComponentType<{}>];
 export type RouteList = Array<RouteTuple>;
 
 const RouterConfig = () => {
