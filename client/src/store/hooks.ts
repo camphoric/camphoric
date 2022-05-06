@@ -12,6 +12,27 @@ type UrlParams = {
   organizationId?: string;
 }
 
+export type RegistrationLookup = {
+  [id: string]: AugmentedRegistration,
+}
+
+export type CamperLookup = {
+  [id: string]: ApiCamper,
+}
+
+export type ReportLookup = {
+  [id: string]: ApiReport,
+}
+
+
+
+export function useEvent() {
+  const { eventId } = useParams<UrlParams>();
+  const event = api.useGetEventByIdQuery(eventId || 0);
+
+  return event;
+}
+
 const basicSearchOptions = {
   isCaseSensitive: true,
   includeScore: true,
@@ -27,32 +48,10 @@ const basicSearchOptions = {
   // ignoreFieldNorm: false,
 };
 
-const registrationSearchOptions = {
-  ...basicSearchOptions,
-  keys: [
-    'registration_type',
-    'campers.attributes.last_name',
-    'campers.attributes.first_name',
-    'attributes.payment.payer_last_name',
-    'attributes.payment.payer_first_name',
-    'attributes.payment.payer_number',
-    'attributes.payment.payer_billing_address.city',
-    'attributes.payment.payer_billing_address.country',
-    'attributes.payment.payer_billing_address.zip_code',
-    'attributes.payment.payer_billing_address.street_address',
-    'attributes.payment.payer_billing_address.state_or_province',
-  ]
-}
 
-const camperSearchOptions = {
-  ...basicSearchOptions,
-  keys: [
-    'attributes.last_name',
-    'attributes.first_name',
-    'attributes.accommodations.accommodation_preference',
-    'attributes.accommodations.camp_preference',
-  ]
-}
+/**
+ * HOOKS FOR ApiRegistrations
+ */
 
 const createRegistrationLookup =
   (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): RegistrationLookup => {
@@ -94,6 +93,22 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
 }
 
 export type RegistrationSearch = Fuse<AugmentedRegistration>;
+const registrationSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'registration_type',
+    'campers.attributes.last_name',
+    'campers.attributes.first_name',
+    'attributes.payment.payer_last_name',
+    'attributes.payment.payer_first_name',
+    'attributes.payment.payer_number',
+    'attributes.payment.payer_billing_address.city',
+    'attributes.payment.payer_billing_address.country',
+    'attributes.payment.payer_billing_address.zip_code',
+    'attributes.payment.payer_billing_address.street_address',
+    'attributes.payment.payer_billing_address.state_or_province',
+  ]
+};
 
 function createRegistrationSearch(lookup?: RegistrationLookup): RegistrationSearch {
   const augmentedRegistrations = Object.values(lookup || {});
@@ -115,6 +130,10 @@ export function useRegistrationSearch(): RegistrationSearch | undefined {
 
   return search;
 }
+
+/**
+ * HOOKS FOR ApiCampers
+ */
 
 const createCamperLookup =
   (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): CamperLookup => {
@@ -157,6 +176,15 @@ export function useCamperLookup(): CamperLookup | undefined {
 }
 
 export type CamperSearch = Fuse<ApiCamper>;
+const camperSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'attributes.last_name',
+    'attributes.first_name',
+    'attributes.accommodations.accommodation_preference',
+    'attributes.accommodations.camp_preference',
+  ]
+};
 
 function createCamperSearch(lookup?: CamperLookup): CamperSearch {
   const augmentedCampers = Object.values(lookup || {});
@@ -179,18 +207,80 @@ export function useCamperSearch(): CamperSearch | undefined {
   return search;
 }
 
-export function useEvent() {
-  const { eventId } = useParams<UrlParams>();
-  const event = api.useGetEventByIdQuery(eventId || 0);
+/**
+ * HOOKS FOR ApiReports
+ */
 
-  return event;
+const createReportLookup =
+  (reports: Array<ApiReport>, eventId: CtxId): ReportLookup => {
+    const eventIdStr = eventId.toString();
+
+    return reports
+      .filter(r => r.event.toString() === eventIdStr)
+      .reduce(
+        (acc, c) => ({
+          ...acc,
+          [c.id]: c,
+        }),
+        {},
+      );
+  };
+
+export function useReportLookup(): ReportLookup | undefined {
+  const { data: reports } = api.useGetReportsQuery();
+  const { eventId } = useParams<UrlParams>();
+
+  const [lookup, setLookup] = React.useState<ReportLookup>();
+
+  React.useEffect(() => {
+    if (!reports) return;
+    if (!eventId) return;
+
+    const result = createReportLookup(reports, eventId);
+
+    setLookup(result);
+  }, [reports, eventId]);
+
+  return lookup;
+}
+
+export type ReportSearch = Fuse<ApiReport>;
+const reportSearchOptions = {
+  ...basicSearchOptions,
+  keys: [
+    'attributes.last_name',
+    'attributes.first_name',
+    'attributes.accommodations.accommodation_preference',
+    'attributes.accommodations.camp_preference',
+  ]
+};
+
+function createReportSearch(lookup?: ReportLookup): ReportSearch {
+  const augmentedReports = Object.values(lookup || {});
+
+  return new Fuse<ApiReport>(
+    augmentedReports,
+    reportSearchOptions,
+  );
+}
+
+export function useReportSearch(): ReportSearch | undefined {
+  const reportLookup = useReportLookup();
+
+  const [search, setSearch] = React.useState<ReportSearch>();
+
+  React.useEffect(() => {
+    setSearch(createReportSearch(reportLookup));
+  }, [reportLookup]);
+
+  return search;
 }
 
 export function useOrganization() {
   const { organizationId } = useParams<UrlParams>();
-  const event = api.useGetOrganizationByIdQuery(organizationId || 0);
+  const organization = api.useGetOrganizationByIdQuery(organizationId || 0);
 
-  return event;
+  return organization;
 }
 
 export function useUrlParams() {
