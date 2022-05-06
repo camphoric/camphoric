@@ -3,26 +3,10 @@ import {
   Switch,
   Redirect,
   Route,
-  useParams,
   useLocation,
-  useRouteMatch,
 } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
-import Fuse from 'fuse.js';
-
-import Spinner from 'components/Spinner';
-
-import {
-  useRegistrationLookup,
-  useRegistrationSearch,
-  useCamperLookup,
-  useCamperSearch,
-  useEvent,
-  useOrganization,
-} from 'store/hooks';
-
-import api from 'store/api';
 
 import EventAdminHome from 'pages/EventAdminHome';
 import Registrations  from 'pages/EventAdminRegistrations';
@@ -47,20 +31,6 @@ const eventAdminRoutes: RouteList = [
 
 function EventAdmin(props: { basePath: string }) {
   const { pathname } = useLocation();
-
-  const eventApi = useEvent();
-  const organizationApi = useOrganization();
-  const registrations = api.useGetRegistrationsQuery();
-  const registrationLookup = useRegistrationLookup();
-  const registrationSearch = useRegistrationSearch();
-
-  const campers = api.useGetCampersQuery();
-  const camperLookup = useCamperLookup();
-  const camperSearch = useCamperSearch();
-
-  if (eventApi.isLoading || eventApi.isFetching) return <Spinner />;
-
-  const event = eventApi.data;
 
   return(
     <Container>
