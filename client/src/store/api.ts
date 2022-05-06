@@ -17,31 +17,35 @@ const apiObjectNames = [
   'User',
 ] as const;
 
-// Each api object should at least have these configured.
-function createBasicEndpoints<R extends { id: Scalar }> (
-  apiObjectName: typeof apiObjectNames[number],
-  builder: EndpointBuilder<any, any, any>,
-) {
-  const apiName = apiObjectName.toLowerCase();
-  return {
-    [`get${apiName}s` as const]: builder.query<[R], void>({
-      query: () => 'events/',
-    }),
-    [`get${apiObjectName}ById` as const]: builder.query<R, Scalar>({
-      providesTags: (result, error, id) => [{ type: apiObjectName, id }],
-      query: (id) => `${apiName}s/${id}/`,
-    }),
-    [`update${apiObjectName}` as const]: builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
-      // note: an optional `queryFn` may be used in place of `query`
-      query: ({ id, ...patch }) => ({
-        url: `${apiName}s/${id}/`,
-        method: 'PATCH',
-        body: patch,
-      }),
-      invalidatesTags: [apiObjectName],
-    }),
-  };
-}
+/**
+ * I tried doing the creating of basic CRUD creation like this, but I was
+ * defeated by typescript
+ *
+ * function createBasicEndpoints<R extends { id: Scalar }> (
+ *   apiObjectName: typeof apiObjectNames[number],
+ *   builder: EndpointBuilder<any, any, any>,
+ * ) {
+ *   const apiName = apiObjectName.toLowerCase();
+ *   return {
+ *     [`get${apiName}s` as const]: builder.query<[R], void>({
+ *       query: () => 'events/',
+ *     }),
+ *     [`get${apiObjectName}ById` as const]: builder.query<R, Scalar>({
+ *       providesTags: (result, error, id) => [{ type: apiObjectName, id }],
+ *       query: (id) => `${apiName}s/${id}/`,
+ *     }),
+ *     [`update${apiObjectName}` as const]: builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
+ *       // note: an optional `queryFn` may be used in place of `query`
+ *       query: ({ id, ...patch }) => ({
+ *         url: `${apiName}s/${id}/`,
+ *         method: 'PATCH',
+ *         body: patch,
+ *       }),
+ *       invalidatesTags: [apiObjectName],
+ *     }),
+ *   };
+ * }
+ */
 
 export const api = createApi({
   reducerPath: 'api',
@@ -56,134 +60,134 @@ export const api = createApi({
   }),
   tagTypes: apiObjectNames,
   // REMEMBER: our api needs trailing slashes
-  endpoints: (builder) => ({
-    /** /api/organizations */
-    getOrganizations: builder.query<[ApiOrganization], void>({
-      query: () => 'organizations/',
-    }),
-    getOrganizationById: builder.query<ApiOrganization, Scalar>({
-      query: (id) => `organizations/${id}/`,
-    }),
+  endpoints: (builder) => {
+    const getCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
+      builder.query<[R], void>({
+        query: () => `${apiObjectName.toLowerCase()}s/`,
+        providesTags: [apiObjectName],
+      });
+    const getByIdCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
+      builder.query<[R], Scalar>({
+        query: (id) => `${apiObjectName.toLowerCase()}s/${id}/`,
+        providesTags: (result, error, id) => [{ type: apiObjectName, id }],
+      });
+    const updateCreator = <R extends { id: Scalar }>(apiObjectName: typeof apiObjectNames[number]) =>
+      builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
+        // note: an optional `queryFn` may be used in place of `query`
+        query: ({ id, ...patch }) => ({
+          url: `${apiObjectName.toLowerCase()}s/${id}/`,
+          method: 'PATCH',
+          body: patch,
+        }),
+        invalidatesTags: [apiObjectName],
+      });
+    const createCreator = <R extends {}>(apiObjectName: typeof apiObjectNames[number]) =>
+      builder.mutation<
+        R,
+        Omit<R, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+      >({
+        // note: an optional `queryFn` may be used in place of `query`
+        query: (body) => ({
+          url: `${apiObjectName.toLowerCase()}s/`,
+          method: 'POST',
+          body,
+        }),
+        invalidatesTags: [apiObjectName],
+      });
+    const deleteCreator = <R extends { id: Scalar }>(apiObjectName: typeof apiObjectNames[number]) =>
+      builder.mutation<R, { id: Scalar }>({
+        // note: an optional `queryFn` may be used in place of `query`
+        query: ({ id }) => ({
+          url: `${apiObjectName.toLowerCase()}s/${id}/`,
+          method: 'DELETE',
+        }),
+        invalidatesTags: [apiObjectName],
+      });
 
-    /** /api/events */
-    getEvents: builder.query<[ApiEvent], void>({
-      query: () => 'events/',
-    }),
-    getEventById: builder.query<ApiEvent, Scalar>({
-      providesTags: (result, error, id) => [{ type: 'Event', id }],
-      query: (id) => `events/${id}/`,
-    }),
-    updateEvent: builder.mutation<ApiEvent, Partial<ApiEvent> & Pick<ApiEvent, 'id'>>({
-      // note: an optional `queryFn` may be used in place of `query`
-      query: ({ id, ...patch }) => ({
-        url: `events/${id}/`,
-        method: 'PATCH',
-        body: patch,
+    return ({
+      /** /api/organizations */
+      getOrganizations: getCreator<ApiOrganization>('Organization'),
+      getOrganizationById: getByIdCreator<ApiOrganization>('Organization'),
+      updateOrganization: updateCreator<ApiOrganization>('Organization'),
+      createOrganization: createCreator<ApiOrganization>('Organization'),
+      deleteOrganization: deleteCreator<ApiOrganization>('Organization'),
+
+      /** /api/events */
+      getEvents: getCreator<ApiEvent>('Event'),
+      getEventById: getByIdCreator<ApiEvent>('Event'),
+      updateEvent: updateCreator<ApiEvent>('Event'),
+      createEvent: createCreator<ApiEvent>('Event'),
+      deleteEvent: deleteCreator<ApiEvent>('Event'),
+
+      /** /api/registrations */
+      getRegistrations: getCreator<ApiRegistration>('Registration'),
+      getRegistrationById: getByIdCreator<ApiRegistration>('Registration'),
+      updateRegistration: updateCreator<ApiRegistration>('Registration'),
+      createRegistration: createCreator<ApiRegistration>('Registration'),
+      deleteRegistration: deleteCreator<ApiRegistration>('Registration'),
+
+      /** /api/registrationtypes */
+      getRegistrationTypes: getCreator<ApiRegistrationType>('RegistrationType'),
+      getRegistrationTypeById: getByIdCreator<ApiRegistrationType>('RegistrationType'),
+      updateRegistrationType: updateCreator<ApiRegistrationType>('RegistrationType'),
+      createRegistrationType: createCreator<ApiRegistrationType>('RegistrationType'),
+      deleteRegistrationType: deleteCreator<ApiRegistrationType>('RegistrationType'),
+
+      /** /api/reports */
+      getReports: getCreator<ApiReport>('Report'),
+      getReportById: getByIdCreator<ApiReport>('Report'),
+      updateReport: updateCreator<ApiReport>('Report'),
+      createReport: createCreator<ApiReport>('Report'),
+      deleteReport: deleteCreator<ApiReport>('Report'),
+
+      /** /api/invitations */
+      getInvitations: getCreator<ApiInvitation>('Invitation'),
+      getInvitationById: getByIdCreator<ApiInvitation>('Invitation'),
+      updateInvitation: updateCreator<ApiInvitation>('Invitation'),
+      createInvitation: createCreator<ApiInvitation>('Invitation'),
+      deleteInvitation: deleteCreator<ApiInvitation>('Invitation'),
+
+      /** /api/lodgings */
+      getLodgings: getCreator<ApiLodging>('Lodging'),
+      getLodgingById: getByIdCreator<ApiLodging>('Lodging'),
+      updateLodging: updateCreator<ApiLodging>('Lodging'),
+      createLodging: createCreator<ApiLodging>('Lodging'),
+      deleteLodging: deleteCreator<ApiLodging>('Lodging'),
+
+      /** /api/campers */
+      getCampers: getCreator<ApiCamper>('Camper'),
+      getCamperById: getByIdCreator<ApiCamper>('Camper'),
+      updateCamper: updateCreator<ApiCamper>('Camper'),
+      createCamper: createCreator<ApiCamper>('Camper'),
+      deleteCamper: deleteCreator<ApiCamper>('Camper'),
+
+      /** /api/deposits */
+      getDeposits: getCreator<ApiDeposit>('Deposit'),
+      getDepositById: getByIdCreator<ApiDeposit>('Deposit'),
+      updateDeposit: updateCreator<ApiDeposit>('Deposit'),
+      createDeposit: createCreator<ApiDeposit>('Deposit'),
+      deleteDeposit: deleteCreator<ApiDeposit>('Deposit'),
+
+      /** /api/payments */
+      getPayments: getCreator<ApiPayment>('Payment'),
+      getPaymentById: getByIdCreator<ApiPayment>('Payment'),
+      updatePayment: updateCreator<ApiPayment>('Payment'),
+      createPayment: createCreator<ApiPayment>('Payment'),
+      deletePayment: deleteCreator<ApiPayment>('Payment'),
+
+      /** /api/users */
+      getUsers: getCreator<ApiUser>('User'),
+      getUserById: getByIdCreator<ApiUser>('User'),
+      updateUser: updateCreator<ApiUser>('User'),
+      createUser: createCreator<ApiUser>('User'),
+      deleteUser: deleteCreator<ApiUser>('User'),
+
+      /** /api/user */
+      getCurrentUser: builder.query<ApiUser, void>({
+        query: () => 'user/',
       }),
-      invalidatesTags: ['Event'],
-    }),
-
-    /** /api/registrations */
-    getRegistrations: builder.query<[ApiRegistration], void>({
-      query: () => 'registrations/',
-    }),
-    getRegistrationById: builder.query<ApiRegistration, Scalar>({
-      query: (id) => `registrations/${id}/`,
-    }),
-
-    /** /api/registrationtypes */
-    getRegistrationTypes: builder.query<[ApiRegistrationType], void>({
-      query: () => 'registrationtypes/',
-    }),
-    getRegistrationTypeById: builder.query<ApiRegistrationType, Scalar>({
-      query: (id) => `registrationtypes/${id}/`,
-    }),
-
-    /** /api/reports */
-    getReports: builder.query<[ApiReport], void>({
-      query: () => 'reports/',
-      providesTags: ['Report'],
-    }),
-    getReportById: builder.query<ApiReport, Scalar>({
-      query: (id) => `reports/${id}/`,
-      providesTags: (result, error, id) => [{ type: 'Report', id }],
-    }),
-    updateReport: builder.mutation<ApiReport, Partial<ApiReport> & Pick<ApiReport, 'id'>>({
-      // note: an optional `queryFn` may be used in place of `query`
-      query: ({ id, ...patch }) => ({
-        url: `reports/${id}/`,
-        method: 'PATCH',
-        body: patch,
-      }),
-      invalidatesTags: ['Report'],
-    }),
-    createReport: builder.mutation<
-      ApiReport,
-      Omit<ApiReport, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
-    >({
-      // note: an optional `queryFn` may be used in place of `query`
-      query: (body) => ({
-        url: `reports/`,
-        method: 'POST',
-        body,
-      }),
-      invalidatesTags: ['Report'],
-    }),
-
-
-    /** /api/invitations */
-    getInvitations: builder.query<[ApiInvitation], void>({
-      query: () => 'invitations/',
-    }),
-    getInvitationById: builder.query<ApiInvitation, Scalar>({
-      query: (id) => `invitations/${id}/`,
-    }),
-
-    /** /api/lodgings */
-    getLodgings: builder.query<[ApiLodging], void>({
-      query: () => 'lodgings/',
-    }),
-    getLodgingById: builder.query<ApiLodging, Scalar>({
-      query: (id) => `lodgings/${id}/`,
-    }),
-
-    /** /api/campers */
-    getCampers: builder.query<[ApiCamper], void>({
-      query: () => 'campers/',
-    }),
-    getCamperById: builder.query<ApiCamper, Scalar>({
-      query: (id) => `campers/${id}/`,
-    }),
-
-    /** /api/deposits */
-    getDeposits: builder.query<[ApiDeposit], void>({
-      query: () => 'deposits/',
-    }),
-    getDepositById: builder.query<ApiDeposit, Scalar>({
-      query: (id) => `deposits/${id}/`,
-    }),
-
-    /** /api/payments */
-    getPayments: builder.query<[ApiPayment], void>({
-      query: () => 'payments/',
-    }),
-    getPaymentById: builder.query<ApiPayment, Scalar>({
-      query: (id) => `payments/${id}/`,
-    }),
-
-    /** /api/users */
-    getUsers: builder.query<[ApiUser], void>({
-      query: () => 'users/',
-    }),
-    getUserById: builder.query<ApiUser, Scalar>({
-      query: (id) => `users/${id}/`,
-    }),
-
-    /** /api/user */
-    getCurrentUser: builder.query<ApiUser, void>({
-      query: () => 'user/',
-    }),
-  }),
+    });
+  },
 });
 
 // Export hooks for usage in function components, which are
