@@ -3,7 +3,6 @@ import {
   Switch,
   Redirect,
   Route,
-  useLocation,
 } from 'react-router-dom';
 
 import { Container, Row, Col } from 'react-bootstrap';
@@ -30,14 +29,11 @@ const eventAdminRoutes: RouteList = [
 ];
 
 function EventAdmin(props: { basePath: string }) {
-  const { pathname } = useLocation();
-
   return(
     <Container>
       <Row className="justify-content-md-center"><Col>
       <NavBar routes={eventAdminRoutes} />
       <Switch>
-        <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
         {
           eventAdminRoutes.map(
             ([route,, Comp]) => (
