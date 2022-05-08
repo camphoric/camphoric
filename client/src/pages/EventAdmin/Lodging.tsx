@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEvent } from 'store/hooks';
+import { useEvent } from 'hooks/api';
 import Spinner from 'components/Spinner';
 
 function EventAdminLodging() {

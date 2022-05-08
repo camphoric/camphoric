@@ -3,7 +3,7 @@ import { FieldProps } from '@rjsf/core';
 import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 import Form from 'react-bootstrap/Form';
 import AddressField from './AddressField';
-import { getSchemaValue, getSchemaItemsValue } from '../../utils';
+import { getSchemaValue } from '../../utils';
 
 export type Keys = 'street_address' | 'city' | 'state_or_province' | 'zip_code';
 

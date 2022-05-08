@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { Tabs, Tab } from 'react-bootstrap';
-import { useEvent } from 'store/hooks';
+import { useEvent } from 'hooks/api';
 import Spinner from 'components/Spinner';
 
 import EditSchemaTab from './EditSchemaTab';

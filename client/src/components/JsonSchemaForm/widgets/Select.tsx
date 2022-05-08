@@ -1,7 +1,6 @@
 import React from 'react';
 import Form from 'react-bootstrap/Form';
-import { WidgetProps } from '@rjsf/core';
-import { utils } from '@rjsf/core';
+import { WidgetProps, utils } from '@rjsf/core';
 import CustomDescriptionField from '../fields/Description';
 import { getSchemaValue } from '../utils';
 

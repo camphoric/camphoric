@@ -3,7 +3,7 @@ import {
   Container,
   Button,
 } from 'react-bootstrap';
-import api from 'store/api';
+import api from 'hooks/api';
 import Spinner from 'components/Spinner';
 import JsonEditor from 'components/JsonEditor';
 

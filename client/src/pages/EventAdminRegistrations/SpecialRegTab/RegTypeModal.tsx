@@ -1,5 +1,5 @@
 import React from 'react';
-import Input, { Select, TextArea } from 'components/Input';
+import Input, { TextArea } from 'components/Input';
 import Modal from 'components/Modal';
 
 export interface RegTypePostValues {

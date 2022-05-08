@@ -13,7 +13,7 @@ import {
   useCamperLookup,
   useCamperSearch,
   useEvent,
-} from 'store/hooks';
+} from 'hooks/api';
 
 import Spinner from 'components/Spinner';
 

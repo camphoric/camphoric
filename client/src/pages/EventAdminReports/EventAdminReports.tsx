@@ -11,12 +11,11 @@ import {
 import { useQueryLookup } from 'hooks/navigation';
 import Modal from 'components/Modal';
 
-import {
+import api, {
   useReportLookup,
   useReportSearch,
   useEvent,
-} from 'store/hooks';
-import api from 'store/api';
+} from 'hooks/api';
 
 import ReportSearchResult from './ReportSearchResult';
 import ReportView from './ReportView';
