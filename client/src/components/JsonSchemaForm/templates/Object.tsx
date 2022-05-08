@@ -1,6 +1,6 @@
 import React from 'react';
 import CustomDescriptionField from '../fields/Description';
-import { getSchemaValue, getSchemaItemsValue } from '../utils';
+import { getSchemaValue } from '../utils';
 
 /**
  * Modified version of DefaultObjectFieldTemplate from react-jsonschema-form:

@@ -1,7 +1,6 @@
 import React from 'react';
 
-import { useEvent } from 'store/hooks';
-import api from 'store/api';
+import api, { useEvent } from 'hooks/api';
 
 import Spinner from 'components/Spinner';
 import { formatDateTimeForApi } from 'utils/time';

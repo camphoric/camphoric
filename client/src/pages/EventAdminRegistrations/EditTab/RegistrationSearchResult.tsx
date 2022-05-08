@@ -1,7 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useRouteMatch } from 'react-router-dom';
 import { Card } from 'react-bootstrap';
-import { useRouteMatch } from 'react-router-dom';
 import Fuse from 'fuse.js';
 
 interface Props {

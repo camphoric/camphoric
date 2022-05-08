@@ -8,7 +8,7 @@ import { apiFetch } from 'utils/fetch';
 import Spinner from 'components/Spinner';
 import {
   useEvent,
-} from 'store/hooks';
+} from 'hooks/api';
 
 import ControlColumn from './ControlColumn';
 import InvitationReport from './InvitationReport';

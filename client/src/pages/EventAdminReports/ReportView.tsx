@@ -14,7 +14,7 @@ import {
   useCamperLookup,
   RegistrationLookup,
   CamperLookup,
-} from 'store/hooks';
+} from 'hooks/api';
 
 interface Props extends ReportEditFormProps {
   save: () => any;

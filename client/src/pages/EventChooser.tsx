@@ -4,7 +4,7 @@ import { Link, useLocation, } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 
 import Spinner from 'components/Spinner';
-import api from 'store/api';
+import api from 'hooks/api';
 
 function EventChooser() {
   const { pathname } = useLocation();

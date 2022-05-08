@@ -1,13 +1,9 @@
 import React from 'react';
-import { FormProps } from '@rjsf/core';
+import { FormProps, withTheme, IChangeEvent } from '@rjsf/core';
 // import Form from '@rjsf/bootstrap-4';
-import { withTheme } from '@rjsf/core';
 import { JSONSchema7 } from 'json-schema';
 import jsonLogic from 'json-logic-js';
 import get from 'lodash/get';
-import {
-  IChangeEvent,
-} from '@rjsf/core';
 
 import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 

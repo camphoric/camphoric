@@ -13,7 +13,7 @@ import {
   useRegistrationLookup,
   useRegistrationSearch,
   useEvent,
-} from 'store/hooks';
+} from 'hooks/api';
 
 import { useQuery } from 'hooks/navigation';
 import Spinner from 'components/Spinner';

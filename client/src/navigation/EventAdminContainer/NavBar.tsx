@@ -6,7 +6,7 @@ import {
   useOrganization,
   useEvent,
   useUrlParams,
-} from 'store/hooks';
+} from 'hooks/api';
 
 import { RouteList } from '../RouterConfig';
 

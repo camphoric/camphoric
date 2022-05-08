@@ -6,8 +6,7 @@
  */
 
 import React from 'react';
-import type JSONEditorType from 'jsoneditor';
-import type { JSONEditorOptions } from 'jsoneditor';
+import JSONEditorType, { type JSONEditorOptions } from 'jsoneditor';
 // @ts-ignore
 import JSONEditor from 'jsoneditor/dist/jsoneditor';
 import 'jsoneditor/dist/jsoneditor.css'

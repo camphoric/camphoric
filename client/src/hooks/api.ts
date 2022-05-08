@@ -1,7 +1,9 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Fuse from 'fuse.js';
-import api from './api';
+import api from 'store/api';
+
+export default api;
 
 type CtxId = string | number;
 type UrlParams = {

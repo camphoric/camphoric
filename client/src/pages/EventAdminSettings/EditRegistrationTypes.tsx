@@ -5,7 +5,7 @@ import {
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
 
-import api from 'store/api';
+import api from 'hooks/api';
 
 import { TabProps } from './EventAdminSettings';
 
