@@ -46,4 +46,5 @@ fi
 
 docker compose exec django python manage.py flush --noinput
 docker compose exec django python manage.py createsuperuser --noinput
-docker compose exec react node fixtures/lark/loadData.mjs
+docker compose exec react node fixtures/loadAllData.mjs
+# docker compose exec react node fixtures/lark_campout/loadData.mjs

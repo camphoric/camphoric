@@ -19,12 +19,12 @@ import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 
 import createTestRegs from './testRegistrations.mjs';
+import camperPricingLogic from './pricing/camperPricingLogic.mjs';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark Campout 2022';
 
 const eventAttributes = {
-  camper_pricing_logic: (await import('./pricing/camperPricingLogic.mjs')).default,
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
   pricing: (await import('./pricing/pricing.mjs')).default,
@@ -39,30 +39,42 @@ const eventAttributes = {
 const lodgingIdLookup = {};
 
 async function main() {
-  const token = await getAuthToken();
-  // console.log(token);
+  const creds = await getAuthToken();
+  console.log('logged in');
 
-  const org = await loadOrganization(token);
+  const org = await loadOrganization(creds);
 	console.log('Processed organization');
   // console.log(org);
 
-  const evt = await loadEvent(token, org);
+  const evt = await loadEvent(creds, org);
 	console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
-  await loadLodgings(token, evt);
+  await loadLodgings(creds, evt);
 	console.log('Processed event lodging');
 
-  await loadRegTypes(token, evt);
+  await loadCamperPricing(creds, evt);
+  console.log('Processed camper pricing');
+
+  await loadRegTypes(creds, evt);
   console.log('Processed event registration types');
 
-  await loadTestRegs(token, evt);
+  await loadTestRegs(creds, evt);
   console.log('Processed test registrations');
 
 	console.log('Finished!');
   return true;
 }
 
+function extractCookieString(response) {
+  return response.headers.raw()['set-cookie'].map(
+    c => {
+      const m = c.match(/^([^=]+=[^;]+)/);
+
+      return m[1];
+    }
+  ).join('; ');
+}
 
 async function getAuthToken() {
 	let username = process.env.DJANGO_SUPERUSER_USERNAME;
@@ -78,49 +90,73 @@ async function getAuthToken() {
 		password = answers.password;
 	}
 
-  const response = await fetch(`${urlBase}/api-token-auth/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `username=${username}&password=${password}`,
-  });
-  const json = await response.json();
-  const { token } = json;
-  if (!token) {
-    throw new Error(JSON.stringify(json));
-  }
+  let response;
+  let cookies;
+  let match;
+  let csrf;
+  response = await fetch(`${urlBase}/api/set-csrf-cookie`);
+  cookies = response.headers.raw()['set-cookie'];
+  match = cookies[0].match(/\bcsrftoken=([^;]+)/);
+  csrf = (match && match[1]) || '';
 
-  return token;
+  response = await fetch(`${urlBase}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrf,
+      cookie: `csrftoken=${csrf}`,
+    },
+    body: JSON.stringify({
+      username,
+      password,
+    }),
+  });
+
+  console.log(response.status);
+
+  const cookie = extractCookieString(response);
+  cookies = response.headers.raw()['set-cookie'];
+  match = cookies[0].match(/\bcsrftoken=([^;]+)/);
+  csrf = (match && match[1]) || '';
+
+  return {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': csrf,
+    cookie,
+  };
 }
 
 
-async function loadOrganization(token) {
+async function loadOrganization(creds) {
+  console.log(creds);
+
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
-    headers: { 'Authorization': `Token ${token}` },
+    headers: creds,
   }).then(r => r.json());
+
+  console.log(organizations);
 
   let org = organizations.find(o => o.name === "Lark Traditional Arts");
   if (!org) {
     console.log('Could not find Lark Traditional Arts, creating');
-    org = await fetch(`${urlBase}/api/organizations/`, {
+    const response = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`,
-      },
+      headers: creds,
       body: JSON.stringify({
         name: "Lark Traditional Arts"
       }),
-    }).then(res => res.json());
+    });
 
+    org = await response.json();
 		console.log('Lark Traditional Arts organization created!');
   }
 
   return org;
 }
 
-async function loadEvent(token, org) {
+async function loadEvent(creds, org) {
   let response = await fetch(`${urlBase}/api/events/`, {
-    headers: { 'Authorization': `Token ${token}` },
+    headers: creds,
   });
 
   const events = await response.json();
@@ -131,6 +167,7 @@ async function loadEvent(token, org) {
     name: eventName,
     confirmation_email_from: 'registration@larkcamp.org',
     ...eventAttributes,
+    camper_pricing_logic: [],
   };
 
   if (existingEvent) {
@@ -141,10 +178,7 @@ async function loadEvent(token, org) {
   try {
     response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
       method: existingEvent ? 'PUT' : 'POST',
-      headers: {
-        'Authorization': `Token ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: creds,
       body: JSON.stringify(event),
     });
     text = await response.text();
@@ -157,48 +191,92 @@ async function loadEvent(token, org) {
   return json;
 }
 
-async function loadLodgings(token, event) {
+async function loadLodgings(creds, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'GET',
-      headers: { 'Authorization': `Token ${token}` },
+      headers: creds,
   });
+
   const existingLodgings = (await response.json())
     .filter(lodging => lodging.event === event.id);
   for (let lodging of existingLodgings) {
     response = await fetch(`${urlBase}/api/lodgings/${lodging.id}/`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Token ${token}` }
+      headers: creds
     });
   }
 
-  for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
-    response = await fetch(`${urlBase}/api/lodgings/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: event.id,
-        parent: lodging.parentKey ? lodgingIdLookup[lodging.parentKey] : null,
-        name: lodging.name,
-        children_title: lodging.children_title,
-        visible: lodging.visible,
-        capacity: lodging.capacity || 0,
-        sharing_multiplier: lodging.sharing_multiplier || 1,
-      }),
-    });
-    const createdLodging = await response.json();
-    lodgingIdLookup[key] = createdLodging.id;
+  const loadLodgings = async (parent, parentKey) => {
+    const promises = [];
+
+    for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
+      if (lodging.parentKey !== parentKey) continue;
+
+      const createdLodging = await fetch(`${urlBase}/api/lodgings/`, {
+        method: 'POST',
+        headers: creds,
+        body: JSON.stringify({
+          event: event.id,
+          parent: parent.id,
+          name: lodging.name,
+          children_title: lodging.children_title,
+          visible: lodging.visible,
+          capacity: lodging.capacity || 0,
+          sharing_multiplier: lodging.sharing_multiplier || 1,
+        }),
+      }).then(r => r.json());
+
+      promises.push(loadLodgings(createdLodging, key));
+    }
+
+    await Promise.all(promises);
   }
+
+  const rootData = eventAttributes.lodgings.root;
+  const root = await fetch(`${urlBase}/api/lodgings/`, {
+    method: 'POST',
+    headers: creds,
+    body: JSON.stringify({
+      event: event.id,
+      parent: null,
+      name: rootData.name,
+      children_title: rootData.children_title,
+      visible: rootData.visible,
+      capacity: rootData.capacity || 0,
+      sharing_multiplier: rootData.sharing_multiplier || 1,
+    }),
+  }).then(r => r.json());
+
+  await loadLodgings(root, 'root');
 }
 
-async function loadRegTypes(token, event) {
+async function loadCamperPricing(creds, event) {
+  // delete existing lodgings
+  let response = await fetch(`${urlBase}/api/lodgings/`, {
+      method: 'GET',
+      headers: creds,
+  }).then(r => r.json());
+
+  const offSiteItem = response
+    .filter(lodging => lodging.event === event.id)
+    .find(lodging => lodging.name === 'Off Site');
+
+  response = await fetch(`${urlBase}/api/events/${event.id}/`, {
+    method: 'PATCH',
+    headers: creds,
+    body: JSON.stringify({
+      event: event.id,
+      camper_pricing_logic: camperPricingLogic(offSiteItem.id)
+    }),
+  });
+}
+
+async function loadRegTypes(creds, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/registrationtypes/`, {
       method: 'GET',
-      headers: { 'Authorization': `Token ${token}` },
+      headers: creds,
   });
 
   const existingRegTypes = (await response.json())
@@ -219,10 +297,7 @@ async function loadRegTypes(token, event) {
         try {
           response = await fetch(`${urlBase}/api/registrationtypes/${exists ? `${regType.id}/` : ''}`, {
             method: exists ? 'PUT' : 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
+            headers: creds,
             body: JSON.stringify(regType),
           });
           text = await response.text();
@@ -236,15 +311,12 @@ async function loadRegTypes(token, event) {
   );
 }
 
-async function loadTestRegs(token, event) {
+async function loadTestRegs(creds, event) {
 
   const postReg = async (testData) => {
     const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
       method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': token,
-      },
+      headers: creds,
       body: JSON.stringify(testData),
     });
 

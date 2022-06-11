@@ -22,7 +22,7 @@ Fields marked with an asterisk (*) are required.
 				{
 					"properties": {
 						"payment_type": {
-							"enum": ["", "Check", "Credit Card"]
+							"enum": ["", "Check", "PayPal"]
 						}
 					},
 				},
@@ -45,7 +45,7 @@ Fields marked with an asterisk (*) are required.
 	},
 
 	"required": [
-		"campers", "payment",
+		"campers"
 	],
 	"properties": {
 		"payment_type": {
@@ -54,7 +54,6 @@ Fields marked with an asterisk (*) are required.
 			"description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week. Checks may be a personal check, bank check or money order",
 			"enum": [
 				"Check",
-				"Credit Card",
 				"PayPal",
 			],
 			"default": "Check",
@@ -68,7 +67,7 @@ Fields marked with an asterisk (*) are required.
 		"how_did_you_hear": {
 			"type": "string",
 			"maxLength": 50,
-			"title": "How did you hear about Lark Camp?"
+			"title": "How did you hear about the Lark Campout?"
 		},
 		"comments": {
 			"type": "string",

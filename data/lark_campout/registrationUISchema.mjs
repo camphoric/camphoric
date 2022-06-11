@@ -2,7 +2,7 @@ export default {
     "ui:order": [
       "registrant_email",
       "payment_type",
-			"paypal_email",
+      "paypal_email",
       "campers",
       "lta_donation",
       "how_did_you_hear",
@@ -23,12 +23,20 @@ export default {
           "last_name",
           "gender",
           "age",
-          "email_different",
           "email",
+          "phone",
+          "vaccination_status",
           "lodging",
           "*",
         ],
-      }
+        "phone": {
+          "ui:widget": "PhoneInput"
+        },
+        "vaccination_status": {
+          "ui:widget": "checkboxes"
+        },
+
+      },
     },
     "lta_donation": {
       "ui:options":  {

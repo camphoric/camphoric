@@ -1,121 +1,85 @@
-import { mealsLookup, ageLookup } from './pricing/camperPricingLogic.mjs';
-
-const genderLookup = {
-  M: 'Male',
-  F: 'Female',
-  O: 'Other',
-}
-
-const mealTypeLookup = {
-  "O": "Non-Vegetarian",
-  "V": "Vegetarian",
-  "E": "Vegan",
-}
+import { ageLookup } from './pricing/camperPricingLogic.mjs';
 
 const registrations = [
   {
-    address: ['1234 Easy St', 'Berkeley', 'CA', '94703'],
+		phone: "555-123-5678",
     email: 'bobross123456@dontsend.com',
-    parking_passes: 1,
     campers: [
-      [64, 'M', 'Bob', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Jane Ross'],
-      [64, 'F', 'Jane', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Bob Ross'],
+      [64, 'Bob', 'Ross', 'Booster', 'Tent', 'Cleanup'],
+      [64, 'Jane', 'Ross', 'Booster', 'Tent', 'Cleanup'],
     ],
   },
   {
-    address: ['5678 Hard St', 'Napa', 'CA', '94558'],
+		phone: "555-398-5678",
     email: 'skywalker123456@dontsend.com',
-    parking_passes: 1,
     campers: [
-      [64 , 'M' , 'Ani','Skywalker' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|V', 'Padmé Skywalker'] ,
-      [64 , 'F' , 'Padmé' , 'Amidala' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Ani Skywalker']  ,
-			[17 , 'M' , 'Luke' , 'Skywalker' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
-			[17 , 'F' , 'Leia' , 'Organa' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
+      [64 , 'Ani','Skywalker' , 'Booster', 'Tent', 'Cleanup'],
+      [64 , 'Padmé' , 'Amidala' , 'Booster', 'Tent', 'Cleanup'],
+			[17 , 'Luke' , 'Skywalker' , 'Booster', 'Tent', 'Cleanup'],
+			[17 , 'Leia' , 'Organa' , 'Booster', 'Tent', 'Cleanup'],
     ],
   },
   {
-    address: ['1630 Revello Drive', 'Sunnydale', 'CA', '94008'],
+		phone: "555-398-5555",
     email: 'vampslayer2345@dontsend.com',
-    parking_passes: 1,
     campers: [
-      [49 , 'F' , 'Buffy','Summers' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|V', 'Willow Rosenberg'] ,
-      [49 , 'F' , 'Willow' , 'Rosenberg', 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Buffy Summers'] ,
-			[49 , 'M' , 'Xander' , 'Harris' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Willow Rosenberg'] ,
-			[17 , 'F' , 'Dawn' , 'Summers' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'F|E']  ,
+      [49 , 'Buffy','Summers' , 'Booster', 'Tent', 'Cleanup'],
+      [49 , 'Willow' , 'Rosenberg', 'Booster', 'Tent', 'Cleanup'],
+			[49 , 'Xander' , 'Harris' , 'Booster', 'Tent', 'Cleanup'],
+			[17 , 'Dawn' , 'Summers' , 'Booster', 'Tent', 'Cleanup'],
     ],
   },
 
   {
-    address: ['5932 Firefly Ln', 'Verse', 'CA', '94008'],
+		phone: "555-375-5555",
     email: 'notarever3q450@dontsend.com',
-    parking_passes: 1,
     campers: [
-      [49 , 'M' , 'Malcom','Reynolds' , 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-      [49 , 'M' , 'Jayne' , 'Cobb', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Zoe' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'M' , 'Hoban' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Inara' , 'Serra', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Kaylee' , 'Frye', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'Malcom','Reynolds' , 'Booster', 'Tent', 'Cleanup'],
+      [49 , 'Jayne' , 'Cobb', 'Booster', 'Tent', 'Cleanup'],
+			[49 , 'Zoe' , 'Washburn', 'Booster', 'Tent', 'Cleanup'],
+			[49 , 'Hoban' , 'Washburn', 'Booster', 'Tent', 'Cleanup'],
+			[49 , 'Inara' , 'Serra', 'Booster', 'Tent', 'Cleanup'],
+			[49 , 'Kaylee' , 'Frye', 'Booster', 'Tent', 'Cleanup'],
     ],
   },
 ];
 
+function destructureCamper(c) {
+  const [
+    age,
+    firstName,
+    lastName,
+    vaccinationStatus,
+    lodging,
+    chore,
+  ] = c;
+
+  return {
+    age: ageLookup[age],
+    firstName,
+    lastName,
+    vaccinationStatus,
+    lodging,
+    chore,
+  };
+}
+
 function makeRegistration(reg, lodgingMap) {
   return {
     "formData": {
-      "payment": {
-        "payment_type": reg.payment_type || "PayPal",
-        "payer_billing_address": {
-          "country": "United States",
-          "street_address": reg.address[0],
-          "city": reg.address[1],
-          "state_or_province": reg.address[2],
-          "zip_code": reg.address[3],
-        },
-        "payment_full_or_deposit": "Full Payment",
-        "payer_first_name": reg.campers[0][2],
-        "payer_last_name": reg.campers[0][3],
-        "payer_number": "+15555555555",
-        "paypal_email": reg.email,
-      },
-      "parking_passes": Array.apply(reg.parking_passes || 0).map(
-        () => ({ "holder": `${reg.campers[0][2]} ${reg.campers[0][3]}` })
-      ),
-      "campers": reg.campers.map((c) => ({
-        "age": ageLookup[c[0]],
-        "meals": {
-					...(
-						!c[7].length ? { meal_plan: '' } : {
-							meal_plan: mealsLookup[c[7].split('|')[0]],
-							meal_type: mealTypeLookup[c[7].split('|')[1]],
-						}
-					)
-        },
-        "session": "Full camp",
-        "address_different_than_payer": false,
-        "lodging": {
-          "lodging_1": lodgingMap[c[4]],
-          "lodging_2": lodgingMap[c[5]],
-          "lodging_3": lodgingMap[c[6]],
-          ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8] } : {})
-        },
-        "first_name": c[2],
-        "last_name": c[3],
-        "gender": genderLookup[c[1]],
-      })),
-      "registrant_email": reg.email,
+      "campers": reg.campers.map(destructureCamper),
+      "payment_type": "Check",
+      "lta_donation": 0,
+      "how_did_you_hear": "",
+      "comments": "",
     },
     "pricingResults": {
       "campers": reg.campers.map((c) => ({
         "tuition": 0,
-        "meals": 0,
         "total": 0
       })),
-      "parking": 65 * (reg.parking_passes || 1),
-      "donation": 0,
       "total": 0,
       "tuition": 0,
-      "meals": 0
     }
 	}
 }

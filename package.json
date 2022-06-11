@@ -1,10 +1,11 @@
 {
   "scripts": {
-    "loadData": "docker-compose exec react node fixtures/lark/loadData.mjs",
+    "loadData": "docker-compose exec react node fixtures/loadAllData.mjs",
     "django-test": "docker-compose exec django python manage.py test",
     "heroku-postbuild": "cd client && npm install && npm run build",
     "rebuild": "docker compose up -d --force-recreate --no-deps --build"
   },
+  "type": "module",
   "devDependencies": {
     "chalk": "^4.1.2",
     "inquirer": "^8.2.0",
