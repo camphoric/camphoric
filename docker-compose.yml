@@ -22,6 +22,7 @@ services:
   django:
     env_file:
       - ./env/local/shared.env
+      - ./env/local/postgres.env
       - ./env/local/django.env
     build: server/
     volumes:
