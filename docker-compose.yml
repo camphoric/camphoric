@@ -14,7 +14,7 @@ services:
     volumes:
       - db:/var/lib/postgresql/data/pgdata
     healthcheck:
-      test: [ "CMD-SHELL", "runuser", "-c", "$POSTGRES_USER", "-c", "/usr/bin/pg_isready" ]
+      test: [ "CMD-SHELL", "runuser", "-c", "$$POSTGRES_USER", "-c", "/usr/bin/pg_isready" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -22,7 +22,6 @@ services:
   django:
     env_file:
       - ./env/local/shared.env
-      - ./env/local/postgres.env
       - ./env/local/django.env
     build: server/
     volumes:
