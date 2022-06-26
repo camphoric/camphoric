@@ -32,6 +32,10 @@ class MailTests(TestCase):
         )
         connection = get_email_connection_for_event(event)
         self.assertIsInstance(connection, django.core.mail.backends.smtp.EmailBackend)
+        self.assertEquals(connection.host, 'smtp.example.com')
+        self.assertEquals(connection.port, 587)
+        self.assertEquals(connection.username, 'user@example.com')
+        self.assertEquals(connection.password, 'abc123')
 
     def test_email_connection_for_event_console(self):
         account = models.EmailAccount.objects.create(
