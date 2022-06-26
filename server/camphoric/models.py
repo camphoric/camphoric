@@ -39,6 +39,42 @@ class Organization(TimeStampedModel):
         return self.name
 
 
+class EmailAccount(TimeStampedModel):
+    '''
+    Settings for an email account used to send registration confirmations,
+    invitations, etc.
+    '''
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    name = models.CharField(
+        max_length=255,
+        help_text="A unique name for this account"
+    )
+    backend = models.CharField(
+        max_length=255,
+        help_text="the Django email backend to use",
+        default='django.core.mail.backends.smtp.EmailBackend',
+        choices=[
+            ('django.core.mail.backends.smtp.EmailBackend', 'SMTP'),
+            ('django.core.mail.backends.console.EmailBackend', 'Console'),
+        ],
+    )
+    host = models.CharField(max_length=255)
+    port = models.PositiveIntegerField()
+    username = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'name'],
+                name='email_account_name',
+            ),
+        ]
+
+
 class Event(TimeStampedModel):
     '''
     - Is owned by one Organization
@@ -84,6 +120,8 @@ class Event(TimeStampedModel):
     confirmation_email_template = models.TextField(
         blank=True, default='', help_text="Handlebars template")
     confirmation_email_from = models.EmailField(blank=True, default='')
+
+    email_account = models.ForeignKey(EmailAccount, null=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name

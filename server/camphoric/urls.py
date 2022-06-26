@@ -6,6 +6,7 @@ from camphoric import views
 router = DefaultRouter()
 
 router.register('organizations', views.OrganizationViewSet, basename='organization')
+router.register('emailaccounts', views.EmailAccountViewSet, basename='emailaccount')
 router.register('events', views.EventViewSet, basename='event')
 router.register('registrations', views.RegistrationViewSet, basename='registration')
 router.register('registrationtypes', views.RegistrationTypeViewSet, basename='registrationtype')
