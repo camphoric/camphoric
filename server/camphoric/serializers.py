@@ -11,6 +11,12 @@ class OrganizationSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class EmailAccountSerializer(ModelSerializer):
+    class Meta:
+        model = camphoric.models.EmailAccount
+        fields = '__all__'
+
+
 class EventSerializer(ModelSerializer):
     class Meta:
         model = camphoric.models.Event

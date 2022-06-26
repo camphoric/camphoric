@@ -98,6 +98,12 @@ class OrganizationViewSet(ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 
+class EmailAccountViewSet(ModelViewSet):
+    queryset = models.EmailAccount.objects.all()
+    serializer_class = serializers.EmailAccountSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
 class EventViewSet(ModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
