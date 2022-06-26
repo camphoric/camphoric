@@ -27,6 +27,7 @@ from camphoric import (
     serializers,
 )
 from camphoric.lodging import get_lodging_schema
+from camphoric.mail import get_email_connection_for_event
 
 
 logger = logging.getLogger(__name__)
@@ -291,7 +292,9 @@ class RegisterView(APIView):
                     event.confirmation_email_subject,
                     confirmation_email_body_text,
                     event.confirmation_email_from,
-                    [registration.registrant_email])
+                    [registration.registrant_email],
+                    connection=get_email_connection_for_event(event),
+                )
                 msg.attach_alternative(confirmation_email_body_html, "text/html")
                 sent = msg.send(fail_silently=False)
 
@@ -508,7 +511,8 @@ class SendInvitationView(APIView):
                     invitation.registration_type.invitation_email_subject,
                     invitation_body_text,
                     event.confirmation_email_from,  # TODO: figure out what this should be
-                    [f'"{to_name}" <{to_email}>' if to_name else to_email]
+                    [f'"{to_name}" <{to_email}>' if to_name else to_email],
+                    connection=get_email_connection_for_event(event),
                 )
                 msg.attach_alternative(invitation_body_html, "text/html")
                 sent = msg.send(fail_silently=False)
