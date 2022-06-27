@@ -187,6 +187,26 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+class EventList(APIView):
+    def get(self, request):
+        '''
+        Return an array of objects with the following keys:
+        - name: event name
+        - url: url to the registration form for the event
+        - open: whether registration is open for this event
+        '''
+        events = models.Event.objects.all()
+
+        def map_event(event):
+            return {
+                'name': event.name,
+                'url': f"/events/{event.id}/register",
+                'open': event.is_open(),
+            }
+        response_data = list(map(map_event, events))
+        return Response(response_data)
+
+
 class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
         '''

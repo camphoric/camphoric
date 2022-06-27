@@ -130,6 +130,38 @@ class CSRFTests(APITestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class EventListGetTests(APITestCase):
+    def setUp(self):
+        self.organization = models.Organization.objects.create(name='Test Organization')
+        models.Event.objects.create(
+                organization=self.organization,
+                name='Test Data Event 1',
+                registration_schema={
+                    'type': 'object',
+                    'properties': {
+                        'billing_name': {'type': 'string'},
+                        'billing_address': {'type': 'string'},
+                        },
+                    },
+
+                camper_schema={
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'},
+                        },
+                    },
+                )
+
+    def test_get(self):
+        response = self.client.get('/api/eventlist')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [{
+            'name': 'Test Data Event 1',
+            'open': True,
+            'url': '/events/18/register',
+        }])
+
+
 class RegisterGetTests(APITestCase):
     def setUp(self):
         self.organization = models.Organization.objects.create(name='Test Organization')

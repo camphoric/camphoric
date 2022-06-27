@@ -29,5 +29,10 @@ urlpatterns = router.urls + [
         views.RegisterView.as_view(),
         name='register',
     ),
+    path(
+        'eventlist',
+        views.EventList.as_view(),
+        name='eventlist',
+    ),
     path('invitations/<int:invitation_id>/send', views.SendInvitationView.as_view()),
 ]

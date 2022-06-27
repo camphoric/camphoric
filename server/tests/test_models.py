@@ -63,3 +63,49 @@ class LodgingTests(TestCase):
 
     def test_lodging_default_blank(self):
         self.assertEqual(self.lodging.notes, '')
+
+
+class EventTests(TestCase):
+    def setUp(self):
+        self.organization = models.Organization.objects.create()
+
+    def test_is_open(self):
+        one_day = datetime.timedelta(days=1)
+        long_ago = datetime.datetime(1979, 2, 25, tzinfo=timezone.get_current_timezone())
+        far_future = datetime.datetime(2479, 2, 25, tzinfo=timezone.get_current_timezone())
+        now = timezone.now()
+
+        event = models.Event.objects.create(
+                organization=self.organization,
+                registration_start=None,
+                registration_end=None,
+            )
+        self.assertEqual(event.is_open(), True, msg='when start/end is none it defaults to open')
+
+        event = models.Event.objects.create(
+                organization=self.organization,
+                registration_start=long_ago,
+                registration_end=far_future,
+            )
+        self.assertEqual(event.is_open(), True)
+
+        event = models.Event.objects.create(
+                organization=self.organization,
+                registration_start=now + one_day,
+                registration_end=far_future,
+            )
+        self.assertEqual(event.is_open(), False)
+
+        event = models.Event.objects.create(
+                organization=self.organization,
+                registration_start=long_ago,
+                registration_end=now - one_day,
+            )
+        self.assertEqual(event.is_open(), False)
+
+        event = models.Event.objects.create(
+                organization=self.organization,
+                registration_start=now + one_day,
+                registration_end=now - one_day,
+            )
+        self.assertEqual(event.is_open(), False)
