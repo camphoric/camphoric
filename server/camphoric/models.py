@@ -1,4 +1,5 @@
 import random
+import datetime
 
 from decimal import Decimal
 
@@ -125,6 +126,18 @@ class Event(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def is_open(self):
+        open = False
+        now = timezone.now()
+        long_ago = datetime.datetime(1979, 1, 1, tzinfo=timezone.get_current_timezone())
+        far_future = datetime.datetime(2400, 1, 1, tzinfo=timezone.get_current_timezone())
+
+        registration_start = self.registration_start or long_ago
+        registration_end = self.registration_end or far_future
+        if (now >= registration_start and now < registration_end):
+            open = True
+        return open
 
 
 class RegistrationType(TimeStampedModel):
