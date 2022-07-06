@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import loadLark from './lark/LoadData.mjs';
-import loadLarkCampout from './lark_campout/LoadData.mjs';
+import loadLark from './lark/loadData.mjs';
+import loadLarkCampout from './lark_campout/loadData.mjs';
 
 main();
 
