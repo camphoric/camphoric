@@ -17,6 +17,8 @@ import mimetypes
 
 mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/x-javascript", ".js", True)
+mimetypes.add_type("image/jpeg", ".jpg", True)
+mimetypes.add_type("image/jpeg", ".jpeg", True)
 
 # read .env file
 env = environ.Env(
