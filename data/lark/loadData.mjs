@@ -17,7 +17,7 @@
 
 import fetch from 'node-fetch';
 import inquirer from 'inquirer';
-import getAuthInfo from '../getAuthInfo.mjs';
+import { getAuthToken } from '../getAuthInfo.mjs';
 
 import createTestRegs from './testRegistrations.mjs';
 
@@ -39,35 +39,36 @@ const eventAttributes = {
 
 const lodgingIdLookup = {};
 
-async function main(passedAuthInfo) {
-  let authInfo = passedAuthInfo;
-  if (!authInfo) {
-    authInfo = await getAuthInfo();
+async function main(authToken) {
+  let token = authToken;
+  if (!token) {
+    const token = await getAuthToken();
   }
 
-  const org = await loadOrganization(authInfo);
+  const org = await loadOrganization(token);
 	console.log('Processed organization');
+  // console.log(org);
 
-  const evt = await loadEvent(authInfo, org);
+  const evt = await loadEvent(token, org);
 	console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
-  await loadLodgings(authInfo, evt);
+  await loadLodgings(token, evt);
 	console.log('Processed event lodging');
 
-  await loadRegTypes(authInfo, evt);
+  await loadRegTypes(token, evt);
   console.log('Processed event registration types');
 
-  await loadTestRegs(authInfo, evt);
+  await loadTestRegs(token, evt);
   console.log('Processed test registrations');
 
 	console.log('Finished!');
   return true;
 }
 
-async function loadOrganization(authInfo) {
+async function loadOrganization(token) {
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
-    headers: authInfo,
+    headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
   let org = organizations.find(o => o.name === "Lark Traditional Arts");
@@ -75,7 +76,10 @@ async function loadOrganization(authInfo) {
     console.log('Could not find Lark Traditional Arts, creating');
     org = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',
-      headers: authInfo,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${token}`,
+      },
       body: JSON.stringify({
         name: "Lark Traditional Arts"
       }),
@@ -87,9 +91,9 @@ async function loadOrganization(authInfo) {
   return org;
 }
 
-async function loadEvent(authInfo, org) {
+async function loadEvent(token, org) {
   let response = await fetch(`${urlBase}/api/events/`, {
-    headers: authInfo,
+    headers: { 'Authorization': `Token ${token}` },
   });
 
   const events = await response.json();
@@ -110,7 +114,10 @@ async function loadEvent(authInfo, org) {
   try {
     response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
       method: existingEvent ? 'PUT' : 'POST',
-      headers: authInfo,
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(event),
     });
     text = await response.text();
@@ -123,25 +130,28 @@ async function loadEvent(authInfo, org) {
   return json;
 }
 
-async function loadLodgings(authInfo, event) {
+async function loadLodgings(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'GET',
-      headers: authInfo,
+      headers: { 'Authorization': `Token ${token}` },
   });
   const existingLodgings = (await response.json())
     .filter(lodging => lodging.event === event.id);
   for (let lodging of existingLodgings) {
     response = await fetch(`${urlBase}/api/lodgings/${lodging.id}/`, {
       method: 'DELETE',
-      headers: authInfo,
+      headers: { 'Authorization': `Token ${token}` }
     });
   }
 
   for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
     response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'POST',
-      headers: authInfo,
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         event: event.id,
         parent: lodging.parentKey ? lodgingIdLookup[lodging.parentKey] : null,
@@ -157,11 +167,11 @@ async function loadLodgings(authInfo, event) {
   }
 }
 
-async function loadRegTypes(authInfo, event) {
+async function loadRegTypes(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/registrationtypes/`, {
       method: 'GET',
-      headers: authInfo,
+      headers: { 'Authorization': `Token ${token}` },
   });
 
   const existingRegTypes = (await response.json())
@@ -182,7 +192,10 @@ async function loadRegTypes(authInfo, event) {
         try {
           response = await fetch(`${urlBase}/api/registrationtypes/${exists ? `${regType.id}/` : ''}`, {
             method: exists ? 'PUT' : 'POST',
-            headers: authInfo,
+            headers: {
+              'Authorization': `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify(regType),
           });
           text = await response.text();
@@ -196,11 +209,15 @@ async function loadRegTypes(authInfo, event) {
   );
 }
 
-async function loadTestRegs(authInfo, event) {
+async function loadTestRegs(token, event) {
+
   const postReg = async (testData) => {
     const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
       method: "POST",
-      headers: authInfo,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': token,
+      },
       body: JSON.stringify(testData),
     });
 

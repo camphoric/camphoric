@@ -20,7 +20,7 @@ import inquirer from 'inquirer';
 
 import createTestRegs from './testRegistrations.mjs';
 import camperPricingLogic from './pricing/camperPricingLogic.mjs';
-import getAuthInfo from '../getAuthInfo.mjs';
+import { getAuthToken } from '../getAuthInfo.mjs';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = 'Lark Campout 2022';
@@ -39,40 +39,39 @@ const eventAttributes = {
 
 const lodgingIdLookup = {};
 
-async function main(passedAuthInfo) {
-  let authInfo = passedAuthInfo;
-  if (!authInfo) {
-    authInfo = await getAuthInfo();
+async function main(authToken) {
+  let token = authToken;
+  if (!token) {
+    const token = await getAuthToken();
   }
-  console.log('logged in');
 
-  const org = await loadOrganization(authInfo);
+  const org = await loadOrganization(token);
 	console.log('Processed organization');
   // console.log(org);
 
-  const evt = await loadEvent(authInfo, org);
+  const evt = await loadEvent(token, org);
 	console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
-  await loadLodgings(authInfo, evt);
+  await loadLodgings(token, evt);
 	console.log('Processed event lodging');
 
-  await loadCamperPricing(authInfo, evt);
+  await loadCamperPricing(token, evt);
   console.log('Processed camper pricing');
 
-  await loadRegTypes(authInfo, evt);
+  await loadRegTypes(token, evt);
   console.log('Processed event registration types');
 
-  await loadTestRegs(authInfo, evt);
+  await loadTestRegs(token, evt);
   console.log('Processed test registrations');
 
 	console.log('Finished!');
   return true;
 }
 
-async function loadOrganization(creds) {
+async function loadOrganization(token) {
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
-    headers: creds,
+    headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
   console.log(organizations);
@@ -82,7 +81,10 @@ async function loadOrganization(creds) {
     console.log('Could not find Lark Traditional Arts, creating');
     const response = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',
-      headers: creds,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${token}`,
+      },
       body: JSON.stringify({
         name: "Lark Traditional Arts"
       }),
@@ -95,9 +97,9 @@ async function loadOrganization(creds) {
   return org;
 }
 
-async function loadEvent(creds, org) {
+async function loadEvent(token, org) {
   let response = await fetch(`${urlBase}/api/events/`, {
-    headers: creds,
+    headers: { 'Authorization': `Token ${token}` },
   });
 
   const events = await response.json();
@@ -119,7 +121,10 @@ async function loadEvent(creds, org) {
   try {
     response = await fetch(`${urlBase}/api/events/${existingEvent ? `${event.id}/` : ''}`, {
       method: existingEvent ? 'PUT' : 'POST',
-      headers: creds,
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(event),
     });
     text = await response.text();
@@ -132,11 +137,11 @@ async function loadEvent(creds, org) {
   return json;
 }
 
-async function loadLodgings(creds, event) {
+async function loadLodgings(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'GET',
-      headers: creds,
+      headers: { 'Authorization': `Token ${token}` },
   });
 
   const existingLodgings = (await response.json())
@@ -144,7 +149,7 @@ async function loadLodgings(creds, event) {
   for (let lodging of existingLodgings) {
     response = await fetch(`${urlBase}/api/lodgings/${lodging.id}/`, {
       method: 'DELETE',
-      headers: creds
+      headers: { 'Authorization': `Token ${token}` }
     });
   }
 
@@ -156,7 +161,10 @@ async function loadLodgings(creds, event) {
 
       const createdLodging = await fetch(`${urlBase}/api/lodgings/`, {
         method: 'POST',
-        headers: creds,
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           event: event.id,
           parent: parent.id,
@@ -177,7 +185,10 @@ async function loadLodgings(creds, event) {
   const rootData = eventAttributes.lodgings.root;
   const root = await fetch(`${urlBase}/api/lodgings/`, {
     method: 'POST',
-    headers: creds,
+    headers: {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       event: event.id,
       parent: null,
@@ -192,11 +203,11 @@ async function loadLodgings(creds, event) {
   await loadLodgings(root, 'root');
 }
 
-async function loadCamperPricing(creds, event) {
+async function loadCamperPricing(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
       method: 'GET',
-      headers: creds,
+      headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
   const offSiteItem = response
@@ -205,7 +216,10 @@ async function loadCamperPricing(creds, event) {
 
   response = await fetch(`${urlBase}/api/events/${event.id}/`, {
     method: 'PATCH',
-    headers: creds,
+    headers: {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       event: event.id,
       camper_pricing_logic: camperPricingLogic(offSiteItem.id)
@@ -213,11 +227,11 @@ async function loadCamperPricing(creds, event) {
   });
 }
 
-async function loadRegTypes(creds, event) {
+async function loadRegTypes(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/registrationtypes/`, {
       method: 'GET',
-      headers: creds,
+      headers: { 'Authorization': `Token ${token}` },
   });
 
   const existingRegTypes = (await response.json())
@@ -238,7 +252,10 @@ async function loadRegTypes(creds, event) {
         try {
           response = await fetch(`${urlBase}/api/registrationtypes/${exists ? `${regType.id}/` : ''}`, {
             method: exists ? 'PUT' : 'POST',
-            headers: creds,
+            headers: {
+              'Authorization': `Token ${token}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify(regType),
           });
           text = await response.text();
@@ -252,12 +269,15 @@ async function loadRegTypes(creds, event) {
   );
 }
 
-async function loadTestRegs(creds, event) {
+async function loadTestRegs(token, event) {
 
   const postReg = async (testData) => {
     const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
       method: "POST",
-      headers: creds,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': token,
+      },
       body: JSON.stringify(testData),
     });
 
