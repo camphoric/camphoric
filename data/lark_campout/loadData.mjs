@@ -20,9 +20,10 @@ import inquirer from 'inquirer';
 
 import createTestRegs from './testRegistrations.mjs';
 import camperPricingLogic from './pricing/camperPricingLogic.mjs';
+import getAuthInfo from '../getAuthInfo.mjs';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
-const eventName = process.env.CAMPHORIC_TEST_EVENT_NAME || 'Lark Campout 2022';
+const eventName = 'Lark Campout 2022';
 
 const eventAttributes = {
   camper_schema: (await import('./camperSchema.mjs')).default,
@@ -38,98 +39,38 @@ const eventAttributes = {
 
 const lodgingIdLookup = {};
 
-async function main() {
-  const creds = await getAuthToken();
+async function main(passedAuthInfo) {
+  let authInfo = passedAuthInfo;
+  if (!authInfo) {
+    authInfo = await getAuthInfo();
+  }
   console.log('logged in');
 
-  const org = await loadOrganization(creds);
+  const org = await loadOrganization(authInfo);
 	console.log('Processed organization');
   // console.log(org);
 
-  const evt = await loadEvent(creds, org);
+  const evt = await loadEvent(authInfo, org);
 	console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
-  await loadLodgings(creds, evt);
+  await loadLodgings(authInfo, evt);
 	console.log('Processed event lodging');
 
-  await loadCamperPricing(creds, evt);
+  await loadCamperPricing(authInfo, evt);
   console.log('Processed camper pricing');
 
-  await loadRegTypes(creds, evt);
+  await loadRegTypes(authInfo, evt);
   console.log('Processed event registration types');
 
-  await loadTestRegs(creds, evt);
+  await loadTestRegs(authInfo, evt);
   console.log('Processed test registrations');
 
 	console.log('Finished!');
   return true;
 }
 
-function extractCookieString(response) {
-  return response.headers.raw()['set-cookie'].map(
-    c => {
-      const m = c.match(/^([^=]+=[^;]+)/);
-
-      return m[1];
-    }
-  ).join('; ');
-}
-
-async function getAuthToken() {
-	let username = process.env.DJANGO_SUPERUSER_USERNAME;
-	let password = process.env.DJANGO_SUPERUSER_PASSWORD;
-
-	if (!username && !password) {
-		const answers = await inquirer.prompt([
-			{ name: 'username' },
-			{ name: 'password', type: 'password' },
-		]);
-
-		username = answers.username;
-		password = answers.password;
-	}
-
-  let response;
-  let cookies;
-  let match;
-  let csrf;
-  response = await fetch(`${urlBase}/api/set-csrf-cookie`);
-  cookies = response.headers.raw()['set-cookie'];
-  match = cookies[0].match(/\bcsrftoken=([^;]+)/);
-  csrf = (match && match[1]) || '';
-
-  response = await fetch(`${urlBase}/api/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrf,
-      cookie: `csrftoken=${csrf}`,
-    },
-    body: JSON.stringify({
-      username,
-      password,
-    }),
-  });
-
-  console.log(response.status);
-
-  const cookie = extractCookieString(response);
-  cookies = response.headers.raw()['set-cookie'];
-  match = cookies[0].match(/\bcsrftoken=([^;]+)/);
-  csrf = (match && match[1]) || '';
-
-  return {
-    'Content-Type': 'application/json',
-    'X-CSRFToken': csrf,
-    cookie,
-  };
-}
-
-
 async function loadOrganization(creds) {
-  console.log(creds);
-
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
     headers: creds,
   }).then(r => r.json());
