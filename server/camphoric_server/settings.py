@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 import os
 import django_heroku
 import environ
+import mimetypes
+
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/x-javascript", ".js", True)
 
 # read .env file
 env = environ.Env(
