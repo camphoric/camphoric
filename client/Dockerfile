@@ -8,6 +8,7 @@ RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
 COPY . .
 RUN ls -la
 RUN npm ci
+RUN mkdir -p node_modules/.cache && chmod -R 777 node_modules/.cache
 RUN npm run postinstall
 # RUN sh -c "npm run postinstall"
 # RUN sh -c "cp node_modules/handlebars/dist/handlebars.js public/"
