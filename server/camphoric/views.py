@@ -561,6 +561,24 @@ class SendInvitationView(APIView):
         })
 
 
+class LodgingSchemaView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, event_id=None):
+        '''
+        Given an event, return its lodging selection schema and UI schema for
+        react-jsonschema-form, including the full lodging tree regardless of
+        public visibility.
+        '''
+        event = get_object_or_404(models.Event, id=event_id)
+        (lodging_schema, lodging_ui_schema) = get_lodging_schema(event, show_all=True)
+
+        return Response({
+            'lodging_schema': lodging_schema,
+            'lodging_ui_schema': lodging_ui_schema,
+        })
+
+
 def register_page_url(request, event_id, invitation=None):
     path = reverse('register', kwargs={'event_id': event_id})
     if invitation:
