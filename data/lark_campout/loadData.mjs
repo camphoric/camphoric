@@ -74,24 +74,10 @@ async function loadOrganization(token) {
     headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
-  console.log(organizations);
-
   let org = organizations.find(o => o.name === "Lark Traditional Arts");
-  if (!org) {
-    console.log('Could not find Lark Traditional Arts, creating');
-    const response = await fetch(`${urlBase}/api/organizations/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`,
-      },
-      body: JSON.stringify({
-        name: "Lark Traditional Arts"
-      }),
-    });
 
-    org = await response.json();
-		console.log('Lark Traditional Arts organization created!');
+  if (!org) {
+    throw new Error(`did not find org '${name}' for event '${eventName}'`);
   }
 
   return org;
@@ -104,11 +90,18 @@ async function loadEvent(token, org) {
 
   const events = await response.json();
   const existingEvent = events.find(event => event.name === eventName);
+  const emailAccounts = await fetch(`${urlBase}/api/emailaccounts/`, {
+    headers: { 'Authorization': `Token ${token}` },
+  }).then(r => r.json());
+  const email = emailAccounts.find(e => e.organization === org.id);
+
 
   const event = {
     organization: org.id,
     name: eventName,
-    confirmation_email_from: 'registration@larkcamp.org',
+    confirmation_email_from: email.username,
+    email_account: email.id,
+
     ...eventAttributes,
     camper_pricing_logic: [],
   };
