@@ -235,7 +235,7 @@ async function loadSampleData() {
 
   await spawn(
     'docker-compose',
-    ['exec', 'react', 'node', 'fixtures/lark/loadData.mjs'],
+    ['exec', 'react', 'node', 'fixtures/loadAllData.mjs'],
   );
 
   hooray('Successfully loaded Lark Camp sample data');
