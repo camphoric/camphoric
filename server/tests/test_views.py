@@ -133,7 +133,7 @@ class CSRFTests(APITestCase):
 class EventListGetTests(APITestCase):
     def setUp(self):
         self.organization = models.Organization.objects.create(name='Test Organization')
-        models.Event.objects.create(
+        self.event = models.Event.objects.create(
                 organization=self.organization,
                 name='Test Data Event 1',
                 registration_schema={
@@ -158,7 +158,7 @@ class EventListGetTests(APITestCase):
         self.assertEqual(response.data, [{
             'name': 'Test Data Event 1',
             'open': True,
-            'url': '/events/18/register',
+            'url': f'/events/{self.event.id}/register',
         }])
 
 
@@ -916,3 +916,26 @@ class EventTests(APITestCase):
 
         reports = models.Report.objects.all().filter(event=event)
         self.assertEqual(reports.count(), 1, 'should find sample reports')
+
+
+class LodgingSchemaTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.client.login(username='tom', password='password')
+        self.organization = models.Organization.objects.create(name='Test Organization')
+
+    def test_get(self):
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name='event to test lodgingschema endpoint',
+        )
+        event.lodging_set.create(
+            name='Lodging',
+            children_title='Please choose a lodging option',
+            visible=True,
+        )
+
+        # lodging schema code is tested more thoroughly elsewhere
+        response = self.client.get(f'/api/events/{event.id}/lodgingschema')
+        self.assertIsInstance(response.data['lodging_schema'], dict)
+        self.assertIsInstance(response.data['lodging_ui_schema'], dict)

@@ -35,4 +35,9 @@ urlpatterns = router.urls + [
         name='eventlist',
     ),
     path('invitations/<int:invitation_id>/send', views.SendInvitationView.as_view()),
+    path(
+        'events/<int:event_id>/lodgingschema',
+        views.LodgingSchemaView.as_view(),
+        name='lodgingschema',
+    )
 ]
