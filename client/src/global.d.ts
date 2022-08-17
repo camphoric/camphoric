@@ -156,6 +156,7 @@ declare global {
       name: string;
       label: string;
     };
+    payPalOptions?: { 'client-id': string };
   }
 
   export interface ApiLodging {
