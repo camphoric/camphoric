@@ -1,11 +1,12 @@
 import React from 'react';
-import { RouteComponentProps, withRouter } from 'react-router';
 import { Alert, Container, Row, Col } from 'react-bootstrap';
+import { Helmet } from 'react-helmet';
+import { RouteComponentProps, withRouter } from 'react-router';
+
+import PayPalProvider from 'components/PayPalProvider';
+import Spinner from 'components/Spinner';
 import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
-import {Helmet} from 'react-helmet';
-
-import Spinner from 'components/Spinner';
 
 import JsonSchemaForm, {
   calculatePrice,
@@ -249,10 +250,18 @@ class App extends React.Component<Props, RegistrationState> {
         pageContent = <Spinner />;
     }
 
+    const payPalOptions = 'config' in this.state ? this.state.config.payPalOptions : null;
+
     return (
-      <Container><Row className="justify-content-md-center"><Col className="RegisterPage">
-        {pageContent}
-      </Col></Row></Container>
+      <PayPalProvider options={payPalOptions}>
+        <Container>
+          <Row className="justify-content-md-center">
+            <Col className="RegisterPage">
+              {pageContent}
+            </Col>
+          </Row>
+        </Container>
+      </PayPalProvider>
     );
   }
 }
