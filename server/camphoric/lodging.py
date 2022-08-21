@@ -18,6 +18,18 @@ select a lodging option during registration. The available options may exclude
 the most specific assignments (e.g. cabin numbers in the tree above), which must
 be set later by an admin.
 
+
+Overbooking
+-----------
+
+If a lodging node is full, it will be disabled in the UI schema (and therefore
+disabled on the registration form). However, an admin can overbook a lodging
+node without affecting ancestor nodes. For example, in the tree above, if the
+camp 1 cabins are completely full, overbooking a cabin will not affect the
+remaining capacity of camp 1, and so will not disable camp 1 as an option on the
+registration form.
+
+
 See also:
 - camphoric.models.Lodging
 - camphoric.models.Camper
@@ -297,13 +309,6 @@ class LodgingTreeNode:
         self.children = children
         self.show_all = show_all
 
-        if len(children):
-            self.capacity = sum(child.capacity for child in children)
-            self.reserved = sum(child.reserved for child in children)
-        else:
-            self.capacity = lodging.capacity
-            self.reserved = lodging.reserved
-
         self.camper_count = lodging.camper_count + sum(
             child.camper_count for child in children)
         self.camper_reserved_count = lodging.camper_reserved_count + sum(
@@ -314,6 +319,21 @@ class LodgingTreeNode:
         self.camper_reserved_count_adjusted = (lodging.camper_reserved_count_adjusted or 0) + sum(
             child.camper_reserved_count_adjusted for child in children)
 
+        if len(children):
+            self.capacity = sum(child.capacity for child in children)
+            self.reserved = sum(child.reserved for child in children)
+            self.remaining_unreserved_capacity = max(
+                0,
+                sum(child.remaining_unreserved_capacity for child in children)
+                - ((lodging.camper_count_adjusted or 0) -
+                   (lodging.camper_reserved_count_adjusted or 0)))
+        else:
+            self.capacity = lodging.capacity
+            self.reserved = lodging.reserved
+            self.remaining_unreserved_capacity = max(0, (
+                (self.capacity - self.reserved)
+                - (self.camper_count_adjusted - self.camper_reserved_count_adjusted)))
+
     @property
     def visible_children(self):
         return [c for c in self.children if c.visible]
@@ -321,9 +341,3 @@ class LodgingTreeNode:
     @property
     def visible(self):
         return self.show_all or self.lodging.visible
-
-    @property
-    def remaining_unreserved_capacity(self):
-        return (
-            (self.capacity - self.reserved)
-            - (self.camper_count_adjusted - self.camper_reserved_count_adjusted))

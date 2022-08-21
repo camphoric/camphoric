@@ -133,3 +133,41 @@ class TestLodgingTree(TestCase):
             tree.get(self.tents_camp1_A.id).camper_reserved_count_adjusted, 0.5)
         self.assertEqual(
             tree.get(self.tents_camp1_A.id).remaining_unreserved_capacity, 9)
+
+    def test_overbooking(self):
+        registration = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant@example.com',
+        )
+
+        # baseline (before registrations)
+        tree = LodgingTree(self.event).build()
+        self.assertEqual(tree.get(self.cabins_camp1_B.id).remaining_unreserved_capacity, 2)
+        self.assertEqual(tree.get(self.cabins_camp1.id).remaining_unreserved_capacity, 2)
+        self.assertEqual(tree.get(self.camp1.id).remaining_unreserved_capacity, 32)
+
+        # fill unreserved spots in cabins_camp1_B
+        registration.campers.create(lodging=self.cabins_camp1_B)
+        registration.campers.create(lodging=self.cabins_camp1_B)
+        tree = LodgingTree(self.event).build()
+        self.assertEqual(tree.get(self.cabins_camp1_B.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.cabins_camp1.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.camp1.id).remaining_unreserved_capacity, 30)
+
+        # overbook cabins_camp1_B by 1 camper,
+        # expect remaining capacity to remain 0
+        # and overall camp1 remaining capacity to remain 30
+        registration.campers.create(lodging=self.cabins_camp1_B)
+        tree = LodgingTree(self.event).build()
+        self.assertEqual(tree.get(self.cabins_camp1_B.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.cabins_camp1.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.camp1.id).remaining_unreserved_capacity, 30)
+
+        # overbook cabins_camp1 by an additional camper, expect no change in
+        # remaining capacity
+        registration.campers.create(lodging=self.cabins_camp1)
+        tree = LodgingTree(self.event).build()
+        self.assertEqual(tree.get(self.cabins_camp1_B.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.cabins_camp1.id).remaining_unreserved_capacity, 0)
+        self.assertEqual(tree.get(self.camp1.id).remaining_unreserved_capacity, 30)
