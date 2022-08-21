@@ -133,3 +133,20 @@ class TestLodgingTree(TestCase):
             tree.get(self.tents_camp1_A.id).camper_reserved_count_adjusted, 0.5)
         self.assertEqual(
             tree.get(self.tents_camp1_A.id).remaining_unreserved_capacity, 9)
+
+    def test_overbooking(self):
+        registration = self.event.registration_set.create(
+            event=self.event,
+            attributes={},
+            registrant_email='registrant@example.com',
+        )
+
+        # overbook by 1 camper
+        registration.campers.create(lodging=self.cabins_camp1_B)
+        registration.campers.create(lodging=self.cabins_camp1_B)
+        registration.campers.create(lodging=self.cabins_camp1_B)
+
+        tree = LodgingTree(self.event).build()
+
+        node = tree.get(self.cabins_camp1_B.id)
+        self.assertEqual(node.remaining_unreserved_capacity, 0)

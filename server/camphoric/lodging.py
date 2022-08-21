@@ -301,6 +301,6 @@ class LodgingTreeNode:
 
     @property
     def remaining_unreserved_capacity(self):
-        return (
+        return max(0, (
             (self.capacity - self.reserved)
-            - (self.camper_count_adjusted - self.camper_reserved_count_adjusted))
+            - (self.camper_count_adjusted - self.camper_reserved_count_adjusted)))
