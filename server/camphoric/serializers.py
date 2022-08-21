@@ -15,6 +15,9 @@ class EmailAccountSerializer(ModelSerializer):
     class Meta:
         model = camphoric.models.EmailAccount
         fields = '__all__'
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
 
 class EventSerializer(ModelSerializer):
