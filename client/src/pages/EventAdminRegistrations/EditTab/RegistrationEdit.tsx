@@ -1,12 +1,6 @@
 import React from 'react';
 
-import JsonSchemaForm, {
-  //  calculatePrice,
-  //  PricingResults,
-  //  FormData,
-  //  JsonSchemaFormChangeEvent,
-} from 'components/JsonSchemaForm';
-
+import JsonSchemaForm from 'components/JsonSchemaForm';
 import ShowRawJSON from 'components/ShowRawJSON';
 
 interface Props {
@@ -15,7 +9,6 @@ interface Props {
 }
 
 function RegistrationEdit({ registration, event }: Props) {
-  // console.log(event);
   return (
     <div>
       <JsonSchemaForm

@@ -25,6 +25,27 @@ export function formatDateTimeForForm(dateStr: string | null | undefined) {
   return `${[year, month, day].join('-')}T${[hours, minutes].join(':')}`;
 }
 
+export function formatDateTimeForViewing(dateStr: string | null | undefined) {
+  if (!dateStr) return undefined;
+
+  const date = new Date(dateStr);
+
+  if (!date) return undefined;
+
+  // Note: this gets values in the browser's set timezone
+  const year = date.getFullYear();
+  const month = (1 + date.getMonth()).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+
+  if ([year, month, day, hours, minutes].includes(NaN)) {
+    return undefined;
+  }
+
+  return `${month}/${day}/${year}`;
+}
+
 // Note: this returns values for the browser's set timezone
 export function getISOTimeZoneString() {
   const UTCOffsetMin = new Date().getTimezoneOffset();

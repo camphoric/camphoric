@@ -140,6 +140,8 @@ class App extends React.Component<Props, RegistrationState> {
       return;
     }
 
+    console.log(formData);
+
     const data = {
       formData,
       totals: calculatePrice(this.state.config, formData),

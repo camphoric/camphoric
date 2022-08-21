@@ -6,6 +6,7 @@ import Fuse from 'fuse.js';
 interface Props {
   result: Fuse.FuseResult<AugmentedRegistration>;
   selected: boolean;
+  resultLabel: string;
 }
 
 const label = (c: ApiCamper) => `${c.attributes.first_name} ${c.attributes.last_name}`
@@ -20,7 +21,7 @@ function RegistrationSearchResult({ result, ...props }: Props) {
       as={Link}
       to={`${url}?registrationId=${registration.id}`}
     >
-      <Card.Header>{ label(registration.campers[0]) }</Card.Header>
+      <Card.Header>{props.resultLabel}</Card.Header>
       <Card.Body>
         <Card.Text>
           { registration.campers.slice(1).map(c => label(c)).join('; ') }
