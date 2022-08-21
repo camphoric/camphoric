@@ -29,7 +29,7 @@ const tuition = (offsiteId) => ({
           ...acc,
           { '===': [ageLookup[age], camperAge] }, {
             'if': [
-              {'===': [offsiteId, {var: 'camper.lodging'}]},
+              {'===': [offsiteId, {var: 'camper.lodging.lodging_1'}]},
               {var: off_site }, {var: full}
             ]
           }
