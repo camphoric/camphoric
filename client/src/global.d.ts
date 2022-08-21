@@ -191,7 +191,8 @@ declare global {
     updated_at: string | null;
     deleted_at: string | null;
     registration: number | string;
-    deposit: number | string;
+    deposit: number | string | null;
+    payment_type: string;
     paid_on: string | null;
     attributes: any;
     amount: number;

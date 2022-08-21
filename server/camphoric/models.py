@@ -280,7 +280,15 @@ class Payment(TimeStampedModel):
     - Has an amount and type
     '''
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
-    deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE)
+    payment_type = models.CharField(
+        max_length=255,
+        default='Check',
+        choices=[
+            ('Check', 'Check'),
+            ('PayPal', 'PayPal'),
+        ],
+    )
+    deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE, null=True)
     paid_on = models.DateTimeField(null=True)
     attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))

@@ -3,8 +3,8 @@ import {
   InputGroup,
   FormControl,
   Container,
-  Row,
-  Col,
+  Row, Col,
+  Tab, Tabs,
 } from 'react-bootstrap';
 import Fuse from 'fuse.js';
 import * as fuseUtils from 'utils/fuse';
@@ -20,6 +20,14 @@ import Spinner from 'components/Spinner';
 
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
+
+import PaymentTab from './PaymentTab';
+
+const camperLabel = (c: ApiCamper) => {
+  if (!c) return '';
+
+  return `${c.attributes.first_name} ${c.attributes.last_name}`
+}
 
 function EditTab() {
   const eventApi = useEvent();
@@ -41,6 +49,8 @@ function EditTab() {
     results = fuseUtils.getFirstNOf(registrationSearch, 10);
   }
 
+  const selectedRegistration = registrationLookup[registrationId];
+
   return (
     <Container className="registration-edit">
       <Row>
@@ -58,6 +68,7 @@ function EditTab() {
                 <RegistrationSearchResult
                   key={r.item.id}
                   result={r}
+                  resultLabel={camperLabel(r.item.campers[0])}
                   selected={r.item.id.toString() === registrationId}
                 />
                 )
@@ -66,12 +77,22 @@ function EditTab() {
         </Col>
         <Col md="9">
           {
-            !!registrationLookup[registrationId] && (
-              <RegistrationEdit
-                event={event}
-                registration={registrationLookup[registrationId]}
-              />
-              )
+            !!selectedRegistration && (
+              <Tabs defaultActiveKey="reg_edit_edit">
+                <Tab eventKey="reg_edit_edit" title={camperLabel(selectedRegistration && selectedRegistration.campers[0])}>
+                  <RegistrationEdit
+                    event={event}
+                    registration={selectedRegistration}
+                  />
+                </Tab>
+                <Tab eventKey="reg_edit_payments" title="Payments">
+                  <PaymentTab
+                    event={event}
+                    registration={selectedRegistration}
+                  />
+                </Tab>
+              </Tabs>
+            )
           }
         </Col>
       </Row>
