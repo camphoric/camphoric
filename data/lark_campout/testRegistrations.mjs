@@ -2,64 +2,76 @@ import { ageLookup } from './pricing/camperPricingLogic.mjs';
 
 const registrations = [
   {
-		phone: "555-123-5678",
+		phone: "+15551235678",
     email: 'bobross123456@dontsend.com',
     campers: [
-      [64, 'Bob', 'Ross', 'Booster', 'Tent', 'Cleanup'],
-      [64, 'Jane', 'Ross', 'Booster', 'Tent', 'Cleanup'],
+      [64, 'Bob', 'Ross', 'mrna', 'tent', 'Cleanup'],
+      [64, 'Jane', 'Ross', 'mrna', 'tent', 'Cleanup'],
     ],
   },
   {
-		phone: "555-398-5678",
+		phone: "+15553985678",
     email: 'skywalker123456@dontsend.com',
     campers: [
-      [64 , 'Ani','Skywalker' , 'Booster', 'Tent', 'Cleanup'],
-      [64 , 'Padmé' , 'Amidala' , 'Booster', 'Tent', 'Cleanup'],
-			[17 , 'Luke' , 'Skywalker' , 'Booster', 'Tent', 'Cleanup'],
-			[17 , 'Leia' , 'Organa' , 'Booster', 'Tent', 'Cleanup'],
+      [64 , 'Ani','Skywalker' , 'mrna', 'tent', 'Cleanup'],
+      [64 , 'Padmé' , 'Amidala' , 'mrna', 'tent', 'Cleanup'],
+			[17 , 'Luke' , 'Skywalker' , 'mrna', 'tent', 'Cleanup'],
+			[17 , 'Leia' , 'Organa' , 'mrna', 'tent', 'Cleanup'],
     ],
   },
   {
-		phone: "555-398-5555",
+		phone: "+15553985555",
     email: 'vampslayer2345@dontsend.com',
     campers: [
-      [49 , 'Buffy','Summers' , 'Booster', 'Tent', 'Cleanup'],
-      [49 , 'Willow' , 'Rosenberg', 'Booster', 'Tent', 'Cleanup'],
-			[49 , 'Xander' , 'Harris' , 'Booster', 'Tent', 'Cleanup'],
-			[17 , 'Dawn' , 'Summers' , 'Booster', 'Tent', 'Cleanup'],
+      [49 , 'Buffy','Summers' , 'trad', 'tent', 'Cleanup'],
+      [49 , 'Willow' , 'Rosenberg', 'trad', 'tent', 'Cleanup'],
+			[49 , 'Xander' , 'Harris' , 'trad', 'tent', 'Cleanup'],
+			[17 , 'Dawn' , 'Summers' , 'trad', 'tent', 'Cleanup'],
     ],
   },
 
   {
-		phone: "555-375-5555",
+		phone: "+15553755555",
     email: 'notarever3q450@dontsend.com',
     campers: [
-      [49 , 'Malcom','Reynolds' , 'Booster', 'Tent', 'Cleanup'],
-      [49 , 'Jayne' , 'Cobb', 'Booster', 'Tent', 'Cleanup'],
-			[49 , 'Zoe' , 'Washburn', 'Booster', 'Tent', 'Cleanup'],
-			[49 , 'Hoban' , 'Washburn', 'Booster', 'Tent', 'Cleanup'],
-			[49 , 'Inara' , 'Serra', 'Booster', 'Tent', 'Cleanup'],
-			[49 , 'Kaylee' , 'Frye', 'Booster', 'Tent', 'Cleanup'],
+      [49 , 'Malcom','Reynolds' , 'mrna', 'tent', 'Cleanup'],
+      [49 , 'Jayne' , 'Cobb', 'mrna', 'tent', 'Cleanup'],
+			[49 , 'Zoe' , 'Washburn', 'mrna', 'tent', 'Cleanup'],
+			[49 , 'Hoban' , 'Washburn', 'mrna', 'tent', 'Cleanup'],
+			[49 , 'Inara' , 'Serra', 'mrna', 'tent', 'Cleanup'],
+			[49 , 'Kaylee' , 'Frye', 'mrna', 'tent', 'Cleanup'],
     ],
   },
 ];
 
-function destructureCamper(c) {
+function destructureCamper(c, email, phone, lodgingMap) {
   const [
     age,
-    firstName,
-    lastName,
-    vaccinationStatus,
+    first_name,
+    last_name,
+    vax,
     lodging,
     chore,
   ] = c;
 
+  const mrna = [
+    "First dose",
+    "Second dose",
+    "Booster"
+  ];
+
+  const trad = ["J&J"];
+
   return {
     age: ageLookup[age],
-    firstName,
-    lastName,
-    vaccinationStatus,
-    lodging,
+    first_name,
+    last_name,
+    email,
+    phone,
+    vaccination_status: vax === 'mrna' ? mrna : trad,
+    lodging: {
+      lodging_1: lodgingMap[lodging],
+    },
     chore,
   };
 }
@@ -67,7 +79,15 @@ function destructureCamper(c) {
 function makeRegistration(reg, lodgingMap) {
   return {
     "formData": {
-      "campers": reg.campers.map(destructureCamper),
+      "campers": reg.campers.map(
+        c => destructureCamper(
+          c,
+          reg.email,
+          reg.phone,
+          lodgingMap,
+        )
+      ),
+      "registrant_email": reg.email,
       "payment_type": "Check",
       "lta_donation": 0,
       "how_did_you_hear": "",

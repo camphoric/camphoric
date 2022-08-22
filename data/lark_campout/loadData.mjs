@@ -151,7 +151,6 @@ async function loadLodgings(token, event) {
       method: 'GET',
       headers: { 'Authorization': `Token ${token}` },
   });
-
   const existingLodgings = (await response.json())
     .filter(lodging => lodging.event === event.id);
   for (let lodging of existingLodgings) {
@@ -161,54 +160,26 @@ async function loadLodgings(token, event) {
     });
   }
 
-  const loadLodgings = async (parent, parentKey) => {
-    const promises = [];
-
-    for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
-      if (lodging.parentKey !== parentKey) continue;
-
-      const createdLodging = await fetch(`${urlBase}/api/lodgings/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event: event.id,
-          parent: parent.id,
-          name: lodging.name,
-          children_title: lodging.children_title,
-          visible: lodging.visible,
-          capacity: lodging.capacity || 0,
-          sharing_multiplier: lodging.sharing_multiplier || 1,
-        }),
-      }).then(r => r.json());
-
-      promises.push(loadLodgings(createdLodging, key));
-    }
-
-    await Promise.all(promises);
+  for (let [key, lodging] of Object.entries(eventAttributes.lodgings)) {
+    response = await fetch(`${urlBase}/api/lodgings/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: event.id,
+        parent: lodging.parentKey ? lodgingIdLookup[lodging.parentKey] : null,
+        name: lodging.name,
+        children_title: lodging.children_title,
+        visible: lodging.visible,
+        capacity: lodging.capacity || 0,
+        sharing_multiplier: lodging.sharing_multiplier || 1,
+      }),
+    });
+    const createdLodging = await response.json();
+    lodgingIdLookup[key] = createdLodging.id;
   }
-
-  const rootData = eventAttributes.lodgings.root;
-  const root = await fetch(`${urlBase}/api/lodgings/`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      event: event.id,
-      parent: null,
-      name: rootData.name,
-      children_title: rootData.children_title,
-      visible: rootData.visible,
-      capacity: rootData.capacity || 0,
-      sharing_multiplier: rootData.sharing_multiplier || 1,
-    }),
-  }).then(r => r.json());
-
-  await loadLodgings(root, 'root');
 }
 
 async function loadCamperPricing(token, event) {
@@ -289,7 +260,15 @@ async function loadTestRegs(token, event) {
       body: JSON.stringify(testData),
     });
 
-    return res.text();
+    const text = await res.text();
+
+    try {
+      const json = JSON.parse(text);
+    } catch (e) {
+      console.log('failed to add test reg, see Django logs');
+    }
+
+    return text;
   }
 
   const registrations = createTestRegs(lodgingIdLookup);

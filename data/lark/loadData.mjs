@@ -218,7 +218,15 @@ async function loadTestRegs(token, event) {
       body: JSON.stringify(testData),
     });
 
-    return res.text();
+    const text = await res.text();
+
+    try {
+      const json = JSON.parse(text);
+    } catch (e) {
+      console.log('failed to add test reg, see Django logs');
+    }
+
+    return text;
   }
 
   const registrations = createTestRegs(lodgingIdLookup);
