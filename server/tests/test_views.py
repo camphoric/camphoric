@@ -530,7 +530,7 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertRegex(json.dumps(response.data), r'billing_name')
 
-    def test_post_success(self):
+    def test_post_flow(self):
         self.assertEqual(models.Registration.objects.count(), 0)
         expected_pricing_results = {
             'cabins': 100,
@@ -542,6 +542,11 @@ class RegisterPostTests(APITestCase):
             'worktrade_discount': 0,
             'total': 300,
         }
+
+        #
+        # registration step
+        #
+
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
@@ -551,8 +556,11 @@ class RegisterPostTests(APITestCase):
             format='json'
         )
         self.assertEqual(response.status_code, 200)
+
         registrations = models.Registration.objects.all()
+        self.assertEqual(len(registrations), 1)
         registration = registrations[0]
+
         campers = registration.campers.all()
         self.assertEqual(registration.attributes['billing_name'], 'Testi McTesterton')
         self.assertEqual(registration.attributes['billing_address'], '1234 Average Street')
@@ -564,6 +572,26 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
+
+        self.assertEqual(response.data, {
+            'registrationId': registration.id,
+            'serverPricingResults': expected_pricing_results,
+        })
+
+        #
+        # payment step
+        #
+
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'registrationId': registration.id,
+                'step': 'payment',
+                'paymentType': 'check',
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
 
         self.assertEqual(response.data, {
             'confirmationPageTemplate': '{{client renders this}}',

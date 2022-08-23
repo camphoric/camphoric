@@ -263,7 +263,16 @@ class RegisterView(APIView):
 
     def post(self, request, event_id=None, format=None):
         event = get_object_or_404(models.Event, id=event_id)
+        step = request.data.get('step', 'registration')
+        if step == 'registration':
+            return self.post_register(request, event)
+        elif step == 'payment':
+            return self.post_payment(request, event)
+        else:
+            raise ValidationError(
+                {'step': 'Invalid value: must be "register" or "payment"'})
 
+    def post_register(self, request, event):
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
@@ -292,13 +301,28 @@ class RegisterView(APIView):
             invitation.registration = registration
             invitation.save()
 
-        campers_template_value = []
-        for camper_index, camper in enumerate(campers):
-            campers_template_value.append({
-                    **camper.attributes,
-                    'pricing_result': server_pricing_results['campers'][camper_index],
-                })
+        for camper in campers:
             camper.save()
+
+        return Response({
+            'registrationId': registration.id,
+            'serverPricingResults': server_pricing_results,
+        })
+
+    def post_payment(self, request, event):
+        registration_id = request.data.get('registrationId')
+        if registration_id is None:
+            raise ValidationError({'requestId': 'This field is required.'})
+        registration = get_object_or_404(models.Registration, id=registration_id)
+
+        server_pricing_results = registration.server_pricing_results
+
+        campers_template_value = []
+        for camper_index, camper in enumerate(registration.campers.all()):
+            campers_template_value.append({
+                **camper.attributes,
+                'pricing_result': server_pricing_results['campers'][camper_index],
+            })
 
         confirmation_email_body_text = chevron.render(
             event.confirmation_email_template,
