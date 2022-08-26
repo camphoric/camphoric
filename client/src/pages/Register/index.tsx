@@ -31,6 +31,7 @@ interface FormDataState {
   config: ApiRegister;
   formData: FormData;
   totals: PricingResults;
+  step: "registration" | "payment";
 }
 
 interface LoadedState extends FormDataState {
@@ -78,23 +79,41 @@ class App extends React.Component<Props, RegistrationState> {
     if (this.state.status === "fetching") {
       return;
     }
-    const { invitation } = this.state.config;
     this.setState({ status: "submitting" });
+
+    if (this.state.step === "registration") {
+      this.submitRegistration(formData);
+    } else if (this.state.step === "payment") {
+      this.submitPayment();
+    }
+  };
+
+  async submitRegistration(formData: any) {
+    const { invitation } = this.state.config;
     try {
-      const res = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCsrfToken(),
-        },
-        body: JSON.stringify({
-          formData,
-          pricingResults: this.state.totals,
-          ...(!!invitation && { invitation }),
-        }),
+      const data = await this.doPost({
+        formData,
+        pricingResults: this.state.totals,
+        ...(!!invitation && { invitation }),
       });
-      const data = await res.json();
-      console.log("response", res.status, data);
+
+      this.setState({
+        status: "submitted",
+        step: "payment",
+        registrationId: data.registrationId,
+        totals: data.serverPricingResults,
+      });
+    } catch {
+      this.setState({ status: "submissionError" });
+    }
+  }
+
+  async submitPayment() {
+    try {
+      const data = await this.doPost({
+        step: "payment"
+        registrationId: this.state.registrationId,
+        paymentType: "check",
 
       const confirmationProps = {
         markdown: data.confirmationPageTemplate,
@@ -107,9 +126,26 @@ class App extends React.Component<Props, RegistrationState> {
         status: "submitted",
         confirmationProps,
       });
+
     } catch {
       this.setState({ status: "submissionError" });
     }
+  }
+
+  async doPost(data: Object) => {
+    const response = fetch(`/api/events/${this.props.match.params.eventId}/register`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: JSON.stringify(data),
+    });
+
+    const responseData = await response.json();
+    console.log("response", response.status, responseData);
+
+    return responseData;
   };
 
   getConfig = async () => {
@@ -130,6 +166,7 @@ class App extends React.Component<Props, RegistrationState> {
 
     this.setState({
       status: "loaded",
+      step: "registration",
       config,
       formData: { campers: [{}] },
       totals: { campers: [] },
@@ -197,41 +234,50 @@ class App extends React.Component<Props, RegistrationState> {
                 { invitationError }
               </Alert>
             }
-            <div className="registration-form">
-              <JsonSchemaForm
-                schema={this.state.config.dataSchema}
-                uiSchema={this.state.config.uiSchema}
-                onChange={this.onChange}
-                onSubmit={this.onSubmit}
-                onError={() => console.log("errors")}
-                formData={this.state.formData}
-                transformErrors={this.transformErrors}
+            {
+              this.state.step === "registration" &&
+              <div className="registration-form">
+                <JsonSchemaForm
+                  schema={this.state.config.dataSchema}
+                  uiSchema={this.state.config.uiSchema}
+                  onChange={this.onChange}
+                  onSubmit={this.onSubmit}
+                  onError={() => console.log("errors")}
+                  formData={this.state.formData}
+                  transformErrors={this.transformErrors}
 
-                templateData={{
-                  pricing: this.state.config.pricing,
-                  formData: this.state.formData,
-                  totals: this.state.totals,
-                }}
-                // liveValidate={true}
-              >
-                <div>
-                  <p>
-                    By submitting this form, you agree to the{" "}
-                    <a
-                      href="http://www.larkcamp.org/campterms.html"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Terms of Registration
-                    </a>
-                    .
-                  </p>
-                  <button type="submit" className="btn btn-info">
-                    Submit Registration
-                  </button>
-                </div>
-              </JsonSchemaForm>
-            </div>
+                  templateData={{
+                    pricing: this.state.config.pricing,
+                    formData: this.state.formData,
+                    totals: this.state.totals,
+                  }}
+                  // liveValidate={true}
+                >
+                  <div>
+                    <p>
+                      By submitting this form, you agree to the{" "}
+                      <a
+                        href="http://www.larkcamp.org/campterms.html"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Terms of Registration
+                      </a>
+                      .
+                    </p>
+                    <button type="submit" className="btn btn-info">
+                      Continue to payment
+                    </button>
+                  </div>
+                </JsonSchemaForm>
+              </div>
+            }
+            {
+              this.state.step === "payment" &&
+                <button type="submit" className="btn btn-info">
+                  Pay by check
+                </button>
+            }
             <div className="PriceTicker">
               Total: ${(this.state.totals.total || 0).toFixed(2)}
             </div>
@@ -241,9 +287,12 @@ class App extends React.Component<Props, RegistrationState> {
       }
       case "submitted":
         pageContent = (
-          <section className="confirmation">
-            <Template {...this.state.confirmationProps} />
-          </section>
+          {
+            this.state.confirmationProps &&
+            <section className="confirmation">
+              <Template {...this.state.confirmationProps} />
+            </section>
+          }
         );
         break;
       default:
