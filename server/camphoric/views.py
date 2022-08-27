@@ -315,6 +315,18 @@ class RegisterView(APIView):
             raise ValidationError({'registrationUUID': 'This field is required.'})
         registration = get_object_or_404(models.Registration, uuid=registration_uuid)
 
+        payment_type = request.data.get('paymentType')
+        if payment_type is None:
+            raise ValidationError({'paymentType': 'This field is required'})
+        if payment_type not in event.valid_payment_types:
+            raise ValidationError({
+                'paymentType': 'Invalid value: must be one of '
+                    + ', '.join(event.valid_payment_types)
+            })
+
+        registration.payment_type = payment_type
+        registration.save()
+
         server_pricing_results = registration.server_pricing_results
 
         campers_template_value = []

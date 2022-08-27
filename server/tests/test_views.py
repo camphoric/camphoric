@@ -599,6 +599,9 @@ class RegisterPostTests(APITestCase):
             'serverPricingResults': expected_pricing_results,
         })
 
+        registration.refresh_from_db()
+        self.assertEqual(registration.payment_type, 'Check')
+
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
 
