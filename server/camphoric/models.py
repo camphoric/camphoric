@@ -1,10 +1,15 @@
-import random
-import datetime
-
 from decimal import Decimal
+import datetime
+import random
+import uuid
 
 from django.db import models
 from django.utils import timezone
+
+
+class PaymentType(models.TextChoices):
+    CHECK = 'Check', 'Check'
+    PAYPAL = 'PayPal', 'PayPal'
 
 
 class TimeStampedModel(models.Model):
@@ -108,12 +113,16 @@ class Event(TimeStampedModel):
         help_text="JSON schema for Registration.admin_attributes")
     deposit_schema = models.JSONField(default=dict, help_text="JSON schema for Deposit.attributes")
     pricing = models.JSONField(default=dict, help_text="key-value object with pricing variables")
+
     camper_pricing_logic = models.JSONField(
         default=dict,
         help_text="JsonLogic Camper-level pricing components")
     registration_pricing_logic = models.JSONField(
         default=dict,
         help_text="JsonLogic Registration-level pricing components")
+
+    paypal_enabled = models.BooleanField(default=True)
+    paypal_client_id = models.CharField(null=True, blank=True, max_length=255)
 
     confirmation_page_template = models.TextField(
         blank=True, default='', help_text="Handlebars template")
@@ -160,6 +169,7 @@ class Registration(TimeStampedModel):
     - Has many Campers
     - Has many Payments
     '''
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
     attributes = models.JSONField(null=True)
@@ -169,6 +179,12 @@ class Registration(TimeStampedModel):
     registrant_email = models.EmailField()
     server_pricing_results = models.JSONField(null=True)
     client_reported_pricing = models.JSONField(null=True)
+    payment_type = models.CharField(
+        max_length=255,
+        null=True,
+        choices=PaymentType.choices,
+    )
+    paypal_response = models.JSONField(null=True)
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
@@ -282,11 +298,8 @@ class Payment(TimeStampedModel):
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
     payment_type = models.CharField(
         max_length=255,
-        default='Check',
-        choices=[
-            ('Check', 'Check'),
-            ('PayPal', 'PayPal'),
-        ],
+        default=PaymentType.CHECK,
+        choices=PaymentType.choices,
     )
     deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE, null=True)
     paid_on = models.DateTimeField(null=True)
