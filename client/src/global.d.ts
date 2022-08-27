@@ -1,4 +1,5 @@
-import { JSONSchema7 } from "json-schema";
+import { JSONSchema7 } from 'json-schema';
+import type { PayPalScriptOptions } from "@paypal/paypal-js";
 import {
   UiSchema as JsonFormUiSchema,
 } from '@rjsf/core';
@@ -156,7 +157,7 @@ declare global {
       name: string;
       label: string;
     };
-    payPalOptions?: { 'client-id': string };
+    payPalOptions?: PayPalScriptOptions;
   }
 
   export interface ApiLodging {

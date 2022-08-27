@@ -24,6 +24,8 @@ interface Props {
 }
 
 function RegisterComponent(props: Props) {
+  // TODO: maybe if the status is 'submitting', we can add a translucent grey
+  // overlay add a spinner
 
   return (
     <section>
