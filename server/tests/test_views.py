@@ -574,7 +574,7 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
 
         self.assertEqual(response.data, {
-            'registrationId': registration.id,
+            'registrationUUID': registration.uuid,
             'serverPricingResults': expected_pricing_results,
         })
 
@@ -585,9 +585,9 @@ class RegisterPostTests(APITestCase):
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
-                'registrationId': registration.id,
+                'registrationUUID': registration.uuid,
                 'step': 'payment',
-                'paymentType': 'check',
+                'paymentType': 'Check',
             },
             format='json'
         )
