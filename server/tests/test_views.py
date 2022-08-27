@@ -588,12 +588,17 @@ class RegisterPostTests(APITestCase):
         # payment step
         #
 
+        paypal_response_from_client = {
+            'dummy_key': 'dummy_value',
+        }
+
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
-                'paymentType': 'Check',
+                'paymentType': 'PayPal',
+                'payPalResponse': paypal_response_from_client,
             },
             format='json'
         )
@@ -606,7 +611,8 @@ class RegisterPostTests(APITestCase):
         })
 
         registration.refresh_from_db()
-        self.assertEqual(registration.payment_type, 'Check')
+        self.assertEqual(registration.payment_type, 'PayPal')
+        self.assertEqual(registration.paypal_response, paypal_response_from_client)
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
