@@ -330,6 +330,12 @@ class RegisterView(APIView):
             })
 
         registration.payment_type = payment_type
+        if payment_type == models.PaymentType.PAYPAL:
+            paypal_response = request.data.get('payPalResponse')
+            if paypal_response is None:
+                raise ValidationError({'payPalResponse': 'This field is required.'})
+            registration.paypal_response = paypal_response
+
         registration.save()
 
         server_pricing_results = registration.server_pricing_results
