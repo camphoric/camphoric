@@ -341,6 +341,9 @@ class RegisterGetTests(APITestCase):
                     'exp': {'var': 'donation'},
                 },
             ],
+
+            paypal_enabled=True,
+            paypal_client_id='test-client-id',
         )
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
@@ -350,6 +353,9 @@ class RegisterGetTests(APITestCase):
             'registration': event.registration_pricing_logic,
         })
         self.assertEqual(response.data['event'], {'start': {'day': 25, 'month': 2, 'year': 2019}})
+        self.assertEqual(response.data['payPalOptions'], {
+            'client-id': 'test-client-id',
+        })
 
     def test_invitation_code(self):
         event = models.Event.objects.create(organization=self.organization)
