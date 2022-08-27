@@ -148,6 +148,12 @@ class Event(TimeStampedModel):
             open = True
         return open
 
+    @property
+    def valid_payment_types(self):
+        if self.paypal_enabled:
+            return [PaymentType.CHECK, PaymentType.PAYPAL]
+        return [PaymentType.CHECK]
+
 
 class RegistrationType(TimeStampedModel):
     '''
