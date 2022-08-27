@@ -30,6 +30,7 @@ export interface FormDataState {
   formData: FormData;
   totals: PricingResults;
   step: "registration" | "payment";
+  registrationUUID?: string | number;
 }
 
 interface LoadedState extends FormDataState {
@@ -71,12 +72,17 @@ class App extends React.Component<Props, RegistrationState> {
     if (this.state.status === "fetching" || prevState.status === "fetching") {
       return;
     }
+
+    // for debuging/ autofilling of form data
+    if (process.env.NODE_ENV === 'development') {
+      // @ts-ignore
+      window.regOnChange = formData => this.onChange({ formData });
+    }
   }
 
   onSubmit = async ({ formData }: any) => {
-    if (this.state.status === "fetching") {
-      return;
-    }
+    if (this.state.status === "fetching") return;
+
     this.setState({ status: "submitting" });
 
     if (this.state.step === "registration") {
@@ -87,6 +93,8 @@ class App extends React.Component<Props, RegistrationState> {
   };
 
   async submitRegistration(formData: any) {
+    if (this.state.status === "fetching") return;
+
     const { invitation } = this.state.config;
     try {
       const data = await this.doPost({
@@ -96,21 +104,25 @@ class App extends React.Component<Props, RegistrationState> {
       });
 
       this.setState({
-        status: "submitted",
+        status: "submitting",
         step: "payment",
-        registrationId: data.registrationId,
+        registrationUUID: data.registrationUUID,
         totals: data.serverPricingResults,
       });
-    } catch {
+    } catch(e) {
+      console.error('submissionError', e);
+
       this.setState({ status: "submissionError" });
     }
   }
 
   async submitPayment() {
+    if (this.state.status === "fetching") return;
+
     try {
       const data = await this.doPost({
         step: "payment",
-        registrationId: this.state.registrationId,
+        registrationUUID: this.state.registrationUUID,
         paymentType: "check",
       });
 
@@ -132,7 +144,7 @@ class App extends React.Component<Props, RegistrationState> {
   }
 
   doPost = async (data: Object) => {
-    const response = fetch(`/api/events/${this.props.match.params.eventId}/register`, {
+    const response = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
       method: "POST",
       headers: {
         'Content-Type': 'application/json',
@@ -142,7 +154,7 @@ class App extends React.Component<Props, RegistrationState> {
     });
 
     const responseData = await response.json();
-    console.log("response", response.status, responseData);
+    console.log("doPost response", response.status, responseData);
 
     return responseData;
   };
@@ -173,11 +185,7 @@ class App extends React.Component<Props, RegistrationState> {
   };
 
   onChange = ({ formData }: JsonSchemaFormChangeEvent<FormData>) => {
-    if (this.state.status === "fetching") {
-      return;
-    }
-
-    console.log(formData);
+    if (this.state.status === "fetching") return;
 
     const data = {
       formData,
@@ -191,6 +199,8 @@ class App extends React.Component<Props, RegistrationState> {
   };
 
   render() {
+    console.log('step', this.state.step);
+
     let pageContent: JSX.Element;
     switch (this.state.status) {
       case "loaded":
