@@ -1,20 +1,18 @@
 import React from 'react';
-import { Alert, Container, Row, Col } from 'react-bootstrap';
-import { Helmet } from 'react-helmet';
+import { Container, Row, Col } from 'react-bootstrap';
 import { RouteComponentProps, withRouter } from 'react-router';
 
-import PayPalProvider from 'components/PayPalProvider';
 import Spinner from 'components/Spinner';
 import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
-
-import JsonSchemaForm, {
+import {
   calculatePrice,
   PricingResults,
   FormData,
   JsonSchemaFormChangeEvent,
 } from 'components/JsonSchemaForm';
 
+import RegisterComponent from './component';
 import './styles.scss';
 
 type PathParams = {
@@ -27,7 +25,7 @@ interface FetchingState {
   status: "fetching";
 }
 
-interface FormDataState {
+export interface FormDataState {
   config: ApiRegister;
   formData: FormData;
   totals: PricingResults;
@@ -111,9 +109,10 @@ class App extends React.Component<Props, RegistrationState> {
   async submitPayment() {
     try {
       const data = await this.doPost({
-        step: "payment"
+        step: "payment",
         registrationId: this.state.registrationId,
         paymentType: "check",
+      });
 
       const confirmationProps = {
         markdown: data.confirmationPageTemplate,
@@ -132,7 +131,7 @@ class App extends React.Component<Props, RegistrationState> {
     }
   }
 
-  async doPost(data: Object) => {
+  doPost = async (data: Object) => {
     const response = fetch(`/api/events/${this.props.match.params.eventId}/register`, {
       method: "POST",
       headers: {
@@ -191,126 +190,43 @@ class App extends React.Component<Props, RegistrationState> {
     this.setState(data);
   };
 
-  transformErrors = (errors: Array<any>) =>
-    errors.map(error => {
-      if (error.name === "pattern" && error.property === ".payer_number") {
-        return {
-          ...error,
-          message: "Please enter a valid phone number"
-        };
-      }
-
-      return error;
-    });
-
   render() {
     let pageContent: JSX.Element;
     switch (this.state.status) {
       case "loaded":
       case "submitting": {
-        const { invitation, invitationError, registrationType } = this.state.config;
         pageContent = (
-          <section>
-            <Helmet>
-              <title>{this.state.config.dataSchema.title}</title>
-            </Helmet>
-            {
-              !!invitation &&
-              <Alert variant="success">
-                <p>
-                  { `Welcome, ${invitation.recipient_name || invitation.recipient_email}!` }
-                </p>
-                <p>
-                  {
-                    !!registrationType &&
-                    `Special registration: ${registrationType.label}`
-                  }
-                </p>
-              </Alert>
-            }
-            {
-              !!invitationError &&
-              <Alert variant="warning">
-                { invitationError }
-              </Alert>
-            }
-            {
-              this.state.step === "registration" &&
-              <div className="registration-form">
-                <JsonSchemaForm
-                  schema={this.state.config.dataSchema}
-                  uiSchema={this.state.config.uiSchema}
-                  onChange={this.onChange}
-                  onSubmit={this.onSubmit}
-                  onError={() => console.log("errors")}
-                  formData={this.state.formData}
-                  transformErrors={this.transformErrors}
-
-                  templateData={{
-                    pricing: this.state.config.pricing,
-                    formData: this.state.formData,
-                    totals: this.state.totals,
-                  }}
-                  // liveValidate={true}
-                >
-                  <div>
-                    <p>
-                      By submitting this form, you agree to the{" "}
-                      <a
-                        href="http://www.larkcamp.org/campterms.html"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Terms of Registration
-                      </a>
-                      .
-                    </p>
-                    <button type="submit" className="btn btn-info">
-                      Continue to payment
-                    </button>
-                  </div>
-                </JsonSchemaForm>
-              </div>
-            }
-            {
-              this.state.step === "payment" &&
-                <button type="submit" className="btn btn-info">
-                  Pay by check
-                </button>
-            }
-            <div className="PriceTicker">
-              Total: ${(this.state.totals.total || 0).toFixed(2)}
-            </div>
-          </section>
+          <RegisterComponent
+            config={this.state.config}
+            step={this.state.step}
+            formData={this.state.formData}
+            onChange={this.onChange}
+            onSubmit={this.onSubmit}
+            totals={this.state.totals}
+          />
         );
         break;
       }
       case "submitted":
         pageContent = (
-          {
-            this.state.confirmationProps &&
-            <section className="confirmation">
-              <Template {...this.state.confirmationProps} />
-            </section>
-          }
+            !!this.state.confirmationProps &&
+              <section className="confirmation">
+                <Template {...this.state.confirmationProps} />
+              </section>
         );
         break;
       default:
         pageContent = <Spinner />;
     }
 
-    const payPalOptions = 'config' in this.state ? this.state.config.payPalOptions : null;
-
     return (
-      <PayPalProvider options={payPalOptions}>
-        <Container>
-          <Row className="justify-content-md-center">
-            <Col className="RegisterPage">
-              {pageContent}
-            </Col>
-          </Row>
-        </Container>
-      </PayPalProvider>
+      <Container>
+        <Row className="justify-content-md-center">
+          <Col className="RegisterPage">
+            {pageContent}
+          </Col>
+        </Row>
+      </Container>
     );
   }
 }

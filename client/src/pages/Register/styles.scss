@@ -8,6 +8,25 @@
     color: #61dafb;
   }
 
+  .registration-form .payment-form {
+    background-color: white;
+    box-shadow: 0 0 5px black;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 4rem 1rem;
+    text-align: left;
+    flex-grow: 1;
+    flex: 1;
+
+    .payby-check-button {
+      width: 100%;
+      margin-bottom: 0.5rem;
+      border-radius: 0.2rem;
+      border: 0;
+      height: 3rem;
+    }
+  }
+
   .confirmation {
     background-color: white;
     box-shadow: 0 0 5px black;
@@ -28,11 +47,15 @@
 
   }
 
-  .App>section {
+  .App>section, &>section {
     background-color: white;
     box-shadow: 0 0 5px black;
     flex-grow: 1;
+    width: 100%;
     max-width: 750px;
+  }
+
+  .App>section {
     padding: 36px 0;
   }
 
