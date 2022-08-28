@@ -1,6 +1,9 @@
+import copy
 import datetime
 import json
+import os.path
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.utils import timezone
@@ -9,6 +12,7 @@ from rest_framework.test import APITestCase, APIClient
 
 from camphoric import models
 from camphoric.lodging import LODGING_SHARED_PROPERTY, LODGING_SHARED_DEPENDENCY
+from camphoric.test.mock_server import MockServer
 
 
 class LoginTests(APITestCase):
@@ -429,6 +433,17 @@ class RegisterGetTests(APITestCase):
 
 
 class RegisterPostTests(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.paypal_server = MockServer()
+        cls.paypal_server.start()
+        settings.PAYPAL_BASE_URL = f'http://{cls.paypal_server.host}:{cls.paypal_server.port}'
+        settings.PAYPAL_CLIENT_ID = 'test-client-id'
+        settings.PAYPAL_SECRET = 'test-secret'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.paypal_server.stop()
 
     def setUp(self):
         self.organization = models.Organization.objects.create(name='Test Organization')
@@ -549,6 +564,13 @@ class RegisterPostTests(APITestCase):
             'total': 300,
         }
 
+        with open(os.path.join(
+            os.path.dirname(__file__),
+            'data',
+            'paypal_sample_order_details_response.json'
+        )) as f:
+            sample_order_details_response = json.load(f)
+
         #
         # registration step
         #
@@ -588,9 +610,12 @@ class RegisterPostTests(APITestCase):
         # payment step
         #
 
-        paypal_response_from_client = {
-            'dummy_key': 'dummy_value',
-        }
+        paypal_response_from_client = sample_order_details_response
+        paypal_order_details = copy.deepcopy(sample_order_details_response)
+        paypal_order_details['purchase_units'][0]['reference_id'] = str(registration.uuid)
+        paypal_order_details['purchase_units'][0]['amount']['value'] = '300.00'
+        paypal_order_details['status'] = 'COMPLETED'
+        self.paypal_server.add_mock_response(200, {}, paypal_order_details)
 
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
@@ -613,6 +638,12 @@ class RegisterPostTests(APITestCase):
         registration.refresh_from_db()
         self.assertEqual(registration.payment_type, 'PayPal')
         self.assertEqual(registration.paypal_response, paypal_response_from_client)
+
+        payments = registration.payment_set.all()
+        self.assertEqual(len(payments), 1)
+        payment = payments[0]
+        self.assertEqual(payment.paypal_order_details, paypal_order_details)
+        self.assertEqual(payment.amount, 300)
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
