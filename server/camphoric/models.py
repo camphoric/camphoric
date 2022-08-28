@@ -311,3 +311,4 @@ class Payment(TimeStampedModel):
     paid_on = models.DateTimeField(null=True)
     attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
+    paypal_order_details = models.JSONField(null=True)
