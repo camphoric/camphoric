@@ -1,9 +1,11 @@
 import logging
 import re
 from smtplib import SMTPException
+import traceback
 
 import cmarkgfm
 import chevron
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.core.mail import EmailMultiAlternatives
@@ -28,6 +30,7 @@ from camphoric import (
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import get_email_connection_for_event
+from camphoric.paypal import PayPalClient
 
 
 logger = logging.getLogger(__name__)
@@ -187,6 +190,14 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+class PaymentError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return f'PaymentError: {self.message}'
+
+
 class EventList(APIView):
     def get(self, request):
         '''
@@ -333,6 +344,15 @@ class RegisterView(APIView):
             registration.paypal_response = paypal_response
 
         registration.save()
+
+        if payment_type == models.PaymentType.PAYPAL:
+            try:
+               self.verify_and_save_paypal_payment(registration)
+            except Exception as e:
+                # fail open
+                traceback.print_exc()
+                logger.error(f'verify_and_save_paypal_payment failed for registration {registration.id}: {e}')
+
 
         server_pricing_results = registration.server_pricing_results
 
@@ -544,6 +564,43 @@ class RegisterView(APIView):
             raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
+
+    @classmethod
+    def verify_and_save_paypal_payment(cls, registration):
+        order_details_from_client = registration.paypal_response
+        order_id = order_details_from_client['id']
+        paypal_client = PayPalClient(
+            settings.PAYPAL_BASE_URL, 
+            registration.event.paypal_client_id,
+            settings.PAYPAL_SECRET,
+        )
+
+        order_details = paypal_client.fetch_order_details(order_id)
+
+        if order_details['status'] != 'COMPLETED':
+            raise PaymentError('order incomplete')
+        registration_uuid_found = False
+        total = 0
+        for unit in order_details['purchase_units']:
+            if unit['reference_id'] == str(registration.uuid):
+                registration_uuid_found = True
+            amount = unit['amount']
+            if amount['currency_code'] != 'USD':
+                raise PaymentError(f'unexpected currency code {amount["currency_code"]}')
+            total += int(float(amount['value']))
+        if not registration_uuid_found:
+            raise PaymentError('registration.uuid not found in order')
+        total_due = registration.server_pricing_results['total']
+        if total != total_due:
+            raise PaymentError(f'incorrect payment total {total} (amount due: {total_due})')
+
+        # everything looks good
+        registration.payment_set.create(
+            payment_type=models.PaymentType.PAYPAL,
+            paid_on=timezone.now(),
+            amount=total,
+            paypal_order_details=order_details,
+        )
 
 
 class SendInvitationView(APIView):
