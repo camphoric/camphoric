@@ -167,4 +167,7 @@ REST_FRAMEWORK = {
 
 SESSION_COOKIE_SECURE = True
 
+PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
+PAYPAL_SECRET = env('PAYPAL_SECRET')
+
 django_heroku.settings(locals(), databases=not DEBUG)
