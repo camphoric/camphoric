@@ -260,10 +260,6 @@ class RegisterView(APIView):
                 'label': invitation.registration_type.label,
             }
 
-        response_data['payPalOptions'] = {
-            'client-id': 'sb' # paypal sandbox
-        }
-
         return Response(response_data)
 
     def post(self, request, event_id=None, format=None):
