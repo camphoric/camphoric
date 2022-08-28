@@ -20,5 +20,6 @@ chevron = "*"
 psycopg2-binary = "*"
 importlib-resources = "*"
 cmarkgfm = "*"
+requests = "*"
 
 [requires]
