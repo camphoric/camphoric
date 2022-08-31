@@ -37,6 +37,11 @@ const eventAttributes = {
   ...(await import('./confirmationEmailTemplate.mjs')).default,
 };
 
+if (process.env.PAYPAL_CLIENT_ID) {
+	eventAttributes.paypal_enabled = true;
+	eventAttributes.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
+}
+
 const lodgingIdLookup = {};
 
 async function main(authToken) {
