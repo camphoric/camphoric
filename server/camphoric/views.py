@@ -332,8 +332,8 @@ class RegisterView(APIView):
             raise ValidationError({'paymentType': 'This field is required'})
         if payment_type not in event.valid_payment_types:
             raise ValidationError({
-                'paymentType': 'Invalid value: must be one of '
-                    + ', '.join(event.valid_payment_types)
+                'paymentType': 'Invalid value: must be one of ' +
+                               ', '.join(event.valid_payment_types)
             })
 
         registration.payment_type = payment_type
@@ -347,12 +347,13 @@ class RegisterView(APIView):
 
         if payment_type == models.PaymentType.PAYPAL:
             try:
-               self.verify_and_save_paypal_payment(registration)
+                self.verify_and_save_paypal_payment(registration)
             except Exception as e:
                 # fail open
                 traceback.print_exc()
-                logger.error(f'verify_and_save_paypal_payment failed for registration {registration.id}: {e}')
-
+                message = 'verify_and_save_paypal_payment failed for registration ' \
+                          f'{registration.id}: {e}'
+                logger.error(message)
 
         server_pricing_results = registration.server_pricing_results
 
@@ -570,7 +571,7 @@ class RegisterView(APIView):
         order_details_from_client = registration.paypal_response
         order_id = order_details_from_client['id']
         paypal_client = PayPalClient(
-            settings.PAYPAL_BASE_URL, 
+            settings.PAYPAL_BASE_URL,
             registration.event.paypal_client_id,
             settings.PAYPAL_SECRET,
         )
