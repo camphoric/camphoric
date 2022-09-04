@@ -200,6 +200,40 @@ class App extends React.Component<Props, RegistrationState> {
     this.setState(data);
   };
 
+  onJsonSchemaFormError = (errors: Array<any>) => {
+    debug('onJsonSchemaFormError', errors);
+
+    // even if we don't find the phone error, to to top where the error list is
+    window.scrollTo(0,0);
+
+    // hack to fix focus for phone number input type
+    errors.forEach((e) => {
+      if (e.property.includes('phone')) {
+        let camperIndex = 0;
+        let m = e.property.match(/.campers\[(\d+)\]/);
+
+        if (m && m[1] !== undefined) {
+          camperIndex = m[1];
+        } else {
+          return;
+        }
+
+        let id = `root_campers_${camperIndex}`;
+        m = e.property.match(/\.([^.]+)$/);
+
+        if (m && m[1] !== undefined) {
+          id = `root_campers_${camperIndex}_${m[1]}`;
+        } else {
+          return;
+        }
+
+        const els = document.getElementById(id)?.focus();
+
+        console.log(camperIndex, id, els);
+      }
+    });
+  }
+
   render() {
     let pageContent: JSX.Element;
     switch (this.state.status) {
@@ -212,6 +246,7 @@ class App extends React.Component<Props, RegistrationState> {
             step={this.state.step}
             formData={this.state.formData}
             onChange={this.onChange}
+            onJsonSchemaFormError={this.onJsonSchemaFormError}
             submitRegistration={this.submitRegistration}
             submitPayment={this.submitPayment}
             totals={this.state.totals}

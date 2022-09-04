@@ -27,7 +27,7 @@ function RegistrationStep(props: RegisterStepProps) {
         uiSchema={props.config.uiSchema}
         onChange={props.onChange}
         onSubmit={props.submitRegistration}
-        onError={() => console.log("errors")}
+        onError={props.onJsonSchemaFormError}
         formData={props.formData}
         transformErrors={transformErrors}
 
