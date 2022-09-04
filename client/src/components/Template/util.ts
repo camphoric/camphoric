@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
+import rehypeExternalLinks from 'rehype-external-links';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
 import getFromPath from 'lodash/get';
 // @ts-ignore
@@ -49,7 +50,8 @@ const processor = unified()
   .use(remarkGfm)
   .use(remarkRehype)
   .use(rehypeSanitize, defaultSchema)
-  .use(rehypeStringify)
+  .use(rehypeExternalLinks, {target: '_blank'})
+  .use(rehypeStringify);
 
 export function markdown2Html(template: string): string {
   return String(processor.processSync(template));
