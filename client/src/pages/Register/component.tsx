@@ -25,6 +25,7 @@ export interface RegisterStepProps {
   onChange: (a: JsonSchemaFormChangeEvent<FormData>) => void;
   submitRegistration: SubmitRegistrationMethod;
   submitPayment: SubmitPaymentMethod;
+  onJsonSchemaFormError: (a: any) => void;
   formData: FormDataState['formData'];
   totals: PricingResults;
   UUID?: string;
