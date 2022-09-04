@@ -190,10 +190,12 @@ class App extends React.Component<Props, RegistrationState> {
   onChange = ({ formData }: JsonSchemaFormChangeEvent<FormData>) => {
     if (this.state.status === "fetching") return;
 
-    const data = {
-      formData,
-      totals: calculatePrice(this.state.config, formData),
-    } as LoadedState;
+    const data = { formData } as LoadedState;
+
+    if (this.state.step === "registration") {
+      data.totals = calculatePrice(this.state.config, formData)
+      debug('recalculating totals', data.totals);
+    };
 
     debug('onChange', data);
 
