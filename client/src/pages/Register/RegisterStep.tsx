@@ -1,6 +1,7 @@
 import React from 'react';
 
 import JsonSchemaForm from 'components/JsonSchemaForm';
+import Template from 'components/Template';
 
 import type { RegisterStepProps } from './component';
 
@@ -39,16 +40,7 @@ function RegistrationStep(props: RegisterStepProps) {
         // liveValidate={true}
       >
         <div>
-          <p>
-            By submitting this form, you agree to the{" "}
-            <a
-              href="http://www.larkcamp.org/campterms.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Terms of Registration
-            </a>
-          </p>
+          <Template markdown={props.config.preSubmitTemplate} />
           <button type="submit" className="btn btn-info">
             Continue to payment
           </button>
