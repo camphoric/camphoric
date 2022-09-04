@@ -31,7 +31,7 @@ async function loadOrganization(name, token) {
 		console.log(`'${name}' organization created!`);
 
     console.log(`creating email account for '${name}'`);
-    fetch(`${urlBase}/api/emailaccounts/`, {
+    const email = await fetch(`${urlBase}/api/emailaccounts/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,8 +45,9 @@ async function loadOrganization(name, token) {
         username: process.env.CAMPHORIC_TEST_GMAIL_USERNAME,
         password: process.env.CAMPHORIC_TEST_GMAIL_PASSWORD,
       }),
-    });
+    }).then(res => res.text());
 
+    console.log('email account result', email);
   }
 
   return org;

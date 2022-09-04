@@ -35,23 +35,6 @@ const eventAttributes = {
   registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
   lodgings: (await import('./lodgings.mjs')).default,
   ...(await import('./confirmationEmailTemplate.mjs')).default,
-  payment_schema: {
-    "type": "object",
-    "properties": {
-      "payment_type": {
-        "type": "string",
-        "title": "Payment Type",
-        "description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week. Checks may be a personal check, bank check or money order",
-        "enum": [
-          "Check",
-          "PayPal",
-        ],
-        "default": "Check",
-      },
-    },
-  },
-  paypal_enabled: true,
-  paypal_client_id: 'test-client-id',
 };
 
 if (process.env.PAYPAL_CLIENT_ID) {

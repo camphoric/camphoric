@@ -59,7 +59,7 @@ Fields marked with an asterisk (*) are required.
             "type": "object",
             "required": [
                 "payer_first_name", "payer_last_name", "payer_number",
-                "payment_type", "payment_full_or_deposit",
+                "payment_full_or_deposit",
             ],
             "properties": {
                 "payer_first_name": {
@@ -82,17 +82,6 @@ Fields marked with an asterisk (*) are required.
                     "pattern": "^\\+[0-9]+$",
                     "title": "Phone Number"
                 },
-                "payment_type": {
-                    "type": "string",
-                    "title": "Payment Type",
-                    "description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week. Checks may be a personal check, bank check or money order",
-                    "enum": [
-                        "Check",
-                        "Credit Card",
-                        "PayPal",
-                    ],
-                    "default": "Check",
-                },
                 "payment_full_or_deposit": {
                     "type": "string",
                     "title": "Full Payment or Deposit Only",
@@ -104,33 +93,6 @@ Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is ref
                         "50% Deposit"
                     ],
                     "default": "Full Payment"
-                },
-            },
-            "dependencies": {
-                "payment_type": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "payment_type": {
-                                    "enum": ["", "Check", "Credit Card"]
-                                }
-                            },
-                        },
-                        {
-                            "properties": {
-                                "payment_type": {
-                                    "enum": ["PayPal"]
-                                },
-                                "paypal_email": {
-                                    "type": "string",
-                                    "format": "email",
-                                    "title": "PayPal Email"
-                                },
-                            },
-                            "required": ["paypal_email"]
-
-                        }
-                    ]
                 },
             },
         },

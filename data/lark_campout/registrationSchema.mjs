@@ -16,48 +16,10 @@ Fields marked with an asterisk (*) are required.
 			"default": 0
 		},
 	},
-	"dependencies": {
-		"payment_type": {
-			"oneOf": [
-				{
-					"properties": {
-						"payment_type": {
-							"enum": ["", "Check", "PayPal"]
-						}
-					},
-				},
-				{
-					"properties": {
-						"payment_type": {
-							"enum": ["PayPal"]
-						},
-						"paypal_email": {
-							"type": "string",
-							"format": "email",
-							"title": "PayPal Email"
-						},
-					},
-					"required": ["paypal_email"]
-
-				}
-			]
-		},
-	},
-
 	"required": [
 		"campers"
 	],
 	"properties": {
-		"payment_type": {
-			"type": "string",
-			"title": "Payment Type",
-			"description": "If you're paying by PayPal or credit card, we'll be sending you a confirmation with payment instructions within the next week. Checks may be a personal check, bank check or money order",
-			"enum": [
-				"Check",
-				"PayPal",
-			],
-			"default": "Check",
-		},
 		"lta_donation": {
 			"type": "integer",
 			"minimum": 0,
