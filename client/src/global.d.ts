@@ -141,6 +141,7 @@ declare global {
   export interface ApiRegister {
     dataSchema: JSONSchema7;
     uiSchema: JsonFormUiSchema;
+    preSubmitTemplate: string;
     event: { [key: string]: any };
     pricingLogic: {
       camper: JsonLogicPricing;

@@ -1,7 +1,8 @@
 export default {
 	"title": "Lark Campout 2022 Registration",
 	"description": `
-Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before you fill out this form.
+Read the [Terms of Registration](https://docs.google.com/document/d/1pq2i2rHpHnsoB8kqtpH7FFn50JA-XELaRRMHh4hdTFg/edit?usp=sharing)
+before you fill out this form.
 
 Please note that registrations are accepted in the order they are received and
 your camping preferences are processed on a "first come - first served" basis.

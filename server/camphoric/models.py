@@ -124,8 +124,13 @@ class Event(TimeStampedModel):
     paypal_enabled = models.BooleanField(default=True)
     paypal_client_id = models.CharField(null=True, blank=True, max_length=255)
 
+    pre_submit_template = models.TextField(
+        blank=True,
+        default='',
+        help_text="Handlebars template, rendered right before registration submit button")
     confirmation_page_template = models.TextField(
         blank=True, default='', help_text="Handlebars template")
+
     confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
     confirmation_email_template = models.TextField(
         blank=True, default='', help_text="Handlebars template")

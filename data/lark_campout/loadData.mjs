@@ -28,6 +28,7 @@ const eventName = 'Lark Campout 2022';
 const eventAttributes = {
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
+	pre_submit_template: (await import('./preSubmitTemplate.mjs')).default,
   pricing: (await import('./pricing/pricing.mjs')).default,
   registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
   registration_schema: (await import('./registrationSchema.mjs')).default,
