@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  section?: string;
 }
 
 interface State {
@@ -22,9 +23,11 @@ class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.error) {
+      const section = this.props.section ? ` with ${this.props.section}` : '';
+
       return process.env.NODE_ENV === 'development' ? (
         <>
-          <strong>Something went wrong.</strong>;
+          <strong>Something went wrong{section}.</strong>;
           <details style={{ whiteSpace: 'pre-wrap' }}>
             {this.state.error && this.state.error.toString()}
             <br />

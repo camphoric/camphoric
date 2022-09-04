@@ -22,6 +22,9 @@ import childProc from 'child_process';
 
 const exec = util.promisify(childProc.exec);
 
+// non-interactive, non-destructive flag
+const PRESERVE = process.argv.find(i => i === '-p');
+
 async function main() {
   await checkPrereqs();
   await createEnvFiles();
@@ -66,6 +69,8 @@ async function createEnvFiles() {
     envDir = { isDirectory: () => false };
   }
 
+	if (PRESERVE) return;
+
   if (envDir.isDirectory()) {
     if (process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_ENV === undefined) {
       const { blowaway } = await inquirer.prompt([{
@@ -104,6 +109,8 @@ async function checkNodeModulesFolder() {
   } catch (e) {
     nodeModulesFiles = [];
   }
+
+	if (PRESERVE) return;
 
   if (nodeModulesFiles.length) {
     const { blowaway } = await inquirer.prompt([{
@@ -172,7 +179,9 @@ async function setEnvValues() {
     contents += '\nSECRET_KEY=your-django-secret-key-here';
   }
   
-  if (currentKey !== 'your-django-secret-key-here' && process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KE === undefined) {
+  if (PRESERVE) return;
+
+  if (currentKey !== 'your-django-secret-key-here' && process.env.CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KEY === undefined) {
     const { replaceKey } = await inquirer.prompt([{
       name: 'replaceKey',
       type: 'confirm',

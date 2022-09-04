@@ -1,23 +1,10 @@
 import React from 'react';
 
-import { type FormDataState } from './index';
+import JsonSchemaForm from 'components/JsonSchemaForm';
 
-import JsonSchemaForm, {
-  PricingResults,
-  FormData,
-  JsonSchemaFormChangeEvent,
-} from 'components/JsonSchemaForm';
+import type { RegisterStepProps } from './component';
 
-interface Props {
-  config: FormDataState['config'];
-  step: FormDataState['step'];
-  onChange: (a: JsonSchemaFormChangeEvent<FormData>) => void;
-  onSubmit: (a: any) => Promise<void>;
-  formData: FormDataState['formData'];
-  totals: PricingResults;
-}
-
-function RegistrationStep(props: Props) {
+function RegistrationStep(props: RegisterStepProps) {
   if (props.step !== 'registration') return null;
 
   const transformErrors = (errors: Array<any>) =>
@@ -39,7 +26,7 @@ function RegistrationStep(props: Props) {
         schema={props.config.dataSchema}
         uiSchema={props.config.uiSchema}
         onChange={props.onChange}
-        onSubmit={props.onSubmit}
+        onSubmit={props.submitRegistration}
         onError={() => console.log("errors")}
         formData={props.formData}
         transformErrors={transformErrors}
