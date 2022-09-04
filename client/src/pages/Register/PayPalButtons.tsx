@@ -61,9 +61,6 @@ function PayPalButtonsComponent(props: RegisterStepProps) {
     actions.order.create(order);
 
   const onApprove: PayPalOnApprove = async (data, actions) => {
-    // window.PayPalOnApprove = { data, actions };
-    // console.log('PayPalOnApprove', window.PayPalOnApprove);
-
     if (!actions || !actions.order) return;
 
     try {
