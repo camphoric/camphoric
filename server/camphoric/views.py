@@ -357,11 +357,16 @@ class RegisterView(APIView):
 
         server_pricing_results = registration.server_pricing_results
 
+        # TODO: rather than doing these one-off transformations, we should
+        # probably be creating specific serializers for use in templates and
+        # reports, see https://github.com/camphoric/camphoric/issues/262
+
         campers_template_value = []
         for camper_index, camper in enumerate(registration.campers.all()):
             campers_template_value.append({
                 **camper.attributes,
                 'pricing_result': server_pricing_results['campers'][camper_index],
+                'lodging': (camper.lodging.name if camper.lodging else 'none'),
             })
 
         confirmation_email_body_text = chevron.render(
