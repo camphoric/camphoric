@@ -503,7 +503,7 @@ class RegisterPostTests(APITestCase):
             confirmation_page_template='{{client renders this}}',
             confirmation_email_subject='Registration confirmation',
             confirmation_email_template=''.join([
-                'Thanks for registering, {{registration.billing_name}}!\n',
+                'Thanks for registering, {{registration.attributes.billing_name}}!\n',
                 '\nCampers:\n',
                 '| Name | Total |\n',
                 '| ---- | ----- |\n',

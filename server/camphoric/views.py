@@ -367,7 +367,7 @@ class RegisterView(APIView):
         confirmation_email_body_text = chevron.render(
             event.confirmation_email_template,
             {
-                'registration': registration.attributes,
+                'registration': registration,
                 'campers': campers_template_value,
                 'pricing_results': server_pricing_results,
             })

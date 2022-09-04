@@ -1,10 +1,12 @@
 const subject = 'Lark Campout 2022 Registration Confirmation';
 const template = `
-Dear {{registration.payment.payer_first_name}} {{registration.payment.payer_last_name}},
+Dear {{campers.0.first_name}} {{campers.0.last_name}},
+
 Your online registration for the Lark Campout 2022 has been received.
+
 You have registered for:
 | Name | Age | Tuition | Total |
-| ---- | --- | ------- | ----- |
+| :--- | :-- | ------: | ----: |
 {{#campers}}
 | {{first_name}} {{last_name}} | {{age}} | \${{pricing_result.tuition}} | \${{pricing_result.total}} |
 {{/campers}}
