@@ -9,6 +9,9 @@ on:
 env:
   SECRET_KEY: not-a-real-secret-key-really-not-a-real-secret-key
   DATABASE_URL: postgres://postgres:postgres@localhost/postgres
+  PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+  PAYPAL_CLIENT_ID: your-paypal-client-id-here
+  PAYPAL_SECRET: your-paypal-api-secret-here
   DEBUG: on
 
 jobs:
