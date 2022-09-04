@@ -21,23 +21,37 @@ const regularTuitionPriceMatrix = [
   [ 4,  'pricing.youth', 'pricing.off_site' ],
 ];
 
-const tuition = (offsiteId) => ({
-  '*': [
-    {
-      'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, off_site ]) => {
-        return [
-          ...acc,
-          { '===': [ageLookup[age], camperAge] }, {
-            'if': [
-              {'===': [offsiteId, {var: 'camper.lodging.lodging_1'}]},
-              {var: off_site }, {var: full}
-            ]
-          }
-        ]
-      }, []).concat([0]),
-    },
-  ]
-}); // END regularPrice tuition
+const tuition = (offsiteId) => {
+  const pricing = {
+    '*': [
+      {
+        'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, off_site ]) => {
+          return [
+            ...acc,
+            // age category, offsite case
+            {
+              'and': [
+                { '==': [ageLookup[age], camperAge] },
+                { '==': [offsiteId, {var: 'camper.lodging.lodging_1'}] },
+              ]
+            }, { var: off_site },
+            // age category, non-offsite case
+            {
+              'and': [
+                { '==': [ageLookup[age], camperAge] },
+                { '!=': [offsiteId, {var: 'camper.lodging.lodging_1'}] },
+              ]
+            }, { var: full },
+          ];
+        }, []).concat([0]),
+      },
+    ]
+  };
+
+  // console.log('pricing', pricing);
+
+  return pricing;
+};
 
 export default (offsiteId) => [
   {

@@ -46,8 +46,6 @@ async function loadOrganization(name, token) {
         password: process.env.CAMPHORIC_TEST_GMAIL_PASSWORD,
       }),
     }).then(res => res.text());
-
-    console.log('email account result', email);
   }
 
   return org;
