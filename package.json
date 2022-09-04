@@ -10,7 +10,7 @@
   "devDependencies": {
     "chalk": "^4.1.2",
     "inquirer": "^8.2.0",
-    "node-fetch": "^3.1.1"
+    "node-fetch": "^3.2.10"
   },
   "dependencies": {}
 }
