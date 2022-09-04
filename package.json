@@ -3,7 +3,8 @@
     "loadData": "docker-compose exec react node fixtures/loadAllData.mjs",
     "django-test": "docker-compose exec django python manage.py test",
     "heroku-postbuild": "cd client && npm install && npm run build",
-    "rebuild": "docker compose up -d --force-recreate --no-deps --build"
+    "rebuild": "docker compose up -d --force-recreate --no-deps --build",
+    "recreateAll": "./remove-all-docker-artifacts -f && ./development-setup-wizard.mjs -p"
   },
   "type": "module",
   "devDependencies": {

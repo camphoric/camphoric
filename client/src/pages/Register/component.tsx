@@ -6,24 +6,31 @@ import {
   FormData,
   JsonSchemaFormChangeEvent,
 } from 'components/JsonSchemaForm';
+import ErrorBoundary from 'components/ErrorBoundary';
 
 import InvitationInfo from './InvitationInfo';
 import PaymentStep from './PaymentStep';
 import RegisterStep from './RegisterStep';
 
 
-import { type FormDataState } from './index';
+import type { 
+  FormDataState,
+  SubmitPaymentMethod,
+  SubmitRegistrationMethod,
+} from './index';
 
-interface Props {
+export interface RegisterStepProps {
   config: FormDataState['config'];
   step: FormDataState['step'];
   onChange: (a: JsonSchemaFormChangeEvent<FormData>) => void;
-  onSubmit: (a: any) => Promise<void>;
+  submitRegistration: SubmitRegistrationMethod;
+  submitPayment: SubmitPaymentMethod;
   formData: FormDataState['formData'];
   totals: PricingResults;
+  UUID?: string;
 }
 
-function RegisterComponent(props: Props) {
+function RegisterComponent(props: RegisterStepProps) {
   // TODO: maybe if the status is 'submitting', we can add a translucent grey
   // overlay add a spinner
 
@@ -33,9 +40,15 @@ function RegisterComponent(props: Props) {
         <title>{props.config.dataSchema.title}</title>
       </Helmet>
       <div className="registration-form">
-        <InvitationInfo config={props.config} />
-        <RegisterStep {...props} />
-        <PaymentStep {...props} />
+        <ErrorBoundary section="InvitationInfo">
+          <InvitationInfo config={props.config} />
+        </ErrorBoundary>
+        <ErrorBoundary section="RegisterStep">
+          <RegisterStep {...props} />
+        </ErrorBoundary>
+        <ErrorBoundary section="PaymentStep">
+          <PaymentStep {...props} />
+        </ErrorBoundary>
       </div>
       <div className="PriceTicker">
         Total: ${(props.totals.total || 0).toFixed(2)}

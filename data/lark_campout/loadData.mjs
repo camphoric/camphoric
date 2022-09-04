@@ -50,7 +50,14 @@ const eventAttributes = {
       },
     },
   },
+  paypal_enabled: true,
+  paypal_client_id: 'test-client-id',
 };
+
+if (process.env.PAYPAL_CLIENT_ID) {
+  eventAttributes.paypal_enabled = true;
+  eventAttributes.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
+}
 
 const lodgingIdLookup = {};
 

@@ -2,9 +2,12 @@ import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import { RouteComponentProps, withRouter } from 'react-router';
 
+import type { OrderResponseBody } from '@paypal/paypal-js';
+
 import Spinner from 'components/Spinner';
 import Template from 'components/Template';
 import { getCsrfToken } from 'utils/fetch';
+import debug from 'utils/debug';
 import {
   calculatePrice,
   PricingResults,
@@ -25,12 +28,19 @@ interface FetchingState {
   status: "fetching";
 }
 
+export type PaymentType = 'Check' | 'PayPal';
+export type SubmitPaymentMethod = (
+  paymentType: PaymentType,
+  payPalResponse?: OrderResponseBody
+) => Promise<void>;
+export type SubmitRegistrationMethod = (a: any) => Promise<void>;
+
 export interface FormDataState {
   config: ApiRegister;
   formData: FormData;
   totals: PricingResults;
   step: "registration" | "payment";
-  registrationUUID?: string | number;
+  registrationUUID?: string;
 }
 
 interface LoadedState extends FormDataState {
@@ -77,25 +87,15 @@ class App extends React.Component<Props, RegistrationState> {
     if (process.env.NODE_ENV === 'development') {
       // @ts-ignore
       window.regOnChange = formData => this.onChange({ formData });
+      debug('config', this.state.config);
     }
   }
 
-  onSubmit = async ({ formData }: any) => {
-    if (this.state.status === "fetching") return;
-
-    this.setState({ status: "submitting" });
-
-    if (this.state.step === "registration") {
-      this.submitRegistration(formData);
-    } else if (this.state.step === "payment") {
-      this.submitPayment();
-    }
-  };
-
-  async submitRegistration(formData: any) {
+  submitRegistration: SubmitRegistrationMethod = async ({ formData }: any) => {
     if (this.state.status === "fetching") return;
 
     const { invitation } = this.state.config;
+
     try {
       const data = await this.doPost({
         formData,
@@ -116,14 +116,15 @@ class App extends React.Component<Props, RegistrationState> {
     }
   }
 
-  async submitPayment() {
+  submitPayment: SubmitPaymentMethod = async (paymentType, payPalResponse) => {
     if (this.state.status === "fetching") return;
 
     try {
       const data = await this.doPost({
         step: "payment",
         registrationUUID: this.state.registrationUUID,
-        paymentType: "check",
+        paymentType,
+        payPalResponse,
       });
 
       const confirmationProps = {
@@ -131,7 +132,7 @@ class App extends React.Component<Props, RegistrationState> {
         templateVars: { pricing_results: data.serverPricingResults },
       };
 
-      console.log(confirmationProps);
+      debug(confirmationProps);
 
       this.setState({
         status: "submitted",
@@ -144,6 +145,8 @@ class App extends React.Component<Props, RegistrationState> {
   }
 
   doPost = async (data: Object) => {
+    debug('doPost', data);
+
     const response = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
       method: "POST",
       headers: {
@@ -154,7 +157,7 @@ class App extends React.Component<Props, RegistrationState> {
     });
 
     const responseData = await response.json();
-    console.log("doPost response", response.status, responseData);
+    debug("doPost response", response.status, responseData);
 
     return responseData;
   };
@@ -192,27 +195,27 @@ class App extends React.Component<Props, RegistrationState> {
       totals: calculatePrice(this.state.config, formData),
     } as LoadedState;
 
-    // for debug
-    // console.log(data);
+    debug('onChange', data);
 
     this.setState(data);
   };
 
   render() {
-    console.log('step', this.state.step);
-
     let pageContent: JSX.Element;
     switch (this.state.status) {
       case "loaded":
-      case "submitting": {
+      case "submitting":
+      case "submissionError": {
         pageContent = (
           <RegisterComponent
             config={this.state.config}
             step={this.state.step}
             formData={this.state.formData}
             onChange={this.onChange}
-            onSubmit={this.onSubmit}
+            submitRegistration={this.submitRegistration}
+            submitPayment={this.submitPayment}
             totals={this.state.totals}
+            UUID={this.state.registrationUUID}
           />
         );
         break;
