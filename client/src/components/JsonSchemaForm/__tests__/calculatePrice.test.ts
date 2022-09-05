@@ -15,6 +15,7 @@ describe('calculatePrice', () => {
         registration: [],
       },
       pricing: {},
+      preSubmitTemplate: '',
     };
     const formData: FormData = {
       campers: [],
@@ -115,7 +116,8 @@ describe('calculatePrice', () => {
         tuition_child: 200,
         meals_adult: 300,
         meals_child: 50,
-      }
+      },
+      preSubmitTemplate: '',
     };
     const formData: FormData = {
       number_of_cabins: 3,
@@ -198,6 +200,7 @@ describe('calculatePrice', () => {
         registration: registrationPricingLogic,
       },
       pricing: {},
+      preSubmitTemplate: '',
     };
 
     const formData: FormData = {
@@ -251,6 +254,7 @@ describe('calculatePrice', () => {
         registration: registrationPricingLogic,
       },
       pricing: {},
+      preSubmitTemplate: '',
     };
 
     const formData: FormData = { campers: [] };

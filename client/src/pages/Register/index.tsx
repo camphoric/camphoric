@@ -118,6 +118,9 @@ class App extends React.Component<Props, RegistrationState> {
 
   submitPayment: SubmitPaymentMethod = async (paymentType, payPalResponse) => {
     if (this.state.status === "fetching") return;
+    debug('submitPayment');
+
+    this.setState({ status: "fetching" });
 
     try {
       const data = await this.doPost({
