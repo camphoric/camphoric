@@ -202,6 +202,46 @@ class App extends React.Component<Props, RegistrationState> {
     this.setState(data);
   };
 
+  onBlur = (target: string, value: string) => {
+    // set the first campers email
+    if (target === 'root_registrant_email') this.setFirstCamperEmail(value);
+  };
+
+  // Note: this will only work if you have a field in the root of campers
+  // called email.  If the email field is inside of a group, or called
+  // something other than "email", this will not work.
+  setFirstCamperEmail = (email: string) => {
+    if (this.state.status === "fetching") return;
+    if (this.state.status === "submissionError") return;
+
+    // check if emails exist on campers
+    const firstCamperEmail = document.getElementById('root_campers_0_email');
+
+    if (!firstCamperEmail) return;
+
+    // set the dom element's value to the email
+    // @ts-ignore
+    firstCamperEmail.value = email;
+
+    // set the formData value
+    const [ firstCamper, ...restOfCampers ] = this.state.formData.campers;
+
+    // @ts-ignore
+    firstCamper.email = email;
+
+    const data = { 
+      formData: {
+        ...this.state.formData,
+        campers: [
+          firstCamper,
+          ...restOfCampers,
+        ],
+      },
+    } as LoadedState;
+
+    this.setState(data);
+  }
+
   onJsonSchemaFormError = (errors: Array<any>) => {
     debug('onJsonSchemaFormError', errors);
 
@@ -248,6 +288,7 @@ class App extends React.Component<Props, RegistrationState> {
             step={this.state.step}
             formData={this.state.formData}
             onChange={this.onChange}
+            onBlur={this.onBlur}
             onJsonSchemaFormError={this.onJsonSchemaFormError}
             submitRegistration={this.submitRegistration}
             submitPayment={this.submitPayment}

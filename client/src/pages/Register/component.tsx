@@ -23,6 +23,7 @@ export interface RegisterStepProps {
   config: FormDataState['config'];
   step: FormDataState['step'];
   onChange: (a: JsonSchemaFormChangeEvent<FormData>) => void;
+  onBlur: (a: string, b: string) => void;
   submitRegistration: SubmitRegistrationMethod;
   submitPayment: SubmitPaymentMethod;
   onJsonSchemaFormError: (a: any) => void;
