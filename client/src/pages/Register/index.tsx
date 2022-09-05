@@ -113,7 +113,7 @@ class App extends React.Component<Props, RegistrationState> {
         formData,
         pricingResults: this.state.totals,
         ...(!!invitation && { invitation }),
-      });
+      }) as ApiRegisterPaymentStep;
 
       this.setState({
         status: "submitting",
@@ -140,7 +140,7 @@ class App extends React.Component<Props, RegistrationState> {
         registrationUUID: this.state.registrationUUID,
         paymentType,
         payPalResponse,
-      });
+      }) as ApiRegisterFinalStep;
 
       const confirmationProps = {
         markdown: data.confirmationPageTemplate,
@@ -163,19 +163,33 @@ class App extends React.Component<Props, RegistrationState> {
   doPost = async (data: Object) => {
     debug('doPost', data);
 
-    const response = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCsrfToken(),
-      },
-      body: JSON.stringify(data),
+    const currentStatus = this.state.status;
+
+    return new Promise((resolve, reject) => {
+      const go = async () => {
+        try {
+          const response = await fetch(`/api/events/${this.props.match.params.eventId}/register`, {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify(data),
+          });
+
+          const responseData = await response.json();
+          debug("doPost response", response.status, responseData);
+
+          resolve(responseData);
+        } catch (e) {
+          reject(e);
+        } finally {
+          this.setState({ status: currentStatus });
+        }
+      };
+
+      this.setState({ status: 'submitting' }, go);
     });
-
-    const responseData = await response.json();
-    debug("doPost response", response.status, responseData);
-
-    return responseData;
   };
 
   getSavedFormData = () => {
@@ -224,8 +238,10 @@ class App extends React.Component<Props, RegistrationState> {
     });
   };
 
-  onChange = ({ formData }: JsonSchemaFormChangeEvent<FormData>) => {
+  onChange = ({ formData, ...otherStuff }: JsonSchemaFormChangeEvent<FormData>) => {
     if (this.state.status === "fetching") return;
+
+    debug('onChange otherStuff', otherStuff);
 
     const data = { formData } as LoadedState;
 
