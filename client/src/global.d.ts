@@ -161,6 +161,16 @@ declare global {
     payPalOptions?: PayPalScriptOptions;
   }
 
+  export interface ApiRegisterPaymentStep {
+    registrationUUID: string;
+    serverPricingResults: any;
+  }
+
+  export interface ApiRegisterFinalStep {
+    confirmationPageTemplate: string;
+    serverPricingResults: any;
+  }
+
   export interface ApiLodging {
     id: number;
     created_at: string | null;

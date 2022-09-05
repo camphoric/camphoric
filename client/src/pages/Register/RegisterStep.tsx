@@ -34,8 +34,8 @@ function RegistrationStep(props: RegisterStepProps) {
 
         templateData={{
           pricing: props.config.pricing,
-            formData: props.formData,
-            totals: props.totals,
+          formData: props.formData,
+          totals: props.totals,
         }}
         // liveValidate={true}
       >
