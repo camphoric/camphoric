@@ -7,21 +7,25 @@ import debug from 'utils/debug';
 import type {
   FUNDING_SOURCE,
   PayPalScriptOptions,
-  PayPalButtonsComponentOptions,
-  SHIPPING_PREFERENCE,
 } from '@paypal/paypal-js';
 
 import type { RegisterStepProps } from './component';
-
-type PayPalCreateOrder = PayPalButtonsComponentOptions['createOrder'];
-type PayPalOnApprove = PayPalButtonsComponentOptions['onApprove'];
+import type {
+  PayPalCreateOrder,
+  PayPalOnApprove,
+} from './PaymentStep';
 
 const payPalFundingSources: Array<FUNDING_SOURCE> = [
   'paypal',
   'card',
 ];
 
-function PayPalButtonsComponent(props: RegisterStepProps) {
+interface Props extends RegisterStepProps {
+  payPalCreateOrder: PayPalCreateOrder;
+  payPalOnApprove: PayPalOnApprove;
+};
+
+function PayPalButtonsComponent(props: Props) {
   const optionsFromConfig = getFromPath(props, 'config.payPalOptions');
 
   debug('formData', props.formData);
@@ -39,40 +43,6 @@ function PayPalButtonsComponent(props: RegisterStepProps) {
     payPalOptions['client-id'] = 'sb';
   }
 
-  const description = `${props.config.dataSchema.title} payment for ${props.formData.registrant_email}`;
-  const order = {
-    purchase_units: [
-      {
-        amount: {
-          value: (props.totals.total || 0).toFixed(2),
-        },
-        description,
-        invoice_id: props.UUID,
-      },
-    ],
-    application_context: {
-      shipping_preference: 'NO_SHIPPING' as SHIPPING_PREFERENCE,
-    },
-  };
-
-  debug('order', order);
-
-  const createOrder: PayPalCreateOrder = (data, actions) =>
-    actions.order.create(order);
-
-  const onApprove: PayPalOnApprove = async (data, actions) => {
-    if (!actions || !actions.order) return;
-
-    try {
-      const capture = await actions.order.capture();
-
-      debug('PayPalOnApprove capture', capture);
-      props.submitPayment('PayPal', capture);
-    } catch (e) {
-      throw e;
-    }
-  };
-
   return (
     <PayPalProvider options={payPalOptions}>
       {
@@ -80,8 +50,8 @@ function PayPalButtonsComponent(props: RegisterStepProps) {
           <PayPalButtons
             key={fundingSource}
             fundingSource={fundingSource}
-            createOrder={createOrder}
-            onApprove={onApprove}
+            createOrder={props.payPalCreateOrder}
+            onApprove={props.payPalOnApprove}
           />
       ))
     }
@@ -89,4 +59,12 @@ function PayPalButtonsComponent(props: RegisterStepProps) {
   );
 }
 
-export default PayPalButtonsComponent;
+const areEqual = (prevProps: Props, nextProps: Props) => true;
+
+// We don't actually want this to ever rerender, since if it does re-render
+// while in the middle of a transaction, paypal will return the error
+// "Window closed before response"
+// see https://github.com/paypal/react-paypal-js/issues/104
+export default React.memo(PayPalButtonsComponent, areEqual);
+
+// export default PayPalButtonsComponent;
