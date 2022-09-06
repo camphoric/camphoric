@@ -28,10 +28,10 @@ interface FetchingState {
   status: "fetching";
 }
 
-export type PaymentType = 'Check' | 'PayPal';
+export type PaymentType = 'Check' | 'PayPal' | 'Card';
 export type SubmitPaymentMethod = (
   paymentType: PaymentType,
-  payPalResponse?: OrderResponseBody
+  payPalResponse?: OrderResponseBody,
 ) => Promise<void>;
 export type SubmitRegistrationMethod = (a: any) => Promise<void>;
 

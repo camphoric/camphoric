@@ -51,7 +51,7 @@ function PayPalButtonsComponent(props: Props) {
             key={fundingSource}
             fundingSource={fundingSource}
             createOrder={props.payPalCreateOrder}
-            onApprove={props.payPalOnApprove}
+            onApprove={props.payPalOnApprove(fundingSource)}
           />
       ))
     }

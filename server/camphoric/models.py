@@ -10,6 +10,7 @@ from django.utils import timezone
 class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
     PAYPAL = 'PayPal', 'PayPal'
+    CARD = 'Card', 'Debit or Credit Card'
 
 
 class TimeStampedModel(models.Model):
@@ -156,7 +157,7 @@ class Event(TimeStampedModel):
     @property
     def valid_payment_types(self):
         if self.paypal_enabled:
-            return [PaymentType.CHECK, PaymentType.PAYPAL]
+            return [PaymentType.CHECK, PaymentType.PAYPAL, PaymentType.CARD]
         return [PaymentType.CHECK]
 
 
