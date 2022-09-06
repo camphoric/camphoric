@@ -338,7 +338,13 @@ class RegisterView(APIView):
             })
 
         registration.payment_type = payment_type
-        if payment_type == models.PaymentType.PAYPAL:
+
+        is_paypal_captured_payment = (
+            payment_type == models.PaymentType.PAYPAL or
+            payment_type == models.PaymentType.CARD
+        )
+
+        if is_paypal_captured_payment:
             paypal_response = request.data.get('payPalResponse')
             if paypal_response is None:
                 raise ValidationError({'payPalResponse': 'This field is required.'})
@@ -346,7 +352,7 @@ class RegisterView(APIView):
 
         registration.save()
 
-        if payment_type == models.PaymentType.PAYPAL:
+        if is_paypal_captured_payment:
             try:
                 self.verify_and_save_paypal_payment(registration)
             except Exception as e:
@@ -603,7 +609,7 @@ class RegisterView(APIView):
 
         # everything looks good
         registration.payment_set.create(
-            payment_type=models.PaymentType.PAYPAL,
+            payment_type=registration.payment_type,
             paid_on=timezone.now(),
             amount=total,
             paypal_order_details=order_details,
