@@ -1,6 +1,7 @@
 import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import { RouteComponentProps, withRouter } from 'react-router';
+import debounce from 'lodash/debounce';
 
 import type { OrderResponseBody } from '@paypal/paypal-js';
 
@@ -66,6 +67,17 @@ export type RegistrationState =
   | SubmittingState
   | SubmittedState
   | SubmissionErrorState;
+
+const localStorageKey = 'formData';
+const saveFormDataToLocalStorage = debounce((formData) => {
+  debug('saving form data');
+  try {
+    localStorage.setItem(localStorageKey, JSON.stringify(formData));
+  } catch (e) {
+    console.error(e);
+  }
+}, 600, {leading:false, trailing:true});
+
 
 class App extends React.Component<Props, RegistrationState> {
   state: RegistrationState = {
@@ -142,6 +154,7 @@ class App extends React.Component<Props, RegistrationState> {
         confirmationProps,
       });
 
+      localStorage.removeItem(localStorageKey)
     } catch {
       this.setState({ status: "submissionError" });
     }
@@ -165,6 +178,25 @@ class App extends React.Component<Props, RegistrationState> {
     return responseData;
   };
 
+  getSavedFormData = () => {
+    // check if form data has been saved in local storage
+    let formData = { campers: [{}] };
+
+    try {
+      const saved = localStorage.getItem(localStorageKey);
+
+      if (!saved) throw new Error('no local storage data');
+
+      const json = JSON.parse(saved);
+
+      formData = json || formData;
+    } catch (e) {
+      // don't do anything, whatevs
+    } finally {
+      return formData;
+    }
+  }
+
   getConfig = async () => {
     let config: ApiRegister;
 
@@ -181,11 +213,13 @@ class App extends React.Component<Props, RegistrationState> {
       return;
     }
 
+    const formData = this.getSavedFormData();
+
     this.setState({
       status: "loaded",
       step: "registration",
       config,
-      formData: { campers: [{}] },
+      formData,
       totals: { campers: [] },
     });
   };
@@ -203,6 +237,7 @@ class App extends React.Component<Props, RegistrationState> {
     debug('onChange', data);
 
     this.setState(data);
+    saveFormDataToLocalStorage(data.formData);
   };
 
   onBlur = (target: string, value: string) => {
