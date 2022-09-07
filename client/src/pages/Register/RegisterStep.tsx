@@ -31,7 +31,7 @@ function RegistrationStep(props: RegisterStepProps) {
         onError={props.onJsonSchemaFormError}
         formData={props.formData}
         transformErrors={transformErrors}
-        onBlur={props.onBlur}
+
         templateData={{
           pricing: props.config.pricing,
             formData: props.formData,
