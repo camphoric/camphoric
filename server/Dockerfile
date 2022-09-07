@@ -8,7 +8,7 @@ COPY Pipfile .
 COPY Pipfile.lock .
 
 RUN apk add --no-cache --virtual build-deps gcc musl-dev postgresql-dev \
-    openssl bash libffi-dev
+    openssl bash libffi-dev postgresql-client
 RUN pip install pipenv \
     && pipenv install --system --dev --three \
     && rm -f Pipfile \
