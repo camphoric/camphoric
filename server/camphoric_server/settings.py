@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'frontend_bootstrap',
+    'dbbackup',  # django-dbbackup
 ]
 
 MIDDLEWARE = [
@@ -171,3 +172,14 @@ PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
 
 django_heroku.settings(locals(), databases=not DEBUG)
+
+# Backup
+# https://django-dbbackup.readthedocs.io/en/master/index.html
+DBBACKUP_STORAGE = env(
+    'DBBACKUP_STORAGE',
+    default='django.core.files.storage.FileSystemStorage'
+)
+DBBACKUP_STORAGE_OPTIONS = env.json(
+    'DBBACKUP_STORAGE_OPTIONS',
+    default={'location': '/app/backup/'}
+)
