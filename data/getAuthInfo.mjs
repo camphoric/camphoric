@@ -19,7 +19,7 @@ export async function getAuthToken() {
   const response = await fetch(`${urlBase}/api-token-auth/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `username=${username}&password=${password}`,
+    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
   });
   const json = await response.json();
   const { token } = json;
