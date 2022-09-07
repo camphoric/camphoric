@@ -4,11 +4,14 @@ Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
 Your online registration for the Lark Campout 2022 has been received.
 
-You have registered for:
-| Name | Age | Chore | Lodging | Tuition | Total |
-| :--- | :-- | :---- | :------ | ------: | ----: |
+You have registered the following campers:
+
 {{#campers}}
-| {{first_name}} {{last_name}} | {{age}} | {{chore}} | {{ lodging }} | \${{pricing_result.tuition}} | \${{pricing_result.total}} |
+- {{first_name}} {{last_name}}
+  - {{age}}
+  - Chore: {{chore}}
+  - Lodging: {{ lodging }}
+  - \${{pricing_result.total}}
 {{/campers}}
 
 Donation to Lark Traditional Arts - \${{ pricing_results.donation }}

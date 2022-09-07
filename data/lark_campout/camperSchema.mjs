@@ -58,7 +58,7 @@ export default {
     "chore": {
       "type": "string",
       "title": "Chore signup",
-      "description": "We will not have a “crew” as we do at Lark Camp, so we will need all campers to pitch in. We are asking that campers sign up for one “chore” shift during the weekend",
+      "description": "We will not have a crew as we do at Lark Camp, so we will need all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend",
       "enum": [
         "Cleanup",
         "Office Hours",
