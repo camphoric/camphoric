@@ -11,9 +11,9 @@ interface State {
 interface Props {
   title: string,
   saveButtonLabel?: string,
-  handleClose?: () => void;
-  handleShow?: () => void;
-  handleSave?: () => void;
+  handleClose?: () => any;
+  handleShow?: () => any;
+  handleSave?: () => any;
 }
 
 class Modal extends React.Component<Props, State> {
