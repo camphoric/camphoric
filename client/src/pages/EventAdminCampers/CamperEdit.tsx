@@ -1,11 +1,10 @@
 import React from 'react';
 
-import JsonSchemaForm, {
-  //  calculatePrice,
-  //  PricingResults,
-  //  FormData,
-  //  JsonSchemaFormChangeEvent,
-} from 'components/JsonSchemaForm';
+import { Button } from 'react-bootstrap';
+import { getCamperDisplayId } from 'utils/display';
+import JsonSchemaForm from 'components/JsonSchemaForm';
+import ConfirmDialog from 'components/Modal/ConfirmDialog';
+import api from 'store/api';
 
 import ShowRawJSON from 'components/ShowRawJSON';
 
@@ -15,7 +14,10 @@ interface Props {
 }
 
 function CamperEdit({ camper, event }: Props) {
-  // Typescript is dumb sometimes...
+  const [deleteCamperApi] = api.useDeleteCamperMutation();
+  const modalRef  = React.useRef<ConfirmDialog>(null);
+  const deleteCamper = () => modalRef.current?.show();
+
   const camperUISchema = (event.registration_ui_schema as any).campers;
 
   return (
@@ -31,8 +33,24 @@ function CamperEdit({ camper, event }: Props) {
           pricing: event.pricing,
           formData: camper.attributes,
         }}
-      />
+      >
+        <Button type="submit" variant="primary">
+          Save Camper
+        </Button>
+
+        <Button
+          onClick={deleteCamper}
+          variant="danger"
+        >
+          Delete Camper
+        </Button>
+      </JsonSchemaForm>
       <ShowRawJSON label="camper" json={camper} />
+      <ConfirmDialog
+        ref={modalRef}
+        title={`Delete camper ${getCamperDisplayId(camper)}?`}
+        onConfirm={() => deleteCamperApi(camper)}
+      />
     </div>
   );
 }
