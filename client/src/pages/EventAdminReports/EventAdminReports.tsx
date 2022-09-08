@@ -112,7 +112,7 @@ function EventAdminReports() {
         ref={modalRef}
         title="New report"
         saveButtonLabel="Create"
-        handleSave={saveReport()}
+        onSave={saveReport()}
       >
         <ReportEditForm onChange={setFormValues} />
       </Modal>

@@ -119,7 +119,7 @@ function PaymentTab(props: Props) {
         ref={modalRef}
         title="Add Payment"
         saveButtonLabel="Add new payment"
-        handleSave={handleSaveNewPayment}
+        onSave={handleSaveNewPayment}
       >
         <div>
             <Select

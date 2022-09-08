@@ -12,7 +12,7 @@ export interface RegTypePostValues {
 
 export interface Props {
   registration_type: ApiRegistrationType,
-  handleSave: (s: RegTypePostValues) => void;
+  onSave: (s: RegTypePostValues) => void;
 }
 
 class RegTypeModal extends React.Component<Props, RegTypePostValues> {
@@ -58,7 +58,7 @@ class RegTypeModal extends React.Component<Props, RegTypePostValues> {
         ref={this.modalRef}
         title={`${this.state.id ? 'Edit' : 'Create'} special registration type`}
         saveButtonLabel={this.state.id ? 'Save' : 'Create'}
-        handleSave={() => this.props.handleSave(this.state)}
+        onSave={() => this.props.onSave(this.state)}
       >
         <Input
           label="Machine Name"

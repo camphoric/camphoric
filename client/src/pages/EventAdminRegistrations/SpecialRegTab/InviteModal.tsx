@@ -10,7 +10,7 @@ export interface InvitePostValues {
 
 export interface Props {
   registrationTypes: Array<ApiRegistrationType>,
-  handleSave: (s: InvitePostValues) => void;
+  onSave: (s: InvitePostValues) => void;
 }
 
 class InviteModal extends React.Component<Props, InvitePostValues> {
@@ -35,7 +35,7 @@ class InviteModal extends React.Component<Props, InvitePostValues> {
         ref={this.modalRef}
         title="Create special registration invite"
         saveButtonLabel="Send invite"
-        handleSave={() => this.props.handleSave(this.state)}
+        onSave={() => this.props.onSave(this.state)}
       >
         <Select
           label="Registration type"

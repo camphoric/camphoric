@@ -11,9 +11,9 @@ interface State {
 interface Props {
   title: string,
   saveButtonLabel?: string,
-  handleClose?: () => any;
-  handleShow?: () => any;
-  handleSave?: () => any;
+  onClose?: () => any;
+  onShow?: () => any;
+  onSave?: () => any;
 }
 
 class Modal extends React.Component<Props, State> {
@@ -23,20 +23,20 @@ class Modal extends React.Component<Props, State> {
 
   close = () => {
     this.setState({ showModal: false });
-    this.props.handleClose &&
-      this.props.handleClose();
+    this.props.onClose &&
+      this.props.onClose();
   }
 
   show = () => {
     this.setState({ showModal: true });
-    this.props.handleShow &&
-      this.props.handleShow();
+    this.props.onShow &&
+      this.props.onShow();
   }
 
   save = () => {
     this.setState({ showModal: false });
-    this.props.handleSave &&
-      this.props.handleSave();
+    this.props.onSave &&
+      this.props.onSave();
   }
 
   render() {
