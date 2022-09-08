@@ -45,11 +45,11 @@ function ControlColumn({ registrationTypes, ...props }: Props) {
       <InviteModal
         ref={inviteModal}
         registrationTypes={registrationTypes}
-        handleSave={props.newInvitation}
+        onSave={props.newInvitation}
       />
       <RegTypeModal
         ref={regTypeModal}
-        handleSave={props.newRegType}
+        onSave={props.newRegType}
       />
     </>
   );

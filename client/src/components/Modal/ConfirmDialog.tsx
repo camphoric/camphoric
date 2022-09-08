@@ -22,7 +22,7 @@ class ConfirmDialog extends React.Component<Props> {
         ref={this.modalRef}
         title={this.props.title}
         saveButtonLabel={this.props.saveButtonLabel || 'Yes'}
-        handleSave={this.props.onConfirm}
+        onSave={this.props.onConfirm}
       >{this.props.message || 'This action cannot be undone'}</Modal>
     );
   }
