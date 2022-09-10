@@ -2,44 +2,44 @@ import { ageLookup } from './pricing/camperPricingLogic.mjs';
 
 const registrations = [
   {
-		phone: "+15551235678",
+    phone: "+15551235678",
     email: 'bobross123456@dontsend.com',
     campers: [
-      [64, 'Bob', 'Ross', 'mrna', 'tent', 'Cleanup'],
-      [64, 'Jane', 'Ross', 'mrna', 'tent', 'Cleanup'],
+      [64, 'Bob', 'Ross', 'mrna', 'off_site', 'Cleanup'],
+      [64, 'Jane', 'Ross', 'mrna', 'off_site', 'Cleanup'],
     ],
   },
   {
-		phone: "+15553985678",
+    phone: "+15553985678",
     email: 'skywalker123456@dontsend.com',
     campers: [
-      [64 , 'Ani','Skywalker' , 'mrna', 'tent', 'Cleanup'],
-      [64 , 'Padmé' , 'Amidala' , 'mrna', 'tent', 'Cleanup'],
-			[17 , 'Luke' , 'Skywalker' , 'mrna', 'tent', 'Cleanup'],
-			[17 , 'Leia' , 'Organa' , 'mrna', 'tent', 'Cleanup'],
+      [64 , 'Ani','Skywalker' , 'mrna', 'rv_sm', 'Cleanup'],
+      [64 , 'Padmé' , 'Amidala' , 'mrna', 'rv_sm', 'Cleanup'],
+      [17 , 'Luke' , 'Skywalker' , 'mrna', 'tent', 'Cleanup'],
+      [17 , 'Leia' , 'Organa' , 'mrna', 'tent', 'Cleanup'],
     ],
   },
   {
-		phone: "+15553985555",
+    phone: "+15553985555",
     email: 'vampslayer2345@dontsend.com',
     campers: [
       [49 , 'Buffy','Summers' , 'trad', 'tent', 'Cleanup'],
       [49 , 'Willow' , 'Rosenberg', 'trad', 'tent', 'Cleanup'],
-			[49 , 'Xander' , 'Harris' , 'trad', 'tent', 'Cleanup'],
-			[17 , 'Dawn' , 'Summers' , 'trad', 'tent', 'Cleanup'],
+      [49 , 'Xander' , 'Harris' , 'trad', 'tent', 'Cleanup'],
+      [17 , 'Dawn' , 'Summers' , 'trad', 'tent', 'Cleanup'],
     ],
   },
 
   {
-		phone: "+15553755555",
+    phone: "+15553755555",
     email: 'notarever3q450@dontsend.com',
     campers: [
-      [49 , 'Malcom','Reynolds' , 'mrna', 'tent', 'Cleanup'],
-      [49 , 'Jayne' , 'Cobb', 'mrna', 'tent', 'Cleanup'],
-			[49 , 'Zoe' , 'Washburn', 'mrna', 'tent', 'Cleanup'],
-			[49 , 'Hoban' , 'Washburn', 'mrna', 'tent', 'Cleanup'],
-			[49 , 'Inara' , 'Serra', 'mrna', 'tent', 'Cleanup'],
-			[49 , 'Kaylee' , 'Frye', 'mrna', 'tent', 'Cleanup'],
+      [49 , 'Malcom','Reynolds' , 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Jayne' , 'Cobb', 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Zoe' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Hoban' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Inara' , 'Serra', 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Kaylee' , 'Frye', 'mrna', 'rv_lg', 'Cleanup'],
     ],
   },
 ];
@@ -101,12 +101,12 @@ function makeRegistration(reg, lodgingMap) {
       "total": 0,
       "tuition": 0,
     }
-	}
+  }
 }
 
 export default function makeRegistrations(lodgingMap) {
-	return registrations.map(
-		r => makeRegistration(r, lodgingMap)
-	);
+  return registrations.map(
+    r => makeRegistration(r, lodgingMap)
+  );
 };
 

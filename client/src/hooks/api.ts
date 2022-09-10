@@ -280,6 +280,67 @@ export function useOrganization() {
   return organization;
 }
 
+export interface LodgingNode extends ApiLodging {
+  children: Array<LodgingNode>;
+  isLeaf: boolean;
+  campers: Array<ApiCamper>;
+  count: number;
+}
+
+export function useLodgingTree(): LodgingNode | undefined {
+  const lodgingsAllApi = api.useGetLodgingsQuery();
+  const camperLookup = useCamperLookup();
+  const { data: event } = useEvent();
+  const [tree, setTree] = React.useState<LodgingNode>();
+
+  React.useEffect(() => {
+    if (!event) return setTree(undefined);
+    if (!camperLookup) return setTree(undefined);
+
+    const lodgingsData = lodgingsAllApi?.data;
+    const lodgingsAll = lodgingsData?.filter(l => l.event === event.id) || [];
+    const lodgingRoot = lodgingsAll.find(l => !l.parent);
+
+    // console.log('lodgingRoot', lodgingRoot);
+    // console.log('lodgingsAll', lodgingsAll);
+
+    if (!lodgingRoot) return setTree(undefined);
+
+    const allCampers = Object.values(camperLookup);
+
+    const createNode = (lodging: ApiLodging): LodgingNode => {
+      const children: Array<LodgingNode> = lodgingsAll
+        .filter(l => l.parent === lodging.id)
+        .map(createNode);
+
+      const campers = allCampers.filter(c => c.lodging === lodging.id);
+      const count = children.reduce(
+        (acc, c) => ( c.count + acc),
+        campers.length,
+      );
+      const capacity = children.reduce(
+        (acc, c) => ( c.capacity + acc),
+        lodging.capacity,
+      );
+      const isLeaf = children.length === 0;
+
+      return {
+        ...lodging,
+        isLeaf,
+        children,
+        count,
+        campers,
+        capacity,
+      };
+    }
+
+    setTree(createNode(lodgingRoot));
+  }, [lodgingsAllApi, event, camperLookup]);
+
+  return tree;
+}
+
+
 export function useUrlParams() {
   return useParams<UrlParams>();
 }
