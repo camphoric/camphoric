@@ -1,16 +1,26 @@
 import React from 'react';
-import { useEvent } from 'hooks/api';
+import { useLodgingTree } from 'hooks/api';
 import Spinner from 'components/Spinner';
+import ShowRawJSON from 'components/ShowRawJSON';
+import LodgingNodeDisplay from './LodgingNodeDisplay';
+
 
 function EventAdminLodging() {
-  const eventApi = useEvent();
+  const lodgingTree = useLodgingTree();
 
-  if (eventApi.isLoading || !eventApi.data) return <Spinner />;
+  if (!lodgingTree) {
+    return <Spinner />;
+  }
 
   return (
     <React.Fragment>
       <h1>Lodging</h1>
-      <pre>{JSON.stringify(eventApi.data, null, 2)}</pre>
+      {
+        lodgingTree.children.map(
+          c => <LodgingNodeDisplay lodgingTree={c} />
+        )
+      }
+      <ShowRawJSON label="lodging" json={lodgingTree} />
     </React.Fragment>
   );
 }
