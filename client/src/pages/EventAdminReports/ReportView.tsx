@@ -38,6 +38,7 @@ function ReportView({ result, ...props }: Props) {
   const registrationLookup = useRegistrationLookup();
   const camperLookup = useCamperLookup();
   const lodgingLookup = useLodgingLookup();
+  const [activeTab, setActiveTab] = React.useState('View');
 
   if (
     !result ||
@@ -61,8 +62,17 @@ function ReportView({ result, ...props }: Props) {
     campers,
   };
 
+  const save = () => {
+    props.save();
+    setActiveTab('View');
+  }
+
   return (
-    <Tabs defaultActiveKey="View">
+    <Tabs
+      defaultActiveKey="View"
+      onSelect={(k) => setActiveTab(k || 'View')}
+      activeKey={activeTab}
+    >
       <Tab eventKey="View" title="View">
         <Template
           markdown={result.template}
@@ -75,7 +85,7 @@ function ReportView({ result, ...props }: Props) {
           result={result}
         />
 
-        <Button variant="primary" onClick={props.save}>
+        <Button variant="primary" onClick={save}>
           Save Changes
         </Button>
       </Tab>
