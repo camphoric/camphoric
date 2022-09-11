@@ -12,8 +12,10 @@ import {
   useEvent,
   useRegistrationLookup,
   useCamperLookup,
+  useLodgingLookup,
   RegistrationLookup,
   CamperLookup,
+  LodgingLookup,
 } from 'hooks/api';
 
 interface Props extends ReportEditFormProps {
@@ -27,6 +29,7 @@ interface ReportTemplateVars {
   registrationLookup: RegistrationLookup | undefined;
   registrations: Array<AugmentedRegistration>;
   camperLookup: CamperLookup | undefined;
+  lodgingLookup: LodgingLookup | undefined,
   campers: Array<ApiCamper>;
 }
 
@@ -34,8 +37,15 @@ function ReportView({ result, ...props }: Props) {
   const event = useEvent();
   const registrationLookup = useRegistrationLookup();
   const camperLookup = useCamperLookup();
+  const lodgingLookup = useLodgingLookup();
 
-  if (!result || !event.data || !camperLookup || !registrationLookup) {
+  if (
+    !result ||
+    !event.data ||
+    !camperLookup ||
+    !registrationLookup ||
+    !lodgingLookup
+  ) {
     return <Spinner />;
   }
 
@@ -45,6 +55,7 @@ function ReportView({ result, ...props }: Props) {
   const templateVars: ReportTemplateVars = {
     event: event.data,
     registrationLookup,
+    lodgingLookup,
     camperLookup,
     registrations,
     campers,
