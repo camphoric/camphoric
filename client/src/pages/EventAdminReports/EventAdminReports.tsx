@@ -12,14 +12,30 @@ import { useQueryLookup } from 'hooks/navigation';
 import Modal from 'components/Modal';
 
 import api, {
+  CamperLookup,
+  LodgingLookup,
+  RegistrationLookup,
+  useCamperLookup,
+  useEvent,
+  useLodgingLookup,
+  useRegistrationLookup,
   useReportLookup,
   useReportSearch,
-  useEvent,
 } from 'hooks/api';
 
 import ReportSearchResult from './ReportSearchResult';
-import ReportView from './ReportView';
+import ReportTab from './ReportTab';
 import ReportEditForm, { ReportEditFormValue } from './ReportEditForm';
+
+export interface ReportTemplateVars {
+  event: ApiEvent;
+  registrationLookup: RegistrationLookup | undefined;
+  registrations: Array<AugmentedRegistration>;
+  camperLookup: CamperLookup | undefined;
+  lodgingLookup: LodgingLookup | undefined;
+  campers: Array<ApiCamper>;
+}
+
 
 const blankForm = {
   title: '',
@@ -33,6 +49,9 @@ function EventAdminReports() {
   const [updateReport] = api.useUpdateReportMutation();
   const [createReport] = api.useCreateReportMutation();
   const { data: event } = useEvent();
+  const registrationLookup = useRegistrationLookup();
+  const camperLookup = useCamperLookup();
+  const lodgingLookup = useLodgingLookup();
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const modalRef  = React.useRef<Modal>(null);
@@ -43,8 +62,11 @@ function EventAdminReports() {
   if (
     !event ||
     !reports ||
+    !camperLookup ||
     !reportSearch ||
-    !reportLookup
+    !reportLookup ||
+    !registrationLookup ||
+    !lodgingLookup
   ) {
     return <Spinner />;
   }
@@ -71,6 +93,18 @@ function EventAdminReports() {
   const searchResults = searchQuery
     ? reportSearch.search(searchQuery).map(c => c.item)
     : reports;
+
+  const registrations = Object.values(registrationLookup);
+  const campers = Object.values(camperLookup);
+
+  const templateVars: ReportTemplateVars = {
+    event,
+    registrationLookup,
+    lodgingLookup,
+    camperLookup,
+    registrations,
+    campers,
+  };
 
   return (
     <Container>
@@ -99,7 +133,8 @@ function EventAdminReports() {
         <Col md="9">
           {
             !!report && (
-              <ReportView
+              <ReportTab
+                templateVars={templateVars}
                 onChange={setFormValues}
                 result={report}
                 save={saveReport(report)}
@@ -114,7 +149,10 @@ function EventAdminReports() {
         saveButtonLabel="Create"
         onSave={saveReport()}
       >
-        <ReportEditForm onChange={setFormValues} />
+        <ReportEditForm
+          templateVars={templateVars}
+          onChange={setFormValues}
+        />
       </Modal>
     </Container>
   );
