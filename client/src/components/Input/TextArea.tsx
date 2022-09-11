@@ -2,7 +2,7 @@ import React from 'react';
 import { Form, FormControl } from 'react-bootstrap';
 
 interface Props extends React.ComponentProps<typeof FormControl> {
-  label: string;
+  label: string | React.ReactNode;
 } 
 
 function TextArea(props: Props) {

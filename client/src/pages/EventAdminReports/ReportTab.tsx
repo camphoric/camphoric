@@ -1,5 +1,4 @@
 import React from 'react';
-import Spinner from 'components/Spinner';
 import {
   Button,
   Tabs,
@@ -8,59 +7,19 @@ import {
 import ReportEditForm, { ReportEditFormProps, ReportEditFormValue } from './ReportEditForm';
 import Template from 'components/Template';
 
-import {
-  useEvent,
-  useRegistrationLookup,
-  useCamperLookup,
-  useLodgingLookup,
-  RegistrationLookup,
-  CamperLookup,
-  LodgingLookup,
-} from 'hooks/api';
+import type { ReportTemplateVars } from './EventAdminReports';
 
 interface Props extends ReportEditFormProps {
   save: () => any;
   result: ApiReport;
   onChange: (a: ReportEditFormValue) => void;
+  templateVars: ReportTemplateVars;
 }
 
-interface ReportTemplateVars {
-  event: ApiEvent;
-  registrationLookup: RegistrationLookup | undefined;
-  registrations: Array<AugmentedRegistration>;
-  camperLookup: CamperLookup | undefined;
-  lodgingLookup: LodgingLookup | undefined,
-  campers: Array<ApiCamper>;
-}
-
-function ReportView({ result, ...props }: Props) {
-  const event = useEvent();
-  const registrationLookup = useRegistrationLookup();
-  const camperLookup = useCamperLookup();
-  const lodgingLookup = useLodgingLookup();
+function ReportTab({ result, templateVars, ...props }: Props) {
   const [activeTab, setActiveTab] = React.useState('View');
 
-  if (
-    !result ||
-    !event.data ||
-    !camperLookup ||
-    !registrationLookup ||
-    !lodgingLookup
-  ) {
-    return <Spinner />;
-  }
-
-  const registrations = Object.values(registrationLookup);
-  const campers = Object.values(camperLookup);
-
-  const templateVars: ReportTemplateVars = {
-    event: event.data,
-    registrationLookup,
-    lodgingLookup,
-    camperLookup,
-    registrations,
-    campers,
-  };
+  console.log(templateVars);
 
   const save = () => {
     props.save();
@@ -81,6 +40,7 @@ function ReportView({ result, ...props }: Props) {
       </Tab>
       <Tab eventKey="Edit" title="Edit">
         <ReportEditForm
+          templateVars={templateVars}
           onChange={props.onChange}
           result={result}
         />
@@ -97,4 +57,4 @@ function ReportView({ result, ...props }: Props) {
   );
 }
 
-export default ReportView;
+export default ReportTab;

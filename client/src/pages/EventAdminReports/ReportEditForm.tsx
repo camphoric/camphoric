@@ -1,5 +1,8 @@
 import React from 'react';
 import Input, { TextArea } from 'components/Input';
+import TemplateHelp from 'components/TemplateHelp';
+
+import type { ReportTemplateVars } from './EventAdminReports';
 
 export type ReportEditFormValue = {
   title: string,
@@ -7,6 +10,7 @@ export type ReportEditFormValue = {
 }
 
 export interface ReportEditFormProps {
+  templateVars: ReportTemplateVars;
   result?: ApiReport;
   onChange: (obj: ReportEditFormValue) => void;
 }
@@ -16,7 +20,7 @@ const blankFormValue = {
   template: '',
 }
 
-function ReportEditForm({ result, onChange }: ReportEditFormProps) {
+function ReportEditForm({ result, onChange, templateVars }: ReportEditFormProps) {
   const [reportValues, setReportValues] = React.useState<ReportEditFormValue>(blankFormValue);
 
   React.useEffect(() => {
@@ -42,6 +46,13 @@ function ReportEditForm({ result, onChange }: ReportEditFormProps) {
       onChange(newValue);
     };
 
+  const textAreaLabel = (
+    <div>
+      Report Template 
+      <TemplateHelp templateVars={templateVars} />
+    </div>
+  );
+
   return (
     <div className="report-edit-form">
       <Input
@@ -50,7 +61,7 @@ function ReportEditForm({ result, onChange }: ReportEditFormProps) {
         defaultValue={reportValues.title}
       />
       <TextArea
-        label="Report Template"
+        label={textAreaLabel}
         onChange={handleFormChange('template')}
         defaultValue={reportValues.template}
       />
