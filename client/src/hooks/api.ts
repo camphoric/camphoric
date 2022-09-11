@@ -23,6 +23,10 @@ export type ReportLookup = {
   [id: string]: ApiReport,
 }
 
+export type LodgingLookup = {
+  [id: string]: AugmentedLodging,
+}
+
 export function useEvent() {
   const { eventId } = useParams<UrlParams>();
   const event = api.useGetEventByIdQuery(eventId || 0);
@@ -280,18 +284,32 @@ export function useOrganization() {
   return organization;
 }
 
-export interface LodgingNode extends ApiLodging {
-  children: Array<LodgingNode>;
-  isLeaf: boolean;
-  campers: Array<ApiCamper>;
-  count: number;
+export function useLodgingLookup(): LodgingLookup | undefined {
+  const lodgingTree = useLodgingTree();
+  const [lodgingLookup, setLodgingLookup] = React.useState<LodgingLookup>();
+
+  React.useEffect(() => {
+    if (!lodgingTree) return;
+    const lodgingLookup: LodgingLookup = {};
+
+    const addLodgingToLookup = (l: AugmentedLodging) => {
+      lodgingLookup[l.id] = l;
+      l.children?.forEach(addLodgingToLookup);
+    };
+
+    addLodgingToLookup(lodgingTree);
+
+    setLodgingLookup(lodgingLookup);
+  }, [lodgingTree]);
+
+  return lodgingLookup;
 }
 
-export function useLodgingTree(): LodgingNode | undefined {
+export function useLodgingTree(): AugmentedLodging | undefined {
   const lodgingsAllApi = api.useGetLodgingsQuery();
   const camperLookup = useCamperLookup();
   const { data: event } = useEvent();
-  const [tree, setTree] = React.useState<LodgingNode>();
+  const [tree, setTree] = React.useState<AugmentedLodging>();
 
   React.useEffect(() => {
     if (!event) return setTree(undefined);
@@ -308,8 +326,8 @@ export function useLodgingTree(): LodgingNode | undefined {
 
     const allCampers = Object.values(camperLookup);
 
-    const createNode = (lodging: ApiLodging): LodgingNode => {
-      const children: Array<LodgingNode> = lodgingsAll
+    const createNode = (lodging: ApiLodging): AugmentedLodging => {
+      const children: Array<AugmentedLodging> = lodgingsAll
         .filter(l => l.parent === lodging.id)
         .map(createNode);
 

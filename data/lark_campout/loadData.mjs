@@ -20,6 +20,7 @@ import inquirer from 'inquirer';
 
 import createTestRegs from './testRegistrations.mjs';
 import camperPricingLogic from './pricing/camperPricingLogic.mjs';
+import reports from './reports.mjs';
 import { getAuthToken } from '../getAuthInfo.mjs';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
@@ -28,7 +29,7 @@ const eventName = 'Lark Campout 2022';
 const eventAttributes = {
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
-	pre_submit_template: (await import('./preSubmitTemplate.mjs')).default,
+  pre_submit_template: (await import('./preSubmitTemplate.mjs')).default,
   pricing: (await import('./pricing/pricing.mjs')).default,
   registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
   registration_schema: (await import('./registrationSchema.mjs')).default,
@@ -52,18 +53,21 @@ async function main(authToken) {
   }
 
   const org = await loadOrganization(token);
-	console.log('Processed organization');
+  console.log('Processed organization');
   // console.log(org);
 
   const evt = await loadEvent(token, org);
-	console.log(`Processed event '${eventName}'`);
+  console.log(`Processed event '${eventName}'`);
   // console.log(evt);
 
   await loadLodgings(token, evt);
-	console.log('Processed event lodging');
+  console.log('Processed event lodging');
 
   await loadCamperPricing(token, evt);
   console.log('Processed camper pricing');
+
+  await loadReports(token, evt);
+  console.log('Processed reports');
 
   await loadRegTypes(token, evt);
   console.log('Processed event registration types');
@@ -71,7 +75,7 @@ async function main(authToken) {
   await loadTestRegs(token, evt);
   console.log('Processed test registrations');
 
-	console.log('Finished!');
+  console.log('Finished!');
   return true;
 }
 
@@ -139,8 +143,8 @@ async function loadEvent(token, org) {
 async function loadLodgings(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
-      method: 'GET',
-      headers: { 'Authorization': `Token ${token}` },
+    method: 'GET',
+    headers: { 'Authorization': `Token ${token}` },
   });
   const existingLodgings = (await response.json())
     .filter(lodging => lodging.event === event.id);
@@ -173,11 +177,37 @@ async function loadLodgings(token, event) {
   }
 }
 
+async function loadReports(token, event) {
+  const postReport = async (report) => {
+    let text;
+    try {
+      const response = await fetch(`${urlBase}/api/reports/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...report,
+          event: event.id,
+        }),
+      });
+      text = await response.text();
+
+      const json = JSON.parse(text);
+    } catch(e) {
+      console.error(e, text);
+    }
+  };
+
+  await Promise.all(reports.map(postReport));
+}
+
 async function loadCamperPricing(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/lodgings/`, {
-      method: 'GET',
-      headers: { 'Authorization': `Token ${token}` },
+    method: 'GET',
+    headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
   const offSiteItem = response
@@ -200,8 +230,8 @@ async function loadCamperPricing(token, event) {
 async function loadRegTypes(token, event) {
   // delete existing lodgings
   let response = await fetch(`${urlBase}/api/registrationtypes/`, {
-      method: 'GET',
-      headers: { 'Authorization': `Token ${token}` },
+    method: 'GET',
+    headers: { 'Authorization': `Token ${token}` },
   });
 
   const existingRegTypes = (await response.json())

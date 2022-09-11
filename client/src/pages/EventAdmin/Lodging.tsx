@@ -12,6 +12,8 @@ function EventAdminLodging() {
     return <Spinner />;
   }
 
+  console.log(lodgingTree);
+
   return (
     <React.Fragment>
       <h1>Lodging</h1>

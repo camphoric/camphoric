@@ -210,5 +210,12 @@ declare global {
   export interface AugmentedRegistration extends ApiRegistration {
     campers: Array<ApiCamper>;
   }
+
+  export interface AugmentedLodging extends ApiLodging {
+    children: Array<AugmentedLodging>;
+    isLeaf: boolean;
+    campers: Array<ApiCamper>;
+    count: number;
+  }
 }
 
