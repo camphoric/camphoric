@@ -1,11 +1,10 @@
 import React from 'react';
 import { Collapse, Button } from 'react-bootstrap';
-import { type LodgingNode } from 'hooks/api';
 import { getCamperDisplayId } from 'utils/display';
 
 type Props = {
-  renderNode: (a: LodgingNode) => React.ReactNode,
-  lodgingTree: LodgingNode,
+  renderNode: (a: AugmentedLodging) => React.ReactNode,
+  lodgingTree: AugmentedLodging,
   topLevel: boolean;
 } & typeof defaultProps;
 
