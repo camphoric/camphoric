@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
  
-env:
-  TSC_COMPILE_ON_ERROR: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,6 +31,7 @@ jobs:
           key: ${{ runner.os }}-node_modules-${{ hashFiles('**/package-lock.json') }}
 
       - run: npm ci
+      - run: npx tsc
       - run: npm run build
 
       - name: Deploy JS to js-build-main
