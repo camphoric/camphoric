@@ -14,11 +14,12 @@ interface Props {
   onClose?: () => any;
   onShow?: () => any;
   onSave?: () => any;
+  show?: boolean;
 }
 
 class Modal extends React.Component<Props, State> {
   state: State = {
-    showModal: false,
+    showModal: !!this.props.show,
   }
 
   close = () => {
@@ -40,8 +41,15 @@ class Modal extends React.Component<Props, State> {
   }
 
   render() {
+    let show = this.state.showModal;
+
+    // we can also use a prop to control whether this is shown.
+    if (this.props.show !== undefined) show = this.props.show;
+
+    console.log('showModal', show);
+
     return (
-      <BootstrapModal size="xl" show={this.state.showModal} onHide={this.close}>
+      <BootstrapModal size="xl" show={show} onHide={this.close}>
         <BootstrapModal.Header closeButton>
           <BootstrapModal.Title>{ this.props.title }</BootstrapModal.Title>
         </BootstrapModal.Header>
