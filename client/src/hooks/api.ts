@@ -54,18 +54,35 @@ const basicSearchOptions = {
  * HOOKS FOR ApiRegistrations
  */
 
-const createRegistrationLookup =
-  (registrations: Array<ApiRegistration>, campers: Array<ApiCamper>, eventId: CtxId): RegistrationLookup => {
+const createRegistrationLookup = (
+  registrations: Array<ApiRegistration>,
+  campers: Array<ApiCamper>,
+  payments: Array<ApiPayment>,
+  eventId: CtxId
+): RegistrationLookup => {
     const eventIdStr = eventId.toString();
 
     return registrations
       .filter(r => r.event.toString() === eventIdStr)
-      .map(r => ({
-        ...r,
-        campers: campers.filter(
-          c => c.registration.toString() === r.id.toString()
-        ),
-      }))
+      .map(r => {
+        const paymentRecords = payments.filter(
+          p => p.registration === r.id
+        );
+
+        const total_owed = r.server_pricing_results.total;
+        const total_payments = paymentRecords.reduce((acc, p) => Number(p.amount) + acc, 0);
+        const total_balance = total_owed - total_payments;
+
+        return {
+          ...r,
+          total_owed,
+          total_payments,
+          total_balance,
+          campers: campers.filter(
+            c => c.registration.toString() === r.id.toString()
+          ),
+        };
+      })
       .reduce(
         (acc, r) => ({
           ...acc,
@@ -78,17 +95,27 @@ const createRegistrationLookup =
 export function useRegistrationLookup(): RegistrationLookup | undefined {
   const registrationsApi = api.useGetRegistrationsQuery();
   const campersApi = api.useGetCampersQuery();
+  const paymentsApi = api.useGetPaymentsQuery();
   const { eventId } = useParams<UrlParams>();
   const [lookup, setLookup] = React.useState<RegistrationLookup>();
 
   React.useEffect(() => {
-    if (!registrationsApi.data || !campersApi.data) return;
+    if (
+      !registrationsApi.data ||
+      !campersApi.data ||
+      !paymentsApi.data
+    ) return;
     if (!eventId) return;
 
-    const result = createRegistrationLookup(registrationsApi.data, campersApi.data, eventId);
+    const result = createRegistrationLookup(
+      registrationsApi.data,
+      campersApi.data,
+      paymentsApi.data,
+      eventId,
+    );
 
     setLookup(result);
-  }, [registrationsApi, campersApi, eventId]);
+  }, [registrationsApi, campersApi, paymentsApi, eventId]);
 
   return lookup;
 }
