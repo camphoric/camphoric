@@ -94,6 +94,9 @@ declare global {
     client_reported_pricing: any;
     event: number | string;
     registration_type: any;
+    payment_type: string;
+    paypal_response: object;
+    uuid: string;
   }
 
   export interface ApiCamper {
@@ -219,6 +222,9 @@ declare global {
 
   export interface AugmentedRegistration extends ApiRegistration {
     campers: Array<ApiCamper>;
+    total_owed: number;
+    total_payments: number;
+    total_balance: number;
   }
 
   export interface AugmentedLodging extends ApiLodging {
