@@ -30,16 +30,18 @@ function RegistrationEdit(props: Props) {
           totals: registration.server_pricing_results,
         }}
       >
-        <Button type="submit" variant="primary">
-          Save Registration
-        </Button>
+        <div className="button-container">
+          <Button type="submit" variant="primary">
+            Save Registration
+          </Button>
 
-        <Button
-          onClick={deleteRegistration}
-          variant="danger"
-        >
-          Delete Registration
-        </Button>
+          <Button
+            onClick={deleteRegistration}
+            variant="danger"
+          >
+            Delete Registration
+          </Button>
+        </div>
       </JsonSchemaForm>
       <ShowRawJSON label="registration" json={registration} />
       <ConfirmDialog
