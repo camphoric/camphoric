@@ -270,7 +270,6 @@ async function loadRegTypes(token, event) {
 }
 
 async function loadTestRegs(token, event) {
-
   const postReg = async (testData) => {
     const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
       method: "POST",
@@ -283,22 +282,66 @@ async function loadTestRegs(token, event) {
 
     const text = await res.text();
 
+    let json = {};
     try {
-      const json = JSON.parse(text);
+      json = JSON.parse(text);
     } catch (e) {
       console.log('failed to add test reg, see Django logs');
     }
 
-    return text;
+    return {
+      ...testData,
+      response: json,
+    };
+  }
+
+  const postPayment = async (testData) => {
+    const body = {
+      step: "payment",
+      registrationUUID: testData.response.registrationUUID,
+      paymentType: testData.formData.payment_type,
+      payPalResponse: testData.formData.paypal_response,
+    };
+
+    const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': token,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const text = await res.text();
+
+    let json = {};
+    try {
+      json = JSON.parse(text);
+    } catch (e) {
+      console.log('failed to add test reg, see Django logs');
+    }
+
+    return {
+      ...testData,
+      response: json,
+    };
+
   }
 
   const registrations = createTestRegs(lodgingIdLookup);
 
-  const responses = await Promise.all(
+  // get first step responses
+  let responses;
+  responses = await Promise.all(
     registrations.map(postReg)
   );
 
-  // console.log(responses);
+  // process payment step
+  responses = await Promise.all(
+    responses.map(postPayment)
+  );
+
+  console.log(responses);
 }
 
 
