@@ -4,6 +4,7 @@ import {
   Redirect,
   Route,
 } from 'react-router-dom';
+import { IconContext } from 'react-icons';
 
 import { Container, Row, Col } from 'react-bootstrap';
 
@@ -28,24 +29,29 @@ const eventAdminRoutes: RouteList = [
 
 function EventAdmin(props: { basePath: string }) {
   return(
-    <Container>
-      <Row className="justify-content-md-center"><Col>
-      <NavBar routes={eventAdminRoutes} />
-      <Switch>
-        {
-          eventAdminRoutes.map(
-            ([route,, Comp]) => (
-              <Route path={`${props.basePath}/${route}`} key={route}>
-                <div className={`event-admin-section-${route}`}>
-                  <Comp />
-                </div>
-              </Route>
+    <IconContext.Provider value={{
+      className: 'react-icons',
+      size: '1.5rem',
+    }}>
+      <Container>
+        <Row className="justify-content-md-center"><Col>
+        <NavBar routes={eventAdminRoutes} />
+        <Switch>
+          {
+            eventAdminRoutes.map(
+              ([route,, Comp]) => (
+                <Route path={`${props.basePath}/${route}`} key={route}>
+                  <div className={`event-admin-section-${route}`}>
+                    <Comp />
+                  </div>
+                </Route>
+              )
             )
-          )
-        }
-        <Redirect to={`${props.basePath}/home`} />
-      </Switch>
-    </Col></Row></Container>
+          }
+          <Redirect to={`${props.basePath}/home`} />
+        </Switch>
+      </Col></Row></Container>
+    </IconContext.Provider>
   );
 }
 

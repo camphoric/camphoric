@@ -1,4 +1,4 @@
 import EventAdminLodging from './EventAdminLodging';
-// import './styles.scss';
+import './styles.scss';
 
 export default EventAdminLodging;
