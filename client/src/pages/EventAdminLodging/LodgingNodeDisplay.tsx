@@ -21,7 +21,7 @@ function LodgingNodeDisplay(props: Props) {
       <ul>
         {
           props.lodgingTree.campers.map(c => (
-            <li>{ getCamperDisplayId(c) }</li>
+            <li key={c.id}>{ getCamperDisplayId(c) }</li>
           ))
         }
       </ul>
@@ -45,6 +45,7 @@ function LodgingNodeDisplay(props: Props) {
           {
             props.lodgingTree.children.map(c => (
               <LodgingNodeDisplay
+                key={c.id}
                 {...props}
                 topLevel={false}
                 lodgingTree={c}
