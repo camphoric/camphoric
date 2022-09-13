@@ -1,0 +1,36 @@
+.event-admin-lodging-container {
+  div.tab-container {
+    margin-left: 2.2rem;
+  }
+
+  div.col {
+    padding: 0;
+  }
+
+  .event-admin-unassigned-container {
+    background-color: lightgray;
+  }
+
+  button.show-unassigned-button {
+    position: absolute;
+    padding: 0.25rem 0;
+    background-color: lightgray;
+    border-color: lightgray;
+    color: inherit;
+
+    border-radius: 0.25rem;
+    /* top-left | top-right | bottom-right | bottom-left */
+    border-radius: 0 0.25rem 0.25rem 0;
+
+    & > div {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+
+      .react-icons {
+        margin-right: 5%;
+      }
+    }
+
+  }
+}
+

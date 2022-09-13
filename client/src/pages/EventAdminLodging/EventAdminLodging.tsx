@@ -2,38 +2,71 @@ import React from 'react';
 import { useLodgingTree } from 'hooks/api';
 import {
   Tabs, Tab,
+  Container, Row, Col,
+  Collapse,
+  Button,
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
 import ShowRawJSON from 'components/ShowRawJSON';
-import debug from 'utils/debug';
 import LodgingNodeDisplay from './LodgingNodeDisplay';
-
+import Assignment from './Assignment';
+import { IoChevronBack, IoChevronForward } from 'react-icons/io5';
 
 function EventAdminLodging() {
+  const [open, setOpen] = React.useState(false);
   const lodgingTree = useLodgingTree();
 
   if (!lodgingTree) {
     return <Spinner />;
   }
 
-  debug('lodgingTree', lodgingTree);
-
   return (
-    <Tabs defaultActiveKey="View">
-      <Tab eventKey="View" title="View">
-        <h1>Lodging</h1>
+    <Container className="event-admin-lodging-container">
+      <Row>
         {
-          lodgingTree.children.map(
-            c => <LodgingNodeDisplay key={c.id} lodgingTree={c} />
+          open && (
+            <Col md="auto" className="event-admin-unassigned-container">
+              <div>
+                <Collapse in={open} dimension="width">
+                  <div>
+                    side
+                  </div>
+                </Collapse>
+              </div>
+            </Col>
           )
         }
-        <ShowRawJSON label="lodging" json={lodgingTree} />
-      </Tab>
-      <Tab eventKey="Assign" title="Assign">
-        <div>coming soon</div>
-      </Tab>
-
-    </Tabs>
+        <Col>
+          <Button
+            onClick={() => setOpen(!open)}
+            aria-controls="example-collapse-text"
+            aria-expanded={open}
+            className="show-unassigned-button"
+          ><div>
+            Unassigned { open ? <IoChevronBack /> : <IoChevronForward /> }
+          </div></Button>
+          <div className="tab-container">
+            <Tabs defaultActiveKey="View">
+              <Tab eventKey="View" title="Tree View">
+                {
+                  lodgingTree.children.map(
+                    c => <LodgingNodeDisplay key={c.id} lodgingTree={c} />
+                  )
+                }
+                <ShowRawJSON label="lodging" json={lodgingTree} />
+              </Tab>
+              {
+                lodgingTree.children.map((l) => (
+                  <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
+                    <Assignment />
+                  </Tab>
+                ))
+              }
+            </Tabs>
+          </div>
+        </Col>
+      </Row>
+    </Container>
   );
 }
 
