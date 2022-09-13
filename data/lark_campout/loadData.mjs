@@ -341,7 +341,7 @@ async function loadTestRegs(token, event) {
     responses.map(postPayment)
   );
 
-  console.log(responses);
+  // console.log(responses);
 }
 
 

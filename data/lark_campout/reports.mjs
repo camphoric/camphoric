@@ -18,7 +18,7 @@ Total Campers: {{campers.length}}
 | Email | Total | Payments | Balance |
 | ----- | ----- | -------- | ------- |
 {{#eachrsort registrations "total_balance"}}
-| {{registrant_email}} | ${{total_owed}} | ${{total_payments}} | <div style="color: {{#if (lt total_balance 0)}}red{{else}}black{{/if}}">${{total_balance}}</div> |
+| {{registrant_email}} | \${{total_owed}} | \${{total_payments}} | <div style="color: {{#if (lt total_balance 0)}}red{{else}}black{{/if}}">\${{total_balance}}</div> |
 {{/eachrsort}}
 `,
   },
