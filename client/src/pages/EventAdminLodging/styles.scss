@@ -1,33 +1,92 @@
 .event-admin-lodging-container {
+  $sidebar-bg-color: LightBlue;
+  $nav-bg-level-1-dis: LightGreen;
+  $nav-bg-level-1-ena: Green;
+  $nav-bg-level-2-dis: SandyBrown;
+  $nav-bg-level-2-ena: Peru;
+
+  nav.level-1 {
+    margin-bottom: 0.5rem;
+    border-bottom-color: $nav-bg-level-1-ena;
+    .nav-item {
+      background-color: $nav-bg-level-1-dis;
+      border-bottom-color: $nav-bg-level-1-ena;
+
+      &.active {
+        background-color: $nav-bg-level-1-ena;
+        color: white;
+      }
+    }
+  }
+
+  nav.level-2 {
+    border-bottom-color: $nav-bg-level-2-ena;
+    .nav-item {
+      background-color: $nav-bg-level-2-dis;
+      border-bottom-color: $nav-bg-level-2-ena;
+
+      &.active {
+        background-color: $nav-bg-level-2-ena;
+        color: white;
+      }
+    }
+
+    .tab-pane {
+      flex: 1;
+    }
+  }
+
+  .lodging-grid-container {
+    margin-top: 1rem;
+  }
+
   div.tab-container {
-    margin-left: 2.2rem;
+    margin-left: 2.3rem;
   }
 
-  div.col {
-    padding: 0;
+  .event-admin-right-column-container {
+    padding-left: 0;
+    padding-right: 0;
   }
 
-  .event-admin-unassigned-container {
-    background-color: lightgray;
+  .event-admin-left-column-container {
+    background-color: $sidebar-bg-color;
+
+    /* top-left | top-right | bottom-right | bottom-left */
+    border-radius: 0 0 0.25rem 0;
   }
 
   button.show-unassigned-button {
     position: absolute;
-    padding: 0.25rem 0;
-    background-color: lightgray;
-    border-color: lightgray;
+    padding: 0.25rem 0.1rem;
+    background-color: $sidebar-bg-color;
+    border-color: $sidebar-bg-color;
     color: inherit;
-
-    border-radius: 0.25rem;
     /* top-left | top-right | bottom-right | bottom-left */
     border-radius: 0 0.25rem 0.25rem 0;
 
-    & > div {
+    &:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
+    .show-unassigned-button-inner {
       writing-mode: vertical-rl;
       text-orientation: mixed;
 
+      .badge {
+        writing-mode: rl;
+        text-orientation: auto;
+        color: white;
+        background-color: #007bff;
+      }
+
+      span {
+        margin: .25rem 0;
+      }
+
       .react-icons {
-        margin-right: 5%;
+        margin-left: -0.5rem;
       }
     }
 
