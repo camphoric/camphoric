@@ -37,3 +37,8 @@ code {
 .row {
 	background-color: white;
 }
+
+.scrollable-container {
+  overflow:scroll;
+  overflow-y:hidden;
+}

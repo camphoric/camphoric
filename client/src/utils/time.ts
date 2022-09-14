@@ -4,6 +4,26 @@
  * All functions for dealing with time conversions, formatting, and timezone
  * info.
  */
+
+export function formatDateForForm(dateStr: string | null | undefined) {
+  if (!dateStr) return undefined;
+
+  const date = new Date(dateStr);
+
+  if (!date) return undefined;
+
+  // Note: this gets values in the browser's set timezone
+  const year = date.getFullYear();
+  const month = (1 + date.getMonth()).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+
+  if ([year, month, day].includes(NaN)) {
+    return undefined;
+  }
+
+  return [year, month, day].join('-');
+}
+
 export function formatDateTimeForForm(dateStr: string | null | undefined) {
   if (!dateStr) return undefined;
 

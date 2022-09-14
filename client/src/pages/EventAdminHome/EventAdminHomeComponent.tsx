@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from 'react-bootstrap';
 import { TabProps } from './EventAdminHome';
 import Input, { TextArea, KeyValueEdit } from 'components/Input';
-import { formatDateTimeForForm } from 'utils/time';
+import { formatDateForForm } from 'utils/time';
 import ShowRawJSON from 'components/ShowRawJSON';
 
 
@@ -11,7 +11,7 @@ function EventAdminHomeComponent(props: TabProps) {
     props.eventForm[key] || (props.apiEvent && props.apiEvent[key]);
 
   const defaultTimeFor = (key: keyof ApiEvent) => 
-    formatDateTimeForForm(
+    formatDateForForm(
       props.eventForm[key] || (props.apiEvent && props.apiEvent[key])
     );
 
@@ -26,25 +26,25 @@ function EventAdminHomeComponent(props: TabProps) {
       <Input
         label="Event Starts"
         onChange={props.handleFormDateChange('start')}
-        type="datetime-local"
+        type="date"
         defaultValue={defaultTimeFor('start')}
       />
       <Input
         label="Event Ends"
         onChange={props.handleFormDateChange('end')}
-        type="datetime-local"
+        type="date"
         defaultValue={defaultTimeFor('end')}
       />
       <Input
         label="Reg Starts"
         onChange={props.handleFormDateChange('registration_start')}
-        type="datetime-local"
+        type="date"
         defaultValue={defaultTimeFor('registration_start')}
       />
       <Input
         label="Reg Ends"
         onChange={props.handleFormDateChange('registration_end')}
-        type="datetime-local"
+        type="date"
         defaultValue={defaultTimeFor('registration_end')}
       />
 
