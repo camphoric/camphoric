@@ -26,6 +26,29 @@ import { getAuthToken } from '../getAuthInfo.mjs';
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = 'Lark Campout 2022';
 
+export function formatDate(arg) {
+  let date;
+  if (typeof arg === 'string') {
+    date = Date.parse(arg);
+  } else if (arg instanceof Date) {
+    date = arg;
+  }
+
+  console.log('parsed', date);
+
+  if (!date) return undefined;
+
+  const year = date.getFullYear();
+  const month = (1 + date.getMonth()).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+
+  if ([year, month, day].includes(NaN)) {
+    return undefined;
+  }
+
+  return [year, month, day].join('-');
+}
+
 const eventAttributes = {
   camper_schema: (await import('./camperSchema.mjs')).default,
   confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
@@ -105,12 +128,25 @@ async function loadEvent(token, org) {
   }).then(r => r.json());
   const email = emailAccounts.find(e => e.organization === org.id);
 
+  const defaultDate = new Date();
+  // default event start is 30 days from defaultDate
+  defaultDate.setUTCHours(defaultDate.getUTCHours() + (30 * 24))
+
+  const start = formatDate(eventAttributes.start)
+    || formatDate(defaultDate);
+
+  // default event end is 5 days from start
+  defaultDate.setUTCHours(defaultDate.getUTCHours() + (8 * 24))
+  const end = formatDate(eventAttributes.end)
+    || formatDate(defaultDate);
 
   const event = {
     organization: org.id,
     name: eventName,
     confirmation_email_from: email.username,
     email_account: email.id,
+    start,
+    end,
 
     ...eventAttributes,
     camper_pricing_logic: [],
