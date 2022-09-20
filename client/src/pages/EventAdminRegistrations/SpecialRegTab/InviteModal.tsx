@@ -29,7 +29,6 @@ class InviteModal extends React.Component<Props, InvitePostValues> {
   };
 
   render() {
-    // console.log('form state', this.state);
     return (
       <Modal
         ref={this.modalRef}

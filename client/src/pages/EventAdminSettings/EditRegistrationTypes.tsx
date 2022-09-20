@@ -19,8 +19,6 @@ function EditRegistrationTypes({ event, ...props }: Props) {
 
   const registrationTypes = registrationTypesApi.data;
 
-  console.log(registrationTypes);
-
   const save = () => { }
   const postNew = () => { }
 

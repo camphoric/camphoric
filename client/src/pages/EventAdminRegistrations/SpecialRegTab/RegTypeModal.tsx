@@ -52,7 +52,6 @@ class RegTypeModal extends React.Component<Props, RegTypePostValues> {
   }
 
   render() {
-    // console.log('form state', this.state);
     return (
       <Modal
         ref={this.modalRef}

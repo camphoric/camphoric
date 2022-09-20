@@ -100,8 +100,6 @@ function SpecialRegTab() {
   if (fetching || !registrationTypes || !invitations) return <Spinner />;
   if (!eventApi.data) return <Spinner />;
 
-  // console.log(registrationTypes, invitations);
-
   return (
     <Container className="special-registration">
       <Row>

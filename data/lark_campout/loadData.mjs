@@ -34,8 +34,6 @@ export function formatDate(arg) {
     date = arg;
   }
 
-  console.log('parsed', date);
-
   if (!date) return undefined;
 
   const year = date.getFullYear();
@@ -147,6 +145,7 @@ async function loadEvent(token, org) {
     email_account: email.id,
     start,
     end,
+    default_stay_length: 5,
 
     ...eventAttributes,
     camper_pricing_logic: [],

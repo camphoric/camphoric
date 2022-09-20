@@ -6,6 +6,8 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
+# Useful docs:
+# - https://docs.djangoproject.com/en/4.1/ref/models/fields/
 
 class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
@@ -97,10 +99,13 @@ class Event(TimeStampedModel):
     '''
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    registration_start = models.DateTimeField(null=True)
-    registration_end = models.DateTimeField(null=True)
-    start = models.DateTimeField(null=True)
-    end = models.DateTimeField(null=True)
+    registration_start = models.DateField(null=True)
+    registration_end = models.DateField(null=True)
+    start = models.DateField(null=True)
+    end = models.DateField(null=True)
+    default_stay_length = models.SmallIntegerField(
+        default=1,
+        help_text="The number of days that a camper stays by default")
     camper_schema = models.JSONField(default=dict, help_text="JSON schema for Camper.attributes")
     payment_schema = models.JSONField(default=dict, help_text="JSON schema for Payment.attributes")
     registration_schema = models.JSONField(
@@ -288,6 +293,9 @@ class Camper(TimeStampedModel):
         default='',
         max_length=255,
         help_text="names of other campers in shared space, relevant if lodging_shared=True")
+    stay = models.JSONField(
+        null=True,
+        help_text="JSON array of dates")
     attributes = models.JSONField(null=True)
 
 
@@ -296,7 +304,7 @@ class Deposit(TimeStampedModel):
     - Has many Payments
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    deposited_on = models.DateTimeField(null=True)
+    deposited_on = models.DateField(null=True)
     attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
@@ -314,7 +322,7 @@ class Payment(TimeStampedModel):
         choices=PaymentType.choices,
     )
     deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE, null=True)
-    paid_on = models.DateTimeField(null=True)
+    paid_on = models.DateField(null=True)
     attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     paypal_order_details = models.JSONField(null=True)

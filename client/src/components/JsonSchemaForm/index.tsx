@@ -4,6 +4,7 @@ import { FormProps, withTheme, IChangeEvent } from '@rjsf/core';
 import { JSONSchema7 } from 'json-schema';
 import jsonLogic from 'json-logic-js';
 import get from 'lodash/get';
+import debug from 'utils/debug';
 
 import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 
@@ -77,7 +78,7 @@ function JsonSchemaForm(props: Props) {
         setGoogleMapsLoaded(true);
       } catch (e) {
         console.error(e);
-        console.log('trying again...');
+        debug('trying again...');
 
         tryLoadingGoogleMaps();
       }
