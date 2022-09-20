@@ -1,9 +1,10 @@
 import React from 'react';
 
 import api, { useEvent } from 'hooks/api';
+import debug from 'utils/debug';
 
 import Spinner from 'components/Spinner';
-import { formatDateTimeForApi } from 'utils/time';
+import { formatDateValue } from 'utils/time';
 
 import EventAdminHomeComponent from './EventAdminHomeComponent';
 
@@ -30,9 +31,9 @@ function EventAdminHome() {
 
   const handleFormDateChange = (field: keyof ApiEvent) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = changeEvent.target;
-    const dateValue = formatDateTimeForApi(value);
+    const dateValue = formatDateValue(value);
 
-    // console.log(dateValue);
+    debug(dateValue);
 
     setEvent({
       ...eventForm,
@@ -45,10 +46,13 @@ function EventAdminHome() {
     [field]: value,
   });
 
-  const save = () => updateEvent({
-    ...eventForm,
-    id: eventApi.data?.id || 0,
-  });
+  const save = () => {
+    debug(eventForm);
+    updateEvent({
+      ...eventForm,
+      id: eventApi.data?.id || 0,
+    });
+  };
 
   const tabProps: TabProps = {
     handleFormChange,

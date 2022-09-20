@@ -48,6 +48,7 @@ declare global {
     registration_end: string | null;
     start: string | null;
     end: string | null;
+    default_stay_length: number;
     camper_schema: JSONSchema7;
     payment_schema: JSONSchema7;
     registration_schema: JSONSchema7;
@@ -107,6 +108,7 @@ declare global {
     attributes: any;
     registration: number | string;
     lodging: any;
+    stay: any;
   }
 
   export interface ApiRegistrationType {

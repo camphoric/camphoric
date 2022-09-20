@@ -34,7 +34,7 @@ function EventAdmin(props: { basePath: string }) {
       size: '1.5rem',
     }}>
       <Container>
-        <Row className="justify-content-md-center"><Col>
+        <Row className="justify-content-md-center admin-container"><Col>
         <NavBar routes={eventAdminRoutes} />
         <Switch>
           {

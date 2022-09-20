@@ -1,3 +1,8 @@
+@use "sass:color";
+
+.event-admin-section-lodging {
+height: 100%;
+
 .event-admin-lodging-container {
   $sidebar-bg-color: LightBlue;
   $nav-bg-level-1-dis: LightGreen;
@@ -37,7 +42,6 @@
   }
 
   .lodging-grid-container {
-    margin-top: 1rem;
   }
 
   div.tab-container {
@@ -51,13 +55,33 @@
 
   .event-admin-left-column-container {
     background-color: $sidebar-bg-color;
+    border: 1px solid $sidebar-bg-color;
 
     /* top-left | top-right | bottom-right | bottom-left */
     border-radius: 0 0 0.25rem 0;
+
+    .event-admin-left-column-container-inner {
+    }
+
+    ul.unassigned-camper-list {
+      list-style: none;
+      padding: 0;
+      padding-left: 0.25rem;
+      position: fixed;
+
+      li {
+        background-color: color.scale($sidebar-bg-color, $lightness: 50%);
+        margin: 0.5rem;
+        padding: 0.25rem;
+        border-radius: 0.5rem;
+
+      }
+    }
   }
 
+
   button.show-unassigned-button {
-    position: absolute;
+    position: fixed;
     padding: 0.25rem 0.1rem;
     background-color: $sidebar-bg-color;
     border-color: $sidebar-bg-color;
@@ -89,7 +113,7 @@
         margin-left: -0.5rem;
       }
     }
-
   }
-}
 
+}
+}

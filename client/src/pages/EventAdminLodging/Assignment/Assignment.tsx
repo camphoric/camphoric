@@ -3,8 +3,14 @@ import {
   Tabs, Tab,
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
+import { LodgingLookup, useCamperLookup } from 'hooks/api';
 import debug from 'utils/debug';
-import { getDaysArray, getLeafNodes } from './utils';
+import {
+  getDaysArray,
+  getLeafNodes,
+  LodgingPair,
+  sortLodgingNames,
+} from './utils';
 import AssignmentNode from './AssignmentNode';
 
 // https://codesandbox.io/s/currying-grass-hz2xc?file=/src/styles.css
@@ -12,6 +18,7 @@ import AssignmentNode from './AssignmentNode';
 type Props = {
   lodgingTree: AugmentedLodging,
   event: ApiEvent,
+  isDragging: boolean,
 };
 
 function Assignment(props: Props) {
@@ -35,31 +42,51 @@ function Assignment(props: Props) {
 
   const days = getDaysArray(startDate, endDate);
 
-  debug('days', days);
-
   const leafChildren = lodgingTree.children.filter(l => l.isLeaf);
 
+  const assignmentNodeFactory = (lt: AugmentedLodging) => {
+    let leaves: LodgingLookup = {
+      [lt.name || '?']: lt
+    };
+
+    if (!lodgingTree.isLeaf) {
+      leaves = getLeafNodes(lodgingTree);
+    }
+
+    return (
+      <>
+        {
+          Object
+          .entries(leaves)
+          .sort(sortLodgingNames)
+          .map(([name, l]) => (
+            <AssignmentNode
+              key={name}
+              {...props}
+              lodgingTree={l}
+              days={days}
+            />
+          ))
+        }
+      </>
+    );
+  };
+
   if (lodgingTree.isLeaf || leafChildren.length) {
-    debug('isLeaf');
     return (
       <div className="scrollable-container lodging-grid-container">
-        <AssignmentNode {...props} days={days} />
+        { assignmentNodeFactory(lodgingTree) }
       </div>
     );
   }
 
-  debug('NOT isLeaf');
   return (
     <Tabs defaultActiveKey="View" className="level-2">
       {
         lodgingTree.children.map((l) => (
           <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
             <div className="scrollable-container lodging-grid-container">
-              <AssignmentNode
-                {...props}
-                days={days}
-                lodgingTree={l}
-              />
+              { assignmentNodeFactory(l) }
             </div>
           </Tab>
         ))

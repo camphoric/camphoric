@@ -47,6 +47,12 @@ function EventAdminHomeComponent(props: TabProps) {
         type="date"
         defaultValue={defaultTimeFor('registration_end')}
       />
+      <Input
+        label="Default Stay"
+        onChange={props.handleFormChange('default_stay_length')}
+        type="integer"
+        defaultValue={defaultFor('default_stay_length')}
+      />
 
       <h2>Confirmation Page</h2>
       <TextArea

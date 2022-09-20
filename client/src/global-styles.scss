@@ -12,6 +12,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 	background-color: #057e36;
+
+  .admin-container {
+    height: max-content;
+
+    & > div.col {
+      height: 100%;
+    }
+  }
 }
 
 table {
