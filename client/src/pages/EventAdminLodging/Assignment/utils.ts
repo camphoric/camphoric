@@ -1,5 +1,4 @@
 import { LodgingLookup } from 'hooks/api';
-import debug from 'utils/debug';
 
 export function getDaysArray(start: string, end: string): Array<Date> {
   let arr = [];
@@ -37,8 +36,22 @@ export function getLeafNodes(
     (l) => getLeafNodes(l, leaves, newTitles)
   );
 
-  debug('leaves', leaves);
-
   return leaves;
+};
+
+export type LodgingPair = [a: string, b: AugmentedLodging];
+
+export const sortLodgingNames = (a: LodgingPair, b: LodgingPair) => {
+  const nameA = a[0];
+  const nameB = b[0];
+  if (nameA < nameB) {
+    return -1;
+  }
+  if (nameA > nameB) {
+    return 1;
+  }
+
+  // names must be equal
+  return 0;
 };
 

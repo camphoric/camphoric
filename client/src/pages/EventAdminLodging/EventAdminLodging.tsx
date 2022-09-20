@@ -7,7 +7,7 @@ import {
   Badge,
 } from 'react-bootstrap';
 import { IoChevronBack, IoChevronForward } from 'react-icons/io5';
-import { 
+import {
   useLodgingLookup,
   useLodgingTree,
   useEvent,
@@ -20,6 +20,7 @@ import Assignment from './Assignment';
 
 function EventAdminLodging() {
   const [open, setOpen] = React.useState(false);
+  const [isDragging, setIsDragging] = React.useState(false);
   const lodgingTree = useLodgingTree();
   const { data: event } = useEvent();
   const lodgingLookup = useLodgingLookup();
@@ -38,22 +39,44 @@ function EventAdminLodging() {
     []
   );
 
+  const onDragStart = (c: ApiCamper) => (e: React.DragEvent) => {
+    e.dataTransfer?.setData('id', c.id.toString());
+    setIsDragging(true);
+  }
+
   return (
     <Container className="event-admin-lodging-container">
-      <Row>
+      <Row className="h-100">
         {
           open && (
             <Col
               className="event-admin-left-column-container"
               sm={3}
             >
-              <div>
+              <div
+                className="event-admin-left-column-container-inner"
+              >
                 <Collapse in={open} dimension="width">
                   <div>
-                    <ul>
+                    <ul className="unassigned-camper-list">
                       {
                         unassignedCampers.map(
-                          (c: ApiCamper) => (<li>{ getCamperDisplayId(c) }</li>)
+                          (c: ApiCamper) => (
+                            <li key={c.id}>
+                              <div
+                                draggable={true}
+                                key={`camper-${c.id}`}
+                                data-camperid={c.id}
+                                onDragStart={onDragStart(c)}
+                                onMouseDown={() => setIsDragging(true)}
+                                onMouseLeave={() => setIsDragging(false)}
+                                onMouseUp={() => setIsDragging(false)}
+                                onDragEnd={() => setIsDragging(false)}
+                              >
+                                { getCamperDisplayId(c) }
+                              </div>
+                            </li>
+                          )
                         )
                       }
                     </ul>
@@ -65,7 +88,7 @@ function EventAdminLodging() {
         }
         <Col
           className="event-admin-right-column-container"
-          sm={open ? 9 : 'auto'}
+          sm={open ? 9 : 12}
         >
           <Button
             onClick={() => setOpen(!open)}
@@ -89,7 +112,7 @@ function EventAdminLodging() {
               {
                 lodgingTree.children.map((l) => (
                   <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
-                    <Assignment event={event} lodgingTree={l} />
+                    <Assignment isDragging={isDragging} event={event} lodgingTree={l} />
                   </Tab>
                 ))
               }

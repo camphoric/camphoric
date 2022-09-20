@@ -1,3 +1,6 @@
+import moment from 'moment';
+import debug from 'utils/debug';
+
 /**
  * time utils
  *
@@ -5,65 +8,25 @@
  * info.
  */
 
-export function formatDateForForm(dateStr: string | null | undefined) {
-  if (!dateStr) return undefined;
+export function formatDateForForm(...args: Parameters<typeof moment>) {
+  const offset = new Date().getTimezoneOffset();
 
-  const date = new Date(dateStr);
-
-  if (!date) return undefined;
-
-  // Note: this gets values in the browser's set timezone
-  const year = date.getFullYear();
-  const month = (1 + date.getMonth()).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-
-  if ([year, month, day].includes(NaN)) {
-    return undefined;
-  }
-
-  return [year, month, day].join('-');
+  return moment.utc(...args).utcOffset(offset).format('YYYY-MM-DD');
 }
 
-export function formatDateTimeForForm(dateStr: string | null | undefined) {
-  if (!dateStr) return undefined;
+export const formatDateValue = formatDateForForm;
 
-  const date = new Date(dateStr);
+export function formatDateTimeForForm(...args: Parameters<typeof moment>) {
+  const offset = new Date().getTimezoneOffset();
 
-  if (!date) return undefined;
-
-  // Note: this gets values in the browser's set timezone
-  const year = date.getFullYear();
-  const month = (1 + date.getMonth()).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-
-  if ([year, month, day, hours, minutes].includes(NaN)) {
-    return undefined;
-  }
-
-  return `${[year, month, day].join('-')}T${[hours, minutes].join(':')}`;
+  return moment.utc(...args).utcOffset(offset).format();
 }
 
-export function formatDateTimeForViewing(dateStr: string | null | undefined) {
-  if (!dateStr) return undefined;
+export function formatDateTimeForViewing(...args: Parameters<typeof moment>) {
+  const offset = new Date().getTimezoneOffset();
 
-  const date = new Date(dateStr);
-
-  if (!date) return undefined;
-
-  // Note: this gets values in the browser's set timezone
-  const year = date.getFullYear();
-  const month = (1 + date.getMonth()).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-
-  if ([year, month, day, hours, minutes].includes(NaN)) {
-    return undefined;
-  }
-
-  return `${month}/${day}/${year}`;
+  return moment.utc(...args).utcOffset(offset)
+    .format('MM/DD/YYYY');
 }
 
 // Note: this returns values for the browser's set timezone
@@ -77,13 +40,8 @@ export function getISOTimeZoneString() {
 }
 
 // The input is is assumed to be in some logical date format.
-export function formatDateTimeForApi(dateStr: string | null) {
-  const date = formatDateTimeForForm(dateStr);
+export function formatDateTimeForApi(...args: Parameters<typeof moment>) {
+  const offset = new Date().getTimezoneOffset();
 
-  // fail if it could not convert to date object
-  if (!date) return undefined;
-
-  const formattedDate = `${date}${getISOTimeZoneString()}`;
-
-  return formattedDate;
+  return moment.utc(...args).utcOffset(offset).format();
 }
