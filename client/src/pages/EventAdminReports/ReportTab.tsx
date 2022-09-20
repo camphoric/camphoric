@@ -19,8 +19,6 @@ interface Props extends ReportEditFormProps {
 function ReportTab({ result, templateVars, ...props }: Props) {
   const [activeTab, setActiveTab] = React.useState('View');
 
-  console.log(templateVars);
-
   const save = () => {
     props.save();
     setActiveTab('View');

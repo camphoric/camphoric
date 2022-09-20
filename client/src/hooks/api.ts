@@ -346,9 +346,6 @@ export function useLodgingTree(): AugmentedLodging | undefined {
     const lodgingsAll = lodgingsData?.filter(l => l.event === event.id) || [];
     const lodgingRoot = lodgingsAll.find(l => !l.parent);
 
-    // console.log('lodgingRoot', lodgingRoot);
-    // console.log('lodgingsAll', lodgingsAll);
-
     if (!lodgingRoot) return setTree(undefined);
 
     const allCampers = Object.values(camperLookup);

@@ -284,8 +284,6 @@ class App extends React.Component<Props, RegistrationState> {
         }
 
         const els = document.getElementById(id)?.focus();
-
-        console.log(camperIndex, id, els);
       }
     });
   }
