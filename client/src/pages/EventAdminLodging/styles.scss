@@ -10,6 +10,15 @@ height: 100%;
   $nav-bg-level-2-dis: SandyBrown;
   $nav-bg-level-2-ena: Peru;
 
+  .camper-pop-over {
+    border-radius: 0.25rem;
+    background: white;
+    animation-name: fadeInOut, moveLeft300px, bounce;
+    animation-duration: 3s;
+    animation-iteration-count: 1;
+  }
+
+
   nav.level-1 {
     margin-bottom: 0.5rem;
     border-bottom-color: $nav-bg-level-1-ena;

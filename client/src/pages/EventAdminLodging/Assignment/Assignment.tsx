@@ -1,15 +1,23 @@
 import React from 'react';
 import {
   Tabs, Tab,
+  Card, Overlay
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
-import { LodgingLookup, useCamperLookup } from 'hooks/api';
 import debug from 'utils/debug';
+import api, {
+  LodgingLookup,
+  useCamperLookup,
+  useLodgingLookup,
+} from 'hooks/api';
+import { getCamperDisplayId } from 'utils/display';
+
 import {
   getDaysArray,
   getLeafNodes,
   LodgingPair,
   sortLodgingNames,
+  getAllParentClasses 
 } from './utils';
 import AssignmentNode from './AssignmentNode';
 
@@ -22,9 +30,13 @@ type Props = {
 };
 
 function Assignment(props: Props) {
+  const [camper, setCamper] = React.useState<ApiCamper>();
+  const draggableRef = React.useRef<HTMLDivElement>();
+  const camperLookup = useCamperLookup();
+  const lodgingLookup = useLodgingLookup();
   const { lodgingTree } = props;
 
-  if (!lodgingTree) {
+  if (!lodgingTree || !lodgingLookup || !camperLookup) {
     return <Spinner />;
   }
 
@@ -39,6 +51,12 @@ function Assignment(props: Props) {
       </div>
     );
   }
+
+  const activateCamperPopover = (ref: HTMLDivElement, c: ApiCamper) => {
+    debug('activateCamperPopover', ref, c);
+    setCamper(c);
+    draggableRef.current = ref;
+  };
 
   const days = getDaysArray(startDate, endDate);
 
@@ -65,6 +83,9 @@ function Assignment(props: Props) {
               {...props}
               lodgingTree={l}
               days={days}
+              lodgingLookup={lodgingLookup}
+              camperLookup={camperLookup}
+              activateCamperPopover={activateCamperPopover}
             />
           ))
         }
@@ -72,10 +93,41 @@ function Assignment(props: Props) {
     );
   };
 
+  const popOver = (
+    // @ts-ignore draggableRef.current will always be valid when it matters
+    <Overlay rootClose target={draggableRef.current} show={!!camper} placement="right">
+      {({ placement, arrowProps, show: _show, popper, ...props }) => (
+        <div {...props} className="camper-pop-over">
+          <Card>
+            <Card.Header>{camper && getCamperDisplayId(camper)}</Card.Header>
+            <Card.Body>
+              With supporting text below as a natural lead-in to additional content.
+            </Card.Body>
+          </Card>
+        </div>
+      )}
+    </Overlay>
+  );
+
+  const dismissAllPopovers = (e: React.MouseEvent<HTMLDivElement>) => {
+    const allClasses = getAllParentClasses(e.target as HTMLDivElement);
+
+    if (allClasses.includes('camper-tools')) return;
+    if (allClasses.includes('camper-pop-over')) return;
+
+    if (!allClasses.includes('camper-pop-over')) setCamper(undefined);
+  }
+
+
   if (lodgingTree.isLeaf || leafChildren.length) {
     return (
-      <div className="scrollable-container lodging-grid-container">
+      <div
+        className="scrollable-container lodging-grid-container"
+        onClick={dismissAllPopovers}
+        onMouseDown={dismissAllPopovers}
+      >
         { assignmentNodeFactory(lodgingTree) }
+        { popOver}
       </div>
     );
   }
@@ -85,12 +137,17 @@ function Assignment(props: Props) {
       {
         lodgingTree.children.map((l) => (
           <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
-            <div className="scrollable-container lodging-grid-container">
+            <div
+              className="scrollable-container lodging-grid-container"
+              onClick={dismissAllPopovers}
+              onMouseDown={dismissAllPopovers}
+            >
               { assignmentNodeFactory(l) }
             </div>
           </Tab>
         ))
       }
+      { popOver}
     </Tabs>
   );
 }

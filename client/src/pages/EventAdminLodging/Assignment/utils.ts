@@ -1,4 +1,5 @@
 import { LodgingLookup } from 'hooks/api';
+import flattenDeep from 'lodash/flattenDeep';
 
 export function getDaysArray(start: string, end: string): Array<Date> {
   let arr = [];
@@ -53,5 +54,14 @@ export const sortLodgingNames = (a: LodgingPair, b: LodgingPair) => {
 
   // names must be equal
   return 0;
+};
+
+export const getAllParentClasses = (target: HTMLDivElement | null): Array<string> => {
+  if (!target) return [];
+
+  return flattenDeep([
+    ...Array.from(target.classList || []),
+    ...getAllParentClasses(target.parentNode as HTMLDivElement),
+  ])
 };
 
