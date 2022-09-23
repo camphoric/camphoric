@@ -88,18 +88,17 @@ class App extends React.Component<Props, RegistrationState> {
     super(props);
 
     this.getConfig();
-  }
-
-  componentDidUpdate(prevProps: Props, prevState: RegistrationState) {
-    if (this.state.status === "fetching" || prevState.status === "fetching") {
-      return;
-    }
 
     // for debuging/ autofilling of form data
     if (process.env.NODE_ENV === 'development') {
       // @ts-ignore
       window.regOnChange = formData => this.onChange({ formData });
-      debug('config', this.state.config);
+    }
+  }
+
+  componentDidUpdate(prevProps: Props, prevState: RegistrationState) {
+    if (this.state.status === "fetching" || prevState.status === "fetching") {
+      return;
     }
   }
 

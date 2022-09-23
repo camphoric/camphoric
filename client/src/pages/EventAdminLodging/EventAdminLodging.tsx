@@ -46,7 +46,7 @@ function EventAdminLodging() {
 
   return (
     <Container className="event-admin-lodging-container">
-      <Row className="h-100">
+      <Row>
         {
           open && (
             <Col

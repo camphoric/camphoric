@@ -108,6 +108,7 @@ declare global {
     attributes: any;
     registration: number | string;
     lodging: any;
+    lodging_requested: any;
     stay: any;
   }
 

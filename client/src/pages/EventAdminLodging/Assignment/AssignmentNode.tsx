@@ -1,20 +1,28 @@
 import React from 'react';
 import GridLayout, { ItemCallback, ReactGridLayoutProps } from 'react-grid-layout';
+import { Card } from 'react-bootstrap';
 import { IoSettings } from 'react-icons/io5';
 import { getCamperDisplayId } from 'utils/display';
 
 import moment from 'moment';
 import debug from 'utils/debug';
 import { formatDateValue } from 'utils/time';
-import api, { useCamperLookup } from 'hooks/api';
+import api, {
+  CamperLookup,
+  LodgingLookup,
+} from 'hooks/api';
 
 import 'react-grid-layout/css/styles.css';
+import { getAllParentClasses } from './utils';
 import './styles.scss';
 
 type Props = {
   lodgingTree: AugmentedLodging,
+  lodgingLookup: LodgingLookup,
+  camperLookup: CamperLookup,
   event: ApiEvent,
   days: Array<Date>,
+  activateCamperPopover: (ref: any, camper: ApiCamper) => void,
   isDragging: boolean,
 };
 
@@ -45,13 +53,17 @@ const translatePositionToDates = (days: Props['days'], layout: GridLayout.Layout
 
 const resizeHandles: ResizeHandles = ['e'];
 
+type RefLookup = {
+  [a: string | number]: React.MutableRefObject<HTMLDivElement>,
+}
+
 function AssignmentNode(props: Props) {
-  const camperLookup = useCamperLookup();
   const [patchCamper] = api.useUpdateCamperMutation();
+  const [refLookup, setRefLookup] = React.useState<RefLookup>({});
+
+  const { camperLookup, lodgingLookup } = props;
 
   const updateCamper = (camperId: string, layoutItem: GridLayout.Layout) => {
-    if (!camperLookup) return;
-
     const data = {
       id: parseInt(camperId, 10),
       lodging: props.lodgingTree.id,
@@ -99,7 +111,6 @@ function AssignmentNode(props: Props) {
       <div className="title-container">{title}</div>
       <GridLayout
         cols={days.length}
-        useCSSTransforms={false}
         isDroppable={true}
         rowHeight={30}
         width={950}
@@ -128,8 +139,10 @@ function AssignmentNode(props: Props) {
               data-grid={camperGridData(c)}
             >
               <div className="camper-name">{getCamperDisplayId(c)}</div>
-              <div className="camper-tools">
-                <IoSettings onClick={() => alert('bob')} />
+              <div className="camper-tools"
+                onClick={(e) => props.activateCamperPopover(e.target, c)}
+              >
+                <IoSettings />
               </div>
             </div>
           ))
