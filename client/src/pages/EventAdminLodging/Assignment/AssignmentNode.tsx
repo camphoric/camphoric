@@ -34,7 +34,7 @@ const draggableProps = {
 };
 
 const formatDate = (date: Date) => {
-  return moment(date).format('dd MM/D');
+  return moment(date).utcOffset(0).format('dd MM/D');
 }
 
 const translatePositionToDates = (days: Props['days'], layout: GridLayout.Layout) => {
