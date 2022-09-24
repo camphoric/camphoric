@@ -14,6 +14,7 @@ class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
     PAYPAL = 'PayPal', 'PayPal'
     CARD = 'Card', 'Debit or Credit Card'
+    VOUCHER = 'Voucher', 'Discount or Gifted Credit'
 
 
 class TimeStampedModel(models.Model):
