@@ -1,6 +1,7 @@
 /**
  * These functions are used for quickly displaying info that a user might need
  */
+import { LodgingLookup } from 'hooks/api';
 import getFromPath from 'lodash/get';
 
 export function getCamperDisplayId(camper: ApiCamper) {
@@ -32,3 +33,18 @@ export function getCamperDisplayId(camper: ApiCamper) {
     camper.id,
   ].find(Boolean);
 }
+
+export function lodgingPathDisplay(
+  lodgingLookup: LodgingLookup,
+  lodgingId?: string | number,
+  parts: Array<string> = []
+): string {
+  if (!lodgingId) return '';
+
+  const node = lodgingLookup[lodgingId];
+
+  if (!node.parent) return parts.join('→');
+
+  return lodgingPathDisplay(lodgingLookup, node.parent, [ node.name, ...parts ]);
+};
+

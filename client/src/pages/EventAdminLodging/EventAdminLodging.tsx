@@ -7,7 +7,7 @@ import {
   Badge,
   Overlay,
 } from 'react-bootstrap';
-import { IoSettings, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { IoInformationCircleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import api, {
   useLodgingLookup,
   useLodgingTree,
@@ -16,7 +16,7 @@ import api, {
 } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import ShowRawJSON from 'components/ShowRawJSON';
-import { getCamperDisplayId } from 'utils/display';
+import { lodgingPathDisplay, getCamperDisplayId } from 'utils/display';
 import LodgingNodeDisplay from './LodgingNodeDisplay';
 import Assignment from './Assignment';
 import CamperPopOver from './CamperPopOver';
@@ -99,7 +99,7 @@ function EventAdminLodging() {
               sm={3}
             >
               <div
-                className="event-admin-left-column-container-inner"
+                className="sticky-top event-admin-left-column-container-inner"
               >
                 <Collapse in={open} dimension="width">
                   <div>
@@ -119,16 +119,26 @@ function EventAdminLodging() {
                                 onDragEnd={() => setIsDragging(false)}
                                 className="draggable-camper"
                               >
-                                <div className="camper-name">
-                                  { getCamperDisplayId(c) }
-                                  <div className="lodging-requested">{
-                                    lodgingLookup[c.lodging_requested || 0]?.name
-                                  }</div>
+                                <div className="camper-info"> 
+                                  <div className="camper-name">
+                                    { getCamperDisplayId(c) }
+                                  </div>
+                                  <div className="lodging-additional-info">
+                                    {
+                                      lodgingPathDisplay(lodgingLookup, c.lodging_requested || 0)
+                                    }
+                                    {
+                                      !!c.lodging_shared && (
+                                        `, sharing with ${c.lodging_shared_with}`
+                                      )
+                                    }
+                                  </div>
                                 </div>
                                 <div className="camper-tools"
-                                  onClick={(e) => activateCamperPopover(e.target, c)}
+                                  onMouseEnter={(e) => activateCamperPopover(e.target, c)}
+                                  onMouseLeave={() => dismissAllPopovers()}
                                 >
-                                  <IoSettings />
+                                  <IoInformationCircleOutline />
                                 </div>
                               </div>
                             </li>

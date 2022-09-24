@@ -13,8 +13,8 @@ const registrations = [
     phone: "+15553985678",
     email: 'skywalker123456@dontsend.com',
     campers: [
-      [64 , 'Ani','Skywalker' , 'mrna', 'rv_sm', 'Cleanup'],
-      [64 , 'Padmé' , 'Amidala' , 'mrna', 'rv_sm', 'Cleanup'],
+      [64 , 'Ani','Skywalker' , 'mrna', 'rv_sm', 'Cleanup', 'Padmé Amidala'],
+      [64 , 'Padmé' , 'Amidala' , 'mrna', 'rv_sm', 'Cleanup', 'Ani Skywalker'],
       [17 , 'Luke' , 'Skywalker' , 'mrna', 'tent', 'Cleanup'],
       [17 , 'Leia' , 'Organa' , 'mrna', 'tent', 'Cleanup'],
     ],
@@ -34,12 +34,12 @@ const registrations = [
     phone: "+15553755555",
     email: 'notarever3q450@dontsend.com',
     campers: [
-      [49 , 'Malcom','Reynolds' , 'mrna', 'rv_lg', 'Cleanup'],
-      [49 , 'Jayne' , 'Cobb', 'mrna', 'rv_lg', 'Cleanup'],
-      [49 , 'Zoe' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup'],
-      [49 , 'Hoban' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup'],
-      [49 , 'Inara' , 'Serra', 'mrna', 'rv_lg', 'Cleanup'],
-      [49 , 'Kaylee' , 'Frye', 'mrna', 'rv_lg', 'Cleanup'],
+      [49 , 'Malcom','Reynolds' , 'mrna', 'rv_lg', 'Cleanup', 'my crew'],
+      [49 , 'Jayne' , 'Cobb', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'Zoe' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'Hoban' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'Inara' , 'Serra', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'Kaylee' , 'Frye', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
     ],
   },
 ];
@@ -52,6 +52,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     vax,
     lodging,
     chore,
+    lodging_shared_with,
   ] = c;
 
   const mrna = [
@@ -71,6 +72,12 @@ function destructureCamper(c, email, phone, lodgingMap) {
     vaccination_status: vax === 'mrna' ? mrna : trad,
     lodging: {
       lodging_1: lodgingMap[lodging],
+      ...(
+        !lodging_shared_with ? {} : {
+          lodging_shared_with,
+          lodging_shared: true,
+        }
+      )
     },
     chore,
   };

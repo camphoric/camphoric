@@ -10,14 +10,17 @@ import {
 } from 'hooks/api';
 
 import Table from 'components/Table';
-import { getCamperDisplayId } from 'utils/display';
+import { lodgingPathDisplay, getCamperDisplayId } from 'utils/display';
 
 import type { PopoverTarget } from './EventAdminLodging';
+
+export type Placement = React.ComponentProps<typeof Overlay>['placement'];
 
 interface Props {
   camper?: ApiCamper;
   popupTargetRef?: React.MutableRefObject<PopoverTarget | undefined>;
   unassignCamper: (c: ApiCamper) => void;
+  placement?: Placement;
 };
 
 function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
@@ -37,7 +40,7 @@ function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
     <Overlay
       rootClose
       show
-      placement="auto"
+      placement={props.placement || 'right-start'}
       // @ts-ignore really event targets also work
       target={popupTargetRef.current}
       onHide={() => undefined}
@@ -58,7 +61,7 @@ function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
             <Card.Body>
               <Table
                 data={[
-                  ['Lodging requested', lodgingLookup[camper.lodging_requested || 0]?.name || 'None'],
+                  ['Lodging requested', lodgingPathDisplay(lodgingLookup, camper.lodging_requested || 0) || 'None'],
                   ['Sharing', camper.lodging_shared ? 'Yes' : 'No'],
                   ['Sharing with', camper.lodging_shared_with],
                   ...Object.entries(camper.attributes),
