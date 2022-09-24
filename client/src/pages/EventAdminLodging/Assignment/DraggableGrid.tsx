@@ -10,6 +10,8 @@ import api, {
   LodgingLookup,
 } from 'hooks/api';
 
+import debug from 'utils/debug';
+
 import 'react-grid-layout/css/styles.css';
 import './styles.scss';
 

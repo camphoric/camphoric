@@ -1,23 +1,11 @@
 import React from 'react';
-import {
-  Tabs, Tab,
-} from 'react-bootstrap';
+import { Tabs, Tab } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
-import {
-  LodgingLookup,
-  useCamperLookup,
-  useLodgingLookup,
-} from 'hooks/api';
 
-import {
-  getDaysArray,
-  getLeafNodes,
-  sortLodgingNames,
-} from '../utils';
-import AssignmentNode from './AssignmentNode';
+import debug from 'utils/debug';
 
-// https://codesandbox.io/s/currying-grass-hz2xc?file=/src/styles.css
-//
+import AssignmentTab from './AssignmentTab';
+
 type Props = {
   lodgingTree: AugmentedLodging,
   event: ApiEvent,
@@ -26,17 +14,11 @@ type Props = {
 };
 
 function Assignment({ lodgingTree, ...props }: Props) {
-  const camperLookup = useCamperLookup();
-  const lodgingLookup = useLodgingLookup();
-
-  if (!lodgingTree || !lodgingLookup || !camperLookup) {
+  if (!lodgingTree || !props.event) {
     return <Spinner />;
   }
 
-  const startDate = props.event.start;
-  const endDate = props.event.end;
-
-  if (!startDate || !endDate) {
+  if (!props.event.start || !props.event.end) {
     return (
       <div>
         <h1>No start/end date set</h1>
@@ -45,57 +27,30 @@ function Assignment({ lodgingTree, ...props }: Props) {
     );
   }
 
-  const days = getDaysArray(startDate, endDate);
   const leafChildren = lodgingTree.children.filter(l => l.isLeaf);
-  const assignmentNodeFactory = (lt: AugmentedLodging) => {
-    let leaves: LodgingLookup = {
-      [lt.name || '?']: lt
-    };
-
-    if (!lodgingTree.isLeaf) {
-      leaves = getLeafNodes(lodgingTree);
-    }
-
-    return (
-      <>
-        {
-          Object
-          .entries(leaves)
-          .sort(sortLodgingNames)
-          .map(([name, l]) => (
-            <AssignmentNode
-              key={name}
-              {...props}
-              lodgingTree={l}
-              days={days}
-              lodgingLookup={lodgingLookup}
-              camperLookup={camperLookup}
-              activateCamperPopover={props.activateCamperPopover}
-            />
-          ))
-        }
-      </>
-    );
-  };
 
   if (lodgingTree.isLeaf || leafChildren.length) {
     return (
-      <div className="scrollable-container lodging-grid-container">
-        { assignmentNodeFactory(lodgingTree) }
-      </div>
+      <AssignmentTab
+        lodgingTreeNode={lodgingTree}
+        {...props}
+      />
     );
   }
 
   return (
-    <Tabs defaultActiveKey="View" className="level-2">
+    <Tabs defaultActiveKey={`node-${lodgingTree.children[0].id}`} className="level-2">
       {
-        lodgingTree.children.map((l) => (
-          <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
-            <div className="scrollable-container lodging-grid-container">
-              { assignmentNodeFactory(l) }
-            </div>
-          </Tab>
-        ))
+        lodgingTree.children.map((l) => {
+          return (
+            <Tab key={l.id} eventKey={`node-${l.id}`} title={l.name}>
+              <AssignmentTab
+                lodgingTreeNode={l}
+                {...props}
+              />
+            </Tab>
+          )
+        })
       }
     </Tabs>
   );
