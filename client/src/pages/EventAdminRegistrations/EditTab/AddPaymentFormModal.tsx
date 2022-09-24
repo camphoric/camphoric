@@ -5,7 +5,7 @@ import Modal from 'components/Modal';
 import JsonSchemaForm from 'components/JsonSchemaForm';
 import Input, { Money, Select } from 'components/Input';
 import {
-  formatDateTimeForApi,
+  formatDateValue,
   formatDateTimeForForm,
 } from 'utils/time';
 import getFromPath from 'lodash/get';
@@ -43,7 +43,7 @@ function AddPaymentForm(props: Props) {
   };
 
   const handleSaveNewPayment = () => {
-    const dateValue = formatDateTimeForApi(paymentDate || defaultDate()) as string;
+    const dateValue = formatDateValue(paymentDate || defaultDate()) as string;
     const data = {
       registration: props.registration.id,
       payment_type: paymentType,
@@ -83,6 +83,7 @@ function AddPaymentForm(props: Props) {
               'Check',
               'PayPal',
               'Card',
+              'Voucher',
             ].map(v => ({ label: v, value: v }))}
             onChange={handleChange(setPaymentType)}
           />
