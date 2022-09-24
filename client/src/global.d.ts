@@ -107,9 +107,11 @@ declare global {
     deleted_at: string | null;
     attributes: any;
     registration: number | string;
-    lodging: any;
-    lodging_requested: any;
-    stay: any;
+    lodging: number | null;
+    lodging_requested: number | null;
+    lodging_shared: any;
+    lodging_shared_with: string;
+    stay: any | null;
   }
 
   export interface ApiRegistrationType {

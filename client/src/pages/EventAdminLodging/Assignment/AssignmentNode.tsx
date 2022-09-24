@@ -1,11 +1,9 @@
 import React from 'react';
 import GridLayout, { ItemCallback, ReactGridLayoutProps } from 'react-grid-layout';
-import { Card } from 'react-bootstrap';
 import { IoSettings } from 'react-icons/io5';
 import { getCamperDisplayId } from 'utils/display';
 
 import moment from 'moment';
-import debug from 'utils/debug';
 import { formatDateValue } from 'utils/time';
 import api, {
   CamperLookup,
@@ -13,7 +11,6 @@ import api, {
 } from 'hooks/api';
 
 import 'react-grid-layout/css/styles.css';
-import { getAllParentClasses } from './utils';
 import './styles.scss';
 
 type Props = {
@@ -49,19 +46,30 @@ const translatePositionToDates = (days: Props['days'], layout: GridLayout.Layout
   return daysSlice.map(
     d => formatDateValue(d)
   );
+};
+
+const camperGridData = (c: ApiCamper, dayStrings: Array<string>) => {
+  if (!Array.isArray(c.stay)) return defaultGridData;
+
+  return {
+    x: dayStrings.indexOf(c.stay[0]),
+    w: c.stay.length,
+    y: 1,
+    h: 1 ,
+  };
 }
 
+const defaultGridData = { x: 0, y: 1, w: 1, h: 1 };
 const resizeHandles: ResizeHandles = ['e'];
-
-type RefLookup = {
-  [a: string | number]: React.MutableRefObject<HTMLDivElement>,
-}
+const cellWidth = 100;
 
 function AssignmentNode(props: Props) {
   const [patchCamper] = api.useUpdateCamperMutation();
-  const [refLookup, setRefLookup] = React.useState<RefLookup>({});
-
-  const { camperLookup, lodgingLookup } = props;
+  const title = props.lodgingTree.name;
+  const { days } = props;
+  const campers = props.lodgingTree.campers;
+  const dayStrings = days.map(d => formatDateValue(d.toISOString()));
+  const defaultStay = props.event.default_stay_length;
 
   const updateCamper = (camperId: string, layoutItem: GridLayout.Layout) => {
     const data = {
@@ -70,21 +78,17 @@ function AssignmentNode(props: Props) {
       stay: translatePositionToDates(props.days, layoutItem),
     };
 
-    debug('UPDATE camperData', data);
-
     patchCamper(data);
   };
 
   const onDrop: OnDropCallback = (layout, layoutItem, e: DragEvent) => {
     const camperId = e.dataTransfer?.getData('id') || '1';
 
-    updateCamper(camperId, layoutItem);
+    updateCamper(camperId, {
+      ...layoutItem,
+      w: defaultStay,
+    });
   };
-
-  const title = props.lodgingTree.name;
-  const { days } = props;
-
-  const campers = props.lodgingTree.campers;
 
   const onCamperMove: ItemCallback = (layout, before, after) => {
     const camperId = after.i.split('-').pop() || '1';
@@ -92,28 +96,19 @@ function AssignmentNode(props: Props) {
     updateCamper(camperId, after);
   };
 
-  const dayStrings = days.map(d => formatDateValue(d.toISOString()));
-
-  const defaultGridData = { x: 0, y: 1, w: 1, h: 1 };
-  const camperGridData = (c: ApiCamper) => {
-    if (!Array.isArray(c.stay)) return defaultGridData;
-
-    return {
-      x: dayStrings.indexOf(c.stay[0]),
-      w: c.stay.length,
-      y: 1,
-      h: 1 ,
-    };
-  }
-
   return (
-    <div className="assignment-grid">
+    <div
+      className="assignment-grid"
+      style={{
+        width: cellWidth * (days.length + 1),
+      }}
+    >
       <div className="title-container">{title}</div>
       <GridLayout
         cols={days.length}
         isDroppable={true}
         rowHeight={30}
-        width={950}
+        width={cellWidth * days.length}
         resizeHandles={resizeHandles}
         onDrop={onDrop}
         onDragStop={onCamperMove}
@@ -131,12 +126,14 @@ function AssignmentNode(props: Props) {
           ))
         }
         {
+          // NOTE: This doesn't work if you try to split it out into a separate
+          // file/component.  It doesn't work with react-grid-layout.
           campers.map((c) => (
             <div
               {...draggableProps}
-              key={`camper-${c.id}`} 
+              key={`camper-${c.id}`}
               className="draggable-camper"
-              data-grid={camperGridData(c)}
+              data-grid={camperGridData(c, dayStrings)}
             >
               <div className="camper-name">{getCamperDisplayId(c)}</div>
               <div className="camper-tools"

@@ -282,7 +282,7 @@ class App extends React.Component<Props, RegistrationState> {
           return;
         }
 
-        const els = document.getElementById(id)?.focus();
+        document.getElementById(id)?.focus();
       }
     });
   }
