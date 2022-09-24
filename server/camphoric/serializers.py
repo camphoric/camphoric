@@ -45,7 +45,7 @@ class RegistrationSerializer(ModelSerializer):
 
     def validate(self, data):
         if self.partial and 'event' not in data:
-            return data;
+            return data
 
         return validate_attributes(data, data['event'].registration_schema)
 
@@ -81,7 +81,7 @@ class CamperSerializer(ModelSerializer):
 
     def validate(self, data):
         if self.partial and 'registration' not in data:
-            return data;
+            return data
 
         return validate_attributes(data, data['registration'].event.camper_schema)
 
@@ -99,7 +99,7 @@ class PaymentSerializer(ModelSerializer):
 
     def validate(self, data):
         if self.partial and 'registration' not in data:
-            return data;
+            return data
 
         return validate_attributes(data, data['registration'].event.payment_schema)
 

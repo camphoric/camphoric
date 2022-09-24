@@ -986,10 +986,6 @@ class EventTests(APITestCase):
         events = models.Event.objects.all().filter(id=response.data['id'])
 
         self.assertEqual(events.count(), 1, 'should only have the one event')
-        event = events.first()
-
-        reports = models.Report.objects.all().filter(event=event)
-        self.assertEqual(reports.count(), 1, 'should find sample reports')
 
 
 class LodgingSchemaTests(APITestCase):
