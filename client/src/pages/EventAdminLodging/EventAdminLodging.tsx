@@ -121,6 +121,9 @@ function EventAdminLodging() {
                               >
                                 <div className="camper-name">
                                   { getCamperDisplayId(c) }
+                                  <div className="lodging-requested">{
+                                    lodgingLookup[c.lodging_requested || 0]?.name
+                                  }</div>
                                 </div>
                                 <div className="camper-tools"
                                   onClick={(e) => activateCamperPopover(e.target, c)}
