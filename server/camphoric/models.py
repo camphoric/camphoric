@@ -9,6 +9,7 @@ from django.utils import timezone
 # Useful docs:
 # - https://docs.djangoproject.com/en/4.1/ref/models/fields/
 
+
 class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
     PAYPAL = 'PayPal', 'PayPal'
@@ -282,6 +283,12 @@ class Camper(TimeStampedModel):
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
     lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
+    lodging_requested = models.ForeignKey(
+        Lodging,
+        related_name='lodging_requested',
+        on_delete=models.CASCADE,
+        null=True,
+        help_text="original lodging at time of registration")
     lodging_reserved = models.BooleanField(
         default=False,
         help_text="true if this camper is assigned to a reserved lodging spot")

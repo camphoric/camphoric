@@ -112,24 +112,6 @@ class EventViewSet(ModelViewSet):
     serializer_class = serializers.EventSerializer
     permission_classes = [permissions.IsAdminUser]
 
-    def create(self, request):
-        event_response = super().create(request)
-        event = models.Event.objects.all().filter(id=event_response.data['id']).first()
-        models.Report.objects.create(
-            event=event,
-            title="All Campers Sample Report",
-            template="""
-# All Campers
-
-| Last Name | First Name | Age |
-| --------- | ---------- | --- |
-{{#eachsort campers "attributes.last_name"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} |
-{{/eachsort}}
-"""
-        )
-        return event_response
-
 
 class RegistrationViewSet(ModelViewSet):
     queryset = models.Registration.objects.all()
@@ -542,6 +524,7 @@ class RegisterView(APIView):
             registration=registration,
             attributes=camper_data,
             lodging_id=lodging_id,
+            lodging_requested_id=lodging_id,
             lodging_shared=lodging_data.get('lodging_shared', False),
             lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
         )
