@@ -186,7 +186,7 @@ declare global {
     deleted_at: string | null;
     event: number | string;
     parent: number | string;
-    name: string | null;
+    name: string;
     children_title: string;
     capacity: number;
     reserved: number;

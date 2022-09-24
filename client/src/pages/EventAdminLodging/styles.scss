@@ -104,6 +104,11 @@ height: 100%;
     background-color: $sidebar-bg-color;
     border: 1px solid $sidebar-bg-color;
 
+    .event-admin-left-column-container-inner {
+      padding-top: 1rem;
+      z-index: inherit;
+    }
+
     /* top-left | top-right | bottom-right | bottom-left */
     border-radius: 0 0 0.25rem 0;
 
@@ -111,7 +116,6 @@ height: 100%;
       list-style: none;
       padding: 0;
       padding-left: 0.25rem;
-      position: fixed;
 
       li {
         background-color: color.scale($sidebar-bg-color, $lightness: 50%);
@@ -119,7 +123,7 @@ height: 100%;
         padding: 0.25rem;
         border-radius: 0.5rem;
 
-        .lodging-requested {
+        .lodging-additional-info {
           font-size: 0.75rem;
         }
 
