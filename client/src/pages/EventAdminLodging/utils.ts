@@ -1,12 +1,15 @@
 import { LodgingLookup } from 'hooks/api';
 import flattenDeep from 'lodash/flattenDeep';
 
-export function getDaysArray(start: string, end: string): Array<Date> {
-  let arr = [];
+export function getDaysArray(event?: ApiEvent): Array<Date> {
+  let arr: Array<Date> = [];
+
+  if (!event) return arr;
+  if (!event.start || !event.end) return arr;
 
   for(
-    let dt = new Date(start);
-    dt <= new Date(end);
+    let dt = new Date(event.start);
+    dt <= new Date(event.end);
     dt.setDate(dt.getDate() + 1)
   ){
     arr.push(new Date(dt));
@@ -14,6 +17,40 @@ export function getDaysArray(start: string, end: string): Array<Date> {
 
   return arr;
 };
+
+export function lodgingIsAncestorOf(
+  leaf: AugmentedLodging,
+  targetId: number | string,
+  lookup: LodgingLookup,
+) {
+  const findInParent = (id?: string | number): boolean => {
+    if (!id) return false;
+
+    const node = lookup[id];
+
+    if (node.id.toString() === targetId.toString()) return true;
+
+    return findInParent(node.parent);
+  };
+
+  return findInParent(leaf.id);
+}
+
+export function getNonLeafNodes(
+  lodgingTree: AugmentedLodging,
+  nonLeaves: Array<AugmentedLodging> = [],
+): Array<AugmentedLodging> {
+  if (lodgingTree.isLeaf) return nonLeaves;
+
+  nonLeaves.push(lodgingTree);
+
+  lodgingTree.children.forEach(
+    (l) => getNonLeafNodes(l, nonLeaves)
+  );
+
+  return nonLeaves.slice(1);
+};
+
 
 export function getLeafNodes(
   lodgingTree: AugmentedLodging,

@@ -87,9 +87,18 @@ height: 100%;
     .tab-pane {
       flex: 1;
     }
+
   }
 
   .lodging-grid-container {
+    .lodging-extra-filters {
+      padding-top: 0.25rem;
+      padding-bottom: 1rem;
+
+      .form-check-inline:not(:last-child) {
+        margin-right: 2rem;
+      }
+    }
   }
 
   div.tab-container {
