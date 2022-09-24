@@ -17,8 +17,6 @@ function EditRegistrationTypes({ event, ...props }: Props) {
 
   if (registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
 
-  const registrationTypes = registrationTypesApi.data;
-
   const save = () => { }
   const postNew = () => { }
 

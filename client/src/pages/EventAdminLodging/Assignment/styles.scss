@@ -44,36 +44,6 @@
       }
     }
 
-    .draggable-camper {
-      display: flex;
-      flex: 1;
-      border-radius: 0.25rem;
-      padding-top: 0;
-
-      .camper-name {
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .camper-tools {
-        margin-left: auto;
-        margin-right: 1rem;
-        cursor: pointer;
-
-        svg {
-          margin-top: -0.5rem;
-        }
-      }
-
-      &.react-draggable-dragging {
-        // transition: none;
-        // z-index: 3;
-        // will-change: transform;
-      }
-
-    }
-
     .droppable-element {
       width: 150px;
       text-align: center;

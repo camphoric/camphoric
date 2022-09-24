@@ -1,5 +1,4 @@
 import moment from 'moment';
-import debug from 'utils/debug';
 
 /**
  * time utils
