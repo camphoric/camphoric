@@ -52,7 +52,15 @@ class TestGetLodgingSchema(TestCase):
             },
         })
         self.assertEqual(ui_schema, {
-            'ui:order': ['lodging_shared', 'lodging_shared_with'],
+            'ui:order': [
+                'lodging_shared',
+                'lodging_shared_with',
+                'lodging_comments',
+            ],
+            'lodging_comments': {
+                'ui:widget': 'textarea',
+                'ui:options': {'rows': 3},
+            },
         })
 
     def test_lodging_with_node_with_children(self):
@@ -115,7 +123,16 @@ class TestGetLodgingSchema(TestCase):
         })
 
         self.assertEqual(ui_schema, {
-            'ui:order': ['lodging_1', 'lodging_shared', 'lodging_shared_with'],
+            'ui:order': [
+                'lodging_1',
+                'lodging_shared',
+                'lodging_shared_with',
+                'lodging_comments',
+            ],
+            'lodging_comments': {
+                'ui:widget': 'textarea',
+                'ui:options': {'rows': 3},
+            },
         })
 
     def test_lodging_with_node_with_children_and_grandchildren(self):
@@ -258,7 +275,12 @@ class TestGetLodgingSchema(TestCase):
                 'lodging_2',
                 'lodging_shared',
                 'lodging_shared_with',
+                'lodging_comments',
             ],
+            'lodging_comments': {
+                'ui:widget': 'textarea',
+                'ui:options': {'rows': 3},
+            },
         })
 
     def test_full_lodging_options(self):
@@ -340,8 +362,13 @@ class TestGetLodgingSchema(TestCase):
                 'lodging_2',
                 'lodging_shared',
                 'lodging_shared_with',
+                'lodging_comments',
             ],
             'lodging_2': {
                 'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
+            },
+            'lodging_comments': {
+                'ui:widget': 'textarea',
+                'ui:options': {'rows': 3},
             },
         })

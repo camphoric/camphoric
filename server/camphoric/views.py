@@ -503,6 +503,7 @@ class RegisterView(APIView):
                     'lodging_3': 25
                     'lodging_shared': True,
                     'lodging_shared_with': 'my buddy',
+                    'lodging_comments': 'my buddy and me',
                 }
             }
 
@@ -527,6 +528,7 @@ class RegisterView(APIView):
             lodging_requested_id=lodging_id,
             lodging_shared=lodging_data.get('lodging_shared', False),
             lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
+            lodging_comments=lodging_data.get('lodging_comments', ''),
         )
 
     @classmethod

@@ -302,9 +302,18 @@ class RegisterGetTests(APITestCase):
                     'ui:description': 'stuff about a camper',
                     'lodging': {
                         'ui:description': 'stuff about lodging',
-                        'ui:order': ['lodging_1', 'lodging_shared', 'lodging_shared_with'],
+                        'ui:order': [
+                            'lodging_1',
+                            'lodging_shared',
+                            'lodging_shared_with',
+                            'lodging_comments',
+                        ],
                         'lodging_1': {
                             'ui:enumDisabled': [camp1.id],
+                        },
+                        'lodging_comments': {
+                            'ui:widget': 'textarea',
+                            'ui:options': {'rows': 3},
                         },
                     },
                 },
@@ -742,6 +751,7 @@ Total due: $300
                         'lodging_2': tent_areas[1].id,
                         'lodging_shared': True,
                         'lodging_shared_with': 'my buddy',
+                        'lodging_comments': 'my buddy and me',
                     },
                 },
             ],
@@ -769,6 +779,7 @@ Total due: $300
         self.assertEqual(campers[1].lodging_id, tent_areas[1].id)
         self.assertEqual(campers[1].lodging_shared, True)
         self.assertEqual(campers[1].lodging_shared_with, 'my buddy')
+        self.assertEqual(campers[1].lodging_comments, 'my buddy and me')
 
     def test_post_invitation(self):
         registration_type = models.RegistrationType.objects.create(
