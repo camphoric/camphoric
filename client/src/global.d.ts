@@ -111,6 +111,7 @@ declare global {
     lodging_requested: number | null;
     lodging_shared: any;
     lodging_shared_with: string;
+    lodging_comments: string;
     stay: any | null;
   }
 
