@@ -147,6 +147,11 @@ def get_lodging_json_schema(tree):
         'title': root.lodging.name,
         'properties': {
             'lodging_shared': LODGING_SHARED_PROPERTY,
+            'lodging_comments': {
+                'type': 'string',
+                'maxLength': 300,
+                'title': 'Is there anything else we should know about your lodging preferences?'
+            },
         },
         'dependencies': {
             'lodging_shared': LODGING_SHARED_DEPENDENCY,
@@ -192,7 +197,7 @@ def get_lodging_ui_schema(tree):
 
     ui_schema['lodging_comments'] = {
         'ui:widget': 'textarea',
-        'ui:options': {'rows': 3},
+        'ui:options': {'rows': 3, 'maxlength': 300},
     }
 
     return ui_schema
