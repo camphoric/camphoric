@@ -142,31 +142,23 @@ def get_lodging_json_schema(tree):
 
     children = root.visible_children
 
-    if len(children) == 0:
-        return {
-            'type': 'object',
-            'title': root.lodging.name,
-            'properties': {
-                'lodging_shared': LODGING_SHARED_PROPERTY,
-            },
-            'dependencies': {
-                'lodging_shared': LODGING_SHARED_DEPENDENCY,
-            },
-        }
-
-    return {
+    schema = {
         'type': 'object',
         'title': root.lodging.name,
         'properties': {
-            'lodging_1': make_enum(root),
             'lodging_shared': LODGING_SHARED_PROPERTY,
         },
-        'required': ['lodging_1'],
         'dependencies': {
-            **make_dependencies(root, 1),
             'lodging_shared': LODGING_SHARED_DEPENDENCY,
         },
     }
+
+    if len(children) > 0:
+        schema['properties']['lodging_1'] = make_enum(root)
+        schema['required'] = ['lodging_1']
+        schema['dependencies'].update(make_dependencies(root, 1))
+
+    return schema
 
 
 def get_lodging_ui_schema(tree):
@@ -195,7 +187,13 @@ def get_lodging_ui_schema(tree):
         *(f'lodging_{depth}' for depth in range(1, max_depth + 1)),
         'lodging_shared',
         'lodging_shared_with',
+        'lodging_comments',
     ]
+
+    ui_schema['lodging_comments'] = {
+        'ui:widget': 'textarea',
+        'ui:options': {'rows': 3},
+    }
 
     return ui_schema
 

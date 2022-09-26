@@ -301,6 +301,10 @@ class Camper(TimeStampedModel):
         default='',
         max_length=255,
         help_text="names of other campers in shared space, relevant if lodging_shared=True")
+    lodging_comments = models.TextField(
+        blank=True,
+        default='',
+        help_text="comments from the camper re: lodging")
     stay = models.JSONField(
         null=True,
         help_text="JSON array of dates")
