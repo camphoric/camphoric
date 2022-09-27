@@ -11,7 +11,7 @@ import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase, APIClient
 
 from camphoric import models
-from camphoric.lodging import LODGING_SHARED_PROPERTY, LODGING_SHARED_DEPENDENCY
+from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 
 
@@ -227,12 +227,10 @@ class RegisterGetTests(APITestCase):
                                     'enum': [cabin.id, tent.id],
                                     'enumNames': ['Cabin', 'Tent'],
                                 },
-                                'lodging_shared': LODGING_SHARED_PROPERTY,
+                                **LODGING_SCHEMA['properties'],
                             },
                             'required': ['lodging_1'],
-                            'dependencies': {
-                                'lodging_shared': LODGING_SHARED_DEPENDENCY,
-                            },
+                            'dependencies': LODGING_SCHEMA['dependencies'],
                         },
                     },
                 },
@@ -304,17 +302,12 @@ class RegisterGetTests(APITestCase):
                         'ui:description': 'stuff about lodging',
                         'ui:order': [
                             'lodging_1',
-                            'lodging_shared',
-                            'lodging_shared_with',
-                            'lodging_comments',
+                            *LODGING_SCHEMA['ui:order'],
                         ],
                         'lodging_1': {
                             'ui:enumDisabled': [camp1.id],
                         },
-                        'lodging_comments': {
-                            'ui:widget': 'textarea',
-                            'ui:options': {'rows': 3},
-                        },
+                        **LODGING_SCHEMA['ui'],
                     },
                 },
             },
