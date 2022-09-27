@@ -132,6 +132,11 @@ function EventAdminLodging() {
                                         `, sharing with ${c.lodging_shared_with}`
                                       )
                                     }
+                                    {
+                                      !!c.lodging_comments && (
+                                        <div className="camper-lodging-comments">{c.lodging_comments}</div>
+                                      )
+                                    }
                                   </div>
                                 </div>
                                 <div className="camper-tools"

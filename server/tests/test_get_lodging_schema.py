@@ -4,8 +4,7 @@ from django.test import TestCase
 
 from camphoric import models
 from camphoric.lodging import (
-    LODGING_SHARED_DEPENDENCY,
-    LODGING_SHARED_PROPERTY,
+    LODGING_SCHEMA,
     get_lodging_schema,
 )
 
@@ -44,23 +43,12 @@ class TestGetLodgingSchema(TestCase):
         self.assertEqual(schema, {
             'title': 'Test Lodging',
             'type': 'object',
-            'properties': {
-                'lodging_shared': LODGING_SHARED_PROPERTY,
-            },
-            'dependencies': {
-                'lodging_shared': LODGING_SHARED_DEPENDENCY,
-            },
+            'properties': LODGING_SCHEMA['properties'],
+            'dependencies': LODGING_SCHEMA['dependencies'],
         })
         self.assertEqual(ui_schema, {
-            'ui:order': [
-                'lodging_shared',
-                'lodging_shared_with',
-                'lodging_comments',
-            ],
-            'lodging_comments': {
-                'ui:widget': 'textarea',
-                'ui:options': {'rows': 3},
-            },
+            'ui:order': LODGING_SCHEMA['ui:order'],
+            **LODGING_SCHEMA['ui'],
         })
 
     def test_lodging_with_node_with_children(self):
@@ -114,25 +102,18 @@ class TestGetLodgingSchema(TestCase):
                         camp3.name
                     ],
                 },
-                'lodging_shared': LODGING_SHARED_PROPERTY,
+                **LODGING_SCHEMA['properties'],
             },
             'required': ['lodging_1'],
-            'dependencies': {
-                'lodging_shared': LODGING_SHARED_DEPENDENCY,
-            },
+            'dependencies': LODGING_SCHEMA['dependencies'],
         })
 
         self.assertEqual(ui_schema, {
             'ui:order': [
                 'lodging_1',
-                'lodging_shared',
-                'lodging_shared_with',
-                'lodging_comments',
+                *LODGING_SCHEMA['ui:order'],
             ],
-            'lodging_comments': {
-                'ui:widget': 'textarea',
-                'ui:options': {'rows': 3},
-            },
+            **LODGING_SCHEMA['ui'],
         })
 
     def test_lodging_with_node_with_children_and_grandchildren(self):
@@ -233,7 +214,7 @@ class TestGetLodgingSchema(TestCase):
                         'Camp 2',
                     ],
                 },
-                'lodging_shared': LODGING_SHARED_PROPERTY,
+                **LODGING_SCHEMA['properties'],
             },
             'required': ['lodging_1'],
             'dependencies': {
@@ -265,7 +246,7 @@ class TestGetLodgingSchema(TestCase):
                         },
                     ],
                 },
-                'lodging_shared': LODGING_SHARED_DEPENDENCY,
+                **LODGING_SCHEMA['dependencies'],
             }
         })
 
@@ -273,14 +254,9 @@ class TestGetLodgingSchema(TestCase):
             'ui:order': [
                 'lodging_1',
                 'lodging_2',
-                'lodging_shared',
-                'lodging_shared_with',
-                'lodging_comments',
+                *LODGING_SCHEMA['ui:order'],
             ],
-            'lodging_comments': {
-                'ui:widget': 'textarea',
-                'ui:options': {'rows': 3},
-            },
+            **LODGING_SCHEMA['ui'],
         })
 
     def test_full_lodging_options(self):
@@ -360,15 +336,10 @@ class TestGetLodgingSchema(TestCase):
             'ui:order': [
                 'lodging_1',
                 'lodging_2',
-                'lodging_shared',
-                'lodging_shared_with',
-                'lodging_comments',
+                *LODGING_SCHEMA['ui:order'],
             ],
             'lodging_2': {
                 'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
             },
-            'lodging_comments': {
-                'ui:widget': 'textarea',
-                'ui:options': {'rows': 3},
-            },
+            **LODGING_SCHEMA['ui'],
         })

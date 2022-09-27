@@ -59,6 +59,7 @@ function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
               </div>
             </Card.Header>
             <Card.Body>
+              <div>{camper.lodging_comments}</div>
               <Table
                 data={[
                   ['Lodging requested', lodgingPathDisplay(lodgingLookup, camper.lodging_requested || 0) || 'None'],

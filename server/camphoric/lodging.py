@@ -27,6 +27,21 @@ from collections import defaultdict
 
 from django.db.models import Count, Sum, Q
 
+# These properties are imported and used by tests, so should be considered
+# canonical across all code.
+
+LODGING_COMMENTS_PROPERTY = {
+    'type': 'string',
+    'maxLength': 300,
+    'title': 'Is there anything else we should know about your lodging preferences?'
+}
+
+
+LODGING_COMMENTS_UI = {
+    'ui:widget': 'textarea',
+    'ui:options': {'rows': 3, 'maxlength': 300},
+}
+
 
 LODGING_SHARED_PROPERTY = {
     'type': 'boolean',
@@ -52,6 +67,25 @@ LODGING_SHARED_DEPENDENCY = {
             'required': ['lodging_shared_with'],
         },
     ],
+}
+
+
+LODGING_SCHEMA = {
+    'properties': {
+        'lodging_shared': LODGING_SHARED_PROPERTY,
+        'lodging_comments': LODGING_COMMENTS_PROPERTY,
+    },
+    'dependencies': {
+        'lodging_shared': LODGING_SHARED_DEPENDENCY,
+    },
+    'ui:order': [
+        'lodging_shared',
+        'lodging_shared_with',
+        'lodging_comments',
+    ],
+    'ui': {
+        'lodging_comments': LODGING_COMMENTS_UI,
+    },
 }
 
 
@@ -145,17 +179,8 @@ def get_lodging_json_schema(tree):
     schema = {
         'type': 'object',
         'title': root.lodging.name,
-        'properties': {
-            'lodging_shared': LODGING_SHARED_PROPERTY,
-            'lodging_comments': {
-                'type': 'string',
-                'maxLength': 300,
-                'title': 'Is there anything else we should know about your lodging preferences?'
-            },
-        },
-        'dependencies': {
-            'lodging_shared': LODGING_SHARED_DEPENDENCY,
-        },
+        'properties': LODGING_SCHEMA['properties'],
+        'dependencies': LODGING_SCHEMA['dependencies'],
     }
 
     if len(children) > 0:
@@ -190,15 +215,10 @@ def get_lodging_ui_schema(tree):
 
     ui_schema['ui:order'] = [
         *(f'lodging_{depth}' for depth in range(1, max_depth + 1)),
-        'lodging_shared',
-        'lodging_shared_with',
-        'lodging_comments',
+        *LODGING_SCHEMA['ui:order'],
     ]
 
-    ui_schema['lodging_comments'] = {
-        'ui:widget': 'textarea',
-        'ui:options': {'rows': 3, 'maxlength': 300},
-    }
+    ui_schema['lodging_comments'] = LODGING_COMMENTS_UI
 
     return ui_schema
 
