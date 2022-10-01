@@ -1,0 +1,25 @@
+.template-help-modal-helpers {
+  .card {
+    margin: 1rem;
+  }
+
+  .helper-description {
+    margin-bottom: 1rem;
+  }
+
+  .helper-example-code {
+    padding: 0.25rem;
+    white-space: nowrap;
+    border: 1px dashed rgba(0, 0, 0, 0.125);
+    background-color: rgba(0, 0, 0, 0.05);
+
+    &.sample {
+      font-family: monospace;
+    }
+
+    &.result {
+      font-family: serif;
+    }
+  }
+
+}

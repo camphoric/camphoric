@@ -92,7 +92,7 @@ function EventAdminReports() {
   const report = reportLookup[queryLookup['reportId']];
   const searchResults = searchQuery
     ? reportSearch.search(searchQuery).map(c => c.item)
-    : reports;
+    : Object.values(reportLookup);
 
   const registrations = Object.values(registrationLookup);
   const campers = Object.values(camperLookup);
