@@ -1,3 +1,5 @@
+# See https://pip.pypa.io/en/stable/getting-started/
+
 [[source]]
 name = "pypi"
 url = "https://pypi.org/simple"
