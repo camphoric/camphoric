@@ -4,9 +4,14 @@ import JsonSchemaForm from 'components/JsonSchemaForm';
 import Template from 'components/Template';
 
 import type { RegisterStepProps } from './component';
+import RegistrationClosed from './RegistrationClosed';
 
 function RegistrationStep(props: RegisterStepProps) {
   if (props.step !== 'registration') return null;
+
+  if (!props.config.event.is_open && !props.config.invitation) {
+    return <RegistrationClosed {...props} />;
+  }
 
   const transformErrors = (errors: Array<any>) =>
     errors.map(error => {
