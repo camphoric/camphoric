@@ -151,9 +151,9 @@ class Event(TimeStampedModel):
 
     def is_open(self):
         open = False
-        now = timezone.now()
-        long_ago = datetime.datetime(1979, 1, 1, tzinfo=timezone.get_current_timezone())
-        far_future = datetime.datetime(2400, 1, 1, tzinfo=timezone.get_current_timezone())
+        now = datetime.date.today()
+        long_ago = datetime.date(1979, 1, 1)
+        far_future = datetime.date(2400, 1, 1)
 
         registration_start = self.registration_start or long_ago
         registration_end = self.registration_end or far_future

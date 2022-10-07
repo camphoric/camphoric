@@ -170,6 +170,17 @@ class RegisterGetTests(APITestCase):
     def setUp(self):
         self.organization = models.Organization.objects.create(name='Test Organization')
 
+    def test_reg_close(self):
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test Data Event',
+            registration_end=datetime.date.today() - datetime.timedelta(days=1),
+        )
+
+        response = self.client.get(f'/api/events/{event.id}/register')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['event']['is_open'], False)
+
     def test_dataSchema(self):
         event = models.Event.objects.create(
             organization=self.organization,
@@ -358,7 +369,13 @@ class RegisterGetTests(APITestCase):
             'camper': event.camper_pricing_logic,
             'registration': event.registration_pricing_logic,
         })
-        self.assertEqual(response.data['event'], {'start': {'day': 25, 'month': 2, 'year': 2019}})
+        self.assertEqual(
+            response.data['event'],
+            {
+                'start': {'day': 25, 'month': 2, 'year': 2019},
+                'is_open': True,
+            }
+        )
         self.assertEqual(response.data['payPalOptions'], {
             'client-id': 'test-client-id',
         })
