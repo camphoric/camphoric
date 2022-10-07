@@ -13,7 +13,7 @@ import PaymentStep from './PaymentStep';
 import RegisterStep from './RegisterStep';
 
 
-import type { 
+import type {
   FormDataState,
   SubmitPaymentMethod,
   SubmitRegistrationMethod,
