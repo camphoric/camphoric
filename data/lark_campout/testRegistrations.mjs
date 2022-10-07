@@ -35,8 +35,8 @@ const registrations = [
     email: 'notarever3q450@dontsend.com',
     campers: [
       [49 , 'Malcom','Reynolds' , 'mrna', 'rv_lg', 'Cleanup', 'my crew'],
-      [49 , 'Jayne' , 'Cobb', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
-      [49 , 'Zoe' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'jayne' , 'cobb', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
+      [49 , 'zoe' , 'washburn', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
       [49 , 'Hoban' , 'Washburn', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
       [49 , 'Inara' , 'Serra', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],
       [49 , 'Kaylee' , 'Frye', 'mrna', 'rv_lg', 'Cleanup', 'Malcom Reynolds'],

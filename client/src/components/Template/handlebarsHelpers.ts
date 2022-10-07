@@ -21,6 +21,19 @@ type HelperHash = {
   [a: string]: [ HelpText, Function ],
 }
 
+const comparison = (a, b) => {
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a - b;
+  }
+
+  // if both are not numbers, do string coercion and compare
+  return a.toString().localeCompare(
+    b.toString(),
+    undefined,
+    { sensitivity: 'accent' },
+  );
+};
+
 const helpers: HelperHash = {
   abs: [
     `
@@ -100,16 +113,7 @@ const helpers: HelperHash = {
         const aval = !!keyPath ? getFromPath(a, keyPath) : a;
         const bval = !!keyPath ? getFromPath(b, keyPath) : b;
 
-        if (aval < bval) {
-          return -1;
-        }
-
-        if (aval > bval) {
-          return 1;
-        }
-
-        // names must be equal
-        return 0;
+        return comparison(aval, bval);
       });
 
       return arrSorted.map(options.fn).join('');
@@ -132,16 +136,7 @@ const helpers: HelperHash = {
         const aval = !!keyPath ? getFromPath(a, keyPath) : a;
         const bval = !!keyPath ? getFromPath(b, keyPath) : b;
 
-        if (aval < bval) {
-          return -1;
-        }
-
-        if (aval > bval) {
-          return 1;
-        }
-
-        // names must be equal
-        return 0;
+        return comparison(aval, bval);
       }).reverse();
 
       return arrSorted.map(options.fn).join('');
