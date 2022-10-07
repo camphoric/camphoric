@@ -115,7 +115,7 @@ def get_date_props(camper_schema):
 
 
 def get_event_attributes(event):
-    attributes = {}
+    attributes = {'is_open': event.is_open()}
     for field in ["registration_start", "registration_end", "start", "end"]:
         if getattr(event, field):
             attributes[field] = datetime_to_dict(getattr(event, field))
