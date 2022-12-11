@@ -105,30 +105,35 @@ class EmailAccountViewSet(ModelViewSet):
     queryset = models.EmailAccount.objects.all()
     serializer_class = serializers.EmailAccountSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['organization']
 
 
 class EventViewSet(ModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['organization']
 
 
 class RegistrationViewSet(ModelViewSet):
     queryset = models.Registration.objects.all()
     serializer_class = serializers.RegistrationSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
 
 
 class ReportViewSet(ModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
 
 
 class RegistrationTypeViewSet(ModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
 
 
 class InvitationViewSet(ModelViewSet):
@@ -141,24 +146,28 @@ class LodgingViewSet(ModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
 
 
 class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['registration']
 
 
 class DepositViewSet(ModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
 
 
 class PaymentViewSet(ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['registration']
 
 
 class UserViewSet(ModelViewSet):
