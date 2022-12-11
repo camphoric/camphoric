@@ -104,6 +104,18 @@ class PaymentSerializer(ModelSerializer):
         return validate_attributes(data, data['registration'].event.payment_schema)
 
 
+class BulkEmailTaskSerializer(ModelSerializer):
+    class Meta:
+        model = camphoric.models.BulkEmailTask
+        fields = '__all__'
+
+
+class BulkEmailRecipientSerializer(ModelSerializer):
+    class Meta:
+        model = camphoric.models.BulkEmailRecipient
+        fields = '__all__'
+
+
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User

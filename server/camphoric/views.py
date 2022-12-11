@@ -170,6 +170,20 @@ class PaymentViewSet(ModelViewSet):
     filterset_fields = ['registration']
 
 
+class BulkEmailTaskViewSet(ModelViewSet):
+    queryset = models.BulkEmailTask.objects.all()
+    serializer_class = serializers.BulkEmailTaskSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
+
+
+class BulkEmailRecipientViewSet(ModelViewSet):
+    queryset = models.BulkEmailRecipient.objects.all()
+    serializer_class = serializers.BulkEmailRecipientSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['task']
+
+
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = serializers.UserSerializer
