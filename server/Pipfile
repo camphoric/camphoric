@@ -25,5 +25,6 @@ cmarkgfm = "*"
 requests = "*"
 django-dbbackup = "*"
 django-storages = {extras = ["boto3"], version = "*"}
+django-filter = "*"
 
 [requires]
