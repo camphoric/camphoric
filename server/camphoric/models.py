@@ -338,3 +338,33 @@ class Payment(TimeStampedModel):
     attributes = models.JSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     paypal_order_details = models.JSONField(null=True)
+
+
+class BulkEmailTask(TimeStampedModel):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    from_email = models.EmailField()
+    subject = models.CharField(max_length=100)
+    body_template = models.TextField(
+        blank=True, default='', help_text="Handlebars Markdown template")
+    running_pid = models.IntegerField(
+        null=True, help_text="PID of process running the task, None if not running")
+    run_uuid = models.UUIDField(null=True, help_text="unique ID for most recent run")
+    run_start_time = models.DateTimeField(null=True, help_text="start time of most recent run")
+    run_finish_time = models.DateTimeField(null=True, help_text="finish time of most recent run")
+    error = models.CharField(max_length=255, blank=True, null=True)
+
+
+class BulkEmailRecipient(TimeStampedModel):
+    task = models.ForeignKey(BulkEmailTask, related_name='recipients', on_delete=models.CASCADE)
+    email = models.EmailField()
+    full_name = models.CharField(max_length=255, blank=True, default='')
+    sent_time = models.DateTimeField(null=True)
+    error = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['task', 'email'],
+                name='task_email',
+            ),
+        ]
