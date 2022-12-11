@@ -16,6 +16,9 @@ router.register('lodgings', views.LodgingViewSet, basename='lodging')
 router.register('campers', views.CamperViewSet, basename='camper')
 router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
+router.register('bulkemailtasks', views.BulkEmailTaskViewSet, basename='bulkemailtask')
+router.register(
+    'bulkemailrecipients', views.BulkEmailRecipientViewSet, basename='bulkemailrecipient')
 router.register('users', views.UserViewSet, basename='user')
 
 
