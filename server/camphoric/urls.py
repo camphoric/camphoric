@@ -42,5 +42,7 @@ urlpatterns = router.urls + [
         'events/<int:event_id>/lodgingschema',
         views.LodgingSchemaView.as_view(),
         name='lodgingschema',
-    )
+    ),
+    path('bulkemailtasks/<int:task_id>/send', views.SendBulkEmailView.as_view()),
+    path('bulkemailtasks/<int:task_id>/cancel', views.CancelBulkEmailView.as_view()),
 ]

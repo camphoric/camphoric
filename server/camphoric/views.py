@@ -31,6 +31,7 @@ from camphoric import (
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import get_email_connection_for_event
 from camphoric.paypal import PayPalClient
+import camphoric.mail
 
 
 logger = logging.getLogger(__name__)
@@ -702,6 +703,36 @@ class LodgingSchemaView(APIView):
             'lodging_schema': lodging_schema,
             'lodging_ui_schema': lodging_ui_schema,
         })
+
+
+class SendBulkEmailView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, task_id=None):
+        '''
+        Run the given BulkEmailTask and return a response when the task is
+        finished or canceled. Sending status can be checked via the
+        /api/bulkemailtasks/$id and /api/bulkemailrecipients/?task=$id
+        endpoints. See camphoric.mail.send_bulk_email for details.
+        '''
+        task = get_object_or_404(models.BulkEmailTask, id=task_id)
+        camphoric.mail.send_bulk_email(task)
+
+        return Response(serializers.BulkEmailTaskSerializer(task).data)
+
+
+class CancelBulkEmailView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, task_id=None):
+        '''
+        Cancel the given BulkEmailTask. It can be resumed later via
+        SendBulkEmailView.post.
+        '''
+        task = get_object_or_404(models.BulkEmailTask, id=task_id)
+        camphoric.mail.cancel_bulk_email(task)
+
+        return Response({'success': True})
 
 
 def register_page_url(request, event_id, invitation=None):
