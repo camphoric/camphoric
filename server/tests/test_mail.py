@@ -236,3 +236,12 @@ class BulkEmailTests(TestCase):
                 # run 1 returns early because run 2 took over
             ],
         )
+
+    def test_messages_per_second(self):
+        task = self.create_task(messages_per_second=10)
+
+        send_bulk_email(task)
+
+        (alex, bob, chris) = task.recipients.all()
+        self.assertAlmostEqual((bob.sent_time - alex.sent_time).total_seconds(), 0.1, places=2)
+        self.assertAlmostEqual((chris.sent_time - bob.sent_time).total_seconds(), 0.1, places=2)
