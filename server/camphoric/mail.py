@@ -4,6 +4,7 @@ Email-related functions
 
 import logging
 import os
+import time
 import uuid
 
 from django.core.mail import EmailMultiAlternatives
@@ -75,6 +76,7 @@ def _run_bulk_email_task(task):
     with get_email_connection_for_event(task.event) as connection:
 
         for recipient in recipients_unsent:
+            iteration_start_time = time.time()
             task.refresh_from_db()
             if task.running_pid != os.getpid() or task.run_uuid != run_uuid:
                 return False
@@ -104,5 +106,10 @@ def _run_bulk_email_task(task):
                 recipient.error = None
             finally:
                 recipient.save()
+
+            if task.messages_per_second:
+                target_interval = 1 / float(task.messages_per_second)
+                elapsed = time.time() - iteration_start_time
+                time.sleep(max(0, target_interval - elapsed))
 
     return True
