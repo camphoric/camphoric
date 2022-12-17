@@ -3,6 +3,7 @@ import datetime
 import random
 import uuid
 
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -346,6 +347,11 @@ class BulkEmailTask(TimeStampedModel):
     subject = models.CharField(max_length=100)
     body_template = models.TextField(
         blank=True, default='', help_text="Handlebars Markdown template")
+    messages_per_second = models.DecimalField(
+        max_digits=6, decimal_places=3,
+        validators=[MinValueValidator(Decimal('0.001'))],
+        null=True,
+        help_text="Max number of messages to send per second")
     running_pid = models.IntegerField(
         null=True, help_text="PID of process running the task, None if not running")
     run_uuid = models.UUIDField(null=True, help_text="unique ID for most recent run")
