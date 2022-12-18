@@ -1,0 +1,27 @@
+{
+  "name": "camphoric-data-import",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "eslintConfig": {
+    "extends": ["react-app"],
+    "rules": {
+      "no-duplicate-imports": "error",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+          "warn",
+          {
+              "args": "none",
+              "ignoreRestSiblings": true,
+              "varsIgnorePattern": "debug" 
+          }
+      ]
+    }
+  },
+  "dependencies": {
+    "ajv": "^8.11.2",
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.0",
+    "node-fetch": "^3.2.10"
+  }
+}

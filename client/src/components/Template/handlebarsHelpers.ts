@@ -84,6 +84,18 @@ const helpers: HelperHash = {
     }
   ],
 
+  sumpath: [
+    `
+    {{sumpath arrayOfObjects 'path.to.key.in.object'}}
+    35
+    returns sum of all the keys in the objects in the array.
+    `,
+    function(arr, path) {
+      return arr.map(i => getFromPath(path))
+        .reduce((acc, n) => acc + (Number(n) || 0), 0);
+    }
+  ],
+
   eachsort: [
     `
     {{#eachsort usrs 'attr.name'}}{{attr.name}},{{/eachsort}}
