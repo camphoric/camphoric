@@ -2,7 +2,6 @@ export default {
   type: 'object',
   additionalProperties: false,
   required: [
-    'email_account_id',
     'organization_id',
     'event',
     'lodgings',
@@ -12,15 +11,9 @@ export default {
     'sample_registrations',
   ],
   properties: {
-    email_account_id: {
-      description: 'the ID for the email that this should be attached to',
-      type: 'integer',
-      maxLength: 5,
-    },
-    organization_id: {
-      description: 'the ID for the organization that this should be attached to',
-      type: 'integer',
-      maxLength: 5,
+    organization: {
+      description: 'the name or ID for the organization that this should be attached to',
+      type: ["number", "string"],
     },
     event: {
       description: 'an object which has the JSON data to be POSTed to /api/events',
@@ -106,13 +99,6 @@ export default {
         }
       }
     },
-    sample_registrations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        // TBD
-      }
-    }
 };
 
 function int(description, minimum = 0, otherProps = {}) {

@@ -26,7 +26,6 @@ services:
     build: server/
     volumes:
       - ./server:/app
-      - ./data:/app/fixtures
     command: >
       bash -c "./manage.py migrate &&
                ./manage.py runserver 0.0.0.0:8000"
@@ -50,7 +49,6 @@ services:
       shm_size: '2gb'
     volumes:
       - ./client:/app
-      - ./data:/app/fixtures
       - /app/node_modules
     ports:
       - "3000:3000"
@@ -64,3 +62,19 @@ services:
       timeout: 5s
       retries: 3
 
+  data:
+    profiles: ['data']
+    env_file:
+      - ./env/local/shared.env
+      - ./env/local/react.env
+    build:
+      context: data
+      shm_size: '2gb'
+    volumes:
+      - ./data:/app
+      - ./data/import:/usr/local/bin/import
+      - /app/node_modules
+    tty: true
+    depends_on:
+      django:
+        condition: service_healthy

@@ -35,18 +35,29 @@ import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 import ajv from 'ajv';
 
+import { Organizations } from './organizations';
 import { formatDate } from './utils';
 import eventImportObjectSchema from './eventImportObjectSchema';
 import { getAuthToken } from './getAuthInfo.mjs';
 
 export default class CamphoricEventCreator {
-  constructor(data, sampleRegGenerator, overrides = [], url) {
+  constructor({ data, organizations, sampleRegGenerator, overrides = [], url }) {
     const ajv = new Ajv();
     const valid = ajv.validate(eventImportObjectSchema, data);
 
     if (!valid) {
       console.error(ajv.errors);
       throw new Error('event data object did not pass JSON schema validation');
+    }
+
+    if (!(organizations instanceof Organizations)) {
+      throw new Error('organizations should be instance of Organizations object');
+    }
+
+    // get organization
+    this.organization = organizations.byId[data.organization] || organizations.byName[data.organization];
+    if (!this.organization) {
+      throw new Error(`organization '${data.organization}' not found`);
     }
 
     if (sampleRegGenerator) {
@@ -152,20 +163,8 @@ export default class CamphoricEventCreator {
     return this.token;
   };
 
-  async checkOrganization() {
-    const organizations = await this.fetch('GET', '/api/organizations/');
-
-    let organization = organizations.find(o => o.id === this.data.organization_id);
-
-    if (!organization) {
-      throw new Error(`did not find org '${name}' for event '${this.data.event.name}'`);
-    }
-
-    this.results.organization = organization;
-  };
-
   async loadEvent() {
-    const events = await this.fetch('GET', '/api/events/');
+    const events = await this.apiGet('GET', '/api/events/');
 
     const existingEvent = events.find(event => event.name === eventName);
 
@@ -191,6 +190,12 @@ export default class CamphoricEventCreator {
 
     if (existingEvent) {
       event.id = existingEvent.id;
+    }
+
+    if (email) {
+      event.email_account = email.id;
+      event.confirmation_email_from =
+        event.confirmation_email_from || email.account;
     }
 
     let text, json;
@@ -289,7 +294,7 @@ export default class CamphoricEventCreator {
     }
   }
 
-  async send() {
+  async create() {
     await this.checkOrganization();
     this.log('Processed organization');
 
