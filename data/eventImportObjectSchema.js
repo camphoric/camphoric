@@ -4,7 +4,6 @@ export default {
   required: [
     'organization',
     'event',
-    'lodgings',
     'reports',
     'registration_types',
   ],

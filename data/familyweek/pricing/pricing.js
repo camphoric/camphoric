@@ -1,11 +1,9 @@
-# Needs to be updated every year.
-first_day_of_camp = 20200628
-data = {
-    'adult': 840,
-    'additional_adult': 740,
-    'youth': 670,
-    'old_child': 570,
-    'young_child': 220,
+export default {
+    'adult': 900,
+    'additional_adult': 800,
+    'youth': 700,
+    'old_child': 600,
+    'young_child': 250,
     'infant': 0,
     'talent_adult': 0,
     'talent_additional_adult': 300,
@@ -16,9 +14,10 @@ data = {
     'work_trade_discount_adult': -250,
     'work_trade_discount_additional_adult': -150,
     'work_trade_discount_youth': -200,
-    'late_fee': 30,
+    'late_fee': 20,
     'young_child_threshold': 2,
     'old_child_threshold': 6,
-    'youth_theshold': 13,
+    'youth_threshold': 13,
     'adult_threshold': 17,
-}
+    'deposit_per_camper': 50,
+};

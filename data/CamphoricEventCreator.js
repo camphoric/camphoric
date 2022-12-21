@@ -268,6 +268,10 @@ export default class CamphoricEventCreator {
       // nothing, we don't care
     }
 
+    if (!this.data.lodgings) {
+      return;
+    }
+
     const lodgingLookup = this.data.lodgings;
     const lodgingEntries = Object.entries(lodgingLookup);
     let completed = 0;

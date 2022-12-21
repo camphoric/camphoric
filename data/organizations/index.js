@@ -10,8 +10,10 @@
  */
 
 import LTA from './lta.js';
+import BACDS from './bacds.js';
 
 const organizationsToLoad = [
+  BACDS,
   LTA,
 ];
 
@@ -38,7 +40,7 @@ async function loadOrganizations(...args) {
   return new Organizations(orgs);
 }
 
-async function loadOrganization(values, token, urlBase) {
+export async function loadOrganization(values, token, urlBase) {
   const organizations = await fetch(`${urlBase}/api/organizations/`, {
     headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
