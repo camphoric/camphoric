@@ -12,10 +12,9 @@
  * progress via `docker compose logs -f`.
  */
 
-import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 
-import { getAuthToken } from '../getAuthInfo.mjs';
+import { getAuthToken } from '../getAuthInfo.js';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const numRecipients = 500;

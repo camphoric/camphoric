@@ -1,39 +1,44 @@
-import CamphoricEventCreator from '../loadEvent.mjs';
-
-import camper_schema from './camperSchema.mjs';
-import confirmation_page_template from './confirmationPageTemplate.mjs';
-import pre_submit_template from './preSubmitTemplate.mjs';
-import pricing from './pricing/pricing.mjs';
-import registration_pricing_logic from './pricing/registrationPricingLogic.mjs';
-import registration_schema from './registrationSchema.mjs';
-import registration_types from './registrationTypes.mjs';
-import registration_ui_schema from './registrationUISchema.mjs';
-import lodgings from './lodgings.mjs';
-import reports from './reports.mjs';
+import camper_schema from './camperSchema.js';
+import confirmation_page_template from './confirmationPageTemplate.js';
+import pre_submit_template from './preSubmitTemplate.js';
+import pricing from './pricing/pricing.js';
+import registration_pricing_logic from './pricing/registrationPricingLogic.js';
+import registration_schema from './registrationSchema.js';
+import registration_types from './registrationTypes.js';
+import registration_ui_schema from './registrationUISchema.js';
+import lodgings from './lodgings.js';
+import reports from './reports.js';
 
 import {
   confirmation_email_template,
   confirmation_email_subject,
-} from './confirmationEmailTemplate.mjs';
-
-const startDate = new Date();
-startDate.setUTCYear(startDate.getFullYear() + 1);
-startDate.setUTCHours(startDate.getUTCHours() + (30 * 24))
+} from './confirmationEmailTemplate.js';
 
 const lengthInDays = 5;
+const startDate = new Date();
+startDate.setFullYear(startDate.getFullYear() + 1);
+startDate.setUTCHours(startDate.getUTCHours() + (30 * 24));
+
+const dates = {
+  registration_start: new Date(),
+  registration_end: new Date(startDate),
+  start: startDate,
+  end: new Date(startDate),
+};
+
+dates.registration_end.setUTCMonth(startDate.getUTCMonth() - 1);
+dates.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
+
 
 const data = {
   organization: 'Lark Traditional Arts',
   event: {
-    name: `Lark Campout ${data.getFullYear()}`,
-    registration_start: new Date().toISOString(),
-    registration_end: new Date(startDate)
-      .setUTCMonth(startDate.getUTCMonth() - 1)
-      .toISOString(),
-    start: startDate.toISOString(),
-    end: new Date(startDate)
-      .setUTCHours(startDate.getUTCHours() + (lengthInDays * 24))
-      .toISOString(),
+    name: `Lark Campout ${startDate.getFullYear()}`,
+    // convert dates to strings
+    ...Object.entries(dates).reduce((acc, [k, d]) => ({
+      ...acc,
+      [k]: d.toISOString(),
+    }), {}),
     default_stay_length: lengthInDays,
     camper_schema,
     // payment_schema,
@@ -64,7 +69,7 @@ if (process.env.PAYPAL_CLIENT_ID) {
   data.event.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
 }
 
-export {
+export default {
   data,
   // sampleRegGenerator,
   // overrides,

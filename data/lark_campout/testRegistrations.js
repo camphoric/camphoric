@@ -1,4 +1,4 @@
-import { ageLookup } from './pricing/camperPricingLogic.mjs';
+import { ageLookup } from './pricing/camperPricingLogic.js';
 
 const registrations = [
   {

@@ -1,4 +1,4 @@
-import { mealsLookup } from './pricing/camperPricingLogic.mjs';
+import { mealsLookup } from './pricing/camperPricingLogic.js';
 
 const dependencies = {
   "meal_plan": {

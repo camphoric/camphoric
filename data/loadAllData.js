@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-// import loadLark from './lark/loadData.mjs';
-import larkCampout from './lark_campout';
-import { getAuthToken } from './getAuthInfo.mjs';
-import loadOrganizations from './organizations';
-import CamphoricEventCreator from '../loadEvent.mjs';
+// import loadLark from './lark/loadData.js';
+import larkCampout from './lark_campout/index.js';
+import { getAuthToken } from './getAuthInfo.js';
+import loadOrganizations from './organizations/index.js';
+import CamphoricEventCreator from './CamphoricEventCreator.js';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 
@@ -16,14 +16,15 @@ const events = [
 
 async function main() {
   const authToken = await getAuthToken();
-  console.log('authToken', authToken);
   const organizations = await loadOrganizations(authToken, urlBase);
 
-  for(const e in events) {
+  for(const e of events) {
     const event = new CamphoricEventCreator({
       ...e,
       organizations,
     });
+
+    await event.create();
   }
 
   // await loadLark(authToken, auth);

@@ -15,13 +15,12 @@
  * - DJANGO_SUPERUSER_PASSWORD = the django superuser's password
  */
 
-import fetch from 'node-fetch';
 import inquirer from 'inquirer';
 
-import createTestRegs from './testRegistrations.mjs';
-import camperPricingLogic from './pricing/camperPricingLogic.mjs';
-import reports from './reports.mjs';
-import { getAuthToken } from '../getAuthInfo.mjs';
+import createTestRegs from './testRegistrations.js';
+import camperPricingLogic from './pricing/camperPricingLogic.js';
+import reports from './reports.js';
+import { getAuthToken } from '../getAuthInfo.js';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 const eventName = 'Lark Campout 2022';
@@ -48,16 +47,16 @@ export function formatDate(arg) {
 }
 
 const eventAttributes = {
-  camper_schema: (await import('./camperSchema.mjs')).default,
-  confirmation_page_template: (await import('./confirmationPageTemplate.mjs')).default,
-  pre_submit_template: (await import('./preSubmitTemplate.mjs')).default,
-  pricing: (await import('./pricing/pricing.mjs')).default,
-  registration_pricing_logic: (await import('./pricing/registrationPricingLogic.mjs')).default,
-  registration_schema: (await import('./registrationSchema.mjs')).default,
-  registration_types: (await import('./registrationTypes.mjs')).default,
-  registration_ui_schema: (await import('./registrationUISchema.mjs')).default,
-  lodgings: (await import('./lodgings.mjs')).default,
-  ...(await import('./confirmationEmailTemplate.mjs')).default,
+  camper_schema: (await import('./camperSchema.js')).default,
+  confirmation_page_template: (await import('./confirmationPageTemplate.js')).default,
+  pre_submit_template: (await import('./preSubmitTemplate.js')).default,
+  pricing: (await import('./pricing/pricing.js')).default,
+  registration_pricing_logic: (await import('./pricing/registrationPricingLogic.js')).default,
+  registration_schema: (await import('./registrationSchema.js')).default,
+  registration_types: (await import('./registrationTypes.js')).default,
+  registration_ui_schema: (await import('./registrationUISchema.js')).default,
+  lodgings: (await import('./lodgings.js')).default,
+  ...(await import('./confirmationEmailTemplate.js')).default,
 };
 
 if (process.env.PAYPAL_CLIENT_ID) {

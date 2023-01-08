@@ -2,18 +2,16 @@ export default {
   type: 'object',
   additionalProperties: false,
   required: [
-    'organization_id',
+    'organization',
     'event',
     'lodgings',
-    'camper_pricing',
     'reports',
     'registration_types',
-    'sample_registrations',
   ],
   properties: {
     organization: {
       description: 'the name or ID for the organization that this should be attached to',
-      type: ["number", "string"],
+      type: ['number', 'string'],
     },
     event: {
       description: 'an object which has the JSON data to be POSTed to /api/events',
@@ -34,14 +32,14 @@ export default {
         registration_admin_schema: obj('JSON schema for special admin fields'),
         deposit_schema: obj('JSON schema for extra event deposit attributes'),
         pricing: obj('variables to use in pricing logic'),
-        registration_pricing_logic: obj('JSON logic for registration charges outside of individual campers'),
-        camper_pricing_logic: obj('JSON logic for individual camper'),
+        registration_pricing_logic: arr('JSON logic for registration charges outside of individual campers'),
+        camper_pricing_logic: arr('JSON logic for individual camper'),
         paypal_enabled: bool('whether to enable paypal payments'),
-        paypal_client_id: str('paypal api client id'),
-        pre_submit_template: str('Handlebars template, rendered right before registration submit button'),
-        confirmation_page_template: str('Handlebars template rendered after registration completed'),
+        paypal_client_id: str('paypal api client id', 200),
+        pre_submit_template: str('Handlebars template, rendered right before registration submit button', 9000),
+        confirmation_page_template: str('Handlebars template rendered after registration completed', 9000),
         confirmation_email_subject: str(''),
-        confirmation_email_template: str(''),
+        confirmation_email_template: str('', 9000),
         confirmation_email_from: eml(''),
       },
     },
@@ -78,8 +76,9 @@ export default {
         ],
         properties: {
           title: str('report title'),
-          template: str('Handlebars template for report'),
+          template: str('Handlebars template for report', 9000),
         },
+      },
     },
     registration_types: {
       type: 'array',
@@ -99,6 +98,7 @@ export default {
         }
       }
     },
+  },
 };
 
 function int(description, minimum = 0, otherProps = {}) {
@@ -114,16 +114,21 @@ function bool(description) {
 }
 
 function date(description = '', otherProps = {}) {
-  return generateType('date', description);
+  return generateType('string', description, {...otherProps, format: 'date-time' });
 }
 
-function obj(description, properties = {} otherProps = {}) {
-  return generateType('object', description, , { properties, ...otherProps });
+function obj(description, properties = {}, otherProps = {}) {
+  return generateType('object', description, { properties, ...otherProps });
+}
+
+function arr(description, items = {}, otherProps = {}) {
+  return generateType('array', description, { items, ...otherProps });
 }
 
 function eml(description, otherProps = {}) {
-  return generateType('email', description, otherProps);
+  return generateType('string', description, {...otherProps, format: 'email' });
 }
+
 
 function generateType(type, description = '', otherProps = {}) {
   return {

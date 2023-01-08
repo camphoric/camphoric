@@ -9,7 +9,7 @@
  *   byName: a hash lookup of organizations by name
  */
 
-import LTA from './lta.mjs';
+import LTA from './lta.js';
 
 const organizationsToLoad = [
   LTA,
@@ -17,7 +17,8 @@ const organizationsToLoad = [
 
 export class Organizations extends Array {
   constructor(orgs) {
-    this.push(...orgs);
+    super(...orgs);
+
     this.byId = {};
     this.byName = {};
 
@@ -26,7 +27,7 @@ export class Organizations extends Array {
       this.byName[org.name] = org;
     });
   }
-};
+}
 
 
 async function loadOrganizations(...args) {
@@ -42,11 +43,12 @@ async function loadOrganization(values, token, urlBase) {
     headers: { 'Authorization': `Token ${token}` },
   }).then(r => r.json());
 
+  // create organization if not exists
   let org = organizations.find(o => o.name === values.organization.name);
   if (!org) {
     console.log(`Could not find '${name}' organization, creating`);
 
-    let response = await fetch(`${urlBase}/api/organizations/`, {
+    const res = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,18 +57,25 @@ async function loadOrganization(values, token, urlBase) {
       body: JSON.stringify(values.organization),
     });
 
-    if (!response.ok) {
-      throw new Error(`error creating organization: ${await response.text()}`);
+    if (!res.ok) {
+      throw new Error(`error creating organization: ${await res.text()}`);
     }
 
-    org = await response.json();
+    org = await res.json();
 
     const { name } = org;
 
-		console.log(`'${name}' organization created!`);
+    console.log(`'${name}' organization created!`);
     console.log(`creating email account for '${name}'`);
 
-    // check email credentials
+  }
+
+  // create email credentials if not exists
+  const emailAccounts = await fetch(`${urlBase}/api/emailaccounts/`, {
+    headers: { 'Authorization': `Token ${token}` },
+  }).then(r => r.json());
+  let acct = emailAccounts.find(a => a.organization === org.id);
+  if (!acct) {
     const creds = {};
     [
       ['username', 'nobody@example.com'],
@@ -74,12 +83,12 @@ async function loadOrganization(values, token, urlBase) {
     ].forEach(([field, defaultValue]) => {
       creds[field] = values.emailAccount[field];
       if (!creds[field]) {
-        console.warn(`emailAccount.${field} not set for ${name}, using default value ${defaultValue}`);
+        console.warn(`emailAccount.${field} not set for ${org.name}, using default value ${defaultValue}`);
         creds[field] = defaultValue;
       }
     });
 
-    response = await fetch(`${urlBase}/api/emailaccounts/`, {
+    const res = await fetch(`${urlBase}/api/emailaccounts/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,12 +101,14 @@ async function loadOrganization(values, token, urlBase) {
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`error creating email account: ${await response.text()}`);
+    if (!res.ok) {
+      throw new Error(`error creating email account: ${await res.text()}`);
     }
 
-		org.email = await response.json();
+    acct = await res.json();
   }
+
+  org.email = acct;
 
   return org;
 }

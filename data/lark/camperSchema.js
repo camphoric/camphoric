@@ -1,4 +1,4 @@
-import meals from './camperMeals.mjs';
+import meals from './camperMeals.js';
 
 export default {
   "type": "object",

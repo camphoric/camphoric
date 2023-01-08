@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 

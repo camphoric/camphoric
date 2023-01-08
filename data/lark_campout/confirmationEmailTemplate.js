@@ -32,7 +32,5 @@ Do you have questions? Email us at registration@larkcamp.org or call 707-397-527
 Registration Number: 2022LC{{ registration.id }}
 `;
 
-export default {
-  confirmation_email_template: template,
-  confirmation_email_subject: subject,
-};
+export const confirmation_email_template = template;
+export const confirmation_email_subject = subject;

@@ -3,7 +3,7 @@ import ajv from 'ajv';
 export function formatDate(arg) {
   let date;
   if (typeof arg === 'string') {
-    date = Date.parse(arg);
+    date = new Date(Date.parse(arg));
   } else if (arg instanceof Date) {
     date = arg;
   }

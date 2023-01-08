@@ -1,4 +1,4 @@
-import { mealsLookup, ageLookup } from './pricing/camperPricingLogic.mjs';
+import { mealsLookup, ageLookup } from './pricing/camperPricingLogic.js';
 
 const genderLookup = {
   M: 'Male',
