@@ -1,0 +1,1907 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Lark Campout 2022 Event campers should match snapshot 1`] = `
+[
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Hoban",
+      "last_name": "Washburn",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Malcom Reynolds",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Zoe",
+      "last_name": "Washburn",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Malcom Reynolds",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "12-17 years old",
+      "chore": "Cleanup",
+      "email": "vampslayer2345@dontsend.com",
+      "first_name": "Dawn",
+      "last_name": "Summers",
+      "phone": "+15553985555",
+      "vaccination_status": [
+        "J&J",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "vampslayer2345@dontsend.com",
+      "first_name": "Buffy",
+      "last_name": "Summers",
+      "phone": "+15553985555",
+      "vaccination_status": [
+        "J&J",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "12-17 years old",
+      "chore": "Cleanup",
+      "email": "skywalker123456@dontsend.com",
+      "first_name": "Luke",
+      "last_name": "Skywalker",
+      "phone": "+15553985678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "50-64 years old",
+      "chore": "Cleanup",
+      "email": "skywalker123456@dontsend.com",
+      "first_name": "Ani",
+      "last_name": "Skywalker",
+      "phone": "+15553985678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 489,
+    "lodging_comments": "",
+    "lodging_requested": 489,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Padmé Amidala",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Inara",
+      "last_name": "Serra",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Malcom Reynolds",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "50-64 years old",
+      "chore": "Cleanup",
+      "email": "bobross123456@dontsend.com",
+      "first_name": "Jane",
+      "last_name": "Ross",
+      "phone": "+15551235678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 521,
+    "lodging_comments": "",
+    "lodging_requested": 521,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "50-64 years old",
+      "chore": "Cleanup",
+      "email": "bobross123456@dontsend.com",
+      "first_name": "Bob",
+      "last_name": "Ross",
+      "phone": "+15551235678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 521,
+    "lodging_comments": "",
+    "lodging_requested": 521,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "vampslayer2345@dontsend.com",
+      "first_name": "Willow",
+      "last_name": "Rosenberg",
+      "phone": "+15553985555",
+      "vaccination_status": [
+        "J&J",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Malcom",
+      "last_name": "Reynolds",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "my crew",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "12-17 years old",
+      "chore": "Cleanup",
+      "email": "skywalker123456@dontsend.com",
+      "first_name": "Leia",
+      "last_name": "Organa",
+      "phone": "+15553985678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "vampslayer2345@dontsend.com",
+      "first_name": "Xander",
+      "last_name": "Harris",
+      "phone": "+15553985555",
+      "vaccination_status": [
+        "J&J",
+      ],
+    },
+    "lodging": 459,
+    "lodging_comments": "",
+    "lodging_requested": 459,
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Kaylee",
+      "last_name": "Frye",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Malcom Reynolds",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "26-49 years old",
+      "chore": "Cleanup",
+      "email": "notarever3q450@dontsend.com",
+      "first_name": "Jayne",
+      "last_name": "Cobb",
+      "phone": "+15553755555",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 494,
+    "lodging_comments": "",
+    "lodging_requested": 494,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Malcom Reynolds",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "age": "50-64 years old",
+      "chore": "Cleanup",
+      "email": "skywalker123456@dontsend.com",
+      "first_name": "Padmé",
+      "last_name": "Amidala",
+      "phone": "+15553985678",
+      "vaccination_status": [
+        "First dose",
+        "Second dose",
+        "Booster",
+      ],
+    },
+    "lodging": 489,
+    "lodging_comments": "",
+    "lodging_requested": 489,
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "Ani Skywalker",
+    "stay": null,
+  },
+]
+`;
+
+exports[`Lark Campout 2022 Event event should match snapshot 1`] = `
+{
+  "camper_pricing_logic": [
+    {
+      "exp": {
+        "*": [
+          {
+            "if": [
+              {
+                "and": [
+                  {
+                    "==": [
+                      "65 years old or older",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "65 years old or older",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.adult",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "50-64 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "50-64 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.adult",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "26-49 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "26-49 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.adult",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "18-25 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "18-25 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.adult",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "12-17 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "12-17 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.youth",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "5-11 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "5-11 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.youth",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "0-4 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "==": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.off_site",
+              },
+              {
+                "and": [
+                  {
+                    "==": [
+                      "0-4 years old",
+                      {
+                        "var": [
+                          "camper.age",
+                          "65 years old or older",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    "!=": [
+                      521,
+                      {
+                        "var": "camper.lodging.lodging_1",
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                "var": "pricing.youth",
+              },
+              0,
+            ],
+          },
+        ],
+      },
+      "var": "tuition",
+    },
+    {
+      "exp": {
+        "+": [
+          {
+            "var": "tuition",
+          },
+        ],
+      },
+      "var": "total",
+    },
+  ],
+  "camper_schema": {
+    "properties": {
+      "age": {
+        "default": "65 years old or older",
+        "description": "In order to help us abide by CDC recommendations, please select your age category at time of camp",
+        "enum": [
+          "65 years old or older",
+          "50-64 years old",
+          "26-49 years old",
+          "18-25 years old",
+          "12-17 years old",
+          "5-11 years old",
+          "0-4 years old",
+        ],
+        "title": "Age (at the beginning of camp)",
+        "type": "string",
+      },
+      "chore": {
+        "default": "Cleanup",
+        "description": "We will not have a crew as we do at Lark Camp, so we will need all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend",
+        "enum": [
+          "Cleanup",
+          "Office Hours",
+          "Setup (must be able to arrive at 10am on Friday)",
+          "Teardown (must be able to stay until noon on Monday)",
+        ],
+        "title": "Chore signup",
+        "type": "string",
+      },
+      "email": {
+        "format": "email",
+        "title": "Camper Email",
+        "type": "string",
+      },
+      "first_name": {
+        "maxLength": 50,
+        "title": "First name",
+        "type": "string",
+      },
+      "last_name": {
+        "maxLength": 50,
+        "title": "Last name",
+        "type": "string",
+      },
+      "phone": {
+        "maxLength": 20,
+        "pattern": "^\\+[0-9]+$",
+        "title": "Phone Number",
+        "type": "string",
+      },
+      "vaccination_status": {
+        "description": "Please check all that apply",
+        "items": {
+          "enum": [
+            "First dose",
+            "Second dose",
+            "Booster",
+            "J&J",
+            "None",
+          ],
+          "type": "string",
+        },
+        "title": "Vaccination Information",
+        "type": "array",
+        "uniqueItems": true,
+      },
+    },
+    "required": [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "vaccination_status",
+      "chore",
+    ],
+    "type": "object",
+  },
+  "confirmation_email_from": "camphoric.test.reg@gmail.com",
+  "confirmation_email_subject": "Lark Campout 2022 Registration Confirmation",
+  "confirmation_email_template": "Dear {{campers.0.first_name}} {{campers.0.last_name}},
+
+Your online registration for the Lark Campout 2022 has been received.
+
+You have registered the following campers:
+
+{{#campers}}
+- {{first_name}} {{last_name}}
+  - {{age}}
+  - Chore: {{chore}}
+  - Lodging: {{ lodging }}
+  - \${{pricing_result.total}}
+{{/campers}}
+
+Donation to Lark Traditional Arts - \${{ pricing_results.donation }}
+
+TOTAL DUE: \${{pricing_results.total}}
+
+You chose to pay by {{registration.payment_type}}
+
+If you're paying by check, please make it for \${{pricing_results.total}} payable to "Lark Traditional Arts", and mail it to:
+
+Lark Traditional Arts    
+PO Box 1724    
+Mendocino, CA 95460    
+USA    
+
+Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275
+
+Registration Number: 2022LC{{ registration.id }}",
+  "confirmation_page_template": "# You're all set!
+
+## See you at Lark Campout 2022!
+
+If you're paying by check, please make it for **\${{pricing_results.total}}**
+payable to "Lark Traditional Arts", and mail it to:
+
+Lark Traditional Arts
+PO Box 1724
+Mendocino, CA 95460
+USA
+
+Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275",
+  "default_stay_length": 5,
+  "deposit_schema": {},
+  "name": "Lark Campout 2022",
+  "payment_schema": {},
+  "paypal_client_id": "ASP24eSCU2T4rry0XaiOQc-39IFd7vPaQ9FZpjD2hIk0d8w3UJ2Bc9NVfjDOj4_1w3wk7ZUW1epYNi4Y",
+  "paypal_enabled": true,
+  "pre_submit_template": "By submitting this form, you agree to the
+[Terms of Registration](https://docs.google.com/document/d/1pq2i2rHpHnsoB8kqtpH7FFn50JA-XELaRRMHh4hdTFg/edit?usp=sharing)",
+  "pricing": {
+    "adult": 150,
+    "off_site": 75,
+    "youth": 75,
+  },
+  "registration_admin_schema": {},
+  "registration_pricing_logic": [
+    {
+      "exp": {
+        "var": [
+          "registration.lta_donation",
+          0,
+        ],
+      },
+      "var": "donation",
+    },
+    {
+      "exp": {
+        "+": [
+          {
+            "var": "donation",
+          },
+        ],
+      },
+      "var": "total",
+    },
+  ],
+  "registration_schema": {
+    "definitions": {
+      "natural": {
+        "default": 0,
+        "minimum": 0,
+        "type": "integer",
+      },
+    },
+    "description": "
+Read the [Terms of Registration](https://docs.google.com/document/d/1pq2i2rHpHnsoB8kqtpH7FFn50JA-XELaRRMHh4hdTFg/edit?usp=sharing)
+before you fill out this form.
+
+Please note that registrations are accepted in the order they are received and
+your camping preferences are processed on a "first come - first served" basis.
+
+Fields marked with an asterisk (*) are required.
+",
+    "properties": {
+      "comments": {
+        "maxLength": 500,
+        "title": "Comments",
+        "type": "string",
+      },
+      "how_did_you_hear": {
+        "maxLength": 50,
+        "title": "How did you hear about the Lark Campout?",
+        "type": "string",
+      },
+      "lta_donation": {
+        "description": "Lark Traditional Arts (EIN 83-2424940) is the nonprofit organization that runs Lark Camp. If you would like to support camp with a tax-deductible donation in addition to your registration today, please use the space below to add the amount. Or you may go to: [https://www.larkcamp.org/](https://www.larkcamp.org/)",
+        "minimum": 0,
+        "title": "Donation to Lark Traditional Arts (Tax Deductible, Dollars)",
+        "type": "integer",
+      },
+    },
+    "required": [
+      "campers",
+    ],
+    "title": "Lark Campout 2022 Registration",
+    "type": "object",
+  },
+  "registration_ui_schema": {
+    "campers": {
+      "items": {
+        "phone": {
+          "ui:widget": "PhoneInput",
+        },
+        "ui:order": [
+          "first_name",
+          "last_name",
+          "gender",
+          "age",
+          "email",
+          "phone",
+          "vaccination_status",
+          "lodging",
+          "*",
+        ],
+        "vaccination_status": {
+          "ui:widget": "checkboxes",
+        },
+      },
+      "ui:description": "There is a big blue button below to add additional campers.  You may add up to 6 additional campers",
+      "ui:field": "Campers",
+      "ui:options": {
+        "orderable": false,
+      },
+      "ui:title": "Camper Information",
+    },
+    "comments": {
+      "ui:options": {
+        "rows": 5,
+      },
+      "ui:widget": "textarea",
+    },
+    "lta_donation": {
+      "ui:options": {
+        "prefix": "$",
+      },
+    },
+    "ui:order": [
+      "registrant_email",
+      "payment_type",
+      "paypal_email",
+      "campers",
+      "lta_donation",
+      "how_did_you_hear",
+      "comments",
+    ],
+  },
+}
+`;
+
+exports[`Lark Campout 2022 Event lodgings should match snapshot 1`] = `
+[
+  {
+    "capacity": 0,
+    "children_title": "",
+    "name": "Tent",
+    "notes": "",
+    "parent": 458,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV9lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV8lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV7lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV6lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV5lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV4lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV3lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV2lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV1lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "RV0lg",
+    "notes": "",
+    "parent": 494,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 5,
+    "children_title": "",
+    "name": "RV under 15' long",
+    "notes": "",
+    "parent": 458,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 0,
+    "children_title": "",
+    "name": "RV 15'-20' long",
+    "notes": "",
+    "parent": 458,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "Orchid Cabin",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 50,
+    "children_title": "",
+    "name": "Off Site",
+    "notes": "",
+    "parent": 458,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 0,
+    "children_title": "Select your lodging preference",
+    "name": "Lodging",
+    "notes": "",
+    "parent": null,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "Grand Fir Cabin",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Terrace",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Skylight",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Sitka",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Osprey",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Ocean View",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Library",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Garden View",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "FH Cypress",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "Eucalyptus Cabin",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 0,
+    "children_title": "",
+    "name": "Cabin",
+    "notes": "",
+    "parent": 458,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Orchard Spot E",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Orchard Spot D",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Orchard Spot C",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Orchard Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Orchard Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot F",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot E",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot D",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot C",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS Meadow Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 9 Spot C",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 9 Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 9 Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 8 Spot B",
+    "notes": "",
+    "parent": 489,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 8 Spot A",
+    "notes": "",
+    "parent": 489,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 7 Spot C",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 7 Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 7 Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 6",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 5",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 4 Spot B",
+    "notes": "",
+    "parent": 489,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 4 Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 4 Spot A",
+    "notes": "",
+    "parent": 489,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 4 Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 3",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 2 Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 2 Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 10",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 1 Spot D",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 1 Spot C",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 1 Spot B",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "CS 1 Spot A",
+    "notes": "",
+    "parent": 459,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "BH Redwood",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "BH Pygmy Forest",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "BH Grey Fox",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "BH Coho Salmon",
+    "notes": "",
+    "parent": 505,
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+]
+`;
+
+exports[`Lark Campout 2022 Event registrations should match snapshot 1`] = `
+[
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "comments": "",
+      "how_did_you_hear": "",
+      "lta_donation": 0,
+      "payment_type": "Check",
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": "Check",
+    "paypal_response": null,
+    "registrant_email": "vampslayer2345@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 75,
+          "tuition": 75,
+        },
+      ],
+      "donation": 0,
+      "total": 525,
+      "tuition": 525,
+    },
+  },
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "comments": "",
+      "how_did_you_hear": "",
+      "lta_donation": 0,
+      "payment_type": "Check",
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": "Check",
+    "paypal_response": null,
+    "registrant_email": "skywalker123456@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 75,
+          "tuition": 75,
+        },
+        {
+          "total": 75,
+          "tuition": 75,
+        },
+      ],
+      "donation": 0,
+      "total": 450,
+      "tuition": 450,
+    },
+  },
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "comments": "",
+      "how_did_you_hear": "",
+      "lta_donation": 0,
+      "payment_type": "Check",
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": "Check",
+    "paypal_response": null,
+    "registrant_email": "notarever3q450@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+        {
+          "total": 150,
+          "tuition": 150,
+        },
+      ],
+      "donation": 0,
+      "total": 900,
+      "tuition": 900,
+    },
+  },
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "comments": "",
+      "how_did_you_hear": "",
+      "lta_donation": 0,
+      "payment_type": "Check",
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": "Check",
+    "paypal_response": null,
+    "registrant_email": "bobross123456@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "total": 75,
+          "tuition": 75,
+        },
+        {
+          "total": 75,
+          "tuition": 75,
+        },
+      ],
+      "donation": 0,
+      "total": 150,
+      "tuition": 150,
+    },
+  },
+]
+`;
+
+exports[`Lark Campout 2022 Event registrationtypes should match snapshot 1`] = `
+[
+  {
+    "invitation_email_subject": "Register for registration crew",
+    "invitation_email_template": "Test registration crew email",
+    "label": "registration crew",
+    "name": "crew-registration",
+  },
+]
+`;
+
+exports[`Lark Campout 2022 Event reports should match snapshot 1`] = `
+[
+  {
+    "template": "| Name | Total | Payments | Balance |
+| ---- | ----- | -------- | ------- |
+{{#eachrsort registrations "total_balance"}}
+| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) | \${{total_owed}} | \${{total_payments}} | <div style="color: {{#if (gt total_balance 0)}}red{{else}}black{{/if}}">\${{total_balance}}</div> |
+{{/eachrsort}}",
+    "title": "Payments",
+  },
+  {
+    "template": "| Last Name | First Name | Age | Lodging | Chore |
+| --------- | ---------- | --- | ------- | ----- |
+{{#eachsort campers "attributes.last_name"}}
+| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
+  {{name}} | {{/with}} {{this.attributes.chore}} |
+{{/eachsort}}
+
+Total Campers: {{campers.length}}",
+    "title": "All Campers",
+  },
+]
+`;
