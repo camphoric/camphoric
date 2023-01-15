@@ -1,6 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { configureStore } from '@reduxjs/toolkit'; // Or from '@reduxjs/toolkit/query/react'
-import { apiFetch, mockAttributes } from './utils';
+import { apiFetch, mockAttributes } from '../test-utils';
 
 const eventName = 'Lark 2022';
 

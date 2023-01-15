@@ -46,7 +46,7 @@ async function loadOrganization(values, token, urlBase) {
   // create organization if not exists
   let org = organizations.find(o => o.name === values.organization.name);
   if (!org) {
-    console.log(`Could not find '${name}' organization, creating`);
+    console.log(`Could not find '${values.organization.name}' organization, creating`);
 
     const res = await fetch(`${urlBase}/api/organizations/`, {
       method: 'POST',

@@ -1,22 +1,23 @@
 module.exports = {
-  'env': {
-    'browser': false,
-    'node': true,
-    'es2021': true
+  env: {
+    browser: false,
+    node: true,
+    es2021: true
   },
-  'extends': 'eslint:recommended',
-  'overrides': [
+  plugins: ['jest'],
+  extends: 'eslint:recommended',
+  overrides: [
   ],
-  'globals': {
-    'fetch': true,
-    'console': true,
+  globals: {
+    fetch: true,
+    console: true,
   },
-  'parserOptions': {
-    'ecmaVersion': 'latest',
-    'sourceType': 'module'
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module'
   },
-  'rules': {
-    'indent': [
+  rules: {
+    indent: [
       'error',
       2
     ],
@@ -24,11 +25,11 @@ module.exports = {
       'error',
       'unix'
     ],
-    'quotes': [
+    quotes: [
       'error',
       'single'
     ],
-    'semi': [
+    semi: [
       'error',
       'always'
     ],

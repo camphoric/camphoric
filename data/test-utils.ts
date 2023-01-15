@@ -83,11 +83,3 @@ export function getAuthToken() {
 
   return tokenPromise;
 }
-
-describe('test utils', () => {
-  it('should contain utils', () => {
-    expect(true).toBe(true);
-  });
-});
-
-

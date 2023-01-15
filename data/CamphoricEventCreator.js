@@ -128,6 +128,7 @@ export default class CamphoricEventCreator {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json',
+          credentials: 'same-origin',
         },
         body: (data ? JSON.stringify(data) : undefined),
       });
@@ -273,11 +274,14 @@ export default class CamphoricEventCreator {
         }
       }
 
-      await Promise.all(
-        lodgingEntries
-          .filter(([, l]) => l.parentKey === key)
-          .map(args => createLodging(...args))
-      );
+			const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+			// batch requests so that it doesn't time out
+			const all = lodgingEntries.filter(([, l]) => l.parentKey === key);
+			for (let i = 0; i < all.length; ++i) {
+				createLodging(...all[i]);
+
+				if (i % 10 === 0) await wait(1500);
+			}
     };
 
     // recursively add all lodgings starting with root
@@ -325,15 +329,102 @@ export default class CamphoricEventCreator {
   }
 
   async loadTestRegs() {
-    const regs = await this.sampleRegGenerator.bind(this)(
+    const token = await this.getAuthToken();
+    const registrations = await this.sampleRegGenerator.bind(this)(
       this.fetch,
       this.results,
       this.log,
     );
 
-    if (!Array.isArray(regs)) {
+    this.log(
+      this.results.lodging['off_site']
+    );
+
+    const event = this.results.event;
+    const registerUrl = `/events/${event.id}/register/`;
+
+    const postReg = async (testData) => {
+      const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': token,
+        },
+        body: JSON.stringify(testData),
+      });
+
+      const text = await res.text();
+
+      let json = {};
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.log('failed to add test reg, see Django logs');
+      }
+
+      return {
+        ...testData,
+        response: json,
+      };
+    }
+
+    const postPayment = async (testData) => {
+      const body = {
+        step: "payment",
+        registrationUUID: testData.response.registrationUUID,
+        paymentType: testData.formData.payment_type,
+        payPalResponse: testData.formData.paypal_response,
+      };
+
+      const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': token,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const text = await res.text();
+
+      let json = {};
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.log('failed to add test reg, see Django logs');
+      }
+
+      return {
+        ...testData,
+        response: json,
+      };
+
+    }
+
+    if (!Array.isArray(registrations)) {
       throw new Error('sample reg generator function returned a non-array');
     }
+
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // get first step responses
+    const step1 = [];
+    for (let i = 0; i < registrations.length; ++i) {
+      step1.push(postReg(registrations[i]));
+
+      if (i % 10 === 0) await wait(1500);
+    }
+    const responses = await Promise.all(step1);
+
+    // process payment step
+    const step2 = [];
+    for (let i = 0; i < responses.length; ++i) {
+      step2.push(postPayment(responses[i]));
+
+      if (i % 10 === 0) await wait(1500);
+    }
+
+    return Promise.all(step2);
   }
 
   async create() {
@@ -387,80 +478,41 @@ export default class CamphoricEventCreator {
       throw new Error(`organization '${organization}' not found`);
     }
   };
+
+  // async loadTestRegs() {
+  //   return; 
+  //   const event = this.results.event;
+  //   const registerUrl = `/events/${event.id}/register/`;
+  //   const postReg = async (testData) => {
+  //     const res = await this.fetch('POST', registerUrl, testData);
+  //   }
+
+  //   const postPayment = async (testData) => {
+  //     const body = {
+  //       step: 'payment',
+  //       registrationUUID: testData.response.registrationUUID,
+  //       paymentType: testData.formData.payment_type,
+  //       payPalResponse: testData.formData.paypal_response,
+  //     };
+
+  //     const res = await this.fetch('POST', `/events/${event.id}/register`, body);
+  //   }
+
+  //   const registrations = createTestRegs(lodgingIdLookup);
+
+  //   // get first step responses
+  //   let responses;
+  //   responses = await Promise.all(
+  //     registrations.map(postReg)
+  //   );
+
+  //   // process payment step
+  //   responses = await Promise.all(
+  //     responses.map(postPayment)
+  //   );
+
+  //   // console.log(responses);
+  // }
 }
 
-async function loadTestRegs(token, event) {
-  const postReg = async (testData) => {
-    const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': token,
-      },
-      body: JSON.stringify(testData),
-    });
-
-    const text = await res.text();
-
-    let json = {};
-    try {
-      json = JSON.parse(text);
-    } catch (e) {
-      console.log('failed to add test reg, see Django logs');
-    }
-
-    return {
-      ...testData,
-      response: json,
-    };
-  }
-
-  const postPayment = async (testData) => {
-    const body = {
-      step: 'payment',
-      registrationUUID: testData.response.registrationUUID,
-      paymentType: testData.formData.payment_type,
-      payPalResponse: testData.formData.paypal_response,
-    };
-
-    const res = await fetch(`${urlBase}/api/events/${event.id}/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': token,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await res.text();
-
-    let json = {};
-    try {
-      json = JSON.parse(text);
-    } catch (e) {
-      console.log('failed to add test reg, see Django logs');
-    }
-
-    return {
-      ...testData,
-      response: json,
-    };
-
-  }
-
-  const registrations = createTestRegs(lodgingIdLookup);
-
-  // get first step responses
-  let responses;
-  responses = await Promise.all(
-    registrations.map(postReg)
-  );
-
-  // process payment step
-  responses = await Promise.all(
-    responses.map(postPayment)
-  );
-
-  // console.log(responses);
-}
 

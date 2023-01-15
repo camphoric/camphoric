@@ -71,7 +71,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     phone,
     vaccination_status: vax === 'mrna' ? mrna : trad,
     lodging: {
-      lodging_1: lodgingMap[lodging],
+      lodging_1: lodgingMap[lodging].id,
       ...(
         !lodging_shared_with ? {} : {
           lodging_shared_with,
