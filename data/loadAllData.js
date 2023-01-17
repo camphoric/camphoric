@@ -2,6 +2,7 @@
 
 // import loadLark from './lark/loadData.js';
 import larkCampout from './lark_campout/index.js';
+import lark from './lark/index.js';
 import { getAuthToken } from './getAuthInfo.js';
 import loadOrganizations from './organizations/index.js';
 import CamphoricEventCreator from './CamphoricEventCreator.js';
@@ -12,6 +13,7 @@ main();
 
 const events = [
   larkCampout,
+	lark,
 ];
 
 async function main() {
@@ -26,7 +28,4 @@ async function main() {
 
     await event.create();
   }
-
-  // await loadLark(authToken, auth);
-  // await loadLarkCampout(authToken);
 }

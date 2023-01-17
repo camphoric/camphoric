@@ -39,6 +39,10 @@ import { formatDate } from './utils.js';
 import eventImportObjectSchema from './eventImportObjectSchema.js';
 import { getAuthToken } from './getAuthInfo.js';
 
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const tryFetchAgainAfterMs = 2000;
+const tryFetchAgainOnTheseErrors = ['ECONNRESET'];
+
 export default class CamphoricEventCreator {
   constructor({ data, organizations, sampleRegGenerator, overrides = [], url }) {
     this.data = data;
@@ -85,8 +89,6 @@ export default class CamphoricEventCreator {
     }
 
     this.results = {};
-
-    this.log('event exported');
   }
 
   pathFormat(path) {
@@ -119,25 +121,36 @@ export default class CamphoricEventCreator {
       throw this.error(e, {type: 'pathError', method, path, data});
     }
 
-    let text;
-    let response;
+    const runFetch = async (attempt = 1) => {
+      let text;
+      let response;
+      try {
+        response = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+            credentials: 'same-origin',
+          },
+          body: (data ? JSON.stringify(data) : undefined),
+        });
 
-    try {
-      response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-          credentials: 'same-origin',
-        },
-        body: (data ? JSON.stringify(data) : undefined),
-      });
+        text = await response.text();
 
-      text = await response.text();
-    } catch(e) {
-      throw this.error(e, {type: 'fetchError', method, url, text, data});
-    }
+        return { response, text };
+      } catch(e) {
+        if (attempt <= 5 && tryFetchAgainOnTheseErrors.includes(e.cause?.code)) {
+          this.logVerbose(`got ECONNRESET on ${method} ${url}, trying again in ${tryFetchAgainAfterMs}ms`);
+          await wait(tryFetchAgainAfterMs);
 
+          return runFetch(attempt + 1);
+        }
+
+        throw this.error(e, {type: 'fetchError', method, url, text, data});
+      }
+    };
+
+    const { response, text } = await runFetch();
     let json;
 
     try {
@@ -173,6 +186,13 @@ export default class CamphoricEventCreator {
     data.forEach(
       (item) => console.log(`[${this.data.event.name}]`, item)
     );
+  };
+
+  // log if verbose
+  logVerbose = (...data) => {
+    if (!process?.env?.VERBOSE) return;
+
+    this.log(...data);
   };
 
   error = (e, ...data) => {
@@ -250,9 +270,10 @@ export default class CamphoricEventCreator {
 
     const lodgingLookup = this.data.lodgings;
     const lodgingEntries = Object.entries(lodgingLookup);
+    let completed = 0;
 
     const createLodging = async (key, lodging) => {
-      let data, createdLodging;
+      let data, createdLodging, createdId;
       try {
         data = {
           event: event.id,
@@ -265,23 +286,28 @@ export default class CamphoricEventCreator {
         };
         createdLodging = await this.fetch('POST', '/api/lodgings/', data);
 
+        completed += 1;
+        this.logVerbose(`created lodging ${completed}/${lodgingEntries.length}`);
+
+        createdId = createdLodging.id;
+
         lodgingLookup[key].id = createdLodging.id;
       } catch (e) {
-        if (e.cause?.code !== 'ECONNRESET') {
-          throw this.error(e, {type: 'lodgingDataAttempted', key, data, createdLodging});
-        } else {
-          this.log(`got ECONNRESET on lodging '${key}' (${createLodging.id})`);
-        }
+        throw this.error(e, {type: 'lodgingDataAttempted', key, data, createdLodging});
       }
 
-			const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 			// batch requests so that it doesn't time out
+      const promises = [];
 			const all = lodgingEntries.filter(([, l]) => l.parentKey === key);
 			for (let i = 0; i < all.length; ++i) {
-				createLodging(...all[i]);
+        promises.push(
+          createLodging(...all[i])
+        );
 
-				if (i % 10 === 0) await wait(1500);
+				if (promises.length % 10 === 0) await wait(5000);
 			}
+
+      return Promise.all(promises);
     };
 
     // recursively add all lodgings starting with root
@@ -334,10 +360,6 @@ export default class CamphoricEventCreator {
       this.fetch,
       this.results,
       this.log,
-    );
-
-    this.log(
-      this.results.lodging['off_site']
     );
 
     const event = this.results.event;
@@ -405,8 +427,6 @@ export default class CamphoricEventCreator {
       throw new Error('sample reg generator function returned a non-array');
     }
 
-    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    
     // get first step responses
     const step1 = [];
     for (let i = 0; i < registrations.length; ++i) {
@@ -428,36 +448,43 @@ export default class CamphoricEventCreator {
   }
 
   async create() {
+    this.log('Starting organization import');
     await this.organization;
-    this.log('Processed organization');
+    this.log('Finished importing organization');
 
+    this.log('Starting event import');
     await this.loadEvent();
-    this.log('Processed event');
+    this.log('Finished importing event');
 
+    this.log('Starting lodging import');
     await this.loadLodgings();
-    this.log('Processed lodging');
+    this.log('Finished importing lodging');
 
+    this.log('Starting reports import');
     await this.loadReports();
-    this.log('Processed reports');
+    this.log('Finished importing reports');
 
+    this.log('Starting registration types import');
     await this.loadRegTypes();
-    this.log('Processed registration types');
+    this.log('Finished importing registration types');
 
     // Run the overrides in series in case order matters
     for (let i = 0; i < this.overrides.length; i++) {
+      this.log(`Starting override[${i}] import`);
       const fn = this.overrides[i].bind(this);
 
       await fn(this.fetch, this.results, this.log);
 
-      this.log(`Processed override[${i}]`);
+      this.log(`Finished importing override[${i}]`);
     }
 
     if (this.sampleRegGenerator) {
+      this.log('Starting test registrations import');
       await this.loadTestRegs();
-      this.log('Processed test registrations');
+      this.log('Finished importing test registrations');
     }
 
-    this.log('Finished!');
+    this.log(`Finished Importing ${this.data.event.name}!`);
 
     return true;
   }

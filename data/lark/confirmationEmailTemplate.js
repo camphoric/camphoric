@@ -21,7 +21,5 @@ TOTAL DUE: \${{pricing_results.total}}
 Registration Number: 2022-{{ registration.id }}
 `;
 
-export default {
-  confirmation_email_template: template,
-  confirmation_email_subject: subject,
-};
+export const confirmation_email_template = template;
+export const confirmation_email_subject = subject;

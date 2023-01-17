@@ -21,7 +21,7 @@ import { getAuthToken } from '../getAuthInfo.js';
 import createTestRegs from './testRegistrations.js';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
-const eventName = 'Lark 2022';
+const eventName = 'Lark Camp 2022';
 
 const eventAttributes = {
   camper_pricing_logic: (await import('./pricing/camperPricingLogic.js')).default,

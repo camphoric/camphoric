@@ -18,8 +18,8 @@ const registrations = [
     email: 'bobross123456@dontsend.com',
     parking_passes: 1,
     campers: [
-      [64, 'M', 'Bob', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Jane Ross'],
-      [64, 'F', 'Jane', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Bob Ross'],
+      [64, 'M', 'BobLC', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Jane Ross'],
+      [64, 'F', 'JaneLC', 'Ross', 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Bob Ross'],
     ],
   },
   {
@@ -27,10 +27,10 @@ const registrations = [
     email: 'skywalker123456@dontsend.com',
     parking_passes: 1,
     campers: [
-      [64 , 'M' , 'Ani','Skywalker' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|V', 'Padmé Skywalker'] ,
-      [64 , 'F' , 'Padmé' , 'Amidala' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Ani Skywalker']  ,
-			[17 , 'M' , 'Luke' , 'Skywalker' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
-			[17 , 'F' , 'Leia' , 'Organa' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
+      [64 , 'M' , 'AniLC','Skywalker' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|V', 'Padmé Skywalker'] ,
+      [64 , 'F' , 'PadméLC' , 'Amidala' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Ani Skywalker']  ,
+			[17 , 'M' , 'LukeLC' , 'Skywalker' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
+			[17 , 'F' , 'LeiaLC' , 'Organa' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
     ],
   },
   {
@@ -38,10 +38,10 @@ const registrations = [
     email: 'vampslayer2345@dontsend.com',
     parking_passes: 1,
     campers: [
-      [49 , 'F' , 'Buffy','Summers' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|V', 'Willow Rosenberg'] ,
-      [49 , 'F' , 'Willow' , 'Rosenberg', 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Buffy Summers'] ,
-			[49 , 'M' , 'Xander' , 'Harris' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Willow Rosenberg'] ,
-			[17 , 'F' , 'Dawn' , 'Summers' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'F|E']  ,
+      [49 , 'F' , 'BuffyLC','Summers' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|V', 'Willow Rosenberg'] ,
+      [49 , 'F' , 'WillowLC' , 'Rosenberg', 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Buffy Summers'] ,
+			[49 , 'M' , 'XanderLC' , 'Harris' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Willow Rosenberg'] ,
+			[17 , 'F' , 'DawnLC' , 'Summers' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'F|E']  ,
     ],
   },
 
@@ -50,12 +50,12 @@ const registrations = [
     email: 'notarever3q450@dontsend.com',
     parking_passes: 1,
     campers: [
-      [49 , 'M' , 'Malcom','Reynolds' , 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-      [49 , 'M' , 'Jayne' , 'Cobb', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Zoe' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'M' , 'Hoban' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Inara' , 'Serra', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'Kaylee' , 'Frye', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'M' , 'MalcomLC','Reynolds' , 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'M' , 'JayneLC' , 'Cobb', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+			[49 , 'F' , 'ZoeLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+			[49 , 'M' , 'HobanLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+			[49 , 'F' , 'InaraLC' , 'Serra', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+			[49 , 'F' , 'KayleeLC' , 'Frye', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
     ],
   },
 ];
@@ -94,10 +94,10 @@ function makeRegistration(reg, lodgingMap) {
         "session": "Full camp",
         "address_different_than_payer": false,
         "lodging": {
-          "lodging_1": lodgingMap[c[4]],
-          "lodging_2": lodgingMap[c[5]],
-          "lodging_3": lodgingMap[c[6]],
-          ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8] } : {})
+          "lodging_1": lodgingMap[c[4]].id,
+          "lodging_2": lodgingMap[c[5]].id,
+          "lodging_3": lodgingMap[c[6]].id,
+          ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8].id } : {})
         },
         "first_name": c[2],
         "last_name": c[3],

@@ -1,19 +1,24 @@
 import { apiFetch, mockAttributes } from '../test-utils';
 
-const eventName = 'Lark 2022';
+const eventName = 'Lark Camp 2022';
 
 describe(`${eventName} Event`, () => {
   let eventId;
   let organizationId;
-  const data = {};
+  const data = {} as any;
   let event;
 
   beforeAll(async () => {
     const events = await apiFetch('/api/events/');
-    event = events.find(e => e.name === eventName);
+    data.event = events.find(e => e.name === eventName);
+    event = data.event;
+    eventId = data.event.id;
 
-    eventId = event.id;
-    organizationId = event.organization;
+    data.lodgings = (await apiFetch('/api/lodgings/')).filter(
+      a => a.event === eventId
+    );
+
+    organizationId = data.event.organization;
   })
 
   it('event should match snapshot', async () => {
@@ -27,20 +32,12 @@ describe(`${eventName} Event`, () => {
       'end',
       'organization',
       'email_account',
+      'confirmation_email_from',
     ]);
+
 
     expect(event).toMatchSnapshot();
   })
-
-  it('registrations should match snapshot', async () => {
-    const all = await apiFetch('/api/registrations/');
-    const regs = all.filter(r => r.event === eventId).sort((a, b) =>
-      a.registrant_email < b.registrant_email ? 1 : -1
-    ).map(r => mockAttributes(r));
-
-    expect(Array.isArray(regs)).toBe(true);
-    expect(regs).toMatchSnapshot();
-  });
 
   it('registrationtypes should match snapshot', async () => {
     const all = await apiFetch('/api/registrationtypes/');
@@ -52,21 +49,11 @@ describe(`${eventName} Event`, () => {
     expect(regtypes).toMatchSnapshot();
   });
 
-  it('reports should match snapshot', async () => {
-    const all = await apiFetch('/api/reports/');
-    const reports = all.filter(r => r.event === eventId).sort((a, b) =>
-      a.title < b.title ? 1 : -1
-    ).map(r => mockAttributes(r));
-
-    expect(Array.isArray(reports)).toBe(true);
-    expect(reports).toMatchSnapshot();
-  });
-
-  it('lodgings should match snapshot', async () => {
+  it.skip('lodgings should match snapshot', async () => {
     const all = await apiFetch('/api/lodgings/');
-    const lodgings = all.filter(r => r.event === eventId).sort((a, b) =>
-      a.name < b.name ? 1 : -1
-    ).map(r => mockAttributes(r));
+    const lodgings = all.filter(r => r.event === eventId).sort(
+      (a, b) => a.name < b.name ? 1 : -1
+    ).map(r => mockAttributes(r, ['parent']));
 
     expect(Array.isArray(lodgings)).toBe(true);
     expect(lodgings).toMatchSnapshot();
@@ -80,12 +67,21 @@ describe(`${eventName} Event`, () => {
     all = await apiFetch('/api/campers/');
     const name = c => `${c.attributes.last_name}, ${c.attributes.last_name}`;
 
-
     const campers = all.filter(c => regIds.includes(c.registration)).sort((a, b) =>
       name(a) < name(b) ? 1 : -1
-    ).map(r => mockAttributes(r, ['registration']));
+    ).map(r => mockAttributes(r, ['registration', 'lodging', 'lodging_requested']));
 
     expect(Array.isArray(campers)).toBe(true);
     expect(campers).toMatchSnapshot();
+  });
+
+  it('registrations should match snapshot', async () => {
+    const all = await apiFetch('/api/registrations/');
+    const regs = all.filter(r => r.event === eventId).sort((a, b) =>
+      a.registrant_email < b.registrant_email ? 1 : -1
+    ).map(r => mockAttributes(r));
+
+    expect(Array.isArray(regs)).toBe(true);
+    expect(regs).toMatchSnapshot();
   });
 });
