@@ -450,23 +450,23 @@ export default class CamphoricEventCreator {
   async create() {
     this.log('Starting organization import');
     await this.organization;
-    this.log('Finished importing organization');
+    this.log('Finished organization import');
 
     this.log('Starting event import');
     await this.loadEvent();
-    this.log('Finished importing event');
+    this.log('Finished event import');
 
     this.log('Starting lodging import');
     await this.loadLodgings();
-    this.log('Finished importing lodging');
+    this.log('Finished lodging import');
 
     this.log('Starting reports import');
     await this.loadReports();
-    this.log('Finished importing reports');
+    this.log('Finished reports import');
 
     this.log('Starting registration types import');
     await this.loadRegTypes();
-    this.log('Finished importing registration types');
+    this.log('Finished registration types import');
 
     // Run the overrides in series in case order matters
     for (let i = 0; i < this.overrides.length; i++) {
@@ -475,13 +475,13 @@ export default class CamphoricEventCreator {
 
       await fn(this.fetch, this.results, this.log);
 
-      this.log(`Finished importing override[${i}]`);
+      this.log(`Finished override[${i}] import`);
     }
 
     if (this.sampleRegGenerator) {
       this.log('Starting test registrations import');
       await this.loadTestRegs();
-      this.log('Finished importing test registrations');
+      this.log('Finished test registrations import');
     }
 
     this.log(`Finished Importing ${this.data.event.name}!`);

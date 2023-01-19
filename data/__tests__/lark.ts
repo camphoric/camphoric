@@ -49,7 +49,7 @@ describe(`${eventName} Event`, () => {
     expect(regtypes).toMatchSnapshot();
   });
 
-  it.skip('lodgings should match snapshot', async () => {
+  it('lodgings should match snapshot', async () => {
     const all = await apiFetch('/api/lodgings/');
     const lodgings = all.filter(r => r.event === eventId).sort(
       (a, b) => a.name < b.name ? 1 : -1

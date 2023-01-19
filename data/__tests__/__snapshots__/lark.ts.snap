@@ -6,7 +6,7 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Hoban",
+      "first_name": "HobanLC",
       "gender": "Male",
       "last_name": "Washburn",
       "meals": {
@@ -24,7 +24,7 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Zoe",
+      "first_name": "ZoeLC",
       "gender": "Female",
       "last_name": "Washburn",
       "meals": {
@@ -41,8 +41,84 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
   {
     "attributes": {
       "address_different_than_payer": false,
+      "age": "12-17 years old",
+      "first_name": "DawnLC",
+      "gender": "Female",
+      "last_name": "Summers",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Vegan",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Inara",
+      "first_name": "BuffyLC",
+      "gender": "Female",
+      "last_name": "Summers",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Vegetarian",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "12-17 years old",
+      "first_name": "LukeLC",
+      "gender": "Male",
+      "last_name": "Skywalker",
+      "meals": {
+        "meal_plan": "Just Dinners",
+        "meal_type": "Vegan",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "50-64 years old",
+      "first_name": "AniLC",
+      "gender": "Male",
+      "last_name": "Skywalker",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Vegetarian",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "26-49 years old",
+      "first_name": "InaraLC",
       "gender": "Female",
       "last_name": "Serra",
       "meals": {
@@ -60,7 +136,7 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "50-64 years old",
-      "first_name": "Jane",
+      "first_name": "JaneLC",
       "gender": "Female",
       "last_name": "Ross",
       "meals": {
@@ -79,7 +155,7 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "50-64 years old",
-      "first_name": "Bob",
+      "first_name": "BobLC",
       "gender": "Male",
       "last_name": "Ross",
       "meals": {
@@ -98,7 +174,26 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Malcom",
+      "first_name": "WillowLC",
+      "gender": "Female",
+      "last_name": "Rosenberg",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Non-Vegetarian",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "26-49 years old",
+      "first_name": "MalcomLC",
       "gender": "Male",
       "last_name": "Reynolds",
       "meals": {
@@ -115,8 +210,46 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
   {
     "attributes": {
       "address_different_than_payer": false,
+      "age": "12-17 years old",
+      "first_name": "LeiaLC",
+      "gender": "Female",
+      "last_name": "Organa",
+      "meals": {
+        "meal_plan": "Just Dinners",
+        "meal_type": "Vegan",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": false,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Kaylee",
+      "first_name": "XanderLC",
+      "gender": "Male",
+      "last_name": "Harris",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Non-Vegetarian",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "26-49 years old",
+      "first_name": "KayleeLC",
       "gender": "Female",
       "last_name": "Frye",
       "meals": {
@@ -134,11 +267,30 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
     "attributes": {
       "address_different_than_payer": false,
       "age": "26-49 years old",
-      "first_name": "Jayne",
+      "first_name": "JayneLC",
       "gender": "Male",
       "last_name": "Cobb",
       "meals": {
         "meal_plan": "",
+      },
+      "session": "Full camp",
+    },
+    "lodging_comments": "",
+    "lodging_reserved": false,
+    "lodging_shared": true,
+    "lodging_shared_with": "",
+    "stay": null,
+  },
+  {
+    "attributes": {
+      "address_different_than_payer": false,
+      "age": "50-64 years old",
+      "first_name": "PadméLC",
+      "gender": "Female",
+      "last_name": "Amidala",
+      "meals": {
+        "meal_plan": "All Meals",
+        "meal_type": "Non-Vegetarian",
       },
       "session": "Full camp",
     },
@@ -3551,6 +3703,33 @@ exports[`Lark Camp 2022 Event lodgings should match snapshot 1`] = `
   {
     "capacity": 1,
     "children_title": "",
+    "name": "Spot B11",
+    "notes": "",
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "Spot B10",
+    "notes": "",
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
+    "name": "Spot B09",
+    "notes": "",
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": false,
+  },
+  {
+    "capacity": 1,
+    "children_title": "",
     "name": "Spot B08",
     "notes": "",
     "reserved": 0,
@@ -4828,6 +5007,15 @@ exports[`Lark Camp 2022 Event lodgings should match snapshot 1`] = `
   },
   {
     "capacity": 0,
+    "children_title": "Select your RV size",
+    "name": "RV",
+    "notes": "",
+    "reserved": 0,
+    "sharing_multiplier": 1,
+    "visible": true,
+  },
+  {
+    "capacity": 0,
     "children_title": "Select a camp",
     "name": "Lodging",
     "notes": "",
@@ -5917,13 +6105,179 @@ exports[`Lark Camp 2022 Event registrations should match snapshot 1`] = `
       "parking_passes": [],
       "payment": {
         "payer_billing_address": {
+          "city": "Sunnydale",
+          "country": "United States",
+          "state_or_province": "CA",
+          "street_address": "1630 Revello Drive",
+          "zip_code": "94008",
+        },
+        "payer_first_name": "BuffyLC",
+        "payer_last_name": "Summers",
+        "payer_number": "+15555555555",
+        "payment_full_or_deposit": "Full Payment",
+        "payment_type": "PayPal",
+        "paypal_email": "vampslayer2345@dontsend.com",
+      },
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "donation": 0,
+      "meals": 0,
+      "parking": 65,
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": null,
+    "paypal_response": null,
+    "registrant_email": "vampslayer2345@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "meals": 405,
+          "total": 1195,
+          "tuition": 790,
+        },
+        {
+          "meals": 405,
+          "total": 1195,
+          "tuition": 790,
+        },
+        {
+          "meals": 405,
+          "total": 1195,
+          "tuition": 790,
+        },
+        {
+          "meals": 405,
+          "total": 965,
+          "tuition": 560,
+        },
+      ],
+      "donation": 0,
+      "meals": 1620,
+      "parking": 0,
+      "total": 4550,
+      "tuition": 2930,
+    },
+  },
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "parking_passes": [],
+      "payment": {
+        "payer_billing_address": {
+          "city": "Napa",
+          "country": "United States",
+          "state_or_province": "CA",
+          "street_address": "5678 Hard St",
+          "zip_code": "94558",
+        },
+        "payer_first_name": "AniLC",
+        "payer_last_name": "Skywalker",
+        "payer_number": "+15555555555",
+        "payment_full_or_deposit": "Full Payment",
+        "payment_type": "PayPal",
+        "paypal_email": "skywalker123456@dontsend.com",
+      },
+    },
+    "client_reported_pricing": {
+      "campers": [
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+        {
+          "meals": 0,
+          "total": 0,
+          "tuition": 0,
+        },
+      ],
+      "donation": 0,
+      "meals": 0,
+      "parking": 65,
+      "total": 0,
+      "tuition": 0,
+    },
+    "payment_type": null,
+    "paypal_response": null,
+    "registrant_email": "skywalker123456@dontsend.com",
+    "registration_type": null,
+    "server_pricing_results": {
+      "campers": [
+        {
+          "meals": 405,
+          "total": 1195,
+          "tuition": 790,
+        },
+        {
+          "meals": 405,
+          "total": 1195,
+          "tuition": 790,
+        },
+        {
+          "meals": 221,
+          "total": 781,
+          "tuition": 560,
+        },
+        {
+          "meals": 221,
+          "total": 781,
+          "tuition": 560,
+        },
+      ],
+      "donation": 0,
+      "meals": 1252,
+      "parking": 0,
+      "total": 3952,
+      "tuition": 2700,
+    },
+  },
+  {
+    "admin_attributes": {},
+    "attributes": {
+      "parking_passes": [],
+      "payment": {
+        "payer_billing_address": {
           "city": "Verse",
           "country": "United States",
           "state_or_province": "CA",
           "street_address": "5932 Firefly Ln",
           "zip_code": "94008",
         },
-        "payer_first_name": "Malcom",
+        "payer_first_name": "MalcomLC",
         "payer_last_name": "Reynolds",
         "payer_number": "+15555555555",
         "payment_full_or_deposit": "Full Payment",
@@ -6026,7 +6380,7 @@ exports[`Lark Camp 2022 Event registrations should match snapshot 1`] = `
           "street_address": "1234 Easy St",
           "zip_code": "94703",
         },
-        "payer_first_name": "Bob",
+        "payer_first_name": "BobLC",
         "payer_last_name": "Ross",
         "payer_number": "+15555555555",
         "payment_full_or_deposit": "Full Payment",
@@ -6087,30 +6441,6 @@ exports[`Lark Camp 2022 Event registrationtypes should match snapshot 1`] = `
     "invitation_email_template": "Test registration crew email",
     "label": "registration crew",
     "name": "crew-registration",
-  },
-]
-`;
-
-exports[`Lark Camp 2022 Event reports should match snapshot 1`] = `
-[
-  {
-    "template": "| Name | Total | Payments | Balance |
-| ---- | ----- | -------- | ------- |
-{{#eachrsort registrations "total_balance"}}
-| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) | \${{total_owed}} | \${{total_payments}} | <div style="color: {{#if (gt total_balance 0)}}red{{else}}black{{/if}}">\${{total_balance}}</div> |
-{{/eachrsort}}",
-    "title": "Payments",
-  },
-  {
-    "template": "| Last Name | First Name | Age | Lodging | Chore |
-| --------- | ---------- | --- | ------- | ----- |
-{{#eachsort campers "attributes.last_name"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
-  {{name}} | {{/with}} {{this.attributes.chore}} |
-{{/eachsort}}
-
-Total Campers: {{campers.length}}",
-    "title": "All Campers",
   },
 ]
 `;
