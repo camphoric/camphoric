@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
+exports[`Lark Camp campers should match snapshot 1`] = `
 [
   {
     "attributes": {
@@ -303,7 +303,7 @@ exports[`Lark Camp 2022 Event campers should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Camp 2022 Event event should match snapshot 1`] = `
+exports[`Lark Camp event should match snapshot 1`] = `
 {
   "camper_pricing_logic": [
     {
@@ -1372,10 +1372,10 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
     ],
     "type": "object",
   },
-  "confirmation_email_subject": "Lark Camp 2022 Registration Confirmation",
+  "confirmation_email_subject": "Lark Camp 2024 Registration Confirmation",
   "confirmation_email_template": "Dear {{registration.payment.payer_first_name}} {{registration.payment.payer_last_name}},
 
-Your online registration for Lark Camp 2022 has been received.
+Your online registration for Lark Camp 2024 has been received.
 
 You have registered for:
 
@@ -1391,10 +1391,10 @@ Parking Pass Purchase - None Yet
 
 TOTAL DUE: \${{pricing_results.total}}
 
-Registration Number: 2022-{{ registration.id }}",
+Registration Number: 2024-{{ registration.id }}",
   "confirmation_page_template": "# You're all set!
 
-## See you at Lark Camp 2022!
+## See you at Lark Camp 2024!
 
 If you're paying by PayPal or credit card, we'll be sending you a confirmation
 with payment instructions within the next week. If you're paying by check,
@@ -1415,7 +1415,7 @@ carpooling, payments, meals, ordering t-shirts, or anything else? Email us at
 [Visit our website at www.larkcamp.org for more information!](https://www.larkcamp.org)",
   "default_stay_length": 5,
   "deposit_schema": {},
-  "name": "Lark Camp 2022",
+  "name": "Lark Camp 2024",
   "payment_schema": {},
   "paypal_client_id": "ASP24eSCU2T4rry0XaiOQc-39IFd7vPaQ9FZpjD2hIk0d8w3UJ2Bc9NVfjDOj4_1w3wk7ZUW1epYNi4Y",
   "paypal_enabled": true,
@@ -1884,7 +1884,7 @@ Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is ref
       "campers",
       "payment",
     ],
-    "title": "Lark Camp 2022 Registration",
+    "title": "Lark Camp 2024 Registration",
     "type": "object",
   },
   "registration_ui_schema": {
@@ -1979,7 +1979,7 @@ Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is ref
 }
 `;
 
-exports[`Lark Camp 2022 Event lodgings should match snapshot 1`] = `
+exports[`Lark Camp lodgings should match snapshot 1`] = `
 [
   {
     "capacity": 0,
@@ -6097,7 +6097,7 @@ exports[`Lark Camp 2022 Event lodgings should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Camp 2022 Event registrations should match snapshot 1`] = `
+exports[`Lark Camp registrations should match snapshot 1`] = `
 [
   {
     "admin_attributes": {},
@@ -6434,7 +6434,7 @@ exports[`Lark Camp 2022 Event registrations should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Camp 2022 Event registrationtypes should match snapshot 1`] = `
+exports[`Lark Camp registrationtypes should match snapshot 1`] = `
 [
   {
     "invitation_email_subject": "Register for registration crew",

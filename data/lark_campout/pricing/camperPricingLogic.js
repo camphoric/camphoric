@@ -1,11 +1,11 @@
 export const ageLookup = {
-  65: "65 years old or older",
-  64: "50-64 years old",
-  49: "26-49 years old",
-  25: "18-25 years old",
-  17: "12-17 years old",
-  11: "5-11 years old",
-  4:  "0-4 years old",
+  65: '65 years old or older',
+  64: '50-64 years old',
+  49: '26-49 years old',
+  25: '18-25 years old',
+  17: '12-17 years old',
+  11: '5-11 years old',
+  4:  '0-4 years old',
 };
 
 const defaultCamperAge = ageLookup[65];

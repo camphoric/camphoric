@@ -1,19 +1,19 @@
 export const ageLookup = {
-  65: "65 years old or older",
-  64: "50-64 years old",
-  49: "26-49 years old",
-  25: "18-25 years old",
-  17: "12-17 years old",
-  11: "5-11 years old",
-  4:  "0-4 years old",
+  65: '65 years old or older',
+  64: '50-64 years old',
+  49: '26-49 years old',
+  25: '18-25 years old',
+  17: '12-17 years old',
+  11: '5-11 years old',
+  4:  '0-4 years old',
 };
 
 export const mealsLookup = {
-  "F": "All Meals",
-  "D": "Just Dinners",
-  "A": "All Meals - 1st half",
-  "B": "All Meals - 2nd half",
-}
+  'F': 'All Meals',
+  'D': 'Just Dinners',
+  'A': 'All Meals - 1st half',
+  'B': 'All Meals - 2nd half',
+};
 
 const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
@@ -51,7 +51,7 @@ const regularPrice = {
                 {var: full }, {var: half}
               ]
             }
-          ]
+          ];
         }, []).concat([0]),
       },
       {  'if': [
@@ -63,7 +63,7 @@ const regularPrice = {
   }, // END regularPrice tuition
 
   meals: {
-    "+": [
+    '+': [
       {
         'if': regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
           return [
@@ -78,12 +78,12 @@ const regularPrice = {
                 0
               ]
             }
-          ]
+          ];
         }, []).concat([0]),
       },
     ]
   } // END regularPrice meals
-} // END regularPrice
+}; // END regularPrice
 
 // uncomment for debug
 // console.log(

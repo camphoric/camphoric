@@ -4,13 +4,13 @@ const genderLookup = {
   M: 'Male',
   F: 'Female',
   O: 'Other',
-}
+};
 
 const mealTypeLookup = {
-  "O": "Non-Vegetarian",
-  "V": "Vegetarian",
-  "E": "Vegan",
-}
+  'O': 'Non-Vegetarian',
+  'V': 'Vegetarian',
+  'E': 'Vegan',
+};
 
 const registrations = [
   {
@@ -29,8 +29,8 @@ const registrations = [
     campers: [
       [64 , 'M' , 'AniLC','Skywalker' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|V', 'Padmé Skywalker'] ,
       [64 , 'F' , 'PadméLC' , 'Amidala' , 'camp1', 'camp1_tent', 'camp1_tent_area_A', 'F|O', 'Ani Skywalker']  ,
-			[17 , 'M' , 'LukeLC' , 'Skywalker' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
-			[17 , 'F' , 'LeiaLC' , 'Organa' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
+      [17 , 'M' , 'LukeLC' , 'Skywalker' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
+      [17 , 'F' , 'LeiaLC' , 'Organa' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'D|E']  ,
     ],
   },
   {
@@ -40,8 +40,8 @@ const registrations = [
     campers: [
       [49 , 'F' , 'BuffyLC','Summers' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|V', 'Willow Rosenberg'] ,
       [49 , 'F' , 'WillowLC' , 'Rosenberg', 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Buffy Summers'] ,
-			[49 , 'M' , 'XanderLC' , 'Harris' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Willow Rosenberg'] ,
-			[17 , 'F' , 'DawnLC' , 'Summers' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'F|E']  ,
+      [49 , 'M' , 'XanderLC' , 'Harris' , 'camp2', 'camp2_rv', 'camp2_rv_sm', 'F|O', 'Willow Rosenberg'] ,
+      [17 , 'F' , 'DawnLC' , 'Summers' , 'camp3', 'camp3_tent', 'camp3_tent_area_K', 'F|E']  ,
     ],
   },
 
@@ -52,77 +52,77 @@ const registrations = [
     campers: [
       [49 , 'M' , 'MalcomLC','Reynolds' , 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
       [49 , 'M' , 'JayneLC' , 'Cobb', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'ZoeLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'M' , 'HobanLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'InaraLC' , 'Serra', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
-			[49 , 'F' , 'KayleeLC' , 'Frye', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'F' , 'ZoeLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'M' , 'HobanLC' , 'Washburn', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'F' , 'InaraLC' , 'Serra', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
+      [49 , 'F' , 'KayleeLC' , 'Frye', 'camp2', 'camp2_rv', 'camp2_rv_lg', '', 'Reynolds'] ,
     ],
   },
 ];
 
 function makeRegistration(reg, lodgingMap) {
   return {
-    "formData": {
-      "payment": {
-        "payment_type": reg.payment_type || "PayPal",
-        "payer_billing_address": {
-          "country": "United States",
-          "street_address": reg.address[0],
-          "city": reg.address[1],
-          "state_or_province": reg.address[2],
-          "zip_code": reg.address[3],
+    'formData': {
+      'payment': {
+        'payment_type': reg.payment_type || 'PayPal',
+        'payer_billing_address': {
+          'country': 'United States',
+          'street_address': reg.address[0],
+          'city': reg.address[1],
+          'state_or_province': reg.address[2],
+          'zip_code': reg.address[3],
         },
-        "payment_full_or_deposit": "Full Payment",
-        "payer_first_name": reg.campers[0][2],
-        "payer_last_name": reg.campers[0][3],
-        "payer_number": "+15555555555",
-        "paypal_email": reg.email,
+        'payment_full_or_deposit': 'Full Payment',
+        'payer_first_name': reg.campers[0][2],
+        'payer_last_name': reg.campers[0][3],
+        'payer_number': '+15555555555',
+        'paypal_email': reg.email,
       },
-      "parking_passes": Array.apply(reg.parking_passes || 0).map(
-        () => ({ "holder": `${reg.campers[0][2]} ${reg.campers[0][3]}` })
+      'parking_passes': Array.apply(reg.parking_passes || 0).map(
+        () => ({ 'holder': `${reg.campers[0][2]} ${reg.campers[0][3]}` })
       ),
-      "campers": reg.campers.map((c) => ({
-        "age": ageLookup[c[0]],
-        "meals": {
-					...(
-						!c[7].length ? { meal_plan: '' } : {
-							meal_plan: mealsLookup[c[7].split('|')[0]],
-							meal_type: mealTypeLookup[c[7].split('|')[1]],
-						}
-					)
+      'campers': reg.campers.map((c) => ({
+        'age': ageLookup[c[0]],
+        'meals': {
+          ...(
+            !c[7].length ? { meal_plan: '' } : {
+              meal_plan: mealsLookup[c[7].split('|')[0]],
+              meal_type: mealTypeLookup[c[7].split('|')[1]],
+            }
+          )
         },
-        "session": "Full camp",
-        "address_different_than_payer": false,
-        "lodging": {
-          "lodging_1": lodgingMap[c[4]].id,
-          "lodging_2": lodgingMap[c[5]].id,
-          "lodging_3": lodgingMap[c[6]].id,
+        'session': 'Full camp',
+        'address_different_than_payer': false,
+        'lodging': {
+          'lodging_1': lodgingMap[c[4]].id,
+          'lodging_2': lodgingMap[c[5]].id,
+          'lodging_3': lodgingMap[c[6]].id,
           ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8].id } : {})
         },
-        "first_name": c[2],
-        "last_name": c[3],
-        "gender": genderLookup[c[1]],
+        'first_name': c[2],
+        'last_name': c[3],
+        'gender': genderLookup[c[1]],
       })),
-      "registrant_email": reg.email,
+      'registrant_email': reg.email,
     },
-    "pricingResults": {
-      "campers": reg.campers.map((c) => ({
-        "tuition": 0,
-        "meals": 0,
-        "total": 0
+    'pricingResults': {
+      'campers': reg.campers.map(() => ({
+        'tuition': 0,
+        'meals': 0,
+        'total': 0
       })),
-      "parking": 65 * (reg.parking_passes || 1),
-      "donation": 0,
-      "total": 0,
-      "tuition": 0,
-      "meals": 0
+      'parking': 65 * (reg.parking_passes || 1),
+      'donation': 0,
+      'total': 0,
+      'tuition': 0,
+      'meals': 0
     }
-	}
+  };
 }
 
 export default function makeRegistrations(lodgingMap) {
-	return registrations.map(
-		r => makeRegistration(r, lodgingMap)
-	);
-};
+  return registrations.map(
+    r => makeRegistration(r, lodgingMap)
+  );
+}
 

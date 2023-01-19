@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Lark Campout 2022 Event campers should match snapshot 1`] = `
+exports[`Lark Campout Event campers should match snapshot 1`] = `
 [
   {
     "attributes": {
@@ -317,7 +317,7 @@ exports[`Lark Campout 2022 Event campers should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Campout 2022 Event event should match snapshot 1`] = `
+exports[`Lark Campout Event event should match snapshot 1`] = `
 {
   "camper_schema": {
     "properties": {
@@ -396,10 +396,10 @@ exports[`Lark Campout 2022 Event event should match snapshot 1`] = `
     ],
     "type": "object",
   },
-  "confirmation_email_subject": "Lark Campout 2022 Registration Confirmation",
+  "confirmation_email_subject": "Lark Campout 2024 Registration Confirmation",
   "confirmation_email_template": "Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
-Your online registration for the Lark Campout 2022 has been received.
+Your online registration for the Lark Campout 2024 has been received.
 
 You have registered the following campers:
 
@@ -426,10 +426,10 @@ USA
 
 Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275
 
-Registration Number: 2022LC{{ registration.id }}",
+Registration Number: 2024LC{{ registration.id }}",
   "confirmation_page_template": "# You're all set!
 
-## See you at Lark Campout 2022!
+## See you at Lark Campout 2024!
 
 If you're paying by check, please make it for **\${{pricing_results.total}}**
 payable to "Lark Traditional Arts", and mail it to:
@@ -442,7 +442,7 @@ USA
 Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275",
   "default_stay_length": 5,
   "deposit_schema": {},
-  "name": "Lark Campout 2022",
+  "name": "Lark Campout 2024",
   "payment_schema": {},
   "paypal_client_id": "ASP24eSCU2T4rry0XaiOQc-39IFd7vPaQ9FZpjD2hIk0d8w3UJ2Bc9NVfjDOj4_1w3wk7ZUW1epYNi4Y",
   "paypal_enabled": true,
@@ -513,7 +513,7 @@ Fields marked with an asterisk (*) are required.
     "required": [
       "campers",
     ],
-    "title": "Lark Campout 2022 Registration",
+    "title": "Lark Campout 2024 Registration",
     "type": "object",
   },
   "registration_ui_schema": {
@@ -568,7 +568,7 @@ Fields marked with an asterisk (*) are required.
 }
 `;
 
-exports[`Lark Campout 2022 Event event should match snapshot 2`] = `
+exports[`Lark Campout Event event should match snapshot 2`] = `
 [
   {
     "exp": {
@@ -959,7 +959,7 @@ exports[`Lark Campout 2022 Event event should match snapshot 2`] = `
 ]
 `;
 
-exports[`Lark Campout 2022 Event lodgings should match snapshot 1`] = `
+exports[`Lark Campout Event lodgings should match snapshot 1`] = `
 [
   {
     "capacity": 0,
@@ -1540,7 +1540,7 @@ exports[`Lark Campout 2022 Event lodgings should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Campout 2022 Event registrations should match snapshot 1`] = `
+exports[`Lark Campout Event registrations should match snapshot 1`] = `
 [
   {
     "admin_attributes": {},
@@ -1777,7 +1777,7 @@ exports[`Lark Campout 2022 Event registrations should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Campout 2022 Event registrationtypes should match snapshot 1`] = `
+exports[`Lark Campout Event registrationtypes should match snapshot 1`] = `
 [
   {
     "invitation_email_subject": "Register for registration crew",
@@ -1788,7 +1788,7 @@ exports[`Lark Campout 2022 Event registrationtypes should match snapshot 1`] = `
 ]
 `;
 
-exports[`Lark Campout 2022 Event reports should match snapshot 1`] = `
+exports[`Lark Campout Event reports should match snapshot 1`] = `
 [
   {
     "template": "| Name | Total | Payments | Balance |

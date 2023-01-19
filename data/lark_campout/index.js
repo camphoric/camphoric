@@ -10,29 +10,14 @@ import registration_ui_schema from './registrationUISchema.js';
 import lodgings from './lodgings.js';
 import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
+import { dates, lengthInDays, year } from './dates.js';
 
 import {
   confirmation_email_template,
   confirmation_email_subject,
 } from './confirmationEmailTemplate.js';
 
-const lengthInDays = 5;
-const startDate = new Date();
-startDate.setFullYear(startDate.getFullYear() + 1);
-startDate.setUTCHours(startDate.getUTCHours() + (30 * 24));
-
-const dates = {
-  registration_start: new Date(),
-  registration_end: new Date(startDate),
-  start: startDate,
-  end: new Date(startDate),
-};
-
-dates.registration_end.setUTCMonth(startDate.getUTCMonth() - 1);
-dates.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
-
-// export const eventName = `Lark Campout ${startDate.getFullYear()}`;
-export const eventName = `Lark Campout 2022`;
+export const eventName = `Lark Campout ${year}`;
 
 const data = {
   organization: 'Lark Traditional Arts',
@@ -75,7 +60,7 @@ if (process.env.PAYPAL_CLIENT_ID) {
 
 // We override pricing because we need to get the off_site id in order to get
 // the pricing correct
-const pricingOverride = async (fetch, results, log) => {
+const pricingOverride = async (fetch, results) => {
   const offsiteId = results.lodging.off_site.id;
   const camper_pricing_logic = camper_pricing_logic_fn(offsiteId);
 
@@ -84,7 +69,7 @@ const pricingOverride = async (fetch, results, log) => {
   });
 };
 
-const sampleRegGenerator = async (fetch, results, log) => {
+const sampleRegGenerator = async (fetch, results) => {
   const regs = makeRegistrations(results.lodging);
 
   return regs;

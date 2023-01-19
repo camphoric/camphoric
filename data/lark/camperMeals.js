@@ -1,32 +1,32 @@
 import { mealsLookup } from './pricing/camperPricingLogic.js';
 
 const dependencies = {
-  "meal_plan": {
-    "oneOf": [
+  'meal_plan': {
+    'oneOf': [
       {
-        "properties": {
-          "meal_plan": {
-            "enum": [""]
+        'properties': {
+          'meal_plan': {
+            'enum': ['']
           }
         }
       },
       {
-        "properties": {
-          "meal_plan": {
-            "enum": [
-              "All meals",
-              "Just Dinners",
-              "All Meals - 1st half",
-              "All Meals - 2nd half"
+        'properties': {
+          'meal_plan': {
+            'enum': [
+              'All meals',
+              'Just Dinners',
+              'All Meals - 1st half',
+              'All Meals - 2nd half'
             ]
           },
-          "meal_type": {
-            "type": "string",
-            "title": "What types of meals do you want?",
-            "enum": [
-              "Non-Vegetarian",
-              "Vegetarian",
-              "Vegan"
+          'meal_type': {
+            'type': 'string',
+            'title': 'What types of meals do you want?',
+            'enum': [
+              'Non-Vegetarian',
+              'Vegetarian',
+              'Vegan'
             ],
           }
         }
@@ -36,9 +36,9 @@ const dependencies = {
 };
 
 const createMeals = (...options) => ({
-  "type": "object",
-  "title": "Meal Plans",
-  "description": `Meal plans must be fully paid {meals_due_date}. We cannot accept partial payments. Food prices include sales tax.
+  'type': 'object',
+  'title': 'Meal Plans',
+  'description': `Meal plans must be fully paid {meals_due_date}. We cannot accept partial payments. Food prices include sales tax.
 
 NOTE: You may only cook if you’re camping in a vehicle with a built-in kitchen. No portable white gas or propane stoves are allowed in the park.
 
@@ -49,18 +49,18 @@ NOTE: You may only cook if you’re camping in a vehicle with a built-in kitchen
 | Half camp, full meals   | \${{pricing.meals_adult_half}} adults    | \${{pricing.meals_teen_half}} kids |
 
 Meal plans offer significant savings. You may buy individual meals at camp instead of buying a meal plan. (But it costs more!)`,
-  "properties": {
-    "meal_plan": {
-      "type": "string",
-      "title": "What meals will you purchase?",
-      "enum": [
-        "None",
+  'properties': {
+    'meal_plan': {
+      'type': 'string',
+      'title': 'What meals will you purchase?',
+      'enum': [
+        'None',
         ...options.map(o => mealsLookup[o])
       ],
-      "default": ""
+      'default': ''
     }
   },
-  "dependencies": dependencies,
+  'dependencies': dependencies,
 });
 
 export default createMeals;

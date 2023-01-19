@@ -1,11 +1,10 @@
 import { apiFetch, mockAttributes } from '../test-utils';
+import { eventName } from '../lark_campout/index.js';
 
-const eventName = 'Lark Campout 2022';
-
-describe(`${eventName} Event`, () => {
+describe(`Lark Campout Event`, () => {
   let eventId;
   let organizationId;
-  const data = {} as any;
+  const data = {};
   let event;
 
   beforeAll(async () => {

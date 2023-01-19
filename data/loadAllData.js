@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// import loadLark from './lark/loadData.js';
 import larkCampout from './lark_campout/index.js';
 import lark from './lark/index.js';
 import { getAuthToken } from './getAuthInfo.js';
@@ -13,7 +12,7 @@ main();
 
 const events = [
   larkCampout,
-	lark,
+  lark,
 ];
 
 async function main() {

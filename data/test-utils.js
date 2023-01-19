@@ -1,13 +1,7 @@
-type Method = 'GET' | 'PUT' | 'POST' | 'DELETE';
-
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 let tokenPromise;
 
-export const apiFetch = async (
-  url: string,
-  method: Method = 'GET',
-  body: {} | null = null,
-) => {
+export const apiFetch = async (url, method, body) => {
   let text;
   let value;
 
@@ -40,7 +34,7 @@ export const apiFetch = async (
   return value;
 }
 
-export const mockAttributes = (obj: {}, attrs: string[] = []) => {
+export const mockAttributes = (obj, attrs = []) => {
   [
     'id',
     'created_at',

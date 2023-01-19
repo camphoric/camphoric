@@ -1,8 +1,10 @@
-const subject = 'Lark Campout 2022 Registration Confirmation';
+import { year } from './dates.js'
+
+const subject = `Lark Campout ${year} Registration Confirmation`;
 const template = `
 Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
-Your online registration for the Lark Campout 2022 has been received.
+Your online registration for the Lark Campout ${year} has been received.
 
 You have registered the following campers:
 
@@ -29,7 +31,7 @@ USA
 
 Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275
 
-Registration Number: 2022LC{{ registration.id }}
+Registration Number: ${year}LC{{ registration.id }}
 `;
 
 export const confirmation_email_template = template;

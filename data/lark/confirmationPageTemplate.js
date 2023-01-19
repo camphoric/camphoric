@@ -1,7 +1,9 @@
+import { year } from './dates.js'
+
 export default `
 # You're all set!
 
-## See you at Lark Camp 2022!
+## See you at Lark Camp ${year}!
 
 If you're paying by PayPal or credit card, we'll be sending you a confirmation
 with payment instructions within the next week. If you're paying by check,

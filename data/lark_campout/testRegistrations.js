@@ -2,7 +2,7 @@ import { ageLookup } from './pricing/camperPricingLogic.js';
 
 const registrations = [
   {
-    phone: "+15551235678",
+    phone: '+15551235678',
     email: 'bobross123456@dontsend.com',
     campers: [
       [64, 'BobCO', 'Ross', 'mrna', 'off_site', 'Cleanup'],
@@ -10,7 +10,7 @@ const registrations = [
     ],
   },
   {
-    phone: "+15553985678",
+    phone: '+15553985678',
     email: 'skywalker123456@dontsend.com',
     campers: [
       [64 , 'AniCO','Skywalker' , 'mrna', 'rv_sm', 'Cleanup', 'Padmé Amidala'],
@@ -20,7 +20,7 @@ const registrations = [
     ],
   },
   {
-    phone: "+15553985555",
+    phone: '+15553985555',
     email: 'vampslayer2345@dontsend.com',
     campers: [
       [49 , 'BuffyCO','Summers' , 'trad', 'tent', 'Cleanup'],
@@ -31,7 +31,7 @@ const registrations = [
   },
 
   {
-    phone: "+15553755555",
+    phone: '+15553755555',
     email: 'notarever3q450@dontsend.com',
     campers: [
       [49 , 'MalcomCO','Reynolds' , 'mrna', 'rv_lg', 'Cleanup', 'my crew'],
@@ -56,12 +56,12 @@ function destructureCamper(c, email, phone, lodgingMap) {
   ] = c;
 
   const mrna = [
-    "First dose",
-    "Second dose",
-    "Booster"
+    'First dose',
+    'Second dose',
+    'Booster'
   ];
 
-  const trad = ["J&J"];
+  const trad = ['J&J'];
 
   return {
     age: ageLookup[age],
@@ -85,8 +85,8 @@ function destructureCamper(c, email, phone, lodgingMap) {
 
 function makeRegistration(reg, lodgingMap) {
   return {
-    "formData": {
-      "campers": reg.campers.map(
+    'formData': {
+      'campers': reg.campers.map(
         c => destructureCamper(
           c,
           reg.email,
@@ -94,26 +94,26 @@ function makeRegistration(reg, lodgingMap) {
           lodgingMap,
         )
       ),
-      "registrant_email": reg.email,
-      "payment_type": "Check",
-      "lta_donation": 0,
-      "how_did_you_hear": "",
-      "comments": "",
+      'registrant_email': reg.email,
+      'payment_type': 'Check',
+      'lta_donation': 0,
+      'how_did_you_hear': '',
+      'comments': '',
     },
-    "pricingResults": {
-      "campers": reg.campers.map((c) => ({
-        "tuition": 0,
-        "total": 0
+    'pricingResults': {
+      'campers': reg.campers.map(() => ({
+        'tuition': 0,
+        'total': 0
       })),
-      "total": 0,
-      "tuition": 0,
+      'total': 0,
+      'tuition': 0,
     }
-  }
+  };
 }
 
 export default function makeRegistrations(lodgingMap) {
   return registrations.map(
     r => makeRegistration(r, lodgingMap)
   );
-};
+}
 
