@@ -1,4 +1,4 @@
-import { year } from './dates.js'
+import { year } from './dates.js';
 
 const subject = `Lark Camp ${year} Registration Confirmation`;
 const template = `
