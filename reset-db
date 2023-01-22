@@ -7,7 +7,7 @@ Usage: $0 [-yf]
 This will:
   - PERMENANTLY delete all data in your camphoric database
   - Recreate a camphoric superuser based on your shared.env
-  - Import data/lark data
+  - Import from data/
 EOF
 
 }
@@ -44,8 +44,4 @@ then
     done
 fi
 
-docker compose exec django python manage.py migrate
-docker compose exec django python manage.py flush --noinput
-docker compose exec django python manage.py createsuperuser --noinput
-docker compose exec react node fixtures/loadAllData.mjs
-# docker compose exec react node fixtures/lark_campout/loadData.mjs
+./data/reset-data-and-test

@@ -187,3 +187,5 @@ DBBACKUP_STORAGE_OPTIONS = env.json(
     'DBBACKUP_STORAGE_OPTIONS',
     default={'location': '/app/backup/'}
 )
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000/', 'http://django:8000/']
