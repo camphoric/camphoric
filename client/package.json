@@ -6,8 +6,8 @@
   "dependencies": {
     "@paypal/react-paypal-js": "^7.8.1",
     "@reduxjs/toolkit": "^1.8.0",
-    "@rjsf/bootstrap-4": "^3.1.0",
-    "@rjsf/core": "^3.1.0",
+    "@rjsf/bootstrap-4": "^4.2.3",
+    "@rjsf/core": "^4.2.3",
     "@types/googlemaps": "^3.43.3",
     "@types/jest": "^27.0.1",
     "@types/json-logic-js": "^1.2.1",
@@ -58,17 +58,19 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": ["react-app"],
+    "extends": [
+      "react-app"
+    ],
     "rules": {
       "no-duplicate-imports": "error",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
-          "warn",
-          {
-              "args": "none",
-              "ignoreRestSiblings": true,
-              "varsIgnorePattern": "debug" 
-          }
+        "warn",
+        {
+          "args": "none",
+          "ignoreRestSiblings": true,
+          "varsIgnorePattern": "debug"
+        }
       ]
     }
   },
