@@ -1,5 +1,11 @@
 import meals from './camperMeals.js';
 
+export const sessionTypes = {
+  F: 'Full camp',
+  A: 'Half camp - 1st half',
+  B: 'Half camp - 2nd half',
+};
+
 export default {
   'type': 'object',
   'required': ['first_name', 'last_name', 'gender', 'session', 'meals'],
@@ -9,7 +15,7 @@ export default {
         {
           'properties': {
             'address_different_than_payer': {
-              'enum': [false],
+              'enum': [false, ''],
             },
           },
         },
@@ -31,19 +37,24 @@ export default {
       'oneOf': [
         {
           'properties': {
-            'session': { enum: ['Full camp'] },
+            'session': { enum: [''] },
+          }
+        },
+        {
+          'properties': {
+            'session': { enum: [sessionTypes.F] },
             'meals': meals('F', 'D'),
           }
         },
         {
           'properties': {
-            'session': { enum: ['Half camp - 1st half'] },
+            'session': { enum: [sessionTypes.A]  },
             'meals': meals('A'),
           }
         },
         {
           'properties': {
-            'session': { enum: ['Half camp - 2nd half'] },
+            'session': { enum: [sessionTypes.B] },
             'meals': meals('B'),
           }
         },
@@ -101,12 +112,8 @@ export default {
 | Half Camp | \${{pricing.half_adult}} | \${{pricing.half_teen}} | \${{pricing.half_toddler}} |
 
 1: Children 4 and under are free, but may not take up a cabin bed.`,
-      'enum': [
-        'Full camp',
-        'Half camp - 1st half',
-        'Half camp - 2nd half',
-      ],
-      'default': 'Full camp',
+      'enum': Object.values(sessionTypes),
+      'default': sessionTypes.F,
     },
   }
 };

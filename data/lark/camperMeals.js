@@ -1,33 +1,30 @@
 import { mealsLookup } from './pricing/camperPricingLogic.js';
 
+export const mealTypes = [
+  'Non-Vegetarian',
+  'Vegetarian',
+  'Vegan',
+];
+
 const dependencies = {
   'meal_plan': {
     'oneOf': [
       {
         'properties': {
           'meal_plan': {
-            'enum': ['']
+            'enum': ['', 'None']
           }
         }
       },
       {
         'properties': {
           'meal_plan': {
-            'enum': [
-              'All meals',
-              'Just Dinners',
-              'All Meals - 1st half',
-              'All Meals - 2nd half'
-            ]
+            'enum': Object.values(mealsLookup),
           },
           'meal_type': {
             'type': 'string',
             'title': 'What types of meals do you want?',
-            'enum': [
-              'Non-Vegetarian',
-              'Vegetarian',
-              'Vegan'
-            ],
+            'enum': mealTypes,
           }
         }
       }
