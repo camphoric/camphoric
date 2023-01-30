@@ -157,10 +157,10 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
     data[varName] = value;
   });
 
-  formData.campers.forEach(camper => {
+  formData.campers.forEach((camper, index) => {
     const camperResults: { [key: string]: any } = {};
 
-    data.camper = { ...camper };
+    data.camper = { ...camper, index };
     camperDateProps.forEach(dateProp => {
       data.camper[dateProp] = dateStringToObject(data.camper[dateProp]);
     });

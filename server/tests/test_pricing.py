@@ -96,6 +96,10 @@ class TestCalculatePrice(unittest.TestCase):
         ]
         self.camper_pricing_logic = [
             {
+                "var": "i",
+                "exp": {"var": "camper.index"},
+            },
+            {
                 "label": "Is Adult",
                 "var": "is_adult",
                 "exp": {">=": [{"var": "camper.age"}, 18]},
@@ -235,14 +239,15 @@ class TestCalculatePrice(unittest.TestCase):
         ]
         price_components = pricing.calculate_price(registration, campers)
         self.assertEqual(price_components, {
+            "i": 6,
             "is_adult": 2,
             "tuition": 1200,
             "meals": 700,
             "campers": [
-                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
-                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"i": 0, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"i": 1, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"i": 2, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"i": 3, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
             ],
             "total": 1900,
         })
@@ -270,16 +275,17 @@ class TestCalculatePrice(unittest.TestCase):
         ]
         price_components = pricing.calculate_price(registration, campers)
         self.assertEqual(price_components, {
+            "i": 6,
             "is_adult": 2,
             "tuition": 1200,
             "meals": 700,
             "cabins": 300,
             "parking_passes": 100,
             "campers": [
-                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
-                {"is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"i": 0, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"i": 1, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
+                {"i": 2, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                {"i": 3, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
             ],
             "total": 2300,
         })

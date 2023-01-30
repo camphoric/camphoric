@@ -64,8 +64,9 @@ def calculate_price(registration, campers):
         results[var] = value
         data[var] = value
 
-    for camper in campers:
+    for i, camper in enumerate(campers):
         data["camper"] = camper.attributes.copy()
+        data["camper"]["index"] = i
         for date_prop in date_props:
             data["camper"][date_prop] = datestring_to_dict(data["camper"][date_prop])
 
