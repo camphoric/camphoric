@@ -68,7 +68,8 @@ def calculate_price(registration, campers):
         data["camper"] = camper.attributes.copy()
         data["camper"]["index"] = i
         for date_prop in date_props:
-            data["camper"][date_prop] = datestring_to_dict(data["camper"][date_prop])
+            if date_prop in data["camper"]:
+                data["camper"][date_prop] = datestring_to_dict(data["camper"][date_prop])
 
         # temporary hack for lark campout 2022
         if camper.lodging:
