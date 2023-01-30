@@ -147,7 +147,7 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
   };
 
 
-  const camperSchema = get(config.dataSchema, 'properties.campers.items') as JSONSchema7;
+  const camperSchema = get(config.dataSchema, 'definitions.camper') as JSONSchema7;
   const camperDateProps = getDateProps(camperSchema);
 
   pricingLogic.registration.forEach(component => {
