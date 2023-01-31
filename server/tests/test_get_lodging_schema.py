@@ -28,6 +28,7 @@ class TestGetLodgingSchema(TestCase):
 
     def test_no_lodging(self):
         (schema, ui_schema) = get_lodging_schema(self.event)
+
         self.assertEqual(schema, None)
         self.assertEqual(ui_schema, None)
 
@@ -40,16 +41,10 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
         (schema, ui_schema) = get_lodging_schema(self.event)
-        self.assertEqual(schema, {
-            'title': 'Test Lodging',
-            'type': 'object',
-            'properties': LODGING_SCHEMA['properties'],
-            'dependencies': LODGING_SCHEMA['dependencies'],
-        })
-        self.assertEqual(ui_schema, {
-            'ui:order': LODGING_SCHEMA['ui:order'],
-            **LODGING_SCHEMA['ui'],
-        })
+        self.assertEqual(ui_schema['ui:order'], LODGING_SCHEMA['ui:order'])
+        self.assertEqual(
+            len(ui_schema['lodging_requested']['lodging_nodes']),
+            1)
 
     def test_lodging_with_node_with_children(self):
         root = self.event.lodging_set.create(
@@ -59,7 +54,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        camp1 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Camp 1',
             parent=root,
             capacity=30,
@@ -67,7 +62,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Camp 2',
             parent=root,
             capacity=30,
@@ -75,7 +70,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        camp3 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Camp 3',
             parent=root,
             capacity=30,
@@ -85,36 +80,19 @@ class TestGetLodgingSchema(TestCase):
 
         (schema, ui_schema) = get_lodging_schema(self.event)
 
-        self.assertEqual(schema, {
-            'title': 'Test Lodging',
-            'type': 'object',
-            'properties': {
-                'lodging_1': {
-                    'title': 'Please select a Camp',
-                    'enum': [
-                        camp1.id,
-                        camp2.id,
-                        camp3.id
-                    ],
-                    'enumNames': [
-                        camp1.name,
-                        camp2.name,
-                        camp3.name
-                    ],
-                },
-                **LODGING_SCHEMA['properties'],
-            },
-            'required': ['lodging_1'],
-            'dependencies': LODGING_SCHEMA['dependencies'],
-        })
+        should_be = {
+           "type": "object",
+           "title": "Lodging",
+           "properties": LODGING_SCHEMA['properties'],
+           "dependencies": LODGING_SCHEMA['dependencies'],
+        }
 
-        self.assertEqual(ui_schema, {
-            'ui:order': [
-                'lodging_1',
-                *LODGING_SCHEMA['ui:order'],
-            ],
-            **LODGING_SCHEMA['ui'],
-        })
+        self.assertEqual(schema, should_be)
+
+        self.assertEqual(ui_schema['ui:order'], LODGING_SCHEMA['ui:order'])
+        self.assertEqual(
+            len(ui_schema['lodging_requested']['lodging_nodes']),
+            4)
 
     def test_lodging_with_node_with_children_and_grandchildren(self):
         root = self.event.lodging_set.create(
@@ -141,7 +119,7 @@ class TestGetLodgingSchema(TestCase):
 
         # camp1 grandchildren (visible)
 
-        tents_camp1 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Tents in Camp 1',
             parent=camp1,
             capacity=30,
@@ -149,7 +127,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        cabins_camp1 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='Cabins in Camp 1',
             parent=camp1,
             capacity=30,
@@ -157,7 +135,7 @@ class TestGetLodgingSchema(TestCase):
             notes=''
         )
 
-        rvs_camp1 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='RVs in Camp 1',
             parent=camp1,
             capacity=30,
@@ -199,65 +177,19 @@ class TestGetLodgingSchema(TestCase):
         self.assertEqual(len(connection.queries), 1)
         settings.DEBUG = old_debug
 
-        self.assertEqual(schema, {
-            'title': 'Test Lodging',
-            'type': 'object',
-            'properties': {
-                'lodging_1': {
-                    'title': 'Please select a Camp',
-                    'enum': [
-                        camp1.id,
-                        camp2.id
-                    ],
-                    'enumNames': [
-                        'Camp 1',
-                        'Camp 2',
-                    ],
-                },
-                **LODGING_SCHEMA['properties'],
-            },
-            'required': ['lodging_1'],
-            'dependencies': {
-                'lodging_1': {
-                    'oneOf': [
-                        {
-                            'properties': {
-                                'lodging_1': {
-                                    'enum': [
-                                        camp1.id
-                                    ],
-                                },
-                                'lodging_2': {
-                                    'title': 'Please select a Lodging Type',
-                                    'enum': [
-                                        tents_camp1.id,
-                                        cabins_camp1.id,
-                                        rvs_camp1.id,
-                                    ],
-                                    'enumNames': [
-                                        'Tents in Camp 1',
-                                        'Cabins in Camp 1',
-                                        'RVs in Camp 1',
-                                    ],
-                                },
-                            },
-                            'required': ['lodging_2'],
-                            'dependencies': {},
-                        },
-                    ],
-                },
-                **LODGING_SCHEMA['dependencies'],
-            }
-        })
+        should_be = {
+           "type": "object",
+           "title": "Lodging",
+           "properties": LODGING_SCHEMA['properties'],
+           "dependencies": LODGING_SCHEMA['dependencies'],
+        }
 
-        self.assertEqual(ui_schema, {
-            'ui:order': [
-                'lodging_1',
-                'lodging_2',
-                *LODGING_SCHEMA['ui:order'],
-            ],
-            **LODGING_SCHEMA['ui'],
-        })
+        self.assertEqual(schema, should_be)
+
+        self.assertEqual(ui_schema['ui:order'], LODGING_SCHEMA['ui:order'])
+        self.assertEqual(
+            len(ui_schema['lodging_requested']['lodging_nodes']),
+            6)
 
     def test_full_lodging_options(self):
         root = self.event.lodging_set.create(
@@ -268,12 +200,12 @@ class TestGetLodgingSchema(TestCase):
         camp2 = self.event.lodging_set.create(
             name='camp2', visible=True, parent=root)
 
-        tents_camp1 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='tents_camp1', visible=True, parent=camp1, capacity=2)
         cabins_camp1 = self.event.lodging_set.create(
             name='cabins_camp1', visible=True, parent=camp1, capacity=2)
 
-        tents_camp2 = self.event.lodging_set.create(
+        self.event.lodging_set.create(
             name='tents_camp2', visible=True, parent=camp2, capacity=2)
         cabins_camp2 = self.event.lodging_set.create(
             name='cabins_camp2', visible=True, parent=camp2, capacity=2)
@@ -291,55 +223,14 @@ class TestGetLodgingSchema(TestCase):
 
         (schema, ui_schema) = get_lodging_schema(self.event)
 
-        # test just the part that's different when options are full
+        self.assertEqual(ui_schema['lodging_requested']['ui:field'], 'LodgingRequested')
         self.assertEqual(
-            schema['dependencies']['lodging_1']['oneOf'],
-            [
-                {
-                    'properties': {
-                        'lodging_1': {
-                            'enum': [camp1.id]
-                        },
-                        'lodging_2': {
-                            'title': '',
-                            'enum': [tents_camp1.id, cabins_camp1.id],
-                            'enumNames': [
-                                'tents_camp1',
-                                'cabins_camp1 (full)'
-                            ]
-                        }
-                    },
-                    'required': ['lodging_2'],
-                    'dependencies': {}
-                },
-                {
-                    'properties': {
-                        'lodging_1': {
-                            'enum': [camp2.id]
-                        },
-                        'lodging_2': {
-                            'title': '',
-                            'enum': [tents_camp2.id, cabins_camp2.id],
-                            'enumNames': [
-                                'tents_camp2',
-                                'cabins_camp2 (full)'
-                            ]
-                        }
-                    },
-                    'required': ['lodging_2'],
-                    'dependencies': {}
-                },
-            ]
-        )
-
-        self.assertEqual(ui_schema, {
-            'ui:order': [
-                'lodging_1',
-                'lodging_2',
-                *LODGING_SCHEMA['ui:order'],
-            ],
-            'lodging_2': {
-                'ui:enumDisabled': [cabins_camp1.id, cabins_camp2.id],
-            },
-            **LODGING_SCHEMA['ui'],
-        })
+            len(ui_schema['lodging_requested']['lodging_nodes']),
+            6)
+        # check that required attributes exist in lodging nodes
+        for n in ui_schema['lodging_requested']['lodging_nodes']:
+            self.assertIn('id', n)
+            self.assertIn('name', n)
+            self.assertIn('remaining_unreserved_capacity', n)
+            self.assertIn('children_title', n)
+            self.assertIn('parent', n)

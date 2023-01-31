@@ -512,38 +512,16 @@ class RegisterView(APIView):
     def deserialize_camper(cls, registration, camper_data):
         '''
         Transform a dict from the `campers` list in the form data into a Camper
-        model instance. The trickiest thing this does is to determine the
-        lodging_id. `camper_data` looks something like this:
-
-            {
-                # camper attributes corresponding to event.camper_schema, e.g.
-                'name': 'John',
-                'age': 12,
-
-                # lodging selection, not part of event.camper_schema
-                'lodging': {
-                    'lodging_1': 17,
-                    'lodging_2': 20,
-                    'lodging_3': 25
-                    'lodging_shared': True,
-                    'lodging_shared_with': 'my buddy',
-                    'lodging_comments': 'my buddy and me',
-                }
-            }
-
-        Each item in the `lodging` dict whose key has a numeric suffix is a
-        selection along the lodging tree. The one with the highest number is the
-        final selection.
+        model instance. The biggest thing this does is to transform the lodging
+        data into a form that can be saved into the model.
         '''
 
         lodging_data = {}
+        lodging_id = None
         if 'lodging' in camper_data:
             lodging_data = camper_data['lodging']
+            lodging_id = lodging_data['lodging_requested']['id']
             del camper_data['lodging']
-
-        matches = [re.match(r'^lodging_([0-9]+)$', key) for key in lodging_data.keys()]
-        depths = [int(match.group(1)) for match in matches if match]
-        lodging_id = lodging_data[f'lodging_{max(depths)}'] if len(depths) else None
 
         return models.Camper(
             registration=registration,

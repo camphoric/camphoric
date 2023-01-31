@@ -37,11 +37,6 @@ export default {
       'oneOf': [
         {
           'properties': {
-            'session': { enum: [''] },
-          }
-        },
-        {
-          'properties': {
             'session': { enum: [sessionTypes.F] },
             'meals': meals('F', 'D'),
           }

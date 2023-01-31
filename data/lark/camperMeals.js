@@ -12,7 +12,7 @@ const dependencies = {
       {
         'properties': {
           'meal_plan': {
-            'enum': ['', 'None']
+            'enum': ['None']
           }
         }
       },
@@ -31,6 +31,21 @@ const dependencies = {
     ]
   }
 };
+
+const allOf = [
+  {
+    if: { properties: { meal_plan: { enum: Object.values(mealsLookup) } } },
+    then: {
+      properties: {
+        meal_type: {
+          type: 'string',
+          title: 'What types of meals do you want?',
+          enum: mealTypes,
+        }
+      }
+    }
+  }
+];
 
 const createMeals = (...options) => ({
   'type': 'object',
@@ -54,10 +69,10 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
         'None',
         ...options.map(o => mealsLookup[o])
       ],
-      'default': ''
+      'default': 'None'
     }
   },
-  'dependencies': dependencies,
+  dependencies,
 });
 
 export default createMeals;
