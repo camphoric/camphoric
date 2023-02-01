@@ -18,6 +18,7 @@ import ArrayTemplate from './templates/Array';
 import DescriptionField from './fields/Description';
 import CampersField from './fields/Campers';
 import AddressField from './fields/Address';
+import LodgingRequestedField from './fields/LodgingRequested';
 
 import NaturalNumberInput from './widgets/NaturalNumberInput';
 import PhoneInput from './widgets/PhoneInput';
@@ -48,6 +49,7 @@ Bootstrap4Theme.fields = {
   // The typedefs of rjsf are still being refined
   // @ts-expect-error
   Address: AddressField,
+  LodgingRequested: LodgingRequestedField,
 };
 
 const Form = withTheme(Bootstrap4Theme);

@@ -38,6 +38,7 @@ See also:
 from collections import defaultdict
 
 from django.db.models import Count, Sum, Q
+from django.forms.models import model_to_dict
 
 # These properties are imported and used by tests, so should be considered
 # canonical across all code.
@@ -86,11 +87,28 @@ LODGING_SCHEMA = {
     'properties': {
         'lodging_shared': LODGING_SHARED_PROPERTY,
         'lodging_comments': LODGING_COMMENTS_PROPERTY,
+        'lodging_requested': {
+            'type': 'object',
+            'title': 'Lodging',
+            'required': ['id', 'choices'],
+            'properties': {
+                'id': {'type': 'number'},
+                'name': {'type': 'string'},
+                'choices': {
+                    'type': 'array',
+                    'minItems': 1,
+                    'items': {
+                        'type': 'number',
+                    },
+                },
+            },
+        },
     },
     'dependencies': {
         'lodging_shared': LODGING_SHARED_DEPENDENCY,
     },
     'ui:order': [
+        'lodging_requested',
         'lodging_shared',
         'lodging_shared_with',
         'lodging_comments',
@@ -113,24 +131,36 @@ def get_lodging_schema(event, show_all=False):
     looks something like
 
         {
-            "lodging_1": 12,
-            "lodging_2": 14,
-            "lodging_3": 17
+            'lodging': {
+              'lodging_requested': {
+                'choices': [ 55, 56, 57 ],
+                'id': 57, # Final choice
+                'name': 'My Cabin',
+              },
+              # Other properties
+            },
         }
-
-    where the numbers in the keys represent depth in the tree and the values are
-    lodging IDs. When processing the form, the only relevant property is the one
-    with the greatest depth - the others are just a byproduct of the navigation.
-
-    The UI schema is mainly for disabling options that are full.
-    See https://react-jsonschema-form.readthedocs.io/en/latest/api-reference/uiSchema/#enumdisabled
     '''
     tree = LodgingTree(event, show_all).build()
 
+    if tree.root is None:
+        return (None, None)
+
     return (
-        get_lodging_json_schema(tree),
+        get_simple_lodging_json_schema(tree),
         get_lodging_ui_schema(tree)
     )
+
+
+def get_simple_lodging_json_schema(tree):
+    return {
+        'type': 'object',
+        'title': 'Lodging',
+        'properties': {
+            **LODGING_SCHEMA['properties'],
+        },
+        'dependencies': LODGING_SCHEMA['dependencies'],
+    }
 
 
 def get_lodging_json_schema(tree):
@@ -226,11 +256,15 @@ def get_lodging_ui_schema(tree):
     traverse(tree.root, 0)
 
     ui_schema['ui:order'] = [
-        *(f'lodging_{depth}' for depth in range(1, max_depth + 1)),
+        # *(f'lodging_{depth}' for depth in range(1, max_depth + 1)),
         *LODGING_SCHEMA['ui:order'],
     ]
 
     ui_schema['lodging_comments'] = LODGING_COMMENTS_UI
+    ui_schema['lodging_requested'] = {
+        'ui:field': 'LodgingRequested',
+        'lodging_nodes': tree.registration_nodes,
+    }
 
     return ui_schema
 
@@ -240,6 +274,7 @@ class LodgingTree:
         self.event = event
         self.show_all = show_all
         self.root = None
+        self.registration_nodes = []
 
     def build(self):
         root_lodging = None
@@ -282,13 +317,23 @@ class LodgingTree:
             for child_lodging in children_lookup[lodging.id]
         ]
 
-        return LodgingTreeNode(
+        new_node = LodgingTreeNode(
             lodging,
             children,
             show_all=self.show_all
         )
 
+        if new_node.visible:
+            self.registration_nodes.append(
+                new_node.to_registration_data()
+            )
+
+        return new_node
+
     def get(self, lodging_id):
+        return self._get(lodging_id, self.root)
+
+    def get_node(self, lodging_id):
         return self._get(lodging_id, self.root)
 
     def _get(self, lodging_id, current):
@@ -333,6 +378,14 @@ class LodgingTreeNode:
             self.remaining_unreserved_capacity = max(0, (
                 (self.capacity - self.reserved)
                 - (self.camper_count_adjusted - self.camper_reserved_count_adjusted)))
+
+    def to_registration_data(self):
+        return {
+            **model_to_dict(self.lodging),
+            'capacity': self.capacity,
+            'camper_count_adjusted': self.camper_count_adjusted,
+            'remaining_unreserved_capacity': self.remaining_unreserved_capacity,
+        }
 
     @property
     def visible_children(self):

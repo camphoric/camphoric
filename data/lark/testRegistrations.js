@@ -94,9 +94,11 @@ function makeRegistration(reg, lodgingMap) {
         'session': 'Full camp',
         'address_different_than_payer': false,
         'lodging': {
-          'lodging_1': lodgingMap[c[4]].id,
-          'lodging_2': lodgingMap[c[5]].id,
-          'lodging_3': lodgingMap[c[6]].id,
+          'lodging_requested': {
+            'choices': [ lodgingMap[c[4]].id, lodgingMap[c[5]].id, lodgingMap[c[6]].id ],
+            'id': lodgingMap[c[6]].id,
+            'name': 'Something',
+          },
           ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8].id } : {})
         },
         'first_name': c[2],

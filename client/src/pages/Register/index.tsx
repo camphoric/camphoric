@@ -68,8 +68,15 @@ export type RegistrationState =
   | SubmittedState
   | SubmissionErrorState;
 
-const localStorageKey = 'formData';
-const saveFormDataToLocalStorage = debounce((formData) => {
+const getLocalStorageKey = (config: ApiRegister) => {
+  const name = config.dataSchema.title || 'formData';
+  const date = config.event.start;
+
+  return `${name}, ${date.year}-${date.month}-${date.day}`;
+}
+
+const saveFormDataToLocalStorage = debounce((formData, config) => {
+  const localStorageKey = getLocalStorageKey(config);
   debug('saving form data');
   try {
     localStorage.setItem(localStorageKey, JSON.stringify(formData));
@@ -153,6 +160,7 @@ class App extends React.Component<Props, RegistrationState> {
         confirmationProps,
       });
 
+      const localStorageKey = getLocalStorageKey(this.state.config);
       localStorage.removeItem(localStorageKey)
     } catch {
       this.setState({ status: "submissionError" });
@@ -191,9 +199,10 @@ class App extends React.Component<Props, RegistrationState> {
     });
   };
 
-  getSavedFormData = () => {
+  getSavedFormData = (config: ApiRegister) => {
     // check if form data has been saved in local storage
     let formData = { campers: [{}] };
+    const localStorageKey = getLocalStorageKey(config);
 
     try {
       const saved = localStorage.getItem(localStorageKey);
@@ -226,7 +235,7 @@ class App extends React.Component<Props, RegistrationState> {
       return;
     }
 
-    const formData = this.getSavedFormData();
+    const formData = this.getSavedFormData(config);
 
     this.setState({
       status: "loaded",
@@ -252,7 +261,7 @@ class App extends React.Component<Props, RegistrationState> {
     debug('onChange', data);
 
     this.setState(data);
-    saveFormDataToLocalStorage(data.formData);
+    saveFormDataToLocalStorage(data.formData, this.state.config);
   };
 
   onJsonSchemaFormError = (errors: Array<any>) => {

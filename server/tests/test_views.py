@@ -206,13 +206,13 @@ class RegisterGetTests(APITestCase):
             children_title='Please choose a lodging option',
             visible=True,
         )
-        cabin = event.lodging_set.create(
+        event.lodging_set.create(
             name='Cabin',
             parent=lodging_root,
             visible=True,
             capacity=100,
         )
-        tent = event.lodging_set.create(
+        event.lodging_set.create(
             name='Tent',
             parent=lodging_root,
             visible=True,
@@ -232,15 +232,7 @@ class RegisterGetTests(APITestCase):
                         'lodging': {
                             'type': 'object',
                             'title': 'Lodging',
-                            'properties': {
-                                'lodging_1': {
-                                    'title': 'Please choose a lodging option',
-                                    'enum': [cabin.id, tent.id],
-                                    'enumNames': ['Cabin', 'Tent'],
-                                },
-                                **LODGING_SCHEMA['properties'],
-                            },
-                            'required': ['lodging_1'],
+                            'properties': LODGING_SCHEMA['properties'],
                             'dependencies': LODGING_SCHEMA['dependencies'],
                         },
                     },
@@ -291,7 +283,7 @@ class RegisterGetTests(APITestCase):
             name='root')
         camp1 = event.lodging_set.create(
             name='camp1', visible=True, parent=root, capacity=1)
-        event.lodging_set.create(
+        camp2 = event.lodging_set.create(
             name='camp2', visible=True, parent=root, capacity=1)
         registration = event.registration_set.create(
             event=event,
@@ -299,30 +291,48 @@ class RegisterGetTests(APITestCase):
             registrant_email='registrant@example.com',
         )
         registration.campers.create(lodging=camp1)
-
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['uiSchema'], {
-            'ui:title': 'Test UI Schema',
-            'ui:description': 'Test Description',
-            'campers': {
-                'ui:description': 'stuff about campers',
-                'items': {
-                    'ui:description': 'stuff about a camper',
-                    'lodging': {
-                        'ui:description': 'stuff about lodging',
-                        'ui:order': [
-                            'lodging_1',
-                            *LODGING_SCHEMA['ui:order'],
-                        ],
-                        'lodging_1': {
-                            'ui:enumDisabled': [camp1.id],
-                        },
-                        **LODGING_SCHEMA['ui'],
-                    },
-                },
-            },
-        })
+
+        self.assertEqual(response.data['uiSchema']['ui:title'], 'Test UI Schema')
+        self.assertEqual(response.data['uiSchema']['ui:description'], 'Test Description')
+
+        campers_ui = response.data['uiSchema']['campers']
+
+        self.assertEqual(campers_ui['ui:description'], 'stuff about campers')
+        self.assertEqual(
+            campers_ui['items']['lodging']['lodging_requested']['lodging_nodes'],
+            [
+                {
+                    'camper_count_adjusted': 1.0,
+                    'capacity': 1,
+                    'children_title': '',
+                    'deleted_at': None,
+                    'event': event.id,
+                    'id': camp1.id,
+                    'name': 'camp1',
+                    'notes': '',
+                    'parent': 87,
+                    'remaining_unreserved_capacity': 0,
+                    'reserved': 0,
+                    'sharing_multiplier': 1.0,
+                    'visible': True},
+                {
+                    'camper_count_adjusted': 0,
+                    'capacity': 1,
+                    'children_title': '',
+                    'deleted_at': None,
+                    'event': event.id,
+                    'id': camp2.id,
+                    'name': 'camp2',
+                    'notes': '',
+                    'parent': 87,
+                    'remaining_unreserved_capacity': 1,
+                    'reserved': 0,
+                    'sharing_multiplier': 1.0,
+                    'visible': True}
+            ]
+        )
 
     def test_pricing_fields(self):
         event = models.Event.objects.create(
@@ -750,15 +760,19 @@ Total due: $300
                 {
                     **self.valid_form_data['campers'][0],
                     'lodging': {
-                        'lodging_1': cabin.id,
-                        'lodging_2': cabins[0].id,
+                        'lodging_requested': {
+                            'choices': [cabin.id, cabins[0].id],
+                            'id': cabins[0].id,
+                        },
                     },
                 },
                 {
                     **self.valid_form_data['campers'][1],
                     'lodging': {
-                        'lodging_1': tent.id,
-                        'lodging_2': tent_areas[1].id,
+                        'lodging_requested': {
+                            'choices': [tent.id, tent_areas[1].id],
+                            'id': tent_areas[1].id,
+                        },
                         'lodging_shared': True,
                         'lodging_shared_with': 'my buddy',
                         'lodging_comments': 'my buddy and me',
