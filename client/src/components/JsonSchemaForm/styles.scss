@@ -8,6 +8,8 @@
   height: 3em;
 }
 
+// TODO: move most of this over to pages/Register/styles.scss
+
 .registration-form form.rjsf {
   background-color: white;
   box-shadow: 0 0 5px black;
@@ -135,7 +137,7 @@
       border-radius: 100%;
       position: relative;
       left: 97%;
-      top: -1rem;
+      top: -3rem;
     }
   }
 

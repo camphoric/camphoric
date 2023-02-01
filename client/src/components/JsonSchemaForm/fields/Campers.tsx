@@ -2,19 +2,23 @@ import React from 'react';
 import { FieldProps, UiSchema, ArrayFieldTemplateProps } from '@rjsf/core';
 import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
+import { ordinal } from 'utils/display';
 import DescriptionField from './Description';
 
 function CampersField(props: ArrayFieldTemplateProps<any>) {
   return (
     <div>
       {
-        props.items && props.items.map((camperProps: any) => (
+        props.items && props.items.map((camperProps: any, i: number) => (
           <div className="camphoric-camper" key={camperProps.index}>
-            <Button
-              variant="danger"
-              className="camphoric-camper-remove"
-              onClick={camperProps.onDropIndexClick(camperProps.index)}
-            >X</Button>
+            <div className="d-flex flex-row justify-content-between align-items-end">
+              <h5>{ordinal(i+1)} Camper</h5>
+              <Button
+                variant="danger"
+                onClick={camperProps.onDropIndexClick(camperProps.index)}
+              >Remove {ordinal(i+1)} Camper</Button>
+            </div>
+            <hr />
             {camperProps.children}
           </div>
         ))
@@ -25,7 +29,7 @@ function CampersField(props: ArrayFieldTemplateProps<any>) {
             className="array-item-add"
             onClick={props.onAddClick}
             disabled={props.disabled || props.readonly}
-          >Add Camper</Button>
+          >Add {ordinal(props.items.length + 1)} Camper</Button>
         )
       }
     </div>

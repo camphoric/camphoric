@@ -48,3 +48,28 @@ export function lodgingPathDisplay(
   return lodgingPathDisplay(lodgingLookup, node.parent, [ node.name, ...parts ]);
 };
 
+const ordinalsLessThan10 = [
+  'Zeroth',
+  'First',
+  'Second',
+  'Third',
+  'Fourth',
+  'Fifth',
+  'Sixth',
+  'Seventh',
+  'Eighth',
+  'Ninth',
+];
+
+export function ordinal(i: number) {
+  if (i < 10 && i > 0) return ordinalsLessThan10[i];
+
+  const j = i % 10;
+  const k = i % 100;
+
+  if (j === 1 && k !== 11) return `${i}st`;
+  if (j === 2 && k !== 12) return `${i}nd`;
+  if (j === 3 && k !== 13) return `${i}rd`;
+
+  return `${i}th`;
+}
