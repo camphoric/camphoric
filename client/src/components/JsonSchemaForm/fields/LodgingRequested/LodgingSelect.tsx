@@ -8,7 +8,8 @@ import type {
 type Props = {
   node: LodgingNode,
   nodes: LodgingArray,
-  onValueChange: (a: number, i: number) => void,
+  choices: Array<number>,
+  onValueChange: (a: number | undefined, i: number) => void,
   value: number | undefined,
   fieldProps: FieldProps,
   index: number,
@@ -42,16 +43,24 @@ function LodgingSelect(props: Props) {
 
   const baseId = props.fieldProps.idSchema.choices.$id;
 
+  let hasError: Array<string> = [];
+  if (
+    Object.values(props.fieldProps.errorSchema).length &&
+    props.index === props.choices?.length
+  ) {
+    hasError = ['error'];
+  }
+
   return (
     <SelectWidget
       {...props.fieldProps}
-      placeholder={props.node.children_title || ''}
+      placeholder={`${props.node.children_title || 'Please make a selection'}*`}
       id={`${baseId}_${props.node.id}`}
       label={' '}
       value={props.value}
-      onChange={(v) => props.onValueChange(Number(v), props.index)}
+      onChange={(v) => props.onValueChange(Number(v) || undefined, props.index)}
       options={options}
-      rawErrors={[]}
+      rawErrors={hasError}
       multiple={false}
     />
   );

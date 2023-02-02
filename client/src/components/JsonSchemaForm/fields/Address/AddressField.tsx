@@ -1,6 +1,8 @@
 import React from 'react';
 import Form from 'react-bootstrap/Form';
+import { getAllStrings } from 'utils/display';
 import { Keys, FormData, Props } from './index';
+import AddressFieldErrors from './AddressFieldErrors';
 
 interface AddressProps extends Props {
   name: Keys;
@@ -10,8 +12,9 @@ interface AddressProps extends Props {
   onChangeWholeAddress: (address: FormData) => void;
 }
 
-function AddressField (props: AddressProps) {
+function AddressField(props: AddressProps) {
   const rawErrors = props.rawErrors || [];
+  const errors = getAllStrings(props.errorSchema[props.name]);
   const classes = [
     props.name,
     (rawErrors.length ? 'is-invalid' : ''),
@@ -36,8 +39,8 @@ function AddressField (props: AddressProps) {
 
   return (
     <Form.Group className={`${props.name} mb-0`}>
-      <Form.Label className={rawErrors.length > 0 ? 'text-danger' : ''}>
-        {label}{label && props.required ? "*" : null}
+      <Form.Label className={errors.length > 0 ? 'text-danger' : ''}>
+        {label}{label && required ? "*" : null}
       </Form.Label>
       <InputControl
         id={`${props.idBase}__${props.name}`}
@@ -48,6 +51,7 @@ function AddressField (props: AddressProps) {
         onChange={props.onChange}
         {...otherProps}
       />
+      <AddressFieldErrors errors={errors} />
     </Form.Group>
   );
 }
