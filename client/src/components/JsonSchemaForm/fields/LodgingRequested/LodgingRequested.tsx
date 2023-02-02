@@ -1,6 +1,7 @@
 import React from 'react';
 import { FieldProps } from '@rjsf/core';
 
+import LodgingRequestedErrors from './LodgingRequestedErrors';
 import LodgingSelect from './LodgingSelect';
 
 export type LodgingNode = {
@@ -33,16 +34,16 @@ function LodgingRequestedField(props: FieldProps) {
   const root = nodes.find((n) => !n.parent) as RootLodgingNode;
   const choices = props.formData.choices?.filter(Boolean) || [] as Array<number>;
 
-  console.log('LodgingRequestedField props', props);
+  // console.log('LodgingRequestedField props', props);
 
-  const isLeaf = (id: number) => 
+  const isLeaf = (id: number | undefined) =>
     !nodes.find(n => n.parent === id);
 
-  const onValueChange = (value: number, index: number) => {
+  const onValueChange = (value: number | undefined, index: number) => {
     const newChoices = [
       ...choices.slice(0, index),
       value,
-    ];
+    ].filter(Boolean);
 
     const name = nodes.find(n => n.id === value)?.name;
 
@@ -51,8 +52,6 @@ function LodgingRequestedField(props: FieldProps) {
       name: isLeaf(value) ? name : undefined, 
       choices: newChoices,
     };
-
-    console.log('LodgingRequestedField onChange value', newFormData);
 
     props.onChange(newFormData);
   };
@@ -66,6 +65,7 @@ function LodgingRequestedField(props: FieldProps) {
         fieldProps={props}
         node={root}
         nodes={nodes}
+        choices={choices}
         value={choices[0]}
         onValueChange={onValueChange}
         index={0}
@@ -83,6 +83,7 @@ function LodgingRequestedField(props: FieldProps) {
                 fieldProps={props}
                 node={n}
                 nodes={nodes}
+                choices={choices}
                 value={choices[i + 1]}
                 onValueChange={onValueChange}
                 index={i + 1}
@@ -91,6 +92,7 @@ function LodgingRequestedField(props: FieldProps) {
           }
         )
       }
+      <LodgingRequestedErrors {...props} />
     </div>
   );
 }

@@ -1,30 +1,33 @@
 import React from 'react';
 
+import { type ErrorTransformer } from '@rjsf/utils';
+
 import JsonSchemaForm from 'components/JsonSchemaForm';
 import Template from 'components/Template';
 
 import type { RegisterStepProps } from './component';
 import RegistrationClosed from './RegistrationClosed';
+import transformErrorsCreator from './transformErrors';
 
 function RegistrationStep(props: RegisterStepProps) {
+  const [liveValidate, setLiveValidate] = React.useState(false);
+
   if (props.step !== 'registration') return null;
 
   if (!props.config.event.is_open && !props.config.invitation) {
     return <RegistrationClosed {...props} />;
   }
 
-  const transformErrors = (errors: Array<any>) =>
-    errors.map(error => {
-      if (error.name === "pattern" && error.property === ".payer_number") {
-        return {
-          ...error,
-          message: "Please enter a valid phone number"
-        };
-      }
+  const transformErrors = transformErrorsCreator(props.config.dataSchema) as ErrorTransformer;
 
-      return error;
-    });
+  // @ts-ignore
+  const onJsonSchemaFormError = (...args) => {
+    setLiveValidate(true);
 
+    // @ts-ignore
+    return props.onJsonSchemaFormError(...args);
+  }
+  
 
   return (
     <React.Fragment>
@@ -33,8 +36,10 @@ function RegistrationStep(props: RegisterStepProps) {
         uiSchema={props.config.uiSchema}
         onChange={props.onChange}
         onSubmit={props.submitRegistration}
-        onError={props.onJsonSchemaFormError}
+        onError={onJsonSchemaFormError}
         formData={props.formData}
+        /*
+        // @ts-ignore */
         transformErrors={transformErrors}
 
         templateData={{
@@ -42,7 +47,8 @@ function RegistrationStep(props: RegisterStepProps) {
           formData: props.formData,
           totals: props.totals,
         }}
-        // liveValidate={true}
+        noHtml5Validate
+        liveValidate={liveValidate}
       >
         <div>
           <Template markdown={props.config.preSubmitTemplate} />

@@ -73,3 +73,18 @@ export function ordinal(i: number) {
 
   return `${i}th`;
 }
+
+export function getAllStrings(arg: any): Array<string> {
+  if (typeof arg === 'string') {
+    return [arg];
+  }
+
+  // handle wrong types and null
+  if (typeof arg !== 'object' || !arg) {
+    return [];
+  }
+
+  return Object.keys(arg).reduce((acc: Array<string>, key: string) => {
+    return [...acc, ...getAllStrings(arg[key])];
+  }, []);
+};

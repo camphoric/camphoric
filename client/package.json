@@ -8,6 +8,7 @@
     "@reduxjs/toolkit": "^1.8.0",
     "@rjsf/bootstrap-4": "^4.2.3",
     "@rjsf/core": "^4.2.3",
+    "@rjsf/utils": "^5.0.1",
     "@types/googlemaps": "^3.43.3",
     "@types/jest": "^27.0.1",
     "@types/json-logic-js": "^1.2.1",

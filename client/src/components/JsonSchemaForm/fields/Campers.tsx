@@ -25,11 +25,14 @@ function CampersField(props: ArrayFieldTemplateProps<any>) {
       }
       {
         props.canAdd && (
-          <Button
-            className="array-item-add"
-            onClick={props.onAddClick}
-            disabled={props.disabled || props.readonly}
-          >Add {ordinal(props.items.length + 1)} Camper</Button>
+          <>
+            <hr />
+            <Button
+              className="array-item-add"
+              onClick={props.onAddClick}
+              disabled={props.disabled || props.readonly}
+            >Add A {ordinal(props.items.length + 1)} Camper</Button>
+          </>
         )
       }
     </div>

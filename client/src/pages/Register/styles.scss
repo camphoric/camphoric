@@ -68,12 +68,19 @@
     }
   }
 
-  #root_campers .items > .row {
+
+  .camphoric-campers {
+    #root_campers .items > .row {
       padding: 0.3rem;
       border-radius: 0.3rem;
       margin: 0;
       background-color: lightgray;
 
+    }
+
+    button.array-item-add.btn.btn-primary {
+      margin-bottom: 2rem;
+    }
   }
 
   .App>section, &>section {
