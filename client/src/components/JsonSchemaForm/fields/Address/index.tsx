@@ -35,6 +35,13 @@ const Address = (props: Props) => {
   const { SelectWidget } = props.registry.widgets;
   const title = getSchemaValue(props, 'title');
 
+  const onChangeCountry = (e: React.ChangeEvent<HTMLInputElement>) => {
+    props.onChange({
+      ...props.formData,
+      country: e || 'United States',
+    });
+  }
+
   const makeOnChange = (name: string) => ({
     target: { value },
   }: React.ChangeEvent<HTMLInputElement>) =>
@@ -89,7 +96,7 @@ const Address = (props: Props) => {
               label="Country"
               required
               value={props.formData.country}
-              onChange={makeOnChange("country")}
+              onChange={onChangeCountry}
               uiSchema={props.uiSchema.country}
               disabled={false}
               readonly={false}
