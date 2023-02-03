@@ -5,10 +5,7 @@ export default `
 
 ## See you at Lark Camp ${year}!
 
-If you're paying by PayPal or credit card, we'll be sending you a confirmation
-with payment instructions within the next week. If you're paying by check,
-please make it for
-**\${{pricing_results.total}}**
+If you're paying by check, please make it for **\${{pricing_results.total}}**
 payable to "Lark Camp", and mail it to:
 
 Lark Camp  
