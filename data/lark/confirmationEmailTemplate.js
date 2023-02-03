@@ -15,8 +15,15 @@ You have registered for:
 | {{first_name}} {{last_name}} | {{age}} | {{session}} | \${{pricing_result.tuition}} | \${{pricing_result.meals}} ({{meals.meal_plan}}) | \${{pricing_result.total}} |
 {{/campers}}
 
-Donation to Lark Camp - None Yet
-Parking Pass Purchase - None Yet
+Donation to Lark Camp - \${{pricing_results.donation}}
+
+Parking Passes Purchased: \${{pricing_results.parking}}
+{{#registration.parking_passes}}
+- {{holder}}
+{{/registration.parking_passes}}
+{{^registration.parking_passes}}
+None
+{{/registration.parking_passes}}
 
 TOTAL DUE: \${{pricing_results.total}}
 
