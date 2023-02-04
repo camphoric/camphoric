@@ -10,6 +10,7 @@ describe('calculatePrice', () => {
       dataSchema: {},
       uiSchema: {},
       event: {},
+      templateVars: {},
       pricingLogic: {
         camper: [],
         registration: [],
@@ -103,6 +104,7 @@ describe('calculatePrice', () => {
 
     const config: ApiRegister = {
       dataSchema: {},
+      templateVars: {},
       uiSchema: {},
       event: {},
       pricingLogic: {
@@ -170,6 +172,7 @@ describe('calculatePrice', () => {
       },
     ];
     const config: ApiRegister = {
+      templateVars: {},
       dataSchema: {
         type: 'object',
         properties: {
@@ -235,6 +238,7 @@ describe('calculatePrice', () => {
     ];
 
     let config: ApiRegister = {
+      templateVars: {},
       dataSchema: {
         type: 'object',
         properties: {

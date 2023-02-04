@@ -251,6 +251,7 @@ class RegisterView(APIView):
             'event': pricing.get_event_attributes(event),
             'pricing': event.pricing or {},
             'preSubmitTemplate': event.pre_submit_template or '',
+            'templateVars': event.registration_template_vars or {},
             'pricingLogic': {
                 'camper': event.camper_pricing_logic or {},
                 'registration': event.registration_pricing_logic or {},

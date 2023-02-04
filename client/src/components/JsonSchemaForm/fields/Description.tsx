@@ -11,6 +11,8 @@ function DescriptionField(props: Props) {
   const templateVars =  React.useContext(JsonSchemaFormTemplateContext);
   let description = props.description;
 
+  console.log(templateVars, description);
+
   if (!description || typeof description !== 'string') {
     description = '';
   }

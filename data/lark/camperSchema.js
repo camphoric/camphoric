@@ -97,9 +97,9 @@ export default {
     'session': {
       'type': 'string',
       'title': 'When will you attend?',
-      'description': `*Full camp* begins {full_camp_start_date_time}, and ends {full_camp_end_date_time}.  
-*First half camp* begins {first_half_camp_start_date_time}, and ends {first_half_camp_end_date_time}.  
-*Second half camp* begins {second_half_camp_start_date_time}, and ends {second_half_camp_end_date_time}.  
+      'description': `*Full camp* begins {{full_camp_start_date_time}}, and ends {{full_camp_end_date_time}}.  
+*First half camp* begins {{first_half_camp_start_date_time}}, and ends {{first_half_camp_end_date_time}}.  
+*Second half camp* begins {{second_half_camp_start_date_time}}, and ends {{second_half_camp_end_date_time}}.  
 
 | Pricing (age range) | adult (18+) | child (5-17) | toddler¹ (0-4) |
 | --- | --- | --- | --- |

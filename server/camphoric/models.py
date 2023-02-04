@@ -111,6 +111,9 @@ class Event(TimeStampedModel):
         help_text="The number of days that a camper stays by default")
     camper_schema = models.JSONField(default=dict, help_text="JSON schema for Camper.attributes")
     payment_schema = models.JSONField(default=dict, help_text="JSON schema for Payment.attributes")
+    registration_template_vars = models.JSONField(
+            default=dict,
+            help_text="variables to be used on the registration page descriptions")
     registration_schema = models.JSONField(
         default=dict,
         help_text="JSON schema for Registration.attributes")
