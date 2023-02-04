@@ -10,6 +10,7 @@ import registration_ui_schema from './registrationUISchema.js';
 import lodgings from './lodgings.js';
 import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
+import registration_template_vars from './regTemplateVars.js';
 import { dates, lengthInDays, year } from './dates.js';
 
 import {
@@ -31,6 +32,7 @@ const data = {
     default_stay_length: lengthInDays,
     camper_schema,
     // payment_schema,
+    registration_template_vars,
     registration_schema,
     registration_ui_schema,
     // registration_admin_schema,

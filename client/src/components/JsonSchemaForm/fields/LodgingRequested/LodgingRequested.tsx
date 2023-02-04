@@ -75,7 +75,7 @@ function LodgingRequestedField(props: FieldProps) {
         .map((nid: number) => nodes.find(n => n.id === nid))
         .map(
           (n: LodgingNode, i: number) => {
-            if (isLeaf(n.id)) return null;
+            if (isLeaf(n?.id)) return null;
 
             return (
               <LodgingSelect

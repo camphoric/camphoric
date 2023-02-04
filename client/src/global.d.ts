@@ -6,6 +6,8 @@ import {
 
 type JSONLogic = any;
 type Template = any;
+type Hash<T> = { [key: string]: T };
+
 
 // TODO: maybe get the backend team to auto-generate these types?
 
@@ -51,12 +53,11 @@ declare global {
     default_stay_length: number;
     camper_schema: JSONSchema7;
     payment_schema: JSONSchema7;
+    registration_template_vars: Hash<string>;
     registration_schema: JSONSchema7;
     registration_ui_schema: JSONSchema7;
     deposit_schema: JSONSchema7;
-    pricing: {
-      [id: string]: number;
-    };
+    pricing: Hash<number>;
     camper_pricing_logic: JSONLogic;
     registration_pricing_logic: JSONLogic;
     confirmation_page_template: Template;
@@ -151,12 +152,13 @@ declare global {
     dataSchema: JSONSchema7;
     uiSchema: JsonFormUiSchema;
     preSubmitTemplate: string;
-    event: { [key: string]: any };
+    templateVars: Hash<any>;
+    event: Hash<any>;
     pricingLogic: {
       camper: JsonLogicPricing;
       registration: JsonLogicPricing;
     };
-    pricing: { [key: string]: any };
+    pricing: Hash<any>;
     invitation?: {
       recipient_name: string;
       recipient_email: string;

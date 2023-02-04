@@ -43,6 +43,7 @@ function RegistrationStep(props: RegisterStepProps) {
         transformErrors={transformErrors}
 
         templateData={{
+          ...(props.config.templateVars || {}),
           pricing: props.config.pricing,
           formData: props.formData,
           totals: props.totals,

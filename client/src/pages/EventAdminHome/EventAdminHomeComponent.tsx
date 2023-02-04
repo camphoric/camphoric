@@ -83,6 +83,13 @@ function EventAdminHomeComponent(props: TabProps) {
         schemaType="integer"
         defaultValue={defaultFor('pricing')}
       />
+
+      <h2>Registration Form Template Values</h2>
+      <KeyValueEdit
+        onChange={props.handleChange('registration_template_vars')}
+        schemaType="string"
+        defaultValue={defaultFor('registration_template_vars')}
+      />
       
       <Button variant="primary" onClick={props.save} className="mt-5">Save</Button>
       <ShowRawJSON json={props.eventForm} />
