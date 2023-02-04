@@ -1,4 +1,4 @@
-FROM python:3.10-alpine
+FROM python:alpine
 
 ENV PYTHONUNBUFFERED 1
 
@@ -9,8 +9,9 @@ COPY Pipfile.lock .
 
 RUN apk add --no-cache --virtual build-deps gcc musl-dev postgresql-dev \
     openssl bash libffi-dev postgresql-client
+
 RUN pip install pipenv \
-    && pipenv install --system --dev --three \
+    && pipenv install --dev --system \
     && rm -f Pipfile \
     && rm -f Pipfile.lock
 
