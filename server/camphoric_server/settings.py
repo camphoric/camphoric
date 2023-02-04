@@ -189,5 +189,6 @@ DBBACKUP_STORAGE_OPTIONS = env.json(
 )
 
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000/', 'http://django:8000/']
+
 # Allow PayPal Popup
-SECURE_CROSS_ORIGIN_OPENER_POLICY='same-origin-allow-popups'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
