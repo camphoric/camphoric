@@ -91,6 +91,7 @@ export default {
     'ui:options':  {
       'addable': true,
       'removable': true,
+      'addButtonText': 'Add A Parking Pass',
     },
     items: {
       'ui:title': 'parking pass',

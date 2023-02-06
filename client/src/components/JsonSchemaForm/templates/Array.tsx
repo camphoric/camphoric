@@ -18,7 +18,13 @@ function ArrayItems (props: any) {
   return (
     <Row className={props.className}>
       <Col xs={11}>{props.children}</Col>
-      <Col xs={1} className="d-flex flex-column"><Button className="remove-array-item" onClick={props.onDropIndexClick(props.index)} variant="danger">X</Button></Col>
+      <Col xs={1} className="d-flex flex-column">
+        <Button
+          className="remove-array-item"
+          onClick={props.onDropIndexClick(props.index)}
+          variant="danger"
+        >{props.removeText}</Button>
+      </Col>
     </Row>
   );
 }
@@ -29,6 +35,8 @@ export default function ArrayFieldTemplate(props: any) {
   const title = getSchemaValue(props, 'title');
   const description = getSchemaValue(props, 'description');
   const itemTitle = getSchemaItemsValue(props, 'title');
+  const addText = getSchemaValue(props, 'addButtonText');
+  const removeText = getSchemaValue(props, 'removeButtonText') || 'X';
 
   return (
     <div id={props.idSchema.$id} className="jsonschema-array">
@@ -48,15 +56,13 @@ export default function ArrayFieldTemplate(props: any) {
       )}
       <div className={`${props.uiSchema.contentClassNames || ''} items`}>
         {
-          props.items.map((itemProps: any) => <ArrayItems {...itemProps} />)
+          props.items.map((itemProps: any) => <ArrayItems {...itemProps} removeText={removeText} />)
         }
 
       </div>
       {
         !!props.canAdd && (
-          <Button onClick={props.onAddClick}>
-            Add {itemTitle || 'item'}
-          </Button>
+          <Button onClick={props.onAddClick}>{ addText  || `Add ${itemTitle || 'item'}` }</Button>
         )
       }
     </div>
