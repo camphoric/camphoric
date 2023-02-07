@@ -56,14 +56,35 @@
     }
   }
 
-  fieldset.jsonschema-array .array-item {
-    // hide individual array item titles
-    & > div:first-child fieldset .my-1 {
-      display: none;
+  div.jsonschema-array .array-item {
+    margin-bottom: 0.5rem;
+    border-bottom: #ced4da dashed 1px;
+
+    &:last-child {
+      border-bottom: 0;
     }
 
-    .remove-array-item {
-      margin: auto;
+    &.row {
+      margin-right: 0;
+      margin-left: 0;
+
+      .array-item-content {
+        flex-grow: 1;
+      }
+
+      .array-item-remove-container button {
+        margin: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .jsonform-field.form-group {
+        margin-bottom: 0;
+      }
+
+      // hide individual array item titles
+      & > div:first-child fieldset .my-1 {
+        display: none;
+      }
     }
   }
 
