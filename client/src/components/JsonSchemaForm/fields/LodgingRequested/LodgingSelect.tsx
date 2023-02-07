@@ -33,7 +33,8 @@ function LodgingSelect(props: Props) {
           label,
           value: n.id,
         };
-      }),
+      })
+      .sort((a, b) => a.label.localeCompare(b.label)),
     // disable option if no remaining capacity
     enumDisabled: props.nodes
       .filter(n => (n.remaining_unreserved_capacity  <= 0))
