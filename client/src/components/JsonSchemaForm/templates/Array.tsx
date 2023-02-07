@@ -1,7 +1,6 @@
 import React from 'react';
 import Button from 'react-bootstrap/Button';
 
-import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 import CustomDescriptionField from '../fields/Description';
 import { getSchemaValue, getSchemaItemsValue } from '../utils';
@@ -17,14 +16,14 @@ import { getSchemaValue, getSchemaItemsValue } from '../utils';
 function ArrayItems (props: any) {
   return (
     <Row className={props.className}>
-      <Col xs={11}>{props.children}</Col>
-      <Col xs={1} className="d-flex flex-column">
+      <div className="array-item-content d-flex flex-column">{props.children}</div>
+      <div className="array-item-remove-container d-flex flex-column">
         <Button
           className="remove-array-item"
           onClick={props.onDropIndexClick(props.index)}
           variant="danger"
         >{props.removeText}</Button>
-      </Col>
+      </div>
     </Row>
   );
 }
@@ -54,7 +53,7 @@ export default function ArrayFieldTemplate(props: any) {
           description={description}
         />
       )}
-      <div className={`${props.uiSchema.contentClassNames || ''} items`}>
+      <div className={`${props.uiSchema.contentClassNames || ''} array-items-container`}>
         {
           props.items.map((itemProps: any) => <ArrayItems {...itemProps} removeText={removeText} />)
         }
