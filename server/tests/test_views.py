@@ -299,6 +299,7 @@ class RegisterGetTests(APITestCase):
 
         campers_ui = response.data['uiSchema']['campers']
 
+        self.maxDiff = None
         self.assertEqual(campers_ui['ui:description'], 'stuff about campers')
         self.assertEqual(
             campers_ui['items']['lodging']['lodging_requested']['lodging_nodes'],
@@ -312,7 +313,7 @@ class RegisterGetTests(APITestCase):
                     'id': camp1.id,
                     'name': 'camp1',
                     'notes': '',
-                    'parent': 87,
+                    'parent': root.id,
                     'remaining_unreserved_capacity': 0,
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
@@ -326,7 +327,7 @@ class RegisterGetTests(APITestCase):
                     'id': camp2.id,
                     'name': 'camp2',
                     'notes': '',
-                    'parent': 87,
+                    'parent': root.id,
                     'remaining_unreserved_capacity': 1,
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
