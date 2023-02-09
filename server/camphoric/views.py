@@ -381,6 +381,7 @@ class RegisterView(APIView):
                 **camper.attributes,
                 'pricing_result': server_pricing_results['campers'][camper_index],
                 'lodging': (camper.lodging.name if camper.lodging else 'none'),
+                'lodging_full': (camper.lodging.name_path if camper.lodging else 'none'),
             })
 
         confirmation_email_body_text = chevron.render(

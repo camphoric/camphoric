@@ -72,6 +72,10 @@ class TestLodgingTree(TestCase):
         self.assertEqual(tree.get(self.root.id).lodging, self.root)
         self.assertEqual(tree.get(self.cabins_camp2_B.id).lodging, self.cabins_camp2_B)
 
+    def test_name_path(self):
+        self.assertEqual(self.cabins_camp1_A.name_path, 'root, camp1, cabins_camp1, cabins_camp1_A')
+        self.assertEqual(self.root.name_path, 'root')
+
     def test_capacity(self):
         tree = LodgingTree(self.event).build()
 

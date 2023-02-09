@@ -276,6 +276,23 @@ class Lodging(TimeStampedModel):
         help_text="campers with lodging_shared=True subtract this quantity from capacity")
     notes = models.TextField(blank=True, default='')
 
+    def get_parents(self, parents = []):
+        parents = [self] if len(parents) == 0 else parents
+        last_item = parents[0]
+        parent = last_item.parent
+
+        if parent is None:
+            return parents
+
+        parents.insert(0, parent);
+
+        return self.get_parents(parents);
+
+    @property
+    def name_path(self):
+        return ', '.join(map(
+            lambda x: x.name,
+            self.get_parents()))
 
 class Camper(TimeStampedModel):
     '''

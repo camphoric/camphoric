@@ -25,7 +25,7 @@ choice.
 
 {{#campers}}
 {{first_name}} {{last_name}} - {{session}}    
-Camp # - Lodging Type    
+{{lodging_full}}    
 Tuition \${{pricing_result.tuition}} - {{meals.meal_plan}} \${{pricing_result.meals}}    
 
 {{/campers}}
