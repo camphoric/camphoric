@@ -18,6 +18,7 @@ export default {
     children_title: 'Select a camp',
     visible: true,
   },
+  reg_choice: { parentKey: 'root', name: 'Let registrar assign my lodging', visible: true, capacity: 100 },
 
   // Add camps
   camp1: { parentKey: 'root', name: 'Camp 1', children_title: 'Select a lodging type', visible: true },
