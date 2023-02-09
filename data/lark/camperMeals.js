@@ -12,11 +12,12 @@ const dependencies = {
       {
         'properties': {
           'meal_plan': {
-            'enum': ['None']
+            'enum': ['None', '']
           }
         }
       },
       {
+        'required': ['meal_type'],
         'properties': {
           'meal_plan': {
             'enum': Object.values(mealsLookup),
@@ -36,6 +37,7 @@ const allOf = [
   {
     if: { properties: { meal_plan: { enum: Object.values(mealsLookup) } } },
     then: {
+      required: ['meal_type'],
       properties: {
         meal_type: {
           type: 'string',
@@ -43,7 +45,10 @@ const allOf = [
           enum: mealTypes,
         }
       }
-    }
+    },
+    else: {
+
+    },
   }
 ];
 
@@ -61,6 +66,7 @@ NOTE: You may only cook if you’re camping in a vehicle with a built-in kitchen
 | Half camp, full meals   | \${{pricing.meals_adult_half}} adults    | \${{pricing.meals_teen_half}} kids |
 
 Meal plans offer significant savings. You may buy individual meals at camp instead of buying a meal plan. (But it costs more!)`,
+  'required': ['meal_plan'],
   'properties': {
     'meal_plan': {
       'type': 'string',
@@ -69,10 +75,10 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
         'None',
         ...options.map(o => mealsLookup[o])
       ],
-      'default': 'None'
     }
   },
   dependencies,
+  // allOf,
 });
 
 export default createMeals;

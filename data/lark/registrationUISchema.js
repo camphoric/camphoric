@@ -77,6 +77,11 @@ export default {
         '*',
       ],
       'camper_address': address,
+      'meals': {
+        'meal_plan': {
+          'ui:placeholder': 'Choose an option',
+        },
+      },
       'lodging': {
         'ui:description': lodgingDescription,
       },
