@@ -75,6 +75,7 @@ function PaymentStep(props: RegisterStepProps) {
     <div
       className="payment-form"
     >
+      <div>HI</div>
       {
         !!loading && (
           <div className="payment-disable-overlay">

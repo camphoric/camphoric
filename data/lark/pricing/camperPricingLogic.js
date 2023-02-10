@@ -38,48 +38,71 @@ const regularMealsPriceMatrix = [
   [ 4,  'pricing.meals_teen_full',  'pricing.meals_teen_dinners',  'pricing.meals_teen_half' ],
 ];
 
+const regType = {var: ['registration.registration_type']};
+const regTypeEquals = (type, price) => ([
+  {
+    and: [
+      { '===': [type, regType] },
+      // Only apply special pricing to the first one
+      { '===': [{var: ['camper.index']}, 0] },
+    ],
+  }, price,
+]);
+
 const regularPrice = {
   tuition: {
-    '*': [
-      {
-        'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
+    '+': [{
+      'if': [
+        ...regTypeEquals('crew-registration', 0),
+        ...regTypeEquals('crew-kitchen-full', 0),
+        ...regTypeEquals('crew-kitchen-partial', 398),
+        ...regTypeEquals('crew-setup', 0),
+        ...regTypeEquals('talent', 0),
+        // Standard pricing
+        ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
             ...acc,
-            { '===': [ageLookup[age], camperAge] }, {
+            {
+              and: [
+                { '===': [ageLookup[age], camperAge] },
+              ],
+            }, {
               'if': [
                 {'===': ['Full camp', {var: 'camper.session'}]},
                 {var: full }, {var: half}
               ]
             }
           ];
-        }, []).concat([0]),
-      },
-      {  'if': [
-        { '===': ['deposit', {var: 'registration.payment.payment_full_or_deposit'}] },
-        0.5,
-        1
-      ]}
-    ]
+        }, []).concat([9999]),
+        // END Standard pricing
+      ],
+    }]
   }, // END regularPrice tuition
 
   meals: {
     '+': [
       {
-        'if': regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
-          return [
-            ...acc,
-            { '===': [ageLookup[age], camperAge] }, {
-              'if': [
-                { '===': ['None', {var: 'camper.meals.meal_plan'}] }, 0,
-                { '===': [mealsLookup['F'], {var: 'camper.meals.meal_plan'}] }, {var: full},
-                { '===': [mealsLookup['D'], {var: 'camper.meals.meal_plan'}] }, {var: dinners},
-                { '===': [mealsLookup['A'], {var: 'camper.meals.meal_plan'}] }, {var: half},
-                { '===': [mealsLookup['B'], {var: 'camper.meals.meal_plan'}] }, {var: half},
-                0
-              ]
-            }
-          ];
-        }, []).concat([0]),
+        'if': [
+          ...regTypeEquals('crew-kitchen-full', 0),
+          ...regTypeEquals('crew-kitchen-partial', 0),
+          ...regTypeEquals('talent', 0),
+          ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
+            return [
+              ...acc,
+              { '===': [ageLookup[age], camperAge] }, {
+                'if': [
+                  { '===': ['None', {var: 'camper.meals.meal_plan'}] }, 0,
+                  { '===': [mealsLookup['F'], {var: 'camper.meals.meal_plan'}] }, {var: full},
+                  { '===': [mealsLookup['D'], {var: 'camper.meals.meal_plan'}] }, {var: dinners},
+                  { '===': [mealsLookup['A'], {var: 'camper.meals.meal_plan'}] }, {var: half},
+                  { '===': [mealsLookup['B'], {var: 'camper.meals.meal_plan'}] }, {var: half},
+                  0
+                ]
+              }
+            ];
+          }, []).concat([0]),
+
+        ]
       },
     ]
   } // END regularPrice meals

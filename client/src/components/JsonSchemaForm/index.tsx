@@ -139,13 +139,12 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
     event,
     registration: {
       ...formData,
-      ...(config.registrationType && {
-        registration_type: config.registrationType.name
-      }),
+      registration_type: config.registrationType?.name,
     },
     pricing,
   };
 
+  console.log('pricing data', data);
 
   const camperSchema = get(config.dataSchema, 'definitions.camper') as JSONSchema7;
   const camperDateProps = getDateProps(camperSchema);

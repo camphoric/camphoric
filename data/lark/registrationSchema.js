@@ -61,7 +61,6 @@ Fields marked with an asterisk (*) are required.
       'type': 'object',
       'required': [
         'payer_first_name', 'payer_last_name', 'payer_number',
-        'payment_full_or_deposit',
       ],
       'properties': {
         'payer_first_name': {
@@ -83,18 +82,6 @@ Fields marked with an asterisk (*) are required.
           'maxLength': 20,
           'pattern': '^\\+[0-9]+$',
           'title': 'Phone Number'
-        },
-        'payment_full_or_deposit': {
-          'type': 'string',
-          'title': 'Full Payment or Deposit Only',
-          'description': `You may pay either your full registration fee or a 50% deposit to reserve your place at camp.
-
-Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is refundable.  Please consider purchasing trip insurance if you know something could prevent your attendance.`,
-          'enum': [
-            'Full Payment',
-            '50% Deposit'
-          ],
-          'default': 'Full Payment'
         },
       },
     },

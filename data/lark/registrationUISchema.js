@@ -36,7 +36,6 @@ export default {
     'lta_donation',
     'how_did_you_hear',
     'comments',
-    'payment_full_or_deposit',
   ],
   'payment': {
     'contentClassNames': 'camphoric-payment',
@@ -47,7 +46,6 @@ export default {
       'payer_number',
       'payment_type',
       'paypal_email',
-      'payment_full_or_deposit',
     ],
     'payer_billing_address': address,
     'payer_number': {

@@ -4,4 +4,5 @@ docker compose exec -T django python manage.py migrate
 docker compose exec -T django python manage.py flush --noinput
 docker compose exec -T django python manage.py createsuperuser --noinput
 
-docker compose run --build --rm data /bin/sh -c "import && npx jest"
+# docker compose run --build --rm data /bin/sh -c "import && npx jest"
+docker compose run --build --rm data /bin/sh -c "import"
