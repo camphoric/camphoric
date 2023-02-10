@@ -327,6 +327,7 @@ class RegisterView(APIView):
         return Response({
             'registrationUUID': registration.uuid,
             'serverPricingResults': server_pricing_results,
+            'deposit': registration.event.registration_deposit_schema,
         })
 
     def post_payment(self, request, event):

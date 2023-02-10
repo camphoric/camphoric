@@ -258,7 +258,7 @@ class App extends React.Component<Props, RegistrationState> {
       debug('recalculating totals', data.totals);
     };
 
-    debug('onChange', data);
+    debug('onChange', data, this.state.config);
 
     this.setState(data);
     saveFormDataToLocalStorage(data.formData, this.state.config);
