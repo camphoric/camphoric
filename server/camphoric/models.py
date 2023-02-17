@@ -205,6 +205,7 @@ class Registration(TimeStampedModel):
     registrant_email = models.EmailField()
     server_pricing_results = models.JSONField(null=True)
     client_reported_pricing = models.JSONField(null=True)
+    initial_payment = models.JSONField(null=True)
     payment_type = models.CharField(
         max_length=255,
         null=True,

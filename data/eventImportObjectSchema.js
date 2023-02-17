@@ -96,7 +96,7 @@ export default {
           name: str('reg type name'),
           label: str('reg type label'),
           invitation_email_subject: str('subject of reg type invitation email'),
-          invitation_email_template: str('Email template of reg type invitation email'),
+          invitation_email_template: str('Email template of reg type invitation email', 9000),
         }
       }
     },

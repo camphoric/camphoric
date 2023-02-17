@@ -5,23 +5,18 @@ export default [
     var: 'parking',
     exp: {
       '*': [
-        {
-          // count parking passes,
-          // -1 if special reg type, 
-          // make sure we don't go negative
-          max: [
-            0,
-            {'reduce': [
-              {'var': 'registration.parking_passes'},
-              {'+':[
-                {'var': 'accumulator'},
-                1
-              ]},
-              { if: [ { '!': regType }, 0, -1 ] },
-            ]},
-          ],
-        },
-        {'var': 'pricing.parking_pass'}
+        {'reduce': [
+          {'var': 'registration.parking_passes'},
+          {'+':[
+            {'var': 'accumulator'},
+            1
+          ]}, 0
+        ]},
+        { if: [
+          { '!': regType },
+          {'var': 'pricing.parking_pass'},
+          0
+        ] },
       ]
     }
   },
