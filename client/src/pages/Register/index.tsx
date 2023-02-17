@@ -2,6 +2,7 @@ import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import { RouteComponentProps, withRouter } from 'react-router';
 import debounce from 'lodash/debounce';
+import { JSONSchema7 } from 'json-schema';
 
 import type { OrderResponseBody } from '@paypal/paypal-js';
 
@@ -32,6 +33,7 @@ interface FetchingState {
 export type PaymentType = 'Check' | 'PayPal' | 'Card';
 export type SubmitPaymentMethod = (
   paymentType: PaymentType,
+  paymentData: { [a: string]: any },
   payPalResponse?: OrderResponseBody,
 ) => Promise<void>;
 export type SubmitRegistrationMethod = (a: any) => Promise<void>;
@@ -42,6 +44,7 @@ export interface FormDataState {
   totals: PricingResults;
   step: "registration" | "payment";
   registrationUUID?: string;
+  deposit?: JSONSchema7;
 }
 
 interface LoadedState extends FormDataState {
@@ -126,6 +129,7 @@ class App extends React.Component<Props, RegistrationState> {
         step: "payment",
         registrationUUID: data.registrationUUID,
         totals: data.serverPricingResults,
+        deposit: data.deposit,
       });
     } catch(e) {
       console.error('submissionError', e);
@@ -134,7 +138,7 @@ class App extends React.Component<Props, RegistrationState> {
     }
   }
 
-  submitPayment: SubmitPaymentMethod = async (paymentType, payPalResponse) => {
+  submitPayment: SubmitPaymentMethod = async (paymentType, paymentData, payPalResponse) => {
     if (this.state.status === "fetching") return;
     debug('submitPayment');
 
@@ -145,6 +149,7 @@ class App extends React.Component<Props, RegistrationState> {
         step: "payment",
         registrationUUID: this.state.registrationUUID,
         paymentType,
+        paymentData,
         payPalResponse,
       }) as ApiRegisterFinalStep;
 
@@ -313,6 +318,7 @@ class App extends React.Component<Props, RegistrationState> {
             submitPayment={this.submitPayment}
             totals={this.state.totals}
             UUID={this.state.registrationUUID}
+            deposit={this.state.deposit}
           />
         );
         break;

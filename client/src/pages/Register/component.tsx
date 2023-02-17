@@ -6,6 +6,8 @@ import {
   FormData,
   JsonSchemaFormChangeEvent,
 } from 'components/JsonSchemaForm';
+import { JSONSchema7 } from 'json-schema';
+
 import ErrorBoundary from 'components/ErrorBoundary';
 
 import InvitationInfo from './InvitationInfo';
@@ -28,6 +30,7 @@ export interface RegisterStepProps {
   onJsonSchemaFormError: (a: any) => void;
   formData: FormDataState['formData'];
   totals: PricingResults;
+  deposit?: JSONSchema7;
   UUID?: string;
 }
 

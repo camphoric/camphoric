@@ -7,14 +7,27 @@
  */
 
 import React, { FC, useEffect } from 'react';
-import { PayPalScriptProvider, usePayPalScriptReducer } from "@paypal/react-paypal-js";
+import {
+  PayPalScriptProvider,
+  usePayPalScriptReducer,
+  ScriptContextDerivedState,
+} from '@paypal/react-paypal-js';
+
+export type PayPalStats = ScriptContextDerivedState;
 
 interface Props {
   options?: { "client-id": string } | null;
+  onStatsChange?: (a: PayPalStats) => void;
 }
 
 const PayPalOptionsResetter: FC<Props> = props => {
-  const [, dispatch] = usePayPalScriptReducer();
+  const [stats, dispatch] = usePayPalScriptReducer();
+
+  useEffect(() => {
+    if (props.onStatsChange) {
+      props.onStatsChange(stats);
+    }
+  }, [stats, props]);
 
   useEffect(() => {
     if (props.options) {
@@ -38,7 +51,7 @@ const PayPalProvider: FC<Props> = props => {
       deferLoading={!props.options}
       options={props.options || { "client-id": "NONE" }}
     >
-      <PayPalOptionsResetter options={props.options}>
+      <PayPalOptionsResetter options={props.options} onStatsChange={props.onStatsChange}>
         {props.children}
       </PayPalOptionsResetter>
     </PayPalScriptProvider>

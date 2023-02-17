@@ -28,8 +28,8 @@ function ControlColumn({ registrationTypes, ...props }: Props) {
   return (
     <>
       <Row className="control-buttons">
-        <Button onClick={showInviteModal}>Invite</Button>
-        <Button onClick={showRegTypeModal()}>New</Button>
+        <Button onClick={showInviteModal}>New Invite</Button>
+        <Button onClick={showRegTypeModal()}>Create New Type</Button>
       </Row>
       {
         registrationTypes.map((rt) => (
@@ -42,11 +42,15 @@ function ControlColumn({ registrationTypes, ...props }: Props) {
           </Card>
         ))
       }
-      <InviteModal
-        ref={inviteModal}
-        registrationTypes={registrationTypes}
-        onSave={props.newInvitation}
-      />
+      {
+        !!registrationTypes?.length && (
+          <InviteModal
+            ref={inviteModal}
+            registrationTypes={registrationTypes}
+            onSave={props.newInvitation}
+          />
+        )
+      }
       <RegTypeModal
         ref={regTypeModal}
         onSave={props.newRegType}

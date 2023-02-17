@@ -23,6 +23,7 @@ const payPalFundingSources: Array<FUNDING_SOURCE> = [
 interface Props extends RegisterStepProps {
   payPalCreateOrder: PayPalCreateOrder;
   payPalOnApprove: PayPalOnApprove;
+  setLoading: (a: boolean) => void;
 };
 
 function PayPalButtonsComponent(props: Props) {
@@ -44,7 +45,12 @@ function PayPalButtonsComponent(props: Props) {
   }
 
   return (
-    <PayPalProvider options={payPalOptions}>
+    <PayPalProvider
+      options={payPalOptions}
+      onStatsChange={(stats) => {
+        props.setLoading(!stats.isResolved);
+      }}
+    >
       {
         payPalFundingSources.map((fundingSource) => (
           <PayPalButtons

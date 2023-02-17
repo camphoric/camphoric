@@ -1,3 +1,5 @@
+// TODO: refactor using hooks/api for api calls
+
 import React from 'react';
 import {
   Container,
@@ -6,6 +8,7 @@ import {
 } from 'react-bootstrap';
 import { apiFetch } from 'utils/fetch';
 import Spinner from 'components/Spinner';
+import debug from 'utils/debug';
 import {
   useEvent,
 } from 'hooks/api';
@@ -21,18 +24,27 @@ function SpecialRegTab() {
   const [invitations, setInvitations] = React.useState<ApiInvitation[] | null>(null);
   const [fetching, setFetching] = React.useState<boolean>(true);
 
-  const eventId = eventApi.data?.id;
+  const eventId = eventApi?.data?.id;
 
   const getValues = async () => {
     setFetching(true);
     try {
+      const filterByEvent = async (url: string) => {
+        const res = await apiFetch(url);
+        const vals = await res.json();
+
+        return vals.filter((v: { event: number }) => v.event === eventId);
+      };
+
       const [regTypeResponse, invitationResponse] = await Promise.all([
-        apiFetch('/api/registrationtypes/'),
-        apiFetch('/api/invitations/'),
+        filterByEvent('/api/registrationtypes/'),
+        apiFetch('/api/invitations/').then(r => r.json()),
       ]);
 
-      setRegistrationTypes(await regTypeResponse.json());
-      setInvitations(await invitationResponse.json());
+      debug('SpecialRegTab getValues', regTypeResponse, invitationResponse);
+
+      setRegistrationTypes(regTypeResponse || []);
+      setInvitations(invitationResponse || []);
     } catch (error) {
       console.error('error', error);
     } finally {
@@ -45,7 +57,13 @@ function SpecialRegTab() {
 
     setFetching(true);
     try {
-      await apiFetch('/api/invitations/', 'POST', {
+      const inv = await apiFetch('/api/invitations/', 'POST', {
+        event: eventId,
+        ...values
+      }).then(r => r.json()) as ApiInvitation;
+
+      debug('newInvitation', inv);
+      await apiFetch(`/api/invitations/${inv.id}/send`, 'POST', {
         event: eventId,
         ...values
       });
@@ -95,7 +113,7 @@ function SpecialRegTab() {
 
   React.useEffect(() => {
     getValues();
-  }, [eventId]);
+  }, [eventId]); // eslint-disable-line
 
   if (fetching || !registrationTypes || !invitations) return <Spinner />;
   if (!eventApi.data) return <Spinner />;

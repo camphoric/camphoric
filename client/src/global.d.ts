@@ -175,6 +175,7 @@ declare global {
   export interface ApiRegisterPaymentStep {
     registrationUUID: string;
     serverPricingResults: any;
+    deposit: JSONSchema7,
   }
 
   export interface ApiRegisterFinalStep {
