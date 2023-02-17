@@ -49,6 +49,25 @@ const regTypeEquals = (type, price) => ([
   }, price,
 ]);
 
+const instructorTypeEquals = (type, price) => ([
+  {
+    and: [
+      { '===': [type, regType] },
+      // Only apply special pricing to the first one
+      {
+        or: [
+          {
+            '===': [{var: ['camper.index']}, 0],
+          },
+          {
+            '===': [{var: ['camper.index']}, 1],
+          },
+        ],
+      }
+    ],
+  }, price,
+]);
+
 const regularPrice = {
   tuition: {
     '+': [{
@@ -57,16 +76,14 @@ const regularPrice = {
         ...regTypeEquals('crew-kitchen-full', 0),
         ...regTypeEquals('crew-kitchen-partial', 398),
         ...regTypeEquals('crew-setup', 0),
-        ...regTypeEquals('talent', 0),
+        // First or second registrant is free for instructor 
+        ...instructorTypeEquals('talent', 0),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
             ...acc,
+            { '===': [ageLookup[age], camperAge] },
             {
-              and: [
-                { '===': [ageLookup[age], camperAge] },
-              ],
-            }, {
               'if': [
                 {'===': ['Full camp', {var: 'camper.session'}]},
                 {var: full }, {var: half}
@@ -85,6 +102,7 @@ const regularPrice = {
         'if': [
           ...regTypeEquals('crew-kitchen-full', 0),
           ...regTypeEquals('crew-kitchen-partial', 0),
+          // First registrant meal is free for instructor 
           ...regTypeEquals('talent', 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
             return [

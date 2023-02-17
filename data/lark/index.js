@@ -11,6 +11,7 @@ import lodgings from './lodgings.js';
 import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
 import registration_template_vars from './regTemplateVars.js';
+import registration_deposit_schema from './registrationDepositSchema.js';
 import { dates, lengthInDays, year } from './dates.js';
 
 import {
@@ -34,18 +35,7 @@ const data = {
     // payment_schema,
     // If deposit value ends up <= 1, it's considered a percentage
     // otherwise a flat amount
-    registration_deposit_schema: {
-      'title': 'Full Payment or Deposit Only',
-      'description': `You may pay either your full registration fee or a 50% deposit to reserve your place at camp.
-
-Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is refundable.  Please consider purchasing trip insurance if you know something could prevent your attendance.`,
-      enum: [1, 0.5],
-      'enumNames': [
-        'Full Payment',
-        '50% Deposit'
-      ],
-      'default': 1
-    },
+    registration_deposit_schema,
     registration_template_vars,
     registration_schema,
     registration_ui_schema,

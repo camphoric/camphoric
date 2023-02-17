@@ -33,12 +33,12 @@ Tuition \${{pricing_result.tuition}} - {{meals.meal_plan}} \${{pricing_result.me
 Donation to Lark Camp - \${{pricing_results.donation}}    
 
 Parking Passes Purchased: \${{pricing_results.parking}}    
-{{#registration.parking_passes}}
+{{#registration.attributes.parking_passes}}
 - {{holder}}
-{{/registration.parking_passes}}
-{{^registration.parking_passes}}
+{{/registration.attributes.parking_passes}}
+{{^registration.attributes.parking_passes}}
 None
-{{/registration.parking_passes.length}}
+{{/registration.attributes.parking_passes}}
 
 **Your total: \${{pricing_results.total}}**
 

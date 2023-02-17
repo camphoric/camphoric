@@ -632,6 +632,7 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
 
         self.assertEqual(response.data, {
+            'deposit': None,
             'registrationUUID': registration.uuid,
             'serverPricingResults': expected_pricing_results,
         })
