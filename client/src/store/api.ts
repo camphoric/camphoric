@@ -145,6 +145,13 @@ export const api = createApi({
       updateInvitation: updateCreator<ApiInvitation>('Invitation'),
       createInvitation: createCreator<ApiInvitation>('Invitation'),
       deleteInvitation: deleteCreator<ApiInvitation>('Invitation'),
+      sendInvitation: builder.mutation<ApiInvitation, string | number>({
+        query: (id: string | number) => ({
+          url: `invitations/${id}/send`,
+          method: 'POST',
+        }),
+        invalidatesTags: ['Invitation'],
+      }),
 
       /** /api/lodgings */
       getLodgings: getCreator<ApiLodging>('Lodging'),
