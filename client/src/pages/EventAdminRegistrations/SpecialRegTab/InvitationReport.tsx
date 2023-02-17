@@ -1,10 +1,22 @@
 import React from 'react';
+import api from 'store/api';
+import { useEvent } from 'hooks/api';
+import Spinner from 'components/Spinner';
 
-interface Props {
-  invitations: Array<ApiInvitation>,
-}
+function InvitationReport() {
+  const eventApi = useEvent();
 
-function InvitationReport({ invitations }: Props) {
+  const invitationsApi = api.useGetInvitationsQuery();
+  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+
+  if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
+  if (invitationsApi.isFetching || invitationsApi.isLoading || !invitationsApi.data) return <Spinner />;
+  if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+
+  const eventId = eventApi.data.id;
+  const regTypeIds = registrationTypesApi.data
+    .filter(r => r.event === eventId)
+    .map(r => r.id);
 
   return (
     <table>
@@ -19,7 +31,7 @@ function InvitationReport({ invitations }: Props) {
       </thead>
       <tbody>
         {
-          invitations.map(
+          invitationsApi.data.filter(i => regTypeIds.includes(i.id)).map(
             i => (
               <tr key={i.id}>
                 <td>{i.recipient_email}</td>

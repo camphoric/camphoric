@@ -4,56 +4,61 @@ import {
   Card,
   Row,
 } from 'react-bootstrap';
+import Spinner from 'components/Spinner';
+import api from 'store/api';
+import { useEvent } from 'hooks/api';
 
-import InviteModal, { InvitePostValues } from './InviteModal';
-import RegTypeModal, { RegTypePostValues } from './RegTypeModal';
+import InviteForm from './InviteForm';
+import RegTypeForm from './RegTypeForm';
 
-interface Props {
-  registrationTypes: Array<ApiRegistrationType>,
-  newInvitation: (s: InvitePostValues) => void,
-  newRegType: (s: RegTypePostValues) => void,
-  deleteRegType: (id: string | number) => void,
-}
+function ControlColumn() {
+  const eventApi = useEvent();
 
-function ControlColumn({ registrationTypes, ...props }: Props) {
-  const inviteModal = React.useRef<InviteModal>(null);
-  const regTypeModal = React.useRef<RegTypeModal>(null);
+  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const [deleteRegType] = api.useDeleteRegistrationTypeMutation();
 
-  const showInviteModal = () =>
-    inviteModal.current && inviteModal.current.show();
-  const showRegTypeModal = (v?: RegTypePostValues) => () =>
-    regTypeModal.current && regTypeModal.current.show(v);
-  const deleteRegType = (id: number | string) => () => props.deleteRegType(id);
+  const [showInviteModal, setShowInviteModal] = React.useState<boolean>(false);
+  const [showRegTypeModal, setShowRegTypeModal] = React.useState<boolean>(false);
+  const [regTypeSelected, setRegTypeSelected] = React.useState<ApiRegistrationType | undefined>();
+
+  if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
+  if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+
+  const eventId = eventApi.data.id;
+
+  const regTypes = registrationTypesApi.data.filter(r => r.event === eventId);
+
+  const onClickEdit = (rt: ApiRegistrationType) => () => {
+    setRegTypeSelected(rt);
+    setShowRegTypeModal(true);
+  };
 
   return (
     <>
       <Row className="control-buttons">
-        <Button onClick={showInviteModal}>New Invite</Button>
-        <Button onClick={showRegTypeModal()}>Create New Type</Button>
+        <Button onClick={() => setShowInviteModal(true)}>New Invite</Button>
+        <Button onClick={() => setShowRegTypeModal(true)}>Create New Type</Button>
       </Row>
       {
-        registrationTypes.map((rt) => (
+        regTypes.map((rt) => (
           <Card key={rt.id}>
             <Card.Header>{ rt.label }</Card.Header>
             <Row className="control-buttons">
-              <Button size="sm" variant="outline-primary" onClick={showRegTypeModal(rt)}>Edit</Button>
-              <Button size="sm" variant="outline-danger" onClick={deleteRegType(rt.id)}>Delete</Button>
+              <Button size="sm" variant="outline-primary" onClick={onClickEdit(rt)}>Edit</Button>
+              <Button size="sm" variant="outline-danger" onClick={() => deleteRegType(rt)}>Delete</Button>
             </Row>
           </Card>
         ))
       }
-      {
-        !!registrationTypes?.length && (
-          <InviteModal
-            ref={inviteModal}
-            registrationTypes={registrationTypes}
-            onSave={props.newInvitation}
-          />
-        )
-      }
-      <RegTypeModal
-        ref={regTypeModal}
-        onSave={props.newRegType}
+      <InviteForm
+        registrationTypes={regTypes}
+        show={showInviteModal}
+        setShow={setShowInviteModal}
+      />
+      <RegTypeForm
+        show={showRegTypeModal}
+        setShow={setShowRegTypeModal}
+        regType={regTypeSelected}
       />
     </>
   );
