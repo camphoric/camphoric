@@ -345,7 +345,7 @@ class RegisterView(APIView):
                                ', '.join(event.valid_payment_types)
             })
 
-        registration.initial_payment = request.data.get('paymentData');
+        registration.initial_payment = request.data.get('paymentData')
         registration.payment_type = payment_type
 
         is_paypal_captured_payment = (
