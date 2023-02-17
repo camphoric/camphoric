@@ -144,8 +144,6 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
     pricing,
   };
 
-  console.log('pricing data', data);
-
   const camperSchema = get(config.dataSchema, 'definitions.camper') as JSONSchema7;
   const camperDateProps = getDateProps(camperSchema);
 
