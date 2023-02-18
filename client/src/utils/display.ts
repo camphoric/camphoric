@@ -88,3 +88,23 @@ export function getAllStrings(arg: any): Array<string> {
     return [...acc, ...getAllStrings(arg[key])];
   }, []);
 };
+
+export function alphaSort(key?: string) {
+  return (a: string | object, b: string | object) => {
+    let valueA: string = '';
+    let valueB: string = '';
+
+    // .sort((a, b) => a.label.localeCompare(b.label)),
+    if (key && typeof a === 'object' && typeof b === 'object') {
+      valueA = getFromPath(a, key, '');
+      valueB = getFromPath(b, key, '');
+    }
+
+    if (!key && typeof a === 'string' && typeof b === 'string') {
+      valueA = a;
+      valueB = b;
+    }
+
+    return valueA.localeCompare(valueB);
+  };
+}

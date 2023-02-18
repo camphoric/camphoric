@@ -36,7 +36,9 @@ function InviteForm({ regType, show, setShow }: Props) {
   const onSave = async () => {
     setShowErrors(true);
 
-    if (requiredFields.filter(k => !formData[k]).length) return;
+    if (requiredFields.filter(k => !formData[k]).length) {
+      debug('errors in required fields');
+    };
 
     if (regType) {
       await updateRegistrationType({

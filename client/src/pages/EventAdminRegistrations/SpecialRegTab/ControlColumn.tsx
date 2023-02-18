@@ -7,6 +7,7 @@ import {
 import Spinner from 'components/Spinner';
 import api from 'store/api';
 import { useEvent } from 'hooks/api';
+import { alphaSort } from 'utils/display';
 
 import InviteForm from './InviteForm';
 import RegTypeForm from './RegTypeForm';
@@ -26,7 +27,9 @@ function ControlColumn() {
 
   const eventId = eventApi.data.id;
 
-  const regTypes = registrationTypesApi.data.filter(r => r.event === eventId);
+  const regTypes = registrationTypesApi.data
+    .filter(r => r.event === eventId)
+    .sort(alphaSort('label'));
 
   const onClickEdit = (rt: ApiRegistrationType) => () => {
     setRegTypeSelected(rt);
@@ -37,7 +40,6 @@ function ControlColumn() {
     <>
       <Row className="control-buttons">
         <Button onClick={() => setShowInviteModal(true)}>New Invite</Button>
-        <Button onClick={() => setShowRegTypeModal(true)}>Create New Type</Button>
       </Row>
       {
         regTypes.map((rt) => (
@@ -50,6 +52,11 @@ function ControlColumn() {
           </Card>
         ))
       }
+      <Row className="control-buttons">
+        <Button onClick={() => setShowRegTypeModal(true)}>
+          Create New Special Registration Type
+        </Button>
+      </Row>
       <InviteForm
         registrationTypes={regTypes}
         show={showInviteModal}
