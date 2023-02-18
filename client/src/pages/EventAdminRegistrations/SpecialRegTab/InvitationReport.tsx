@@ -3,12 +3,14 @@ import api from 'store/api';
 import { useEvent } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';
+import { Button } from 'react-bootstrap';
 
 function InvitationReport() {
   const eventApi = useEvent();
 
   const invitationsApi = api.useGetInvitationsQuery();
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const [sendInvitation] = api.useSendInvitationMutation();
 
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
   if (invitationsApi.isFetching || invitationsApi.isLoading || !invitationsApi.data) return <Spinner />;
@@ -29,6 +31,15 @@ function InvitationReport() {
       {} as { [a: string]: string },
     );
 
+  const formatDate = formatDateTimeForViewing('MM/DD h:ssa');
+  const sent = (i: ApiInvitation) => {
+    if (i.sent_time) {
+      return formatDate(i.sent_time)
+    }
+
+    return getStatus(i);
+  };
+
   return (
     <table>
       <thead>
@@ -37,22 +48,27 @@ function InvitationReport() {
           <th>Name</th>
           <th>Type</th>
           <th>Sent</th>
-          <th>Status</th>
+          <th>Resend</th>
         </tr>
       </thead>
       <tbody>
         {
-          invitationsApi.data.filter(i => regTypeIds.includes(i.id)).map(
-            i => (
-              <tr key={i.id}>
-                <td>{i.recipient_email}</td>
-                <td>{i.recipient_name}</td>
-                <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
-                <td>{i.sent_time && formatDateTimeForViewing(i.sent_time)}</td>
-                <td>{getStatus(i)}</td>
-              </tr>
+          invitationsApi.data
+            .filter(i => regTypeIds.includes(i.id))
+            .sort((a, b) => compareDates(b.created_at, a.created_at))
+            .map(
+              i => (
+                <tr key={i.id}>
+                  <td>{i.recipient_email}</td>
+                  <td>{i.recipient_name}</td>
+                  <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
+                  <td>{sent(i)}</td>
+                  <td>
+                    <Button onClick={() => sendInvitation(i.id)}>📧</Button>
+                  </td>
+                </tr>
+              )
             )
-          )
         }
       </tbody>
     </table>
@@ -66,6 +82,13 @@ function getStatus(invitation: ApiInvitation) {
 
   // if invitation.expiration_time ...
   return 'sent';
+}
+
+function compareDates(a: string | null, b: string | null) {
+  const dateA = new Date(a || '').getMilliseconds();
+  const dateB = new Date(b || '').getMilliseconds();
+
+  return dateA - dateB;
 }
 
 export default InvitationReport;
