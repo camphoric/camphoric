@@ -34,6 +34,8 @@ function PaymentTab(props: Props) {
   const paymentSchema = getFromPath(props, 'event.payment_schema.properties', { properties: {} });
   const keys = Object.keys(paymentSchema.properties).sort();
 
+  const formatDate = formatDateTimeForViewing();
+
   return (
     <div>
       <div>
@@ -71,7 +73,7 @@ function PaymentTab(props: Props) {
                 payments.map(p => (
                   <tr>
                     <td>{p.payment_type}</td>
-                    <td>{formatDateTimeForViewing(p.paid_on)}</td>
+                    <td>{formatDate(p.paid_on)}</td>
                     <td>${p.amount}</td>
                     {
                       keys.map((k) => (

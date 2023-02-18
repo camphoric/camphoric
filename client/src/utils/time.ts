@@ -21,11 +21,14 @@ export function formatDateTimeForForm(...args: Parameters<typeof moment>) {
   return moment.utc(...args).utcOffset(offset).format();
 }
 
-export function formatDateTimeForViewing(...args: Parameters<typeof moment>) {
-  const offset = new Date().getTimezoneOffset();
+// https://momentjs.com/docs/#/displaying/format/
+export function formatDateTimeForViewing(format: string = 'MM/DD/YYYY') {
+  return (...args: Parameters<typeof moment>) => {
+    const offset = new Date().getTimezoneOffset();
 
-  return moment.utc(...args).utcOffset(offset)
-    .format('MM/DD/YYYY');
+    return moment.utc(...args).utcOffset(offset).local()
+      .format(format);
+  };
 }
 
 // Note: this returns values for the browser's set timezone
