@@ -36,7 +36,7 @@ function PaymentTab(props: Props) {
 
   return (
     <div>
-      <p>
+      <div>
         <div>
           Payment Type at Registration: {
             props.registration.payment_type || 'None'
@@ -45,7 +45,8 @@ function PaymentTab(props: Props) {
         <div>Total Owed: ${props.registration.total_owed}</div>
         <div>Total Payments: ${props.registration.total_payments}</div>
         <div>Balance Due: ${props.registration.total_balance}</div>
-      </p>
+      </div>
+      <hr />
       {
         payments.length <= 0 ? (
           <p>
