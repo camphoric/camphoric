@@ -2,6 +2,7 @@ import React from 'react';
 import api from 'store/api';
 import { useEvent } from 'hooks/api';
 import Spinner from 'components/Spinner';
+import { formatDateTimeForViewing } from 'utils/time';
 
 function InvitationReport() {
   const eventApi = useEvent();
@@ -17,6 +18,16 @@ function InvitationReport() {
   const regTypeIds = registrationTypesApi.data
     .filter(r => r.event === eventId)
     .map(r => r.id);
+
+  const regTypeLookup = registrationTypesApi.data
+    .filter(r => r.event === eventId)
+    .reduce(
+      (acc, t) => ({
+        ...acc,
+        [t.id]: t.label,
+      }),
+      {} as { [a: string]: string },
+    );
 
   return (
     <table>
@@ -36,8 +47,8 @@ function InvitationReport() {
               <tr key={i.id}>
                 <td>{i.recipient_email}</td>
                 <td>{i.recipient_name}</td>
-                <td>{i.registration_type}</td>
-                <td>{i.sent_time}</td>
+                <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
+                <td>{i.sent_time && formatDateTimeForViewing(i.sent_time)}</td>
                 <td>{getStatus(i)}</td>
               </tr>
             )
