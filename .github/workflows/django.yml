@@ -24,7 +24,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.9', '3.10', '3.11']
 
     services:
       db_service:
@@ -52,14 +52,14 @@ jobs:
         run: python -m pip install --upgrade pipenv wheel psycopg2-binary
       - name: Make build dir
         run: mkdir -p frontend_bootstrap/build/
-      - id: cache-pipenv
-        uses: actions/cache@v1
-        with:
-          path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}
+            #      - id: cache-pipenv
+            #        uses: actions/cache@v1
+            #        with:
+            #          path: ~/.local/share/virtualenvs
+            #          key: ${{ runner.os }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}
       - name: Install dependencies
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
-        run: pipenv install --deploy --dev
+        run: pipenv install --dev
       - name: Run flake8
         run: pipenv run flake8
       - name: Run Tests
