@@ -235,9 +235,9 @@ LOGGING = {
             'level': 'INFO',
             'formatter': 'logfile',
             'filters': ['require_debug_false'],
-            'class':'logging.handlers.RotatingFileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'camphoric.log'),
-            'maxBytes': 1024*1024*15, # 15MB
+            'maxBytes': 1024*1024*15,  # 15MB
             'backupCount': 10,
         },
     },
@@ -255,4 +255,3 @@ LOGGING = {
         },
     },
 }
-
