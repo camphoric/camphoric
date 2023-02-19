@@ -48,6 +48,13 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
     })
   );
 
+  // set initial value
+  React.useEffect(() => {
+    setInviteFormData({
+      registration_type: regTypesOptions[0].value.toString(),
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   debug('InviteForm form values', inviteFormData);
 
   return (
@@ -62,7 +69,6 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
         label="Registration type"
         options={regTypesOptions}
         onChange={changeValue('registration_type')}
-        defaultValue={regTypesOptions[0].value}
       />
       <Input
         label="Name"
