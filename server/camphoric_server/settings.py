@@ -206,7 +206,7 @@ LOGGING = {
         'logfile': {
             'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
-            },
+        },
         'simple': {
             'format': '{levelname} {message}',
             'style': '{',
@@ -222,6 +222,8 @@ LOGGING = {
     },
     'handlers': {
         'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
@@ -234,23 +236,20 @@ LOGGING = {
         'applogfile': {
             'level': 'INFO',
             'formatter': 'logfile',
-            'filters': ['require_debug_false'],
             'class': 'logging.handlers.RotatingFileHandler',
+            'filters': ['require_debug_false'],
             'filename': os.path.join(BASE_DIR, 'camphoric.log'),
             'maxBytes': 1024*1024*15,  # 15MB
             'backupCount': 10,
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
     'loggers': {
-        'dev_console': {
-            'filters': ['require_debug_true'],
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
         'django': {
             'handlers': ['applogfile'],
-            'level': 'INFO',
             'propagate': True,
         },
     },
