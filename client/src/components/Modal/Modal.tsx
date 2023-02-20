@@ -3,6 +3,7 @@ import {
   Button,
   Modal as BootstrapModal,
 } from 'react-bootstrap';
+import { SpinnerFullScreen } from 'components/Spinner';
 import debug from 'utils/debug'
 
 interface State {
@@ -16,6 +17,7 @@ interface Props {
   onShow?: () => any;
   onSave?: () => any;
   show?: boolean;
+  loading?: boolean;
 }
 
 class Modal extends React.Component<Props, State> {
@@ -65,6 +67,9 @@ class Modal extends React.Component<Props, State> {
             { this.props.saveButtonLabel || 'Save Changes' }
           </Button>
         </BootstrapModal.Footer>
+        {
+          this.props.loading && <SpinnerFullScreen text={""} />
+        }
       </BootstrapModal>
     );
   }

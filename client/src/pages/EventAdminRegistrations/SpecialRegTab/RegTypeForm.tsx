@@ -21,6 +21,7 @@ function InviteForm({ regType, show, setShow }: Props) {
   const [createRegistrationType] = api.useCreateRegistrationTypeMutation();
   const [updateRegistrationType] = api.useUpdateRegistrationTypeMutation();
 
+  const [loading, setLoading] = React.useState<boolean>(false);
   const [showErrors, setShowErrors] = React.useState<boolean>(false);
   const [formData, setFormData] = React.useState<Partial<ApiRegistrationType>>(regType || {});
 
@@ -33,8 +34,17 @@ function InviteForm({ regType, show, setShow }: Props) {
     });
   };
 
+  const onClose = () => {
+    setShow(false);
+    setLoading(false);
+    setShowErrors(false);
+
+    setFormData({});
+  };
+
   const onSave = async () => {
     setShowErrors(true);
+    setLoading(true);
 
     if (requiredFields.filter(k => !formData[k]).length) {
       debug('errors in required fields');
@@ -49,7 +59,7 @@ function InviteForm({ regType, show, setShow }: Props) {
       await createRegistrationType(formData as ApiRegistrationType);
     }
 
-    setShow(false);
+    onClose();
   }
 
   debug('RegType form values', formData);
@@ -59,8 +69,9 @@ function InviteForm({ regType, show, setShow }: Props) {
       title={`${regType ? 'Edit' : 'Create'} special registration type`}
       saveButtonLabel={regType ? 'Save' : 'Create'}
       onSave={onSave}
-      onClose={() => setShow(false)}
+      onClose={onClose}
       show={show}
+      loading={loading}
     >
       <Input
         label="Machine Name"

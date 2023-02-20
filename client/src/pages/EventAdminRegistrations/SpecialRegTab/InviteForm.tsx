@@ -15,34 +15,19 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
   const [sendInvitation] = api.useSendInvitationMutation();
 
   const [showErrors, setShowErrors] = React.useState<boolean>(false);
-  const [inviteFormData, setInviteFormData] = React.useState<Partial<ApiInvitation>>({});
+  const [formData, setFormData] = React.useState<Partial<ApiInvitation>>({});
+  const [loading, setLoading] = React.useState<boolean>(false);
 
   const changeValue = (key: keyof ApiInvitation) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = changeEvent.target;
 
-    setInviteFormData({
-      ...inviteFormData,
+    debug('changeValue', key, value);
+
+    setFormData({
+      ...formData,
       [key]: value,
     });
   };
-
-  const onSave = async () => {
-    setShowErrors(true);
-
-    if (!inviteFormData.recipient_name || !inviteFormData.recipient_email) return;
-
-    const invitation = await createInvitation({
-      ...inviteFormData,
-      registration_type: inviteFormData.registration_type || regTypesOptions[0].value.toString()
-    } as ApiInvitation);
-
-    if ('data' in invitation) {
-      debug('onSave', invitation);
-      await sendInvitation(invitation.data.id);
-    }
-
-    setShow(false);
-  }
 
   const regTypesOptions = registrationTypes.map(
     (rt: ApiRegistrationType) => ({
@@ -51,15 +36,47 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
     })
   );
 
-  debug('InviteForm form values', inviteFormData);
+  const onClose = () => {
+    setShow(false);
+    setLoading(false);
+    setShowErrors(false);
+
+    setFormData({});
+  };
+
+  const onSave = async () => {
+    setShowErrors(true);
+    setLoading(true);
+
+    if (!formData.recipient_name || !formData.recipient_email) return;
+
+    const invitationData = {
+      ...formData,
+      registration_type: formData.registration_type || regTypesOptions[0].value.toString(),
+    } as ApiInvitation;
+
+    debug('onSave', invitationData);
+
+    const invitation = await createInvitation(invitationData);
+
+    if ('data' in invitation) {
+      debug('onSave response', invitation);
+      await sendInvitation(invitation.data.id);
+    }
+
+    onClose();
+  }
+
+  debug('InviteForm form values', formData);
 
   return (
     <Modal
       title="Create special registration invite"
       saveButtonLabel="Send invite"
       onSave={onSave}
-      onClose={() => setShow(false)}
+      onClose={onClose}
       show={show}
+      loading={loading}
     >
       <Select
         label="Registration type"
@@ -69,12 +86,12 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
       <Input
         label="Name"
         onChange={changeValue('recipient_name')}
-        isInvalid={showErrors && !inviteFormData.recipient_name}
+        isInvalid={showErrors && !formData.recipient_name}
       />
       <Input
         label="Email"
         onChange={changeValue('recipient_email')}
-        isInvalid={showErrors && !inviteFormData.recipient_email}
+        isInvalid={showErrors && !formData.recipient_email}
       />
     </Modal>
   );
