@@ -1,8 +1,7 @@
 import React from 'react';
-import './Spinner.css';
 
-const Spinner = ({text = 'Loading', color = 'antiquewhite'}) => (
-  <div className="spinner">
+const SpinnerFullScreen = ({text = 'Loading', color = 'antiquewhite'}) => (
+  <div className="spinner full-screen">
     <svg viewBox="-10 -10 70 70">
       <mask id="myMask">
         <rect x="0" y="0" width="50" height="50" fill="aliceblue" />
@@ -14,4 +13,4 @@ const Spinner = ({text = 'Loading', color = 'antiquewhite'}) => (
   </div>
 );
 
-export default Spinner;
+export default SpinnerFullScreen;
