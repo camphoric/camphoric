@@ -594,9 +594,10 @@ class RegisterView(APIView):
             total += int(float(amount['value']))
         if not registration_uuid_found:
             raise PaymentError('registration.uuid not found in order')
-        total_due = registration.server_pricing_results['total']
-        if total != total_due:
-            raise PaymentError(f'incorrect payment total {total} (amount due: {total_due})')
+        # This is commented out for now until we refactor the deposit code
+        # total_due = registration.server_pricing_results['total']
+        # if total != total_due:
+        #     raise PaymentError(f'incorrect payment total {total} (amount due: {total_due})')
 
         # everything looks good
         registration.payment_set.create(

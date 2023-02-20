@@ -72,7 +72,7 @@ Meal plans offer significant savings. You may buy individual meals at camp inste
       'type': 'string',
       'title': 'What meals will you purchase?',
       'enum': [
-        'None',
+        'No meals',
         ...options.map(o => mealsLookup[o])
       ],
     }

@@ -73,9 +73,13 @@ const regularPrice = {
     '+': [{
       'if': [
         ...regTypeEquals('crew-registration', 0),
+        ...regTypeEquals('crew-setup', 0),
+        ...regTypeEquals('crew-cleanup', 0),
+
         ...regTypeEquals('crew-kitchen-full', 0),
         ...regTypeEquals('crew-kitchen-partial', 398),
         ...regTypeEquals('crew-setup', 0),
+        ...regTypeEquals('management', 0),
         // First or second registrant is free for instructor 
         ...instructorTypeEquals('talent', 0),
         // Standard pricing
@@ -102,6 +106,7 @@ const regularPrice = {
         'if': [
           ...regTypeEquals('crew-kitchen-full', 0),
           ...regTypeEquals('crew-kitchen-partial', 0),
+          ...regTypeEquals('management', 0),
           // First registrant meal is free for instructor 
           ...regTypeEquals('talent', 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {

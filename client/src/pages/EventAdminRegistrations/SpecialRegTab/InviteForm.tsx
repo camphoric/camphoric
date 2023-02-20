@@ -31,7 +31,10 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
 
     if (!inviteFormData.recipient_name || !inviteFormData.recipient_email) return;
 
-    const invitation = await createInvitation(inviteFormData as ApiInvitation);
+    const invitation = await createInvitation({
+      ...inviteFormData,
+      registration_type: inviteFormData.registration_type || regTypesOptions[0].value.toString()
+    } as ApiInvitation);
 
     if ('data' in invitation) {
       debug('onSave', invitation);
@@ -47,13 +50,6 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
       value: rt.id,
     })
   );
-
-  // set initial value
-  React.useEffect(() => {
-    setInviteFormData({
-      registration_type: regTypesOptions[0].value.toString(),
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   debug('InviteForm form values', inviteFormData);
 

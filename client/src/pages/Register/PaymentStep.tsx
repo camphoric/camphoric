@@ -38,7 +38,6 @@ function PaymentStep(props: RegisterStepProps) {
     } catch (e) {
       console.error('deposit logic error', e);
     }
-
   }
 
   const payPalCreateOrder: PayPalCreateOrder = (data, actions) => {
