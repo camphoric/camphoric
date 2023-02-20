@@ -113,10 +113,16 @@ const transformCamper = (e: RJSFValidationError, schema: RJSFSchema, s: RJSFSche
 
   const num = getCamperNumber(e);
 
+  let stack = e.stack;
+
+  if (schema?.title) {
+    stack = `Camper ${num}: ${schema?.title} ${e.message}`;
+  }
+
   return {
     ...e,
-    message: `${schema?.title} ${e.message}`,
-    stack: `Camper ${num}: ${schema?.title} ${e.message}`,
+    message: `${schema?.title || 'this'} ${e.message}`,
+    stack,
   };
 };
 
