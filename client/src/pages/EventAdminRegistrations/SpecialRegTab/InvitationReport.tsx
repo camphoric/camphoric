@@ -54,7 +54,7 @@ function InvitationReport() {
       <tbody>
         {
           invitationsApi.data
-            .filter(i => regTypeIds.includes(i.id))
+            .filter(i => i.registration_type && regTypeIds.includes(i.registration_type))
             .sort((a, b) => compareDates(b.created_at, a.created_at))
             .map(
               i => (
