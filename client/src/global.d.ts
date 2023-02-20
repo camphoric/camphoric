@@ -134,7 +134,7 @@ declare global {
     updated_at: string | null;
     deleted_at: string | null;
     registration?: string | number;
-    registration_type?: string;
+    registration_type?: number;
     invitation_code: string;
     recipient_name: string;
     recipient_email: string;
