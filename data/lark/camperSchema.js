@@ -8,7 +8,7 @@ export const sessionTypes = {
 
 export default {
   'type': 'object',
-  'required': ['first_name', 'last_name', 'gender', 'session', 'meals'],
+  'required': ['vaccination_status', 'first_name', 'last_name', 'gender', 'session', 'meals'],
   'dependencies': {
     'address_different_than_payer': {
       'oneOf': [
@@ -32,6 +32,22 @@ export default {
           'required': ['camper_address'],
         },
       ],
+    },
+    'vaccination_status': {
+      'title': 'Vaccination Information',
+      'description': 'Please check all that apply',
+      'type': 'array',
+      'items': {
+        'type': 'string',
+        'enum': [
+          'First dose',
+          'Second dose',
+          'Booster',
+          'J&J',
+          'None',
+        ],
+      },
+      'uniqueItems': true
     },
     'session': {
       'oneOf': [

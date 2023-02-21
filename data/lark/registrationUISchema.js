@@ -67,6 +67,7 @@ export default {
         'last_name',
         'gender',
         'age',
+        'vaccination_status',
         'address_different_than_payer',
         'camper_address',
         'session',
