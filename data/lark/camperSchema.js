@@ -33,22 +33,6 @@ export default {
         },
       ],
     },
-    'vaccination_status': {
-      'title': 'Vaccination Information',
-      'description': 'Please check all that apply',
-      'type': 'array',
-      'items': {
-        'type': 'string',
-        'enum': [
-          'First dose',
-          'Second dose',
-          'Booster',
-          'J&J',
-          'None',
-        ],
-      },
-      'uniqueItems': true
-    },
     'session': {
       'oneOf': [
         {
@@ -87,6 +71,22 @@ export default {
       'type': 'string',
       'title': 'Gender',
       'enum': ['Male', 'Female', 'Other'],
+    },
+    'vaccination_status': {
+      'title': 'Vaccination Information',
+      'description': 'Please check all that apply',
+      'type': 'array',
+      'items': {
+        'type': 'string',
+        'enum': [
+          'First dose',
+          'Second dose',
+          'Booster',
+          'J&J',
+          'None',
+        ],
+      },
+      'uniqueItems': true
     },
     'age': {
       'type': 'string',

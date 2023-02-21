@@ -91,6 +91,11 @@ function makeRegistration(reg, lodgingMap) {
             }
           )
         },
+        vaccination_status: [
+          'First dose',
+          'Second dose',
+          'Booster'
+        ],
         'session': 'Full camp',
         'address_different_than_payer': false,
         'lodging': {

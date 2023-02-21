@@ -84,6 +84,9 @@ export default {
       'lodging': {
         'ui:description': lodgingDescription,
       },
+      'vaccination_status': {
+        'ui:widget': 'checkboxes'
+      },
     },
   },
   'lta_donation': {
