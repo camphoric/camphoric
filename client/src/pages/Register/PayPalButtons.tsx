@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { MutableRefObject, useRef } from 'react';
 import { PayPalButtons } from '@paypal/react-paypal-js';
 import getFromPath from 'lodash/get';
 import PayPalProvider from 'components/PayPalProvider';
@@ -26,7 +26,30 @@ interface Props extends RegisterStepProps {
   setLoading: (a: boolean) => void;
 };
 
+interface InstanceData {
+  props: Props;
+  methods: {
+    createOrder: PayPalCreateOrder;
+    onApprove: PayPalOnApprove;
+  };
+};
+
 function PayPalButtonsComponent(props: Props) {
+
+  // The PayPalButtons component from @paypal/react-paypal-js doesn't seem to
+  // update with the current values of the createOrder and onApprove props, but
+  // always uses the initial values passed in. It has a forceReRender prop which
+  // doesn't seem to help. As a workaround, create persistent wrapper functions
+  // that call the current versions of these props.
+  const instance = useRef<InstanceData>({
+    props,
+    methods: {
+      createOrder: (data, actions) => instance.current.props.payPalCreateOrder(data, actions),
+      onApprove: (fundingSource) => instance.current.props.payPalOnApprove(fundingSource),
+    },
+  }) as MutableRefObject<InstanceData>;
+  instance.current.props = props;
+
   const optionsFromConfig = getFromPath(props, 'config.payPalOptions');
 
   debug('formData', props.formData);
@@ -56,8 +79,8 @@ function PayPalButtonsComponent(props: Props) {
           <PayPalButtons
             key={fundingSource}
             fundingSource={fundingSource}
-            createOrder={props.payPalCreateOrder}
-            onApprove={props.payPalOnApprove(fundingSource)}
+            createOrder={instance.current.methods.createOrder}
+            onApprove={instance.current.methods.onApprove(fundingSource)}
           />
       ))
     }
@@ -65,12 +88,4 @@ function PayPalButtonsComponent(props: Props) {
   );
 }
 
-const areEqual = (prevProps: Props, nextProps: Props) => true;
-
-// We don't actually want this to ever rerender, since if it does re-render
-// while in the middle of a transaction, paypal will return the error
-// "Window closed before response"
-// see https://github.com/paypal/react-paypal-js/issues/104
-export default React.memo(PayPalButtonsComponent, areEqual);
-
-// export default PayPalButtonsComponent;
+export default PayPalButtonsComponent;

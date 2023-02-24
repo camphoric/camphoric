@@ -14,7 +14,7 @@ import checkImage from './check-image.png';
 import PayPalButtons from './PayPalButtons';
 import type { RegisterStepProps } from './component';
 
-export type PayPalCreateOrder = PayPalButtonsComponentOptions['createOrder'];
+export type PayPalCreateOrder = NonNullable<PayPalButtonsComponentOptions['createOrder']>;
 export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonsComponentOptions['onApprove'];
 
 function PaymentStep(props: RegisterStepProps) {
