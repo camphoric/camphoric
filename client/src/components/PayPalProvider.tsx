@@ -3,7 +3,8 @@
  *
  * A wrapper for PayPalScriptProvider that allows the `options` prop to be set
  * dynamically, and defers fetching the PayPal JS SDK until it is set. Note that
- * the SDK will be reloaded if the `options` prop changes.
+ * the SDK will be reloaded if the `options` prop changes based on a shallow
+ * comparison (i.e. if any keys or values change).
  */
 
 import React, { FC, useEffect } from 'react';
@@ -13,10 +14,12 @@ import {
   ScriptContextDerivedState,
 } from '@paypal/react-paypal-js';
 
+import type { PayPalScriptOptions } from '@paypal/paypal-js';
+
 export type PayPalStats = ScriptContextDerivedState;
 
 interface Props {
-  options?: { "client-id": string } | null;
+  options?: PayPalScriptOptions;
   onStatsChange?: (a: PayPalStats) => void;
 }
 
@@ -29,6 +32,7 @@ const PayPalOptionsResetter: FC<Props> = props => {
     }
   }, [stats, props]);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (props.options) {
       dispatch({
@@ -36,7 +40,12 @@ const PayPalOptionsResetter: FC<Props> = props => {
         value: props.options,
       });
     }
-  }, [dispatch, props.options]);
+  }, [
+    dispatch,
+    // allows useEffect to do a shallow comparison of props.options
+    // @ts-ignore
+    ...Object.keys(props.options || {}).sort().flatMap(k => [k, (props.options || {})[k]]),
+  ]);
 
   return (
     <>
