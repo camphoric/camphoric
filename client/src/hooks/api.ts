@@ -316,7 +316,6 @@ export function useLodgingLookup(): LodgingLookup | undefined {
   const [lodgingLookup, setLodgingLookup] = React.useState<LodgingLookup>();
 
   React.useEffect(() => {
-    if (!lodgingTree) return;
     const lodgingLookup: LodgingLookup = {};
 
     const addLodgingToLookup = (l: AugmentedLodging) => {
@@ -324,7 +323,9 @@ export function useLodgingLookup(): LodgingLookup | undefined {
       l.children?.forEach(addLodgingToLookup);
     };
 
-    addLodgingToLookup(lodgingTree);
+    if (lodgingTree) {
+      addLodgingToLookup(lodgingTree);
+    }
 
     setLodgingLookup(lodgingLookup);
   }, [lodgingTree]);
