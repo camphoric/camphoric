@@ -4,9 +4,11 @@ import { useEvent } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';
 import { Button } from 'react-bootstrap';
+import { Link, useRouteMatch } from 'react-router-dom';
 
 function InvitationReport() {
   const eventApi = useEvent();
+  const { url } = useRouteMatch();
 
   const invitationsApi = api.useGetInvitationsQuery();
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
@@ -49,6 +51,7 @@ function InvitationReport() {
           <th>Type</th>
           <th>Sent</th>
           <th>Resend</th>
+          <th>Registration</th>
         </tr>
       </thead>
       <tbody>
@@ -65,6 +68,15 @@ function InvitationReport() {
                   <td>{sent(i)}</td>
                   <td>
                     <Button onClick={() => sendInvitation(i.id)}>📧</Button>
+                  </td>
+                  <td>
+                    {
+                      i.registration ?
+                      <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
+                        View/Edit
+                      </Link>
+                      : 'NOT REGISTERED'
+                    }
                   </td>
                 </tr>
               )
