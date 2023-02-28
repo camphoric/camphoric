@@ -8,6 +8,8 @@ Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before 
 Please note that registrations are accepted in the order they are received and
 your camping preferences are processed on a "first come - first served" basis.
 
+### PROOF OF COVID-19 VACCINATION WILL BE REQUIRED FOR ALL ATTENDEES
+
 Fields marked with an asterisk (*) are required.
 `,
   'type': 'object',
