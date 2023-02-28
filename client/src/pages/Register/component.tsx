@@ -49,13 +49,13 @@ function RegisterComponent(props: RegisterStepProps) {
         </ErrorBoundary>
         <ErrorBoundary section="RegisterStep">
           <RegisterStep {...props} />
+          <div className="PriceTicker">
+            Total: ${(props.totals.total || 0).toFixed(2)}
+          </div>
         </ErrorBoundary>
         <ErrorBoundary section="PaymentStep">
           <PaymentStep {...props} />
         </ErrorBoundary>
-      </div>
-      <div className="PriceTicker">
-        Total: ${(props.totals.total || 0).toFixed(2)}
       </div>
     </section>
   );
