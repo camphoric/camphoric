@@ -5,13 +5,24 @@ export default `
 
 ## See you at Lark Camp ${year}!
 
-If you're paying by check, please make it for **\${{pricing_results.total}}**
+{{#compare paymentInfo.paymentType '===' 'Check'}}
+Please make your check out for for **\${{paymentInfo.paymentData.total}}**
 payable to "Lark Camp", and mail it to:
 
 Lark Camp  
 PO Box 1724  
 Mendocino, CA 95460  
 USA
+{{/compare}}
+{{#compare paymentInfo.paymentType '!==' 'Check'}}
+Thanks for paying electronically, please check your email for your receipt. If there was any
+problems with your payment, the registrar will be in touch.
+{{/compare}}
+
+
+Please email either a photo of your current vaccination cards or a current QR
+code to registration@larkcamp.org. The QR Code can be acquired from the State
+of California: https://myvaccinerecord.cdph.ca.gov/.  
 
 Do you need approval for your vehicle or trailer, have questions about
 carpooling, payments, meals, ordering t-shirts, or anything else? Email us at

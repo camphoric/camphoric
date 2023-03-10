@@ -654,6 +654,10 @@ class RegisterPostTests(APITestCase):
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': 'PayPal',
+                'paymentData': {
+                    'type': 'Full',
+                    'total': 300,
+                },
                 'payPalResponse': paypal_response_from_client,
             },
             format='json'
@@ -662,6 +666,7 @@ class RegisterPostTests(APITestCase):
 
         self.assertEqual(response.data, {
             'confirmationPageTemplate': '{{client renders this}}',
+            'initialPayment': {'balance': 0, 'total': 300, 'type': 'Full'},
             'emailError': False,
             'serverPricingResults': expected_pricing_results,
         })

@@ -346,6 +346,11 @@ class RegisterView(APIView):
             })
 
         registration.initial_payment = request.data.get('paymentData')
+        registration.initial_payment['balance'] = (
+            registration.server_pricing_results['total']
+            - registration.initial_payment['total']
+        )
+
         registration.payment_type = payment_type
 
         is_paypal_captured_payment = (
@@ -392,6 +397,7 @@ class RegisterView(APIView):
                 'registration': registration,
                 'campers': campers_template_value,
                 'pricing_results': server_pricing_results,
+                'initial_payment': registration.initial_payment,
             })
 
         confirmation_email_body_html = cmarkgfm.github_flavored_markdown_to_html(
@@ -426,6 +432,7 @@ class RegisterView(APIView):
             'confirmationPageTemplate': event.confirmation_page_template,
             'serverPricingResults': server_pricing_results,
             'emailError': bool(email_error),
+            'initialPayment': registration.initial_payment,
         })
 
     @classmethod

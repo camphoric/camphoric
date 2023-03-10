@@ -6,11 +6,15 @@ export default {
 Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before you fill out this form.
 
 Please note that registrations are accepted in the order they are received and
-your camping preferences are processed on a "first come - first served" basis.
+your camping preferences are processed on a "first come - first served" basis.  
 
 ### PROOF OF COVID-19 VACCINATION WILL BE REQUIRED FOR ALL ATTENDEES
 
-Fields marked with an asterisk (*) are required.
+After you register, please email either a photo of your current vaccination cards or a current QR code to registration@larkcamp.org. The QR Code can be acquired from the State of California: https://myvaccinerecord.cdph.ca.gov/.  
+
+Everyone attending will be vaccinated, and everyone comes at their own risk. Further details will be sent out based on CDC recommendations shortly before camp.  
+
+Fields marked with an asterisk (*) are required.  
 `,
   'type': 'object',
   'definitions': {

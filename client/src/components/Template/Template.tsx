@@ -1,5 +1,6 @@
 import React from 'react';
 import { template2Html } from './util';
+import debug from 'utils/debug';
 
 interface Props {
   markdown?: string;
@@ -9,6 +10,8 @@ interface Props {
 function Template(props: Props) {
   let markdown = props.markdown;
   let templateVars = props.templateVars;
+
+  debug('rendering template', props);
 
   if (!markdown || typeof markdown !== 'string') {
     markdown = '';

@@ -58,6 +58,9 @@ function RegistrationStep(props: RegisterStepProps) {
           </button>
         </div>
       </JsonSchemaForm>
+      <div className="PriceTicker">
+        Total: ${(props.totals.total || 0).toFixed(2)}
+      </div>
     </React.Fragment>
   );
 }
