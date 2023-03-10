@@ -20,6 +20,9 @@ choice.
 - If you have not yet paid for your meals that amount is also due NO LATER THAN
   JUNE 20. Look for instructions in future emails to add a meal plan to your
   registration.
+- Please email either a photo of your current vaccination cards or a current QR
+  code to registration@larkcamp.org. The QR Code can be acquired from the State
+  of California: https://myvaccinerecord.cdph.ca.gov/.
 
 **YOU HAVE REGISTERED FOR:**
 
@@ -40,7 +43,10 @@ Parking Passes Purchased: \${{pricing_results.parking}}
 None
 {{/registration.attributes.parking_passes}}
 
-**Your total: \${{pricing_results.total}}**
+- **Amount you are paying now: \${{initial_payment.total}}**
+- Due by June 20th: \${{initial_payment.balance}}
+- Your total: \${{pricing_results.total}}
+
 
 Registration Number: ${year}-{{ registration.id }}
 `;

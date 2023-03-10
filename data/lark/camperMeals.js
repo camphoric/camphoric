@@ -12,7 +12,7 @@ const dependencies = {
       {
         'properties': {
           'meal_plan': {
-            'enum': ['No meal', '']
+            'enum': ['No meals', '']
           }
         }
       },

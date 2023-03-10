@@ -22,6 +22,62 @@ type HelperHash = {
 }
 
 const helpers: HelperHash = {
+  compare: [
+    `
+    {{compare myStr '===' 'bob'}}bob{{/compare}}
+    bob
+    Render a block when a comparison of the first and third arguments returns
+    true. The second argument is the comparison operator to use.
+    `,
+    function (...args) {
+      if (args.length < 4) {
+        throw new Error('handlebars Helper {{compare}} expects 4 arguments');
+      }
+
+      const [a, operator, b, options] = args;
+
+      let result;
+      switch (operator) {
+        case '==':
+          // eslint-disable-next-line eqeqeq
+          result = a == b;
+          break;
+        case '===':
+          result = a === b;
+          break;
+        case '!=':
+          // eslint-disable-next-line eqeqeq
+          result = a != b;
+          break;
+        case '!==':
+          result = a !== b;
+          break;
+        case '<':
+          result = a < b;
+          break;
+        case '>':
+          result = a > b;
+          break;
+        case '<=':
+          result = a <= b;
+          break;
+        case '>=':
+          result = a >= b;
+          break;
+        case 'typeof':
+          result = typeof a === b;
+          break;
+        default: {
+          throw new Error('helper {{compare}}: invalid operator: `' + operator + '`');
+        }
+      }
+
+      if (result) {
+        return options.fn(this);
+      }
+    },
+  ],
+
   abs: [
     `
     {{abs -5}}
@@ -66,6 +122,21 @@ const helpers: HelperHash = {
     `,
     function(a, b) {
       return Number(a) > Number(b)
+    }
+  ],
+
+  subtract: [
+    `
+    {{subtract 20 5 10}}
+    5
+    returns the first argument minus the rest of the arguments.  If one of the arguments is an array, it
+    will flatten the array and treat the items as elements to subtract
+    `,
+    function(...args) {
+      return flattenDeep(args)
+        .map(Number)
+        .filter(a => !Number.isNaN(a))
+        .reduce((acc, n) => acc-n);
     }
   ],
 

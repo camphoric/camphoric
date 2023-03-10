@@ -31,6 +31,11 @@ interface FetchingState {
 }
 
 export type PaymentType = 'Check' | 'PayPal' | 'Card';
+export type PaymentData = {
+  paymentType: PaymentType,
+  paymentData: { [a: string]: any },
+  payPalResponse?: OrderResponseBody,
+};
 export type SubmitPaymentMethod = (
   paymentType: PaymentType,
   paymentData: { [a: string]: any },
@@ -43,6 +48,7 @@ export interface FormDataState {
   formData: FormData;
   totals: PricingResults;
   step: "registration" | "payment";
+  paymentInfo?: PaymentData;
   registrationUUID?: string;
   deposit?: JSONSchema7;
 }
@@ -142,7 +148,14 @@ class App extends React.Component<Props, RegistrationState> {
     if (this.state.status === "fetching") return;
     debug('submitPayment');
 
-    this.setState({ status: "fetching" });
+    this.setState({
+      status: 'fetching',
+      paymentInfo: {
+        paymentType,
+        paymentData,
+        payPalResponse,
+      },
+    });
 
     try {
       const data = await this.doPost({
@@ -327,7 +340,15 @@ class App extends React.Component<Props, RegistrationState> {
         pageContent = (
             !!this.state.confirmationProps &&
               <section className="confirmation">
-                <Template {...this.state.confirmationProps} />
+                <Template
+                  markdown={this.state.confirmationProps?.markdown}
+                  templateVars={{
+                    registration: this.state.formData,
+                    totals: this.state.totals,
+                    paymentInfo: this.state.paymentInfo,
+                    ...this.state.confirmationProps?.templateVars,
+                  }}
+                />
               </section>
         );
         break;
