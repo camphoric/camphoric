@@ -4,10 +4,9 @@ const subject = `Lark Camp ${year} Registration Confirmation`;
 const template = `
 Dear {{registration.attributes.payment.payer_first_name}} {{registration.attributes.payment.payer_last_name}},
 
-We’ve received your online registration for Lark Camp 2022. This is an
-acknowledgement of your online registration. Please remember that lodging
-choices are first come – first served. We will do our best to accommodate your
-choice. 
+We’ve received your online registration for Lark Camp 2022. Please remember
+that lodging choices are first come – first served. We will do our best to
+accommodate your choice. 
 
 - If you are paying by check, mail checks payable to Lark Camp to: PO Box 1724,
   Mendocino, CA 95460. Be sure to include the first and last name of the person
