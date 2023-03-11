@@ -20,7 +20,6 @@ export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonsComponentOptio
 function PaymentStep(props: RegisterStepProps) {
   const [loading, setLoading] = React.useState(false);
   const [depositChoice, setDepositChoice] = React.useState<{ deposit: any } | undefined>();
-
   if (props.step !== 'payment') return null;
 
   const paymentData = {
@@ -40,16 +39,19 @@ function PaymentStep(props: RegisterStepProps) {
     }
   }
 
-  const payPalCreateOrder: PayPalCreateOrder = (data, actions) => {
-    debug('payPalCreateOrder');
+
+  const payPalCreateOrder: PayPalCreateOrder = async (data, actions) => {
+    debug('payPalCreateOrder', paymentData);
+    setLoading(true);
     const description = `${props.config.dataSchema.title} ${paymentData.type} for ${props.formData.registrant_email}`;
     const order = {
       purchase_units: [
         {
-          amount: { value: paymentData.total },
+          amount: { value: paymentData.total.toString() },
           description,
           invoice_id: props.UUID,
           reference_id: props.UUID,
+          custom_id: JSON.stringify(paymentData),
         },
       ],
       application_context: {
@@ -57,9 +59,13 @@ function PaymentStep(props: RegisterStepProps) {
       },
     };
 
-    debug('order', order);
+    debug('order', order, paymentData);
 
-    return actions.order.create(order);
+    const response = await actions.order.create(order);
+
+    debug('order', order, response);
+
+    return response;
   };
 
   const payPalOnApprove: PayPalOnApprove = (fundingSource: FUNDING_SOURCE) => async (data, actions) => {
@@ -73,10 +79,15 @@ function PaymentStep(props: RegisterStepProps) {
     debug('payPalOnApprove, type: ', paymentType);
 
     try {
-      const capture = await actions.order.capture();
+      const payPalResponse = await actions.order.capture();
+      const paymentDataString = payPalResponse.purchase_units[0]?.custom_id;
 
-      debug('PayPalOnApprove capture', capture);
-      props.submitPayment(paymentType, paymentData, capture);
+      debug('PayPalOnApprove capture', payPalResponse);
+      props.submitPayment({
+        paymentType,
+        paymentData: JSON.parse(paymentDataString || ''),
+        payPalResponse,
+      });
     } catch (e) {
       setLoading(false);
       debug('capture error!', e);
@@ -85,7 +96,11 @@ function PaymentStep(props: RegisterStepProps) {
 
   const submitPayByCheck = () => {
     setLoading(true);
-    props.submitPayment('Check', paymentData);
+
+    props.submitPayment({
+      paymentType: 'Check',
+      paymentData,
+    });
   };
 
   return (
