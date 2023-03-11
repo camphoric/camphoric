@@ -106,7 +106,7 @@ export default {
     },
     'address_different_than_payer': {
       'type': 'boolean',
-      'title': 'Is this campers address different than the billing address?',
+      'title': 'This campers address different than the billing address',
       'enum': [false, true],
       'enumNames': ['No', 'Yes'],
       'default': false,

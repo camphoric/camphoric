@@ -29,7 +29,10 @@ function PaymentStep(props: RegisterStepProps) {
 
   if (depositChoice?.deposit) {
     try {
+      debug('depositChoice', props.totals);
+
       const values = JSON.parse(depositChoice.deposit);
+
       const results = jsonLogic.apply(values.logic, props.totals);
 
       paymentData.type = values.name;
@@ -58,8 +61,6 @@ function PaymentStep(props: RegisterStepProps) {
         shipping_preference: 'NO_SHIPPING' as SHIPPING_PREFERENCE,
       },
     };
-
-    debug('order', order, paymentData);
 
     const response = await actions.order.create(order);
 
@@ -106,6 +107,11 @@ function PaymentStep(props: RegisterStepProps) {
   return (
     <div className="payment-form">
       <h1>Choose your payment option</h1>
+      <p>
+        If you need to go back and change a value, refresh this page and it
+        will take you back to the registration form with your values filled
+        in
+      </p>
       <h3>Total: ${paymentData.total}</h3>
       {
         props.deposit && (
