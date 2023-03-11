@@ -13,14 +13,13 @@ ${label}
 [Please click here to register!]({{register_link}})
 
 If you have a specific lodging request, please make a note in the lodging
-comment box. Please remember that lodging choices are first come/ first served.
-We will do our best to accommodate your choice you have a specific lodging
-request, please make a note in the lodging comment box. Please remember that
-lodging choices are first come/ first served. We will do our best to
-accommodate your choice.  If you need special lodging not on the list, and you
-have cleared this with the registrar already, please describe your needs in the
-lodging comment box, and select "Let registrar assign my lodging" as your
-lodging choice.
+preferences box. Please remember that lodging choices are first come/ first
+served. We will do our best to accommodate your choice. If you need special
+lodging that is not on the list, and you have cleared this with the registrar
+already, please describe your needs in the lodging preferences box, and select
+"Let registrar assign my lodging" as your lodging choice.  
+
+If you do not have a payment amount due, select “pay by check” on the final step.  
 
 If you have any other questions, please email us at
 [registration@larkcamp.org](mailto:registration@larkcamp.org) or call
