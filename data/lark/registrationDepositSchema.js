@@ -18,11 +18,16 @@ const full = {
 const deposit = {
   name: '50% Deposit',
   logic: {
-    '-': [
-      { var: ['total'] },
+    '+': [
       {
         '*': [
-          { var: ['tuition'] },
+          { var: ['total'] },
+          0.5,
+        ],
+      },
+      {
+        '*': [
+          { var: ['donation'] },
           0.5,
         ],
       },
@@ -39,9 +44,12 @@ const options = [
 export default {
   'title': 'Full Payment or Deposit Only',
   'type': 'string',
-  'description': `You may pay either your full registration fee or a 50% deposit to reserve your place at camp.
+  'description': `
+You may either: make a nonrefundable 50% deposit to hold your place,  or pay in
+full. If you choose the deposit option, the balance will be due by June 20.
 
-Your 50% deposit is non-refundable.  If you pay the full amount, only 50% is refundable.  Please consider purchasing trip insurance if you know something could prevent your attendance.`,
+Note: Any donation must be made in full, and is non-refundable.
+`,
   enum: options.map(o => JSON.stringify(o)),
   enumNames: options.map(o => o.name),
   default: JSON.stringify(options[0]), 
