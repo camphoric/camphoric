@@ -32,15 +32,16 @@ interface FetchingState {
 
 export type PaymentType = 'Check' | 'PayPal' | 'Card';
 export type PaymentData = {
+  type: string,
+  total: number,
+  [a: string]: any,
+};
+export type PaymentInfo = {
   paymentType: PaymentType,
-  paymentData: { [a: string]: any },
+  paymentData: PaymentData,
   payPalResponse?: OrderResponseBody,
 };
-export type SubmitPaymentMethod = (
-  paymentType: PaymentType,
-  paymentData: { [a: string]: any },
-  payPalResponse?: OrderResponseBody,
-) => Promise<void>;
+export type SubmitPaymentMethod = (a: PaymentInfo) => Promise<void>;
 export type SubmitRegistrationMethod = (a: any) => Promise<void>;
 
 export interface FormDataState {
@@ -48,7 +49,7 @@ export interface FormDataState {
   formData: FormData;
   totals: PricingResults;
   step: "registration" | "payment";
-  paymentInfo?: PaymentData;
+  paymentInfo?: PaymentInfo;
   registrationUUID?: string;
   deposit?: JSONSchema7;
 }
@@ -144,7 +145,7 @@ class App extends React.Component<Props, RegistrationState> {
     }
   }
 
-  submitPayment: SubmitPaymentMethod = async (paymentType, paymentData, payPalResponse) => {
+  submitPayment: SubmitPaymentMethod = async ({ paymentType, paymentData, payPalResponse }) => {
     if (this.state.status === "fetching") return;
     debug('submitPayment');
 

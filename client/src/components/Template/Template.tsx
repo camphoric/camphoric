@@ -11,8 +11,6 @@ function Template(props: Props) {
   let markdown = props.markdown;
   let templateVars = props.templateVars;
 
-  debug('rendering template', props);
-
   if (!markdown || typeof markdown !== 'string') {
     markdown = '';
   }
