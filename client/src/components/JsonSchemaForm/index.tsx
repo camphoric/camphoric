@@ -24,6 +24,7 @@ import NaturalNumberInput from './widgets/NaturalNumberInput';
 import PhoneInput from './widgets/PhoneInput';
 import SelectWidget from './widgets/Select';
 import TextWidget from './widgets/Text';
+import CheckboxesWidget from './widgets/CheckboxesWidget';
 
 import './styles.scss';
 
@@ -36,6 +37,8 @@ export type FormData = {
 
 Bootstrap4Theme.widgets = {
   ...Bootstrap4Theme.widgets,
+  // @ts-expect-error
+  CheckboxesWidget,
   PhoneInput,
   NaturalNumberInput,
   SelectWidget,

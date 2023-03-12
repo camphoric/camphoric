@@ -110,7 +110,7 @@ Fields marked with an asterisk (*) are required.
           'holder': {
             'type': 'string',
             'maxLength': 50,
-            'title': 'Whose name will the parking pass be in?'
+            'title': 'Full name of the parking pass owner'
           }
         },
         'required': ['holder']
