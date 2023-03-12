@@ -248,6 +248,7 @@ class RegisterGetTests(APITestCase):
                 'campers': {
                     'type': 'array',
                     'minItems': 1,
+                    'maxItems': 20,
                     'items': {
                         '$ref': '#/definitions/camper',
                     },
