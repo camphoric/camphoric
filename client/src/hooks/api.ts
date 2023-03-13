@@ -64,6 +64,7 @@ const createRegistrationLookup = (
 
     return registrations
       .filter(r => r.event.toString() === eventIdStr)
+      .filter(r => !!r.payment_type)
       .map(r => {
         const paymentRecords = payments.filter(
           p => p.registration === r.id
@@ -169,6 +170,7 @@ const createCamperLookup =
 
     const registrationsIdsForEvent = registrations
       .filter(r => r.event.toString() === eventIdStr)
+      .filter(r => !!r.payment_type)
       .map(r => r.id.toString());
 
     return campers
