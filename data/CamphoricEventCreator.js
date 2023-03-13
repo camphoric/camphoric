@@ -33,6 +33,9 @@
 
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { oraPromise } from 'ora';
+import cliProgress from 'cli-progress';
+
 
 import { Organizations } from './organizations/index.js';
 import { formatDate } from './utils.js';
@@ -41,7 +44,7 @@ import { getAuthToken } from './getAuthInfo.js';
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const tryFetchAgainAfterMs = 2000;
-const tryFetchAgainOnTheseErrors = ['ECONNRESET'];
+const tryFetchAgainOnTheseErrors = ['ECONNRESET', 'UND_ERR_SOCKET'];
 
 export default class CamphoricEventCreator {
   constructor({ data, organizations, sampleRegGenerator, overrides = [], url }) {
@@ -260,6 +263,13 @@ export default class CamphoricEventCreator {
 
   async loadLodgings() {
     const { event } = this.results;
+    const progBar = new cliProgress.SingleBar(
+      {
+        format: 'importing lodging [{bar}] {percentage}% | {value}/{total}',
+        clearOnComplete: true,
+      },
+      cliProgress.Presets.shades_classic
+    );
 
     // delete existing lodgings associated with this event, so we start clean
     try {
@@ -275,9 +285,10 @@ export default class CamphoricEventCreator {
     const lodgingLookup = this.data.lodgings;
     const lodgingEntries = Object.entries(lodgingLookup);
     let completed = 0;
+    progBar.start(lodgingEntries.length, 0);
 
     const createLodging = async (key, lodging) => {
-      let data, createdLodging, createdId;
+      let data, createdLodging;
       try {
         data = {
           event: event.id,
@@ -291,31 +302,31 @@ export default class CamphoricEventCreator {
         createdLodging = await this.fetch('POST', '/api/lodgings/', data);
 
         completed += 1;
+        progBar.update(completed);
         this.logVerbose(`created lodging ${completed}/${lodgingEntries.length}`);
-
-        createdId = createdLodging.id;
 
         lodgingLookup[key].id = createdLodging.id;
       } catch (e) {
         throw this.error(e, {type: 'lodgingDataAttempted', key, data, createdLodging});
       }
 
-			// batch requests so that it doesn't time out
+      // batch requests so that it doesn't time out
       const promises = [];
-			const all = lodgingEntries.filter(([, l]) => l.parentKey === key);
-			for (let i = 0; i < all.length; ++i) {
+      const all = lodgingEntries.filter(([, l]) => l.parentKey === key);
+      for (let i = 0; i < all.length; ++i) {
         promises.push(
           createLodging(...all[i])
         );
 
-				if (promises.length % 10 === 0) await wait(5000);
-			}
+        if (promises.length % 10 === 0) await wait(5000);
+      }
 
       return Promise.all(promises);
     };
 
     // recursively add all lodgings starting with root
     await createLodging('root', lodgingLookup.root);
+    progBar.stop();
 
     this.results.lodging = lodgingLookup;
   }
@@ -367,11 +378,10 @@ export default class CamphoricEventCreator {
     );
 
     const event = this.results.event;
-    const registerUrl = `/events/${event.id}/register/`;
 
     const postReg = async (testData) => {
       const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
-        method: "POST",
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': token,
@@ -392,18 +402,18 @@ export default class CamphoricEventCreator {
         ...testData,
         response: json,
       };
-    }
+    };
 
     const postPayment = async (testData) => {
       const body = {
-        step: "payment",
+        step: 'payment',
         registrationUUID: testData.response.registrationUUID,
         paymentType: testData.formData.payment_type,
         payPalResponse: testData.formData.paypal_response,
       };
 
       const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
-        method: "POST",
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': token,
@@ -425,7 +435,7 @@ export default class CamphoricEventCreator {
         response: json,
       };
 
-    }
+    };
 
     if (!Array.isArray(registrations)) {
       throw new Error('sample reg generator function returned a non-array');
@@ -452,43 +462,38 @@ export default class CamphoricEventCreator {
   }
 
   async create() {
-    this.log('Starting organization import');
-    await this.organization;
-    this.log('Finished organization import');
+    this.log(`🟢 Starting Import of ${this.data.event.name}!`);
 
-    this.log('Starting event import');
-    await this.loadEvent();
-    this.log('Finished event import');
+    const imp = (label, p) => oraPromise(
+      p,
+      {
+        text: `[${this.data.event.name}] import ${label}`,
+        spinner: 'clock',
+      }
+    );
 
-    this.log('Starting lodging import');
+    await imp('organization', this.organization);
+    await imp('event', this.loadEvent());
+
     await this.loadLodgings();
-    this.log('Finished lodging import');
+    await imp('lodging', Promise.resolve());
 
-    this.log('Starting reports import');
-    await this.loadReports();
-    this.log('Finished reports import');
+    await imp('reports', this.loadReports());
 
-    this.log('Starting registration types import');
-    await this.loadRegTypes();
-    this.log('Finished registration types import');
+    await imp('registration types', this.loadRegTypes());
 
     // Run the overrides in series in case order matters
     for (let i = 0; i < this.overrides.length; i++) {
-      this.log(`Starting override[${i}] import`);
       const fn = this.overrides[i].bind(this);
 
-      await fn(this.fetch, this.results, this.log);
-
-      this.log(`Finished override[${i}] import`);
+      await imp(`override[${i}]`, fn(this.fetch, this.results, this.log));
     }
 
     if (this.sampleRegGenerator) {
-      this.log('Starting test registrations import');
-      await this.loadTestRegs();
-      this.log('Finished test registrations import');
+      await imp('test registrations', this.loadTestRegs());
     }
 
-    this.log(`Finished Importing ${this.data.event.name}!`);
+    this.log(`🎉 Finished Importing ${this.data.event.name}!`);
 
     return true;
   }
@@ -509,41 +514,4 @@ export default class CamphoricEventCreator {
       throw new Error(`organization '${organization}' not found`);
     }
   };
-
-  // async loadTestRegs() {
-  //   return; 
-  //   const event = this.results.event;
-  //   const registerUrl = `/events/${event.id}/register/`;
-  //   const postReg = async (testData) => {
-  //     const res = await this.fetch('POST', registerUrl, testData);
-  //   }
-
-  //   const postPayment = async (testData) => {
-  //     const body = {
-  //       step: 'payment',
-  //       registrationUUID: testData.response.registrationUUID,
-  //       paymentType: testData.formData.payment_type,
-  //       payPalResponse: testData.formData.paypal_response,
-  //     };
-
-  //     const res = await this.fetch('POST', `/events/${event.id}/register`, body);
-  //   }
-
-  //   const registrations = createTestRegs(lodgingIdLookup);
-
-  //   // get first step responses
-  //   let responses;
-  //   responses = await Promise.all(
-  //     registrations.map(postReg)
-  //   );
-
-  //   // process payment step
-  //   responses = await Promise.all(
-  //     responses.map(postPayment)
-  //   );
-
-  //   // console.log(responses);
-  // }
 }
-
-

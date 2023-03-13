@@ -1,3 +1,4 @@
+import inquirer from 'inquirer';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 

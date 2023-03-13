@@ -28,11 +28,12 @@ accommodate your choice.
 {{#campers}}
 {{first_name}} {{last_name}} - {{session}}    
 {{lodging_full}}    
-Tuition \${{pricing_result.tuition}} - {{meals.meal_plan}} \${{pricing_result.meals}}    
+{{meals.meal_plan}}, {{meals.meal_type}}: \${{pricing_result.meals}}    
+Tuition: \${{pricing_result.tuition}}    
 
 {{/campers}}
 
-Donation to Lark Camp - \${{pricing_results.donation}}    
+Donation to Lark Traditional Arts: \${{pricing_results.donation}}    
 
 Parking Passes Purchased: \${{pricing_results.parking}}    
 {{#registration.attributes.parking_passes}}

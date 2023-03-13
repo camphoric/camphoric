@@ -30,7 +30,7 @@ const data = {
       ...acc,
       [k]: d.toISOString(),
     }), {}),
-    default_stay_length: lengthInDays,
+    default_stay_length: lengthInDays - 1,
     camper_schema,
     // payment_schema,
     // If deposit value ends up <= 1, it's considered a percentage
@@ -66,13 +66,13 @@ if (process.env.PAYPAL_CLIENT_ID) {
 
 // We override pricing because we need to get the off_site id in order to get
 // the pricing correct
-const sampleRegGenerator = async (fetch, results) => {
-  const regs = makeRegistrations(results.lodging);
-
-  return regs;
-};
+// const sampleRegGenerator = async (fetch, results) => {
+//   const regs = makeRegistrations(results.lodging);
+// 
+//   return regs;
+// };
 
 export default {
   data,
-  sampleRegGenerator,
+  // sampleRegGenerator,
 };
