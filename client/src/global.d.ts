@@ -64,6 +64,8 @@ declare global {
     confirmation_email_subject: string;
     confirmation_email_template: Template;
     confirmation_email_from: string;
+    paypal_enabled: boolean;
+    paypal_client_id: string;
     organization: number;
   }
 
