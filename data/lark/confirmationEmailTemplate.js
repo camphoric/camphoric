@@ -43,6 +43,9 @@ Parking Passes Purchased: \${{pricing_results.parking}}
 None
 {{/registration.attributes.parking_passes}}
 
+Payment info:
+
+- Initial Payment: {{initial_payment.type}}
 - **Amount you are paying now: \${{initial_payment.total}}**
 - Due by June 20th: \${{initial_payment.balance}}
 - Your total: \${{pricing_results.total}}
