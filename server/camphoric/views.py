@@ -364,6 +364,7 @@ class RegisterView(APIView):
                 raise ValidationError({'payPalResponse': 'This field is required.'})
             registration.paypal_response = paypal_response
 
+        registration.completed = True
         registration.save()
 
         if is_paypal_captured_payment:

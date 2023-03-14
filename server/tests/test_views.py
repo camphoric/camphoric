@@ -631,6 +631,7 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
+        self.assertFalse(registration.completed)
 
         self.assertEqual(response.data, {
             'deposit': None,
@@ -673,6 +674,7 @@ class RegisterPostTests(APITestCase):
         })
 
         registration.refresh_from_db()
+        self.assertTrue(registration.completed)
         self.assertEqual(registration.payment_type, 'PayPal')
         self.assertEqual(registration.paypal_response, paypal_response_from_client)
 
