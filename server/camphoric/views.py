@@ -570,7 +570,7 @@ class RegisterView(APIView):
             raise InvitationError(
                 f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
 
-        if invitation.registration:
+        if invitation.registration and invitation.registration.completed:
             raise InvitationError('Sorry, that invitation code has already been redeemed')
 
         if invitation.expiration_time and invitation.expiration_time < timezone.now():

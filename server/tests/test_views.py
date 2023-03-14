@@ -436,6 +436,7 @@ class RegisterGetTests(APITestCase):
         invitation.registration = models.Registration.objects.create(
             event=event,
             registrant_email='camper@example.com',
+            completed=True,
         )
         invitation.save()
         response = self.client.get(
@@ -447,6 +448,19 @@ class RegisterGetTests(APITestCase):
             response.data['invitationError'],
             'Sorry, that invitation code has already been redeemed',
         )
+
+        # not-quite-redeemed invitation (incomplete registration)
+        invitation.registration.completed = False
+        invitation.registration.save()
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=camper@example.com&code='
+            + invitation.invitation_code)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['invitation'], {
+            'recipient_name': 'Campy McCampface',
+            'recipient_email': 'camper@example.com',
+            'invitation_code': invitation.invitation_code,
+        })
 
         # expired invitation
         invitation.registration = None
