@@ -212,6 +212,10 @@ class Registration(TimeStampedModel):
         choices=PaymentType.choices,
     )
     paypal_response = models.JSONField(null=True)
+    completed = models.BooleanField(
+        default=False,
+        help_text="True if the user has made it to the end of the registration process",
+    )
 
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
