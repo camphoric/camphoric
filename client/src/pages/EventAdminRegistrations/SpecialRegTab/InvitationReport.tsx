@@ -18,6 +18,7 @@ function InvitationReport() {
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
   if (invitationsApi.isFetching || invitationsApi.isLoading || !invitationsApi.data) return <Spinner />;
   if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+  if (!registrationLookup) return <Spinner />;
 
   const eventId = eventApi.data.id;
   const regTypeIds = registrationTypesApi.data
