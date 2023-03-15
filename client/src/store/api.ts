@@ -61,9 +61,12 @@ export const api = createApi({
   // REMEMBER: our api needs trailing slashes
   endpoints: (builder) => {
     const getCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
-      builder.query<[R], Object>({
-        query: (params = {}) => {
+      builder.query<[R], Object | void>({
+        query: (params: { [a: string]: string }) => {
           const path = `${apiObjectName.toLowerCase()}s/`;
+
+          if (!params) return path;
+
           const searchParams = new URLSearchParams(Object.entries(params));
           searchParams.sort();
           const queryString = searchParams.toString();
