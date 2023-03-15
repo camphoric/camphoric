@@ -1,6 +1,6 @@
 import React from 'react';
 import api from 'store/api';
-import { useEvent } from 'hooks/api';
+import { useEvent, useRegistrationLookup } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';
 import { Button } from 'react-bootstrap';
@@ -13,6 +13,7 @@ function InvitationReport() {
   const invitationsApi = api.useGetInvitationsQuery();
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const [sendInvitation] = api.useSendInvitationMutation();
+  const registrationLookup = useRegistrationLookup();
 
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
   if (invitationsApi.isFetching || invitationsApi.isLoading || !invitationsApi.data) return <Spinner />;
@@ -71,7 +72,7 @@ function InvitationReport() {
                   </td>
                   <td>
                     {
-                      i.registration ?
+                      i.registration && registrationLookup[i.registration] ?
                       <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
                         View/Edit
                       </Link>

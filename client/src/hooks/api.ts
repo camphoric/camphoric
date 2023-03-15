@@ -64,7 +64,6 @@ const createRegistrationLookup = (
 
     return registrations
       .filter(r => r.event.toString() === eventIdStr)
-      .filter(r => !!r.payment_type)
       .map(r => {
         const paymentRecords = payments.filter(
           p => p.registration === r.id
@@ -94,8 +93,8 @@ const createRegistrationLookup = (
   }
 
 export function useRegistrationLookup(): RegistrationLookup | undefined {
-  const registrationsApi = api.useGetRegistrationsQuery();
-  const campersApi = api.useGetCampersQuery();
+  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1 });
+  const campersApi = api.useGetCampersQuery({ registration__completed: 1 });
   const paymentsApi = api.useGetPaymentsQuery();
   const { eventId } = useParams<UrlParams>();
   const [lookup, setLookup] = React.useState<RegistrationLookup>();
@@ -187,8 +186,8 @@ const createCamperLookup =
   };
 
 export function useCamperLookup(): CamperLookup | undefined {
-  const registrationsApi = api.useGetRegistrationsQuery();
-  const campersApi = api.useGetCampersQuery();
+  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1 });
+  const campersApi = api.useGetCampersQuery({ registration__completed: 1 });
   const { eventId } = useParams<UrlParams>();
 
   const [lookup, setLookup] = React.useState<CamperLookup>();
