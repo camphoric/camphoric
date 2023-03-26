@@ -647,11 +647,11 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
         self.assertFalse(registration.completed)
 
-        self.assertEqual(response.data, {
+        self.assertEqual({
             'deposit': None,
             'registrationUUID': registration.uuid,
             'serverPricingResults': expected_pricing_results,
-        })
+        }, response.data)
 
         #
         # payment step

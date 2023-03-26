@@ -6,6 +6,9 @@ import uuid
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+from camphoric import (
+    pricing,
+)
 
 # Useful docs:
 # - https://docs.djangoproject.com/en/4.1/ref/models/fields/
@@ -220,6 +223,19 @@ class Registration(TimeStampedModel):
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
 
+    def recalculate_server_pricing(self):
+        server_pricing_results = pricing.calculate_price(
+            self,
+            self.campers.all()
+        )
+        self.server_pricing_results = server_pricing_results
+        super().save()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)  # Call the "real" save() method.
+        # calculate price on change
+        self.recalculate_server_pricing()
+
 
 class Report(TimeStampedModel):
     '''
@@ -339,6 +355,11 @@ class Camper(TimeStampedModel):
         null=True,
         help_text="JSON array of dates")
     attributes = models.JSONField(null=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)  # Call the "real" save() method.
+        # calculate price on change
+        self.registration.save()
 
 
 class Deposit(TimeStampedModel):

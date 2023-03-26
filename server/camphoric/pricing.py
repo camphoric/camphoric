@@ -1,8 +1,8 @@
 from collections import defaultdict
 import numbers
-
 from json_logic import jsonLogic
 
+import pdb
 
 def calculate_price(registration, campers):
     '''
@@ -65,7 +65,11 @@ def calculate_price(registration, campers):
         data[var] = value
 
     for i, camper in enumerate(campers):
-        data["camper"] = camper.attributes.copy()
+        data["camper"] = {}  # default if no camper.attributes
+
+        if camper.attributes:
+            data["camper"] = camper.attributes.copy()
+
         data["camper"]["index"] = i
         for date_prop in date_props:
             if date_prop in data["camper"]:
