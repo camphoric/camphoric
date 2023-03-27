@@ -1,4 +1,3 @@
-import logging
 from rest_framework.serializers import ModelSerializer, ValidationError
 from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
@@ -6,8 +5,6 @@ from camphoric import (
     models,
     pricing,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class OrganizationSerializer(ModelSerializer):
@@ -95,6 +92,13 @@ class CamperSerializer(ModelSerializer):
     class Meta:
         model = models.Camper
         fields = '__all__'
+
+    def update(self, instance, validated_data):
+        updated_instance = super().update(instance, validated_data)
+        updated_instance.registration.refresh_from_db()
+        updated_instance.registration.recalculate_server_pricing()
+
+        return updated_instance
 
     def validate(self, data):
         if self.partial and 'registration' not in data:
