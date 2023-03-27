@@ -154,7 +154,7 @@ class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['event', 'registration', 'registration__completed']
+    filterset_fields = ['registration', 'registration__completed']
 
 
 class DepositViewSet(ModelViewSet):

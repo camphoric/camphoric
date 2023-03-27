@@ -954,7 +954,7 @@ class PriceAutoUpdateTests(APITestCase):
         self.client.login(username='tom', password='password')
         create_standard_test_event(self, 'Test Registration Org', 'Test Registration Event')
 
-    def createRegistration(self, invitation = None):
+    def createRegistration(self, invitation=None):
         invitation_info = {}
 
         if invitation:
@@ -1007,6 +1007,45 @@ class PriceAutoUpdateTests(APITestCase):
             },
             format='json'
         )
+        self.campers = models.Camper.objects.all() \
+            .filter(registration=self.registration.id)
+
+    def test_camper_edit(self):
+        self.createRegistration()
+
+        # assert pricing is correct before price change
+        self.assertEqual(
+            self.registration.server_pricing_results['total'],
+            300,
+            'pricing before should be ok',
+        )
+        response = self.client.patch(
+            f'/api/campers/{self.campers[0].id}/',
+            {
+                'attributes': {
+                    'is_really_cool': True,
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.client.patch(
+            f'/api/campers/{self.campers[1].id}/',
+            {
+                'attributes': {
+                    'is_really_cool': True,
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.registration.refresh_from_db()
+        self.assertEqual(
+            self.registration.server_pricing_results['total'],
+            100,
+            'pricing after should be ok',
+        )
 
     def test_registration_edit(self):
         self.createRegistration()
@@ -1032,7 +1071,11 @@ class PriceAutoUpdateTests(APITestCase):
 
         self.registration.refresh_from_db()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['id'], self.registration.id, 'registration patch response should be ok')
+        self.assertEqual(
+            response.data['id'],
+            self.registration.id,
+            'registration patch response should be ok',
+        )
         self.assertEqual(
             self.registration.registration_type.id,
             self.registration_type.id,
@@ -1151,9 +1194,14 @@ class BulkEmailTests(APITestCase):
         self.task.refresh_from_db()
         self.assertIsNone(self.task.running_pid)
 
+
 # TODO: it probably makes sense to subclass APITestCase and add this as a
 # method so that some of these fixures can be easily created and accessible
-def create_standard_test_event(self, org_name = 'Test Organization', event_name = 'Test Registration Event'):
+def create_standard_test_event(
+    self,
+    org_name='Test Organization',
+    event_name='Test Registration Event'
+):
     self.organization = models.Organization.objects.create(name=org_name)
     self.event = models.Event.objects.create(
         organization=self.organization,
@@ -1172,6 +1220,7 @@ def create_standard_test_event(self, org_name = 'Test Organization', event_name 
             'required': ['name'],
             'properties': {
                 'name': {'type': 'string'},
+                'is_really_cool': {'type': 'boolean'},
             },
         },
         pricing={},
@@ -1201,7 +1250,16 @@ def create_standard_test_event(self, org_name = 'Test Organization', event_name 
         camper_pricing_logic=[
             {
                 'var': 'tuition',
-                'exp': {'*': [1, 100]},
+                'exp': {
+                    'if': [
+                        {'==': [
+                            {'var': 'camper.is_really_cool'},
+                            True,
+                        ]},
+                        0,
+                        100,
+                    ],
+                },
             },
             {
                 'var': 'total',
@@ -1240,4 +1298,3 @@ def create_standard_test_event(self, org_name = 'Test Organization', event_name 
         'billing_name': 'Testi McTesterton',
         'billing_address': '1234 Average Street',
     }
-
