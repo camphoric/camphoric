@@ -154,7 +154,7 @@ class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['registration', 'registration__completed']
+    filterset_fields = ['event', 'registration', 'registration__completed']
 
 
 class DepositViewSet(ModelViewSet):
@@ -312,6 +312,8 @@ class RegisterView(APIView):
         if invitation:
             registration.registration_type = invitation.registration_type
 
+        server_pricing_results = pricing.calculate_price(registration, campers)
+        registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
         registration.save()
 
@@ -322,12 +324,9 @@ class RegisterView(APIView):
         for camper in campers:
             camper.save()
 
-        # for some reason this isn't happening on its own
-        registration.refresh_from_db()
-
         return Response({
             'registrationUUID': registration.uuid,
-            'serverPricingResults': registration.server_pricing_results,
+            'serverPricingResults': server_pricing_results,
             'deposit': registration.event.registration_deposit_schema,
         })
 
