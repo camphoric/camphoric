@@ -229,12 +229,7 @@ class Registration(TimeStampedModel):
             self.campers.all()
         )
         self.server_pricing_results = server_pricing_results
-        super().save()
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)  # Call the "real" save() method.
-        # calculate price on change
-        self.recalculate_server_pricing()
+        self.save()
 
 
 class Report(TimeStampedModel):
@@ -355,11 +350,6 @@ class Camper(TimeStampedModel):
         null=True,
         help_text="JSON array of dates")
     attributes = models.JSONField(null=True)
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)  # Call the "real" save() method.
-        # calculate price on change
-        self.registration.save()
 
 
 class Deposit(TimeStampedModel):

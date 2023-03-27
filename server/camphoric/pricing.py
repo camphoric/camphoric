@@ -2,7 +2,6 @@ from collections import defaultdict
 import numbers
 from json_logic import jsonLogic
 
-import pdb
 
 def calculate_price(registration, campers):
     '''
