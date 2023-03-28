@@ -58,6 +58,7 @@ const createRegistrationLookup = (
   registrations: Array<ApiRegistration>,
   campers: Array<ApiCamper>,
   payments: Array<ApiPayment>,
+  regTypes: Array<ApiRegistrationType>,
   eventId: CtxId
 ): RegistrationLookup => {
     const eventIdStr = eventId.toString();
@@ -69,6 +70,10 @@ const createRegistrationLookup = (
           p => p.registration === r.id
         );
 
+        const registrationType = regTypes.find(
+          t => t.id === r.registration_type
+        );
+
         const total_owed = r.server_pricing_results.total;
         const total_payments = paymentRecords.reduce((acc, p) => Number(p.amount) + acc, 0);
         const total_balance = total_owed - total_payments;
@@ -78,6 +83,7 @@ const createRegistrationLookup = (
           total_owed,
           total_payments,
           total_balance,
+          registrationType,
           campers: campers.filter(
             c => c.registration.toString() === r.id.toString()
           ),
@@ -96,6 +102,7 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
   const registrationsApi = api.useGetRegistrationsQuery({ completed: 1 });
   const campersApi = api.useGetCampersQuery({ registration__completed: 1 });
   const paymentsApi = api.useGetPaymentsQuery();
+  const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const { eventId } = useParams<UrlParams>();
   const [lookup, setLookup] = React.useState<RegistrationLookup>();
 
@@ -103,7 +110,8 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
     if (
       !registrationsApi.data ||
       !campersApi.data ||
-      !paymentsApi.data
+      !paymentsApi.data ||
+      !registrationTypesApi.data
     ) return;
     if (!eventId) return;
 
@@ -111,11 +119,12 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
       registrationsApi.data,
       campersApi.data,
       paymentsApi.data,
+      registrationTypesApi.data,
       eventId,
     );
 
     setLookup(result);
-  }, [registrationsApi, campersApi, paymentsApi, eventId]);
+  }, [registrationsApi, campersApi, paymentsApi, registrationTypesApi, eventId]);
 
   return lookup;
 }
