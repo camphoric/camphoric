@@ -234,6 +234,7 @@ declare global {
 
   export interface AugmentedRegistration extends ApiRegistration {
     campers: Array<ApiCamper>;
+    registrationType: ApiRegistrationType | void;
     total_owed: number;
     total_payments: number;
     total_balance: number;

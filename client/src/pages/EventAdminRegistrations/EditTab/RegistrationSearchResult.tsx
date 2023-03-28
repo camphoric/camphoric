@@ -24,6 +24,11 @@ function RegistrationSearchResult({ result, ...props }: Props) {
       <Card.Header>{props.resultLabel}</Card.Header>
       <Card.Body>
         <Card.Text>
+          {
+            !!registration.registrationType && (
+              <div><em>{registration.registrationType.label}</em></div>
+            )
+          }
           { registration.campers.slice(1).map(c => label(c)).join('; ') }
         </Card.Text>
       </Card.Body>
