@@ -62,7 +62,7 @@ function EventAdminLodging() {
   const unassignCamper = (c: ApiCamper) => {
     const data = {
       id: c.id,
-      lodging: c.lodging_requested,
+      lodging: null,
       stay: null,
     };
 
