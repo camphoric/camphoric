@@ -35,7 +35,7 @@ export default function TextareaWidget<
     const { maxLength } = options;
     let val = value === '' ? options.emptyValue : value;
     val = val && val.toString();
-    
+
     // truncate on maxLength
     if (maxLength && typeof val === 'string' && val.length > maxLength) {
       val = val.substring(0, Number(maxLength));

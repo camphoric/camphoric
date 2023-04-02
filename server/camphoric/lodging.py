@@ -52,7 +52,7 @@ LODGING_COMMENTS_PROPERTY = {
 
 LODGING_COMMENTS_UI = {
     'ui:widget': 'textarea',
-    'ui:options': {'rows': 3, 'maxlength': 300},
+    'ui:options': {'rows': 3, 'maxLength': 300},
 }
 
 
