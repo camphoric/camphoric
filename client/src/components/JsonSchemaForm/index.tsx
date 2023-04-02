@@ -24,6 +24,7 @@ import NaturalNumberInput from './widgets/NaturalNumberInput';
 import PhoneInput from './widgets/PhoneInput';
 import SelectWidget from './widgets/Select';
 import TextWidget from './widgets/Text';
+import TextareaWidget from './widgets/Textarea';
 import CheckboxesWidget from './widgets/CheckboxesWidget';
 
 import './styles.scss';
@@ -43,6 +44,8 @@ Bootstrap4Theme.widgets = {
   NaturalNumberInput,
   SelectWidget,
   TextWidget,
+  // @ts-expect-error
+  TextareaWidget,
 };
 
 Bootstrap4Theme.fields = {
