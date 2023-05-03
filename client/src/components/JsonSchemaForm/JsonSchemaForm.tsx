@@ -27,8 +27,6 @@ import TextWidget from './widgets/Text';
 import TextareaWidget from './widgets/Textarea';
 import CheckboxesWidget from './widgets/CheckboxesWidget';
 
-import './styles.scss';
-
 export type JsonSchemaFormChangeEvent<P> = IChangeEvent<P>;
 
 export type FormData = {
@@ -60,7 +58,7 @@ Bootstrap4Theme.fields = {
 
 const Form = withTheme(Bootstrap4Theme);
 
-interface Props extends FormProps<any> {
+export interface Props extends FormProps<any> {
   // custom props here
   templateData: Object,
 }

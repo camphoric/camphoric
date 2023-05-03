@@ -1,7 +1,7 @@
 import React from 'react';
 import { FieldProps } from '@rjsf/core';
 import Template from 'components/Template';
-import { JsonSchemaFormTemplateContext } from '../index';
+import { JsonSchemaFormTemplateContext } from '../JsonSchemaForm';
 
 interface Props extends Partial<FieldProps> {
   description?: string;
