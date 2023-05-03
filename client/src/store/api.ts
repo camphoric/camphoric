@@ -16,12 +16,14 @@ const apiObjectNames = [
   'User',
 ] as const;
 
+type ApiObjectName = typeof apiObjectNames[number];
+
 /**
  * I tried doing the creating of basic CRUD creation like this, but I was
  * defeated by typescript
  *
  * function createBasicEndpoints<R extends { id: Scalar }> (
- *   apiObjectName: typeof apiObjectNames[number],
+ *   apiObjectName: ApiObjectName,
  *   builder: EndpointBuilder<any, any, any>,
  * ) {
  *   const apiName = apiObjectName.toLowerCase();
@@ -60,7 +62,7 @@ export const api = createApi({
   tagTypes: apiObjectNames,
   // REMEMBER: our api needs trailing slashes
   endpoints: (builder) => {
-    const getCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
+    const getCreator = <R>(apiObjectName: ApiObjectName) =>
       builder.query<[R], Object | void>({
         query: (params: { [a: string]: string }) => {
           const path = `${apiObjectName.toLowerCase()}s/`;
@@ -74,12 +76,17 @@ export const api = createApi({
         },
         providesTags: [apiObjectName],
       });
-    const getByIdCreator = <R>(apiObjectName: typeof apiObjectNames[number]) =>
+
+    const getByIdCreator = <R>(apiObjectName: ApiObjectName) =>
       builder.query<R, Scalar>({
         query: (id) => `${apiObjectName.toLowerCase()}s/${id}/`,
         providesTags: (result, error, id) => [{ type: apiObjectName, id }],
       });
-    const updateCreator = <R extends { id: Scalar }>(apiObjectName: typeof apiObjectNames[number]) =>
+
+    const updateCreator = <R extends { id: Scalar }>(
+      apiObjectName: ApiObjectName,
+      invalidatesTags?: Array<ApiObjectName>,
+    ) =>
       builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
         // note: an optional `queryFn` may be used in place of `query`
         query: ({ id, ...patch }) => ({
@@ -87,9 +94,13 @@ export const api = createApi({
           method: 'PATCH',
           body: patch,
         }),
-        invalidatesTags: [apiObjectName],
+        invalidatesTags: invalidatesTags || [apiObjectName],
       });
-    const createCreator = <R extends {}>(apiObjectName: typeof apiObjectNames[number]) =>
+
+    const createCreator = <R extends {}>(
+      apiObjectName: ApiObjectName,
+      invalidatesTags?: Array<ApiObjectName>,
+    ) =>
       builder.mutation<
         R,
         Omit<R, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
@@ -100,16 +111,20 @@ export const api = createApi({
           method: 'POST',
           body,
         }),
-        invalidatesTags: [apiObjectName],
+        invalidatesTags: invalidatesTags || [apiObjectName],
       });
-    const deleteCreator = <R extends { id: Scalar }>(apiObjectName: typeof apiObjectNames[number]) =>
+
+    const deleteCreator = <R extends { id: Scalar }>(
+      apiObjectName: ApiObjectName,
+      invalidatesTags?: Array<ApiObjectName>,
+    ) =>
       builder.mutation<R, { id: Scalar }>({
         // note: an optional `queryFn` may be used in place of `query`
         query: ({ id }) => ({
           url: `${apiObjectName.toLowerCase()}s/${id}/`,
           method: 'DELETE',
         }),
-        invalidatesTags: [apiObjectName],
+        invalidatesTags: invalidatesTags || [apiObjectName],
       });
 
     return ({
@@ -130,9 +145,18 @@ export const api = createApi({
       /** /api/registrations */
       getRegistrations: getCreator<ApiRegistration>('Registration'),
       getRegistrationById: getByIdCreator<ApiRegistration>('Registration'),
-      updateRegistration: updateCreator<ApiRegistration>('Registration'),
-      createRegistration: createCreator<ApiRegistration>('Registration'),
-      deleteRegistration: deleteCreator<ApiRegistration>('Registration'),
+      updateRegistration: updateCreator<ApiRegistration>(
+        'Registration',
+        ['Registration', 'Camper'],
+      ),
+      createRegistration: createCreator<ApiRegistration>(
+        'Registration',
+        ['Registration', 'Camper'],
+      ),
+      deleteRegistration: deleteCreator<ApiRegistration>(
+        'Registration',
+        ['Registration', 'Camper'],
+      ),
 
       /** /api/registrationtypes */
       getRegistrationTypes: getCreator<ApiRegistrationType>('RegistrationType'),
@@ -172,9 +196,18 @@ export const api = createApi({
       /** /api/campers */
       getCampers: getCreator<ApiCamper>('Camper'),
       getCamperById: getByIdCreator<ApiCamper>('Camper'),
-      updateCamper: updateCreator<ApiCamper>('Camper'),
-      createCamper: createCreator<ApiCamper>('Camper'),
-      deleteCamper: deleteCreator<ApiCamper>('Camper'),
+      updateCamper: updateCreator<ApiCamper>(
+        'Camper',
+        ['Camper', 'Registration'],
+      ),
+      createCamper: createCreator<ApiCamper>(
+        'Camper',
+        ['Camper', 'Registration'],
+      ),
+      deleteCamper: deleteCreator<ApiCamper>(
+        'Camper',
+        ['Camper', 'Registration'],
+      ),
 
       /** /api/deposits */
       getDeposits: getCreator<ApiDeposit>('Deposit'),
