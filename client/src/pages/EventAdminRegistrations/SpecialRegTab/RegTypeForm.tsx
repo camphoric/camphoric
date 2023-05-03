@@ -62,8 +62,6 @@ function InviteForm({ regType, show, setShow }: Props) {
     onClose();
   }
 
-  debug('RegType form values', formData);
-
   return (
     <Modal
       title={`${regType ? 'Edit' : 'Create'} special registration type`}

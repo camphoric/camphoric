@@ -67,6 +67,7 @@ function Assignment({ lodgingTreeNode, ...props }: Props) {
 
   const checkboxes = getNonLeafNodes(lodgingTreeNode).map((f) => (
     <Form.Check
+      key={f.id}
       inline
       type="checkbox"
       id={`filter-${f.id}`}
