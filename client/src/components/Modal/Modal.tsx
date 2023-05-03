@@ -4,7 +4,6 @@ import {
   Modal as BootstrapModal,
 } from 'react-bootstrap';
 import { SpinnerFullScreen } from 'components/Spinner';
-import debug from 'utils/debug'
 
 interface State {
   showModal: boolean
@@ -48,8 +47,6 @@ class Modal extends React.Component<Props, State> {
 
     // we can also use a prop to control whether this is shown.
     if (this.props.show !== undefined) show = this.props.show;
-
-    debug('showModal', show);
 
     return (
       <BootstrapModal size="xl" show={show} onHide={this.close}>

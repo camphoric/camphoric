@@ -2,7 +2,6 @@ import React from 'react';
 import Input, { Select } from 'components/Input';
 import Modal from 'components/Modal';
 import api from 'store/api';
-import debug from 'utils/debug';
 
 type Props = {
   show: boolean,
@@ -20,8 +19,6 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
 
   const changeValue = (key: keyof ApiInvitation) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = changeEvent.target;
-
-    debug('changeValue', key, value);
 
     setFormData({
       ...formData,
@@ -55,19 +52,14 @@ function InviteForm({ registrationTypes, show, setShow }: Props) {
       registration_type: formData.registration_type || regTypesOptions[0].value.toString(),
     } as ApiInvitation;
 
-    debug('onSave', invitationData);
-
     const invitation = await createInvitation(invitationData);
 
     if ('data' in invitation) {
-      debug('onSave response', invitation);
       await sendInvitation(invitation.data.id);
     }
 
     onClose();
   }
-
-  debug('InviteForm form values', formData);
 
   return (
     <Modal
