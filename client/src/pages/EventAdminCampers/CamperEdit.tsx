@@ -2,7 +2,10 @@ import React from 'react';
 
 import { Button } from 'react-bootstrap';
 import { getCamperDisplayId } from 'utils/display';
-import JsonSchemaForm from 'components/JsonSchemaForm';
+import JsonSchemaForm, {
+  JsonSchemaFormChangeEvent,
+  FormData,
+} from 'components/JsonSchemaForm/AdminEdit';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import api from 'store/api';
 
@@ -15,10 +18,23 @@ interface Props {
 
 function CamperEdit({ camper, event }: Props) {
   const [deleteCamperApi] = api.useDeleteCamperMutation();
-  const modalRef  = React.useRef<ConfirmDialog>(null);
-  const deleteCamper = () => modalRef.current?.show();
+  const [patchCamper] = api.useUpdateCamperMutation();
+  const deleteModal  = React.useRef<ConfirmDialog>(null);
+  const deleteCamper = () => deleteModal.current?.show();
+  const [formData, setFormData] = React.useState(camper.attributes);
 
-  const camperUISchema = (event.registration_ui_schema as any).campers;
+  const saveCamper = () => {
+    patchCamper({
+      id: camper.id,
+      attributes: formData,
+    });
+  }
+
+  const onDataChange = (evt: JsonSchemaFormChangeEvent<FormData>) => {
+    setFormData(evt.formData);
+  }
+
+  const camperUISchema = (event.registration_ui_schema as any).campers?.items;
 
   return (
     <div>
@@ -28,26 +44,30 @@ function CamperEdit({ camper, event }: Props) {
           ...event.camper_schema
         }}
         uiSchema={camperUISchema}
-        formData={camper.attributes}
+        formData={formData}
+        onChange={onDataChange}
         templateData={{
           pricing: event.pricing,
           formData: camper.attributes,
         }}
-      >
-        <Button type="submit" variant="primary">
+      />
+      <div className="button-container">
+        <Button
+          variant="primary"
+          onClick={saveCamper}
+        >
           Save Camper
         </Button>
-
         <Button
           onClick={deleteCamper}
           variant="danger"
         >
           Delete Camper
         </Button>
-      </JsonSchemaForm>
+      </div>
       <ShowRawJSON label="camper" json={camper} />
       <ConfirmDialog
-        ref={modalRef}
+        ref={deleteModal}
         title={`Delete camper ${getCamperDisplayId(camper)}?`}
         onConfirm={() => deleteCamperApi(camper)}
       />

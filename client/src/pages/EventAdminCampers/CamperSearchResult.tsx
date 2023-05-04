@@ -21,11 +21,6 @@ function CamperSearchResult({ result, ...props }: Props) {
       to={`${url}?camperId=${camper.id}`}
     >
       <Card.Header>{ label(camper) }</Card.Header>
-      <Card.Body>
-        <Card.Text>
-          Something here
-        </Card.Text>
-      </Card.Body>
     </Card>
   );
 }
