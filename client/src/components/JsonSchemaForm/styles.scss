@@ -10,7 +10,7 @@
 
 // TODO: move most of this over to pages/Register/styles.scss
 
-.registration-form form.rjsf {
+form.rjsf {
   background-color: white;
   box-shadow: 0 0 5px black;
   flex-grow: 1;
@@ -197,6 +197,12 @@
     .PhoneInputInput {
       border: 0;
     }
+  }
+
+  .admin-edit & {
+    padding: 0rem 0rem;
+    .field-description { display: none; }
+    box-shadow: none;
   }
 }
 
