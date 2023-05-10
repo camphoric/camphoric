@@ -7,7 +7,7 @@ import JsonSchemaForm, {
 } from 'components/JsonSchemaForm/AdminEdit';
 import ShowRawJSON from 'components/ShowRawJSON';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
-import { Select } from 'components/Input';
+import TextInput, { Select } from 'components/Input';
 import Spinner from 'components/Spinner';
 
 import api from 'store/api';
@@ -23,12 +23,14 @@ function RegistrationEdit({ registration, event, ...props}: Props) {
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const [formData, setFormData] = React.useState(registration.attributes);
+  const [regEmail, setRegEmail] = React.useState<string>(registration.registrant_email);
   const [regType, setRegType] = React.useState<string | null>();
 
   const deleteRegistration = () => deleteModal.current?.show();
   const saveRegistration = () => {
     patchRegistration({
       id: registration.id,
+      registrant_email: regEmail,
       ...(
         regType === undefined ? {} : { registration_type: regType }
       ),
@@ -55,6 +57,10 @@ function RegistrationEdit({ registration, event, ...props}: Props) {
     setFormData(evt.formData);
   }
 
+  const onRegEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    !!e.target.value && setRegEmail(e.target.value.toString());
+  }
+
   return (
     <div className="registration-edit-form">
       <Select
@@ -68,6 +74,11 @@ function RegistrationEdit({ registration, event, ...props}: Props) {
         ]}
         onChange={onRegTypeChange}
         value={regType || registration.registration_type || 'none'}
+      />
+      <TextInput
+        label="Email"
+        value={regEmail}
+        onChange={onRegEmailChange}
       />
       <JsonSchemaForm
         schema={event.registration_schema}
