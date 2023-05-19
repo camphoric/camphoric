@@ -1,9 +1,6 @@
 import React from 'react';
 
-import type { RegisterStepProps } from './component';
-
-function RegistrationClosed(props: RegisterStepProps) {
-  console.log(props);
+function RegistrationClosed() {
   return (
     <>
       <h1>Registration Closed</h1>

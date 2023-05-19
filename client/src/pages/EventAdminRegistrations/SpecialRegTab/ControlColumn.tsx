@@ -5,7 +5,7 @@ import {
   Row,
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
-import api from 'store/api';
+import api from 'store/admin/api';
 import { useEvent } from 'hooks/api';
 import { alphaSort } from 'utils/display';
 

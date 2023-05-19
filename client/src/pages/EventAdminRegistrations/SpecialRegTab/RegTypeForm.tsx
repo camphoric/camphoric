@@ -1,7 +1,7 @@
 import React from 'react';
 import Input, { TextArea } from 'components/Input';
 import Modal from 'components/Modal';
-import api from 'store/api';
+import api from 'store/admin/api';
 import debug from 'utils/debug';
 
 type Props = {

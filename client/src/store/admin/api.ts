@@ -1,6 +1,7 @@
 // Need to use the React-specific entry point to allow generating React hooks
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { getCsrfToken } from 'utils/fetch';
+import { factory } from '../utils';
 
 const apiObjectNames = [
   'Organization',
@@ -18,36 +19,6 @@ const apiObjectNames = [
 
 type ApiObjectName = typeof apiObjectNames[number];
 
-/**
- * I tried doing the creating of basic CRUD creation like this, but I was
- * defeated by typescript
- *
- * function createBasicEndpoints<R extends { id: Scalar }> (
- *   apiObjectName: ApiObjectName,
- *   builder: EndpointBuilder<any, any, any>,
- * ) {
- *   const apiName = apiObjectName.toLowerCase();
- *   return {
- *     [`get${apiName}s` as const]: builder.query<[R], void>({
- *       query: () => 'events/',
- *     }),
- *     [`get${apiObjectName}ById` as const]: builder.query<R, Scalar>({
- *       providesTags: (result, error, id) => [{ type: apiObjectName, id }],
- *       query: (id) => `${apiName}s/${id}/`,
- *     }),
- *     [`update${apiObjectName}` as const]: builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
- *       // note: an optional `queryFn` may be used in place of `query`
- *       query: ({ id, ...patch }) => ({
- *         url: `${apiName}s/${id}/`,
- *         method: 'PATCH',
- *         body: patch,
- *       }),
- *       invalidatesTags: [apiObjectName],
- *     }),
- *   };
- * }
- */
-
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
@@ -62,70 +33,13 @@ export const api = createApi({
   tagTypes: apiObjectNames,
   // REMEMBER: our api needs trailing slashes
   endpoints: (builder) => {
-    const getCreator = <R>(apiObjectName: ApiObjectName) =>
-      builder.query<[R], Object | void>({
-        query: (params: { [a: string]: string }) => {
-          const path = `${apiObjectName.toLowerCase()}s/`;
-
-          if (!params) return path;
-
-          const searchParams = new URLSearchParams(Object.entries(params));
-          searchParams.sort();
-          const queryString = searchParams.toString();
-          return queryString ? `${path}?${queryString}` : path;
-        },
-        providesTags: [apiObjectName],
-      });
-
-    const getByIdCreator = <R>(apiObjectName: ApiObjectName) =>
-      builder.query<R, Scalar>({
-        query: (id) => `${apiObjectName.toLowerCase()}s/${id}/`,
-        providesTags: (result, error, id) => [{ type: apiObjectName, id }],
-      });
-
-    const updateCreator = <R extends { id: Scalar }>(
-      apiObjectName: ApiObjectName,
-      invalidatesTags?: Array<ApiObjectName>,
-    ) =>
-      builder.mutation<R, Partial<R> & Pick<R, 'id'>>({
-        // note: an optional `queryFn` may be used in place of `query`
-        query: ({ id, ...patch }) => ({
-          url: `${apiObjectName.toLowerCase()}s/${id}/`,
-          method: 'PATCH',
-          body: patch,
-        }),
-        invalidatesTags: invalidatesTags || [apiObjectName],
-      });
-
-    const createCreator = <R extends {}>(
-      apiObjectName: ApiObjectName,
-      invalidatesTags?: Array<ApiObjectName>,
-    ) =>
-      builder.mutation<
-        R,
-        Omit<R, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
-      >({
-        // note: an optional `queryFn` may be used in place of `query`
-        query: (body) => ({
-          url: `${apiObjectName.toLowerCase()}s/`,
-          method: 'POST',
-          body,
-        }),
-        invalidatesTags: invalidatesTags || [apiObjectName],
-      });
-
-    const deleteCreator = <R extends { id: Scalar }>(
-      apiObjectName: ApiObjectName,
-      invalidatesTags?: Array<ApiObjectName>,
-    ) =>
-      builder.mutation<R, { id: Scalar }>({
-        // note: an optional `queryFn` may be used in place of `query`
-        query: ({ id }) => ({
-          url: `${apiObjectName.toLowerCase()}s/${id}/`,
-          method: 'DELETE',
-        }),
-        invalidatesTags: invalidatesTags || [apiObjectName],
-      });
+    const {
+      getCreator,
+      getByIdCreator,
+      updateCreator,
+      createCreator,
+      deleteCreator,
+    } = factory<ApiObjectName, typeof builder>(builder);
 
     return ({
       /** /api/organizations */
@@ -238,23 +152,4 @@ export const api = createApi({
   },
 });
 
-// Export hooks for usage in function components, which are
-// auto-generated based on the defined endpoints
-// export const {
-//   useGetOrganizationsQuery,
-//   useGetOrganizationByIdQuery,
-//   useUpdateEventMutation,
-// } = api;
-
 export default api;
-
-/**
- * another way to get a single organization by id
- * 
- * const id = 1; // Id of org we're going to look for
- * const { organization } = api.useGetOrganizationsQuery(undefined, {
- *   selectFromResult: ({ data }) => ({
- *     organization: data?.find((o) => o.id === id),
- *   }),
- * });
- */
