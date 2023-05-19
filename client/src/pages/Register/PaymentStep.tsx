@@ -3,58 +3,86 @@ import type {
   PayPalButtonsComponentOptions,
   SHIPPING_PREFERENCE,
   FUNDING_SOURCE,
+  PayPalScriptOptions,
+  OrderResponseBody,
 } from '@paypal/paypal-js';
-import debug from 'utils/debug';
-import { Spinner } from 'react-bootstrap';
-import jsonLogic from 'json-logic-js';
-import JsonSchemaForm from 'components/JsonSchemaForm';
 
-import type { PaymentType } from './index';
+import {
+  PayPalScriptProvider,
+} from '@paypal/react-paypal-js';
+
+import debug from 'utils/debug';
+import jsonLogic from 'json-logic-js';
+import Spinner from 'components/Spinner';
+import JsonSchemaForm from 'components/JsonSchemaForm';
+import api, {
+  PaymentType,
+  DepositType,
+} from 'store/register/api';
+import {
+  useRegFormData,
+  setConfirmationStep,
+  setPaymentInfo,
+  useAppDispatch,
+} from 'store/register/store';
+
+import { useNavigateToRegPage } from './utils';
 import checkImage from './check-image.png';
 import PayPalButtons from './PayPalButtons';
-import type { RegisterStepProps } from './component';
+import PageWrapper from './PageWrapper';
 
 export type PayPalCreateOrder = NonNullable<PayPalButtonsComponentOptions['createOrder']>;
 export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonsComponentOptions['onApprove'];
 
-function PaymentStep(props: RegisterStepProps) {
+function PaymentStep() {
+  const registrationApi = api.useGetRegistrationQuery();
+  const [createInitialPayment] = api.useCreateInitialPaymentMutation();
+  const regFormData = useRegFormData();
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = React.useState(false);
-  const [depositChoice, setDepositChoice] = React.useState<{ deposit: any } | undefined>();
-  if (props.step !== 'payment') return null;
+  const [depositChoice, setDepositChoice] = React.useState<{ deposit: any }>();
+  const [total, setTotal] = React.useState<number>(
+    regFormData.paymentStep?.serverPricingResults.total || 0
+  );
+  const navigateToRegPage = useNavigateToRegPage();
 
-  const paymentData = {
-    type: 'payment',
-    total: (props.totals.total || 0).toFixed(2),
-  };
+  if (!regFormData.paymentStep) {
+    navigateToRegPage('/registration');
 
-  if (depositChoice?.deposit) {
-    try {
-      debug('depositChoice', props.totals);
-
-      const values = JSON.parse(depositChoice.deposit);
-
-      const results = jsonLogic.apply(values.logic, props.totals);
-
-      paymentData.type = values.name;
-      paymentData.total = results;
-    } catch (e) {
-      console.error('deposit logic error', e);
-    }
+    return null;
   }
 
+  if (
+    registrationApi.isFetching ||
+    registrationApi.isLoading ||
+    !registrationApi.data
+  ) return <Spinner />;
+
+  const {
+    paymentStep,
+    paymentInfo,
+  } = regFormData;
+  const totals = paymentStep.serverPricingResults;
+  const config = registrationApi.data;
+
+  debug('PaymentStep info', {
+    total,
+    depositChoice,
+    regFormData,
+  });
 
   const payPalCreateOrder: PayPalCreateOrder = async (data, actions) => {
-    debug('payPalCreateOrder', paymentData);
+    debug('payPalCreateOrder', paymentInfo);
     setLoading(true);
-    const description = `${props.config.dataSchema.title} ${paymentData.type} for ${props.formData.registrant_email}`;
+    const description = `${config.dataSchema.title} payment for ${regFormData.registration.registrant_email}`;
     const order = {
       purchase_units: [
         {
-          amount: { value: paymentData.total.toString() },
+          amount: { value: total.toString() },
           description,
-          invoice_id: props.UUID,
-          reference_id: props.UUID,
-          custom_id: JSON.stringify(paymentData),
+          invoice_id: paymentStep.registrationUUID,
+          reference_id: paymentStep.registrationUUID,
+          custom_id: JSON.stringify(paymentInfo),
         },
       ],
       application_context: {
@@ -68,6 +96,41 @@ function PaymentStep(props: RegisterStepProps) {
 
     return response;
   };
+
+  const processResult = async (paymentType: PaymentType, payPalResponse?: OrderResponseBody) => {
+    let depositType: DepositType = 'none';
+
+    try {
+      const parsedDepositChoice = JSON.parse(depositChoice?.deposit);
+
+      depositType = parsedDepositChoice.name;
+    } catch (e) {
+      // nothing to do here
+    }
+
+    const initialPayment = {
+      registrationUUID: paymentStep.registrationUUID,
+      paymentType,
+      paymentData: {
+        type: depositType,
+        total,
+      },
+      payPalResponse,
+    };
+
+    dispatch(setPaymentInfo(initialPayment));
+    const result = await createInitialPayment(initialPayment);
+
+    if ('error' in result) {
+      throw new Error(`error creating payment: ${JSON.stringify(result)}`);
+    }
+
+    const { data } = result;
+
+    dispatch(setConfirmationStep(data));
+
+    navigateToRegPage('/finished');
+  }
 
   const payPalOnApprove: PayPalOnApprove = (fundingSource: FUNDING_SOURCE) => async (data, actions) => {
     if (!actions || !actions.order) return;
@@ -83,12 +146,9 @@ function PaymentStep(props: RegisterStepProps) {
       const payPalResponse = await actions.order.capture();
       const paymentDataString = payPalResponse.purchase_units[0]?.custom_id;
 
-      debug('PayPalOnApprove capture', payPalResponse);
-      props.submitPayment({
-        paymentType,
-        paymentData: JSON.parse(paymentDataString || ''),
-        payPalResponse,
-      });
+      debug('PayPalOnApprove capture', payPalResponse, paymentDataString);
+
+      processResult(paymentType, payPalResponse);
     } catch (e) {
       setLoading(false);
       debug('capture error!', e);
@@ -98,68 +158,89 @@ function PaymentStep(props: RegisterStepProps) {
   const submitPayByCheck = () => {
     setLoading(true);
 
-    props.submitPayment({
-      paymentType: 'Check',
-      paymentData,
-    });
+    processResult('Check');
   };
 
+  const onDepositChange = ({ formData }: { formData: { deposit: string  } }) => {
+    try {
+      setDepositChoice(formData);
+      const values = JSON.parse(formData.deposit);
+
+      setTotal(jsonLogic.apply(values.logic, totals));
+
+    } catch (e) {
+      console.error('deposit logic error', e);
+    }
+
+  }
+
+  const payPalOptions: (PayPalScriptOptions | undefined) = config.payPalOptions;
+
+  if (process.env.NODE_ENV === 'development' && !!payPalOptions && !payPalOptions['client-id']) {
+    payPalOptions['client-id'] = 'sb';
+  }
+
   return (
-    <div className="payment-form">
-      <h1>Choose your payment option</h1>
-      <p>
-        If you need to go back and change a value, refresh this page and it
-        will take you back to the registration form with your values filled
-        in
-      </p>
-      <h3>Total: ${paymentData.total}</h3>
-      {
-        props.deposit && (
-          <JsonSchemaForm
-            schema={{ 
-              type: 'object',
-              properties: {
-                deposit: {
-                  type: 'string',
-                  ...props.deposit,
-                }
-              }
-            }}
-            uiSchema={{
-              deposit: {
-                'ui:placeholder': 'Choose an option',
-              }
-            }}
-            onChange={(arg) => setDepositChoice(arg.formData)}
-            formData={depositChoice}
-            templateData={{ }}
-            noHtml5Validate
-          >&nbsp;</JsonSchemaForm>
-        )
-      }
-      {
-        !!loading && (
-          <div className="payment-disable-overlay">
-            <div>
-              <Spinner animation="border" />
+    <PageWrapper>
+      <div className="payment-form" style={loading ? { pointerEvents: 'none' } : undefined}>
+        {
+          !!loading && (
+            <div className="payment-disable-overlay">
+              <div>
+                <Spinner />
+              </div>
             </div>
-          </div>
-        )
-      }
-      <button
-        onClick={submitPayByCheck}
-        className="payby-check-button"
-      >
-        <img alt="Check" src={checkImage} />
-        Check
-      </button>
-      <PayPalButtons
-        {...props}
-        setLoading={setLoading}
-        payPalCreateOrder={payPalCreateOrder}
-        payPalOnApprove={payPalOnApprove}
-      />
-    </div>
+          )
+        }
+        <h1>Choose your payment option</h1>
+        <h3>Total: ${(total || 0).toFixed(2)}</h3>
+        {
+          paymentStep.deposit && (
+            <JsonSchemaForm
+              schema={{ 
+                type: 'object',
+                properties: {
+                  deposit: {
+                    type: 'string',
+                    ...paymentStep.deposit,
+                  }
+                }
+              }}
+              uiSchema={{
+                deposit: {
+                  'ui:placeholder': 'Choose an option',
+                }
+              }}
+              onChange={onDepositChange}
+              formData={depositChoice}
+              templateData={{ }}
+              noHtml5Validate
+            >&nbsp;</JsonSchemaForm>
+          )
+        }
+        <button
+          onClick={submitPayByCheck}
+          className="payby-check-button"
+        >
+          <img alt="Check" src={checkImage} />
+          Check
+        </button>
+        {
+          !!payPalOptions && (
+            <PayPalScriptProvider
+              options={payPalOptions}
+              deferLoading
+            >
+              <PayPalButtons
+                payPalOptions={payPalOptions}
+                payPalCreateOrder={payPalCreateOrder}
+                payPalOnApprove={payPalOnApprove}
+              />
+            </PayPalScriptProvider>
+          )
+        }
+      </div>
+    </PageWrapper>
   );
 }
 

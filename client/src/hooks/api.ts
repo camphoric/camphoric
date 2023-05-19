@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Fuse from 'fuse.js';
-import api from 'store/api';
+import api from 'store/admin/api';
 
 export default api;
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import Input, { Select } from 'components/Input';
 import Modal from 'components/Modal';
-import api from 'store/api';
+import api from 'store/admin/api';
 
 type Props = {
   show: boolean,

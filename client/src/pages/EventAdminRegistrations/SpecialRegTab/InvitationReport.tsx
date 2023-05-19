@@ -1,5 +1,5 @@
 import React from 'react';
-import api from 'store/api';
+import api from 'store/admin/api';
 import { useEvent, useRegistrationLookup } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';

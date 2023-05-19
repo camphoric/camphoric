@@ -180,7 +180,7 @@ declare global {
     deposit: JSONSchema7,
   }
 
-  export interface ApiRegisterFinalStep {
+  export interface ApiRegisterConfirmationStep {
     confirmationPageTemplate: string;
     serverPricingResults: any;
     initialPayment: any,

@@ -1,14 +1,19 @@
 import React from 'react';
 import { Alert } from 'react-bootstrap';
+import api from 'store/register/api';
+import Spinner from 'components/Spinner';
 
-import { type FormDataState } from './index';
+function InvitationInfo() {
+  const registrationApi = api.useGetRegistrationQuery();
 
-interface Props {
-  config: FormDataState['config'];
-}
+  if (
+    registrationApi.isFetching ||
+    registrationApi.isLoading ||
+    !registrationApi.data
+  ) return <Spinner />;
 
-function InvitationInfo(props: Props) {
-  const { invitation, invitationError, registrationType } = props.config;
+
+  const { invitation, invitationError, registrationType } = registrationApi.data;
 
   return (
     <React.Fragment>

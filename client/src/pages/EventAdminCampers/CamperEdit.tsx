@@ -7,7 +7,7 @@ import JsonSchemaForm, {
   FormData,
 } from 'components/JsonSchemaForm/AdminEdit';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
-import api from 'store/api';
+import api from 'store/admin/api';
 
 import ShowRawJSON from 'components/ShowRawJSON';
 

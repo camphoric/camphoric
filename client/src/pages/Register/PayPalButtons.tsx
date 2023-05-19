@@ -1,7 +1,12 @@
 import React, { MutableRefObject, useRef } from 'react';
-import { PayPalButtons } from '@paypal/react-paypal-js';
-import getFromPath from 'lodash/get';
-import PayPalProvider from 'components/PayPalProvider';
+import { useHistory } from 'react-router-dom';
+import {
+  usePayPalScriptReducer,
+  getScriptID,
+  destroySDKScript,
+  PayPalButtons,
+  SCRIPT_LOADING_STATE,
+} from '@paypal/react-paypal-js';
 import debug from 'utils/debug';
 
 import type {
@@ -9,7 +14,6 @@ import type {
   PayPalScriptOptions,
 } from '@paypal/paypal-js';
 
-import type { RegisterStepProps } from './component';
 import type {
   PayPalCreateOrder,
   PayPalOnApprove,
@@ -20,10 +24,10 @@ const payPalFundingSources: Array<FUNDING_SOURCE> = [
   'card',
 ];
 
-interface Props extends RegisterStepProps {
+interface Props {
+  payPalOptions: PayPalScriptOptions;
   payPalCreateOrder: PayPalCreateOrder;
   payPalOnApprove: PayPalOnApprove;
-  setLoading: (a: boolean) => void;
 };
 
 interface InstanceData {
@@ -35,6 +39,22 @@ interface InstanceData {
 };
 
 function PayPalButtonsComponent(props: Props) {
+  const [, payPalDispatch] = usePayPalScriptReducer();
+  const history = useHistory();
+
+  React.useEffect(() => {
+    payPalDispatch({
+      type: 'setLoadingStatus',
+      value: 'pending' as SCRIPT_LOADING_STATE,
+    });
+
+    // destroy on back, so this can be recreated
+    const listener = history.listen((location, action) => {
+      destroySDKScript(getScriptID(props.payPalOptions));
+
+      listener();
+    });
+  }, [history, payPalDispatch, props.payPalOptions]);
 
   // The PayPalButtons component from @paypal/react-paypal-js doesn't seem to
   // update with the current values of the createOrder and onApprove props, but
@@ -50,30 +70,8 @@ function PayPalButtonsComponent(props: Props) {
   }) as MutableRefObject<InstanceData>;
   instance.current.props = props;
 
-  const optionsFromConfig = getFromPath(props, 'config.payPalOptions');
-
-  debug('formData', props.formData);
-  debug('config', props.config);
-
-  if (!optionsFromConfig) return null;
-
-  const payPalOptions: PayPalScriptOptions = {
-    ...optionsFromConfig,
-    // put overrides here
-    // ....
-  };
-
-  if (process.env.NODE_ENV === 'development' && !payPalOptions['client-id']) {
-    payPalOptions['client-id'] = 'sb';
-  }
-
   return (
-    <PayPalProvider
-      options={payPalOptions}
-      onStatsChange={(stats) => {
-        props.setLoading(!stats.isResolved);
-      }}
-    >
+    <>
       {
         payPalFundingSources.map((fundingSource) => (
           <PayPalButtons
@@ -84,7 +82,7 @@ function PayPalButtonsComponent(props: Props) {
           />
       ))
     }
-    </PayPalProvider>
+    </>
   );
 }
 

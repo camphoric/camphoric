@@ -10,7 +10,7 @@ import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import TextInput, { Select } from 'components/Input';
 import Spinner from 'components/Spinner';
 
-import api from 'store/api';
+import api from 'store/admin/api';
 
 interface Props {
   registration: AugmentedRegistration;
