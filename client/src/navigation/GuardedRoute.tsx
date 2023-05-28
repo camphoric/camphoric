@@ -1,24 +1,25 @@
 import React from 'react';
 import { Route, RouteProps } from 'react-router-dom';
 
+import Spinner from 'components/Spinner';
+import api from 'store/admin/api';
+
 import Login from './Login';
-import { useUser } from 'hooks/user';
 
 type Props = Omit<RouteProps, 'component'>;
 
 function GuardedRoute({ children, ...rest }: Props) {
-  const userInfo = useUser();
-  const user = userInfo.value;
+  const userApi = api.useGetCurrentUserQuery();
+
+  if (!userApi.data) return (<Spinner />);
+
+  const user = userApi.data;
 
   return (
-    <Route {...rest} render={(props) => (
-      user.username ? children : (
-        <Login
-          onLoginSuccess={userInfo.set}
-          onLoginFail={(e) => console.log(e)}
-        />
-      )
+    <Route {...rest} render={() => (
+      user.username ? children : <Login />
     )} />
   );
 }
+
 export default GuardedRoute;
