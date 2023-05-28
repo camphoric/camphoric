@@ -15,9 +15,15 @@ const apiObjectNames = [
   'Deposit',
   'Payment',
   'User',
+  'WhoAmI',
 ] as const;
 
 type ApiObjectName = typeof apiObjectNames[number];
+
+type LoginCreds = {
+  username: string,
+  password: string,
+};
 
 export const api = createApi({
   reducerPath: 'api',
@@ -146,7 +152,19 @@ export const api = createApi({
 
       /** /api/user */
       getCurrentUser: builder.query<ApiUser, void>({
-        query: () => 'user/',
+        query: () => 'user',
+        providesTags: ['WhoAmI'],
+      }),
+      login: builder.mutation<ApiUser, LoginCreds>({
+        query: (body: LoginCreds) => {
+
+          return {
+            url: 'login',
+            method: 'POST',
+            body,
+          };
+        },
+        invalidatesTags: ['WhoAmI'],
       }),
     });
   },

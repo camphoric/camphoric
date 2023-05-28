@@ -32,6 +32,21 @@ const RouterConfig = () => {
   return (
     <Switch>
       <Redirect from="/:url*(/+)" to={pathname.slice(0, -1)} />
+      <Route path="/admin" render={() => (
+        <Provider store={adminStore}>
+          <GuardedRoute path="/admin">
+            <Route exact path={['/admin', '/admin/organization/']}>
+              <OrganizationChooser />
+            </Route>
+            <Route exact path="/admin/organization/:organizationId/event">
+              <EventChooser />
+            </Route>
+            <Route path="/admin/organization/:organizationId/event/:eventId">
+              <EventAdmin basePath="/admin/organization/:organizationId/event/:eventId" />
+            </Route>
+          </GuardedRoute>
+        </Provider>
+      )} />
       <Provider store={regStore}>
         <Route exact path="/" component={Default} />
         <Route exact path={registerUrl}>
@@ -41,19 +56,6 @@ const RouterConfig = () => {
         <Route exact path={`${registerUrl}/payment`} component={PaymentStep} />
         <Route exact path={`${registerUrl}/finished`} component={ConfirmationStep} />
       </Provider>
-      <GuardedRoute path="/admin">
-        <Provider store={adminStore}>
-          <Route exact path={['/admin', '/admin/organization/']}>
-            <OrganizationChooser />
-          </Route>
-          <Route exact path="/admin/organization/:organizationId/event">
-            <EventChooser />
-          </Route>
-          <Route path="/admin/organization/:organizationId/event/:eventId">
-            <EventAdmin basePath="/admin/organization/:organizationId/event/:eventId" />
-          </Route>
-        </Provider>
-      </GuardedRoute>
     </Switch>
   );
 };
