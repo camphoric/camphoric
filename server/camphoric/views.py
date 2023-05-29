@@ -460,6 +460,7 @@ class RegisterView(APIView):
                 'registrant_email': {
                     'type': 'string',
                     'format': 'email',
+                    'pattern': '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
                     'title': 'Registrant email',
                 },
                 **event.registration_schema.get('properties', {}),

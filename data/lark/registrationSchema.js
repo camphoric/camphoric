@@ -1,4 +1,4 @@
-import { year } from './dates.js'
+import { year } from './dates.js';
 
 export default {
   'title': `Lark Camp ${year} Registration`,

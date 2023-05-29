@@ -3,8 +3,9 @@
 
 import { ChangeEvent, FocusEvent } from 'react';
 import { ariaDescribedByIds, FormContextType, RJSFSchema, StrictRJSFSchema, WidgetProps } from '@rjsf/utils';
-import FormControl from 'react-bootstrap/FormControl';
-import InputGroup from 'react-bootstrap/InputGroup';
+import Form from 'react-bootstrap/Form';
+import CustomDescriptionField from '../fields/Description';
+import { getSchemaValue } from '../utils';
 
 type CustomWidgetProps<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any> = WidgetProps<
   T,
@@ -30,6 +31,8 @@ export default function TextareaWidget<
   onFocus,
   onChange,
   options,
+  rawErrors = [],
+  ...props
 }: CustomWidgetProps<T, S, F>) {
   const _onChange = ({ target: { value } }: ChangeEvent<HTMLTextAreaElement>) => {
     const { maxLength } = options;
@@ -46,9 +49,21 @@ export default function TextareaWidget<
   const _onBlur = ({ target: { value } }: FocusEvent<HTMLTextAreaElement>) => onBlur(id, value);
   const _onFocus = ({ target: { value } }: FocusEvent<HTMLTextAreaElement>) => onFocus(id, value);
 
+  const title = props.label || getSchemaValue(props, 'title');
+  const description = getSchemaValue(props, 'description');
+
   return (
-    <InputGroup>
-      <FormControl
+    <Form.Group>
+      <Form.Label className={rawErrors.length > 0 ? "text-danger" : ""}>
+        {title}
+        {title && required ? "*" : null}
+      </Form.Label>
+      {description && (
+        <CustomDescriptionField
+          description={description}
+        />
+      )}
+      <Form.Control
         id={id}
         name={id}
         as='textarea'
@@ -64,6 +79,6 @@ export default function TextareaWidget<
         onFocus={_onFocus}
         aria-describedby={ariaDescribedByIds<T>(id)}
       />
-    </InputGroup>
+    </Form.Group>
   );
 }
