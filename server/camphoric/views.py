@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
-import jsonschema  # Using Draft-7
+import jsonschema
 from rest_framework import permissions, status
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
@@ -460,7 +460,9 @@ class RegisterView(APIView):
                 'registrant_email': {
                     'type': 'string',
                     'format': 'email',
-                    'pattern': '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
+                    # https://pythex.org/
+                    # Found a regex that will work with both JS and python
+                    'pattern': r'^[a-zA-Z0-9_\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     'title': 'Registrant email',
                 },
                 **event.registration_schema.get('properties', {}),
@@ -498,7 +500,11 @@ class RegisterView(APIView):
     def validate_form_data(cls, event, form_data):
         (schema, _) = cls.get_form_schema(event)
         try:
-            jsonschema.validate(form_data, schema)
+            jsonschema.validate(
+                form_data,
+                schema,
+                format_checker=jsonschema.Draft202012Validator.FORMAT_CHECKER,
+                )
         except jsonschema.exceptions.ValidationError as e:
             path = '.'.join(e.absolute_path)
             raise ValidationError({path: e.message})

@@ -243,6 +243,7 @@ class RegisterGetTests(APITestCase):
                 'registrant_email': {
                     'type': 'string',
                     'format': 'email',
+                    'pattern': r'^[a-zA-Z0-9_\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     'title': 'Registrant email',
                 },
                 'campers': {
