@@ -22,9 +22,19 @@ function RegistrationEdit({ registration, event, ...props}: Props) {
   const [patchRegistration] = api.useUpdateRegistrationMutation();
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
+  const [registrationId, setRegistrationId] = React.useState(registration.id);
   const [formData, setFormData] = React.useState(registration.attributes);
   const [regEmail, setRegEmail] = React.useState<string>(registration.registrant_email);
   const [regType, setRegType] = React.useState<string | null>();
+
+  React.useEffect(() => {
+    if (registrationId.toString() !== registration.id.toString()) {
+      setRegistrationId(registration.id);
+      setRegEmail(registration.registrant_email);
+      setFormData(registration.attributes);
+      setRegType(registration.registration_type || 'none');
+    }
+  }, [registrationId, formData, registration]);
 
   const deleteRegistration = () => deleteModal.current?.show();
   const saveRegistration = () => {

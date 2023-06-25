@@ -39,6 +39,8 @@ function EventAdminCampers() {
     results = fuseUtils.getFirstNOf(camperSearch, 10);
   }
 
+  const selectedCamper = camperLookup[camperId];
+
   return (
     <Container>
       <Row>
@@ -64,10 +66,10 @@ function EventAdminCampers() {
         </Col>
         <Col md="9">
           {
-            !!camperLookup[camperId] && (
+            !!selectedCamper && (
               <CamperEdit
                 event={eventApi.data}
-                camper={camperLookup[camperId]}
+                camper={selectedCamper}
               />
             )
           }
