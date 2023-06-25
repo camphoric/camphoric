@@ -35,7 +35,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { oraPromise } from 'ora';
 import cliProgress from 'cli-progress';
-
+import lodash from 'lodash';
 
 import { Organizations } from './organizations/index.js';
 import { formatDate } from './utils.js';
@@ -386,30 +386,57 @@ export default class CamphoricEventCreator {
           'Content-Type': 'application/json',
           'X-CSRFToken': token,
         },
-        body: JSON.stringify(testData),
+        body: JSON.stringify({
+          step: 'registration',
+          formData: testData.formData,
+          pricingResults: testData.pricingResults,
+        }),
       });
 
       const text = await res.text();
 
-      let json = {};
+      let json;
       try {
         json = JSON.parse(text);
       } catch (e) {
-        console.log('failed to add test reg, see Django logs');
+        console.error(' [reg step] failed to add test reg, see Django logs');
+      }
+
+      if (!res.ok) {
+        console.error(' [reg step] failed to add test reg, see Django logs');
+        if (json) console.log(json);
       }
 
       return {
         ...testData,
-        response: json,
+        response: json || {},
       };
     };
 
     const postPayment = async (testData) => {
+      const paymentType =
+        lodash.get(testData, 'paymentData.paymentType') ||
+        lodash.get(testData, 'formData.payment_type');
+
+      const total =
+        lodash.get(testData, 'paymentData.total') ||
+        lodash.get(testData, 'response.serverPricingResults.total');
+
+      const payPalResponse =
+        lodash.get(testData, 'paymentData.payPalResponse') || undefined;
+
+      const otherPaymentData = 
+        lodash.get(testData, 'paymentData.otherPaymentData') || {};
+
       const body = {
         step: 'payment',
         registrationUUID: testData.response.registrationUUID,
-        paymentType: testData.formData.payment_type,
-        payPalResponse: testData.formData.paypal_response,
+        paymentType,
+        payPalResponse,
+        paymentData: {
+          total,
+          ...otherPaymentData,
+        },
       };
 
       const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
@@ -423,16 +450,21 @@ export default class CamphoricEventCreator {
 
       const text = await res.text();
 
-      let json = {};
+      let json;
       try {
         json = JSON.parse(text);
       } catch (e) {
-        console.log('failed to add test reg, see Django logs');
+        console.error(' [pay step] failed to add test reg, see Django logs');
+      }
+
+      if (!res.ok) {
+        console.error(' [pay step] failed to add test reg, see Django logs');
+        if (json) console.log(json);
       }
 
       return {
         ...testData,
-        response: json,
+        response: json || {},
       };
 
     };
