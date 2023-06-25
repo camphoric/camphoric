@@ -64,7 +64,7 @@ function makeRegistration(reg, lodgingMap) {
   return {
     'formData': {
       'payment': {
-        'payment_type': reg.payment_type || 'PayPal',
+        'payment_type': reg.payment_type || 'Check',
         'payer_billing_address': {
           'country': 'United States',
           'street_address': reg.address[0],
@@ -123,6 +123,9 @@ function makeRegistration(reg, lodgingMap) {
       'total': 0,
       'tuition': 0,
       'meals': 0
+    },
+    'paymentData': {
+      paymentType: reg.payment_type || 'Check',
     }
   };
 }

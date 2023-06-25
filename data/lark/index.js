@@ -64,15 +64,13 @@ if (process.env.PAYPAL_CLIENT_ID) {
   data.event.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
 }
 
-// We override pricing because we need to get the off_site id in order to get
-// the pricing correct
-// const sampleRegGenerator = async (fetch, results) => {
-//   const regs = makeRegistrations(results.lodging);
-// 
-//   return regs;
-// };
+const sampleRegGenerator = async (fetch, results) => {
+  const regs = makeRegistrations(results.lodging);
+
+  return regs;
+};
 
 export default {
   data,
-  // sampleRegGenerator,
+  sampleRegGenerator,
 };
