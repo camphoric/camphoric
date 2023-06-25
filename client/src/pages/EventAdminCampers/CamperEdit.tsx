@@ -21,7 +21,15 @@ function CamperEdit({ camper, event }: Props) {
   const [patchCamper] = api.useUpdateCamperMutation();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const deleteCamper = () => deleteModal.current?.show();
+  const [camperId, setCamperId] = React.useState(camper.id);
   const [formData, setFormData] = React.useState(camper.attributes);
+
+  React.useEffect(() => {
+    if (camperId.toString() !== camper.id.toString()) {
+      setCamperId(camper.id);
+      setFormData(camper.attributes);
+    }
+  }, [camperId, formData, camper]);
 
   const saveCamper = () => {
     patchCamper({
