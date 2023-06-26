@@ -35,6 +35,67 @@ const comparison = (a, b) => {
 };
 
 const helpers: HelperHash = {
+  getLodgingValue: [
+    `
+    {{getLodgingValue lodging 'name'}}
+    Tent spot A
+    Lookup a lodging object and return a value from a path
+    `,
+    function (lodgingId, path, options) {
+      console.log(options.data.root);
+      const lookup = options.data.root.lodgingLookup;
+      const reg = lookup[lodgingId];
+
+      if (!reg) return '';
+
+      const value = getFromPath(reg, path);
+
+      if (value === undefined) return '';
+
+      return value;
+    },
+  ],
+
+  getRegistrationValue: [
+    `
+    {{getRegistrationValue camper.registration 'initial_payment.total'}}
+    9999
+    Lookup a registration object and return a value from a path
+    `,
+    function (registrationId, path, options) {
+      const lookup = options.data.root.registrationLookup;
+      const reg = lookup[registrationId];
+
+      if (!reg) return '';
+
+      const value = getFromPath(reg, path);
+
+      if (value === undefined) return '';
+
+      return value;
+    },
+  ],
+
+  getCamperValue: [
+    `
+    {{getCamperValue campers.0.id 'attributes.first_name'}}
+    bob
+    Lookup a camper object and return a value from a path
+    `,
+    function (camperId, path, options) {
+      const lookup = options.data.root.camperLookup;
+      const reg = lookup[camperId];
+
+      if (!reg) return '';
+
+      const value = getFromPath(reg, path);
+
+      if (value === undefined) return '';
+
+      return value;
+    },
+  ],
+
   compare: [
     `
     {{compare myStr '===' 'bob'}}bob{{/compare}}
@@ -105,6 +166,7 @@ const helpers: HelperHash = {
       return abs;
     }
   ],
+
   or: [
     `
     {{or false 0 bob}}
@@ -177,6 +239,35 @@ const helpers: HelperHash = {
     function(arr, path) {
       return arr.map(i => getFromPath(path))
         .reduce((acc, n) => acc + (Number(n) || 0), 0);
+    }
+  ],
+
+  eachLookupSort: [
+    `
+    {{#eachLookupSort campers 'lodging' 'lodgingLookup' 'name'}}{{attributes.name}},{{/eachLookupSort}}
+    Abby,Bob,Jane,Zed,
+    Block helper that sorts an array of objects by a value found in a lookup
+    `,
+    function(arr, objKey, lookupName, lookupValueKey, options) {
+      console.log(options);
+      const lookup = options.data.root[lookupName];
+
+      if (!lookup) {
+        console.error(`can't find lookup '${lookupName}`);
+        return '';
+      }
+
+      const arrSorted =  arr.sort((a, b) => {
+        const akey = getFromPath(a, objKey);
+        const bkey = getFromPath(b, objKey);
+
+        const aval = getFromPath(lookup[akey], lookupValueKey);
+        const bval = getFromPath(lookup[bkey], lookupValueKey);
+
+        return comparison(aval, bval);
+      });
+
+      return arrSorted.map(options.fn).join('');
     }
   ],
 
