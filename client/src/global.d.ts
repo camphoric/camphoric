@@ -245,6 +245,7 @@ declare global {
     isLeaf: boolean;
     campers: Array<ApiCamper>;
     count: number;
+    fullPath: string;
   }
 }
 
