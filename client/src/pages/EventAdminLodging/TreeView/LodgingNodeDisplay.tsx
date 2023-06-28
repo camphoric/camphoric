@@ -1,11 +1,13 @@
 import React from 'react';
 import { Tooltip, OverlayTrigger, Collapse, Button } from 'react-bootstrap';
 import { getCamperDisplayId } from 'utils/display';
+import { sortedChildren } from '../utils';
 
 type Props = {
   renderNode: (a: AugmentedLodging) => React.ReactNode,
   lodgingTree: AugmentedLodging,
   topLevel: boolean;
+  showLodgingModal: (l: AugmentedLodging) => void,
 } & typeof defaultProps;
 
 const defaultProps = {
@@ -35,15 +37,24 @@ function LodgingNodeDisplay(props: Props) {
         delay={{ show: 0, hide: 0 }}
         overlay={renderCamperList}
       >
-        <Button style={{ width: '100%', textAlign: 'left' }} variant="info" onClick={() => setOpen(!open)}>
-          {props.lodgingTree.name} ({props.lodgingTree.count} / {props.lodgingTree.capacity})
+        <Button className="main-lodging-button" variant="info" onClick={() => setOpen(!open)}>
+          <span>
+            {props.lodgingTree.name} ({props.lodgingTree.count} / {props.lodgingTree.capacity})
+            <span> - Reserved: {props.lodgingTree.reserved}</span>
+          </span>
+          <Button onClick={(e) => {
+            e.stopPropagation();
+            props.showLodgingModal(props.lodgingTree);
+          }}>
+            Edit
+          </Button>
         </Button>
       </OverlayTrigger>
       <Collapse in={open}>
         <div>
           { props.renderNode(props.lodgingTree) }
           {
-            props.lodgingTree.children.map(c => (
+            sortedChildren(props.lodgingTree).map(c => (
               <LodgingNodeDisplay
                 key={c.id}
                 {...props}

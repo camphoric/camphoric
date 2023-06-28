@@ -1,0 +1,9 @@
+@use "sass:color";
+
+.event-admin-section-lodging .event-admin-lodging-container .tree-view {
+  .main-lodging-button {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+}

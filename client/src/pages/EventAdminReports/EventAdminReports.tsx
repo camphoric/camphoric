@@ -140,6 +140,7 @@ function EventAdminReports() {
         <ReportEditForm
           templateVars={templateVars}
           onChange={setFormValues}
+          newReport
         />
       </Modal>
     </Container>

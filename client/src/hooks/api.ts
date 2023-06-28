@@ -404,6 +404,7 @@ export function useLodgingTree(): AugmentedLodging | undefined {
         count,
         campers,
         capacity,
+        originalCapacity: lodging.capacity,
         ...getFullPath(lodging),
       };
     };

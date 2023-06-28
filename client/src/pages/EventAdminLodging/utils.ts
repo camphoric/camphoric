@@ -1,6 +1,18 @@
 import { LodgingLookup } from 'hooks/api';
 import flattenDeep from 'lodash/flattenDeep';
 
+export const sortedChildren = (node: AugmentedLodging) => {
+  if (!node.children) return [];
+
+  return node.children.sort(
+    (a, b) => a.name.localeCompare(
+      b.name,
+      undefined,
+      { sensitivity: 'accent' },
+    )
+  );
+}
+
 export function getDaysArray(event?: ApiEvent): Array<Date> {
   let arr: Array<Date> = [];
 

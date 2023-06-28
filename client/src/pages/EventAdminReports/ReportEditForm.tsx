@@ -10,6 +10,7 @@ export type ReportEditFormValue = {
 
 export interface ReportEditFormProps {
   templateVars: ReportTemplateVars;
+  newReport?: boolean;
   result?: ApiReport;
   onChange: (obj: ReportEditFormValue) => void;
 }
@@ -47,7 +48,7 @@ function ReportEditForm({ result, onChange, templateVars }: ReportEditFormProps)
 
   const textAreaLabel = (
     <div>
-      Report Template 
+      Report Template
       <TemplateHelp templateVars={templateVars} />
     </div>
   );

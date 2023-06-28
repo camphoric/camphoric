@@ -297,6 +297,7 @@ export default class CamphoricEventCreator {
           children_title: lodging.children_title,
           visible: lodging.visible,
           capacity: lodging.capacity || 0,
+          reserved: lodging.reserved || 0,
           sharing_multiplier: lodging.sharing_multiplier || 1,
         };
         createdLodging = await this.fetch('POST', '/api/lodgings/', data);
