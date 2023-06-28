@@ -246,6 +246,7 @@ declare global {
     campers: Array<ApiCamper>;
     count: number;
     fullPath: string;
+    originalCapacity: number;
     pathParts: string[];
   }
 }

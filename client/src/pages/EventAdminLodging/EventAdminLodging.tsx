@@ -15,11 +15,10 @@ import api, {
   useCamperLookup,
 } from 'hooks/api';
 import Spinner from 'components/Spinner';
-import ShowRawJSON from 'components/ShowRawJSON';
 import { lodgingPathDisplay, getCamperDisplayId } from 'utils/display';
-import LodgingNodeDisplay from './LodgingNodeDisplay';
 import Assignment from './Assignment';
 import CamperPopOver from './CamperPopOver';
+import TreeView from './TreeView';
 
 import { getAllParentClasses } from './utils';
 
@@ -173,12 +172,7 @@ function EventAdminLodging() {
           <div className="tab-container">
             <Tabs defaultActiveKey="View" className="level-1">
               <Tab eventKey="View" title="Tree View">
-                {
-                  lodgingTree.children.map(
-                    c => <LodgingNodeDisplay key={c.id} lodgingTree={c} />
-                  )
-                }
-                <ShowRawJSON label="lodging" json={lodgingTree} />
+                <TreeView />
               </Tab>
               {
                 lodgingTree.children.map((l) => (
