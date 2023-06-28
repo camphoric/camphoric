@@ -21,7 +21,7 @@ type HelperHash = {
   [a: string]: [ HelpText, Function ],
 }
 
-const comparison = (a, b) => {
+const sortComparison = (a, b) => {
   if (typeof a === 'number' && typeof b === 'number') {
     return a - b;
   }
@@ -33,6 +33,46 @@ const comparison = (a, b) => {
     { sensitivity: 'accent' },
   );
 };
+
+const compareByOperator = (a, operator, b) => {
+  let result;
+  switch (operator) {
+    case '==':
+      // eslint-disable-next-line eqeqeq
+      result = a == b;
+      break;
+    case '===':
+      result = a === b;
+      break;
+    case '!=':
+      // eslint-disable-next-line eqeqeq
+      result = a != b;
+      break;
+    case '!==':
+      result = a !== b;
+      break;
+    case '<':
+      result = a < b;
+      break;
+    case '>':
+      result = a > b;
+      break;
+    case '<=':
+      result = a <= b;
+      break;
+    case '>=':
+      result = a >= b;
+      break;
+    case 'typeof':
+      result = typeof a === b;
+      break;
+    default: {
+      throw new Error('invalid operator: `' + operator + '`');
+    }
+  }
+
+  return result;
+}
 
 const helpers: HelperHash = {
   getLodgingValue: [
@@ -96,6 +136,56 @@ const helpers: HelperHash = {
     },
   ],
 
+  count: [
+    `
+    {{count campers}}
+    5
+    Count the items in an array
+    `,
+    function (arr, options) {
+      if (!Array.isArray(arr)) throw new Error(
+        'non-array passed to {{count}}'
+      );
+
+      return arr.length;
+    },
+  ],
+
+  filter: [
+    `
+    {{#each (filter campers 'attributes.age' '===' '0-4'))}}{{attributes.first_name}}{{/each}}
+    bob
+    Filter an array of objects with a comparison of the path's value and third arguments
+    `,
+    function (...args) {
+      if (args.length < 5) {
+        throw new Error('handlebars Helper {{filter}} expects 5 arguments');
+      }
+
+      const [arr, path, operator, b, options] = args;
+
+      console.log({
+        arr, path, operator, b, options
+      });
+
+      try {
+        const result = arr.filter((item) => {
+          if (!item) return false;
+
+          const val = getFromPath(item, path);
+
+          return compareByOperator(val, operator, b);
+        });
+
+        if (result) {
+          return result;
+        }
+      } catch(e) {
+        throw new Error(`helper {{filter}}: ${e.message}`);
+      }
+    },
+  ],
+
   compare: [
     `
     {{compare myStr '===' 'bob'}}bob{{/compare}}
@@ -110,44 +200,14 @@ const helpers: HelperHash = {
 
       const [a, operator, b, options] = args;
 
-      let result;
-      switch (operator) {
-        case '==':
-          // eslint-disable-next-line eqeqeq
-          result = a == b;
-          break;
-        case '===':
-          result = a === b;
-          break;
-        case '!=':
-          // eslint-disable-next-line eqeqeq
-          result = a != b;
-          break;
-        case '!==':
-          result = a !== b;
-          break;
-        case '<':
-          result = a < b;
-          break;
-        case '>':
-          result = a > b;
-          break;
-        case '<=':
-          result = a <= b;
-          break;
-        case '>=':
-          result = a >= b;
-          break;
-        case 'typeof':
-          result = typeof a === b;
-          break;
-        default: {
-          throw new Error('helper {{compare}}: invalid operator: `' + operator + '`');
-        }
-      }
+      try {
+        const result = compareByOperator(a, operator, b);
 
-      if (result) {
-        return options.fn(this);
+        if (result) {
+          return options.fn(this);
+        }
+      } catch(e) {
+        throw new Error(`helper {{compare}}: ${e.message}`);
       }
     },
   ],
@@ -264,7 +324,7 @@ const helpers: HelperHash = {
         const aval = getFromPath(lookup[akey], lookupValueKey);
         const bval = getFromPath(lookup[bkey], lookupValueKey);
 
-        return comparison(aval, bval);
+        return sortComparison(aval, bval);
       });
 
       return arrSorted.map(options.fn).join('');
@@ -287,7 +347,7 @@ const helpers: HelperHash = {
         const aval = !!keyPath ? getFromPath(a, keyPath) : a;
         const bval = !!keyPath ? getFromPath(b, keyPath) : b;
 
-        return comparison(aval, bval);
+        return sortComparison(aval, bval);
       });
 
       return arrSorted.map(options.fn).join('');
@@ -310,7 +370,7 @@ const helpers: HelperHash = {
         const aval = !!keyPath ? getFromPath(a, keyPath) : a;
         const bval = !!keyPath ? getFromPath(b, keyPath) : b;
 
-        return comparison(aval, bval);
+        return sortComparison(aval, bval);
       }).reverse();
 
       return arrSorted.map(options.fn).join('');
