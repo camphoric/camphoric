@@ -361,14 +361,22 @@ export function useLodgingTree(): AugmentedLodging | undefined {
 
     const allCampers = Object.values(camperLookup);
 
-    const getFullPath = (lodging: ApiLodging | undefined, pathParts: string[] = []): string => {
+    const getFullPath = (
+      lodging: ApiLodging | undefined,
+      pathItems: string[] = []
+    ): { fullPath: string, pathParts: string[] } => {
       if (!lodging || !lodging.parent) {
-        return pathParts.reverse().join('→') || '';
+        const pathParts = pathItems.reverse();
+
+        return {
+          fullPath: pathParts.join('→') || '',
+          pathParts,
+        };
       }
 
       return getFullPath(
         lodgingsAll.find(l => l.id.toString() === lodging.parent.toString()),
-        [...pathParts, lodging.name],
+        [...pathItems, lodging.name],
       );
 
     };
@@ -389,8 +397,6 @@ export function useLodgingTree(): AugmentedLodging | undefined {
       );
       const isLeaf = children.length === 0;
 
-      const fullPath = getFullPath(lodging);
-
       return {
         ...lodging,
         isLeaf,
@@ -398,7 +404,7 @@ export function useLodgingTree(): AugmentedLodging | undefined {
         count,
         campers,
         capacity,
-        fullPath,
+        ...getFullPath(lodging),
       };
     };
 
