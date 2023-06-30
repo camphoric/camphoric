@@ -1,8 +1,7 @@
 import React from 'react';
 import Input, { TextArea } from 'components/Input';
 import TemplateHelp from 'components/TemplateHelp';
-
-import type { ReportTemplateVars } from './EventAdminReports';
+import type { ReportTemplateVars } from 'components/Template';
 
 export type ReportEditFormValue = {
   title: string,

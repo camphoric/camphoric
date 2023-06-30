@@ -5,9 +5,7 @@ import {
   Tab,
 } from 'react-bootstrap';
 import ReportEditForm, { ReportEditFormProps, ReportEditFormValue } from './ReportEditForm';
-import Template from 'components/Template';
-
-import type { ReportTemplateVars } from './EventAdminReports';
+import Template, { ReportTemplateVars } from 'components/Template';
 
 interface Props extends ReportEditFormProps {
   save: () => any;

@@ -2,6 +2,21 @@ import React from 'react';
 import { template2Html } from './util';
 import debug from 'utils/debug';
 
+import {
+  CamperLookup,
+  LodgingLookup,
+  RegistrationLookup,
+} from 'hooks/api';
+
+export interface ReportTemplateVars {
+  event: ApiEvent;
+  registrationLookup: RegistrationLookup | undefined;
+  registrations: Array<AugmentedRegistration>;
+  camperLookup: CamperLookup | undefined;
+  lodgingLookup: LodgingLookup | undefined;
+  campers: Array<ApiCamper>;
+}
+
 interface Props {
   markdown?: string;
   templateVars?: {};
