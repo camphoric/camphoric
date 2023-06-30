@@ -11,6 +11,7 @@ import {
 import { useQueryLookup } from 'hooks/navigation';
 import Modal from 'components/Modal';
 import { ReportTemplateVars } from 'components/Template';
+import { sortStringCompare } from 'utils/sort';
 
 import api, {
   useCamperLookup,
@@ -29,6 +30,9 @@ const blankForm = {
   title: '',
   template: '',
 };
+
+const sortByReportName = (a: ApiReport, b: ApiReport) =>
+  sortStringCompare(a.title, b.title);
 
 function EventAdminReports() {
   const reportSearch = useReportSearch();
@@ -106,7 +110,7 @@ function EventAdminReports() {
             />
           </InputGroup>
           {
-            searchResults.map(
+            searchResults.sort(sortByReportName).map(
               (c: ApiReport) => (
                 <ReportSearchResult
                   key={c.id}
