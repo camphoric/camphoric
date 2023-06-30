@@ -6,17 +6,15 @@ import {
   Tab,
 } from 'react-bootstrap';
 
-import Template from 'components/Template';
+import Template, { ReportTemplateVars } from 'components/Template';
 import JsonEditor from 'components/JsonEditor';
 import Modal from 'components/Modal';
 
 import helpText from './helpText';
 import HelperDocs from './HelperDocs';
 
-import './styles.scss';
-
 interface Props {
-  templateVars: Object,
+  templateVars: ReportTemplateVars,
 }
 
 class TemplateHelp extends React.Component<Props> {
@@ -24,6 +22,16 @@ class TemplateHelp extends React.Component<Props> {
 
   close = () => this.modalRef?.current?.close();
   show = () => this.modalRef?.current?.show();
+
+  downloadFile = () => {
+    const fileData = JSON.stringify(this.props.templateVars, null, 2);
+    const element = document.createElement('a');
+    const file = new Blob([fileData], { type: 'application/json' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${this.props.templateVars.event.name} Data.json`;
+    document.body.appendChild(element);
+    element.click();
+  }
 
   render() {
     return (
@@ -47,7 +55,11 @@ class TemplateHelp extends React.Component<Props> {
             <Tab className="template-help-modal-helpers" eventKey="Helpers" title="Helpers">
               <HelperDocs />
             </Tab>
-            <Tab eventKey="Variables" title="Variables">
+            <Tab className="template-help-modal-helpers" eventKey="Variables" title="Variables">
+              <div className="button-container">
+                <input id="jsonInput" type="hidden" />
+                <Button onClick={this.downloadFile}>Download Template Data as JSON</Button>
+              </div>
               <JsonEditor
                 json={this.props.templateVars}
               />

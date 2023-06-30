@@ -24,7 +24,7 @@ function HelperDocs() {
             ] = help.trim().split(/\r?\n/);
 
             return (
-              <Card>
+              <Card key={key}>
                 <Card.Body>
                   <Card.Title>{key}</Card.Title>
                   <Card.Text>

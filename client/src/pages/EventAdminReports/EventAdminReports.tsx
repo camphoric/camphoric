@@ -10,11 +10,9 @@ import {
 } from 'react-bootstrap';
 import { useQueryLookup } from 'hooks/navigation';
 import Modal from 'components/Modal';
+import { ReportTemplateVars } from 'components/Template';
 
 import api, {
-  CamperLookup,
-  LodgingLookup,
-  RegistrationLookup,
   useCamperLookup,
   useEvent,
   useLodgingLookup,
@@ -26,16 +24,6 @@ import api, {
 import ReportSearchResult from './ReportSearchResult';
 import ReportTab from './ReportTab';
 import ReportEditForm, { ReportEditFormValue } from './ReportEditForm';
-
-export interface ReportTemplateVars {
-  event: ApiEvent;
-  registrationLookup: RegistrationLookup | undefined;
-  registrations: Array<AugmentedRegistration>;
-  camperLookup: CamperLookup | undefined;
-  lodgingLookup: LodgingLookup | undefined;
-  campers: Array<ApiCamper>;
-}
-
 
 const blankForm = {
   title: '',
