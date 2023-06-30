@@ -22,6 +22,7 @@ import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
 import PaymentTab from './PaymentTab';
+import AdminAttributes from './AdminAttributes';
 
 const camperLabel = (c: ApiCamper) => {
   if (!c) return '';
@@ -81,6 +82,12 @@ function EditTab() {
               <Tabs defaultActiveKey="reg_edit_edit">
                 <Tab eventKey="reg_edit_edit" title={camperLabel(selectedRegistration && selectedRegistration.campers[0])}>
                   <RegistrationEdit
+                    event={event}
+                    registration={selectedRegistration}
+                  />
+                </Tab>
+                <Tab eventKey="reg_edit_admin_attrs" title="Admin Attributes">
+                  <AdminAttributes
                     event={event}
                     registration={selectedRegistration}
                   />

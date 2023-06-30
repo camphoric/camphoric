@@ -52,10 +52,12 @@ declare global {
     end: string | null;
     default_stay_length: number;
     camper_schema: JSONSchema7;
+    camper_admin_schema: Object;
     payment_schema: JSONSchema7;
     registration_template_vars: Hash<string>;
     registration_schema: JSONSchema7;
     registration_ui_schema: JSONSchema7;
+    registration_admin_schema: Object;
     deposit_schema: JSONSchema7;
     pricing: Hash<number>;
     camper_pricing_logic: JSONLogic;
@@ -93,6 +95,7 @@ declare global {
     updated_at: string | null;
     deleted_at: string | null;
     attributes: any;
+    admin_attributes: any;
     registrant_email: string;
     server_pricing_results: any;
     client_reported_pricing: any;
@@ -109,6 +112,7 @@ declare global {
     updated_at: string | null;
     deleted_at: string | null;
     attributes: any;
+    admin_attributes: any;
     registration: number | string;
     lodging: number | null;
     lodging_requested: number | null;

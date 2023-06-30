@@ -4,6 +4,7 @@ import pre_submit_template from './preSubmitTemplate.js';
 import pricing from './pricing/pricing.js';
 import registration_pricing_logic from './pricing/registrationPricingLogic.js';
 import camper_pricing_logic from './pricing/camperPricingLogic.js';
+import camper_admin_schema from './camperAdminAttributes.js';
 import registration_schema from './registrationSchema.js';
 import registration_types from './registrationTypes.js';
 import registration_ui_schema from './registrationUISchema.js';
@@ -12,6 +13,7 @@ import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
 import registration_template_vars from './regTemplateVars.js';
 import registration_deposit_schema from './registrationDepositSchema.js';
+import registration_admin_schema from './regAdminAttributes.js';
 import { dates, lengthInDays, year } from './dates.js';
 
 import {
@@ -32,6 +34,7 @@ const data = {
     }), {}),
     default_stay_length: lengthInDays - 1,
     camper_schema,
+    camper_admin_schema,
     // payment_schema,
     // If deposit value ends up <= 1, it's considered a percentage
     // otherwise a flat amount
@@ -39,7 +42,7 @@ const data = {
     registration_template_vars,
     registration_schema,
     registration_ui_schema,
-    // registration_admin_schema,
+    registration_admin_schema,
     // deposit_schema,
     // deposit_schema,
     pricing,

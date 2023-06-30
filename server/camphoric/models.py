@@ -113,13 +113,16 @@ class Event(TimeStampedModel):
         default=1,
         help_text="The number of days that a camper stays by default")
     camper_schema = models.JSONField(default=dict, help_text="JSON schema for Camper.attributes")
+    camper_admin_schema = models.JSONField(
+        default=dict,
+        help_text="JSON schema for Camper.admin_attributes")
     payment_schema = models.JSONField(default=dict, help_text="JSON schema for Payment.attributes")
     registration_deposit_schema = models.JSONField(
-            null=True,
-            help_text="variables to be used on the registration page deposits")
+        null=True,
+        help_text="variables to be used on the registration page deposits")
     registration_template_vars = models.JSONField(
-            default=dict,
-            help_text="variables to be used on the registration page descriptions")
+        default=dict,
+        help_text="variables to be used on the registration page descriptions")
     registration_schema = models.JSONField(
         default=dict,
         help_text="JSON schema for Registration.attributes")
@@ -350,6 +353,9 @@ class Camper(TimeStampedModel):
         null=True,
         help_text="JSON array of dates")
     attributes = models.JSONField(null=True)
+    admin_attributes = models.JSONField(
+        default=dict,
+        help_text="custom attributes for administrative use")
 
 
 class Deposit(TimeStampedModel):

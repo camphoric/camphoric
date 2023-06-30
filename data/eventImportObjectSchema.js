@@ -25,6 +25,7 @@ export default {
         end: date('when event ends'),
         default_stay_length: int('default stay in days'),
         camper_schema: obj('JSON schema for camper'),
+        camper_admin_schema: obj('JSON schema for special admin fields'),
         payment_schema: obj('JSON schema for payment'),
         registration_deposit_schema: obj('Data for templates used for registration deposit options'),
         registration_template_vars: obj('Data for templates used during registration'),

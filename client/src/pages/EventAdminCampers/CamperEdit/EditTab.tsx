@@ -16,7 +16,7 @@ interface Props {
   event: ApiEvent,
 }
 
-function CamperEdit({ camper, event }: Props) {
+function CamperEditTab({ camper, event }: Props) {
   const [deleteCamperApi] = api.useDeleteCamperMutation();
   const [patchCamper] = api.useUpdateCamperMutation();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
@@ -83,4 +83,4 @@ function CamperEdit({ camper, event }: Props) {
   );
 }
 
-export default CamperEdit;
+export default CamperEditTab;

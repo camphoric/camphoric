@@ -6,6 +6,7 @@ import Spinner from 'components/Spinner';
 
 import EditSchemaTab from './EditSchemaTab';
 import EditRegistrationTypes from './EditRegistrationTypes';
+import EditJSONType from './EditJSONType';
 
 export interface TabProps {
   event: ApiEvent;
@@ -57,6 +58,18 @@ function EventAdminHome() {
       }
       <Tab key="registrationTypes" eventKey="registrationTypes" title="Registration Types">
         <EditRegistrationTypes {...tabProps} />
+      </Tab>
+      <Tab key="registrationAdminValues" eventKey="registrationAdminValues" title="Registration Admin Attributes">
+        <EditJSONType
+          keyToEdit="registration_admin_schema"
+          {...tabProps}
+        />
+      </Tab>
+      <Tab key="camperAdminValues" eventKey="camperAdminValues" title="Camper Admin Attributes">
+        <EditJSONType
+          keyToEdit="camper_admin_schema"
+          {...tabProps}
+        />
       </Tab>
     </Tabs>
   );
