@@ -1,4 +1,4 @@
-export const sortStringCompare = (a, b) => {
+export const sortStringCompare = (a: any, b: any) => {
   return a.toString().localeCompare(
     b.toString(),
     undefined,
@@ -6,7 +6,7 @@ export const sortStringCompare = (a, b) => {
   );
 }
 
-export const sortComparison = (a, b) => {
+export const sortComparison = (a: any, b: any) => {
   if (typeof a === 'number' && typeof b === 'number') {
     return a - b;
   }
