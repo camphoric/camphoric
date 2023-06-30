@@ -5,6 +5,7 @@
 
 import getFromPath from 'lodash/get';
 import flattenDeep from 'lodash/flattenDeep';
+import { sortComparison } from 'utils/sort';
 
 /**
  * HelpText
@@ -20,19 +21,6 @@ type HelpText = string;
 type HelperHash = {
   [a: string]: [ HelpText, Function ],
 }
-
-const sortComparison = (a, b) => {
-  if (typeof a === 'number' && typeof b === 'number') {
-    return a - b;
-  }
-
-  // if both are not numbers, do string coercion and compare
-  return a.toString().localeCompare(
-    b.toString(),
-    undefined,
-    { sensitivity: 'accent' },
-  );
-};
 
 const compareByOperator = (a, operator, b) => {
   let result;
