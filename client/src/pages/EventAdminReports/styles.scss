@@ -1,5 +1,14 @@
-div.report-edit-form {
-  textarea {
-    height: 60vh;
+div.reports-container {
+  div.report-edit-form {
+    textarea {
+      height: 60vh;
+    }
+  }
+
+  div.report-tabs {
+    .button-container {
+      display: flex;
+      justify-content: space-between;
+    }
   }
 }

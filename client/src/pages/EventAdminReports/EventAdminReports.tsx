@@ -1,5 +1,6 @@
 import React from 'react';
 import Spinner from 'components/Spinner';
+import { useHistory } from 'react-router-dom';
 import {
   InputGroup,
   FormControl,
@@ -40,10 +41,12 @@ function EventAdminReports() {
   const { data: reports } = api.useGetReportsQuery();
   const [updateReport] = api.useUpdateReportMutation();
   const [createReport] = api.useCreateReportMutation();
+  const [deleteReport] = api.useDeleteReportMutation();
   const { data: event } = useEvent();
   const registrationLookup = useRegistrationLookup();
   const camperLookup = useCamperLookup();
   const lodgingLookup = useLodgingLookup();
+  const history = useHistory();
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const modalRef  = React.useRef<Modal>(null);
@@ -64,6 +67,7 @@ function EventAdminReports() {
   }
 
   const showModal = () => modalRef.current && modalRef.current.show()
+
   const saveReport = (report?: ApiReport) =>
     async () => {
       if (!report) {
@@ -79,6 +83,18 @@ function EventAdminReports() {
       }
 
       setFormValues(blankForm);
+    };
+
+  const removeReport = (report: ApiReport) =>
+    async () => {
+      await deleteReport(report);
+
+      setFormValues(blankForm);
+
+      history.replace({
+        ...history.location,
+        search: '',
+      });
     };
 
   const report = reportLookup[queryLookup['reportId']];
@@ -99,7 +115,7 @@ function EventAdminReports() {
   };
 
   return (
-    <Container>
+    <Container className="reports-container">
       <Row>
         <Col md={3} className="camper-results">
           <InputGroup className="mb-3">
@@ -122,7 +138,7 @@ function EventAdminReports() {
           }
           <Button onClick={showModal}>Add New</Button>
         </Col>
-        <Col md="9">
+        <Col md="9" className="report-tabs">
           {
             !!report && (
               <ReportTab
@@ -130,6 +146,7 @@ function EventAdminReports() {
                 onChange={setFormValues}
                 result={report}
                 save={saveReport(report)}
+                remove={removeReport(report)}
               />
             )
           }
