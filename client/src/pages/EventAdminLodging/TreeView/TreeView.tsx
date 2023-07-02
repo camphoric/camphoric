@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'react-bootstrap';
 import {
   useLodgingLookup,
   useLodgingTree,
@@ -21,7 +22,7 @@ function TreeView() {
     return <Spinner />;
   }
 
-  const showLodgingModal = (l: AugmentedLodging) => {
+  const showLodgingModal = (l?: AugmentedLodging) => {
     setLodgingToEdit(l);
     setShow(true);
   }
@@ -37,13 +38,15 @@ function TreeView() {
           />
         ))
       }
+      <Button className="new-lodging-button" onClick={() => showLodgingModal()}>Add New Lodging</Button>
       <ShowRawJSON label="lodging" json={lodgingTree} />
       {
-        !!show && !!lodgingToEdit && (
+        !!show && (
           <LodgingEditForm
             show={show}
             setShow={setShow}
             lodging={lodgingToEdit}
+            lodgingLookup={lodgingLookup}
           />
         )
       }
