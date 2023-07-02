@@ -227,10 +227,17 @@ class Registration(TimeStampedModel):
         return "Registration #{} ({})".format(self.id, self.event.name)
 
     def recalculate_server_pricing(self):
+        campers = self.campers.all()
         server_pricing_results = pricing.calculate_price(
             self,
-            self.campers.all()
+            campers,
         )
+
+        camper_pricing = server_pricing_results['campers']
+        for index, camper in enumerate(campers):
+            camper.server_pricing_results = camper_pricing[index]
+            camper.save()
+
         self.server_pricing_results = server_pricing_results
         self.save()
 
@@ -352,6 +359,7 @@ class Camper(TimeStampedModel):
     stay = models.JSONField(
         null=True,
         help_text="JSON array of dates")
+    server_pricing_results = models.JSONField(null=True)
     attributes = models.JSONField(null=True)
     admin_attributes = models.JSONField(
         default=dict,

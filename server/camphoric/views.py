@@ -321,7 +321,9 @@ class RegisterView(APIView):
             invitation.registration = registration
             invitation.save()
 
-        for camper in campers:
+        camper_pricing = server_pricing_results['campers']
+        for index, camper in enumerate(campers):
+            camper.server_pricing_results = camper_pricing[index]
             camper.save()
 
         return Response({
