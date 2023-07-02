@@ -35,7 +35,7 @@ export function useEvent() {
 }
 
 const basicSearchOptions = {
-  isCaseSensitive: true,
+  isCaseSensitive: false,
   includeScore: true,
   shouldSort: true,
   includeMatches: true,
