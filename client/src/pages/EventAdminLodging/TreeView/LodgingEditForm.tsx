@@ -4,21 +4,28 @@ import Input, {
   Select,
 } from 'components/Input';
 import Modal from 'components/Modal';
-import api from 'hooks/api';
+import Spinner from 'components/Spinner';
+import api, { useEvent } from 'hooks/api';
 import debug from 'utils/debug';
+import { sortStringCompare } from 'utils/sort';
 
-type Props = {
-  show: boolean,
-  setShow: (a: boolean) => void,
-  lodging: AugmentedLodging,
+interface Props {
+  show: boolean;
+  setShow: (a: boolean) => void;
+  lodging?: AugmentedLodging;
+  lodgingLookup: { [a: string] : AugmentedLodging };
 }
 
-function LodgingEditForm({ lodging, show, setShow }: Props) {
+function LodgingEditForm({ lodging, show, setShow, lodgingLookup }: Props) {
   const [updateLodging] = api.useUpdateLodgingMutation();
+  const [createLodging] = api.useCreateLodgingMutation();
 
   const [loading, setLoading] = React.useState<boolean>(false);
   const [showErrors, setShowErrors] = React.useState<boolean>(false);
   const [formData, setFormData] = React.useState<Partial<ApiLodging>>({});
+  const { data: event } = useEvent();
+
+  if (!event) return <Spinner />;
 
   const changeValue = (key: keyof AugmentedLodging) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     let value;
@@ -47,14 +54,42 @@ function LodgingEditForm({ lodging, show, setShow }: Props) {
     setFormData({});
   };
 
+  const parentOptions = Object.values(lodgingLookup).sort(
+    (a, b) => sortStringCompare(a.fullPath, b.fullPath)
+  ).map(
+    (l) => ({
+      label: l.fullPath || 'root',
+      value: l.id,
+    })
+  );
+
   const onSave = async () => {
     setShowErrors(true);
     setLoading(true);
 
-    await updateLodging({
-      id: lodging.id,
-      ...formData,
-    });
+    if (lodging) {
+      await updateLodging({
+        id: lodging.id,
+        ...formData,
+      });
+    } else {
+      // check
+      if (!formData.name) {
+
+      }
+      const data = {
+        event: event.id,
+        parent: formData.parent || parentOptions[0].value,
+        name: formData.name,
+        children_title: formData.children_title || '',
+        capacity: formData.capacity || 0,
+        reserved: formData.reserved || 0,
+        visible: formData.visible || false,
+        notes: formData.notes || '',
+      } as ApiLodging;
+
+      await createLodging(data);
+    }
 
     onClose();
   }
@@ -68,6 +103,14 @@ function LodgingEditForm({ lodging, show, setShow }: Props) {
       show={show}
       loading={loading}
     >
+      <Select
+        label="Parent Lodging"
+        onChange={changeValue('parent')}
+        defaultValue={lodging?.parent || parentOptions[0].value}
+        isInvalid={showErrors && !lodging?.parent}
+        options={parentOptions}
+        inline
+      />
       {
         !!lodging && (
           <div>editing lodging #{lodging.id}</div>
@@ -87,7 +130,7 @@ function LodgingEditForm({ lodging, show, setShow }: Props) {
       />
       <div>Calculated capacity: {lodging?.capacity} - set Capacity to 0 to use this number</div>
       {
-        !!lodging.isLeaf && (
+        (!!lodging?.isLeaf || !lodging) && (
           <Input
             label="Capacity"
             onChange={changeValue('capacity')}
