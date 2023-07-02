@@ -8,6 +8,7 @@ type Props = {
   lodgingTree: AugmentedLodging,
   topLevel: boolean;
   showLodgingModal: (l: AugmentedLodging) => void,
+  deleteLodging: (l: AugmentedLodging) => void,
 } & typeof defaultProps;
 
 const defaultProps = {
@@ -42,12 +43,20 @@ function LodgingNodeDisplay(props: Props) {
             {props.lodgingTree.name} ({props.lodgingTree.count} / {props.lodgingTree.capacity})
             <span> - Reserved: {props.lodgingTree.reserved}</span>
           </span>
-          <Button onClick={(e) => {
-            e.stopPropagation();
-            props.showLodgingModal(props.lodgingTree);
-          }}>
-            Edit
-          </Button>
+          <div className="lodging-edit-buttons">
+            <Button onClick={(e) => {
+              e.stopPropagation();
+              props.showLodgingModal(props.lodgingTree);
+            }}>
+              Edit
+            </Button>
+            <Button variant="danger" onClick={(e) => {
+              e.stopPropagation();
+              props.deleteLodging(props.lodgingTree);
+            }}>
+              Delete
+            </Button>
+          </div>
         </Button>
       </OverlayTrigger>
       <Collapse in={open}>
