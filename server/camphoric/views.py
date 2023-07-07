@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from jinja2 import Environment, BaseLoader
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 import jsonschema
@@ -685,6 +686,65 @@ class SendInvitationView(APIView):
 
         return Response({
             'success': True,
+        })
+
+
+class RenderReportView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_report_vars(self, request, report):
+        campers_queryset = models.Camper.objects \
+            .filter(registration__event=report.event.id) \
+            .filter(registration__completed=True)
+        registrations_queryset = models.Registration.objects \
+            .filter(event=report.event.id) \
+            .filter(completed=True)
+        lodgings_queryset = models.Lodging.objects.filter(event=report.event.id)
+
+        event = serializers.EventSerializer(
+            models.Event.objects.get(id__exact=report.event.id)
+        ).data
+
+        campers = serializers.CamperSerializer(
+            campers_queryset, many=True
+        ).data
+
+        campers_lookup = {cmp['id']: cmp for cmp in campers_queryset.values()}
+
+        registrations = serializers.RegistrationSerializer(
+            registrations_queryset, many=True
+        ).data
+
+        registrations_lookup = {reg['id']: reg for reg in registrations_queryset.values()}
+
+        lodgings_lookup = {ldg['id']: ldg for ldg in lodgings_queryset.values()}
+
+        return {
+            'event': event,
+            'campers': campers,
+            'registrations': registrations,
+            'camper_lookup': campers_lookup,
+            'registration_lookup': registrations_lookup,
+            'lodging_lookup': lodgings_lookup,
+            'vars': request.data,
+        }
+
+    def post(self, request, report_id=None):
+        '''
+        '''
+        report = get_object_or_404(models.Report, id=report_id)
+
+        output = report.template
+
+        if report.output != 'hbs':
+            variables = self.get_report_vars(request, report)
+            rtemplate = Environment(
+                loader=BaseLoader()
+            ).from_string(report.template)
+            output = rtemplate.render(**variables)
+
+        return Response({
+            'report': output
         })
 
 
