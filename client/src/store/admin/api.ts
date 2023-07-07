@@ -91,6 +91,17 @@ export const api = createApi({
       updateReport: updateCreator<ApiReport>('Report'),
       createReport: createCreator<ApiReport>('Report'),
       deleteReport: deleteCreator<ApiReport>('Report'),
+      getRenderedReport: builder.query<[ApiReportRendered], { id: string | number,  [k: string]: any }>({
+        query: (arg: { id: string | number,  [k: string]: any }) => {
+          const { id, ...body } = arg;
+
+          return {
+            url: `reports/${id}/render`,
+            method: 'POST',
+            body,
+          }
+        },
+      }),
 
       /** /api/invitations */
       getInvitations: getCreator<ApiInvitation>('Invitation'),
