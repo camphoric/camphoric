@@ -21,6 +21,14 @@ class PaymentType(models.TextChoices):
     VOUCHER = 'Voucher', 'Discount or Gifted Credit'
 
 
+class ReportOutputType(models.TextChoices):
+    HTML = 'html', 'Jinja to HTML'
+    MARKDOWN = 'md', 'Jinja to Markdown'
+    CSV = 'csv', 'Jinja to CSV'
+    HANDLEBARS = 'hbs', 'Handlebars to Markdown'
+    PLAINTEXT = 'txt', 'Jinja to Plain Text'
+
+
 class TimeStampedModel(models.Model):
     '''
     - Base class for most models.
@@ -251,6 +259,14 @@ class Report(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
+    output = models.CharField(
+        max_length=4,
+        choices=ReportOutputType.choices,
+        default=ReportOutputType.MARKDOWN,
+    )
+    variables_schema = models.JSONField(
+        default=dict,
+        help_text="values schema for this reports variables")
     template = models.TextField(blank=True, default='', help_text="Handlebars template")
 
     def __str__(self):
