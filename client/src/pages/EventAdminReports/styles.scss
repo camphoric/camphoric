@@ -1,7 +1,11 @@
 div.reports-container {
   div.report-edit-form {
-    textarea {
+    textarea.report-template {
       height: 60vh;
+    }
+
+    textarea.report-variables-schema {
+      height: 20vh;
     }
   }
 

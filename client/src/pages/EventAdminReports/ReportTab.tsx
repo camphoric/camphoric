@@ -1,35 +1,26 @@
 import React from 'react';
-import {
-  Button,
-  Tabs,
-  Tab,
-} from 'react-bootstrap';
+import { Tabs, Tab } from 'react-bootstrap';
+import Spinner from 'components/Spinner';
 import ReportEditForm, { ReportEditFormProps, ReportEditFormValue } from './ReportEditForm';
 import Template, { ReportTemplateVars } from 'components/Template';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
-import api from 'store/admin/api';
+import api, { useReportLookup } from 'hooks/api';
+import { useQueryLookup } from 'hooks/navigation';
 
-interface Props extends ReportEditFormProps {
-  save: () => any;
-  remove: () => any;
-  result: ApiReport;
-  onChange: (a: ReportEditFormValue) => void;
-  templateVars: ReportTemplateVars;
-}
+import RenderedReport from './RenderedReport';
 
-function ReportTab({ result, templateVars, ...props }: Props) {
-  const deleteModal  = React.useRef<ConfirmDialog>(null);
+function ReportTab() {
   const [activeTab, setActiveTab] = React.useState('View');
-  const renderReport = api.useGetRenderedReportQuery(
-    { id: result.id }
-  );
 
-  const save = () => {
-    props.save();
-    setActiveTab('View');
-  }
+  const reportLookup = useReportLookup();
+  const queryLookup = useQueryLookup();
 
-  console.log('reportRendered', renderReport);
+  if (!queryLookup || !reportLookup) return <Spinner />;
+
+  const reportId = queryLookup.reportId;
+  const report = reportLookup[reportId];
+
+  if (!report) return null;
 
   return (
     <>
@@ -39,38 +30,20 @@ function ReportTab({ result, templateVars, ...props }: Props) {
         activeKey={activeTab}
       >
         <Tab eventKey="View" title="View">
-          <Template
-            markdown={result.template}
-            templateVars={templateVars}
-          />
+          <RenderedReport report={report} />
         </Tab>
         <Tab eventKey="Edit" title="Edit">
           <ReportEditForm
-            templateVars={templateVars}
-            onChange={props.onChange}
-            result={result}
+            report={report}
+            setActiveTab={setActiveTab}
           />
 
-        <div className="button-container">
-          <Button variant="primary" onClick={save}>
-            Save Changes
-          </Button>
-
-          <Button variant="danger" onClick={() => deleteModal.current?.show()}>
-            Delete Report
-          </Button>
-        </div>
         </Tab>
         <Tab eventKey="Print" title="Print">
-          Print {result.title}
+          Print {report.title}
           Nothing Here Yet
         </Tab>
       </Tabs>
-      <ConfirmDialog
-        ref={deleteModal}
-        title={`Delete report "${result.title}"?`}
-        onConfirm={props.remove}
-      />
     </>
   );
 }
