@@ -86,7 +86,14 @@ declare global {
     deleted_at: string | null;
     event: number | string;
     title: string;
+    output: string;
+    variables_schema: object;
     template: string;
+  }
+
+  export interface ApiReportRendered {
+    report: string;
+    vars: object;
   }
 
   export interface ApiRegistration {

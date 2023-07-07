@@ -7,6 +7,7 @@ import {
 import ReportEditForm, { ReportEditFormProps, ReportEditFormValue } from './ReportEditForm';
 import Template, { ReportTemplateVars } from 'components/Template';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
+import api from 'store/admin/api';
 
 interface Props extends ReportEditFormProps {
   save: () => any;
@@ -19,11 +20,16 @@ interface Props extends ReportEditFormProps {
 function ReportTab({ result, templateVars, ...props }: Props) {
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const [activeTab, setActiveTab] = React.useState('View');
+  const renderReport = api.useGetRenderedReportQuery(
+    { id: result.id }
+  );
 
   const save = () => {
     props.save();
     setActiveTab('View');
   }
+
+  console.log('reportRendered', renderReport);
 
   return (
     <>
