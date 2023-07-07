@@ -1,75 +1,138 @@
-export default {
-  vaccination_checked: {
-    data: {
-      'type': 'boolean',
-      'title': 'Vaccination verified',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
-    },
-    ui: { },
-  },
+/* eslint-disable quotes */
 
-  precamp_meals_comp: {
-    data: {
-      'type': 'boolean',
-      'title': 'Comped pre-camp meals',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
-    },
-    ui: { },
+export default 
+{
+  "guardian_name": {
+    "ui": {},
+    "data": {
+      "type": "string",
+      "title": "Guardian name"
+    }
   },
-
-  instructor_meal_rate: {
-    data: {
-      'type': 'boolean',
-      'title': 'Instructor meal rate',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
-    },
-    ui: { },
+  "food_trade_only": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Food trade only",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
   },
-
-  registration_volunteer: {
-    data: {
-      'type': 'boolean',
-      'title': 'Registration volunteer',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
+  "meal_assignment": {
+    "ui": {
+      "ui:placeholder": "Choose an option"
     },
-    ui: { },
+    "data": {
+      "enum": [
+        "Camp 1",
+        "Camp 2"
+      ],
+      "type": "string",
+      "title": "Meals in",
+      "description": "If camper is not eating meals in the camp where they're staying"
+    }
   },
-
-  guardian_forms_required: {
-    data: {
-      'type': 'boolean',
-      'title': 'Guardian forms required',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
-    },
-    ui: { },
+  "precamp_meals_comp": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Comped pre-camp meals",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
   },
-
-  guardian_forms_received: {
-    data: {
-      'type': 'boolean',
-      'title': 'Guardian forms received',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
-    },
-    ui: { },
+  "vaccination_checked": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Vaccination verified",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
   },
-
-  guardian_name: {
-    data: {
-      'type': 'string',
-      'title': 'Guardian name',
-    },
-    ui: { },
+  "instructor_meal_rate": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Instructor meal rate",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
   },
+  "registration_volunteer": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Registration volunteer",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
+  },
+  "guardian_forms_received": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Guardian forms received",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
+  },
+  "guardian_forms_required": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Guardian forms required",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
+  }
 };
