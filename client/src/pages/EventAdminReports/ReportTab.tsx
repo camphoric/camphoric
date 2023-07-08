@@ -26,6 +26,8 @@ function ReportTab() {
         defaultActiveKey="View"
         onSelect={(k) => setActiveTab(k || 'View')}
         activeKey={activeTab}
+        mountOnEnter
+        unmountOnExit
       >
         <Tab eventKey="View" title="View">
           <RenderedReport report={report} />
