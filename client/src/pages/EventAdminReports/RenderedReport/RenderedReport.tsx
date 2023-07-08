@@ -7,7 +7,7 @@ type Props = {
   report: ApiReport,
 };
 
-function ReportSearchResult({ report}: Props) {
+function ReportSearchResult({ report }: Props) {
   switch(report.output) {
     case 'hbs':
       return (

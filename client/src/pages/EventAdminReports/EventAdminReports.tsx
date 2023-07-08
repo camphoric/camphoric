@@ -12,11 +12,7 @@ import { useQueryLookup } from 'hooks/navigation';
 import Modal from 'components/Modal';
 import { sortStringCompare } from 'utils/sort';
 
-import api, {
-  useCamperLookup,
-  useEvent,
-  useLodgingLookup,
-  useRegistrationLookup,
+import {
   useReportLookup,
   useReportSearch,
 } from 'hooks/api';
@@ -31,31 +27,14 @@ const sortByReportName = (a: ApiReport, b: ApiReport) =>
 function EventAdminReports() {
   const reportSearch = useReportSearch();
   const reportLookup = useReportLookup();
-  const { data: reports } = api.useGetReportsQuery();
-  const { data: event } = useEvent();
-  const registrationLookup = useRegistrationLookup();
-  const camperLookup = useCamperLookup();
-  const lodgingLookup = useLodgingLookup();
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const modalRef  = React.useRef<Modal>(null);
   const queryLookup = useQueryLookup();
 
-  if (
-    !event ||
-    !reports ||
-    !camperLookup ||
-    !reportSearch ||
-    !reportLookup ||
-    !registrationLookup ||
-    !lodgingLookup
-  ) {
-    return <Spinner />;
-  }
+  if (!reportSearch || !reportLookup) return <Spinner />;
 
   const showModal = () => modalRef.current && modalRef.current.show()
-
-  const report = reportLookup[queryLookup['reportId']];
 
   const searchResults = searchQuery
     ? reportSearch.search(searchQuery).map(c => c.item)

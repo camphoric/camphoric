@@ -1,44 +1,18 @@
 import React from 'react';
 import Spinner from 'components/Spinner';
-import {
-  useCamperLookup,
-  useEvent,
-  useLodgingLookup,
-  useRegistrationLookup,
-} from 'hooks/api';
-import Template, { ReportTemplateVars } from 'components/Template';
+import { useTemplateVars } from 'hooks/api';
+import Template from 'components/Template';
 
 type Props = {
   report: ApiReport,
 };
 
 function HandleBarsTemplate({ report }: Props) {
-  const { data: event } = useEvent();
-  const registrationLookup = useRegistrationLookup();
-  const camperLookup = useCamperLookup();
-  const lodgingLookup = useLodgingLookup();
+  const templateVars = useTemplateVars();
 
-  if (
-    !event ||
-    !camperLookup ||
-    !registrationLookup ||
-    !lodgingLookup
-  ) {
+  if ( !templateVars) {
     return <Spinner />;
   }
-
-  const registrations = Object.values(registrationLookup);
-  const campers = Object.values(camperLookup);
-
-  const templateVars: ReportTemplateVars = {
-    event,
-    registrationLookup,
-    lodgingLookup,
-    camperLookup,
-    registrations,
-    campers,
-  };
-
 
   return (
     <Template

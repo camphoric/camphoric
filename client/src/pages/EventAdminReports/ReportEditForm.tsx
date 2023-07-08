@@ -1,11 +1,11 @@
 import React from 'react';
 import { Button } from 'react-bootstrap';
-import { useHistory } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import Input, { TextArea, Select } from 'components/Input';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import TemplateHelp from 'components/TemplateHelp';
 import Modal from 'components/Modal';
-import api, { useEvent } from 'hooks/api';
+import api from 'hooks/api';
 
 export type ReportEditFormValue = {
   title: string,
@@ -21,29 +21,23 @@ export interface ReportEditFormProps {
   modalRef?: React.RefObject<Modal>;
 }
 
-const blankFormValue = {
-  title: '',
-  template: '',
-  output: '',
-  variables_schema: '{}',
-}
+type NewReportData = Omit<ApiReport, "id" | "created_at" | "updated_at" | "deleted_at">;
 
-const reportToFormValue = (report?: ApiReport): ReportEditFormValue | undefined => {
-  if (!report) return undefined;
-
+const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData => {
   return {
-    title: report.title,
-    template: report.template,
-    output: report.output,
-    variables_schema: JSON.stringify(report.variables_schema),
+    event: report?.event || eventId,
+    title: report?.title || '',
+    template: report?.template || '',
+    output: report?.output || 'md',
+    variables_schema: report?.variables_schema || {},
   }
 };
 
 function ReportEditForm({ report, ...props }: ReportEditFormProps) {
+  const { eventId } = useParams<{ eventId: string }>();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const history = useHistory();
-  const [formValues, setFormValues] = React.useState<ReportEditFormValue>(reportToFormValue(report) || blankFormValue);
-  const { data: event } = useEvent();
+  const [formValues, setFormValues] = React.useState<NewReportData>(reportToFormValue(eventId, report));
   const [deleteReport] = api.useDeleteReportMutation();
   const [updateReport] = api.useUpdateReportMutation();
   const [createReport] = api.useCreateReportMutation();
@@ -51,7 +45,6 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
   const saveReport = async () => {
     if (!report) {
       await createReport({
-        event: event.id,
         ...formValues,
       });
     } else {
@@ -61,7 +54,7 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
       });
     }
 
-    setFormValues(blankFormValue);
+    setFormValues(reportToFormValue(eventId));
     props.setActiveTab && props.setActiveTab('View');
   };
 
@@ -70,7 +63,7 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
 
     await deleteReport(report);
 
-    setFormValues(blankFormValue);
+    setFormValues(reportToFormValue(eventId));
 
     history.replace({
       ...history.location,
@@ -94,7 +87,7 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
   const textAreaLabel = (
     <div>
       Report Template
-      <TemplateHelp templateVars={{}} />
+      <TemplateHelp />
     </div>
   );
 
