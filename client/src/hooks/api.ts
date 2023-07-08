@@ -2,11 +2,12 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import api from 'store/admin/api';
+import { ReportTemplateVars } from 'components/Template';
 
 export default api;
 
 type CtxId = string | number;
-type UrlParams = {
+export type UrlParams = {
   eventId?: string;
   organizationId?: string;
 }
@@ -415,6 +416,31 @@ export function useLodgingTree(): AugmentedLodging | undefined {
   return tree;
 }
 
+export function useTemplateVars(): ReportTemplateVars | undefined {
+  const { data: event } = useEvent();
+  const registrationLookup = useRegistrationLookup();
+  const camperLookup = useCamperLookup();
+  const lodgingLookup = useLodgingLookup();
+
+  if (
+    !event ||
+    !registrationLookup ||
+    !camperLookup ||
+    !lodgingLookup
+  ) return undefined;
+
+  const campers = Object.values(camperLookup);
+  const registrations = Object.values(registrationLookup);
+
+  return {
+    event,
+    registrationLookup,
+    registrations,
+    camperLookup,
+    lodgingLookup,
+    campers,
+  };
+}
 
 export function useUrlParams() {
   return useParams<UrlParams>();
