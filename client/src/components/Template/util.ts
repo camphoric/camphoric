@@ -52,7 +52,7 @@ export function processHandlebarsTemplate(template: string, vars: {} = {}): stri
 
 // used for dangerouslySetInnerHTML
 // https://reactjs.org/docs/dom-elements.html#dangerouslysetinnerhtml
-type DangerousHtmlObject = {
+export type DangerousHtmlObject = {
   __html: string,
 };
 

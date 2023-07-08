@@ -1,11 +1,13 @@
 import React from 'react';
-import { Button } from 'react-bootstrap';
+import { Button, Alert } from 'react-bootstrap';
 import { useParams, useHistory } from 'react-router-dom';
+import Spinner from 'components/Spinner';
 import Input, { TextArea, Select } from 'components/Input';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import TemplateHelp from 'components/TemplateHelp';
 import Modal from 'components/Modal';
 import api from 'hooks/api';
+  
 
 export type ReportEditFormValue = {
   title: string,
@@ -21,7 +23,9 @@ export interface ReportEditFormProps {
   modalRef?: React.RefObject<Modal>;
 }
 
-type NewReportData = Omit<ApiReport, "id" | "created_at" | "updated_at" | "deleted_at">;
+type NewReportData = {
+  variables_schema: string;
+} & Omit<ApiReport, "id" | "created_at" | "updated_at" | "deleted_at" | "variables_schema">;
 
 const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData => {
   return {
@@ -29,32 +33,76 @@ const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData =
     title: report?.title || '',
     template: report?.template || '',
     output: report?.output || 'md',
-    variables_schema: report?.variables_schema || {},
+    variables_schema: JSON.stringify(report?.variables_schema || {}, null, 2),
   }
 };
+
+type ReportError = { field: string, message: string };
 
 function ReportEditForm({ report, ...props }: ReportEditFormProps) {
   const { eventId } = useParams<{ eventId: string }>();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const history = useHistory();
-  const [formValues, setFormValues] = React.useState<NewReportData>(reportToFormValue(eventId, report));
+  const [formValues, setFormValues] = React.useState<NewReportData | undefined>(reportToFormValue(eventId, report));
+  const [reportId, setReportId] = React.useState<number | undefined>(report?.id);
+  const [errors, setErrors] = React.useState<ReportError[]>([]);
   const [deleteReport] = api.useDeleteReportMutation();
   const [updateReport] = api.useUpdateReportMutation();
   const [createReport] = api.useCreateReportMutation();
 
+  React.useEffect(() => {
+    if (report?.id === reportId) return;
+    setFormValues(undefined);
+
+    setReportId(report?.id);
+    setFormValues(reportToFormValue(eventId, report));
+  }, [report, reportId, setReportId, setFormValues, eventId]);
+
+  if (!formValues) return <Spinner />;
+
   const saveReport = async () => {
+    const reportErrors = [];
+
+    try {
+      const json = JSON.parse(formValues.variables_schema);
+
+      if (Array.isArray(json) || typeof json !== 'object') {
+        throw new TypeError('must be an object');
+      }
+    } catch(e) {
+      reportErrors.push({
+        field: 'variables_schema',
+        message: `${e}`,
+      });
+    }
+
+    if (formValues.title.length === 0) {
+      reportErrors.push({
+        field: 'title',
+        message: 'title is missing',
+      });
+    }
+
+    if (reportErrors.length) {
+      setErrors(reportErrors);
+
+      return;
+    }
+
     if (!report) {
       await createReport({
         ...formValues,
+        variables_schema: JSON.parse(formValues.variables_schema),
       });
     } else {
       await updateReport({
         id: report.id,
-        ...formValues
+        ...formValues,
+        variables_schema: JSON.parse(formValues.variables_schema),
       });
     }
 
-    setFormValues(reportToFormValue(eventId));
+    setErrors([]);
     props.setActiveTab && props.setActiveTab('View');
   };
 
@@ -102,10 +150,19 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
 
   return (
     <div className="report-edit-form">
+      {
+        errors.filter(e => e.field === 'title').map(
+          (e) => (
+            <Alert key={e.message} variant="danger">
+              Error with Title: {e.message}
+            </Alert>
+          )
+        )
+      }
       <Input
         label="Title"
         onChange={handleFormChange('title')}
-        defaultValue={formValues.title}
+        value={formValues.title}
       />
       <Select
         label="Template Output"
@@ -118,14 +175,23 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
         label={textAreaLabel}
         className="report-template"
         onChange={handleFormChange('template')}
-        defaultValue={formValues.template}
+        value={formValues.template}
       />
 
+      {
+        errors.filter(e => e.field === 'variables_schema').map(
+          (e) => (
+            <Alert key={e.message} variant="danger">
+              Error with Variables Schema: {e.message}
+            </Alert>
+          )
+        )
+      }
       <TextArea
         label="Variables Schema"
         className="report-variables-schema"
         onChange={handleFormChange('variables_schema')}
-        defaultValue={formValues.variables_schema}
+        value={formValues.variables_schema}
       />
 
       <div className="button-container">
