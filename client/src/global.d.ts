@@ -93,7 +93,7 @@ declare global {
 
   export interface ApiReportRendered {
     report: string;
-    vars: object;
+    error: string | null;
   }
 
   export interface ApiRegistration {
