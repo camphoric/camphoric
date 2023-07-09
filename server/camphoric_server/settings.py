@@ -188,7 +188,22 @@ DBBACKUP_STORAGE_OPTIONS = env.json(
     default={'location': '/app/backup/'}
 )
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000/', 'http://django:8000/']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://django:8000/',
+]
+ALLOWED_HOSTS = [
+    'localhost',
+    'django',
+]
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:8000',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://django:8000/',
+]
 
 # Allow PayPal Popup
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
