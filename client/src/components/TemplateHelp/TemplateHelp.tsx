@@ -7,6 +7,7 @@ import {
 } from 'react-bootstrap';
 import { useTemplateVars } from 'hooks/api';
 
+import DownloadFileButton from 'components/DownloadFileButton';
 import Template from 'components/Template';
 import JsonEditor from 'components/JsonEditor';
 import Modal from 'components/Modal';
@@ -22,16 +23,6 @@ function TemplateHelp() {
 
   const close = () => modalRef?.current?.close();
   const show = () => modalRef?.current?.show();
-
-  const downloadFile = () => {
-    const fileData = JSON.stringify(templateVars, null, 2);
-    const element = document.createElement('a');
-    const file = new Blob([fileData], { type: 'application/json' });
-    element.href = URL.createObjectURL(file);
-    element.download = `${templateVars.event.name} Data.json`;
-    document.body.appendChild(element);
-    element.click();
-  }
 
   return (
     <>
@@ -57,7 +48,13 @@ function TemplateHelp() {
           <Tab className="template-help-modal-helpers" eventKey="Variables" title="Variables">
             <div className="button-container">
               <input id="jsonInput" type="hidden" />
-              <Button onClick={downloadFile}>Download Template Data as JSON</Button>
+              <DownloadFileButton
+                data={JSON.stringify(templateVars, null, 2)}
+                type="application/json" 
+                name={`${templateVars.event.name} Data.json`}
+              >
+                Download Template Data as JSON
+              </DownloadFileButton>
             </div>
             <JsonEditor
               json={templateVars}
