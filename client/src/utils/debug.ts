@@ -6,7 +6,7 @@
 
 // @ts-ignore
 export default function debug(...args) {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.NODE_ENV === 'development') {
     console.log(...args);
   }
 }

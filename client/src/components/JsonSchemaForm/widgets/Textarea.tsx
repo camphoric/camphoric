@@ -70,7 +70,7 @@ export default function TextareaWidget<
         placeholder={placeholder}
         disabled={disabled}
         readOnly={readonly}
-        value={value}
+        value={value || ''}
         required={required}
         autoFocus={autofocus}
         rows={options.rows || 5}

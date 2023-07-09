@@ -30,7 +30,7 @@ function AddressField(props: AddressProps) {
   let InputControl: Function = Form.Control;
   let otherProps = {};
 
-  if (props.name === 'street_address' && process.env.REACT_APP_GOOGLE_API_KEY) {
+  if (props.name === 'street_address' && import.meta.env.REACT_APP_GOOGLE_API_KEY) {
     InputControl = StreetAddressFieldInput;
     otherProps = {
       onChangeWholeAddress: props.onChangeWholeAddress,

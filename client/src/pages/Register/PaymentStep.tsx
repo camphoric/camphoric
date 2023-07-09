@@ -176,7 +176,7 @@ function PaymentStep() {
 
   const payPalOptions: (PayPalScriptOptions | undefined) = config.payPalOptions;
 
-  if (process.env.NODE_ENV === 'development' && !!payPalOptions && !payPalOptions['client-id']) {
+  if (import.meta.env.NODE_ENV === 'development' && !!payPalOptions && !payPalOptions['client-id']) {
     payPalOptions['client-id'] = 'sb';
   }
 

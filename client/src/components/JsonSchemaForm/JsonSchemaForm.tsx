@@ -66,20 +66,20 @@ export interface Props extends FormProps<any> {
 export const JsonSchemaFormTemplateContext = React.createContext({});
 
 function JsonSchemaForm(props: Props) {
-  const [googleMapsLoaded, setGoogleMapsLoaded] = React.useState(!process.env.REACT_APP_GOOGLE_API_KEY);
+  const [googleMapsLoaded, setGoogleMapsLoaded] = React.useState(!import.meta.env.REACT_APP_GOOGLE_API_KEY);
 
   // If we need to inject google maps, wait until finished injecting, and just
   // load a nice spinner in the mean time
   React.useEffect(() => {
     const tryLoadingGoogleMaps = async () => {
-      if (!process.env.REACT_APP_GOOGLE_API_KEY) {
+      if (!import.meta.env.REACT_APP_GOOGLE_API_KEY) {
         setGoogleMapsLoaded(true);
 
         return;
       }
 
       try {
-        await injectGoogleApis(process.env.REACT_APP_GOOGLE_API_KEY);
+        await injectGoogleApis(import.meta.env.REACT_APP_GOOGLE_API_KEY);
 
         setGoogleMapsLoaded(true);
       } catch (e) {
