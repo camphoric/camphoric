@@ -8,5 +8,6 @@ COPY . .
 RUN ln -s /app/import /usr/local/bin/
 
 RUN ls -la
-RUN npm ci
+RUN npm cache clear --force --loglevel verbose
+RUN npm ci --loglevel verbose
 RUN mkdir -p node_modules/.cache && chmod -R 777 node_modules/.cache
