@@ -98,7 +98,7 @@ function RegistrationStep() {
   };
 
   // for debuging/ autofilling of form data
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.NODE_ENV === 'development') {
     // @ts-ignore
     window.regOnChange = formData => onChange({ formData });
   }

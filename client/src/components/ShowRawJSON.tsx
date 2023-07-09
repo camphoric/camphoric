@@ -13,7 +13,7 @@ interface Props {
 export default function ShowRawJSON({ show, json, label }: Props) {
   const [showRawJson, setShowRawJson] = React.useState(show);
 
-  if (process.env.NODE_ENV === 'production') return null;
+  if (import.meta.env.NODE_ENV === 'production') return null;
 
   return (
     <div className="event-admin-show-raw">
