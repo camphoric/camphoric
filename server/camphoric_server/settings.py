@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-import django_heroku
 import environ
 import mimetypes
 
@@ -174,8 +173,6 @@ SESSION_COOKIE_SECURE = True
 
 PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
-
-django_heroku.settings(locals(), databases=not DEBUG)
 
 # Backup
 # https://django-dbbackup.readthedocs.io/en/master/index.html
