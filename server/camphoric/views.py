@@ -735,6 +735,7 @@ class RenderReportView(APIView):
         report = get_object_or_404(models.Report, id=report_id)
 
         output = report.template
+        variables = {}
 
         if report.output != 'hbs':
             variables = self.get_report_vars(request, report)
@@ -744,7 +745,8 @@ class RenderReportView(APIView):
             output = rtemplate.render(**variables)
 
         return Response({
-            'report': output
+            'report': output,
+            'variables': variables,
         })
 
 
