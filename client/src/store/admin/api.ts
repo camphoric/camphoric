@@ -9,6 +9,7 @@ const apiObjectNames = [
   'Registration',
   'RegistrationType',
   'Report',
+  'RenderedReport',
   'Invitation',
   'Lodging',
   'Camper',
@@ -88,10 +89,10 @@ export const api = createApi({
       /** /api/reports */
       getReports: getCreator<ApiReport>('Report'),
       getReportById: getByIdCreator<ApiReport>('Report'),
-      updateReport: updateCreator<ApiReport>('Report'),
-      createReport: createCreator<ApiReport>('Report'),
-      deleteReport: deleteCreator<ApiReport>('Report'),
-      getRenderedReport: builder.query<[ApiReportRendered], { id: string | number,  [k: string]: any }>({
+      updateReport: updateCreator<ApiReport>('Report', ['Report', 'RenderedReport']),
+      createReport: createCreator<ApiReport>('Report', ['Report', 'RenderedReport']),
+      deleteReport: deleteCreator<ApiReport>('Report', ['Report', 'RenderedReport']),
+      getRenderedReport: builder.query<ApiReportRendered, { id: string | number,  [k: string]: any }>({
         query: (arg: { id: string | number,  [k: string]: any }) => {
           const { id, ...body } = arg;
 
@@ -101,6 +102,7 @@ export const api = createApi({
             body,
           }
         },
+        providesTags: ['RenderedReport'],
       }),
 
       /** /api/invitations */
