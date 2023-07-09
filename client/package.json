@@ -17,6 +17,7 @@
     "jsoneditor": "^9.5.7",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
+    "papaparse": "^5.4.1",
     "react": "^17.0.2",
     "react-bootstrap": "^1.6.3",
     "react-dom": "^17.0.2",
@@ -75,10 +76,6 @@
     ]
   },
   "devDependencies": {
-    "inquirer": "^8.2.0",
-    "node-fetch": "^3.2.10",
-    "npm-check-updates": "^16.10.15",
-    "vite-plugin-comlink": "^3.0.5",
     "@types/googlemaps": "^3.43.3",
     "@types/jest": "^27.0.1",
     "@types/json-logic-js": "^1.2.1",
@@ -93,6 +90,9 @@
     "@vitejs/plugin-react": "^4.0.2",
     "eslint": "^8.44.0",
     "eslint-config-react-app": "^7.0.1",
+    "inquirer": "^8.2.0",
+    "node-fetch": "^3.2.10",
+    "npm-check-updates": "^16.10.15",
     "vite": "^4.4.2",
     "vite-plugin-checker": "^0.6.1"
   }
