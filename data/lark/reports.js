@@ -1,6 +1,7 @@
 export default [
   {
     title: 'All Campers',
+    output: 'hbs',
     template: `
 | Last Name | First Name | Age | Lodging | Chore |
 | --------- | ---------- | --- | ------- | ----- |
@@ -14,6 +15,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Registration Payments',
+    output: 'hbs',
     template: `
 | Name | Total | Payments | Balance |
 | ---- | ----- | -------- | ------- |
@@ -24,6 +26,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Camper Vaccinations',
+    output: 'hbs',
     template: `
 | Last Name | First Name | Age | Vaccination |
 | --------- | ---------- | --- | ----- |
@@ -36,6 +39,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Camper Lodging (Simple)',
+    output: 'hbs',
     template: `
 | Last Name | First Name | Age | Lodging | Sharing | Sharing with |
 | --------- | ---------- | --- | ------- | ----- | ----- |
@@ -49,6 +53,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Campers by Reg Date',
+    output: 'hbs',
     template: `
 Total Campers: {{campers.length}}
 
@@ -64,6 +69,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Camper Email List For Mailing',
+    output: 'hbs',
     template: `
 {{#each campers}}
 {{this.attributes.first_name}} {{this.attributes.last_name}} &lt;{{this.attributes.email}}&gt;{{#unless @last}}, {{/unless}}
@@ -74,6 +80,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Donation Report',
+    output: 'hbs',
     template: `
 | Name | Email | Donation  |
 | ----- | ----- | -------- |

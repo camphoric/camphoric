@@ -1,6 +1,7 @@
 export default [
   {
     title: 'All Campers',
+    output: 'hbs',
     template: `
 | Last Name | First Name | Age | Lodging | Chore |
 | --------- | ---------- | --- | ------- | ----- |
@@ -14,6 +15,7 @@ Total Campers: {{campers.length}}
   },
   {
     title: 'Payments',
+    output: 'hbs',
     template: `
 | Name | Total | Payments | Balance |
 | ---- | ----- | -------- | ------- |
