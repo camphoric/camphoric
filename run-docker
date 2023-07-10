@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# docker build --tag camphoric:latest  .
+
+docker run -it --rm --name standalone-camphoric -p=9000:9000 \
+  --env-file env/local/shared.env \
+  --env-file env/local/django.env \
+  --env-file env/local/container.env \
+  -v ./logs:/app/logs \
+  camphoric:latest
