@@ -19,6 +19,13 @@ export default defineConfig(() => {
     },
     build: {
       outDir: 'build',
+      rollupOptions: {
+        output: {
+          assetFileNames: 'static/[name]-[hash][extname]',
+          chunkFileNames: 'static/[name]-[hash][extname]',
+          entryFileNames: 'static/[name]-[hash][extname]',
+        },
+      },
     },
     resolve: {
       alias: {
