@@ -157,6 +157,7 @@ STATICFILES_DIRS = [
     os.path.join(REACT_BUILD_DIR, 'static'),
 ]
 
+STATIC_ROOT = 'static/'
 WHITENOISE_ROOT = os.path.join(REACT_BUILD_DIR)
 
 REST_FRAMEWORK = {
