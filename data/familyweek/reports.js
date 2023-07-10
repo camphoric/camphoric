@@ -1,6 +1,7 @@
 export default [
   {
     title: 'Payments',
+    output: 'hbs',
     template: `
 | Name | Total | Payments | Balance |
 | ---- | ----- | -------- | ------- |
