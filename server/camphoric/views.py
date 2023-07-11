@@ -465,7 +465,7 @@ class RegisterView(APIView):
                     'format': 'email',
                     # https://pythex.org/
                     # Found a regex that will work with both JS and python
-                    'pattern': r'^[a-zA-Z0-9_\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    'pattern': r'^[a-zA-Z0-9_+\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     'title': 'Registrant email',
                 },
                 **event.registration_schema.get('properties', {}),
