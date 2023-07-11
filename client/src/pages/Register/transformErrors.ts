@@ -128,7 +128,6 @@ const transformCamper = (e: RJSFValidationError, schema: RJSFSchema, s: RJSFSche
 
 let transformErrors: (a: RJSFSchema) => ErrorTransformer;
 transformErrors = (dataSchema: RJSFSchema) => (errors: Array<RJSFValidationError>) => {
-  console.log('errors', errors);
   return errors.map(
     (error: RJSFValidationError) => {
       const schema = getSchema(error, dataSchema);
