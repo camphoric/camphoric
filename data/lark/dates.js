@@ -10,7 +10,6 @@ const dateHash = {
   end: new Date(startDate),
 };
 
-dateHash.registration_end.setUTCMonth(startDate.getUTCMonth() - 1);
 dateHash.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
 
 export const year = dateHash.start.getFullYear();
