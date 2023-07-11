@@ -25,7 +25,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       const section = this.props.section ? ` with ${this.props.section}` : '';
 
-      return import.meta.env.NODE_ENV === 'development' ? (
+      return import.meta.env.DEV ? (
         <>
           <strong>Something went wrong{section}.</strong>;
           <details style={{ whiteSpace: 'pre-wrap' }}>
