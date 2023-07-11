@@ -218,6 +218,10 @@ function PaymentStep() {
             >&nbsp;</JsonSchemaForm>
           )
         }
+        <p>
+          If you would like to pay by credit card, please select "PayPal", then
+          select "Pay with debit or credit card" in the PayPal window.
+        </p>
         <button
           onClick={submitPayByCheck}
           className="payby-check-button"
