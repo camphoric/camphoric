@@ -21,7 +21,6 @@ import type {
 
 const payPalFundingSources: Array<FUNDING_SOURCE> = [
   'paypal',
-  'card',
 ];
 
 interface Props {
