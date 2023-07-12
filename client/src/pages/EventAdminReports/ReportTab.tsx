@@ -37,11 +37,6 @@ function ReportTab() {
             report={report}
             setActiveTab={setActiveTab}
           />
-
-        </Tab>
-        <Tab eventKey="Print" title="Print">
-          Print {report.title}
-          Nothing Here Yet
         </Tab>
       </Tabs>
     </>
