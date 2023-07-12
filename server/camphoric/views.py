@@ -37,6 +37,20 @@ import camphoric.mail
 
 logger = logging.getLogger(__name__)
 
+jinja_env = Environment(
+    extensions=['jinja2.ext.do', 'jinja2.ext.loopcontrols'],
+    loader=BaseLoader(),
+)
+
+
+# Custom filter method
+def regex_replace(s, find, replace):
+    """A non-optimal implementation of a regex filter"""
+    return re.sub(find, replace, s)
+
+
+jinja_env.filters['regex_replace'] = regex_replace
+
 
 class SetCSRFCookieView(APIView):
     '''
@@ -703,10 +717,9 @@ class RenderReportView(APIView):
 
         if report.output != 'hbs':
             try:
-                rtemplate = Environment(
-                    loader=BaseLoader()
-                ).from_string(report.template)
-                output = rtemplate.render(**request.data)
+                output = jinja_env \
+                    .from_string(report.template) \
+                    .render(**request.data)
             except Exception as e:
                 error = str(e)
                 output = ''
