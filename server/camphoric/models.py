@@ -262,7 +262,7 @@ class Report(TimeStampedModel):
     output = models.CharField(
         max_length=4,
         choices=ReportOutputType.choices,
-        default=ReportOutputType.MARKDOWN,
+        default=ReportOutputType.CSV,
     )
     variables_schema = models.JSONField(
         default=dict,
