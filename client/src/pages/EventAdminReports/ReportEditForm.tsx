@@ -44,7 +44,7 @@ const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData =
     event: report?.event || eventId,
     title: report?.title || '',
     template: report?.template || '',
-    output: report?.output || 'md',
+    output: report?.output || 'csv',
     variables_schema: JSON.stringify(report?.variables_schema || {}, null, 2),
   }
 };
@@ -116,6 +116,8 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
     }
 
     setErrors([]);
+
+    setFormValues(undefined);
 
     if (props.newReport) {
       props.setShowModal(false);

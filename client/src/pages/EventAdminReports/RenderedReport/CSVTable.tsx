@@ -18,16 +18,16 @@ function CSVTable({ csv }: Props) {
     <table className="csv-table">
       <thead><tr>
         {
-          header.map((h: string) => <th key={h}>{h}</th>)
+          header.map((h: string, i: number) => <th key={`${i}${h}`}>{h}</th>)
         }
       </tr></thead>
       <tbody>
         {
           data.map(
-            (row: string[]) => (
-              <tr key={row.join()}>
+            (row: string[], i: number) => (
+              <tr key={`${i}${row.join()}`}>
                 {
-                  row.map(c => <td key={c}>{c}</td>)
+                  row.map((c, i) => <td key={`${i}${c}`}>{c}</td>)
                 }
               </tr>
             )
