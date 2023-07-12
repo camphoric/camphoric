@@ -9,7 +9,6 @@ import {
   Button,
 } from 'react-bootstrap';
 import { useQueryLookup } from 'hooks/navigation';
-import Modal from 'components/Modal';
 import { sortStringCompare } from 'utils/sort';
 
 import {
@@ -29,12 +28,12 @@ function EventAdminReports() {
   const reportLookup = useReportLookup();
 
   const [searchQuery, setSearchQuery] = React.useState('');
-  const modalRef  = React.useRef<Modal>(null);
+  const [showNewReportForm, setShowNewReportForm] = React.useState<boolean>(false);
   const queryLookup = useQueryLookup();
 
   if (!reportSearch || !reportLookup) return <Spinner />;
 
-  const showModal = () => modalRef.current && modalRef.current.show()
+  const showModal = () => setShowNewReportForm(true);
 
   const searchResults = searchQuery
     ? reportSearch.search(searchQuery).map(c => c.item)
@@ -68,13 +67,11 @@ function EventAdminReports() {
           <ReportTab />
         </Col>
       </Row>
-      <Modal
-        ref={modalRef}
-        title="New report"
-        saveButtonLabel="Create"
-      >
-        <ReportEditForm newReport modalRef={modalRef} />
-      </Modal>
+      <ReportEditForm
+        newReport
+        setShowModal={setShowNewReportForm}
+        showModal={showNewReportForm}
+      />
     </Container>
   );
 }

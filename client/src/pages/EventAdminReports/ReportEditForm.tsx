@@ -16,12 +16,24 @@ export type ReportEditFormValue = {
   variables_schema: string,
 }
 
-export interface ReportEditFormProps {
-  newReport?: boolean;
-  report?: ApiReport;
-  setActiveTab?: (tabname: string) => void;
-  modalRef?: React.RefObject<Modal>;
-}
+type ReportEditFormPropsNew = {
+  newReport: true,
+  report?: undefined,
+  showModal: boolean,
+  setShowModal: (b: boolean) => void,
+  setActiveTab?: undefined
+};
+
+
+type ReportEditFormPropsEdit = {
+  newReport?: false,
+  report: ApiReport,
+  showModal?: undefined,
+  setShowModal?: undefined,
+  setActiveTab: (tabname: string) => void,
+};
+
+type ReportEditFormProps = ReportEditFormPropsNew | ReportEditFormPropsEdit;
 
 type NewReportData = {
   variables_schema: string;
@@ -40,6 +52,7 @@ const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData =
 type ReportError = { field: string, message: string };
 
 function ReportEditForm({ report, ...props }: ReportEditFormProps) {
+  const modalRef  = React.useRef<Modal>(null);
   const { eventId } = useParams<{ eventId: string }>();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const history = useHistory();
@@ -103,7 +116,12 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
     }
 
     setErrors([]);
-    props.setActiveTab && props.setActiveTab('View');
+
+    if (props.newReport) {
+      props.setShowModal(false);
+    } else {
+      props.setActiveTab && props.setActiveTab('View');
+    }
   };
 
   const removeReport = async () => {
@@ -147,8 +165,7 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
     // { value: 'txt', label: 'Jinja to Plain Text' },
   ];
 
-
-  return (
+  const contents = (
     <div className="report-edit-form">
       {
         errors.filter(e => e.field === 'title').map(
@@ -194,16 +211,19 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
         value={formValues.variables_schema}
       />
 
-      <div className="button-container">
-        <Button variant="primary" onClick={saveReport}>
-          Save Changes
-        </Button>
+      {
+        !props.newReport && (
+          <div className="button-container">
+            <Button variant="primary" onClick={saveReport}>
+              Save Changes
+            </Button>
 
-        <Button variant="danger" onClick={() => deleteModal.current?.show()}>
-          Delete Report
-        </Button>
-      </div>
-
+            <Button variant="danger" onClick={() => deleteModal.current?.show()}>
+              Delete Report
+            </Button>
+          </div>
+        )
+      }
       {
         !!report && (
           <ConfirmDialog
@@ -213,6 +233,27 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
           />
         )
       }
+    </div>
+  );
+
+  if (props.newReport) {
+    return (
+      <Modal
+        ref={modalRef}
+        title="New report"
+        saveButtonLabel="Create"
+        show={props.showModal}
+        onSave={saveReport}
+        onClose={() => props.setShowModal(false)}
+      >
+        {contents}
+      </Modal>
+    );
+  }
+
+  return (
+    <div>
+      {contents}
     </div>
   );
 }
