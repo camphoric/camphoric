@@ -29,7 +29,7 @@ function CSVTemplate({ report }: Props) {
     return (
       <>
         <Alert variant="danger">An error occurred</Alert>
-        <div>{error}</div>
+        <pre>{error}</pre>
       </>
     )
   }

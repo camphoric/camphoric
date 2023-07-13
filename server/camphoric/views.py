@@ -13,8 +13,8 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from jinja2 import Environment, BaseLoader
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from jinja2 import Environment, BaseLoader
 
 import jsonschema
 from rest_framework import permissions, status
@@ -721,7 +721,9 @@ class RenderReportView(APIView):
                     .from_string(report.template) \
                     .render(**request.data)
             except Exception as e:
-                error = str(e)
+                tb = traceback.format_exc() or ''
+                start = tb.find('File "<template>"')
+                error = str(e) + "\n" + tb[start:]
                 output = ''
 
         return Response({
