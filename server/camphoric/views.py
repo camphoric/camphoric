@@ -723,7 +723,11 @@ class RenderReportView(APIView):
             except Exception as e:
                 tb = traceback.format_exc() or ''
                 start = tb.find('File "<template>"')
-                error = str(e) + "\n" + tb[start:]
+                if start < 0:
+                    start = tb.find('File "<unknown>"')
+                emessage = tb[start:]
+
+                error = str(e) + "\n" + emessage + str(start)
                 output = ''
 
         return Response({

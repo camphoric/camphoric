@@ -43,6 +43,7 @@ function CSVTemplate({ report }: Props) {
       >
         Download CSV File
       </DownloadFileButton>
+      <h2>{report.title}</h2>
       <CSVTable csv={txt} />
     </>
   );
