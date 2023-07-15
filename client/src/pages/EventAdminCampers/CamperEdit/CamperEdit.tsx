@@ -4,7 +4,8 @@ import {
 } from 'react-bootstrap';
 
 import EditTab from './EditTab';
-import AdminAttributes from './AdminAttributes';
+import AdminAttributesTab from './AdminAttributesTab';
+import LodgingTab from './LodgingTab';
 
 interface Props {
   camper: ApiCamper;
@@ -24,9 +25,11 @@ function CamperEdit(props: Props) {
         <EditTab {...props} />
       </Tab>
       <Tab eventKey="camper_admin_attrs" title="Admin Attributes">
-        <AdminAttributes {...props} />
+        <AdminAttributesTab {...props} />
       </Tab>
-
+      <Tab eventKey="camper_lodging" title="Lodging">
+        <LodgingTab {...props} />
+      </Tab>
     </Tabs>
   );
 }
