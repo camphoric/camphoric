@@ -50,7 +50,7 @@ function LodgingTab({ event, camper }: Props) {
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string>();
   const [patchCamper] = api.useUpdateCamperMutation();
-  const [formData, setFormData] = React.useState<CamperFormData>({});
+  const [formData, setFormData] = React.useState<CamperFormData>(createInitialCamperData(camper.stay));
   const [camperId, setCamperId] = React.useState(camper.id);
 
   React.useEffect(() => {
