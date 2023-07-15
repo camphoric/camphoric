@@ -19,7 +19,7 @@ interface Props {
   camper: ApiCamper;
 }
 
-function CamperAdminAttributes({ event, camper }: Props) {
+function CamperAdminAttributesTab({ event, camper }: Props) {
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string>();
   const [patchCamper] = api.useUpdateCamperMutation();
@@ -97,4 +97,4 @@ function CamperAdminAttributes({ event, camper }: Props) {
   );
 }
 
-export default CamperAdminAttributes;
+export default CamperAdminAttributesTab;
