@@ -85,7 +85,7 @@ function LodgingTab({ event, camper }: Props) {
     setError(undefined);
   }
 
-  const days = getDaysArray(event) || [];
+  const days = (getDaysArray(event) || []).slice(0, -1);
   const schemas: { dataSchema: JSONSchema7, uiSchema: { order: Array<string> } } = days.reduce((acc, d) => {
     return {
       dataSchema: {
