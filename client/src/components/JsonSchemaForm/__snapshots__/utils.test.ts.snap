@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`JsonSchemaForm utils > adminUISchemea > should remove all enumDisabled keys 1`] = `
+{
+  "meals": {
+    "meal_plan": {
+      "ui:placeholder": "Choose an option",
+    },
+  },
+}
+`;
