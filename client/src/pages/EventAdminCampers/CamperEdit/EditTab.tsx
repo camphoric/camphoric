@@ -8,6 +8,7 @@ import JsonSchemaForm, {
 } from 'components/JsonSchemaForm/AdminEdit';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import api from 'store/admin/api';
+import { adminUISchemea } from 'components/JsonSchemaForm/utils';
 
 import ShowRawJSON from 'components/ShowRawJSON';
 
@@ -51,7 +52,7 @@ function CamperEditTab({ camper, event }: Props) {
           definitions: event.registration_schema.definitions,
           ...event.camper_schema
         }}
-        uiSchema={camperUISchema}
+        uiSchema={adminUISchemea(camperUISchema)}
         formData={formData}
         onChange={onDataChange}
         templateData={{

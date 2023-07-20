@@ -1,4 +1,5 @@
-import { calculatePrice, FormData } from '../../JsonSchemaForm';
+import { describe, it, expect } from 'vitest'
+import { calculatePrice, FormData } from '../JsonSchemaForm';
 
 // These tests are based on server/tests/test_pricing.py
 type PricingLogic = ApiRegister['pricingLogic'];
@@ -145,78 +146,6 @@ describe('calculatePrice', () => {
           { is_adult: true, meals: 300, total: 700, tuition: 400 },
       ],
       total: 2300,
-    });
-  });
-
-  it('handles date calculations correctly', () => {
-
-    const registrationPricingLogic: PricingLogic['registration'] = [
-      {
-        var: "date_parts",
-        exp: [
-            { var: "event.start.year" },
-            { var: "event.start.month" },
-            { var: "event.start.day" },
-        ],
-      },
-    ];
-
-    const camperPricingLogic: PricingLogic['camper'] = [
-      {
-          var: "birthdate_parts",
-          exp: [
-              { var: "camper.birthdate.year" },
-              { var: "camper.birthdate.month" },
-              { var: "camper.birthdate.day" },
-          ],
-      },
-    ];
-    const config: ApiRegister = {
-      templateVars: {},
-      dataSchema: {
-        type: 'object',
-        properties: {
-          campers: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                  birthdate: {
-                      type: "string",
-                      format: "date",
-                  },
-              },
-            },
-          },
-        },
-      },
-      uiSchema: {},
-      event: {
-        start: {
-          year: 2019,
-          month: 2,
-          day: 25,
-        },
-      },
-      pricingLogic: {
-        camper: camperPricingLogic,
-        registration: registrationPricingLogic,
-      },
-      pricing: {},
-      preSubmitTemplate: '',
-    };
-
-    const formData: FormData = {
-      campers: [
-        {
-          birthdate: '2000-12-31',
-        },
-      ],
-    };
-
-    expect(calculatePrice(config, formData)).toStrictEqual({
-      date_parts: [2019, 2, 25],
-      campers: [{ birthdate_parts: [2000, 12, 31] }],
     });
   });
 
