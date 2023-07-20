@@ -29,10 +29,16 @@ jobs:
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node_modules-${{ hashFiles('**/package-lock.json') }}
-
       - run: npm ci
-      - run: npx tsc
-      - run: npm run build
+
+      - name: Check typing
+        run: npx tsc
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run build
+        run: npm run build
 
       - name: Deploy JS to js-build-main
         if: github.ref == 'refs/heads/main'
