@@ -43,7 +43,8 @@
     "start": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "serve": "vite preview --host 0.0.0.0 --port 3001",
-    "postinstall": "./scripts/postinstall"
+    "postinstall": "./scripts/postinstall",
+    "test": "vitest run"
   },
   "eslintConfig": {
     "extends": [
