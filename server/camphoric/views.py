@@ -2,6 +2,7 @@ import logging
 import re
 from smtplib import SMTPException
 import traceback
+from functools import reduce
 
 import cmarkgfm
 import chevron
@@ -705,6 +706,80 @@ class SendInvitationView(APIView):
 
 class RenderReportView(APIView):
     permission_classes = [permissions.IsAdminUser]
+
+    def get_report_vars(self, request, report):
+        campers_queryset = models.Camper.objects \
+            .filter(registration__event=report.event.id) \
+            .filter(registration__completed=True)
+        registrations_queryset = models.Registration.objects \
+            .filter(event=report.event.id) \
+            .filter(completed=True)
+        registrationtypes_queryset = models.RegistrationType.objects \
+            .filter(event=report.event.id)
+        payments_queryset = models.Payment.objects \
+            .filter(registration__event=report.event.id) \
+
+        lodgings_queryset = models.Lodging.objects.filter(event=report.event.id)
+
+        event = serializers.EventSerializer(
+            models.Event.objects.get(id__exact=report.event.id)
+        ).data
+
+        campers = serializers.CamperSerializer(
+            campers_queryset, many=True
+        ).data
+
+        campers_lookup = {cmp['id']: cmp for cmp in campers_queryset.values()}
+        payments_lookup = {pmt['id']: pmt for pmt in payments_queryset.values()}
+
+        registrations = serializers.RegistrationSerializer(
+            registrations_queryset, many=True
+        ).data
+
+        registrations_lookup = {}
+        for reg in registrations_queryset.values():
+
+            total_owed = reg['server_pricing_results']['total']
+            payments = payments_queryset.filter(registration=reg).data or []
+            total_payments = reduce(lambda a, b: a + b['amount'], payments) or 0
+            total_balance = total_owed - total_payments
+            
+            registrations_lookup[reg['id']] = {
+                **reg,
+                'registration_type': serializers.RegistrationTypeSerializer(
+                    registrationtypes_queryset.filter(registration__id=reg['id'])
+                ).data,
+                'campers': serializers.CamperSerializer(
+                    campers_queryset.filter(registration__id=reg['id']), many=True
+                ).data,
+                'total_owed': reg['server_pricing_results']['total'],
+                'payments': payments,
+                'total_payments': total_payments,
+                'total_balance': total_balance,
+            }
+
+        lodgings_lookup = {}
+        for ldg in lodgings_queryset.values():
+            lodgings_lookup[ldg['id']] = {
+                **ldg,
+                'campers': serializers.CamperSerializer(
+                    campers_queryset.filter(lodging=ldg), many=True
+                ).data,
+                'children': serializers.LodgingSerializer(
+                    lodgings_queryset.filter(lodging__parent=ldg), many=True
+                ).data,
+            }
+
+        return {
+            'event': event,
+            'campers': campers,
+            'registrations': registrations,
+            'camper_lookup': campers_lookup,
+            'registration_lookup': registrations_lookup,
+            'lodging_lookup': lodgings_lookup,
+            'payments_lookup': payments_lookup,
+            'vars': request.data,
+        }
 
     def post(self, request, report_id=None):
         '''
