@@ -1,5 +1,4 @@
 import React from 'react';
-import Spinner from 'components/Spinner';
 
 // @ts-ignore
 import CsvParser from 'papaparse';
@@ -11,8 +10,6 @@ type Props = {
 function CSVTable({ csv }: Props) {
   const result = CsvParser.parse(csv.trim(), { delimiter: ',', linebreak: '\n' });
   const [ header, ...data ] = result.data;
-
-  if (!header || !data.length) return <Spinner />;
 
   return (
     <table className="csv-table">
