@@ -1,8 +1,7 @@
 import React from 'react';
-import Editor from '@monaco-editor/react';
-import { type editor } from 'monaco-editor';
 import { Button, Alert } from 'react-bootstrap';
 import { useParams, useHistory } from 'react-router-dom';
+import CodeEditor from 'components/CodeEditor';
 import Spinner from 'components/Spinner';
 import Input, { Select } from 'components/Input';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
@@ -51,12 +50,11 @@ const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData =
 };
 
 type ReportError = { field: string, message: string };
-type TEditor = editor.IStandaloneCodeEditor;
 
 function ReportEditForm({ report, ...props }: ReportEditFormProps) {
   const modalRef  = React.useRef<Modal>(null);
-  const templateEditorRef = React.useRef<TEditor | null>(null);
-  const variablesEditorRef = React.useRef<TEditor | null>(null);
+  const templateEditorRef = React.useRef<CodeEditor | null>(null);
+  const variablesEditorRef = React.useRef<CodeEditor | null>(null);
   const { eventId } = useParams<{ eventId: string }>();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const history = useHistory();
@@ -201,13 +199,10 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
       />
 
       <div>Template code</div>
-      <Editor
-        height="40vh"
-        theme="vs-dark"
+      <CodeEditor
         defaultLanguage={outputOptions.find(v => v.value === formValues.output)?.lang || 'twig'}
         defaultValue={formValues.template}
-        onMount={(editor: TEditor) => (templateEditorRef.current = editor)}
-        options={{ minimap: { enabled: false }}}
+        ref={templateEditorRef}
       />
 
       {
@@ -222,13 +217,10 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
 
       <br />
       <div>Variables schema</div>
-      <Editor
-        height="40vh"
-        theme="vs-dark"
-        defaultLanguage={outputOptions.find(v => v.value === formValues.output)?.lang || 'twig'}
+      <CodeEditor
+        defaultLanguage="json"
         defaultValue={formValues.variables_schema}
-        onMount={(editor: TEditor) => (variablesEditorRef.current = editor)}
-        options={{ minimap: { enabled: false }}}
+        ref={variablesEditorRef}
       />
 
       {
