@@ -2,9 +2,9 @@ import React from 'react';
 import {
   Container,
   Button,
-  FormControl,
   Alert,
 } from 'react-bootstrap';
+import CodeEditor from 'components/CodeEditor';
 import Spinner from 'components/Spinner';
 
 import api, { useEvent } from 'hooks/api';
@@ -20,13 +20,14 @@ function EditJSONType({ keyToEdit }: Props) {
   const [error, setError] = React.useState<string>();
   const [patchEvent] = api.useUpdateEventMutation();
   const eventApi = useEvent();
-  const textRef  = React.useRef<HTMLTextAreaElement>(null);
+  const textRef  = React.useRef<CodeEditor | null>(null);
+
   const event = eventApi.currentData;
 
   if (eventApi.isLoading || !event || loading) return <Spinner />;
 
   const save = async () => {
-    const value = textRef.current?.value;
+    const value = textRef.current?.getValue();
 
     if (!value) {
       setError('The value must be valid JSON');
@@ -60,9 +61,9 @@ function EditJSONType({ keyToEdit }: Props) {
 
     setError(undefined);
 
-    textRef.current.value = JSON.stringify(
+    textRef.current?.setValue(JSON.stringify(
       res.data[keyToEdit], null, 2
-    );
+    ));
   }
 
   return (
@@ -72,11 +73,9 @@ function EditJSONType({ keyToEdit }: Props) {
           <Alert variant="danger">{error}</Alert>
         )
       }
-      <FormControl
-        aria-label={keyToEdit}
-        as="textarea"
-        rows={20}
+      <CodeEditor
         ref={textRef}
+        defaultLanguage="json"
         defaultValue={JSON.stringify(event[keyToEdit], null, 2)}
       />
       <Button onClick={save}>Save</Button>
