@@ -1,10 +1,11 @@
 import React from 'react';
+import Editor from '@monaco-editor/react';
+import { type editor } from 'monaco-editor';
 import { Button, Alert } from 'react-bootstrap';
 import { useParams, useHistory } from 'react-router-dom';
 import Spinner from 'components/Spinner';
-import Input, { TextArea, Select } from 'components/Input';
+import Input, { Select } from 'components/Input';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
-import TemplateHelp from 'components/TemplateHelp';
 import Modal from 'components/Modal';
 import api from 'hooks/api';
   
@@ -50,9 +51,12 @@ const reportToFormValue = (eventId: string, report?: ApiReport): NewReportData =
 };
 
 type ReportError = { field: string, message: string };
+type TEditor = editor.IStandaloneCodeEditor;
 
 function ReportEditForm({ report, ...props }: ReportEditFormProps) {
   const modalRef  = React.useRef<Modal>(null);
+  const templateEditorRef = React.useRef<TEditor | null>(null);
+  const variablesEditorRef = React.useRef<TEditor | null>(null);
   const { eventId } = useParams<{ eventId: string }>();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const history = useHistory();
@@ -68,16 +72,25 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
     setFormValues(undefined);
 
     setReportId(report?.id);
-    setFormValues(reportToFormValue(eventId, report));
+    const vals = reportToFormValue(eventId, report);
+    setFormValues(vals);
+    if (templateEditorRef.current) {
+      templateEditorRef.current.setValue(vals.template);
+    }
+    if (variablesEditorRef.current) {
+      variablesEditorRef.current.setValue(vals.variables_schema);
+    }
+    
   }, [report, reportId, setReportId, setFormValues, eventId]);
 
   if (!formValues) return <Spinner />;
 
   const saveReport = async () => {
     const reportErrors = [];
+    const vSchemaText = variablesEditorRef.current?.getValue() || formValues.variables_schema;
 
     try {
-      const json = JSON.parse(formValues.variables_schema);
+      const json = JSON.parse(vSchemaText);
 
       if (Array.isArray(json) || typeof json !== 'object') {
         throw new TypeError('must be an object');
@@ -102,16 +115,21 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
       return;
     }
 
+    const template = templateEditorRef.current?.getValue() || formValues.template;
+    const variables_schema = JSON.parse(vSchemaText);
+
     if (!report) {
       await createReport({
         ...formValues,
-        variables_schema: JSON.parse(formValues.variables_schema),
+        template,
+        variables_schema,
       });
     } else {
       await updateReport({
         id: report.id,
         ...formValues,
-        variables_schema: JSON.parse(formValues.variables_schema),
+        template,
+        variables_schema,
       });
     }
 
@@ -151,19 +169,11 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
       setFormValues(newValue);
     };
 
-
-  const textAreaLabel = (
-    <div>
-      Report Template
-      <TemplateHelp />
-    </div>
-  );
-
   const outputOptions = [
     // { value: 'html', label: 'Jinja to HTML' },
     // { value: 'md', label: 'Jinja to Markdown' },
-    { value: 'csv', label: 'Jinja to CSV' },
-    { value: 'hbs', label: 'Handlebars to Markdown' },
+    { value: 'csv', lang: 'twig', label: 'Jinja to CSV' },
+    { value: 'hbs', lang: 'handlebars', label: 'Handlebars to Markdown' },
     // { value: 'txt', label: 'Jinja to Plain Text' },
   ];
 
@@ -190,11 +200,14 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
         value={formValues.output}
       />
 
-      <TextArea
-        label={textAreaLabel}
-        className="report-template"
-        onChange={handleFormChange('template')}
-        value={formValues.template}
+      <div>Template code</div>
+      <Editor
+        height="40vh"
+        theme="vs-dark"
+        defaultLanguage={outputOptions.find(v => v.value === formValues.output)?.lang || 'twig'}
+        defaultValue={formValues.template}
+        onMount={(editor: TEditor) => (templateEditorRef.current = editor)}
+        options={{ minimap: { enabled: false }}}
       />
 
       {
@@ -206,11 +219,16 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
           )
         )
       }
-      <TextArea
-        label="Variables Schema"
-        className="report-variables-schema"
-        onChange={handleFormChange('variables_schema')}
-        value={formValues.variables_schema}
+
+      <br />
+      <div>Variables schema</div>
+      <Editor
+        height="40vh"
+        theme="vs-dark"
+        defaultLanguage={outputOptions.find(v => v.value === formValues.output)?.lang || 'twig'}
+        defaultValue={formValues.variables_schema}
+        onMount={(editor: TEditor) => (variablesEditorRef.current = editor)}
+        options={{ minimap: { enabled: false }}}
       />
 
       {

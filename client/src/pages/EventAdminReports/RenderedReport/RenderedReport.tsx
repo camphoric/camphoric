@@ -24,7 +24,7 @@ function ReportSearchResult({ report }: Props) {
       );
 
     default:
-      return <Spinner />
+      return <Spinner />;
   }
 
 }
