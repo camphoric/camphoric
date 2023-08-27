@@ -11,10 +11,12 @@
 
 import LTA from './lta.js';
 import BACDS from './bacds.js';
+import SFFMC from './sffmc.js';
 
 const organizationsToLoad = [
   BACDS,
   LTA,
+  SFFMC,
 ];
 
 export class Organizations extends Array {
