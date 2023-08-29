@@ -1,6 +1,8 @@
 from collections import defaultdict
 import numbers
+import datetime
 from json_logic import jsonLogic
+from camphoric import models
 
 
 def calculate_price(registration, campers):
@@ -53,6 +55,10 @@ def calculate_price(registration, campers):
         },
         "pricing": event.pricing,
         "event": get_event_attributes(event),
+        "date": {
+            "epoch": datetime.time(),
+            **datetime_to_dict(datetime.now()),
+        }
     }
 
     date_props = get_date_props(event.camper_schema)
@@ -74,9 +80,17 @@ def calculate_price(registration, campers):
             if date_prop in data["camper"]:
                 data["camper"][date_prop] = datestring_to_dict(data["camper"][date_prop])
 
-        # temporary hack for lark campout 2022
-        if camper.lodging:
-            data["camper"]['lodging'] = {"lodging_1": camper.lodging.id}
+        lodging = None
+        if camper.lodging_requested_id:
+            lodging = models.Lodging.objects.get(id=camper.lodging_requested_id)
+
+        # Mimic the data structure at the time of registration
+        data["camper"]['lodging'] = {
+            "lodging_requested": {
+                "id": lodging.id if lodging else 0,
+                "name": lodging.name if lodging else '',
+            }
+        }
 
         camper_results = {}
         for camper_component in event.camper_pricing_logic:

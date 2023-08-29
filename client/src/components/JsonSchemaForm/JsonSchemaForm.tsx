@@ -138,6 +138,7 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
   const { event, pricingLogic, pricing } = config;
 
   const results: PricingResults = { campers: [] };
+  const date = new Date();
 
   const data: PricingData = {
     event,
@@ -146,6 +147,12 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
       registration_type: config.registrationType?.name,
     },
     pricing,
+    date: {
+      epoch: Math.floor(date.getTime() / 1000),
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    }
   };
 
   const camperSchema = get(config.dataSchema, 'definitions.camper') as JSONSchema7;
@@ -175,10 +182,14 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
         results[varName] = subtotal;
         data[varName] = value;
       }
+
+      debug(`pricingResults camper ${index}`, { component, data, value });
     });
 
     results.campers.push(camperResults);
   });
+
+  debug(`pricingResults all`, results);
 
   return results;
 }
