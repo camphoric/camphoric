@@ -3,6 +3,7 @@
 import larkCampout from './lark_campout/index.js';
 import lark from './lark/index.js';
 import familyWeek from './familyweek/index.js';
+import harmony from './harmony/index.js';
 import { getAuthToken } from './getAuthInfo.js';
 import loadOrganizations from './organizations/index.js';
 import CamphoricEventCreator from './CamphoricEventCreator.js';
@@ -15,6 +16,7 @@ const events = [
   larkCampout,
   lark,
   familyWeek,
+  harmony
 ];
 
 async function main() {
