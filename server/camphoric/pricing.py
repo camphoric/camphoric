@@ -1,6 +1,7 @@
 from collections import defaultdict
 import numbers
-import datetime
+from datetime import datetime
+from time import time
 from json_logic import jsonLogic
 from camphoric import models
 
@@ -56,7 +57,7 @@ def calculate_price(registration, campers):
         "pricing": event.pricing,
         "event": get_event_attributes(event),
         "date": {
-            "epoch": datetime.time(),
+            "epoch": time(),
             **datetime_to_dict(datetime.now()),
         }
     }
