@@ -6,15 +6,17 @@ import type { InitialPaymentBody } from './api';
 export interface RegisterFormState {
   registration: FormData;
   totals: PricingResults;
-  paymentStep?: ApiRegisterPaymentStep,
-  paymentInfo?: InitialPaymentBody,
-  confirmationStep?: ApiRegisterConfirmationStep,
+  paymentStep?: ApiRegisterPaymentStep;
+  paymentInfo?: InitialPaymentBody;
+  confirmationStep?: ApiRegisterConfirmationStep;
+  updating: boolean;
 }
 
 // Define the initial state using that type
 export const initialState: RegisterFormState = {
   registration: { campers: [{}] },
   totals: { total: 0, campers: [] },
+  updating: false,
 }
 
 export const registerFormSlice = createSlice({
@@ -22,6 +24,9 @@ export const registerFormSlice = createSlice({
   // `createSlice` will infer the state type from the `initialState` argument
   initialState,
   reducers: {
+    setUpdating: (state, action: PayloadAction<boolean>) => {
+      state.updating = action.payload;
+    },
     setRegFormData: (state, action: PayloadAction<FormData>) => {
       state.registration = action.payload;
     },
@@ -42,6 +47,7 @@ export const registerFormSlice = createSlice({
 })
 
 export const {
+  setUpdating,
   setRegFormData,
   setTotals,
   setPaymentStep,
