@@ -10,6 +10,7 @@ import {
   setTotals,
   resetAll,
   useAppDispatch,
+  setUpdating,
 } from 'store/register/store';
 
 const allSlashes = /\//g;
@@ -48,11 +49,12 @@ export const useLocalStorageFormData = () => {
 
   return {
     // Save to both local storage, redux, and recalc price
-    saveFormData: debounce((formData) => {
+    saveFormData: debounce(async (formData) => {
       if (!key) return;
       if (!config) throw new Error('registrationApi.data is not defined');
 
       debug('saving form data');
+      await dispatch(() => setUpdating(true));
       try {
         dispatch(setRegFormData(formData));
         dispatch(
@@ -62,6 +64,8 @@ export const useLocalStorageFormData = () => {
         localStorage.setItem(key, JSON.stringify(formData));
       } catch (e) {
         console.error(e);
+      } finally {
+        dispatch(setUpdating(false));
       }
     }, 600, {leading:false, trailing:true}),
 

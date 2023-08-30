@@ -1,7 +1,8 @@
 import React from 'react';
 
 import debug from 'utils/debug';
-import Spinner from 'components/Spinner';
+import { Spinner } from 'react-bootstrap';
+import SpinnerPage from 'components/Spinner';
 import { type ErrorTransformer } from '@rjsf/utils';
 import ErrorBoundary from 'components/ErrorBoundary';
 import JsonSchemaForm, {
@@ -25,6 +26,7 @@ import transformErrorsCreator from './transformErrors';
 
 function RegistrationStep() {
   const [liveValidate, setLiveValidate] = React.useState(false);
+  const [recalc, setRecalc] = React.useState(false);
   const regFormData = useRegFormData();
   const registrationApi = api.useGetRegistrationQuery();
   const [createRegistration] = api.useCreateRegistrationMutation();
@@ -44,12 +46,17 @@ function RegistrationStep() {
     }
   }, [storage]);
 
+  // strange workaround to get this spinner working
+  React.useEffect(() => {
+    setRecalc(regFormData.updating);
+  }, [regFormData]);
+
   if (
     registrationApi.isFetching ||
     registrationApi.isLoading ||
     !registrationApi.data ||
     !storage.rehydrated
-  ) return <Spinner />;
+  ) return <SpinnerPage />;
 
   const config = registrationApi.data;
 
@@ -89,11 +96,10 @@ function RegistrationStep() {
       }
     });
   }
-  
 
   const onChange = ({ formData, ...otherStuff }: JsonSchemaFormChangeEvent<FormData>) => {
     debug('RegistrationStep onChange', { formData, otherStuff });
-
+    setRecalc(true);
     storage.saveFormData(formData);
   };
 
@@ -160,7 +166,12 @@ function RegistrationStep() {
           </div>
         </JsonSchemaForm>
         <div className="PriceTicker">
-          Total: ${(regFormData.totals.total || 0).toFixed(2)}
+          {
+            !!recalc && (
+              <Spinner style={{ position: 'absolute', color: 'rgba(0, 0, 0, 0.4)' }} animation="border" role="status" />
+            )
+          }
+          <div>Total: ${(regFormData.totals.total || 0).toFixed(2)}</div>
         </div>
       </ErrorBoundary>
     </PageWrapper>
