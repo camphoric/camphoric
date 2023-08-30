@@ -1,3 +1,5 @@
+import pricingValues from './pricing.js';
+
 export const ageLookup = {
   65: '65 years old or older',
   64: '50-64 years old',
@@ -8,55 +10,49 @@ export const ageLookup = {
   4:  '0-4 years old',
 };
 
+export const agePricingTypes = {
+  adult: ['65 years old or older','50-64 years old','26-49 years old'],
+  yadult: ['18-25 years old'],
+  child: ['12-17 years old', '5-11 years old'],
+  baby:  ['0-4 years old'],
+};
+
 const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 
-const regularTuitionPriceMatrix = [
-  [ 65, 'pricing.adult', 'pricing.off_site' ],
-  [ 64, 'pricing.adult', 'pricing.off_site' ],
-  [ 49, 'pricing.adult', 'pricing.off_site' ],
-  [ 25, 'pricing.adult', 'pricing.off_site' ],
-  [ 17, 'pricing.youth', 'pricing.off_site' ],
-  [ 11, 'pricing.youth', 'pricing.off_site' ],
-  [ 4,  'pricing.youth', 'pricing.off_site' ],
-];
+const getRates = (lodgingIds) => ({
+  'if': Object.keys(pricingValues).reduce((acc, key) => {
+    const [ageKey, lodgingKey] = key.split('_');
 
-const tuition = (offsiteId) => {
-  const pricing = {
-    '*': [
+    let lid;
+    try  {
+      lid = lodgingIds[lodgingKey].id;
+    } catch (e) {
+      console.error(lodgingKey, e);
+      throw e;
+    }
+
+    return [
+      ...acc,
       {
-        'if': regularTuitionPriceMatrix.reduce((acc, [ age, full, off_site ]) => {
-          return [
-            ...acc,
-            // age category, offsite case
-            {
-              'and': [
-                { '==': [ageLookup[age], camperAge] },
-                { '==': [offsiteId, {var: 'camper.lodging.lodging_1'}] },
-              ]
-            }, { var: off_site },
-            // age category, non-offsite case
-            {
-              'and': [
-                { '==': [ageLookup[age], camperAge] },
-                { '!=': [offsiteId, {var: 'camper.lodging.lodging_1'}] },
-              ]
-            }, { var: full },
-          ];
-        }, []).concat([0]),
-      },
-    ]
-  };
+        'and': [
+          // age
+          { 'or': agePricingTypes[ageKey].map(a => (
+            { '===': [a, camperAge] }
+          )) },
 
-  // console.log('pricing', pricing);
+          // lodging
+          { '===': [lid, {var: 'camper.lodging.lodging_requested.id'}] },
+        ]
+      }, {var: `pricing.${[ageKey, lodgingKey].join('_')}`},
+    ];
+  }, []).concat([0]),
+});
 
-  return pricing;
-};
-
-export default (offsiteId) => [
+export default (lodgingIds) => [
   {
     var: 'tuition',
-    exp: tuition(offsiteId),
+    exp: getRates(lodgingIds),
   },
   {
     var: 'total',

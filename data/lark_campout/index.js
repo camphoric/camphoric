@@ -58,11 +58,10 @@ if (process.env.PAYPAL_CLIENT_ID) {
   data.event.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
 }
 
-// We override pricing because we need to get the off_site id in order to get
+// We override pricing because we need to get the lodging ids in order to get
 // the pricing correct
 const pricingOverride = async (fetch, results) => {
-  const offsiteId = results.lodging.off_site.id;
-  const camper_pricing_logic = camper_pricing_logic_fn(offsiteId);
+  const camper_pricing_logic = camper_pricing_logic_fn(results.lodging);
 
   await fetch('PATCH', `/api/events/${results.event.id}/`, {
     camper_pricing_logic,
