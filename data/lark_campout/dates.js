@@ -1,7 +1,5 @@
-export const lengthInDays = 5;
-const startDate = new Date();
-startDate.setFullYear(startDate.getFullYear() + 1);
-startDate.setUTCHours(startDate.getUTCHours() + (30 * 24));
+export const lengthInDays = 3;
+const startDate = new Date('2023-10-06T14:00:00.000-07:00');
 
 const dateHash = {
   registration_start: new Date(),
@@ -10,7 +8,7 @@ const dateHash = {
   end: new Date(startDate),
 };
 
-dateHash.registration_end.setUTCMonth(startDate.getUTCMonth() - 1);
+dateHash.registration_end.setUTCHours(startDate.getUTCHours() - 24);
 dateHash.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
 
 export const year = dateHash.start.getFullYear();
