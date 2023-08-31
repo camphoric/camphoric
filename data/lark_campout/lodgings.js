@@ -60,11 +60,12 @@ export default {
     Skylight:    { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Skylight', notes: 'Queen , CPAP' },
     Cypress:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Cypress', notes: 'Queen' },
 		Library:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Library', notes: 'Queen, ADA' },
+    GardenView:  { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Garden View', notes: '2 Twins, CPAP' },
 		GrandFir:    { parentKey: 'privateroom', capacity: 1, visible: false, name:'Grand Fir Cabin', notes: 'Queen, Semi-ADA' },
+		OceanView:   { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Ocean View', notes: '2 Twins, CPAP' },
+    Eucalyptus:  { parentKey: 'sharedroom', capacity: 1, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin, Semi-ADA' },
 
 	sharedroom: { parentKey: 'root', name: 'Shared Room', visible: true },
-		OceanView:   { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Ocean View', notes: '2 Twins, CPAP' },
-    GardenView:  { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Garden View', notes: '2 Twins, CPAP' },
     Osprey:      { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Osprey', notes: '3 Bunk Beds' },
 
     CohoSalmon:  { parentKey: 'sharedroom', capacity: 1, visible: false, name:'BH Coho Salmon', notes: '4 Bunk Beds, ADA' },
@@ -73,7 +74,6 @@ export default {
     PygmyForest: { parentKey: 'sharedroom', capacity: 1, visible: false, name:'BH Pygmy Forest', notes: 'Queen, Bunk Bed , ADA, CPAP' },
 
     Orchid:      { parentKey: 'sharedroom', capacity: 1, visible: false, name:'Orchid Cabin', notes: '2 Double Beds' },
-    Eucalyptus:  { parentKey: 'sharedroom', capacity: 1, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin, Semi-ADA' },
 
   offsite: { parentKey: 'root', capacity: 50, name: 'Off Site', visible: true },
 };
