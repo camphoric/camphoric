@@ -3,14 +3,13 @@ import { useHistory } from 'react-router-dom';
 import api from 'store/register/api';
 import debounce from 'lodash/debounce';
 import debug from 'utils/debug';
-import { calculatePrice }from 'components/JsonSchemaForm';
+import { FormData, calculatePrice }from 'components/JsonSchemaForm';
 
 import {
   setRegFormData,
   setTotals,
   resetAll,
   useAppDispatch,
-  setUpdating,
 } from 'store/register/store';
 
 const allSlashes = /\//g;
@@ -49,23 +48,15 @@ export const useLocalStorageFormData = () => {
 
   return {
     // Save to both local storage, redux, and recalc price
-    saveFormData: debounce(async (formData) => {
+    saveFormData: debounce((formData: FormData) => {
       if (!key) return;
       if (!config) throw new Error('registrationApi.data is not defined');
 
       debug('saving form data');
-      await dispatch(() => setUpdating(true));
       try {
-        dispatch(setRegFormData(formData));
-        dispatch(
-          setTotals(calculatePrice(config, formData))
-        );
-
         localStorage.setItem(key, JSON.stringify(formData));
       } catch (e) {
         console.error(e);
-      } finally {
-        dispatch(setUpdating(false));
       }
     }, 600, {leading:false, trailing:true}),
 
