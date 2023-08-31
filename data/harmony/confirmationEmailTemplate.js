@@ -1,10 +1,10 @@
-import { year } from './dates.js'
+import { yearDisplay } from './dates.js';
 
-const subject = `Camp Harmony ${year} Registration Confirmation`;
+const subject = `Camp Harmony ${yearDisplay} Registration Confirmation`;
 const template = `
 Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
-Your online registration for the Lark Campout ${year} has been received.
+Your online registration for the Camp Harmony ${yearDisplay} has been received.
 
 You have registered the following campers:
 
@@ -31,7 +31,7 @@ USA
 
 Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275
 
-Registration Number: ${year}LC{{ registration.id }}
+Registration Number: ${yearDisplay}CH{{ registration.id }}
 `;
 
 export const confirmation_email_template = template;
