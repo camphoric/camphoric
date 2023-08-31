@@ -17,7 +17,7 @@ import {
   confirmation_email_subject,
 } from './confirmationEmailTemplate.js';
 
-export const eventName = `Lark Campout ${year}`;
+export const eventName = `JugLark ${year}`;
 
 const data = {
   organization: 'Lark Traditional Arts',

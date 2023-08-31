@@ -14,8 +14,8 @@ export default {
     },
     'age': {
       'type': 'string',
-      'title': 'Age (at the beginning of camp)',
-      'description': 'In order to help us abide by CDC recommendations, please select your age category at time of camp',
+      'title': 'Age',
+      'description': 'Please select your age category at the beginning of camp',
       'enum': [
         '65 years old or older',
         '50-64 years old',
@@ -40,8 +40,8 @@ export default {
       'title': 'Phone Number'
     },
     'vaccination_status': {
-      'title': 'Vaccination Information',
-      'description': 'Please check all that apply',
+      'title': 'COVID Vaccination Information',
+      'description': 'We highly recommend you get vaccinated against COVID-19 if you attend this event. Please indicate your vaccination status so we can place you in shared housing with like-vaccinated individuals',
       'type': 'array',
       'items': {
         'type': 'string',
@@ -58,7 +58,7 @@ export default {
     'chore': {
       'type': 'string',
       'title': 'Chore signup',
-      'description': 'We will not have a crew as we do at Lark Camp, so we will need all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend',
+      'description': 'We require all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend. [See this document](https://docs.google.com/document/d/1uHlAcjSAG112XhSPB7q_La4peZkLjsC6_CvjqhQQzNE/edit?usp=sharing) for a description of the chores.',
       'enum': [
         'Cleanup',
         'Office Hours',

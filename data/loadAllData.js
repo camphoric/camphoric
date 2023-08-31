@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import larkCampout from './lark_campout/index.js';
+import juglark from './juglark/index.js';
 import lark from './lark/index.js';
 import familyWeek from './familyweek/index.js';
 import harmony from './harmony/index.js';
@@ -13,10 +13,10 @@ const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 main();
 
 const events = [
-  larkCampout,
-  // lark,
-  // familyWeek,
-  // harmony
+  juglark,
+  lark,
+  familyWeek,
+  harmony
 ];
 
 async function main() {
