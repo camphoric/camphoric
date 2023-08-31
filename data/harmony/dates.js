@@ -1,7 +1,5 @@
 export const lengthInDays = 5;
-const startDate = new Date();
-startDate.setFullYear(startDate.getFullYear() + 1);
-startDate.setUTCHours(startDate.getUTCHours() + (30 * 24));
+const startDate = new Date('2023-12-27T07:00:00.000-07:00');
 
 const dateHash = {
   registration_start: new Date(),
@@ -14,5 +12,9 @@ dateHash.registration_end.setUTCMonth(startDate.getUTCMonth() - 1);
 dateHash.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
 
 export const year = dateHash.start.getFullYear();
-export const yearDisplay = dateHash.start.getFullYear();
+export const yearDisplay = `${
+  dateHash.start.getFullYear()
+}-${
+  (dateHash.start.getFullYear() + 1).toString().substring(2)
+}`;
 export const dates = dateHash;

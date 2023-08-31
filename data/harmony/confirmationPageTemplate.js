@@ -1,9 +1,9 @@
-import { year } from './dates.js'
+import { yearDisplay } from './dates.js';
 
 export default `
 # You're all set!
 
-## See you at Lark Campout ${year}!
+## See you at Camp Harmony ${yearDisplay}!
 
 If you're paying by check, please make it for **\${{pricing_results.total}}**
 payable to "Lark Traditional Arts", and mail it to:

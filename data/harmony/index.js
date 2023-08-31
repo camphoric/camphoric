@@ -10,14 +10,14 @@ import registration_ui_schema from './registrationUISchema.js';
 import lodgings from './lodgings.js';
 import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
-import { dates, lengthInDays, year } from './dates.js';
+import { dates, lengthInDays, yearDisplay } from './dates.js';
 
 import {
   confirmation_email_template,
   confirmation_email_subject,
 } from './confirmationEmailTemplate.js';
 
-export const eventName = `Camp Harmony ${year}`;
+export const eventName = `Camp Harmony ${yearDisplay}`;
 
 const data = {
   organization: 'SFFMC',
