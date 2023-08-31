@@ -1,32 +1,35 @@
 export const pricingMatrix = {
   adult: {
     offsite: 75,
-    cabin: 150,
+    privateroom: 250,
+    sharedroom: 200,
     rvlg: 150,
     rvsm: 150,
     tent: 150,
   },
   yadult: {
     offsite: 75,
-    cabin: 150,
+    privateroom: 250,
+    sharedroom: 200,
     rvlg: 150,
     rvsm: 150,
     tent: 150,
   },
   child: {
     offsite: 75,
-    cabin: 75,
-    rvlg: 75,
-    rvsm: 75,
-    tent: 75,
+    privateroom: 100,
+    sharedroom: 100,
+    rvlg: 100,
+    rvsm: 100,
+    tent: 100,
   },
   baby: {
     offsite: 0,
-    cabin: 0,
+    privateroom: 0,
+    sharedroom: 0,
     rvlg: 0,
     rvsm: 0,
     tent: 0,
-
   },
 };
 

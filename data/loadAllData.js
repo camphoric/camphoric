@@ -14,9 +14,9 @@ main();
 
 const events = [
   larkCampout,
-  lark,
-  familyWeek,
-  harmony
+  // lark,
+  // familyWeek,
+  // harmony
 ];
 
 async function main() {
