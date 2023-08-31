@@ -40,9 +40,8 @@ const getRates = (lodgingIds) => ({
           { 'or': agePricingTypes[ageKey].map(a => (
             { '===': [a, camperAge] }
           )) },
-
           // lodging
-          { '===': [lid, {var: 'camper.lodging.lodging_requested.id'}] },
+          { 'in': [lid, {var: 'camper.lodging.lodging_requested.choices'}] },
         ]
       }, {var: `pricing.${[ageKey, lodgingKey].join('_')}`},
     ];
