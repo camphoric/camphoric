@@ -82,12 +82,15 @@ def calculate_price(registration, campers):
                 data["camper"][date_prop] = datestring_to_dict(data["camper"][date_prop])
 
         lodging = None
+        choices = []
         if camper.lodging_requested_id:
             lodging = models.Lodging.objects.get(id=camper.lodging_requested_id)
+            choices = list(map(lambda ld: ld.id, lodging.get_parents()[1:]))
 
         # Mimic the data structure at the time of registration
         data["camper"]['lodging'] = {
             "lodging_requested": {
+                "choices": choices,
                 "id": lodging.id if lodging else 0,
                 "name": lodging.name if lodging else '',
             }
