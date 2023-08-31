@@ -1,13 +1,13 @@
 import React from 'react';
 
 import debug from 'utils/debug';
-import { Spinner } from 'react-bootstrap';
 import SpinnerPage from 'components/Spinner';
 import { type ErrorTransformer } from '@rjsf/utils';
 import ErrorBoundary from 'components/ErrorBoundary';
 import JsonSchemaForm, {
   FormData,
   JsonSchemaFormChangeEvent,
+  calculatePrice,
 }from 'components/JsonSchemaForm';
 import Template from 'components/Template';
 import api from 'store/register/api';
@@ -15,6 +15,9 @@ import {
   useRegFormData,
   setPaymentStep,
   useAppDispatch,
+  setRegFormData,
+  setTotals,
+  setUpdating,
 } from 'store/register/store';
 
 import {
@@ -23,10 +26,10 @@ import {
 } from './utils';
 import PageWrapper from './PageWrapper';
 import transformErrorsCreator from './transformErrors';
+import PriceTicker from './PriceTicker';
 
 function RegistrationStep() {
   const [liveValidate, setLiveValidate] = React.useState(false);
-  const [recalc, setRecalc] = React.useState(false);
   const regFormData = useRegFormData();
   const registrationApi = api.useGetRegistrationQuery();
   const [createRegistration] = api.useCreateRegistrationMutation();
@@ -45,11 +48,6 @@ function RegistrationStep() {
       }
     }
   }, [storage]);
-
-  // strange workaround to get this spinner working
-  React.useEffect(() => {
-    setRecalc(regFormData.updating);
-  }, [regFormData]);
 
   if (
     registrationApi.isFetching ||
@@ -99,7 +97,12 @@ function RegistrationStep() {
 
   const onChange = ({ formData, ...otherStuff }: JsonSchemaFormChangeEvent<FormData>) => {
     debug('RegistrationStep onChange', { formData, otherStuff });
-    setRecalc(true);
+    dispatch(setUpdating(true));
+    dispatch(setRegFormData(formData));
+    dispatch(
+      setTotals(calculatePrice(config, formData))
+    );
+    dispatch(setUpdating(false));
     storage.saveFormData(formData);
   };
 
@@ -165,14 +168,7 @@ function RegistrationStep() {
             </button>
           </div>
         </JsonSchemaForm>
-        <div className="PriceTicker">
-          {
-            !!recalc && (
-              <Spinner style={{ position: 'absolute', color: 'rgba(0, 0, 0, 0.4)' }} animation="border" role="status" />
-            )
-          }
-          <div>Total: ${(regFormData.totals.total || 0).toFixed(2)}</div>
-        </div>
+        <PriceTicker />
       </ErrorBoundary>
     </PageWrapper>
   );

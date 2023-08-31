@@ -33,7 +33,7 @@ const getRates = (lodgingIds, early) => ({
           )) },
 
           // lodging
-          { '===': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.id'}] },
+          { 'in': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.choices'}] },
 
           // full camp or partial
           {
