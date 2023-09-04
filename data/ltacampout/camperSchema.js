@@ -40,8 +40,8 @@ export default {
       'title': 'Phone Number'
     },
     'vaccination_status': {
-      'title': 'COVID Vaccination Information',
-      'description': 'We highly recommend you get vaccinated against COVID-19 if you attend this event. Please indicate your vaccination status so we can place you in shared housing with like-vaccinated individuals',
+      'title': 'COVID-19 Vaccination Information',
+      'description': 'We highly recommend you get vaccinated against COVID-19 before you attend this event. Please indicate your vaccination status so we can take this into consideration when placing you in shared housing.',
       'type': 'array',
       'items': {
         'type': 'string',
@@ -60,6 +60,12 @@ export default {
       'title': 'Chore signup',
       'description': 'We require all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend. [See this document](https://docs.google.com/document/d/1uHlAcjSAG112XhSPB7q_La4peZkLjsC6_CvjqhQQzNE/edit?usp=sharing) for a description of the chores.',
       'enum': [
+        'Cleanup',
+        'Office Hours',
+        'Setup',
+        'Teardown',
+      ],
+      'enumNames': [
         'Cleanup',
         'Office Hours',
         'Setup (must be able to arrive at 10am on Friday)',
