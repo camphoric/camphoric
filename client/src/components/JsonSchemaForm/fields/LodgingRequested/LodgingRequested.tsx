@@ -1,5 +1,6 @@
 import React from 'react';
 import { FieldProps } from '@rjsf/core';
+import debug from 'utils/debug';
 
 import LodgingRequestedErrors from './LodgingRequestedErrors';
 import LodgingSelect from './LodgingSelect';
@@ -45,7 +46,10 @@ function LodgingRequestedField(props: FieldProps) {
       value,
     ].filter(Boolean);
 
-    const name = nodes.find(n => n.id === value)?.name;
+    const node = nodes.find(n => n.id === value)
+    const name = node?.name;
+
+    debug('lodging selection is', node);
 
     const newFormData = {
       id: isLeaf(value) ? value : undefined, 

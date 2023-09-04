@@ -4,7 +4,7 @@ const subject = `Camp Harmony ${yearDisplay} Registration Confirmation`;
 const template = `
 Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
-Your online registration for the Camp Harmony ${yearDisplay} has been received.
+Thank you for your online registration for Camp Harmony ${yearDisplay}! This email confirms the following:
 
 You have registered the following campers:
 
