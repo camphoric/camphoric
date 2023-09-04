@@ -73,8 +73,9 @@ export default {
       'title': 'Campership Request',
       'description': `
 Due to generous donations to the Campership fund over the past 3 years, we can
-offer a campership rate of half of the early-bird rate (to a maximum
-$300).  If you enter a number above the maximum, only the maximum will be
+offer a campership discount of half the early-bird Economy rate (maximum $300)
+for those who otherwise would not be able to attend camp, while funds
+last. If you enter a number above the maximum, only the maximum will be
 applied.`,
       'type': 'integer',
       'minimum': 0,
