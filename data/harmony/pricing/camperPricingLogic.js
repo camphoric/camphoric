@@ -56,7 +56,7 @@ const calculateCampership = {
 
 const tuition = {
   'if': [
-    { '<': [{var: 'date.epoch'}, cutoff] },
+    { '<': [{var: 'registration.created_at.epoch'}, cutoff] },
     { '*': [{ var: 'early_rate' }, dayCount] },
     { '*': [{ var: 'regular_rate' }, dayCount] },
   ]
