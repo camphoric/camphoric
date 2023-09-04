@@ -6,8 +6,8 @@ export const pricingMatrix = {
     semip: { early: [192, 197], regular: [202, 207] },
     apts:  { early: [192, 197], regular: [202, 207] },
     econ:  { early: [135, 142], regular: [145, 152] },
-    rv:    { early: [110, 107], regular: [120, 117] },
-    tent:  { early: [110, 107], regular: [120, 117] },
+    rv:    { early: [107, 110], regular: [117, 120] },
+    tent:  { early: [107, 110], regular: [117, 120] },
   },
   yadult: {
     semip: { early: [144, 151], regular: [153, 161] },
