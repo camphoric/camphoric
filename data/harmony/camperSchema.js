@@ -54,20 +54,33 @@ export default {
       'minItems': 1,
       'uniqueItems': true
     },
-    'meal_exceptions': {
+    'meal_type': {
       'title': 'Meals',
-      'description': 'Camp includes 3 delicious meals a day, and camp staff can make accommodations for most dietary needs.  Please check any and all that apply:',
+      'description': 'Camp includes 3 delicious meals a day, and camp staff can make accommodations for most dietary needs.',
+      'type': 'string',
+      'enum': [
+        'Omnivore',
+        'Vegetarian',
+        'Vegan',
+      ],
+      'default': 'Omnivore',
+    },
+    'meal_exceptions': {
+      'title': 'Dietary Needs',
       'type': 'array',
       'items': {
         'type': 'string',
         'enum': [
-          'Vegetarian',
-          'Vegan',
           'Gluten Free',
           'Dairy Free',
+          'Whole Grain',
         ],
       },
       'uniqueItems': true
+    },
+    'meal_exceptions_other': {
+      'title': 'Any additional dietary restrictions or allergies',
+      'type': 'string',
     },
     'campership_request': {
       'title': 'Campership Request',

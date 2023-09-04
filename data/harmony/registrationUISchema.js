@@ -25,6 +25,10 @@ export default {
         'email',
         'phone',
         'lodging',
+        'attendance',
+        'meal_type',
+        'meal_exceptions',
+        'meal_exceptions_other',
         '*',
       ],
       'phone': {
@@ -35,6 +39,12 @@ export default {
       },
       'meal_exceptions': {
         'ui:widget': 'checkboxes'
+      },
+      'meal_exceptions_other': {
+        'ui:widget': 'textarea',
+        'ui:options': {
+          'rows': 5
+        }
       },
       'campership_request': {
         'ui:options': { 'prefix': '$' },
