@@ -1,7 +1,6 @@
 from collections import defaultdict
 import numbers
-from datetime import datetime
-from time import time
+from datetime import datetime, date, time
 from json_logic import jsonLogic
 from camphoric import models
 
@@ -53,13 +52,11 @@ def calculate_price(registration, campers):
         "registration": {
             **(registration.attributes or {}),
             "registration_type": registration_type.name if registration_type else None,
+            "created_at": datetime_to_dict(registration.created_at),
         },
         "pricing": event.pricing,
         "event": get_event_attributes(event),
-        "date": {
-            "epoch": time(),
-            **datetime_to_dict(datetime.now()),
-        }
+        "date": datetime_to_dict(datetime.now()),
     }
 
     date_props = get_date_props(event.camper_schema)
@@ -111,10 +108,15 @@ def calculate_price(registration, campers):
 
 
 def datetime_to_dict(d):
+    # add time if only date type
+    if isinstance(d, date):
+        d = datetime.combine(d, time(0, 0, 0, 0))
+
     return {
-        "year": d.year,
-        "month": d.month,
-        "day": d.day,
+        "epoch": d.timestamp() if d else 0,
+        "year": d.year if d else 0,
+        "month": d.month if d else 0,
+        "day": d.day if d else 0,
     }
 
 

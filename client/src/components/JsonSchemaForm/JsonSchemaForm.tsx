@@ -139,20 +139,22 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
 
   const results: PricingResults = { campers: [] };
   const date = new Date();
+  const dateDict = {
+    epoch: Math.floor(date.getTime() / 1000),
+    day: date.getDate(),
+    month: date.getMonth() + 1,
+    year: date.getFullYear(),
+  }
 
   const data: PricingData = {
     event,
     registration: {
       ...formData,
       registration_type: config.registrationType?.name,
+      created_at: dateDict,
     },
     pricing,
-    date: {
-      epoch: Math.floor(date.getTime() / 1000),
-      day: date.getDate(),
-      month: date.getMonth() + 1,
-      year: date.getFullYear(),
-    }
+    date: dateDict,
   };
 
   const camperSchema = get(config.dataSchema, 'definitions.camper') as JSONSchema7;

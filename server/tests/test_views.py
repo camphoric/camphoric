@@ -385,7 +385,7 @@ class RegisterGetTests(APITestCase):
         self.assertEqual(
             response.data['event'],
             {
-                'start': {'day': 25, 'month': 2, 'year': 2019},
+                'start': {'day': 25, 'month': 2, 'year': 2019, 'epoch': 1551052800.0},
                 'is_open': True,
             }
         )
