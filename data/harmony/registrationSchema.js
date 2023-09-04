@@ -5,7 +5,7 @@ December 27, 2023-January 1 2024
 
 Please note that registrations are accepted in the order they are received and your housing preferences are processed on a "first come - first served" basis.
 
-COVID POLICY
+**COVID POLICY**    
 
 It is our goal to hold a safe and fun Camp Harmony for our community. Although there is always some risk of exposure to COVID when gathering in groups, we are taking the following actions to minimize the risk:
 
@@ -18,9 +18,13 @@ It is our goal to hold a safe and fun Camp Harmony for our community. Although t
 - For five days after camp ends, if you test positive for COVID, please let us (campnewharmony@gmail.com) know, so that we can alert the community to re-test and quarantine as needed.
 - Vaccination and proof of vaccination are no longer required to attend camp. 
 
-CANCELLATION POLICY
+**CANCELLATION POLICY**    
 
 Any registered camper can cancel for any reason by December 10 and receive a full refund.  If you are sick or experiencing symptoms, do not come to camp.  Your registration will be fully refunded if you cancel due to illness at any time before camp. If you begin to experience symptoms at camp, we ask that you notify registration and leave immediately; the remainder of your fees will be refunded.  
+
+**LODGING**    
+
+[Click here to see 2023-24 rates](https://docs.google.com/spreadsheets/d/1UvAbUg8KC5nCQWtYNe_V5Jecb3OtHC3lrn-_nBYHKxI/edit?usp=sharing) for lodging (all prices include meals)
 `,
   'type': 'object',
   'definitions': {
