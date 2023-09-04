@@ -47,44 +47,73 @@ const getRates = (lodgingIds, early) => ({
   }, []).concat([0]),
 });
 
+const calculateCampershipRate = ({
+  'if': [
+    'adult_full',
+    'yadult_full',
+    'child_full',
+    'adult_perday',
+    'yadult_perday',
+    'child_perday',
+  ].reduce((acc, key) => {
+    const [agek, fullcampk] = key.split('_');
+
+    return [
+      ...acc,
+      {
+        'and': [
+          // age
+          { 'or': ageLookup[agek].map(a => (
+            { '===': [a, camperAge] }
+          )) },
+
+          // full camp or partial
+          {
+            [ fullcampk === 'full' ? '===' : '!=' ]: [
+              5, dayCount
+            ]
+          },
+        ]
+      }, {var: `pricing.${[agek, 'econ', 'early', fullcampk].join('_')}`},
+    ];
+  }, []).concat([2]),
+});
+
 const calculateCampership = {
   min: [
     { var: 'camper.campership_request' },
-    { '/': [ { '*': [dayCount, { var: 'early_rate' } ] } , 2] }
+    { '/': [ { '*': [dayCount, calculateCampershipRate] }, 2] },
+    300
   ]
 };
 
-const tuition = {
+const rate = (lodgingIds) => ({
   'if': [
     { '<': [{var: 'registration.created_at.epoch'}, cutoff] },
-    { '*': [{ var: 'early_rate' }, dayCount] },
-    { '*': [{ var: 'regular_rate' }, dayCount] },
+    getRates(lodgingIds, 'early'),
+    getRates(lodgingIds, 'regular'),
   ]
-};
+});
 
 export default (lodgingIds) => [
   {
-    var: 'early_rate',
-    exp: getRates(lodgingIds, 'early'),
+    var: 'rate',
+    exp: rate(lodgingIds),
   },
   {
-    var: 'regular_rate',
-    exp: getRates(lodgingIds, 'regular'),
-  },
-  {
-    var: 'campership_calculated',
+    var: 'campership',
     exp: calculateCampership,
   },
   {
     var: 'tuition',
-    exp: tuition,
+    exp: { '*': [{ var: 'rate' }, dayCount] },
   },
   {
     var: 'total',
     exp: {
       '-': [
         {var: 'tuition'},
-        {var: 'campership_calculated'},
+        {var: 'campership'},
       ]
     }
   }
