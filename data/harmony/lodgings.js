@@ -127,8 +127,54 @@ export default {
       c408r2: { parentKey: 'c408', name: 'C408 Room 2 (bunk)', capacity: 1, visible: false },
 
 	// RV
-	rv: { parentKey: 'root', name: 'RV Camping', visible: true, capacity: 15 },
-    // Large vs small?
+	rv: { parentKey: 'root', name: 'RV Camping', visible: true },
+    rvsm: {parentKey: 'rv', name:'RV under 15\' long', visible:true },
+    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+      (acc, v, i) => {
+        return {
+          ...acc,
+          [`rvsm_${i}`]: {
+            parentKey: 'rvsm',
+            name: `RV Small ${i}`,
+            visible: false,
+            capacity: 1,
+          },
+        };
+      },
+      {},
+    ),
+      
+    rvmd: {parentKey: 'rv', name:'RV 15\'-20\' long',visible:true },
+    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+      (acc, v, i) => {
+        return {
+          ...acc,
+          [`rvmd_${i}`]: {
+            parentKey: 'rvmd',
+            name: `RV Medium ${i}`,
+            visible: false,
+            capacity: 1,
+          },
+        };
+      },
+      {},
+    ),
+
+    rvlg: {parentKey: 'rv', name:'RV 21+\' long', visible:true },
+    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+      (acc, v, i) => {
+        return {
+          ...acc,
+          [`rvlg_${i}`]: {
+            parentKey: 'rvlg',
+            name: `RV Large ${i}`,
+            visible: false,
+            capacity: 1,
+          },
+        };
+      },
+      {},
+    ),
 
 	// TENT
 	tent: { parentKey: 'root', name: 'Tent Camping', visible: true, capacity: 20 },

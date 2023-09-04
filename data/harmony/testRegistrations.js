@@ -24,10 +24,10 @@ const registrations = [
     phone: '+15553985555',
     email: 'vampslayer2345@dontsend.com',
     campers: [
-      ['yadult' , 'BuffyCO','Summers' , '3', 'rv', []],
-      ['yadult' , 'WillowCO' , 'Rosenberg', '3', 'rv', []],
-      ['yadult' , 'XanderCO' , 'Harris' , '3', 'rv', []],
-      ['yadult' , 'DawnCO' , 'Summers' , '3', 'rv', []],
+      ['yadult' , 'BuffyCO','Summers' , '3', 'rvmd', []],
+      ['yadult' , 'WillowCO' , 'Rosenberg', '3', 'rvmd', []],
+      ['yadult' , 'XanderCO' , 'Harris' , '3', 'rvmd', []],
+      ['yadult' , 'DawnCO' , 'Summers' , '3', 'rvmd', []],
     ],
   },
 
@@ -35,12 +35,12 @@ const registrations = [
     phone: '+15553755555',
     email: 'notarever3q450@dontsend.com',
     campers: [
-      ['adult' , 'MalcomCO','Reynolds' , '5', 'rv', [], 'my crew'],
-      ['adult' , 'JayneCO' , 'Cobb', '5', 'rv', [], 'Malcom Reynolds'],
-      ['adult' , 'ZoeCO' , 'Washburn', '5', 'rv', [], 'Malcom Reynolds'],
-      ['adult' , 'HobanCO' , 'Washburn', '5', 'rv', [], 'Malcom Reynolds'],
-      ['adult' , 'InaraCO' , 'Serra', '5', 'rv', [], 'Malcom Reynolds'],
-      ['yadult' , 'KayleeCO' , 'Frye', '5', 'rv', [], 'Malcom Reynolds'],
+      ['adult' , 'MalcomCO','Reynolds' , '5', 'rvlg', [], 'my crew'],
+      ['adult' , 'JayneCO' , 'Cobb', '5', 'rvlg', [], 'Malcom Reynolds'],
+      ['adult' , 'ZoeCO' , 'Washburn', '5', 'rvlg', [], 'Malcom Reynolds'],
+      ['adult' , 'HobanCO' , 'Washburn', '5', 'rvlg', [], 'Malcom Reynolds'],
+      ['adult' , 'InaraCO' , 'Serra', '5', 'rvlg', [], 'Malcom Reynolds'],
+      ['yadult' , 'KayleeCO' , 'Frye', '5', 'rvlg', [], 'Malcom Reynolds'],
     ],
   },
 ];
