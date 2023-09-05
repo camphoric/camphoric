@@ -12,7 +12,7 @@ export default {
     // For some reason the title and description have to stay in the
     // ui-schema, or their duplicated for each camper
     'ui:title': 'Camper Information',
-    'ui:description': 'There is a big blue button below to add additional campers.  You may add up to 6 additional campers',
+    'ui:description': 'There is a big blue button below to add additional campers.',
     'ui:field': 'Campers',
     'ui:options': {
       'orderable': false
