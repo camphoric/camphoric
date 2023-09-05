@@ -31,7 +31,6 @@ export default {
       'title': 'Camper Email',
       'type': 'string',
       'format': 'email',
-
     },
     'phone': {
       'type': 'string',
@@ -59,6 +58,22 @@ export default {
       'type': 'string',
       'title': 'Chore signup',
       'description': 'We require all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend. [See this document](https://docs.google.com/document/d/1uHlAcjSAG112XhSPB7q_La4peZkLjsC6_CvjqhQQzNE/edit?usp=sharing) for a description of the chores.',
+      'default': 'Cleanup',
+    },
+  },
+  'if': {
+    properties: { age: { const: '0-4 years old' }},
+  },
+  'then': {
+    properties: { chore: {
+      'enum': [
+        'Exempt',
+      ],
+      'default': 'Exempt',
+    }},
+  },
+  'else': {
+    properties: { chore: {
       'enum': [
         'Cleanup',
         'Office Hours',
@@ -71,7 +86,6 @@ export default {
         'Setup (must be able to arrive at 10am on Friday)',
         'Teardown (must be able to stay until noon on Monday)',
       ],
-      'default': 'Cleanup',
-    }
-  }
+    }},
+  },
 };
