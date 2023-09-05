@@ -89,6 +89,32 @@ def create_standard_test_event(
         ]),
         confirmation_email_from='reg@camp.org',
     )
+
+    lodgings = [
+        {'name': 'Lodging', 'children_title': 'Select a camp'},
+        {'name': 'Camp 1', 'children_title': 'Select lodging', 'parent_key': 0},
+        {'name': 'Camp 2', 'children_title': 'Select lodging', 'parent_key': 0},
+        {'name': 'Camp 3', 'children_title': 'Select lodging', 'parent_key': 0},
+        {'name': 'Camp 1 Tent', 'parent_key': 1, 'capacity': 10},
+        {'name': 'Camp 1 Cabin', 'parent_key': 1, 'capacity': 10},
+        {'name': 'Camp 2 Tent', 'parent_key': 2, 'capacity': 20},
+        {'name': 'Camp 2 Cabin', 'parent_key': 2, 'capacity': 20},
+        {'name': 'Camp 3 Tent', 'parent_key': 3, 'capacity': 30},
+        {'name': 'Camp 3 Cabin', 'parent_key': 3, 'capacity': 30},
+    ]
+
+    self.lodgings = {}
+    for idx, vals in enumerate(lodgings):
+        lodging = models.Lodging.objects.create(
+            event=self.event,
+            name=vals['name'],
+            parent=lodgings[vals['parent_key']] if 'parent_key' in vals else None,
+            children_title=vals['children_title'] if 'children_title' in vals else '',
+            capacity=vals.get('capacity', 0),
+        )
+        lodgings[idx] = lodging
+        self.lodgings[lodging.id] = lodging
+
     self.registration_type = models.RegistrationType.objects.create(
         event=self.event,
         name='worktrade',
