@@ -81,7 +81,12 @@ const calculateCampershipRate = ({
 
 const calculateCampership = {
   min: [
-    { var: 'camper.campership_request' },
+    {
+      'or': [
+        { var: 'camper.campership_request' },
+        0,
+      ],
+    },
     { '/': [ { '*': [dayCount, calculateCampershipRate] }, 2] },
     300
   ]

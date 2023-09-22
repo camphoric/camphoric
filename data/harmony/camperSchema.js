@@ -6,9 +6,10 @@ export const days = [
   'Sun Dec 31',
 ];
 
+// export default (args) => ({
 export default {
   'type': 'object',
-  'required': ['first_name', 'last_name', 'email', 'phone', 'attendance', 'campership_request'],
+  'required': ['first_name', 'last_name', 'email', 'phone', 'attendance'],
   'properties': {
     'first_name': {
       'type': 'string',
@@ -94,5 +95,31 @@ applied.`,
       'minimum': 0,
       'default': 0,
     },
-  }
+  },
+  //   'if': {
+  //     'properties': {
+  //       'lodging': {
+  //         'type': 'object',
+  //         'properties': {
+  //           'lodging_requested': {
+  //             'type': 'object',
+  //             'properties': {
+  //               'choices': {
+  //                 'contains': {
+  //                   'const': 5,
+  //                 }
+  //               },
+  //             },
+  // 
+  //           },
+  //         },
+  //       },
+  //     },
+  //   },
+  //   'then': {
+  //     'properties': { 'postal_code': { 'pattern': '[0-9]{5}(-[0-9]{4})?' } }
+  //   },
+  //   'else': {
+  //     'properties': { 'postal_code': { 'pattern': '[A-Z][0-9][A-Z] [0-9][A-Z][0-9]' } }
+  //   }
 };
