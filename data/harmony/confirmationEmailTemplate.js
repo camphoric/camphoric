@@ -37,6 +37,8 @@ SFFMC, c/o Ellen Eagan
 149 Santa Maria Avenue
 San Bruno CA 94066
 
+Checks must be received by November 1 to receive the Early Bird rate.
+
 If you would like to sign up to lead a workshop, you may do so on the [Workshop Signup Thread](https://docs.google.com/forms/d/e/1FAIpQLSfe9LwY1nBqNPan8QE6lcndFJsTJpnTL3fbwK1BKFNsyumEWA/viewform?vc=0&c=0&w=1&flr=0)
 
 You have agreed to Camp Harmony's Covid policy [link] and you will need to provide proof of a negative Covid test upon entering Camp.
