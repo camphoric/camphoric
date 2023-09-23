@@ -92,6 +92,19 @@ const calculateCampership = {
   ]
 };
 
+const calculateLinens = {
+  '*': [
+    {
+      'if': [
+        {'===' : [{ var: 'camper.linens' }, 'Yes']},
+        1, 0,
+      ],
+    },
+    25
+  ]
+};
+
+
 const rate = (lodgingIds) => ({
   'if': [
     { '<': [{var: 'registration.created_at.epoch'}, cutoff] },
@@ -114,11 +127,16 @@ export default (lodgingIds) => [
     exp: { '*': [{ var: 'rate' }, dayCount] },
   },
   {
+    var: 'linens',
+    exp: calculateLinens,
+  },
+  {
     var: 'total',
     exp: {
-      '-': [
+      '+': [
         {var: 'tuition'},
-        {var: 'campership'},
+        { '*': [ {var: 'campership'}, -1 ] },
+        {var: 'linens'},
       ]
     }
   }

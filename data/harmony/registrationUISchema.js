@@ -25,6 +25,7 @@ export default {
         'email',
         'phone',
         'lodging',
+        'linens',
         'attendance',
         'meal_type',
         'meal_exceptions',
