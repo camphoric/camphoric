@@ -66,6 +66,19 @@ export default {
       ],
       'default': 'Omnivore',
     },
+    'linens': {
+      'title': 'Sheet rental',
+      'description': `
+All campers should bring bedding (blankets, sleeping bag, pillow, etc).
+Camp Newman is able to provide fitted and top sheets for an additional $25.
+Would you like to rent sheets?`,
+      'type': 'string',
+      'enum': [
+        'Yes',
+        'No',
+      ],
+      'default': 'No',
+    },
     'meal_exceptions': {
       'title': 'Dietary Needs',
       'type': 'array',
@@ -96,30 +109,4 @@ applied.`,
       'default': 0,
     },
   },
-  //   'if': {
-  //     'properties': {
-  //       'lodging': {
-  //         'type': 'object',
-  //         'properties': {
-  //           'lodging_requested': {
-  //             'type': 'object',
-  //             'properties': {
-  //               'choices': {
-  //                 'contains': {
-  //                   'const': 5,
-  //                 }
-  //               },
-  //             },
-  // 
-  //           },
-  //         },
-  //       },
-  //     },
-  //   },
-  //   'then': {
-  //     'properties': { 'postal_code': { 'pattern': '[0-9]{5}(-[0-9]{4})?' } }
-  //   },
-  //   'else': {
-  //     'properties': { 'postal_code': { 'pattern': '[A-Z][0-9][A-Z] [0-9][A-Z][0-9]' } }
-  //   }
 };
