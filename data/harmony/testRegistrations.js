@@ -79,6 +79,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     },
     attendance: days.slice(0, daycnt),
     campership_request: 0,
+    linens: 'No',
   };
 }
 
