@@ -13,6 +13,8 @@ All Campers will need to test before arriving at Camp.
 **LODGING**    
 
 [Click here to see 2023-24 rates](https://docs.google.com/spreadsheets/d/1UvAbUg8KC5nCQWtYNe_V5Jecb3OtHC3lrn-_nBYHKxI/edit?usp=sharing) for lodging (all prices include meals)
+
+Fields marked with an asterisk (*) are required
 `,
   'type': 'object',
   'definitions': {
