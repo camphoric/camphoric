@@ -33,6 +33,7 @@ def get_email_connection_for_event(event):
         port=account.port,
         username=account.username,
         password=account.password,
+        use_tls=True,
     )
 
 
