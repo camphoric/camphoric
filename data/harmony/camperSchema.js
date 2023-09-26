@@ -67,11 +67,12 @@ export default {
       'default': 'Omnivore',
     },
     'linens': {
-      'title': 'Sheet rental',
+      'title': 'Linens rental',
       'description': `
-All campers should bring bedding (blankets, sleeping bag, pillow, etc).
-Camp Newman is able to provide fitted and top sheets for an additional $25.
-Would you like to rent sheets?`,
+All campers should bring bedding (blankets, sleeping bag, pillow, etc). Camp
+Newman will provide linens (fitted and top sheet, pillowcase, pillow, blanket
+and towel) for an additional $25. Would you like to rent linens?
+`,
       'type': 'string',
       'enum': [
         'Yes',
@@ -80,7 +81,7 @@ Would you like to rent sheets?`,
       'default': 'No',
     },
     'meal_exceptions': {
-      'title': 'Dietary Needs',
+      'title': 'Dietary needs',
       'type': 'array',
       'items': {
         'type': 'string',
@@ -97,7 +98,7 @@ Would you like to rent sheets?`,
       'type': 'string',
     },
     'campership_request': {
-      'title': 'Campership Request',
+      'title': 'Campership request',
       'description': `
 Due to generous donations to the Campership fund over the past 3 years, we can
 offer a campership discount of half the early-bird Economy rate (maximum $300)
