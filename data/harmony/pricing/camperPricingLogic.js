@@ -52,9 +52,11 @@ const calculateCampershipRate = ({
     'adult_full',
     'yadult_full',
     'child_full',
+    'baby_full',
     'adult_perday',
     'yadult_perday',
     'child_perday',
+    'baby_perday',
   ].reduce((acc, key) => {
     const [agek, fullcampk] = key.split('_');
 
@@ -88,8 +90,9 @@ const calculateCampership = {
       ],
     },
     { '/': [ { '*': [dayCount, calculateCampershipRate] }, 2] },
-    300
-  ]
+    { '/': [ { var: 'tuition' }, 2] },
+    300,
+  ],
 };
 
 const calculateLinens = {
@@ -119,12 +122,12 @@ export default (lodgingIds) => [
     exp: rate(lodgingIds),
   },
   {
-    var: 'campership',
-    exp: calculateCampership,
-  },
-  {
     var: 'tuition',
     exp: { '*': [{ var: 'rate' }, dayCount] },
+  },
+  {
+    var: 'campership',
+    exp: calculateCampership,
   },
   {
     var: 'linens',
