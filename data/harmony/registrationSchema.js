@@ -57,7 +57,7 @@ member” under the “Join Us!” tab.
       'type': 'string',
       'enum': [
         'No, I am not yet a member',
-        'Yes, I am a current memeber',
+        'Yes, I am a current member',
       ]
     },
   }

@@ -96,7 +96,7 @@ function makeRegistration(reg, lodgingMap) {
       ),
       'registrant_email': reg.email,
       'payment_type': 'Check',
-      'membership_check': 'Yes, I am a current memeber',
+      'membership_check': 'Yes, I am a current member',
       'comments': '',
     },
     'pricingResults': {
