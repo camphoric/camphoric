@@ -18,7 +18,7 @@ Registered for {{#attendance}}, {{.}}{{/attendance}}
 (You must arrive after 2pm on your first day)    
 Housing: {{lodging.lodging_requested.name}}    
 Linens rental: {{linens}}    
-Campership request: \${{campership_request}}    
+Campership: \${{pricing_result.campership}}    
 
 ------
 {{/campers}}
