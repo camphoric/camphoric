@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import 'dotenv/config';
+
 import ltacampout from './ltacampout/index.js';
 import lark from './lark/index.js';
 import familyWeek from './familyweek/index.js';
