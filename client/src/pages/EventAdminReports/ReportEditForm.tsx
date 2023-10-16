@@ -169,10 +169,10 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
 
   const outputOptions = [
     // { value: 'html', label: 'Jinja to HTML' },
-    // { value: 'md', label: 'Jinja to Markdown' },
+    { value: 'md',  lang: 'twig', label: 'Jinja to Markdown' },
     { value: 'csv', lang: 'twig', label: 'Jinja to CSV' },
+    { value: 'txt', lang: 'twig', label: 'Jinja to Plain Text' },
     { value: 'hbs', lang: 'handlebars', label: 'Handlebars to Markdown' },
-    // { value: 'txt', label: 'Jinja to Plain Text' },
   ];
 
   const contents = (
