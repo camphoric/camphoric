@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Alert } from 'react-bootstrap';
 import { useParams, useHistory } from 'react-router-dom';
 import CodeEditor from 'components/CodeEditor';
+import TemplateHelp from 'components/TemplateHelp';
 import Spinner from 'components/Spinner';
 import Input, { Select } from 'components/Input';
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
@@ -198,7 +199,7 @@ function ReportEditForm({ report, ...props }: ReportEditFormProps) {
         value={formValues.output}
       />
 
-      <div>Template code</div>
+      <div>Template code <TemplateHelp /></div>
       <CodeEditor
         defaultLanguage={outputOptions.find(v => v.value === formValues.output)?.lang || 'twig'}
         defaultValue={formValues.template}
