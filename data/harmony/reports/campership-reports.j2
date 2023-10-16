@@ -1,0 +1,7 @@
+Total Campership Requested: ${{campers | map(attribute="server_pricing_results.campership", default=0) | sum}}
+
+| Name | Tuition | Campership |
+| ---- | ------- | ---------- |
+{% for camper in campers | sort(attribute="server_pricing_results.campership") | reverse -%}
+| [{{camper.attributes.first_name}} {{camper.attributes.last_name}}](mailto:{{camper.attributes.email}}) | ${{camper.server_pricing_results.tuition}} | ${{camper.server_pricing_results.campership}} |
+{% endfor -%}
