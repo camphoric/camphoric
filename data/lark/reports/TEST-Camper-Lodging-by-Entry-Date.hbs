@@ -1,0 +1,9 @@
+| Last Name | First Name | Age | Lodging | Attendance | Entry Date |
+| --------- | ---------- | --- | ------- | --------- | ---------- |
+{{#eachsort campers "attributes.last_name"}} | {{attributes.last_name}} | {{attributes.first_name}} | {{attributes.age}} | {{getLodgingValue lodging 'fullPath'}} | {{attributes.session}} | 
+  {{#compare stay.[0] '===' "2023-08-01"}}
+    Display this value when stay.[0] equals "2023-08-01"
+  {{else}}
+    Display some other value when stay.[0] is not equal to "2023-08-01"
+  {{/compare}} |
+{{/eachsort}}

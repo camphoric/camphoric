@@ -1,0 +1,71 @@
+{%- set crew = 'cleanup' -%}
+{%- set camps = ['Camp 2', 'Camp 3'] -%}
+{%- set regTypeLookup = {
+  2: "talent",
+  4: "cleanup",
+  5: "setup",
+  6: "registration",
+  7: "kitchen-full",
+  8: "management",
+  3: "kitchen-partial",
+} -%}
+{%- set parking_short = {
+  "Long Term": "LT",
+  "Vehicle Camp 1": "V1",
+  "Vehicle Camp 2": "V2",
+  "Vehicle Camp 3": "V3",
+  "Short Term": "ST",
+  "Camp 1": "C1",
+  "Camp 2": "C2",
+  "Camp 3": "C3",
+  "Park Anywhere": "PA",
+} -%}
+{%- for camper in campers -%}
+    {% do camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  %}
+    {% do camper.update({'camp': ''}) %}
+    {% do camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') %}
+    {% do camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') %}
+    {% do camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') %}
+    {% do camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) %}
+    {% do camper.update({'registration': registrationLookup[camper.registration | string]}) %}
+    {% do camper.update({'crew': regTypeLookup[camper.registration.registration_type]}) %}
+    {% do camper.update({'lodging_short': camper.fullLodgingPath or ''}) %}
+    {% for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] %}
+        {% do camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) %}
+    {% endfor %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cabin→', '')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long→Spot ', '')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV 15\'-20\' long→Spot ', '')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV→', '')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cooks Cabin', 'Cook')}) %}
+    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cabin ', 'Cbn')}) %}
+    {% if camper.registration.attributes.parking_passes | length > 0 %}
+        {% do camper.update({'parking': camper.registration.attributes.parking_exception or 'Long Term'}) %}
+        {% do camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
+        {% do camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
+        {% do camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
+    {% endif %}
+{%- endfor -%}
+first, last, crew, lodging, arrival_date, park, email
+{% for camper in campers | sort(attribute="camp") | sort(attribute="attributes.last_name")
+if camper.crew == 'management' and camper.camp in camps and
+'manager' in (camper.admin_attributes.crew_exception | string | lower) and crew in (camper.admin_attributes.crew_exception | string | lower) -%}
+{{ camper.attributes.first_name }},
+{{- camper.attributes.last_name }},
+{{- camper.crew or 'none' }},
+{{- camper.lodging_short}},
+{{- camper.stay[0] }},
+{{- parking_short[camper.parking] or '-'}},
+{{- camper.registration.registrant_email  }}
+{% endfor -%}
+{% for camper in campers | sort(attribute="camp") | sort(attribute="attributes.last_name") if camper.crew == crew and camper.camp in camps and camper.admin_attributes.crew_exception != 'Guest' -%}
+{{ camper.attributes.first_name }},
+{{- camper.attributes.last_name }},
+{{- camper.crew or 'none' }},
+{{- camper.lodging_short}},
+{{- camper.stay[0] }},
+{{- parking_short[camper.parking] or '-'}},
+{{- camper.registration.registrant_email  }}
+{% endfor -%}

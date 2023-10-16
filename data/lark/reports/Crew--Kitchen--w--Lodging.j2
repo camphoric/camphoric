@@ -1,0 +1,10 @@
+{%- for camper in campers -%}
+  {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
+  {%- set _ = camper.update({'camperCrew': registrationLookup[camper.registration | string].registration_type}) -%}
+{%- endfor -%} 
+First, Last, Camp, Lodging
+{% for camper in campers | sort(attribute="attributes.last_name") | selectattr("camperCrew", "in", [3, 7]) -%}
+{{camper.attributes.first_name}}, {{camper.attributes.last_name}},
+{{- camper.camperLodgingParts.pathParts[0] if camper.camperLodgingParts else 'Not assigned' }},
+{{- camper.camperLodgingParts.pathParts[1:] | join('→') if camper.camperLodgingParts else 'Not assigned' }}
+{% endfor %}

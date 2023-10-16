@@ -1,0 +1,8 @@
+| Last Name | First Name | Age | Lodging | Chore |
+| --------- | ---------- | --- | ------- | ----- |
+{{#eachsort campers "attributes.last_name"}}
+| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
+  {{name}} | {{/with}} {{this.attributes.chore}} |
+{{/eachsort}}
+
+Total Campers: {{campers.length}}

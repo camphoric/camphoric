@@ -1,0 +1,16 @@
+## Meal Plan
+---
+All Meals - Full Camp: {{count (filter campers 'attributes.meals.meal_plan' '===' 'All Meals')}} </br>
+All Meals - 1st Half {{count (filter campers 'attributes.meals.meal_plan' '===' 'All Meals - 1st half')}} </br>
+All Meals - 2nd Half {{count (filter campers 'attributes.meals.meal_plan' '===' 'All Meals - 2nd half')}} </br>
+Dinner Only: {{count (filter campers 'attributes.meals.meal_plan' '===' 'Just Dinners')}} </br>
+No Meals: {{count (filter campers 'attributes.meals.meal_plan' '===' 'No meals')}} </br>
+Please note that there are no Dinner Only half-campers. The dinners only option was offered to full campers exclusively. 
+
+## Meal Type
+---
+Omni: {{count (filter campers 'attributes.meals.meal_type' '===' 'Non-Vegetarian')}} </br>
+Vegi: {{count (filter campers 'attributes.meals.meal_type' '===' 'Vegetarian')}} </br>
+Vegan: {{count (filter campers 'attributes.meals.meal_type' '===' 'Vegan')}} </br>
+
+Total Campers: {{campers.length}}

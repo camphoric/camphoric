@@ -1,0 +1,7 @@
+{%- for camper in campers -%}
+  {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
+{%- endfor -%} 
+Last Name, First Name, Age, Lodging, Sharing, Sharing with, Attendance
+{% for camper in campers | sort(attribute="camperLodgingParts.pathParts") -%}
+{{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{camper.attributes.age}}, {{- camper.camperLodgingParts.pathParts | join('→') if camper.camperLodgingParts else 'Not assigned' }}, {{camper.lodging_shared}}, {{camper.lodging_shared_with | replace(',', " and ")}}, {{ camper.attributes.session }}
+{% endfor %}

@@ -1,0 +1,62 @@
+**Talent Crew**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'talent'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+
+---
+
+**Kitchen Crew**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'crew-kitchen-partial'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'crew-kitchen-full'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+
+---
+
+**Setup Crew**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'crew-setup'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+
+---
+
+**Cleanup Crew**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'crew-cleanup'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+
+---
+
+**Registration Crew**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'crew-registration'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}
+
+---
+
+**Management**
+
+{{#each registrations}}
+{{#compare this.registrationType.name '===' 'management'}}
+{{this.campers.0.attributes.first_name}} {{this.campers.0.attributes.last_name}} &lt;{{this.registrant_email}}&gt;{{#unless @last}}, {{/unless}}
+{{/compare}}
+{{/each}}

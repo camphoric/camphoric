@@ -1,94 +1,164 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const cwd = path.dirname(fileURLToPath(import.meta.url));
+
+function readFile(filename) {
+  const fullPathFilename = path.join(cwd, 'reports', filename);
+
+  return fs.readFileSync(fullPathFilename).toString();
+}
+
 export default [
   {
-    title: 'All Campers',
+    title: 'Campers, All Camp 3',
+    output: 'csv',
+    template: readFile('Campers--All-Camp-3.j2'),
+  },
+  {
+    title: 'Camper Vaccinations by Last Name',
+    output: 'csv',
+    template: readFile('Camper-Vaccinations-by-Last-Name.j2'),
+  },
+  {
+    title: 'Camper Vaccinations',
+    output: 'csv',
+    template: readFile('Camper-Vaccinations.j2'),
+  },
+  {
+    title: 'Crew, Special Invites',
+    output: 'csv',
+    template: readFile('Crew--Special-Invites.j2'),
+  },
+  {
+    title: 'PayPal Invoice Bulk',
     output: 'hbs',
-    template: `
-| Last Name | First Name | Age | Lodging | Chore |
-| --------- | ---------- | --- | ------- | ----- |
-{{#eachsort campers "attributes.last_name"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
-  {{name}} | {{/with}} {{this.attributes.chore}} |
-{{/eachsort}}
-
-Total Campers: {{campers.length}}
-`,
+    template: readFile('PayPal-Invoice-Bulk.hbs'),
+  },
+  {
+    title: 'Campers by Reg Date (Paid)',
+    output: 'hbs',
+    template: readFile('Campers-by-Reg-Date--Paid-.hbs'),
+  },
+  {
+    title: 'Camper, Parking Passes',
+    output: 'csv',
+    template: readFile('Camper--Parking-Passes.j2'),
+  },
+  {
+    title: 'Camper Lodging by Alpha',
+    output: 'csv',
+    template: readFile('Camper-Lodging-by-Alpha.j2'),
   },
   {
     title: 'Registration Payments',
     output: 'hbs',
-    template: `
-| Name | Total | Payments | Balance |
-| ---- | ----- | -------- | ------- |
-{{#eachrsort registrations "total_balance"}}
-| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) | \${{total_owed}} | \${{total_payments}} | <div style="color: {{#if (gt total_balance 0)}}red{{else}}black{{/if}}">\${{total_balance}}</div> |
-{{/eachrsort}}
-`,
-  },
-  {
-    title: 'Camper Vaccinations',
-    output: 'hbs',
-    template: `
-| Last Name | First Name | Age | Vaccination |
-| --------- | ---------- | --- | ----- |
-{{#eachrsort campers "attributes.vaccination_status"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{this.attributes.vaccination_status}} |
-{{/eachrsort}}
-
-Total Campers: {{campers.length}}
-`,
-  },
-  {
-    title: 'Camper Lodging (Simple)',
-    output: 'hbs',
-    template: `
-| Last Name | First Name | Age | Lodging | Sharing | Sharing with |
-| --------- | ---------- | --- | ------- | ----- | ----- |
-{{#eachsort campers "lodging"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
-  {{name}} | {{/with}} {{this.lodging_shared}} | {{lodging_shared_with}} |
-{{/eachsort}}
-
-Total Campers: {{campers.length}}
-`,
+    template: readFile('Registration-Payments.hbs'),
   },
   {
     title: 'Campers by Reg Date',
     output: 'hbs',
-    template: `
-Total Campers: {{campers.length}}
-
-| First Name | Last Name | Age | Lodging | Chore |
-| --------- | ---------- | --- | ------- | ----- |
-{{#eachrsort campers "created_at"}}
-| {{this.attributes.first_name}} | {{this.attributes.last_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
-  {{name}} | {{/with}} {{this.attributes.chore}} |
-{{/eachrsort}}
-
-Total Campers: {{campers.length}}
-`,
+    template: readFile('Campers-by-Reg-Date.hbs'),
   },
   {
-    title: 'Camper Email List For Mailing',
+    title: 'Camper Email List for All Campers',
     output: 'hbs',
-    template: `
-{{#each campers}}
-{{this.attributes.first_name}} {{this.attributes.last_name}} &lt;{{this.attributes.email}}&gt;{{#unless @last}}, {{/unless}}
-{{/each}}
-
-Total Campers: {{campers.length}}
-`,
+    template: readFile('Camper-Email-List-for-All-Campers.hbs'),
   },
   {
-    title: 'Donation Report',
+    title: 'Camper Meal Tallies',
     output: 'hbs',
-    template: `
-| Name | Email | Donation  |
-| ----- | ----- | -------- |
-{{#eachrsort registrations "campers.0.attributes.last_name"}}
-{{#if server_pricing_results.donation}}
-| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) |  {{registrant_email}} | \${{server_pricing_results.donation}}  |
-{{/if}}
-{{/eachrsort}}
-`,
+    template: readFile('Camper-Meal-Tallies.hbs'),
   },
+  {
+    title: 'Camper Lodging by Lodging',
+    output: 'csv',
+    template: readFile('Camper-Lodging-by-Lodging.j2'),
+  },
+  {
+    title: 'Camper Confirmation Email Info',
+    output: 'csv',
+    template: readFile('Camper-Confirmation-Email-Info.j2'),
+  },
+  {
+    title: 'Crew, Managers',
+    output: 'csv',
+    template: readFile('Crew--Managers.j2'),
+  },
+  {
+    title: 'Crew, Kitchen, w/ Lodging',
+    output: 'csv',
+    template: readFile('Crew--Kitchen--w--Lodging.j2'),
+  },
+  {
+    title: 'Camper Meals by Camp',
+    output: 'hbs',
+    template: readFile('Camper-Meals-by-Camp.hbs'),
+  },
+  {
+    title: 'Crew, Reg, C1',
+    output: 'csv',
+    template: readFile('Crew--Reg--C1.j2'),
+  },
+  {
+    title: 'Crew, Clean, C2&3',
+    output: 'csv',
+    template: readFile('Crew--Clean--C2-3.j2'),
+  },
+  {
+    title: 'Camper Early Arrivals',
+    output: 'csv',
+    template: readFile('Camper-Early-Arrivals.j2'),
+  },
+  {
+    title: 'Crew, Clean, C1',
+    output: 'csv',
+    template: readFile('Crew--Clean--C1.j2'),
+  },
+  {
+    title: 'Crew, Reg, C2',
+    output: 'csv',
+    template: readFile('Crew--Reg--C2.j2'),
+  },
+  {
+    title: 'Crew, Setup',
+    output: 'csv', template: readFile('Crew--Setup.j2'),
+  },
+  {
+    title: 'Camper Minors',
+    output: 'csv',
+    template: readFile('Camper-Minors.j2'),
+  },
+  {
+    title: 'Donation Report - Lark',
+    output: 'hbs',
+    template: readFile('Donation-Report---Lark.hbs'),
+  },
+  {
+    title: 'Camper Email List by Crew',
+    output: 'hbs',
+    template: readFile('Camper-Email-List-by-Crew.hbs'),
+  },
+  {
+    title: 'All Campers',
+    output: 'csv',
+    template: readFile('All-Campers.j2'),
+  },
+  {
+    title: 'Crew, Security',
+    output: 'csv',
+    template: readFile('Crew--Security.j2'),
+  },
+  {
+    title: 'TEST Camper Lodging by Entry Date',
+    output: 'hbs',
+    template: readFile('TEST-Camper-Lodging-by-Entry-Date.hbs'),
+  },
+  {
+    title: 'Campers, Half Campers',
+    output: 'csv',
+    template: readFile('Campers--Half-Campers.j2'),
+  }
 ];
+
