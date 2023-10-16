@@ -17,7 +17,6 @@ function TextTemplate({ report }: Props) {
     ...templateVars,
   });
 
-  console.log(renderedReport);
 
   if (!renderedReport.data) {
     return <Spinner />;
