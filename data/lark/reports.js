@@ -123,7 +123,8 @@ export default [
   },
   {
     title: 'Crew, Setup',
-    output: 'csv', template: readFile('Crew--Setup.j2'),
+    output: 'csv',
+    template: readFile('Crew--Setup.j2'),
   },
   {
     title: 'Camper Minors',
@@ -159,6 +160,10 @@ export default [
     title: 'Campers, Half Campers',
     output: 'csv',
     template: readFile('Campers--Half-Campers.j2'),
-  }
+  },
+  {
+    title: 'MWCA Final Report',
+    output: 'md',
+    template: readFile('MWCA-Final-Report.j2'),
+  },
 ];
-

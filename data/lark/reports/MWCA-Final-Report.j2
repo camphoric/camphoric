@@ -1,0 +1,33 @@
+{%- set lodging = lodgingLookup | items | map("last") | list -%}
+{%- set camp1 = lodging | selectattr("name", "==", "Camp 1") | first -%}
+{%- set camp2 = lodging | selectattr("name", "==", "Camp 2") | first -%}
+{%- set camp3 = lodging | selectattr("name", "==", "Camp 3") | first -%}
+{%- set offsite = lodging | selectattr("name", "==", "Off Site") | first -%}
+
+{%- for camp in [camp1, camp2, camp3, offsite] -%}
+{%- set adults_overnight = [] | list -%}
+{%- set under_5_overnight = [] | list %}
+
+## {{ camp.name }}
+
+{% for camper in campers -%}
+{%- set clodge = lodgingLookup[camper.lodging | string] -%}
+{%- if not camp.name in clodge["pathParts"] -%}
+  {%- continue -%}
+{%- endif -%}
+{%- if camper.attributes.age == '0-4 years old' -%}
+    {%- do under_5_overnight.extend(camper.stay) -%}
+{%- else -%}
+    {%- do adults_overnight.extend(camper.stay) -%}
+{%- endif -%}
+
+{% endfor -%}
+
+{%- set dates = (adults_overnight + under_5_overnight) | unique | sort -%}
+
+|     | {{ dates | join(" | ") }} |
+| --- | {% for d in dates %} --- |{% endfor %}
+| Adults | {% for d in dates %} {{ adults_overnight |  select('==', d) | list | count }} |{% endfor %}
+| < 5 yo | {% for d in dates %} {{ under_5_overnight | select('==', d) | list | count }} |{% endfor %}
+
+{% endfor -%}
