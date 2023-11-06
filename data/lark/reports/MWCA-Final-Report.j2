@@ -15,6 +15,9 @@
 {%- if not camp.name in clodge["pathParts"] -%}
   {%- continue -%}
 {%- endif -%}
+{%- if not camper.admin_attributes.checked_in -%}
+  {%- continue -%}
+{%- endif -%}
 {%- if camper.attributes.age == '0-4 years old' -%}
     {%- do under_5_overnight.extend(camper.stay) -%}
 {%- else -%}
