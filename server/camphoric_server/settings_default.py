@@ -246,24 +246,25 @@ LOGGING = {
             'filters': ['require_debug_false'],
             'class': 'django.utils.log.AdminEmailHandler',
         },
-        'applogfile': {
-            'level': 'INFO',
-            'formatter': 'logfile',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filters': ['require_debug_false'],
-            'filename': os.path.join(BASE_DIR, 'camphoric.log'),
-            'maxBytes': 1024*1024*15,  # 15MB
-            'backupCount': 10,
-        },
+        # may be useful for production
+        # 'applogfile': {
+            # 'level': 'INFO',
+            # 'formatter': 'logfile',
+            # 'class': 'logging.handlers.RotatingFileHandler',
+            # 'filters': ['require_debug_false'],
+            # 'filename': os.path.join(BASE_DIR, 'camphoric.log'),
+            # 'maxBytes': 1024*1024*15,  # 15MB
+            # 'backupCount': 10,
+        # },
     },
     'root': {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
-    'loggers': {
-        'django': {
-            'handlers': ['applogfile'],
-            'propagate': True,
-        },
-    },
+    # 'loggers': {
+        # 'django': {
+            # 'handlers': ['applogfile'],
+            # 'propagate': True,
+        # },
+    # },
 }
