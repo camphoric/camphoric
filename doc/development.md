@@ -73,7 +73,7 @@ django and react services running:
 ```
 ❯ docker ps
 CONTAINER ID   IMAGE              COMMAND                  CREATED              STATUS                    PORTS                    NAMES
-c3fc38546a07   camphoric_react    "docker-entrypoint.s…"   About a minute ago   Up About a minute         0.0.0.0:3000->3000/tcp   camphoric_react_1
+c3fc38546a07   camphoric_react    "docker-entrypoint.s…"   About a minute ago   Up 1 minute (healthy)     0.0.0.0:3000->3000/tcp   camphoric_react_1
 feba46e79c59   camphoric_django   "bash -c './manage.p…"   2 minutes ago        Up 2 minutes (healthy)    0.0.0.0:8000->8000/tcp   camphoric_django_1
 9a600e45e1ce   postgres:13        "docker-entrypoint.s…"   15 minutes ago       Up 15 minutes (healthy)   0.0.0.0:5434->5432/tcp   camphoric_postgres_1
 ```
