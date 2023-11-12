@@ -40,10 +40,10 @@ class MailTests(TestCase):
         )
         connection = get_email_connection_for_event(event)
         self.assertIsInstance(connection, django.core.mail.backends.smtp.EmailBackend)
-        self.assertEquals(connection.host, 'smtp.example.com')
-        self.assertEquals(connection.port, 587)
-        self.assertEquals(connection.username, 'user@example.com')
-        self.assertEquals(connection.password, 'abc123')
+        self.assertEqual(connection.host, 'smtp.example.com')
+        self.assertEqual(connection.port, 587)
+        self.assertEqual(connection.username, 'user@example.com')
+        self.assertEqual(connection.password, 'abc123')
 
     def test_email_connection_for_event_console(self):
         account = models.EmailAccount.objects.create(
@@ -180,7 +180,7 @@ class BulkEmailTests(TestCase):
         (alex, bob, chris) = task.recipients.all()
         self.assertIsNotNone(alex.sent_time)
         self.assertIsNone(bob.sent_time)
-        self.assertEquals(bob.error, 'derp')
+        self.assertEqual(bob.error, 'derp')
         self.assertIsNotNone(chris.sent_time)
         self.assertEqual(len(mail.outbox), 2)
 
