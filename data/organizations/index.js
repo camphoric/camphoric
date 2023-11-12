@@ -84,6 +84,7 @@ export async function loadOrganization(values, token, urlBase) {
     [
       ['username', 'nobody@example.com'],
       ['password', 'abc123'],
+      ['name', 'nobody'],
     ].forEach(([field, defaultValue]) => {
       creds[field] = values.emailAccount[field];
       if (!creds[field]) {
