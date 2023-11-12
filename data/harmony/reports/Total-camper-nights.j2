@@ -1,0 +1,52 @@
+
+{%- set dates = [
+['2023-12-27', 'Wednesday'],
+['2023-12-28', 'Thursday' ],
+['2023-12-29', 'Friday' ],
+['2023-12-30', 'Saturday' ],
+['2023-12-31', 'Sunday' ],
+]
+-%}
+{%- set v1_total = 0 -%}
+{%- set v2_total = 0 -%}
+{%- set v4_total = 0 -%}
+{%- set v7_total = 0 -%}
+{%- for camper in campers -%}
+    {%- set val = lodgingLookup[camper.lodging | string] -%}
+    {%- do camper.update({'ldg': val.pathParts if val else [] }) -%}
+{%- endfor -%}
+Day | Village 1, 5&6 | Village 2 | Village 4 | Village 7& Wellness lodge | Total
+--- | -------------- | --------- | --------- | ------------------------- | -----
+{% for dt in dates -%}
+    {{ dt[1] }} | 
+    {%- set v1 = 0 -%}
+    {%- set v2 = 0 -%}
+    {%- set v4 = 0 -%}
+    {%- set v7 = 0 -%}
+    {%- for camper in campers if camper.stay and dt[0] in (camper.stay or []) %}
+        {%- set total = 0 -%}
+        {%- for c in camper if 'Village 1' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- for c in camper if 'Village 5' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- for c in camper if 'Village 6' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- set v1 = total -%}
+        {%- set total = 0 -%}
+        {%- for c in camper if 'Village 2' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- set v2 = total -%}
+
+        {%- set total = 0 -%}
+        {%- for c in camper if 'Village 4' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- set v4 = total -%}
+
+        {%- set total = 0 -%}
+        {%- for c in camper if 'Village 7' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- for c in camper if 'Wellness' in (c.ldg or []) -%}{%- set total = total + 1 -%}{%- endfor -%}
+        {%- set v7 = total -%}
+
+        {%- set v1_total = v1_total + v1 -%}
+        {%- set v2_total = v2_total + v2 -%}
+        {%- set v4_total = v4_total + v4 -%}
+        {%- set v7_total = v7_total + v7 -%}
+    {%- endfor -%}
+    {{ v1 }} | {{ v2 }} | {{ v4 }} | {{ v7 }} | {{ v1 + v2 + v4 + v7 }} |
+{% endfor -%}
+TOTALS | {{ v1_total }} | {{ v2_total }} | {{ v4_total }} | {{ v7_total }} | {{ v1_total + v2_total + v4_total + v7_total }} |
