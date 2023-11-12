@@ -248,23 +248,24 @@ LOGGING = {
         },
         # may be useful for production
         # 'applogfile': {
-            # 'level': 'INFO',
-            # 'formatter': 'logfile',
-            # 'class': 'logging.handlers.RotatingFileHandler',
-            # 'filters': ['require_debug_false'],
-            # 'filename': os.path.join(BASE_DIR, 'camphoric.log'),
-            # 'maxBytes': 1024*1024*15,  # 15MB
-            # 'backupCount': 10,
+        #     'level': 'INFO',
+        #     'formatter': 'logfile',
+        #     'class': 'logging.handlers.RotatingFileHandler',
+        #     'filters': ['require_debug_false'],
+        #     'filename': os.path.join(BASE_DIR, 'camphoric.log'),
+        #     'maxBytes': 1024*1024*15,  # 15MB
+        #     'backupCount': 10,
         # },
     },
     'root': {
         'handlers': ['console'],
         'level': 'DEBUG',
     },
+    # may be useful for production
     # 'loggers': {
-        # 'django': {
-            # 'handlers': ['applogfile'],
-            # 'propagate': True,
-        # },
+    #     'django': {
+    #         'handlers': ['applogfile'],
+    #         'propagate': True,
+    #     },
     # },
 }
