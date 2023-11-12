@@ -42,5 +42,5 @@ then
     done
 fi
 
-docker-compose rm -sf $*
+docker compose rm -sf $*
 ./remove-unused-docker-artifacts -f
