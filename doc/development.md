@@ -18,16 +18,10 @@ the docker containers and services.  If you'd rather do it manually because
 you like to learn by doing or you don't like installing unnecessary
 dependencies, just [skip to the next section.](#setting-up-your-containerized-development-servers)
 
-Install the following:
-
-- [node](https://nodejs.org/en/download/)
-
-For homebrew users: `brew install node`
-
 Run the following and follow the prompts:
 
 ```
-npm install; ./development-setup-wizard.mjs
+./development-setup-wizard.py
 ```
 
 Creating the docker services (the hard way)
