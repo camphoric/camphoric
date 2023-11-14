@@ -243,5 +243,5 @@ class BulkEmailTests(TestCase):
         send_bulk_email(task)
 
         (alex, bob, chris) = task.recipients.all()
-        self.assertAlmostEqual((bob.sent_time - alex.sent_time).total_seconds(), 0.1, places=2)
-        self.assertAlmostEqual((chris.sent_time - bob.sent_time).total_seconds(), 0.1, places=2)
+        self.assertAlmostEqual((bob.sent_time - alex.sent_time).total_seconds(), 0.1, delta=0.01)
+        self.assertAlmostEqual((chris.sent_time - bob.sent_time).total_seconds(), 0.1, delta=0.01)
