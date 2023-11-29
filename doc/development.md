@@ -21,7 +21,7 @@ dependencies, just [skip to the next section.](#setting-up-your-containerized-de
 Run the following and follow the prompts:
 
 ```
-./development-setup-wizard.py
+./development_setup_wizard.py
 ```
 
 Creating the docker services (the hard way)
