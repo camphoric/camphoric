@@ -66,9 +66,9 @@ def create_env_files(args):
     dir_name = './env'
     if (os.path.isdir(dir_name)
             and 'CAMPHORIC_SETUP_WIZARD_RECREATE_ENV' not in os.environ):
-        answer = input(' '.join([
-            f'it looks like "{dir_name}" already exists,'
-            'do you want to blow it away and start over? [y/n] ']))
+        answer = input(
+            f'it looks like "{dir_name}" already exists, '
+            'do you want to blow it away and start over? [y/n] ')
         if answer.lower() != 'y':
             return
 
@@ -86,10 +86,10 @@ def check_node_modules_folder(args):
     if args.preserve:
         return
 
-    if len(contents):
-        answer = input(' '.join([
-            f'it looks like "${dir_name}" is not empty,'
-            'do you want to blow it away and start over? [y/n] ']))
+    if contents:
+        answer = input(
+            f'it looks like "${dir_name}" is not empty, '
+            'do you want to blow it away and start over? [y/n] ')
         if answer.lower() == 'y':
             shutil.rmtree(dir_name)
 
@@ -98,8 +98,9 @@ def check_node_modules_folder(args):
 
 def docker_compose_up(args):
     print(bold('(Re)building docker containers'))
-    result = subprocess.run(['docker', 'compose', 'up', '--build', '-d'])
-    if result.returncode != 0:
+    try:
+        subprocess.run(['docker', 'compose', 'up', '--build', '-d'], check=True)
+    except subprocess.CalledProcessError:
         die('failed to start docker containers')
     hooray('Successfully built and started docker containers')
 
@@ -110,8 +111,8 @@ def set_env_values(args):
 
     filename = './env/local/django.env'
     contents = ''
-    with open(filename) as f:
-        contents = f.read().strip()
+    with open(filename) as env_file:
+        contents = env_file.read().strip()
 
     current_key_pair = ''
     for line in re.split(r'[\r\n]+', contents):
@@ -131,16 +132,16 @@ def set_env_values(args):
 
     if (current_key != 'your-django-secret-key-here'
             and 'CAMPHORIC_SETUP_WIZARD_RECREATE_SECRET_KEY' not in os.environ):
-        answer = input(' '.join([
-            f'it looks like there is already a SECRET_KEY in your {filename} file.',
-            'Do you want replace it with a newly generated one? [y/n] ']))
+        answer = input(
+            f'it looks like there is already a SECRET_KEY in your {filename} file. '
+            'Do you want replace it with a newly generated one? [y/n] ')
         if answer.lower() != 'y':
             return
 
     secret_key = get_secret_key()
     contents = re.sub(r'SECRET_KEY=.*', f'SECRET_KEY={secret_key}', contents)
-    with open(filename, 'w') as f:
-        f.write(contents)
+    with open(filename, 'w') as env_file:
+        env_file.write(contents)
     hooray(f'Successfully wrote secret key to {filename}')
 
     # Rebuild if we added secret key
@@ -148,21 +149,29 @@ def set_env_values(args):
 
 
 def get_secret_key():
-    cmd = ' '.join([
-        'docker compose exec -T django python -c',
-        '"from django.core.management.utils import get_random_secret_key;',
-        'print(get_random_secret_key())"'])
-    result = subprocess.run(cmd, shell=True, capture_output=True)
-    secret_key = (
-        result.stdout.decode().strip()
-        .replace("'", "\\'")
-        .replace("$", "_"))  # django-environ uses $ for interpolation
+    cmd = (
+        'docker compose exec -T django python -c '
+        '"from django.core.management.utils import get_random_secret_key; '
+        'print(get_random_secret_key())"')
+    result = None
+    secret_key = None
+    stderr = None
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, check=True)
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr
+    else:
+        stderr = result.stderr
+        secret_key = (
+            result.stdout.decode().strip()
+            .replace("'", "\\'")
+            .replace("$", "_"))  # django-environ uses $ for interpolation
 
     if not secret_key:
         die(
             "Could not successfully get secret key",
             f"tried '{cmd}'"
-            f'\n{result.stderr.decode()}')
+            f'\n{stderr.decode()}')
     else:
         hooray('Successfully got secret key')
 
@@ -170,36 +179,48 @@ def get_secret_key():
 
 
 def create_django_superuser(args):
-    print(bold('Create your Django superuser:'))
-    subprocess.run([
-        'docker', 'compose', 'exec', 'django',
-        'python', 'manage.py', 'createsuperuser', '--noinput'])
+    print(bold('Creating Django superuser using values from env/local/shared.env'))
+    try:
+        subprocess.run(
+            [
+                'docker', 'compose', 'exec', 'django',
+                'python', 'manage.py', 'createsuperuser', '--noinput'
+            ],
+            check=True)
+    except subprocess.CalledProcessError:
+        answer = input('Continue anyway? [y/n] ')
+        if answer.lower() != 'y':
+            die('Failed to create Django superuser')
+    hooray('Successfully created Django superuser')
 
 
 def load_sample_data(args):
-    print(bold('Loading Lark Camp sample data...'))
-    print('You will need to use your superuser credentials')
-    print('to complete this task')
-
-    subprocess.run([
-        'docker', 'compose', 'run', '--build', '--rm', 'data',
-        '/bin/sh', '-c', 'import'])
-
-    hooray('Successfully loaded Lark Camp sample data')
+    print(bold('Loading sample data...'))
+    try:
+        subprocess.run(
+            [
+                'docker', 'compose', 'run', '--build', '--rm', 'data',
+                '/bin/sh', '-c', 'import'
+            ],
+            check=True)
+    except subprocess.CalledProcessError:
+        die('Failed to load sample data')
+    hooray('Successfully loaded sample data')
 
 
 def run_tests(args):
     print(bold('Running backend tests'))
 
-    result = subprocess.run([
-        'docker', 'compose', 'exec', 'django', 'python', 'manage.py', 'test'])
-    if result.returncode != 0:
+    try:
+        subprocess.run(
+            ['docker', 'compose', 'exec', 'django', 'python', 'manage.py', 'test'],
+            check=True)
+    except subprocess.CalledProcessError:
         print(bold(red('Backend tests failed!')))
-        print(bold(' '.join([
-            'Although the process of setting up your development environment',
-            'succeeded, please try to find out why these test failures',
-            'happened and run the tests again.',
-        ])))
+        print(bold(
+            'Although the process of setting up your development environment '
+            'succeeded, please try to find out why these test failures '
+            'happened and run the tests again.'))
     else:
         hooray('Backend tests pass')
 
@@ -207,14 +228,14 @@ def run_tests(args):
 def finish(args):
     hooray('Development environment setup finished!')
 
-    print('\n'.join([
-        'For more information, see the following resources:',
-        '  https://github.com/camphoric/camphoric/blob/main/doc/development.md#frontend-development-process',
-        '  https://github.com/camphoric/camphoric/blob/main/doc/development.md#server-development-process',
-        '',
-        'To see your glorious work in action go to:',
-        '  http://localhost:3000',
-    ]))
+    print("""
+For more information, see the following resources:
+  https://github.com/camphoric/camphoric/blob/main/doc/development.md#frontend-development-process
+  https://github.com/camphoric/camphoric/blob/main/doc/development.md#server-development-process
+
+To see your glorious work in action go to:
+    http://localhost:3000
+    """.strip())
 
 
 def die(title, *messages):
@@ -225,7 +246,7 @@ def die(title, *messages):
 
 
 def hooray(title):
-    print(bold(green(f'✅ {title}')))
+    print(bold(green(f'+++ {title}')))
 
 
 def bold(text):
