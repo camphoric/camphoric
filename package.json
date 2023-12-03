@@ -6,7 +6,7 @@
     "create-migrations": "docker-compose exec django python manage.py makemigrations; docker-compose exec django python manage.py migrate;",
     "heroku-postbuild": "cd client && npm install && npm run build",
     "rebuild": "docker compose up -d --force-recreate --no-deps --build",
-    "recreate-all": "./remove-all-docker-artifacts -f && ./development-setup-wizard.mjs -p"
+    "recreate-all": "./remove-all-docker-artifacts -f && ./development_setup_wizard.py -p"
   },
   "type": "module",
   "dependencies": {}
