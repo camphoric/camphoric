@@ -95,7 +95,7 @@
     "inquirer": "^8.2.0",
     "node-fetch": "^3.2.10",
     "npm-check-updates": "^16.10.15",
-    "vite": "^4.4.2",
+    "vite": "^4.4.12",
     "vite-plugin-checker": "^0.6.1",
     "vitest": "^0.33.0"
   }
