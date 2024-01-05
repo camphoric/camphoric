@@ -120,8 +120,8 @@ export default {
 
 | Pricing (age range) | adult (18+) | child (5-17) | toddler¹ (0-4) |
 | --- | --- | --- | --- |
-| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_teen}} | \${{pricing.full_toddler}} |
-| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_teen}} | \${{pricing.half_toddler}} |
+| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_youth}} | \${{pricing.full_toddler}} |
+| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_youth}} | \${{pricing.half_toddler}} |
 
 1: Children 4 and under are free, but may not take up a cabin bed.`,
       'enum': Object.values(sessionTypes),
