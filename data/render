@@ -1,0 +1,3 @@
+#!/bin/bash
+
+jinja2 -e 'do' -e 'loopcontrols' $@ data.json
