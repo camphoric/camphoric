@@ -1,0 +1,17 @@
+{%- set dates = {
+'2023-12-27': 'Wed',
+'2023-12-28': 'Thu',
+'2023-12-29': 'Fri',
+'2023-12-30': 'Sat',
+'2023-12-31': 'Sun',
+}
+-%}
+{%- for camper in campers | sort(attribute='attributes.last_name') | sort(attribute='attributes.first_name') -%}
+    {%- set lodging = lodgingLookup[camper.lodging | string] -%}
+**{{ camper.attributes.last_name }}, {{ camper.attributes.first_name }}**    
+{{ lodging.pathParts.0 }}: {{ lodging.name }} - | {% for d in dates -%}
+{{- dates[d] if d in (camper.stay or []) else 'xxx' }} | {% endfor %}    
+Linens: {{ camper.attributes.linens }}    
+Negative Covid Test ⬜️&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;License plate: ________________
+_________
+{% endfor -%}

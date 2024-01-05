@@ -1,0 +1,195 @@
+{%- set dates = [
+['2023-12-27', 'Wednesday'],
+['2023-12-28', 'Thursday' ],
+['2023-12-29', 'Friday' ],
+['2023-12-30', 'Saturday' ],
+['2023-12-31', 'Sunday' ],
+]
+-%}
+{%- set meal_types = [
+['Vegetarian', 'V'],
+['Vegan', 'E' ],
+['Omnivore', 'O' ],
+]
+-%}
+{%- set meal_exceptions = [
+['Dairy Free', 'D'],
+['Gluten Free', 'G' ],
+['Whole Grain', 'W' ],
+]
+-%}
+{%- set summary = {
+dates.0.0~'O': 0,
+dates.0.0~'V': 0,
+dates.0.0~'E': 0,
+dates.0.0~'G': 0,
+dates.0.0~'D': 0,
+dates.0.0~'W': 0,
+
+dates.1.0~'O': 0,
+dates.1.0~'V': 0,
+dates.1.0~'E': 0,
+dates.1.0~'G': 0,
+dates.1.0~'D': 0,
+dates.1.0~'W': 0,
+
+dates.2.0~'O': 0,
+dates.2.0~'V': 0,
+dates.2.0~'E': 0,
+dates.2.0~'G': 0,
+dates.2.0~'D': 0,
+dates.2.0~'W': 0,
+
+dates.3.0~'O': 0,
+dates.3.0~'V': 0,
+dates.3.0~'E': 0,
+dates.3.0~'G': 0,
+dates.3.0~'D': 0,
+dates.3.0~'W': 0,
+
+dates.4.0~'O': 0,
+dates.4.0~'V': 0,
+dates.4.0~'E': 0,
+dates.4.0~'G': 0,
+dates.4.0~'D': 0,
+dates.4.0~'W': 0,
+}
+-%}
+{%- set O_total = 0 -%}
+{%- set V_total = 0 -%}
+{%- set E_total = 0 -%}
+{%- for c in campers -%}
+    {%- for dt in dates -%}
+        {%- if dt[0] in (c.stay or []) -%}
+            {%- if c.attributes.meal_type == 'Omnivore' -%}{%- do summary.update({dt.0 ~ 'O': summary[dt.0~'O'] + 1}) -%}{%- endif -%}
+            {%- if c.attributes.meal_type == 'Vegetarian' -%}{%- do summary.update({dt.0 ~ 'V': summary[dt.0~'V'] + 1}) -%}{%- endif -%}
+            {%- if c.attributes.meal_type == 'Vegan' -%}{%- do summary.update({dt.0 ~ 'E': summary[dt.0~'E'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in c.attributes.meal_exceptions -%}{%- do summary.update({dt.0 ~ 'G': summary[dt.0~'G'] + 1}) -%}{%- endif -%}
+            {%- if 'Dairy Free' in c.attributes.meal_exceptions -%}{%- do summary.update({dt.0 ~ 'D': summary[dt.0~'D'] + 1}) -%}{%- endif -%}
+            {%- if 'Whole Grain' in c.attributes.meal_exceptions -%}{%- do summary.update({dt.0 ~ 'W': summary[dt.0~'W'] + 1}) -%}{%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor -%}
+Summary
+-------
+
+| Day | Vegetarians | Vegans | Ominvores | Total |
+| --- | ----------- | ------ | --------- | ----- |
+{% for dt in dates -%}
+    | {{ dt[1] }} | {{ summary[dt.0 ~ 'V'] }} | {{ summary[dt.0 ~ 'E'] }} | {{ summary[dt.0 ~ 'O'] }} | {{
+summary[dt.0 ~ 'V'] + summary[dt.0 ~ 'E'] + summary[dt.0 ~ 'O']
+}} |
+{% endfor %}
+
+| Day | Gluten Free | Dairy Free | Whole Grain |
+| --- | ----------- | ---------- | ----------- |
+{% for dt in dates -%}
+    | {{ dt[1] }} | {{ summary[dt.0 ~ 'G'] }} | {{ summary[dt.0 ~ 'D'] }} | {{ summary[dt.0 ~ 'W'] }} | 
+{% endfor %}
+
+Daily Breakdowns
+----------------
+
+{% for dt in dates -%}
+{%- set totals = {
+'O': 0,
+  'OD': 0,
+  'OG': 0,
+  'OW': 0,
+  'ODG': 0,
+  'ODW': 0,
+  'OGW': 0,
+  'ODGW': 0,
+
+'V': 0,
+  'VD': 0,
+  'VG': 0,
+  'VW': 0,
+  'VDG': 0,
+  'VDW': 0,
+  'VGW': 0,
+  'VDGW': 0,
+
+'E': 0,
+  'ED': 0,
+  'EG': 0,
+  'EW': 0,
+  'EDG': 0,
+  'EDW': 0,
+  'EGW': 0,
+  'EDGW': 0,
+}
+-%}
+    ### {{ dt.1 }} lunch+dinner and next day breakfast
+    {%- for c in campers if dt[0] in (c.stay or []) -%}
+        {%- set exc = c.attributes.meal_exceptions -%}
+        {%- if c.attributes.meal_type == 'Omnivore' -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'O': totals['O'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'OG': totals['OG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'OD': totals['OD'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'OW': totals['OW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'ODG': totals['ODG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'ODW': totals['ODW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'OGW': totals['OGW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'ODGW': totals['ODGW'] + 1}) -%}{%- endif -%}
+        {%- endif -%}
+
+        {%- if c.attributes.meal_type == 'Vegetarian' -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'V': totals['V'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'VG': totals['VG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'VD': totals['VD'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'VW': totals['VW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'VDG': totals['VDG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'VDW': totals['VDW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'VGW': totals['VGW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'VDGW': totals['VDGW'] + 1}) -%}{%- endif -%}
+        {%- endif -%}
+
+        {%- if c.attributes.meal_type == 'Vegan' -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'E': totals['E'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'EG': totals['EG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'ED': totals['ED'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'EW': totals['EW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' not in exc -%}
+                {%- do totals.update({'EDG': totals['EDG'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' not in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'EDW': totals['EDW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' not in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'EGW': totals['EGW'] + 1}) -%}{%- endif -%}
+            {%- if 'Gluten Free' in exc and 'Dairy Free' in exc and 'Whole Grain' in exc -%}
+                {%- do totals.update({'EDGW': totals['EDGW'] + 1}) -%}{%- endif -%}
+        {%- endif -%}
+    {%- endfor %}
+
+| &nbsp; | Omnivore | Vegetarian | Vegan | Total |
+| ------ | -------- | ---------- | ----- | ----- |
+| None                        | {{ totals['O'] }} | {{ totals['V'] }} | {{ totals['E'] }} | {{ totals['O'] + totals['V'] + totals['E'] }} |
+| 🚫Dairy                     | {{ totals['OD'] }} | {{ totals['VD'] }} | {{ totals['ED'] }} | {{ totals['OD'] + totals['VD'] + totals['ED'] }} |
+| 🚫Gluten                    | {{ totals['OG'] }} | {{ totals['VG'] }} | {{ totals['EG'] }} | {{ totals['OG'] + totals['VG'] + totals['EG'] }} |
+| WholeGrain                  | {{ totals['OW'] }} | {{ totals['VW'] }} | {{ totals['EW'] }} | {{ totals['OW'] + totals['VW'] + totals['EW'] }} |
+| 🚫Dairy+🚫Gluten            | {{ totals['ODG'] }} | {{ totals['VDG'] }} | {{ totals['EDG'] }} | {{ totals['ODG'] + totals['VDG'] + totals['EDG'] }} |
+| 🚫Dairy+WholeGrain          | {{ totals['OGW'] }} | {{ totals['VDW'] }} | {{ totals['EDW'] }} | {{ totals['OGW'] + totals['VDW'] + totals['EDW'] }} |
+| 🚫Gluten+WholeGrain         | {{ totals['OGW'] }} | {{ totals['VGW'] }} | {{ totals['EGW'] }} | {{ totals['OGW'] + totals['VGW'] + totals['EGW'] }} |
+| 🚫Dairy+🚫Gluten+WholeGrain | {{ totals['ODGW'] }} | {{ totals['VDGW'] }} | {{ totals['EDGW'] }} | {{ totals['ODGW'] + totals['VDGW'] + totals['EDGW'] }} |
+
+{% endfor -%}
