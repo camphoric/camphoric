@@ -1,0 +1,82 @@
+{%- set dates = [
+['2023-12-27', 'Wednesday'],
+['2023-12-28', 'Thursday' ],
+['2023-12-29', 'Friday' ],
+['2023-12-30', 'Saturday' ],
+['2023-12-31', 'Sunday' ],
+]
+-%}
+{%- set totals = {
+dates.0.0~'v1': 0,
+dates.0.0~'v2': 0,
+dates.0.0~'v4': 0,
+dates.0.0~'v7': 0,
+
+dates.1.0~'v1': 0,
+dates.1.0~'v2': 0,
+dates.1.0~'v4': 0,
+dates.1.0~'v7': 0,
+
+dates.2.0~'v1': 0,
+dates.2.0~'v2': 0,
+dates.2.0~'v4': 0,
+dates.2.0~'v7': 0,
+
+dates.3.0~'v1': 0,
+dates.3.0~'v2': 0,
+dates.3.0~'v4': 0,
+dates.3.0~'v7': 0,
+
+dates.4.0~'v1': 0,
+dates.4.0~'v2': 0,
+dates.4.0~'v4': 0,
+dates.4.0~'v7': 0,
+}
+-%}
+{%- for camper in campers -%}
+    {%- set val = lodgingLookup[camper.lodging | string] -%}
+    {%- do camper.update({'ldg': val.pathParts if val else [] }) -%}
+    {%- for dt in dates -%}
+        {%- if dt[0] in (camper.stay or []) -%}
+            {%- if 'Village 1' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 5' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 6' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 2' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v2': totals[dt.0~'v2'] + 1}) -%}{%- endif -%}
+            {%- if 'Apartments' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v4': totals[dt.0~'v4'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 7' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
+            {%- if  'Wellness' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor -%}
+Day | Village 1, 5&6 | Village 2 | Village 4 | Village 7& Wellness lodge | Total
+--- | -------------- | --------- | --------- | ------------------------- | -----
+{% for dt in dates -%}
+    {{ dt[1] }} | {{ totals[dt.0 ~ 'v1'] }} | {{ totals[dt.0 ~ 'v2'] }} | {{ totals[dt.0 ~ 'v4'] }} | {{ totals[dt.0 ~ 'v7'] }} | {{ 
+totals[dt.0 ~ 'v1'] + totals[dt.0 ~ 'v2'] + totals[dt.0 ~ 'v4'] + totals[dt.0 ~ 'v7']
+}} |
+{% endfor -%}
+TOTALS | {{
+totals[dates.0.0~'v1'] + totals[dates.1.0~'v1'] + totals[dates.2.0~'v1'] + totals[dates.3.0~'v1'] + totals[dates.4.0~'v1']
+}} | {{
+totals[dates.0.0~'v2'] + totals[dates.1.0~'v2'] + totals[dates.2.0~'v2'] + totals[dates.3.0~'v2'] + totals[dates.4.0~'v2']
+}} | {{
+totals[dates.0.0~'v4'] + totals[dates.1.0~'v4'] + totals[dates.2.0~'v4'] + totals[dates.3.0~'v4'] + totals[dates.4.0~'v4']
+}} | {{
+totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + totals[dates.3.0~'v7'] + totals[dates.4.0~'v7']
+}} | {{
+totals[dates.0.0~'v1'] + totals[dates.1.0~'v1'] + totals[dates.2.0~'v1'] + totals[dates.3.0~'v1'] + totals[dates.4.0~'v1'] +
+totals[dates.0.0~'v2'] + totals[dates.1.0~'v2'] + totals[dates.2.0~'v2'] + totals[dates.3.0~'v2'] + totals[dates.4.0~'v2'] +
+totals[dates.0.0~'v4'] + totals[dates.1.0~'v4'] + totals[dates.2.0~'v4'] + totals[dates.3.0~'v4'] + totals[dates.4.0~'v4'] +
+totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + totals[dates.3.0~'v7'] + totals[dates.4.0~'v7']
+}} |
+
+## Campers Who Requested
+{% set tot = 0 -%}
+{% for camper in campers | sort(attribute="attributes.last_name") -%}
+    {%- if camper.attributes.linens == 'No' -%}{%- continue -%}{%- endif -%}
+    {%- set val = lodgingLookup[camper.lodging | string] -%}
+    {%- set tot = tot + 1 %}
+- {{ camper.attributes.first_name }} {{ camper.attributes.last_name }}: {{ val.name }}, stay {{ (camper.stay or []) | sort | join(',') }}
+{%- endfor %}
+
+Total: {{ campers | map(attribute='attributes.linens') | select('eq', 'Yes') | list | count  }}

@@ -1,0 +1,7 @@
+| Last Name | First Name | Age | Vaccination |
+| --------- | ---------- | --- | ----- |
+{{#eachrsort campers "attributes.vaccination_status"}}
+| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{this.attributes.vaccination_status}} |
+{{/eachrsort}}
+
+Total Campers: {{campers.length}}

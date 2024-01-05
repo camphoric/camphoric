@@ -1,28 +1,64 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const cwd = path.dirname(fileURLToPath(import.meta.url));
+
+function readFile(filename) {
+  const fullPathFilename = path.join(cwd, 'reports', filename);
+
+  return fs.readFileSync(fullPathFilename).toString();
+}
+
 export default [
   {
-    title: 'All Campers',
+    title: 'Lodging Report (Simple)',
     output: 'hbs',
-    template: `
-| Last Name | First Name | Age | Lodging | Chore |
-| --------- | ---------- | --- | ------- | ----- |
-{{#eachsort campers "attributes.last_name"}}
-| {{this.attributes.last_name}} | {{this.attributes.first_name}} | {{this.attributes.age}} | {{#with (lookup ../lodgingLookup [lodging])~}}
-  {{name}} | {{/with}} {{this.attributes.chore}} |
-{{/eachsort}}
-
-Total Campers: {{campers.length}}
-`,
+    template: readFile('Lodging-Report--Simple-.hbs'),
+  },
+  {
+    title: 'Chore Report',
+    output: 'hbs',
+    template: readFile('Chore-Report.hbs'),
   },
   {
     title: 'Payments',
     output: 'hbs',
-    template: `
-| Name | Total | Payments | Balance |
-| ---- | ----- | -------- | ------- |
-{{#eachrsort registrations "total_balance"}}
-| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) | \${{total_owed}} | \${{total_payments}} | <div style="color: {{#if (gt total_balance 0)}}red{{else}}black{{/if}}">\${{total_balance}}</div> |
-{{/eachrsort}}
-`,
+    template: readFile('Payments.hbs'),
   },
-
+  {
+    title: 'Camper Email List For Mailing',
+    output: 'hbs',
+    template: readFile('Camper-Email-List-For-Mailing.hbs'),
+  },
+  {
+    title: 'Vaccination Report',
+    output: 'hbs',
+    template: readFile('Vaccination-Report.hbs'),
+  },
+  {
+    title: 'All Campers by Reg Date',
+    output: 'hbs',
+    template: readFile('All-Campers-by-Reg-Date.hbs'),
+  },
+  {
+    title: 'All Campers Report',
+    output: 'hbs',
+    template: readFile('All-Campers-Report.hbs'),
+  },
+  {
+    title: 'Pricing Breakdown',
+    output: 'hbs',
+    template: readFile('Pricing-Breakdown.hbs'),
+  },
+  {
+    title: 'Liability Waiver List',
+    output: 'hbs',
+    template: readFile('Liability-Waiver-List.hbs'),
+  },
+  {
+    title: 'Donation Report',
+    output: 'hbs',
+    template: readFile('Donation-Report.hbs'),
+  },
 ];
