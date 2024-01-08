@@ -5,8 +5,8 @@ export default {
   'full_youth': 592,
   'half_youth': 446,
 
-  'full_toddler': 0,
-  'half_toddler': 0,
+  'full_kid': 0,
+  'half_kid': 0,
 
   'meals_adult_full': 486,
   'meals_youth_full': 365,
