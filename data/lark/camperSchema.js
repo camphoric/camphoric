@@ -8,7 +8,14 @@ export const sessionTypes = {
 
 export default {
   'type': 'object',
-  'required': ['vaccination_status', 'first_name', 'last_name', 'gender', 'session', 'meals'],
+  'required': [
+    'vaccination_status',
+    'first_name',
+    'last_name',
+    'gender',
+    'session',
+    'meals'
+  ],
   'dependencies': {
     'address_different_than_payer': {
       'oneOf': [
@@ -67,6 +74,11 @@ export default {
       'maxLength': 50,
       'title': 'Last name'
     },
+    'email': {
+      'title': 'Camper Email',
+      'type': 'string',
+      'format': 'email',
+    },
     'gender': {
       'type': 'string',
       'title': 'Gender',
@@ -118,10 +130,10 @@ export default {
 *First half camp* begins {{first_half_camp_start_date_time}}, and ends {{first_half_camp_end_date_time}}.  
 *Second half camp* begins {{second_half_camp_start_date_time}}, and ends {{second_half_camp_end_date_time}}.  
 
-| Pricing (age range) | adult (18+) | child (5-17) | toddler¹ (0-4) |
+| Pricing (age range) | adult (18+) | youth (5-17) | kid¹ (0-4) |
 | --- | --- | --- | --- |
-| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_youth}} | \${{pricing.full_toddler}} |
-| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_youth}} | \${{pricing.half_toddler}} |
+| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_youth}} | \${{pricing.full_kid}} |
+| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_youth}} | \${{pricing.half_kid}} |
 
 1: Children 4 and under are free, but may not take up a cabin bed.`,
       'enum': Object.values(sessionTypes),

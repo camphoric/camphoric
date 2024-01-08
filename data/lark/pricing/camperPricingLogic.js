@@ -25,7 +25,7 @@ const regularTuitionPriceMatrix = [
   [ 25, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 17, 'pricing.full_youth',    'pricing.half_youth' ],
   [ 11, 'pricing.full_youth',    'pricing.half_youth' ],
-  [ 4,  'pricing.full_toddler', 'pricing.half_toddler' ],
+  [ 4,  'pricing.full_kid', 'pricing.half_kid' ],
 ];
 
 const regularMealsPriceMatrix = [

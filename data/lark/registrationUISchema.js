@@ -65,6 +65,7 @@ export default {
       'ui:order': [
         'first_name',
         'last_name',
+        'email',
         'address_different_than_payer',
         'camper_address',
         'gender',
