@@ -8,13 +8,21 @@ Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before 
 Please note that registrations are accepted in the order they are received and
 your camping preferences are processed on a "first come - first served" basis.  
 
-### PROOF OF COVID-19 VACCINATION WILL BE REQUIRED FOR ALL ATTENDEES
+### PROOF OF CURRENT COVID-19 VACCINATION OR NEGATIVE COVID TEST JUST BEFORE CAMP WILL BE REQUIRED FOR ALL ATTENDEES
 
-After you register, please email either a photo of your current vaccination cards or a current QR code to registration@larkcamp.org. The QR Code can be acquired from the State of California: https://myvaccinerecord.cdph.ca.gov/.  
+Campers must have the most recent recommended COVID booster for their
+age and circumstances. After you register, please email a current QR
+code to registration@larkcamp.org. The QR Code can be acquired from the
+State of California: https://myvaccinerecord.cdph.ca.gov/. NOTE: Paper
+vaccine cards are no longer acceptable.
 
-Everyone attending will be vaccinated, and everyone comes at their own risk. Further details will be sent out based on CDC recommendations shortly before camp.  
+In lieu of current vaccination, campers must produce a negative COVID
+test taken WITHIN 48 HOURS before arriving at camp.
 
-Fields marked with an asterisk (*) are required.  
+Everyone attending will be either be currently vaccinated or have a
+negative COVID test just before camp arrival. Everyone comes at their
+own risk. Updates based on CDC recommendations may be sent out shortly
+before camp.
 `,
   'type': 'object',
   'definitions': {
