@@ -11,10 +11,10 @@ export default {
   'meals_adult_full': 505,
   'meals_youth_full': 380,
 
-  'meals_adult_dinners': 268,
-  'meals_youth_dinners': 192,
+  'meals_adult_dinners': 276,
+  'meals_youth_dinners': 202,
 
-  'meals_adult_half': 286,
+  'meals_adult_half': 268,
   'meals_youth_half': 192,
 
   'parking_pass': 75,
