@@ -82,7 +82,7 @@ export default {
     'gender': {
       'type': 'string',
       'title': 'Gender',
-      'enum': ['Male', 'Female', 'Other'],
+      'enum': ['Male', 'Female', 'Non-binary'],
     },
     'vaccination_status': {
       'title': 'Vaccination Information',
