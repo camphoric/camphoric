@@ -3,7 +3,7 @@ import { mealsLookup, ageLookup } from './pricing/camperPricingLogic.js';
 const genderLookup = {
   M: 'Male',
   F: 'Female',
-  O: 'Other',
+  N: 'Non-binary',
 };
 
 const mealTypeLookup = {
