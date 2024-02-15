@@ -3,16 +3,29 @@ import api from 'store/admin/api';
 import { useEvent, useRegistrationLookup } from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';
-import { Button } from 'react-bootstrap';
+import {
+  Badge,
+  Table,
+  Button,
+  Overlay,
+  Popover,
+} from 'react-bootstrap';
 import { Link, useRouteMatch } from 'react-router-dom';
+import ConfirmDialog from 'components/Modal/ConfirmDialog';
+
+const formatDate = formatDateTimeForViewing('MM/DD h:ssa');
 
 function InvitationReport() {
   const eventApi = useEvent();
   const { url } = useRouteMatch();
+  const deleteModal  = React.useRef<ConfirmDialog>(null);
+  const [selectedInvitation, setSelectedInvitation] = React.useState<ApiInvitation>();
+  const [popoverTarget, setPopoverTarget] = React.useState<HTMLElement>();
 
   const invitationsApi = api.useGetInvitationsQuery();
   const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const [sendInvitation] = api.useSendInvitationMutation();
+  const [deleteInvitation] = api.useDeleteInvitationMutation();
   const registrationLookup = useRegistrationLookup();
 
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
@@ -35,7 +48,6 @@ function InvitationReport() {
       {} as { [a: string]: string },
     );
 
-  const formatDate = formatDateTimeForViewing('MM/DD h:ssa');
   const sent = (i: ApiInvitation) => {
     if (i.sent_time) {
       return formatDate(i.sent_time)
@@ -44,48 +56,98 @@ function InvitationReport() {
     return getStatus(i);
   };
 
+
+
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Sent</th>
-          <th>Resend</th>
-          <th>Registration</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          invitationsApi.data
-            .filter(i => i.registration_type && regTypeIds.includes(i.registration_type))
-            .sort((a, b) => compareDates(b.created_at, a.created_at))
-            .map(
-              i => (
-                <tr key={i.id}>
-                  <td>{i.recipient_email}</td>
-                  <td>{i.recipient_name}</td>
-                  <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
-                  <td>{sent(i)}</td>
-                  <td>
-                    <Button onClick={() => sendInvitation(i.id)}>📧</Button>
-                  </td>
-                  <td>
-                    {
-                      i.registration && registrationLookup[i.registration] ?
-                      <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
-                        View/Edit
-                      </Link>
-                      : 'NOT REGISTERED'
-                    }
-                  </td>
-                </tr>
+    <>
+      <Table striped bordered hover>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Type</th>
+            <th>Sent</th>
+            <th>Registration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            invitationsApi.data
+              .filter(i => i.registration_type && regTypeIds.includes(i.registration_type))
+              .sort((a, b) => compareDates(b.created_at, a.created_at))
+              .map(
+                i => (
+                  <tr key={i.id}>
+                    <td>{i.recipient_name}</td>
+                    <td>{i.recipient_email}</td>
+                    <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
+                    <td>{i.sent_time ? 'Yes' : '-'}</td>
+                    <td>
+                      {
+                        i.registration && registrationLookup[i.registration] ?
+                        <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
+                          View/Edit
+                        </Link>
+                        : <Badge variant="danger">None</Badge>
+                      }
+                    </td>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        onClick={(e) => {
+                          setSelectedInvitation(i);
+                          // @ts-ignore
+                          setPopoverTarget(e.target);
+                        }}
+                      >
+                        ⚙
+                      </Button>
+                    </td>
+                  </tr>
+                )
               )
-            )
-        }
-      </tbody>
-    </table>
+          }
+        </tbody>
+      </Table>
+      {
+        popoverTarget && selectedInvitation && (
+          <Overlay
+            target={popoverTarget}
+            rootClose
+            show
+            placement="left"
+            onHide={() => setPopoverTarget(undefined)}
+          >
+            <Popover id={`invitation-info-${selectedInvitation.id}`}>
+              <Popover.Title as="h3">Invitation for {selectedInvitation.recipient_name}</Popover.Title>
+              <Popover.Content>
+                <div>Sent { sent(selectedInvitation) }</div>
+                <hr />
+                <Button onClick={() => {
+                  sendInvitation(selectedInvitation.id);
+                  setPopoverTarget(undefined);
+                }}>Resend Invitation</Button>
+                <hr />
+                <Button variant="danger" onClick={() => {
+                  deleteModal.current?.show();
+                  setPopoverTarget(undefined);
+                }}>
+                  Delete Invitation
+                </Button>
+              </Popover.Content>
+            </Popover>
+          </Overlay>
+        )
+      }
+      <ConfirmDialog
+        ref={deleteModal}
+        title={`Delete invitation for "${selectedInvitation && selectedInvitation.recipient_name}"?`}
+        onConfirm={() => {
+          selectedInvitation && deleteInvitation(selectedInvitation)
+          setSelectedInvitation(undefined);
+        }}
+      />
+    </>
   );
 }
 
