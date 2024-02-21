@@ -1,10 +1,9 @@
 import React from 'react';
 import {
   Container,
-  Button,
   Alert,
 } from 'react-bootstrap';
-import CodeEditor from 'components/CodeEditor';
+import JsonEditor, { type Content } from 'components/JsonEditor';
 import Spinner from 'components/Spinner';
 
 import api, { useEvent } from 'hooks/api';
@@ -20,35 +19,28 @@ function EditJSONType({ keyToEdit }: Props) {
   const [error, setError] = React.useState<string>();
   const [patchEvent] = api.useUpdateEventMutation();
   const eventApi = useEvent();
-  const textRef  = React.useRef<CodeEditor | null>(null);
 
   const event = eventApi.currentData;
 
   if (eventApi.isLoading || !event || loading) return <Spinner />;
 
-  const save = async () => {
-    const value = textRef.current?.getValue();
+  const save = async (val: Content) => {
+    console.log('onSave', val);
 
-    if (!value) {
-      setError('The value must be valid JSON');
+    let newValue;
 
-      return;
+    if ('text' in val && !!val.text) {
+      newValue = JSON.parse(val.text)
+    } else if ('json' in val && !!val.json) {
+      newValue = val.json;
     }
 
-    let json;
-    try {
-      json = JSON.parse(value)
-    } catch (e) {
-      setError('The value must be valid JSON');
-
-      return;
-    }
-
+    if (!newValue) return;
     setLoading(true);
 
     const res = await patchEvent({
       id: event.id,
-      [keyToEdit]: json,
+      [keyToEdit]: newValue,
     });
 
     setLoading(false);
@@ -60,10 +52,6 @@ function EditJSONType({ keyToEdit }: Props) {
     }
 
     setError(undefined);
-
-    textRef.current?.setValue(JSON.stringify(
-      res.data[keyToEdit], null, 2
-    ));
   }
 
   return (
@@ -73,12 +61,10 @@ function EditJSONType({ keyToEdit }: Props) {
           <Alert variant="danger">{error}</Alert>
         )
       }
-      <CodeEditor
-        ref={textRef}
-        defaultLanguage="json"
-        defaultValue={JSON.stringify(event[keyToEdit], null, 2)}
+      <JsonEditor
+        content={{ json: event[keyToEdit] }}
+        onSave={save}
       />
-      <Button onClick={save}>Save</Button>
     </Container>
   );
 }

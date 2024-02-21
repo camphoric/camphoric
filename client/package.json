@@ -15,7 +15,6 @@
     "handlebars": "^4.7.7",
     "json-logic-js": "^2.0.1",
     "json-schema": "^0.4.0",
-    "jsoneditor": "^9.5.7",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "monaco-editor": "^0.41.0",
@@ -39,7 +38,8 @@
     "remark-rehype": "^10.1.0",
     "sass": "^1.63.6",
     "typescript": "^5.1.6",
-    "unified": "^10.1.2"
+    "unified": "^10.1.2",
+    "vanilla-jsoneditor": "^0.21.6"
   },
   "scripts": {
     "start": "vite --host 0.0.0.0 --port 3000",
@@ -81,7 +81,6 @@
     "@types/googlemaps": "^3.43.3",
     "@types/jest": "^27.0.1",
     "@types/json-logic-js": "^1.2.1",
-    "@types/jsoneditor": "^9.5.1",
     "@types/lodash": "^4.14.172",
     "@types/node": "^16.9.1",
     "@types/react": "^17.0.20",

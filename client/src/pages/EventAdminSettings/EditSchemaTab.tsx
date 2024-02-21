@@ -1,11 +1,10 @@
 import React from 'react';
 import {
   Container,
-  Button,
 } from 'react-bootstrap';
 import api from 'hooks/api';
 import Spinner from 'components/Spinner';
-import JsonEditor from 'components/JsonEditor';
+import JsonEditor, { type Content } from 'components/JsonEditor';
 
 import { TabProps, EditableSchemaKeys } from './EventAdminSettings';
 
@@ -14,16 +13,23 @@ interface Props extends TabProps {
 }
 
 function EditSchemaTab(props: Props) {
-  const editor = React.useRef<JsonEditor>(null);
   const [updateEvent] = api.useUpdateEventMutation();
   const value = props.event[props.name];
 
   if (!value) return <Spinner />;
 
-  const save = () => {
-    if (!editor.current) return;
+  const save = (val: Content) => {
+    console.log('onSave', val);
 
-    const newValue = editor.current.getValue()
+    let newValue;
+
+    if ('text' in val && !!val.text) {
+      newValue = JSON.parse(val.text)
+    } else if ('json' in val && !!val.json) {
+      newValue = val.json;
+    }
+
+    if (!newValue) return;
 
     updateEvent({
       [props.name]: newValue,
@@ -34,10 +40,9 @@ function EditSchemaTab(props: Props) {
   return (
     <Container>
       <JsonEditor
-        json={value}
-        ref={editor}
+        content={{ json: value }}
+        onSave={save}
       />
-      <Button onClick={save}>Save</Button>
     </Container>
   );
 }
