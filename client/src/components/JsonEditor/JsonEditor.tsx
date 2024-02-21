@@ -6,64 +6,92 @@
  */
 
 import React from 'react';
-import JSONEditorType, { type JSONEditorOptions } from 'jsoneditor';
-// @ts-ignore
-import JSONEditor from 'jsoneditor/dist/jsoneditor';
-import 'jsoneditor/dist/jsoneditor.css'
+import {
+  JSONEditor,
+  type Content,
+  type Mode,
+} from 'vanilla-jsoneditor';
+import { faFloppyDisk } from '@fortawesome/free-regular-svg-icons'
 
 interface Props {
-  json: object;
+  content: Content;
   onChange?: (a: object) => void;
+  onSave?: (a: Content) => void;
 }
 
-interface State {
-  json: object;
-};
+const Editor = ({ onSave, ...props }: Props) => {
+  const refContainer = React.useRef<HTMLDivElement>(null);
+  const refEditor = React.useRef<JSONEditor>(null);
 
-class Editor extends React.PureComponent<Props, State> {
-  private container = React.createRef<HTMLDivElement>();
-  editor?: JSONEditorType;
-  state: State = { json: {} }
+  React.useEffect(() => {
+    // create editor
+    if (!refContainer.current) return;
 
-  componentDidMount() {
-    this.initializeEditor();
-  }
+    // @ts-ignore
+    refEditor.current = new JSONEditor({
+      target: refContainer.current,
+      props: {}
+    });
 
-  // Only do this once
-  initializeEditor = () => {
-    if (!this.container.current) {
-      setTimeout(this.initializeEditor, 200);
-      return;
-    }
-
-    const options: JSONEditorOptions  = {
-      mode: 'tree',
-      modes: ['tree'],
-      onChangeJSON: (json: object) => this.onChange(json),
+    return () => {
+      // destroy editor
+      if (refEditor.current) {
+        refEditor.current.destroy();
+        // @ts-ignore
+        refEditor.current = null;
+      }
     };
+  }, []);
 
-    this.editor = new JSONEditor(this.container.current, options);
-    this.editor && this.editor.set(this.props.json);
-  }
+  // update props
+  React.useEffect(() => {
+    if (refEditor.current) {
+      refEditor.current.updateProps({
+        mode: 'text' as Mode,
+        ...props,
+        onRenderMenu: (items, context) => {
+          let buttons = items;
 
-  onChange = (json: object) => {
-    this.setState({ json });
-    this.props.onChange && this.props.onChange(json);
-  };
+          if (onSave) {
+            buttons = [
+              ...items.slice(0, items.length - 1),
+              {
+                type: "separator",
+              },
+              {
+                type: "button",
+                onClick: () => {
+                  if (!refEditor.current) return;
 
-  getValue = () => this.state.json;
+                  const json = refEditor.current.get();
 
-  componentWillUnmount() {
-    if (this.editor) {
-      this.editor.destroy();
+                  onSave(json as Content);
+                },
+                icon: faFloppyDisk,
+                title: "save",
+                className: "custom-copy-button",
+              },
+              {
+                type: "space",
+              },
+            ];
+          }
+
+          return buttons;
+        },
+      });
     }
-  }
+  }, [props, onSave]);
 
-  render() {
-    return (
-      <div className="jsoneditor-react-container" ref={this.container} />
-      );
-  }
+  return (
+    <div
+      className="vanilla-jsoneditor-react jse-theme-dark"
+      ref={refContainer}
+    />
+  );
 }
 
+export {
+  type Content,
+} from 'vanilla-jsoneditor';
 export default Editor;

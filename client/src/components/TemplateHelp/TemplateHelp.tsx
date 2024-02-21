@@ -57,7 +57,7 @@ function TemplateHelp() {
               </DownloadFileButton>
             </div>
             <JsonEditor
-              json={templateVars}
+              content={{ json: templateVars }}
             />
           </Tab>
         </Tabs>

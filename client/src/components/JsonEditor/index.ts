@@ -1,6 +1,7 @@
 import JsonEditor from './JsonEditor';
 
-import 'jsoneditor/dist/jsoneditor.css';
 import './styles.scss';
+import 'vanilla-jsoneditor/themes/jse-theme-dark.css';
 
 export default JsonEditor;
+export * from './JsonEditor';
