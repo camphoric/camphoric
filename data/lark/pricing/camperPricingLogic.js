@@ -77,7 +77,10 @@ const regularPrice = {
         ...regTypeEquals('crew-cleanup', 0),
 
         ...regTypeEquals('crew-kitchen-full', 0),
-        ...regTypeEquals('crew-kitchen-partial', 398),
+        ...regTypeEquals(
+          'crew-kitchen-partial',
+          { '/': [ { var: 'pricing.full_adult' }, 2 ]}
+        ),
         ...regTypeEquals('crew-setup', 0),
         ...regTypeEquals('management', 0),
         // First or second registrant is free for instructor 
