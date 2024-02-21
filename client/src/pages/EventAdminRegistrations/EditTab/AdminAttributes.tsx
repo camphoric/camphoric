@@ -1,5 +1,6 @@
 import React from 'react';
 
+import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import {
   Alert,
   Button,
@@ -70,8 +71,12 @@ function RegAdminAttributes({ event, registration }: Props) {
           [key]: schemas.ui,
         },
       }
-    }, { dataSchema: {}, uiSchema: {} }
+    }, { dataSchema: {}, uiSchema: {} } as { dataSchema: RJSFSchema, uiSchema: UiSchema }
   );
+
+  uiSchema['ui:order'] = Object.entries(event.camper_admin_schema)
+    .sort((a, b) => a[1].data.title.localeCompare(b[1].data.title))
+    .map(([key, camper]) => key);
 
   return (
     <>
@@ -85,6 +90,7 @@ function RegAdminAttributes({ event, registration }: Props) {
           type: 'object',
           properties: dataSchema,
         }}
+        // @ts-ignore
         uiSchema={uiSchema}
         formData={formData}
         onChange={onDataChange}
