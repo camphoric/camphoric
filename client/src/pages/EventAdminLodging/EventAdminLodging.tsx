@@ -101,7 +101,7 @@ function EventAdminLodging() {
                 className="sticky-top event-admin-left-column-container-inner"
               >
                 <Collapse in={open} dimension="width">
-                  <div>
+                  <div className="unassigned-camper-list-container">
                     <ul className="unassigned-camper-list">
                       {
                         unassignedCampers.map(

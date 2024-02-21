@@ -121,6 +121,11 @@ height: 100%;
       z-index: inherit;
     }
 
+    div.unassigned-camper-list-container {
+      overflow-y: scroll;
+      height: 100vh;
+    }
+
     ul.unassigned-camper-list {
       list-style: none;
       padding: 0;
