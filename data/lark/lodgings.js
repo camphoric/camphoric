@@ -180,7 +180,7 @@ export default {
     {},
   ),
 
-  camp1_cabin_cooks: { parentKey: 'camp1_cabin', name: 'Cooks Cabin', visible: false, capacity: 20 },
+  camp1_cabin_cooks: { parentKey: 'camp1_cabin', name: 'Cooks Cabin C1', visible: false, capacity: 20 },
 
   // camp 2
   camp2: { parentKey: 'root', name: 'Camp 2', children_title: 'Select a lodging type', visible: true },
@@ -313,7 +313,7 @@ export default {
 
   camp2_cabin: { parentKey: 'camp2', name: 'Cabin', visible: true, children_title: 'Select your cabin preference' },
 
-  ...Array.apply(null, Array(32)).map(function () {}).reduce(
+  ...Array.apply(null, Array(34)).map(function () {}).reduce(
     (acc, v, i) => {
       const cabinNum = (i + 1).toString().padStart(2, '0');
       let capacity = 4;
@@ -342,6 +342,8 @@ export default {
     visible: false,
     capacity: 4,
   },
+
+  camp2_cabin_cooks: { parentKey: 'camp2_cabin', name: 'Cooks Cabin C2', visible: false, capacity: 4 },
 
   // camp 3
   camp3: { parentKey: 'root', name: 'Camp 3', children_title: 'Select a lodging type', visible: true },
