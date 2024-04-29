@@ -28,6 +28,10 @@ export type LodgingLookup = {
   [id: string]: AugmentedLodging,
 }
 
+export type RegistrationTypeLookup = {
+  [id: string]: ApiRegistrationType,
+}
+
 export function useEvent() {
   const { eventId } = useParams<UrlParams>();
   const event = api.useGetEventByIdQuery(eventId || 0);
@@ -421,16 +425,25 @@ export function useTemplateVars(): ReportTemplateVars | undefined {
   const registrationLookup = useRegistrationLookup();
   const camperLookup = useCamperLookup();
   const lodgingLookup = useLodgingLookup();
+  const registrationTypesApi = api.useGetRegistrationTypesQuery();
 
   if (
     !event ||
     !registrationLookup ||
     !camperLookup ||
-    !lodgingLookup
+    !lodgingLookup ||
+    !registrationTypesApi.data
   ) return undefined;
 
   const campers = Object.values(camperLookup);
   const registrations = Object.values(registrationLookup);
+  const registrationTypeLookup = registrationTypesApi.data.reduce(
+    (acc, rt) => ({
+      ...acc,
+      [rt.id]: rt,
+    }),
+    {} as RegistrationTypeLookup,
+  );
 
   return {
     event,
@@ -439,6 +452,7 @@ export function useTemplateVars(): ReportTemplateVars | undefined {
     camperLookup,
     lodgingLookup,
     campers,
+    registrationTypeLookup,
   };
 }
 
