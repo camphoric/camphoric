@@ -6,6 +6,7 @@ import {
   CamperLookup,
   LodgingLookup,
   RegistrationLookup,
+  RegistrationTypeLookup,
 } from 'hooks/api';
 
 export interface ReportTemplateVars {
@@ -15,6 +16,7 @@ export interface ReportTemplateVars {
   camperLookup: CamperLookup | undefined;
   lodgingLookup: LodgingLookup | undefined;
   campers: Array<ApiCamper>;
+  registrationTypeLookup: RegistrationTypeLookup,
 }
 
 interface Props {
