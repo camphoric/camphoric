@@ -74,7 +74,7 @@ function RegAdminAttributes({ event, registration }: Props) {
     }, { dataSchema: {}, uiSchema: {} } as { dataSchema: RJSFSchema, uiSchema: UiSchema }
   );
 
-  uiSchema['ui:order'] = Object.entries(event.camper_admin_schema)
+  uiSchema['ui:order'] = Object.entries(event.registration_admin_schema)
     .sort((a, b) => a[1].data.title.localeCompare(b[1].data.title))
     .map(([key, camper]) => key);
 
