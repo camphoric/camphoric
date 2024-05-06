@@ -1,10 +1,10 @@
 import { year } from './dates.js'
 
-const subject = `Lark Campout ${year} Registration Confirmation`;
+const subject = `Jughandle Campout ${year} Registration Confirmation`;
 const template = `
 Dear {{campers.0.first_name}} {{campers.0.last_name}},
 
-Your online registration for the Lark Campout ${year} has been received.
+Your online registration for the Jughandle Campout ${year} has been received.
 
 You have registered the following campers:
 
