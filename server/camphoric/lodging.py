@@ -364,7 +364,7 @@ class LodgingTreeNode:
         self.camper_reserved_count_adjusted = (lodging.camper_reserved_count_adjusted or 0) + sum(
             child.camper_reserved_count_adjusted for child in children)
 
-        if len(children):
+        if len(children) and not lodging.capacity:
             self.capacity = sum(child.capacity for child in children)
             self.reserved = sum(child.reserved for child in children)
             self.remaining_unreserved_capacity = max(
