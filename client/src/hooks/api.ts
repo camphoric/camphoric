@@ -396,10 +396,11 @@ export function useLodgingTree(): AugmentedLodging | undefined {
         (acc, c) => ( c.count + acc),
         campers.length,
       );
-      const capacity = children.reduce(
+      const maxCapacity = children.reduce(
         (acc, c) => ( c.capacity + acc),
         lodging.capacity,
       );
+      const capacity = lodging.capacity || maxCapacity;
       const isLeaf = children.length === 0;
 
       return {
@@ -409,7 +410,7 @@ export function useLodgingTree(): AugmentedLodging | undefined {
         count,
         campers,
         capacity,
-        originalCapacity: lodging.capacity,
+        maxCapacity,
         ...getFullPath(lodging),
       };
     };

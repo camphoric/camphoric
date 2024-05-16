@@ -129,13 +129,8 @@ function LodgingEditForm({ lodging, show, setShow, lodgingLookup }: Props) {
         isInvalid={showErrors && !lodging?.children_title}
       />
       {
-        (!!lodging?.isLeaf || !lodging) && (
-          <Input
-            label="Capacity"
-            onChange={changeValue('capacity')}
-            defaultValue={lodging?.originalCapacity}
-            isInvalid={showErrors && !lodging?.originalCapacity}
-          />
+        !lodging?.isLeaf && (
+          <div>Calculated capacity: {lodging?.maxCapacity} - set Capacity to 0 to use this number</div>
         )
       }
       <Input
