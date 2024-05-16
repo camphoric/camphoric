@@ -42,6 +42,7 @@ function LodgingNodeDisplay(props: Props) {
           <span>
             {props.lodgingTree.name} ({props.lodgingTree.count} / {props.lodgingTree.capacity})
             <span> - Reserved: {props.lodgingTree.reserved}</span>
+            <span> - Capacity: {props.lodgingTree.capacity}</span>
           </span>
           <div className="lodging-edit-buttons">
             <Button onClick={(e) => {
