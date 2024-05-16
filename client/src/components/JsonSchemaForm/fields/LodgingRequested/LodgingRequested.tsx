@@ -35,8 +35,6 @@ function LodgingRequestedField(props: FieldProps) {
   const root = nodes.find((n) => !n.parent) as RootLodgingNode;
   const choices = props.formData.choices?.filter(Boolean) || [] as Array<number>;
 
-  // console.log('LodgingRequestedField props', props);
-
   const isLeaf = (id: number | undefined) =>
     !nodes.find(n => n.parent === id);
 
