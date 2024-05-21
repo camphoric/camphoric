@@ -18,7 +18,8 @@ div.reports-container {
 
   table.csv-table {
     th {
-      background-color: #FFF;
+      position: sticky;
+      top: 0; /* required for the stickiness */
     }
 
     tr:nth-child(even) td {
@@ -27,6 +28,12 @@ div.reports-container {
 
     tr:nth-child(odd) td {
       background-color: #EEE;
+    }
+
+    tr > td:nth-child(1), th {
+      background-color: #777;
+      color: white;
+      border: 1px solid black;
     }
   }
 }
