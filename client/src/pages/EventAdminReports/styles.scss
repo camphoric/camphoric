@@ -15,4 +15,18 @@ div.reports-container {
       justify-content: space-between;
     }
   }
+
+  table.csv-table {
+    th {
+      background-color: #FFF;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #FFF;
+    }
+
+    tr:nth-child(odd) td {
+      background-color: #EEE;
+    }
+  }
 }

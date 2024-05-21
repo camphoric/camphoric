@@ -12,27 +12,32 @@ function CSVTable({ csv }: Props) {
   const [ header, ...data ] = result.data;
 
   return (
-    <table className="csv-table">
-      <thead><tr>
-        {
-          header.map((h: string, i: number) => <th key={`${i}${h}`}>{h}</th>)
-        }
-      </tr></thead>
-      <tbody>
-        {
-          data.map(
-            (row: string[], i: number) => (
-              <tr key={`${i}${row.join()}`}>
-                {
-                  row.map((c, i) => <td key={`${i}${c}`}>{c}</td>)
-                }
-              </tr>
+    <>
+      <div>Total Rows: {data.length}</div>
+      <table className="csv-table">
+        <thead><tr>
+          <th className="csv-table-column"> </th>
+          {
+            header.map((h: string, i: number) => <th key={`${i}${h}`}>{h}</th>)
+          }
+        </tr></thead>
+        <tbody>
+          {
+            data.map(
+              (row: string[], i: number) => (
+                <tr key={`${i}${row.join()}`}>
+                  <td className="csv-table-column">{i+1}</td>
+                  {
+                    row.map((c, i) => <td key={`${i}${c}`}>{c}</td>)
+                  }
+                </tr>
+              )
             )
-          )
 
-        }
-      </tbody>
-    </table>
+          }
+        </tbody>
+      </table>
+  </>
   );
 }
 
