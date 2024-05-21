@@ -34,6 +34,8 @@ function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
     !registrationLookup
   ) return <div />;
 
+  const camperRegistration = registrationLookup[camper.registration];
+  const registrationType = camperRegistration.registrationType?.label || 'none';
   const unassignCamper = () => props.unassignCamper(camper);
 
   return (
@@ -65,6 +67,7 @@ function CamperPopOver({ camper, popupTargetRef, ...props }: Props) {
                   ['Lodging requested', lodgingPathDisplay(lodgingLookup, camper.lodging_requested || 0) || 'None'],
                   ['Sharing', camper.lodging_shared ? 'Yes' : 'No'],
                   ['Sharing with', camper.lodging_shared_with],
+                  ['Type', registrationType],
                   ...Object.entries(camper.attributes),
                 ]}
               />
