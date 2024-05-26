@@ -1,0 +1,39 @@
+div.reports-container {
+  div.report-edit-form {
+    textarea.report-template {
+      height: 60vh;
+    }
+
+    textarea.report-variables-schema {
+      height: 20vh;
+    }
+  }
+
+  div.report-tabs {
+    .button-container {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+
+  table.csv-table {
+    th {
+      position: sticky;
+      top: 0; /* required for the stickiness */
+    }
+
+    tr:nth-child(even) td {
+      background-color: #FFF;
+    }
+
+    tr:nth-child(odd) td {
+      background-color: #EEE;
+    }
+
+    tr > td:nth-child(1), th {
+      background-color: #777;
+      color: white;
+      border: 1px solid black;
+    }
+  }
+}

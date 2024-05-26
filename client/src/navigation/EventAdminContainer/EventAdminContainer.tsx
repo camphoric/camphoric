@@ -14,6 +14,7 @@ import Campers        from 'pages/EventAdminCampers';
 import Lodging        from 'pages/EventAdminLodging';
 import Reports        from 'pages/EventAdminReports';
 import Settings       from 'pages/EventAdminSettings';
+import Emails         from 'pages/EventAdminEmails';
 
 import NavBar from './NavBar';
 import { RouteList } from '../RouterConfig';
@@ -23,6 +24,7 @@ const eventAdminRoutes: RouteList = [
   ['registrations', 'Registrations', Registrations],
   ['campers', 'Campers', Campers],
   ['lodging', 'Lodging', Lodging],
+  ['emails', 'Emails', Emails],
   ['reports', 'Reports', Reports],
   ['settings', 'Settings', Settings],
 ];
