@@ -12,6 +12,11 @@ export default {
       'maxLength': 50,
       'title': 'Last name'
     },
+    'gender': {
+      'type': 'string',
+      'title': 'Gender',
+      'enum': ['Male', 'Female', 'Non-binary'],
+    },
     'age': {
       'type': 'string',
       'title': 'Age',
