@@ -13,6 +13,9 @@ from camphoric import (
 # Useful docs:
 # - https://docs.djangoproject.com/en/4.1/ref/models/fields/
 
+class EmailRecipientType(models.TextChoices):
+    REGISTRATION = 'Registration', 'Registration'
+    CAMPER = 'Camper', 'Camper'
 
 class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
@@ -415,8 +418,15 @@ class BulkEmailTask(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     from_email = models.EmailField()
     subject = models.CharField(max_length=100)
+    recipient_type = models.CharField(
+        max_length=255,
+        default=EmailRecipientType.CAMPER,
+        choices=EmailRecipientType.choices,
+    )
+    recipient_template = models.TextField(
+        blank=True, default='', help_text="Jinja CSV template")
     body_template = models.TextField(
-        blank=True, default='', help_text="Handlebars Markdown template")
+        blank=True, default='', help_text="Jinja Markdown template")
     messages_per_second = models.DecimalField(
         max_digits=6, decimal_places=3,
         validators=[MinValueValidator(Decimal('0.001'))],
