@@ -38,21 +38,21 @@ export default {
     RV5:  {parentKey:'rvlg',visible:false, name:'Lg RV 5', notes: 'No hookups','capacity': 1},
 
   privateroom: { parentKey: 'root', name: 'Private Room', visible: true },
-    Eucalyptus:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin' },
     FH_Cypress:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Cypress', notes: 'Queen, CPAP' },
-    FH_GardenView:  { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Garden View', notes: '2 Twins, CPAP' },
 		FH_Library:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Library', notes: 'Queen, ADA' },
-		FH_OceanView:   { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Ocean View', notes: '2 Twins, CPAP' },
     FH_Sitka:       { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Sitka', notes: 'Queen, CPAP' },
     FH_Skylight:    { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Skylight', notes: 'Queen (double?), CPAP' },
     FH_Terrace:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Terrace', notes: 'Queen' },
 		GrandFir:       { parentKey: 'privateroom', capacity: 1, visible: false, name:'Grand Fir Cabin', notes: 'Queen' },
-		Osprey:         { parentKey: 'privateroom', capacity: 1, visible: false, name:'Osprey Cabin', notes: 'Queen, Twin, Semi-ADA' },
-		Pelican:        { parentKey: 'privateroom', capacity: 1, visible: false, name:'Pelican Cabin', notes: 'Queen, Twin, Semi-ADA' },
 
 	sharedroom: { parentKey: 'root', name: 'Shared Room', visible: true },
-    FH_Osprey: { parentKey: 'sharedroom', capacity: 1, visible: false, name:'FH Osprey', notes: '3 Bunk Beds' },
-    Orchard:   { parentKey: 'sharedroom', capacity: 1, visible: false, name:'Orchard Cabin', notes: '2 Double Beds' },
+    FH_Osprey:     { parentKey: 'sharedroom', capacity: 3, visible: false, name:'FH Osprey', notes: '3 Bunk Beds' },
+    Orchard:       { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Orchard Cabin', notes: '2 Double Beds' },
+    Eucalyptus:    { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin' },
+    FH_GardenView: { parentKey: 'sharedroom', capacity: 2, visible: false, name:'FH Garden View', notes: '2 Twins, CPAP' },
+		FH_OceanView:  { parentKey: 'sharedroom', capacity: 2, visible: false, name:'FH Ocean View', notes: '2 Twins, CPAP' },
+		Osprey:        { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Osprey Cabin', notes: 'Queen, Twin, Semi-ADA' },
+		Pelican:       { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Pelican Cabin', notes: 'Queen, Twin, Semi-ADA' },
 
   offsite: { parentKey: 'root', capacity: 50, name: 'Off Site', visible: true },
 };
