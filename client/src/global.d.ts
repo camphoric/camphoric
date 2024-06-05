@@ -126,6 +126,7 @@ declare global {
     lodging_shared: any;
     lodging_shared_with: string;
     lodging_comments: string;
+    sequence: number;
     stay: any | null;
   }
 

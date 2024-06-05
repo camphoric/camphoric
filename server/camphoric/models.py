@@ -377,9 +377,15 @@ class Camper(TimeStampedModel):
         help_text="JSON array of dates")
     server_pricing_results = models.JSONField(null=True)
     attributes = models.JSONField(null=True)
+    sequence = models.IntegerField(
+        default=0,
+        help_text="order of the campers")
     admin_attributes = models.JSONField(
         default=dict,
         help_text="custom attributes for administrative use")
+
+    class Meta:
+        ordering = ('sequence', 'id',)
 
 
 class Deposit(TimeStampedModel):

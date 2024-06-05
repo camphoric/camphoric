@@ -339,6 +339,7 @@ class RegisterView(APIView):
         camper_pricing = server_pricing_results['campers']
         for index, camper in enumerate(campers):
             camper.server_pricing_results = camper_pricing[index]
+            camper.sequence = index
             camper.save()
 
         return Response({
