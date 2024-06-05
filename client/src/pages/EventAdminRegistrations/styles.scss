@@ -22,9 +22,13 @@
     }
   }
 
-
-
   .registration-edit {
+    .registration-edit-campers-tab {
+      .card-body {
+        display: flex;
+        justify-content: space-between;
+      }
+    }
   }
 
   .special-registration {

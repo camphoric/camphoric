@@ -21,6 +21,7 @@ import Spinner from 'components/Spinner';
 import RegistrationSearchResult from './RegistrationSearchResult';
 import RegistrationEdit from './RegistrationEdit';
 
+import CampersTab from './CampersTab';
 import PaymentTab from './PaymentTab';
 import AdminAttributes from './AdminAttributes';
 
@@ -97,6 +98,9 @@ function EditTab() {
                     event={event}
                     registration={selectedRegistration}
                   />
+                </Tab>
+                <Tab eventKey="camper_order" title="Campers">
+                  <CampersTab registration={selectedRegistration} />
                 </Tab>
               </Tabs>
             )
