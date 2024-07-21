@@ -72,19 +72,25 @@ const regularPrice = {
   tuition: {
     '+': [{
       'if': [
-        ...regTypeEquals('crew-registration', 0),
-        ...regTypeEquals('crew-setup', 0),
-        ...regTypeEquals('crew-cleanup', 0),
+        ...regTypeEquals('office-camp-1', 0),
+        ...regTypeEquals('office-camp-2', 0),
+        ...regTypeEquals('office-camp-3', 0),
+        ...regTypeEquals('setup-teardown', 0),
+        ...regTypeEquals('cleanup-camp-1', 0),
+        ...regTypeEquals('cleanup-camp-2', 0),
+        ...regTypeEquals('cleanup-camp-3', 0),
+        ...regTypeEquals('misc-staff', 0),
+
+        ...regTypeEquals('management', 0),
+        ...regTypeEquals('security', 0),
+        ...instructorTypeEquals('talent', 0),
 
         ...regTypeEquals('crew-kitchen-full', 0),
         ...regTypeEquals(
           'crew-kitchen-partial',
           { '/': [ { var: 'pricing.full_adult' }, 2 ]}
         ),
-        ...regTypeEquals('crew-setup', 0),
-        ...regTypeEquals('management', 0),
         // First or second registrant is free for instructor 
-        ...instructorTypeEquals('talent', 0),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
@@ -107,9 +113,10 @@ const regularPrice = {
     '+': [
       {
         'if': [
-          ...regTypeEquals('crew-kitchen-full', 0),
-          ...regTypeEquals('crew-kitchen-partial', 0),
+          ...regTypeEquals('kitchen-full', 0),
+          ...regTypeEquals('kitchen-partial', 0),
           ...regTypeEquals('management', 0),
+          ...regTypeEquals('security', 0),
           // First registrant meal is free for instructor 
           ...regTypeEquals('talent', 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
