@@ -25,20 +25,6 @@ export default
       ]
     }
   },
-  "meal_assignment": {
-    "ui": {
-      "ui:placeholder": "Choose an option"
-    },
-    "data": {
-      "enum": [
-        "Camp 1",
-        "Camp 2"
-      ],
-      "type": "string",
-      "title": "Meals in",
-      "description": "If camper is not eating meals in the camp where they're staying"
-    }
-  },
   "precamp_meals_comp": {
     "ui": {},
     "data": {
@@ -63,7 +49,7 @@ export default
         true
       ],
       "type": "boolean",
-      "title": "Vaccination verified",
+      "title": "Vaccination: verified",
       "default": false,
       "enumNames": [
         "No",
@@ -85,6 +71,20 @@ export default
         "No",
         "Yes"
       ]
+    }
+  },
+  "meal_assignment_dinner": {
+    "ui": {
+      "ui:placeholder": "Choose an option"
+    },
+    "data": {
+      "enum": [
+        "Camp 1",
+        "Camp 2"
+      ],
+      "type": "string",
+      "title": "Meals: Dinner in",
+      "description": "If camper is not eating meals in the camp where they're staying"
     }
   },
   "registration_volunteer": {
@@ -133,6 +133,36 @@ export default
         "No",
         "Yes"
       ]
+    }
+  },
+  "vaccination_opt_to_test": {
+    "ui": {},
+    "data": {
+      "enum": [
+        false,
+        true
+      ],
+      "type": "boolean",
+      "title": "Vaccination: will submit negative Covid test",
+      "default": false,
+      "enumNames": [
+        "No",
+        "Yes"
+      ]
+    }
+  },
+  "meal_assignment_breakfast": {
+    "ui": {
+      "ui:placeholder": "Choose an option"
+    },
+    "data": {
+      "enum": [
+        "Camp 1",
+        "Camp 2"
+      ],
+      "type": "string",
+      "title": "Meals: Breakfast in",
+      "description": "If camper is not eating meals in the camp where they're staying"
     }
   }
 };

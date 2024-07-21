@@ -99,31 +99,6 @@ before camp.
         },
       },
     },
-    'parking_passes': {
-      'type': 'array',
-      'title': 'Parking Passes',
-      'description': `The Mendocino Woodlands asks us to carpool when possible to reduce the number of cars in the State Park.
-
-**ALL vehicles and trailers are required to have a parking pass.**  
-*Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
-
-*   You can pre-purchase parking passes for \${{pricing.parking_pass}}; you’ll receive your parking pass when you arrive at camp.
-*   If you purchase your parking pass at camp, the cost will be \${{pricing.parking_pass_at_camp}} (no credit cards accepted at camp).`,
-      'minItems': 0,
-      'maxItems': 4,
-      'items': {
-        'title': 'parking pass',
-        'type': 'object',
-        'properties': {
-          'holder': {
-            'type': 'string',
-            'maxLength': 50,
-            'title': 'Full name of the parking pass owner'
-          }
-        },
-        'required': ['holder']
-      }
-    },
     'lta_donation': {
       'type': 'integer',
       'minimum': 0,

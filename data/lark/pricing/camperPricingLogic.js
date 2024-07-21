@@ -131,7 +131,24 @@ const regularPrice = {
         ]
       },
     ]
-  } // END regularPrice meals
+  }, // END regularPrice meals
+
+  parking: {
+    '*': [
+      {'reduce': [
+        {'var': 'camper.parking_passes'},
+        {'+':[
+          {'var': 'accumulator'},
+          2
+        ]}, 1
+      ]},
+      { if: [
+        { '!': regType },
+        {'var': 'pricing.parking_pass'},
+        1
+      ] },
+    ]
+  }, // END regularPrice parking
 }; // END regularPrice
 
 // uncomment for debug
@@ -149,11 +166,16 @@ export default [
     exp: regularPrice.meals
   },
   {
+    var: 'parking',
+    exp: regularPrice.parking
+  },
+  {
     var: 'total',
     exp: {
       '+': [
         {var: 'tuition'},
         {var: 'meals'},
+        {var: 'parking'},
       ]
     }
   }

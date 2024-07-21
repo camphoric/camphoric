@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
 # Now install the CRA
 ENV PATH="/app/node_modules/.bin:${PATH}"

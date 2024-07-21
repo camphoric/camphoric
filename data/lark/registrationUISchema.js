@@ -32,7 +32,6 @@ export default {
     'registrant_email',
     'payment',
     'campers',
-    'parking_passes',
     'lta_donation',
     'how_did_you_hear',
     'comments',
@@ -88,22 +87,25 @@ export default {
       'vaccination_status': {
         'ui:widget': 'checkboxes'
       },
+      'parking_passes': {
+        'ui:options':  {
+          'addable': true,
+          'removable': true,
+          'addButtonText': 'Add A Parking Pass',
+        },
+        'items': {
+          'ui:title': 'parking pass',
+          'pass_type': {
+            'ui:disabled': true,
+          }
+        },
+      },
     },
   },
   'lta_donation': {
     'ui:options':  {
       'prefix': '$',
     },
-  },
-  'parking_passes': {
-    'ui:options':  {
-      'addable': true,
-      'removable': true,
-      'addButtonText': 'Add A Parking Pass',
-    },
-    items: {
-      'ui:title': 'parking pass',
-    }
   },
   'comments': {
     'ui:widget': 'textarea',
