@@ -26,5 +26,6 @@ django-storages = {extras = ["boto3"], version = "*"}
 django-filter = "*"
 jsonschema = {extras = ["format"], version = "*"}
 jinja2 = "*"
+django-auditlog = "*"
 
 [requires]

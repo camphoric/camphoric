@@ -3,6 +3,9 @@ import datetime
 import random
 import uuid
 
+from auditlog.models import AuditlogHistoryField
+from auditlog.mixins import LogAccessMixin
+from auditlog.registry import auditlog
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -29,12 +32,13 @@ class ReportOutputType(models.TextChoices):
     PLAINTEXT = 'txt', 'Jinja to Plain Text'
 
 
-class TimeStampedModel(models.Model):
+class TimeStampedModel(models.Model, LogAccessMixin):
     '''
     - Base class for most models.
     - Updates creation and modification time stamps automatically.
     - Allows soft delete.
     '''
+    history = AuditlogHistoryField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True)
@@ -450,3 +454,31 @@ class BulkEmailRecipient(TimeStampedModel):
                 name='task_email',
             ),
         ]
+
+
+# auditlog.register(Organization,
+#                   serialize_data=True)
+# auditlog.register(EmailAccount,
+#                   serialize_data=True)
+# auditlog.register(Event,
+#                   serialize_data=True)
+# auditlog.register(RegistrationType,
+#                   serialize_data=True)
+# auditlog.register(Registration,
+#                   serialize_data=True)
+# auditlog.register(Report,
+#                   serialize_data=True)
+# auditlog.register(Invitation,
+#                   serialize_data=True)
+# auditlog.register(Lodging,
+#                   serialize_data=True)
+# auditlog.register(Camper,
+#                   serialize_data=True)
+# auditlog.register(Deposit,
+#                   serialize_data=True)
+# auditlog.register(Payment,
+#                   serialize_data=True)
+# auditlog.register(BulkEmailTask,
+#                   serialize_data=True)
+# auditlog.register(BulkEmailRecipient,
+#                   serialize_data=True)

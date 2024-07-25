@@ -152,6 +152,6 @@ export default [
   { name: 'talent', label: 'Talent Staff' },
   { name: 'management', label: 'Management' },
   { name: 'misc-staff', label: 'Miscellaneous Staff' },
-  { name: 'late-registrant', label: 'Late Registrant' },
+  { name: 'late-registrant', label: 'Lark Camp Late Registrant' },
   { name: 'security', label: 'Security' },
 ].map(specialType);

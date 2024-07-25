@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'frontend_bootstrap',
     'dbbackup',  # django-dbbackup
     'django_filters',
+    'auditlog',
 ]
 
 MIDDLEWARE = [
@@ -69,6 +70,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'auditlog.middleware.AuditlogMiddleware',
 ]
 
 ROOT_URLCONF = 'camphoric_server.urls'
@@ -205,6 +207,13 @@ CORS_ORIGIN_WHITELIST = [
 
 # Allow PayPal Popup
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
+# https://django-auditlog.readthedocs.io/en/latest/usage.html#settings
+AUDITLOG_INCLUDE_ALL_MODELS = True
+AUDITLOG_EXCLUDE_TRACKING_FIELDS = (
+    "updated_at",
+    "created_at"
+)
 
 # See http://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
