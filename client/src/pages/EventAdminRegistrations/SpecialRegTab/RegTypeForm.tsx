@@ -1,4 +1,5 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import Input, { TextArea } from 'components/Input';
 import Modal from 'components/Modal';
 import api from 'store/admin/api';
@@ -18,6 +19,7 @@ const requiredFields = [
 ] as const;
 
 function InviteForm({ regType, show, setShow }: Props) {
+  const { eventId } = useParams<{ eventId: string }>();
   const [createRegistrationType] = api.useCreateRegistrationTypeMutation();
   const [updateRegistrationType] = api.useUpdateRegistrationTypeMutation();
 
@@ -56,7 +58,10 @@ function InviteForm({ regType, show, setShow }: Props) {
         ...formData,
       });
     } else {
-      await createRegistrationType(formData as ApiRegistrationType);
+      await createRegistrationType({
+        event: eventId,
+        ...formData,
+      } as ApiRegistrationType);
     }
 
     onClose();
