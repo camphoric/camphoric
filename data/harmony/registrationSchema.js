@@ -1,7 +1,12 @@
+import { dates } from './dates.js';
+
+const start = dates.start.toLocaleDateString('en-us', { weekday:'long', year:'numeric', month:'short', day:'numeric'});
+const end = dates.end.toLocaleDateString('en-us', { weekday:'long', year:'numeric', month:'short', day:'numeric'});
+
 export default {
   'title': 'Camp Harmony 2023-24 Registration',
   'description': `
-December 27, 2023-January 1 2024
+${start}-${end}
 
 Please note that registrations are accepted in the order they are received and your housing preferences are processed on a "first come - first served" basis.
 
