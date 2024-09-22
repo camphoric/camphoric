@@ -4,8 +4,7 @@ import random
 import uuid
 
 from auditlog.models import AuditlogHistoryField
-from auditlog.mixins import LogAccessMixin
-from auditlog.registry import auditlog
+# from auditlog.registry import auditlog
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -32,7 +31,7 @@ class ReportOutputType(models.TextChoices):
     PLAINTEXT = 'txt', 'Jinja to Plain Text'
 
 
-class TimeStampedModel(models.Model, LogAccessMixin):
+class TimeStampedModel(models.Model):
     '''
     - Base class for most models.
     - Updates creation and modification time stamps automatically.

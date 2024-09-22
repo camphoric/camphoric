@@ -24,6 +24,8 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from auditlog.mixins import LogAccessMixin
+
 from camphoric import (
     models,
     pricing,
@@ -50,6 +52,19 @@ def regex_replace(s, find, replace):
 
 
 jinja_env.filters['regex_replace'] = regex_replace
+
+
+class SoftDeleteModelViewSet(LogAccessMixin, ModelViewSet):
+    def destroy(self):
+        instance = self.get_object()
+        instance.soft_delete()
+
+    def undestroy(self):
+        instance = self.get_object()
+        instance.soft_undelete()
+
+    def destroy_permanently(self):
+        super().destroy()
 
 
 class SetCSRFCookieView(APIView):
@@ -111,96 +126,96 @@ class UserView(APIView):
         return Response(serializers.UserSerializer(request.user).data)
 
 
-class OrganizationViewSet(ModelViewSet):
+class OrganizationViewSet(SoftDeleteModelViewSet):
     queryset = models.Organization.objects.all()
     serializer_class = serializers.OrganizationSerializer
     permission_classes = [permissions.IsAdminUser]
 
 
-class EmailAccountViewSet(ModelViewSet):
+class EmailAccountViewSet(SoftDeleteModelViewSet):
     queryset = models.EmailAccount.objects.all()
     serializer_class = serializers.EmailAccountSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['organization']
 
 
-class EventViewSet(ModelViewSet):
+class EventViewSet(SoftDeleteModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['organization']
 
 
-class RegistrationViewSet(ModelViewSet):
+class RegistrationViewSet(SoftDeleteModelViewSet):
     queryset = models.Registration.objects.all()
     serializer_class = serializers.RegistrationSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event', 'completed']
 
 
-class ReportViewSet(ModelViewSet):
+class ReportViewSet(SoftDeleteModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
-class RegistrationTypeViewSet(ModelViewSet):
+class RegistrationTypeViewSet(SoftDeleteModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
-class InvitationViewSet(ModelViewSet):
+class InvitationViewSet(SoftDeleteModelViewSet):
     queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
     permission_classes = [permissions.IsAdminUser]
 
 
-class LodgingViewSet(ModelViewSet):
+class LodgingViewSet(SoftDeleteModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
-class CamperViewSet(ModelViewSet):
+class CamperViewSet(SoftDeleteModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration', 'registration__completed']
 
 
-class DepositViewSet(ModelViewSet):
+class DepositViewSet(SoftDeleteModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
-class PaymentViewSet(ModelViewSet):
+class PaymentViewSet(SoftDeleteModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration']
 
 
-class BulkEmailTaskViewSet(ModelViewSet):
+class BulkEmailTaskViewSet(SoftDeleteModelViewSet):
     queryset = models.BulkEmailTask.objects.all()
     serializer_class = serializers.BulkEmailTaskSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
-class BulkEmailRecipientViewSet(ModelViewSet):
+class BulkEmailRecipientViewSet(SoftDeleteModelViewSet):
     queryset = models.BulkEmailRecipient.objects.all()
     serializer_class = serializers.BulkEmailRecipientSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['task']
 
 
-class UserViewSet(ModelViewSet):
+class UserViewSet(SoftDeleteModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = serializers.UserSerializer
     permission_classes = [permissions.IsAdminUser]
