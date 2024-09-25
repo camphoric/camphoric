@@ -1,10 +1,10 @@
-import { dates } from './dates.js';
+import { dates, yearDisplay } from './dates.js';
 
 const start = dates.start.toLocaleDateString('en-us', { weekday:'long', year:'numeric', month:'short', day:'numeric'});
 const end = dates.end.toLocaleDateString('en-us', { weekday:'long', year:'numeric', month:'short', day:'numeric'});
 
 export default {
-  'title': 'Camp Harmony 2023-24 Registration',
+  'title': `Camp Harmony ${yearDisplay} Registration`,
   'description': `
 ${start}-${end}
 
@@ -17,7 +17,7 @@ All Campers will need to test before arriving at Camp.
 
 **LODGING**    
 
-[Click here to see 2023-24 rates](https://docs.google.com/spreadsheets/d/1UvAbUg8KC5nCQWtYNe_V5Jecb3OtHC3lrn-_nBYHKxI/edit?usp=sharing) for lodging (all prices include meals)
+[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1Ib164P-xt45RVV6UKnngH32_hiXLkYOgDgb9xhEK1u4/edit?gid=417741577#gid=417741577) for lodging (all prices include meals)
 
 Fields marked with an asterisk (*) are required
 `,

@@ -3,32 +3,36 @@
 
 export const pricingMatrix = {
   adult: {
-    semip: { early: [192, 197], regular: [202, 207] },
-    apts:  { early: [192, 197], regular: [202, 207] },
-    econ:  { early: [135, 142], regular: [145, 152] },
-    rv:    { early: [107, 110], regular: [117, 120] },
-    tent:  { early: [107, 110], regular: [117, 120] },
+    apt:   { early: 204, regular: 214 },
+		lodge: { early: 204, regular: 214 },
+    motel: { early: 197, regular: 207 },
+    cabin: { early: 145, regular: 155 },
+    rv:    { early: 130, regular: 140 },
+    tent:  { early: 130, regular: 140 },
   },
   yadult: {
-    semip: { early: [144, 151], regular: [153, 161] },
-    apts:  { early: [144, 151], regular: [153, 161] },
-    econ:  { early: [105, 112], regular: [115, 122] },
-    rv:    { early: [ 96, 103], regular: [106, 113] },
-    tent:  { early: [ 96, 103], regular: [106, 113] },
+    apt:   { early: 204, regular: 214 },
+    lodge: { early: 150, regular: 160 },
+    motel: { early: 148, regular: 158 },
+    cabin: { early: 109, regular: 119 },
+    rv:    { early:  98, regular: 108 },
+    tent:  { early:  98, regular: 108 },
   },
   child: {
-    semip: { early: [ 96,  99], regular: [101, 104] },
-    apts:  { early: [ 96,  99], regular: [101, 104] },
-    econ:  { early: [ 67,  70], regular: [ 72,  75] },
-    rv:    { early: [ 55,  58], regular: [ 60,  63] },
-    tent:  { early: [ 55,  58], regular: [ 60,  63] },
+    apt:   { early: 204, regular: 214 },
+    lodge: { early: 100, regular: 105 },
+    motel: { early:  99, regular: 104 },
+    cabin: { early:  73, regular:  78 },
+    rv:    { early:  65, regular:  70 },
+    tent:  { early:  65, regular:  70 },
   },
   baby: {
-    semip: { early: [  0,   0], regular: [  0,   0] },
-    apts:  { early: [  0,   0], regular: [  0,   0] },
-    econ:  { early: [  0,   0], regular: [  0,   0] },
-    rv:    { early: [  0,   0], regular: [  0,   0] },
-    tent:  { early: [  0,   0], regular: [  0,   0] },
+    apt:   { early:   0, regular:   0 },
+    lodge: { early:   0, regular:   0 },
+    motel: { early:   0, regular:   0 },
+    cabin: { early:   0, regular:   0 },
+    rv:    { early:   0, regular:   0 },
+    tent:  { early:   0, regular:   0 },
   },
 };
 
@@ -36,10 +40,8 @@ const transformPricing = () => {
   const result = {};
 
   const rf = (obj, labels = []) => {
-    if (Array.isArray(obj)) {
-      const [full, perday] = obj;
-      result[`${labels.join('_')}_full`] = full;
-      result[`${labels.join('_')}_perday`] = perday;
+    if (Number.isInteger(obj)) {
+      result[`${labels.join('_')}_perday`] = obj;
 
       return;
     }
@@ -55,5 +57,7 @@ const transformPricing = () => {
 };
 
 const pricing = transformPricing();
+
+pricing['linen_rate'] = 25;
 
 export default pricing;
