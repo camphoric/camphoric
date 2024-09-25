@@ -6,16 +6,16 @@ const registrations = [
     phone: '+15553985678',
     email: 'bobross123456@dontsend.com',
     campers: [
-      ['adult', 'BobCO', 'Ross', '5', 'semip', []],
-      ['adult', 'JaneCO', 'Ross', '5', 'semip', []],
+      ['adult', 'BobCO', 'Ross', '5', 'motel', []],
+      ['adult', 'JaneCO', 'Ross', '5', 'motel', []],
     ],
   },
   {
     phone: '+15553985678',
     email: 'skywalker123456@dontsend.com',
     campers: [
-      ['adult' , 'AniCO','Skywalker' , '5', 'econ', [], 'Padmé Amidala'],
-      ['adult' , 'PadméCO' , 'Amidala' , '5', 'econ', [], 'Ani Skywalker'],
+      ['adult' , 'AniCO','Skywalker' , '5', 'cabin', [], 'Padmé Amidala'],
+      ['adult' , 'PadméCO' , 'Amidala' , '5', 'cabin', [], 'Ani Skywalker'],
       ['child' , 'LukeCO' , 'Skywalker' , '5', 'tent', []],
       ['child' , 'LeiaCO' , 'Organa' , '5', 'tent', []],
     ],

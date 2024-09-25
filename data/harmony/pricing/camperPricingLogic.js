@@ -7,7 +7,7 @@ export const ageLookup = {
   baby: ['0-2 years old'],
 };
 
-const cutoff = Date.parse('01 Nov 2023 00:00:00 PST');
+const cutoff = Date.parse('15 Nov 2024 00:00:00 PST');
 const defaultCamperAge = ageLookup.adult;
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 
@@ -19,8 +19,16 @@ const dayCount = ({
   ]
 });
 
+const pricingToExclude = [
+  'linen_rate',
+];
+
+const pricingKeys = Object.keys(pricingValues).filter(
+  k => !pricingToExclude.includes(k)
+);
+
 const getRates = (lodgingIds, early) => ({
-  'if': Object.keys(pricingValues).reduce((acc, key) => {
+  'if': pricingKeys.reduce((acc, key) => {
     const [agek, lodgingk, , fullcampk] = key.split('_');
 
     return [
@@ -34,53 +42,13 @@ const getRates = (lodgingIds, early) => ({
 
           // lodging
           { 'in': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.choices'}] },
-
-          // full camp or partial
-          {
-            [ fullcampk === 'full' ? '===' : '!=' ]: [
-              5, dayCount
-            ]
-          },
         ]
       }, {var: `pricing.${[agek, lodgingk, early, fullcampk].join('_')}`},
     ];
   }, []).concat([0]),
 });
 
-const calculateCampershipRate = ({
-  'if': [
-    'adult_full',
-    'yadult_full',
-    'child_full',
-    'baby_full',
-    'adult_perday',
-    'yadult_perday',
-    'child_perday',
-    'baby_perday',
-  ].reduce((acc, key) => {
-    const [agek, fullcampk] = key.split('_');
-
-    return [
-      ...acc,
-      {
-        'and': [
-          // age
-          { 'or': ageLookup[agek].map(a => (
-            { '===': [a, camperAge] }
-          )) },
-
-          // full camp or partial
-          {
-            [ fullcampk === 'full' ? '===' : '!=' ]: [
-              5, dayCount
-            ]
-          },
-        ]
-      }, {var: `pricing.${[agek, 'econ', 'early', fullcampk].join('_')}`},
-    ];
-  }, []).concat([2]),
-});
-
+// $60 per day or $300, whichever is less
 const calculateCampership = {
   min: [
     {
@@ -89,24 +57,28 @@ const calculateCampership = {
         0,
       ],
     },
-    { '/': [ { '*': [dayCount, calculateCampershipRate] }, 2] },
-    { '/': [ { var: 'tuition' }, 2] },
-    300,
+    { '*': [dayCount, 60] },
   ],
 };
 
-const calculateLinens = {
-  '*': [
-    {
-      'if': [
-        {'===' : [{ var: 'camper.linens' }, 'Yes']},
-        1, 0,
-      ],
-    },
-    25
-  ]
-};
-
+const calculateLinens = (lodgingIds) => ({
+  'if': [
+    // list of lodging that gets $0 rate for linens
+    'lodge',
+  ].reduce(
+    (acc, lodgingk) => {
+      return [
+        ...acc,
+        { 'in': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.choices'}] },
+        0,
+      ];
+    }, []
+  ).concat([
+    {'===' : [{ var: 'camper.linens' }, 'Yes']},
+    { var: 'pricing.linen_rate' },
+    0
+  ]),
+});
 
 const rate = (lodgingIds) => ({
   'if': [
@@ -131,7 +103,7 @@ export default (lodgingIds) => [
   },
   {
     var: 'linens',
-    exp: calculateLinens,
+    exp: calculateLinens(lodgingIds),
   },
   {
     var: 'total',

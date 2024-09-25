@@ -1,13 +1,13 @@
-FROM node:alpine
+FROM node:current-alpine3.19
 
 ENV PATH="/app/node_modules/.bin:${PATH}"
 WORKDIR /app
 RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
 
-COPY package.json /app/
-COPY package-lock.json /app/
-RUN npm cache clear --force --loglevel verbose
-RUN npm ci --loglevel verbose
+# COPY package.json /app/
+# COPY package-lock.json /app/
+# RUN npm cache clear --force --loglevel verbose
+# RUN npm install --loglevel verbose
 
 COPY . .
 RUN ln -s /app/import /usr/local/bin/
