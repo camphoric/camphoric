@@ -80,12 +80,20 @@ def calculate_price(registration, campers):
 
         lodging = None
         choices = []
-        if camper.lodging_requested_id:
+
+        # determine which lodging record to use for price calculation
+        if camper.lodging:
+            lodging = camper.lodging
+        elif camper.lodging_requested:
+            lodging = camper.lodging_requested
+        elif camper.lodging_requested_id:
             lodging = models.Lodging.objects.get(id=camper.lodging_requested_id)
+
+        if lodging:
             choices = list(map(lambda ld: ld.id, lodging.get_parents()[1:]))
 
         # Mimic the data structure at the time of registration
-        data["camper"]['lodging'] = {
+        data["camper"]["lodging"] = {
             "lodging_requested": {
                 "choices": choices,
                 "id": lodging.id if lodging else 0,
