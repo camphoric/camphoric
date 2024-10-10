@@ -61,7 +61,7 @@ class TestJsonLogic(unittest.TestCase):
 class TestCalculatePrice(unittest.TestCase):
 
     def setUp(self):
-        self.organization = models.Organization(name="Test Organization")
+        self.organization = models.Organization.objects.create(name="Test Organization")
         self.registration_pricing_logic = [
             {
                 "label": "Cabins",
@@ -339,3 +339,101 @@ class TestCalculatePrice(unittest.TestCase):
             'campers': [],
             'total': 100,
         })
+
+    def test_camper_lodging(self):
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name="Test Registration Event",
+            pricing={
+                "cabin": 200,
+                "tent": 100,
+                "rv": 50,
+                "offsite": 5,
+            },
+            registration_pricing_logic=[],
+            camper_pricing_logic=[],
+        )
+
+        root = event.lodging_set.create(
+            name='Test Lodging',
+            children_title='Please select a lodging type',
+            visible=True,
+            notes=''
+        )
+
+        lodging_cabin = event.lodging_set.create(name='cabin', parent=root)
+        lodging_tent = event.lodging_set.create(name='tent', parent=root)
+        lodging_rv = event.lodging_set.create(name='rv', parent=root)
+        lodging_offsite = event.lodging_set.create(name='offsite', parent=root)
+
+        lodge_req_var = {"var": "camper.lodging.lodging_requested.choices"}
+        event.camper_pricing_logic = [
+            {
+                "label": "Housing",
+                "var": "housing",
+                "exp": {
+                    "if": [
+                        {"in": [lodging_cabin.id, lodge_req_var]},
+                        {"var": "pricing.cabin"},
+
+                        {"in": [lodging_tent.id, lodge_req_var]},
+                        {"var": "pricing.tent"},
+
+                        {"in": [lodging_rv.id, lodge_req_var]},
+                        {"var": "pricing.rv"},
+
+                        {"in": [lodging_offsite.id, lodge_req_var]},
+                        {"var": "pricing.offsite"},
+
+                        0
+                    ]
+                },
+            },
+        ]
+        event.save()
+
+        registration = models.Registration.objects.create(
+            event=event,
+            attributes={},
+        )
+
+        # test with no housing
+        camper = registration.campers.create()
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(
+            price_components["campers"][0]["housing"],
+            0,
+        )
+
+        # test with requested id
+        camper.lodging_requested_id = lodging_cabin.id
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(
+            price_components["campers"][0]["housing"],
+            event.pricing["cabin"]
+        )
+
+        # test with requested overriding requested_id
+        camper.lodging_requested = lodging_tent
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(
+            price_components["campers"][0]["housing"],
+            event.pricing["tent"]
+        )
+
+        # test with lodging overriding requested
+        camper.lodging = lodging_rv
+        price_components = pricing.calculate_price(registration, [camper])
+
+        self.assertEqual(
+            price_components["campers"][0]["housing"],
+            event.pricing["rv"]
+        )
+
+        # test with lodging overriding lodging
+        camper.lodging = lodging_offsite
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(
+            price_components["campers"][0]["housing"],
+            event.pricing["offsite"]
+        )
