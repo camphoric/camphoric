@@ -55,6 +55,18 @@ export default {
       'minItems': 1,
       'uniqueItems': true
     },
+    'driving': {
+      'title': 'Do you expect you will be driving, or arriving as a passenger in someone\'s car?',
+      'description': 'Answering this will help us with parking coordination.',
+      'type': 'string',
+      'enum': [
+        'Driver',
+        'Passenger',
+        'Not sure yet',
+      ],
+      'default': 'Driver',
+    },
+
     'meal_type': {
       'title': 'Meals',
       'description': 'Camp includes 3 delicious meals a day, and camp staff can make accommodations for most dietary needs.',

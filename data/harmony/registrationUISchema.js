@@ -25,6 +25,7 @@ export default {
         'email',
         'phone',
         'attendance',
+        'driving',
         'lodging',
         'linens',
         'meal_type',
