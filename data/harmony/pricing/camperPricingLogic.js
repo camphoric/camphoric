@@ -65,6 +65,7 @@ const calculateLinens = (lodgingIds) => ({
   'if': [
     // list of lodging that gets $0 rate for linens
     'lodge',
+    'apt',
   ].reduce(
     (acc, lodgingk) => {
       return [
