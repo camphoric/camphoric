@@ -39,7 +39,8 @@ San Bruno CA 94066
 
 Checks must be received by November 15 to receive the Early Bird rate.
 
-Each camper 2 years and older will need to take a rapid COVID test no more than 8 hours BEFORE they arrive at Camp and show proof of a negative result. There is no parking area for you to test when you arrive at Camp. Please test before you arrive. If you test positive for COVID before camp, a full refund less a $25 per-camper administration fee will be offered. Camp Harmony’s Covid & Cancellation policy is here. Free tests may be ordered through your health insurance and from https://www.covid.gov/tests. If you haven't had one already, consider getting a flu shot and Covid vaccine/booster to help insure a healthy Camp.
+Each camper 2 years and older will need to take a rapid COVID test no more than 8 hours BEFORE they arrive at Camp and show proof of a negative result. Take a photo of your test with your cell phone. If you do not have a cell phone, write the date and time you took the test on the test itself, seal it in a ziploc bag and bring it to Camp. (Please test before you arrive!)
+NEW THIS YEAR: Campers staying longer than 2 nights will take a COVID test 48 hours after arriving at camp. All campers should plan to bring rapid COVID tests with them.
 
 If you would like to sign up to lead a workshop, you may do so on the [Workshop Signup Thread](https://docs.google.com/forms/d/e/1FAIpQLSfe9LwY1nBqNPan8QE6lcndFJsTJpnTL3fbwK1BKFNsyumEWA/viewform?vc=0&c=0&w=1&flr=0)
 
