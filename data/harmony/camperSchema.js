@@ -112,11 +112,10 @@ and towel) for an additional $25. Would you like to rent linens?
     'campership_request': {
       'title': 'Campership request',
       'description': `
-Due to generous donations to the Campership fund over the past 3 years, we can
-offer a campership discount of half the early-bird Economy rate (maximum $300)
-for those who otherwise would not be able to attend camp, while funds
-last. If you enter a number above the maximum, only the maximum will be
-applied.`,
+Due to generous donations to the Campership fund and sponsorship from SFFMC, we
+can offer a campership discount of $60 per day (maximum $300) for those who
+otherwise would not be able to attend camp, while funds last. If you
+enter a number above the maximum, only the maximum will be applied.`,
       'type': 'integer',
       'minimum': 0,
       'default': 0,
