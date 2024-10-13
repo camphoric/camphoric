@@ -1,7 +1,7 @@
 import { yearDisplay } from './dates.js';
 
 export default `
-# You're all set!
+# Your registration is confirmed!
 
 ## See you at Camp Harmony ${yearDisplay}!
 
