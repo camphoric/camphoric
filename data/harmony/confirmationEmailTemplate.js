@@ -37,7 +37,7 @@ SFFMC, c/o Ellen Eagan
 149 Santa Maria Avenue
 San Bruno CA 94066
 
-Checks must be received by November 1 to receive the Early Bird rate.
+Checks must be received by November 15 to receive the Early Bird rate.
 
 Each camper 2 years and older will need to take a rapid COVID test no more than 8 hours BEFORE they arrive at Camp and show proof of a negative result. There is no parking area for you to test when you arrive at Camp. Please test before you arrive. If you test positive for COVID before camp, a full refund less a $25 per-camper administration fee will be offered. Camp Harmony’s Covid & Cancellation policy is here. Free tests may be ordered through your health insurance and from https://www.covid.gov/tests. If you haven't had one already, consider getting a flu shot and Covid vaccine/booster to help insure a healthy Camp.
 

@@ -12,7 +12,7 @@ SFFMC, c/o Ellen Eagan
 149 Santa Maria Avenue
 San Bruno CA 94066
 
-Checks must be received by November 1 to receive the Early Bird rate.
+Checks must be received by November 15 to receive the Early Bird rate.
 
 Questions? Email us at campnewharmony@gmail.com (preferred) or call 415-987-0502. Be patient, we are volunteers.
 `;
