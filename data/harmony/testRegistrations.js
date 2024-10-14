@@ -63,7 +63,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     email,
     phone,
     meal_exceptions,
-
+    driving: 'Passenger',
     lodging: {
       'lodging_requested': {
         'choices': [ lodgingMap[lodging].id ],
@@ -98,6 +98,7 @@ function makeRegistration(reg, lodgingMap) {
       'payment_type': 'Check',
       'membership_check': 'Yes, I am a current member',
       'comments': '',
+			'read_etiquette': true,
     },
     'pricingResults': {
       'campers': reg.campers.map(() => ({
