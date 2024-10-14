@@ -1,3 +1,10 @@
+const lodgingDescription = `
+[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1Ib164P-xt45RVV6UKnngH32_hiXLkYOgDgb9xhEK1u4/edit?gid=417741577#gid=417741577) for lodging (all prices include meals)
+
+For Lodge: Linens included. Preference given to campers staying for full camp.
+`;
+
+
 export default {
   'ui:order': [
     'registrant_email',
@@ -26,6 +33,8 @@ export default {
         'phone',
         'attendance',
         'driving',
+        'license_plate',
+        'mobile_phone',
         'lodging',
         'linens',
         'meal_type',
@@ -36,17 +45,26 @@ export default {
       'phone': {
         'ui:widget': 'PhoneInput'
       },
+      'mobile_phone': {
+        'ui:widget': 'PhoneInput'
+      },
       'attendance': {
         'ui:widget': 'checkboxes'
       },
       'meal_exceptions': {
         'ui:widget': 'checkboxes'
       },
+			'driving': {
+				'ui:placeholder': 'Choose an option',
+			},
       'meal_exceptions_other': {
         'ui:widget': 'textarea',
         'ui:options': {
           'rows': 5
         }
+      },
+      'lodging': {
+        'ui:description': lodgingDescription,
       },
       'campership_request': {
         'ui:options': { 'prefix': '$' },

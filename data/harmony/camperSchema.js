@@ -1,15 +1,43 @@
 export const days = [
-  'Wed Dec 27',
-  'Thurs Dec 28',
-  'Fri Dec 29',
-  'Sat Dec 30',
-  'Sun Dec 31',
+  'Friday Dec. 27',
+  'Saturday Dec. 28',
+  'Sunday Dec. 29',
+  'Monday Dec. 30',
+  'Tuesday Dec. 31',
 ];
 
 // export default (args) => ({
 export default {
   'type': 'object',
-  'required': ['first_name', 'last_name', 'email', 'phone', 'attendance'],
+  'required': ['first_name', 'last_name', 'email', 'phone', 'driving', 'attendance'],
+  'dependencies': {
+    'driving': {
+      'allOf': [
+        {
+          'if': {
+            'properties': { 'driving': { 'const': 'Driver' } }
+          },
+          'then': {
+            'properties': {
+              'license_plate': {
+                'type': 'string',
+                'maxLength': 10,
+                'title': 'License Plate',
+                'description': 'Provide the license plate for the car you will be driving to camp',
+              },
+              'mobile_phone': {
+                'type': 'string',
+                'maxLength': 20,
+                'pattern': '^\\+[0-9]+$',
+                'title': 'Mobile Phone Number',
+                'description': 'If we need to reach you during camp',
+              },
+            },
+          },
+        },
+      ],
+    },
+  },
   'properties': {
     'first_name': {
       'type': 'string',
@@ -64,7 +92,6 @@ export default {
         'Passenger',
         'Not sure yet',
       ],
-      'default': 'Driver',
     },
 
     'meal_type': {
