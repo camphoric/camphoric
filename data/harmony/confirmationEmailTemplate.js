@@ -42,7 +42,8 @@ Checks must be received by November 15 to receive the Early Bird rate.
 Each camper 2 years and older will need to take a rapid COVID test no more than 8 hours BEFORE they arrive at Camp and show proof of a negative result. Take a photo of your test with your cell phone. If you do not have a cell phone, write the date and time you took the test on the test itself, seal it in a ziploc bag and bring it to Camp. (Please test before you arrive!)
 NEW THIS YEAR: Campers staying longer than 2 nights will take a COVID test 48 hours after arriving at camp. All campers should plan to bring rapid COVID tests with them.
 
-If you would like to sign up to lead a workshop, you may do so on the [Workshop Signup Thread](https://docs.google.com/forms/d/e/1FAIpQLSfe9LwY1nBqNPan8QE6lcndFJsTJpnTL3fbwK1BKFNsyumEWA/viewform?vc=0&c=0&w=1&flr=0)
+If you would like to sign up to lead a workshop, you may do so on the
+[Workshop Signup Thread](https://docs.google.com/forms/d/1ISs1zhwBzUyp4Q8inU6Z8x12dFmmLmWsjExMZPt3EKc)
 
 You will be receiving an email with your housing assignment and additional details by December 4. Thank you for registering for Camp Harmony!
 
