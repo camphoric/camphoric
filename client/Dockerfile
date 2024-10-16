@@ -1,9 +1,14 @@
-FROM node:22-alpine
+FROM node:22-bookworm
 
 # Now install the CRA
 ENV PATH="/app/node_modules/.bin:${PATH}"
 WORKDIR /app
-RUN apk add --no-cache --virtual build-deps python3 py3-pip make g++
+RUN apt -y update && apt -y upgrade
+RUN apt-get install -y --no-install-recommends python3
+RUN apt-get install -y --no-install-recommends python3-pip
+RUN apt-get install -y --no-install-recommends make
+RUN apt-get install -y --no-install-recommends gcc
+RUN apt-get install -y --no-install-recommends g++
 
 COPY . .
 RUN ls -la
