@@ -34,6 +34,7 @@ export const registerFormSlice = createSlice({
       state.totals = action.payload;
     },
     setPaymentInfo: (state, action: PayloadAction<InitialPaymentBody>) => {
+      // @ts-ignore
       state.paymentInfo = action.payload;
     },
     setPaymentStep: (state, action: PayloadAction<ApiRegisterPaymentStep>) => {

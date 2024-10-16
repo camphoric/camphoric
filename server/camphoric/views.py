@@ -275,7 +275,7 @@ class RegisterView(APIView):
 
         if event.paypal_enabled and event.paypal_client_id:
             response_data['payPalOptions'] = {
-                'client-id': event.paypal_client_id,
+                'clientId': event.paypal_client_id,
             }
 
         invitation = None

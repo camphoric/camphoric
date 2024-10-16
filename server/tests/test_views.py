@@ -390,7 +390,7 @@ class RegisterGetTests(APITestCase):
             }
         )
         self.assertEqual(response.data['payPalOptions'], {
-            'client-id': 'test-client-id',
+            'clientId': 'test-client-id',
         })
 
     def test_invitation_code(self):

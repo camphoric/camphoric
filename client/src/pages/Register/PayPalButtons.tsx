@@ -6,6 +6,7 @@ import {
   destroySDKScript,
   PayPalButtons,
   SCRIPT_LOADING_STATE,
+  DISPATCH_ACTION,
 } from '@paypal/react-paypal-js';
 import debug from 'utils/debug';
 
@@ -43,7 +44,7 @@ function PayPalButtonsComponent(props: Props) {
 
   React.useEffect(() => {
     payPalDispatch({
-      type: 'setLoadingStatus',
+      type: 'setLoadingStatus' as DISPATCH_ACTION.LOADING_STATUS,
       value: 'pending' as SCRIPT_LOADING_STATE,
     });
 

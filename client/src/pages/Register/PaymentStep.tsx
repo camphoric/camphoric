@@ -1,10 +1,11 @@
 import React from 'react';
 import type {
-  PayPalButtonsComponentOptions,
-  SHIPPING_PREFERENCE,
   FUNDING_SOURCE,
   PayPalScriptOptions,
   OrderResponseBody,
+  PayPalButtonCreateOrder,
+  PayPalButtonOnApprove,
+  CreateOrderRequestBody,
 } from '@paypal/paypal-js';
 
 import {
@@ -31,8 +32,8 @@ import checkImage from './check-image.png';
 import PayPalButtons from './PayPalButtons';
 import PageWrapper from './PageWrapper';
 
-export type PayPalCreateOrder = NonNullable<PayPalButtonsComponentOptions['createOrder']>;
-export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonsComponentOptions['onApprove'];
+export type PayPalCreateOrder = PayPalButtonCreateOrder;
+export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonOnApprove;
 
 function PaymentStep() {
   const registrationApi = api.useGetRegistrationQuery();
@@ -71,14 +72,15 @@ function PaymentStep() {
     regFormData,
   });
 
-  const payPalCreateOrder: PayPalCreateOrder = async (data, actions) => {
+  const payPalCreateOrder: PayPalButtonCreateOrder = async (data, actions) => {
     debug('payPalCreateOrder', paymentInfo);
     setLoading(true);
     const description = `${config.dataSchema.title} payment for ${regFormData.registration.registrant_email}`;
-    const order = {
+    const order: CreateOrderRequestBody = {
+      intent: 'CAPTURE',
       purchase_units: [
         {
-          amount: { value: total.toString() },
+          amount: { currency_code: 'USD', value: total.toString() },
           description,
           invoice_id: paymentStep.registrationUUID,
           reference_id: paymentStep.registrationUUID,
@@ -86,7 +88,7 @@ function PaymentStep() {
         },
       ],
       application_context: {
-        shipping_preference: 'NO_SHIPPING' as SHIPPING_PREFERENCE,
+        shipping_preference: 'NO_SHIPPING',
       },
     };
 
@@ -144,7 +146,7 @@ function PaymentStep() {
 
     try {
       const payPalResponse = await actions.order.capture();
-      const paymentDataString = payPalResponse.purchase_units[0]?.custom_id;
+      const paymentDataString = payPalResponse.purchase_units && payPalResponse.purchase_units[0]?.custom_id;
 
       debug('PayPalOnApprove capture', payPalResponse, paymentDataString);
 
@@ -174,11 +176,16 @@ function PaymentStep() {
 
   }
 
-  const payPalOptions: (PayPalScriptOptions | undefined) = config.payPalOptions;
+  let payPalOptions: PayPalScriptOptions | undefined = config.payPalOptions;
 
-  if (import.meta.env.DEV && !!payPalOptions && !payPalOptions['client-id']) {
-    payPalOptions['client-id'] = 'sb';
+  if (import.meta.env.DEV && !!payPalOptions && !payPalOptions.clientId) {
+    payPalOptions = {
+      ...payPalOptions,
+      clientId: 'sb',
+    };
   }
+
+  console.log({ payPalOptions });
 
   return (
     <PageWrapper>
