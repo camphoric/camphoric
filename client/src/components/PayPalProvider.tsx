@@ -12,6 +12,7 @@ import {
   PayPalScriptProvider,
   usePayPalScriptReducer,
   ScriptContextDerivedState,
+  DISPATCH_ACTION,
 } from '@paypal/react-paypal-js';
 
 import type { PayPalScriptOptions } from '@paypal/paypal-js';
@@ -36,7 +37,7 @@ const PayPalOptionsResetter: FC<Props> = props => {
   useEffect(() => {
     if (props.options) {
       dispatch({
-        type: "resetOptions",
+        type: 'resetOptions' as DISPATCH_ACTION.RESET_OPTIONS,
         value: props.options,
       });
     }
@@ -58,7 +59,7 @@ const PayPalProvider: FC<Props> = props => {
   return (
     <PayPalScriptProvider
       deferLoading={!props.options}
-      options={props.options || { "client-id": "NONE" }}
+      options={props.options || { clientId: 'NONE' }}
     >
       <PayPalOptionsResetter options={props.options} onStatsChange={props.onStatsChange}>
         {props.children}

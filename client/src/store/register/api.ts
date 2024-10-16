@@ -16,7 +16,7 @@ export type InitialPaymentBody = {
     total: number,
     [a: string]: any,
   },
-  payPalResponse?: OrderResponseBody,
+  payPalResponse?: OrderResponseBody | undefined,
 }
 
 const apiObjectNames = [
