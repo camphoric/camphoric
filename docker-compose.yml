@@ -5,7 +5,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres:14
+    image: postgres:15-alpine
     env_file:
       - ./env/local/shared.env
       - ./env/local/postgres.env
@@ -29,6 +29,7 @@ services:
       - ./server:/app
     command: >
       bash -c "./manage.py migrate &&
+               ./manage.py collectstatic --no-input &&
                ./manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
