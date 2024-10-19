@@ -16,7 +16,7 @@ Registration Info
 Meals: {{meal_type}}{{#meal_exceptions}}, {{.}}{{/meal_exceptions}}    
 Registered for {{#attendance}}, {{.}}{{/attendance}}    
 (You must arrive after 2pm on your first day)    
-Housing: {{lodging.lodging_requested.name}}    
+Housing: {{lodging_full}}    
 Linens rental: {{linens}}    
 Campership: \${{pricing_result.campership}}    
 
