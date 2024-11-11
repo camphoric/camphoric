@@ -1,0 +1,4 @@
+Last Name,First Name,Age,Lodging,Email
+{% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
+"{{camper.attributes.last_name}}","{{camper.attributes.first_name}}",{{camper.attributes.age}},{{lodgingLookup[camper.lodging | string].name if camper.lodging else 'Not Set'}},{{camper.attributes.email}}
+{% endfor %}

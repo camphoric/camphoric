@@ -1,9 +1,9 @@
 {%- set dates = [
-['2023-12-27', 'Wednesday'],
-['2023-12-28', 'Thursday' ],
-['2023-12-29', 'Friday' ],
-['2023-12-30', 'Saturday' ],
-['2023-12-31', 'Sunday' ],
+['2024-12-27', 'Fri'],
+['2024-12-28', 'Sat' ],
+['2024-12-29', 'Sun' ],
+['2024-12-30', 'Mon' ],
+['2024-12-31', 'Tue' ],
 ]
 -%}
 {%- set meal_types = [
@@ -120,7 +120,7 @@ Daily Breakdowns
   'EDGW': 0,
 }
 -%}
-    ### {{ dt.1 }} lunch+dinner and next day breakfast
+    ### {{ dt.1 }} dinner and next day breakfast & lunch
     {%- for c in campers if dt[0] in (c.stay or []) -%}
         {%- set exc = c.attributes.meal_exceptions -%}
         {%- if c.attributes.meal_type == 'Omnivore' -%}
@@ -183,13 +183,49 @@ Daily Breakdowns
 
 | &nbsp; | Omnivore | Vegetarian | Vegan | Total |
 | ------ | -------- | ---------- | ----- | ----- |
-| None                        | {{ totals['O'] }} | {{ totals['V'] }} | {{ totals['E'] }} | {{ totals['O'] + totals['V'] + totals['E'] }} |
-| 🚫Dairy                     | {{ totals['OD'] }} | {{ totals['VD'] }} | {{ totals['ED'] }} | {{ totals['OD'] + totals['VD'] + totals['ED'] }} |
-| 🚫Gluten                    | {{ totals['OG'] }} | {{ totals['VG'] }} | {{ totals['EG'] }} | {{ totals['OG'] + totals['VG'] + totals['EG'] }} |
-| WholeGrain                  | {{ totals['OW'] }} | {{ totals['VW'] }} | {{ totals['EW'] }} | {{ totals['OW'] + totals['VW'] + totals['EW'] }} |
-| 🚫Dairy+🚫Gluten            | {{ totals['ODG'] }} | {{ totals['VDG'] }} | {{ totals['EDG'] }} | {{ totals['ODG'] + totals['VDG'] + totals['EDG'] }} |
-| 🚫Dairy+WholeGrain          | {{ totals['OGW'] }} | {{ totals['VDW'] }} | {{ totals['EDW'] }} | {{ totals['OGW'] + totals['VDW'] + totals['EDW'] }} |
-| 🚫Gluten+WholeGrain         | {{ totals['OGW'] }} | {{ totals['VGW'] }} | {{ totals['EGW'] }} | {{ totals['OGW'] + totals['VGW'] + totals['EGW'] }} |
+| None                        | {{ totals['O'] }}    | {{ totals['V'] }}    | {{ totals['E'] }}    | {{ totals['O'] + totals['V'] + totals['E'] }}          |
+| 🚫Dairy                     | {{ totals['OD'] }}   | {{ totals['VD'] }}   | {{ totals['ED'] }}   | {{ totals['OD'] + totals['VD'] + totals['ED'] }}       |
+| 🚫Gluten                    | {{ totals['OG'] }}   | {{ totals['VG'] }}   | {{ totals['EG'] }}   | {{ totals['OG'] + totals['VG'] + totals['EG'] }}       |
+| WholeGrain                  | {{ totals['OW'] }}   | {{ totals['VW'] }}   | {{ totals['EW'] }}   | {{ totals['OW'] + totals['VW'] + totals['EW'] }}       |
+| 🚫Dairy+🚫Gluten            | {{ totals['ODG'] }}  | {{ totals['VDG'] }}  | {{ totals['EDG'] }}  | {{ totals['ODG'] + totals['VDG'] + totals['EDG'] }}    |
+| 🚫Dairy+WholeGrain          | {{ totals['OGW'] }}  | {{ totals['VDW'] }}  | {{ totals['EDW'] }}  | {{ totals['OGW'] + totals['VDW'] + totals['EDW'] }}    |
+| 🚫Gluten+WholeGrain         | {{ totals['OGW'] }}  | {{ totals['VGW'] }}  | {{ totals['EGW'] }}  | {{ totals['OGW'] + totals['VGW'] + totals['EGW'] }}    |
 | 🚫Dairy+🚫Gluten+WholeGrain | {{ totals['ODGW'] }} | {{ totals['VDGW'] }} | {{ totals['EDGW'] }} | {{ totals['ODGW'] + totals['VDGW'] + totals['EDGW'] }} |
-
+| Total                       | {{
+totals['O'] +   
+totals['OD'] +  
+totals['OG'] +  
+totals['OW'] +  
+totals['ODG'] + 
+totals['OGW'] + 
+totals['OGW'] + 
+totals['ODGW']
+}} | {{
+totals['V'] +   
+totals['VD'] +  
+totals['VG'] +  
+totals['VW'] +  
+totals['VDG'] + 
+totals['VDW'] + 
+totals['VGW'] + 
+totals['VDGW']
+}} | {{
+totals['E'] +   
+totals['ED'] +  
+totals['EG'] +  
+totals['EW'] +  
+totals['EDG'] + 
+totals['EDW'] + 
+totals['EGW'] + 
+totals['EDGW']
+}} | {{
+totals['O'] + totals['V'] + totals['E'] +
+totals['OD'] + totals['VD'] + totals['ED'] +
+totals['OG'] + totals['VG'] + totals['EG'] +
+totals['OW'] + totals['VW'] + totals['EW'] +
+totals['ODG'] + totals['VDG'] + totals['EDG'] +
+totals['OGW'] + totals['VDW'] + totals['EDW'] +
+totals['OGW'] + totals['VGW'] + totals['EGW'] +
+totals['ODGW'] + totals['VDGW'] + totals['EDGW']
+}} |
 {% endfor -%}
