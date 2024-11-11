@@ -37,11 +37,11 @@ export default {
         registration_pricing_logic: arr('JSON logic for registration charges outside of individual campers'),
         camper_pricing_logic: arr('JSON logic for individual camper'),
         paypal_enabled: bool('whether to enable paypal payments'),
-        paypal_client_id: str('paypal api client id', 200),
-        pre_submit_template: str('Handlebars template, rendered right before registration submit button', 9000),
-        confirmation_page_template: str('Handlebars template rendered after registration completed', 9000),
+        paypal_client_id: str('paypal api client id', { maxLength: 200 }),
+        pre_submit_template: str('Handlebars template, rendered right before registration submit button', { maxLength: undefined }),
+        confirmation_page_template: str('Handlebars template rendered after registration completed', { maxLength: undefined }),
         confirmation_email_subject: str(''),
-        confirmation_email_template: str('', 9000),
+        confirmation_email_template: str('', { maxLength: undefined }),
         confirmation_email_from: eml(''),
       },
     },
@@ -78,7 +78,7 @@ export default {
         ],
         properties: {
           title: str('report title'),
-          template: str('Handlebars template for report', 9000),
+          template: str('Template for report', { maxLength: undefined }),
         },
       },
     },
@@ -96,7 +96,7 @@ export default {
           name: str('reg type name'),
           label: str('reg type label'),
           invitation_email_subject: str('subject of reg type invitation email'),
-          invitation_email_template: str('Email template of reg type invitation email', 9000),
+          invitation_email_template: str('Email template of reg type invitation email', { maxLength: undefined }),
         }
       }
     },
@@ -107,8 +107,8 @@ function int(description, minimum = 0, otherProps = {}) {
   return generateType('integer', description, { minimum, ...otherProps });
 }
 
-function str(description, maxLength = 50, otherProps = {}) {
-  return generateType('string', description, { maxLength, ...otherProps });
+function str(description, otherProps = {}) {
+  return generateType('string', description, { maxLength: 50, ...otherProps });
 }
 
 function bool(description) {
