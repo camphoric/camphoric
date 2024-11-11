@@ -1,9 +1,9 @@
 {%- set dates = [
-['2023-12-27', 'Wednesday'],
-['2023-12-28', 'Thursday' ],
-['2023-12-29', 'Friday' ],
-['2023-12-30', 'Saturday' ],
-['2023-12-31', 'Sunday' ],
+['2024-12-27', 'Fri'],
+['2024-12-28', 'Sat' ],
+['2024-12-29', 'Sun' ],
+['2024-12-30', 'Mon' ],
+['2024-12-31', 'Tue' ],
 ]
 -%}
 {%- set totals = {
@@ -33,7 +33,7 @@ dates.4.0~'v4': 0,
 dates.4.0~'v7': 0,
 }
 -%}
-{%- for camper in campers -%}
+{%- for camper in campers if camper.lodging -%}
     {%- set val = lodgingLookup[camper.lodging | string] -%}
     {%- do camper.update({'ldg': val.pathParts if val else [] }) -%}
     {%- for dt in dates -%}
@@ -71,12 +71,16 @@ totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + total
 }} |
 
 ## Campers Who Requested
-{% set tot = 0 -%}
+
+{% set tot = 0 %}
+| Last Name | First Name | Lodging | {% for dt in dates %}{{ dt[1] }} | {% endfor %}
+| --------- | ---------- | ------- | :---: | :---: | :---: | :---: | :---: |
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
-    {%- if camper.attributes.linens == 'No' -%}{%- continue -%}{%- endif -%}
-    {%- set val = lodgingLookup[camper.lodging | string] -%}
-    {%- set tot = tot + 1 %}
-- {{ camper.attributes.first_name }} {{ camper.attributes.last_name }}: {{ val.name }}, stay {{ (camper.stay or []) | sort | join(',') }}
-{%- endfor %}
+{%- if camper.attributes.linens == 'No' or not camper.lodging or not camper.stay -%}{%- continue -%}{%- endif -%}
+{%- set val = lodgingLookup[camper.lodging | string]-%}
+{%- set tot = tot + 1 -%}
+| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{
+val.name }} | {% for dt in dates %}{{ ' X |' if dt[0] in camper.stay else ' &nbsp; |' }}{% endfor %}
+{% endfor %}
 
 Total: {{ campers | map(attribute='attributes.linens') | select('eq', 'Yes') | list | count  }}

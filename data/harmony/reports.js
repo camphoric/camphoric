@@ -12,14 +12,49 @@ function readFile(filename) {
 
 export default [
   {
-    title: 'Lodging Report (Simple)',
-    output: 'hbs',
-    template: readFile('Lodging-Report--Simple-.hbs'),
+    title: 'Food Dietary Notes from Campers',
+    output: 'csv',
+    template: readFile('Food-Dietary-Notes-from-Campers.j2'),
   },
   {
-    title: 'Chore Report',
-    output: 'hbs',
-    template: readFile('Chore-Report.hbs'),
+    title: 'Linens',
+    output: 'md',
+    template: readFile('Linens.j2'),
+  },
+  {
+    title: 'Newman Housing Report',
+    output: 'csv',
+    template: readFile('Newman-Housing-Report.j2'),
+  },
+  {
+    title: 'Total camper nights',
+    output: 'md',
+    template: readFile('Total-camper-nights.j2'),
+  },
+  {
+    title: 'Registration Check-in',
+    output: 'md',
+    template: readFile('Registration-Check-in.j2'),
+  },
+  {
+    title: 'Arrivals and Departures',
+    output: 'md',
+    template: readFile('Arrivals-and-Departures.j2'),
+  },
+  {
+    title: 'Campers who owe us money',
+    output: 'csv',
+    template: readFile('Campers-who-owe-us-money.j2'),
+  },
+  {
+    title: 'Campership donations',
+    output: 'csv',
+    template: readFile('Campership-donations.j2'),
+  },
+  {
+    title: 'Chore and Dance Lead',
+    output: 'csv',
+    template: readFile('Chore-and-Dance-Lead.j2'),
   },
   {
     title: 'Payments',
@@ -27,38 +62,18 @@ export default [
     template: readFile('Payments.hbs'),
   },
   {
-    title: 'Camper Email List For Mailing',
-    output: 'hbs',
-    template: readFile('Camper-Email-List-For-Mailing.hbs'),
+    title: 'Camperships Awarded',
+    output: 'md',
+    template: readFile('Camperships-Awarded.j2'),
   },
   {
-    title: 'Vaccination Report',
-    output: 'hbs',
-    template: readFile('Vaccination-Report.hbs'),
+    title: 'All Campers',
+    output: 'csv',
+    template: readFile('All-Campers.j2'),
   },
   {
-    title: 'All Campers by Reg Date',
-    output: 'hbs',
-    template: readFile('All-Campers-by-Reg-Date.hbs'),
-  },
-  {
-    title: 'All Campers Report',
-    output: 'hbs',
-    template: readFile('All-Campers-Report.hbs'),
-  },
-  {
-    title: 'Pricing Breakdown',
-    output: 'hbs',
-    template: readFile('Pricing-Breakdown.hbs'),
-  },
-  {
-    title: 'Liability Waiver List',
-    output: 'hbs',
-    template: readFile('Liability-Waiver-List.hbs'),
-  },
-  {
-    title: 'Donation Report',
-    output: 'hbs',
-    template: readFile('Donation-Report.hbs'),
+    title: 'Food Prefs',
+    output: 'md',
+    template: readFile('Food-Prefs.j2'),
   },
 ];

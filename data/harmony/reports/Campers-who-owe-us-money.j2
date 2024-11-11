@@ -1,0 +1,7 @@
+Last, First, Email, Balance
+{% for reg in registrations | sort(attribute="total_balance") | reverse -%}
+{%- if reg.total_balance == 0 -%}
+  {%- continue -%}
+{%- endif -%}
+{{reg.campers[0].attributes.last_name}},{{reg.campers[0].attributes.first_name}},{{reg.registrant_email}},${{reg.total_balance}}
+{% endfor -%}

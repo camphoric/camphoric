@@ -1,0 +1,13 @@
+{%- set dates = [
+['2024-12-27', 'Fri'],
+['2024-12-28', 'Sat' ],
+['2024-12-29', 'Sun' ],
+['2024-12-30', 'Mon' ],
+['2024-12-31', 'Tue' ],
+]
+-%}
+last name,first name,email,{% for dt in dates %}{{ dt[1] }},{% endfor %}
+{% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
+    "{{camper.attributes.last_name}}","{{camper.attributes.first_name}}","{{camper.attributes.email}}",
+    {%- for dt in dates -%}{{ 'X,' if dt[0] in (camper.stay or []) else ',' }}{%- endfor %}
+{% endfor -%}

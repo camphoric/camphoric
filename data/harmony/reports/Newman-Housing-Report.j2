@@ -1,0 +1,19 @@
+{%- set dates = [
+['2024-12-27', 'Fri'],
+['2024-12-28', 'Sat' ],
+['2024-12-29', 'Sun' ],
+['2024-12-30', 'Mon' ],
+['2024-12-31', 'Tue' ],
+]
+-%}
+{%- set total = 0 -%}
+{%- set top_node = (lodgingLookup.values() | rejectattr("parent") | list)[0] -%}
+building,room,last name, first name,{% for dt in dates %}{{ dt[1] }},{% endfor %}
+{% for cat in lodgingLookup.values() | sort(attribute="name") if cat.parent == top_node.id -%}
+  {%- for spot in lodgingLookup.values() | sort(attribute="name")  if (spot.children | length) == 0 and cat.name in spot.pathParts -%}
+      {%- for camper in campers | sort(attribute="attributes.last_name,attributes.first_name")  if camper.lodging == spot.id -%}
+          "{{ cat.name }}","{{ spot.name }}","{{camper.attributes.last_name}}","{{camper.attributes.first_name}}",
+          {%- for dt in dates -%}{{ 'X,' if dt[0] in camper.stay else ',' }}{%- endfor %}
+{% endfor -%}
+  {%- endfor -%}
+{%- endfor %}
