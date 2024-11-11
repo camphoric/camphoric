@@ -40,14 +40,12 @@ import lodash from 'lodash';
 import { Organizations } from './organizations/index.js';
 import { formatDate } from './utils.js';
 import eventImportObjectSchema from './eventImportObjectSchema.js';
-import { getAuthToken } from './getAuthInfo.js';
+import Fetcher from './CamphoricFetcher.js';
 
-const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const tryFetchAgainAfterMs = 2000;
-const tryFetchAgainOnTheseErrors = ['ECONNRESET', 'UND_ERR_SOCKET'];
-
-export default class CamphoricEventCreator {
+export default class CamphoricEventCreator extends Fetcher {
   constructor({ data, organizations, sampleRegGenerator, overrides = [], url }) {
+    super(url);
+
     this.data = data;
 
     const ajv = new Ajv({
@@ -84,13 +82,6 @@ export default class CamphoricEventCreator {
 
     this.overrides = overrides;
 
-    this.urlBase = url || process.env.CAMPHORIC_URL || 'http://django:8000';
-
-    // remove trailing slash from urlBase
-    if (this.urlBase.charAt(this.urlBase.length - 1) === '/') {
-      this.urlBase = this.urlBase.substring(0, this.urlBase.length - 1);
-    }
-
     this.results = {};
   }
 
@@ -102,79 +93,6 @@ export default class CamphoricEventCreator {
     return path;
   }
 
-  url(path) {
-    return [this.urlBase, path]
-      .map(p => p.charAt(0) === '/' ? p.substring(1) : p)
-      .map(p => p.charAt(p.length - 1) === '/' ? p.substring(0, p.length - 1) : p)
-      .concat([''])
-      .join('/');
-  }
-
-  fetch = async (method, path, data) => {
-    if (!['POST', 'GET', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-      throw new Error(`invalid fetch method '${method}'`);
-    }
-
-    const token = await this.getAuthToken();
-    // normalize parts with slashes
-    let url;
-    try {
-      url = this.url(path);
-    } catch (e) {
-      throw this.error(e, {type: 'pathError', method, path, data});
-    }
-
-    const runFetch = async (attempt = 1) => {
-      let text;
-      let response;
-      try {
-        response = await fetch(url, {
-          method,
-          headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-            credentials: 'same-origin',
-          },
-          body: (data ? JSON.stringify(data) : undefined),
-        });
-
-        text = await response.text();
-
-        return { response, text };
-      } catch(e) {
-        if (attempt <= 5 && tryFetchAgainOnTheseErrors.includes(e.cause?.code)) {
-          this.logVerbose(`got ECONNRESET on ${method} ${url}, trying again in ${tryFetchAgainAfterMs}ms`);
-          await wait(tryFetchAgainAfterMs);
-
-          return runFetch(attempt + 1);
-        }
-
-        throw this.error(e, {type: 'fetchError', method, url, text, data});
-      }
-    };
-
-    const { response, text } = await runFetch();
-    let json;
-
-    try {
-      json = JSON.parse(text);
-    } catch(e) {
-      throw this.error(e, {type: 'jsonParse', method, url, text, data});
-    }
-
-    if (response.status >= 400) {
-      throw this.error(
-        `server responded ${response.status}`,
-        {method, url, text, data},
-      );
-    }
-
-    json.response = response;
-
-
-    return json;
-  };
-
   async deleteAll(path) {
     const { event } = this.results;
     const existing = await this.fetch('GET', path)
@@ -183,42 +101,6 @@ export default class CamphoricEventCreator {
     await Promise.all(existing.map(
       l => this.fetch('DELETE', `${this.pathFormat(path)}${l.id}/`)
     ));
-  }
-
-  log = (...data) => {
-    data.forEach(
-      (item) => console.log(`[${this.data.event.name}]`, item)
-    );
-  };
-
-  // log if verbose
-  logVerbose = (...data) => {
-    if (!process?.env?.VERBOSE) return;
-
-    this.log(...data);
-  };
-
-  error = (e, ...data) => {
-    if (!(e instanceof Error)) {
-      e = new Error(e);
-    }
-
-    e.eventName = this.data.event.name;
-    e.data = [
-      ...(e.data || []),
-      ...data,
-    ];
-    e.name = 'CamphoricEventCreatorError';
-
-    return e;
-  };
-
-  async getAuthToken() {
-    if (!this.token) {
-      this.token = await getAuthToken();
-    }
-
-    return this.token;
   }
 
   async loadEvent() {
@@ -319,7 +201,7 @@ export default class CamphoricEventCreator {
           createLodging(...all[i])
         );
 
-        if (promises.length % 10 === 0) await wait(5000);
+        if (promises.length % 10 === 0) await this.wait(5000);
       }
 
       return Promise.all(promises);
@@ -479,7 +361,7 @@ export default class CamphoricEventCreator {
     for (let i = 0; i < registrations.length; ++i) {
       step1.push(postReg(registrations[i]));
 
-      if (i % 10 === 0) await wait(1500);
+      if (i % 10 === 0) await this.wait(1500);
     }
     const responses = await Promise.all(step1);
 
@@ -488,7 +370,7 @@ export default class CamphoricEventCreator {
     for (let i = 0; i < responses.length; ++i) {
       step2.push(postPayment(responses[i]));
 
-      if (i % 10 === 0) await wait(1500);
+      if (i % 10 === 0) await this.wait(1500);
     }
 
     return Promise.all(step2);
@@ -519,7 +401,7 @@ export default class CamphoricEventCreator {
     for (let i = 0; i < this.overrides.length; i++) {
       const fn = this.overrides[i].bind(this);
 
-      await imp(`override[${i}]`, fn(this.fetch, this.results, this.log));
+      await imp(`override[${i}]`, fn(this.fetch.bind(this), this.results, this.log.bind(this)));
     }
 
     if (this.sampleRegGenerator) {

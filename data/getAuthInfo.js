@@ -2,7 +2,7 @@ import inquirer from 'inquirer';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 
-export async function getAuthToken() {
+export async function getAuthToken(url = urlBase) {
   let username = process.env.DJANGO_SUPERUSER_USERNAME;
   let password = process.env.DJANGO_SUPERUSER_PASSWORD;
 
@@ -16,7 +16,7 @@ export async function getAuthToken() {
     password = answers.password;
   }
 
-  const response = await fetch(`${urlBase}/api-token-auth/`, {
+  const response = await fetch(`${url}/api-token-auth/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
