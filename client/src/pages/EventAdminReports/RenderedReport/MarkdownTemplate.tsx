@@ -39,7 +39,7 @@ function MarkdownTemplate({ report }: Props) {
     <>
       <DownloadFileButton
         data={txt}
-        type="text/markdown" 
+        type="text/markdown"
         name={`${report.title}.md`}
       >
         Download Markdown File
