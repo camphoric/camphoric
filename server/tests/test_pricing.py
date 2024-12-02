@@ -1,5 +1,6 @@
 import datetime
 import unittest
+import math
 
 from django.utils import timezone
 from json_logic import jsonLogic
@@ -146,7 +147,67 @@ class TestCalculatePrice(unittest.TestCase):
             "meals_child": 50,
         }
 
-    def test_dates(self):
+    def test_early_reg(self):
+        early_reg = timezone.now() - datetime.timedelta(days=1)
+        event = models.Event(
+                organization=self.organization,
+                name="Test Registration Event",
+                start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+                camper_schema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            },
+                        },
+                    },
+                pricing={
+                    "early": 100,
+                    "late": 200,
+                    },
+                registration_pricing_logic=[],
+                camper_pricing_logic=[
+                    {
+                        "var": "total",
+                        "exp": {"if": [
+                            {"<": [
+                                {"var": "registration.created_at.epoch"},
+                                math.floor(early_reg.timestamp())
+                                ],
+                             },
+                            {"var": "pricing.early"},
+                            {"var": "pricing.late"},
+                            ]},
+                        }
+                          ],
+                )
+
+        registration = models.Registration(
+                event=event,
+                attributes={}
+                )
+        camper = models.Camper(
+                registration=registration,
+                attributes={"name": "John Blaze"},
+                )
+
+        # Since we set early reg to a day ago, this should be late reg pricing
+        # when registration.created_at = None.
+        self.assertEqual(registration.created_at, None)
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(price_components, {'campers': [{'total': 200}], 'total': 200})
+
+        # created one day ago
+        registration.created_at = timezone.now() - datetime.timedelta(days=2)
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(price_components, {'campers': [{'total': 100}], 'total': 100})
+
+        # created one day in the future
+        registration.created_at = timezone.now() + datetime.timedelta(days=2)
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(price_components, {'campers': [{'total': 200}], 'total': 200})
+
+    def test_birthday_dates(self):
         event = models.Event(
             organization=self.organization,
             name="Test Registration Event",
