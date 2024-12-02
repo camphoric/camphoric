@@ -1,6 +1,8 @@
 from collections import defaultdict
 import numbers
+import math
 from datetime import datetime, date, time
+from django.utils import timezone
 from json_logic import jsonLogic
 from camphoric import models
 
@@ -52,11 +54,12 @@ def calculate_price(registration, campers):
         "registration": {
             **(registration.attributes or {}),
             "registration_type": registration_type.name if registration_type else None,
-            "created_at": datetime_to_dict(registration.created_at),
+            # during registration process, created_at may be None
+            "created_at": datetime_to_dict(registration.created_at or timezone.now()),
         },
         "pricing": event.pricing,
         "event": get_event_attributes(event),
-        "date": datetime_to_dict(datetime.now()),
+        "date": datetime_to_dict(timezone.now()),
     }
 
     date_props = get_date_props(event.camper_schema)
@@ -116,12 +119,12 @@ def calculate_price(registration, campers):
 
 
 def datetime_to_dict(d):
-    # add time if only date type
-    if isinstance(d, date):
+    # add time if only date type not datetime
+    if isinstance(d, date) and "timestamp" not in dir(d):
         d = datetime.combine(d, time(0, 0, 0, 0))
 
     return {
-        "epoch": d.timestamp() if d else 0,
+        "epoch": math.floor(d.timestamp() if d else 0),
         "year": d.year if d else 0,
         "month": d.month if d else 0,
         "day": d.day if d else 0,
