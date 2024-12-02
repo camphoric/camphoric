@@ -7,7 +7,9 @@ export const ageLookup = {
   baby: ['0-2 years old'],
 };
 
-const cutoff = Date.parse('15 Nov 2024 00:00:00 PST');
+const cutoff = Math.floor(
+  Date.parse('15 Nov 2024 00:00:00 PST') / 1000
+);
 const defaultCamperAge = ageLookup.adult;
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 
