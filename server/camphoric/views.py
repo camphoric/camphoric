@@ -211,6 +211,11 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+class PromoCodeError(Exception):
+    def __init__(self, user_message):
+        self.user_message = user_message
+
+
 class PaymentError(Exception):
     def __init__(self, message):
         self.message = message
@@ -237,6 +242,21 @@ class EventList(APIView):
             }
         response_data = list(map(map_event, events))
         return Response(response_data)
+
+
+class CheckPromoView(APIView):
+    def get(self, request, event_id=None, format=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        code_to_check = request.data.get('promo_code')
+        promo_code = get_object_or_404(
+            models.PromoCode,
+            code=code_to_check,
+            event=event)
+
+        if not promo_code.is_valid():
+            return Response({'detail': 'Promo code is not valid'}, status=400)
+
+        return Response(promo_code)
 
 
 class RegisterView(APIView):
@@ -326,6 +346,10 @@ class RegisterView(APIView):
             raise ValidationError(e.user_message)
         if invitation:
             registration.registration_type = invitation.registration_type
+
+        promo_code = self.find_promo_code(registration, event)
+        if promo_code:
+            registration.promo_code = promo_code
 
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
@@ -570,6 +594,25 @@ class RegisterView(APIView):
             lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
             lodging_comments=lodging_data.get('lodging_comments', ''),
         )
+
+    @classmethod
+    def find_promo_code(cls, registration, event):
+        if not registration.promo_code:
+            return None
+
+        promo_code = None
+        try:
+            promo_code = models.PromoCode.objects.get(
+                event=event,
+                code=registration.promo_code,
+            )
+        except models.PromoCode.DoesNotExist:
+            return None
+
+        if not promo_code.is_valid():
+            return None
+
+        return promo_code
 
     @classmethod
     def find_invitation(cls, request):

@@ -33,6 +33,11 @@ urlpatterns = router.urls + [
         name='register',
     ),
     path(
+        'events/<int:event_id>/checkpromo',
+        views.CheckPromoView.as_view(),
+        name='checkpromo',
+    ),
+    path(
         'eventlist',
         views.EventList.as_view(),
         name='eventlist',

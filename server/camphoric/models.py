@@ -189,6 +189,34 @@ class Event(TimeStampedModel):
         return [PaymentType.CHECK]
 
 
+class PromoCode(TimeStampedModel):
+    '''
+    Promotion codes to be used during Registration.  Promotion codes can only
+    be applied at the registration level
+    '''
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    label = models.CharField(max_length=255, help_text="human friendly name")
+    name = models.CharField(max_length=255, help_text="value exposed to JsonLogic")
+    code = models.CharField(max_length=255, help_text="text you enter")
+    enabled = models.BooleanField(
+        default=False,
+        help_text="True if the user has made it to the end of the registration process",
+    )
+    expiration_date = models.DateTimeField(null=True)
+
+    def is_valid(self, registration):
+        if not self.enabled:
+            return False
+
+        # we check against either the registration's created_at or now
+        dt = registration.created_at if registration else timezone.now()
+
+        if self.expiration_date and self.expiration_date > dt:
+            return False
+
+        return True
+
+
 class RegistrationType(TimeStampedModel):
     '''
     Registration type for special pricing options (Ex: Staff).
@@ -226,6 +254,10 @@ class Registration(TimeStampedModel):
         choices=PaymentType.choices,
     )
     paypal_response = models.JSONField(null=True)
+    promo_code = models.ForeignKey(
+        PromoCode,
+        on_delete=models.SET_NULL,
+        null=True)
     completed = models.BooleanField(
         default=False,
         help_text="True if the user has made it to the end of the registration process",

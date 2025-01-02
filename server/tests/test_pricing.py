@@ -260,6 +260,29 @@ class TestCalculatePrice(unittest.TestCase):
             "campers": [{"birthdate_parts": [2000, 12, 31]}],
         })
 
+    def test_calculate_promo_code(self):
+        event = models.Event(
+                organization=self.organization,
+                name="Test Registration Event",
+                pricing=self.pricing,
+                registration_pricing_logic=self.registration_pricing_logic,
+                camper_pricing_logic=[],
+                )
+        registration = models.Registration(
+                event=event,
+                attributes={
+                    "number_of_cabins": 3,
+                    "number_of_parking_passes": 2,
+                    }
+                )
+        price_components = pricing.calculate_price(registration, [])
+        self.assertEqual(price_components, {
+            "cabins": 300,
+            "parking_passes": 100,
+            "campers": [],
+            "total": 400,
+            })
+
     def test_calculate_registration(self):
         event = models.Event(
             organization=self.organization,

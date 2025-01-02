@@ -115,7 +115,8 @@ server/backup/*.psql.bin
 
 # Django generated with manage.py collectstatic
 # TODO: https://github.com/camphoric/camphoric/issues/185
-staticfiles/
+server/staticfiles/
+server/static/
 
 # Camphoric frontend 
 frontend_bootstrap/build/
