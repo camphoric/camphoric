@@ -70,6 +70,18 @@ class RegistrationTypeSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class CustomChargeTypeSerializer(ModelSerializer):
+    class Meta:
+        model = models.CustomChargeType
+        fields = '__all__'
+
+
+class CustomChargeSerializer(ModelSerializer):
+    class Meta:
+        model = models.CustomCharge
+        fields = '__all__'
+
+
 class ReportSerializer(ModelSerializer):
     class Meta:
         model = models.Report

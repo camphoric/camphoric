@@ -59,9 +59,20 @@ class TestJsonLogic(unittest.TestCase):
             jsonLogic(logic, data), 40)
 
 
+def camperf(i, custom_charges, is_adult, meals, tuition, total):
+    return {
+            "i": i,
+            "custom_charges": custom_charges,
+            "is_adult": is_adult,
+            "meals": meals,
+            "total": total,
+            "tuition": tuition}
+
+
 class TestCalculatePrice(unittest.TestCase):
 
     def setUp(self):
+        self.maxDiff = None
         self.organization = models.Organization.objects.create(name="Test Organization")
         self.registration_pricing_logic = [
             {
@@ -128,11 +139,23 @@ class TestCalculatePrice(unittest.TestCase):
                 },
             },
             {
+                "label": "Custom Charges",
+                "var": "custom_charges",
+                "exp": {
+                    "reduce": [
+                        {"var": "camper.custom_charges"},
+                        {"+": [{"var": "current.amount"}, {"var": "accumulator"}]},
+                        0
+                    ]
+                },
+            },
+            {
                 "label": "Camper total",
                 "var": "total",
                 "exp": {
                     "+": [
                         {"var": "tuition"},
+                        {"var": "custom_charges"},
                         {"var": "meals"}
                     ]
                 },
@@ -260,6 +283,50 @@ class TestCalculatePrice(unittest.TestCase):
             "campers": [{"birthdate_parts": [2000, 12, 31]}],
         })
 
+    def test_calculate_custom_charges(self):
+        event = models.Event(
+                organization=self.organization,
+                name="Test Registration Event",
+                pricing=self.pricing,
+                registration_pricing_logic=self.registration_pricing_logic,
+                camper_pricing_logic=self.camper_pricing_logic,
+                )
+        event.save()
+        custom_charge_type = models.CustomChargeType(
+                event=event,
+                label="Extra bedding charge"
+                )
+        custom_charge_type.save()
+        registration = models.Registration(
+                event=event,
+                attributes={
+                    "number_of_cabins": 3,
+                    "number_of_parking_passes": 2,
+                    }
+                )
+        registration.save()
+        camper = models.Camper(registration=registration)
+        custom_charge = models.CustomCharge(
+                custom_charge_type=custom_charge_type,
+                camper=camper,
+                amount=25
+                )
+        camper.save()
+        custom_charge.save()
+        price_components = pricing.calculate_price(registration, [camper])
+        self.assertEqual(custom_charge.amount, 25)
+        self.assertEqual({
+            "cabins": 300,
+            "parking_passes": 100,
+            "i": 0,
+            "is_adult": 0,
+            "meals": 50,
+            "custom_charges": 25,
+            "tuition": 200,
+            "campers": [camperf(0, 25, False, 50, 200, 275)],
+            "total": 675,
+            }, price_components)
+
     def test_calculate_registration(self):
         event = models.Event(
             organization=self.organization,
@@ -299,16 +366,18 @@ class TestCalculatePrice(unittest.TestCase):
             models.Camper(attributes={"age": 42}),
         ]
         price_components = pricing.calculate_price(registration, campers)
+
         self.assertEqual(price_components, {
             "i": 6,
             "is_adult": 2,
             "tuition": 1200,
             "meals": 700,
+            "custom_charges": 0,
             "campers": [
-                {"i": 0, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"i": 1, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"i": 2, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
-                {"i": 3, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                camperf(0, 0, False, 50, 200, 250),
+                camperf(1, 0, False, 50, 200, 250),
+                camperf(2, 0, True, 300, 400, 700),
+                camperf(3, 0, True, 300, 400, 700),
             ],
             "total": 1900,
         })
@@ -342,11 +411,12 @@ class TestCalculatePrice(unittest.TestCase):
             "meals": 700,
             "cabins": 300,
             "parking_passes": 100,
+            "custom_charges": 0,
             "campers": [
-                {"i": 0, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"i": 1, "is_adult": False, "meals": 50, "total": 250, "tuition": 200},
-                {"i": 2, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
-                {"i": 3, "is_adult": True, "meals": 300, "total": 700, "tuition": 400},
+                camperf(0, 0, False, 50, 200, 250),
+                camperf(1, 0, False, 50, 200, 250),
+                camperf(2, 0, True,  300, 400, 700),
+                camperf(3, 0, True,  300, 400, 700),
             ],
             "total": 2300,
         })

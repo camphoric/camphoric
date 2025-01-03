@@ -165,24 +165,38 @@ const regularPrice = {
 
 export default [
   {
+    label: 'Tuition',
     var: 'tuition',
     exp: regularPrice.tuition,
   },
   {
+    label: 'Meals',
     var: 'meals',
     exp: regularPrice.meals
   },
   {
+    label: 'Parking',
     var: 'parking',
     exp: regularPrice.parking
   },
   {
+    label: 'Custom Charges',
+    var: 'custom_charges',
+    exp: { 'reduce': [
+      {'var':'camper.custom_charges'},
+      {'+':[{'var':'current.amount'}, {'var':'accumulator'}]},
+      0
+    ]},
+  },
+  {
+    label: 'Total',
     var: 'total',
     exp: {
       '+': [
         {var: 'tuition'},
         {var: 'meals'},
         {var: 'parking'},
+        {var: 'custom_charges'},
       ]
     }
   }
