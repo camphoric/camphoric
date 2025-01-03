@@ -104,6 +104,9 @@ def calculate_price(registration, campers):
             }
         }
 
+        custom_charges = models.CustomCharge.objects.filter(camper=camper)
+        data["camper"]["custom_charges"] = list(custom_charges.values())
+
         camper_results = {}
         for camper_component in event.camper_pricing_logic:
             var = camper_component["var"]

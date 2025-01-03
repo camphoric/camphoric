@@ -388,6 +388,27 @@ class Camper(TimeStampedModel):
         ordering = ('sequence', 'id',)
 
 
+class CustomChargeType(TimeStampedModel):
+    '''
+    Promotion codes to be used during Registration.  Promotion codes can only
+    be applied at the registration level
+    '''
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    label = models.CharField(max_length=255, help_text="human friendly name")
+    name = models.CharField(max_length=255, help_text="machine name")
+
+
+class CustomCharge(TimeStampedModel):
+    '''
+    Promotion codes to be used during Registration.  Promotion codes can only
+    be applied at the registration level
+    '''
+    custom_charge_type = models.ForeignKey(CustomChargeType, on_delete=models.CASCADE)
+    camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
+    notes = models.TextField(blank=True, default='')
+
+
 class Deposit(TimeStampedModel):
     '''
     - Has many Payments

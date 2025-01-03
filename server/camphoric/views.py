@@ -200,6 +200,20 @@ class BulkEmailRecipientViewSet(ModelViewSet):
     filterset_fields = ['task']
 
 
+class CustomChargeTypeViewSet(ModelViewSet):
+    queryset = models.CustomChargeType.objects.all()
+    serializer_class = serializers.CustomChargeTypeSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
+
+
+class CustomChargeViewSet(ModelViewSet):
+    queryset = models.CustomCharge.objects.all()
+    serializer_class = serializers.CustomChargeSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['camper']
+
+
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = serializers.UserSerializer
