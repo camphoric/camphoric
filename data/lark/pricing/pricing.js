@@ -19,4 +19,6 @@ export default {
 
   'parking_pass': 75,
   'parking_pass_at_camp': 95,
+
+  'name_badge': 5,
 };

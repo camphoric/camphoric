@@ -1,5 +1,5 @@
 export const lengthInDays = 9;
-const startDate = new Date('2024-07-25T10:00:00');
+const startDate = new Date('2025-08-01T10:00:00');
 // startDate.setFullYear(startDate.getFullYear() + 1);
 // startDate.setUTCHours(startDate.getUTCHours() + (30 * 24));
 

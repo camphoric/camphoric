@@ -84,6 +84,10 @@ const regularPrice = {
         ...regTypeEquals('management', 0),
         ...regTypeEquals('security', 0),
         ...instructorTypeEquals('talent', 0),
+        ...instructorTypeEquals(
+          'talent-guest',
+          Math.floor(pricing.full_adult * 0.6)
+        ),
 
         ...regTypeEquals('crew-kitchen-full', 0),
         ...regTypeEquals(
@@ -140,19 +144,47 @@ const regularPrice = {
     ]
   }, // END regularPrice meals
 
+  name_badge: {
+    'if': [
+      ...regTypeEquals('management', 0),
+      ...regTypeEquals('security', 0),
+      ...instructorTypeEquals('talent', 0),
+      {var: ['camper.name_badge']},
+      {var: ['pricing.name_badge']},
+      0,
+    ],
+  }, // END regularPrice parking
+
   parking: {
     '*': [
       {'reduce': [
         {'var': 'camper.parking_passes'},
         {'+':[
           {'var': 'accumulator'},
-          2
-        ]}, 1
+          1
+        ]}, 0
       ]},
       { if: [
-        { '!': regType },
+        { 'in': [ regType, [
+          // reg types that get free parking
+          'office-camp-1',
+          'office-camp-2',
+          'office-camp-3',
+          'kitchen-full',
+          'kitchen-partial',
+          'setup-teardown',
+          'cleanup-camp-1',
+          'cleanup-camp-2',
+          'cleanup-camp-3',
+          'talent',
+          // 'talent-guest',
+          'management',
+          'misc-staff',
+          // 'late-registrant',
+          'security',
+        ]]},
+        0,
         {'var': 'pricing.parking_pass'},
-        1
       ] },
     ]
   }, // END regularPrice parking
@@ -180,6 +212,11 @@ export default [
     exp: regularPrice.parking
   },
   {
+    label: 'Name Badge',
+    var: 'name_badge',
+    exp: regularPrice.name_badge
+  },
+  {
     label: 'Custom Charges',
     var: 'custom_charges',
     exp: { 'reduce': [
@@ -193,9 +230,10 @@ export default [
     var: 'total',
     exp: {
       '+': [
-        {var: 'tuition'},
+				{var: 'tuition'},
         {var: 'meals'},
         {var: 'parking'},
+        {var: 'name_badge'},
         {var: 'custom_charges'},
       ]
     }
