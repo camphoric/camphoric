@@ -1,4 +1,5 @@
 import meals from './camperMeals.js';
+import pricing from './pricing/pricing.js';
 
 export const sessionTypes = {
   F: 'Full camp',
@@ -17,6 +18,36 @@ export default {
     'meals'
   ],
   'dependencies': {
+    'name_badge': {
+      'oneOf': [
+        {
+          'properties': {
+            'name_badge': {
+              'enum': [false, ''],
+            },
+          },
+        },
+        {
+          'properties': {
+            'name_badge': {
+              'enum': [true],
+            },
+            'name_badge_name': {
+              'type': 'string',
+              'maxLength': 50,
+              'title': 'Name for name badge'
+            },
+            'name_badge_gender': {
+              'type': 'string',
+              'maxLength': 10,
+              'title': 'Gender for name badge'
+            },
+          },
+          'required': ['name_badge_name'],
+        },
+      ],
+    },
+
     'address_different_than_payer': {
       'oneOf': [
         {
@@ -84,23 +115,6 @@ export default {
       'title': 'Gender',
       'enum': ['Male', 'Female', 'Non-binary'],
     },
-    'vaccination_status': {
-      'title': 'Vaccination Information',
-      'description': 'Please check all that apply',
-      'type': 'array',
-      'items': {
-        'type': 'string',
-        'enum': [
-          'First dose',
-          'Second dose',
-          'Booster',
-          'J&J',
-          'None',
-        ],
-      },
-      'minItems': 1,
-      'uniqueItems': true
-    },
     'age': {
       'type': 'string',
       'title': 'Age (at the beginning of camp)',
@@ -115,6 +129,13 @@ export default {
         '0-4 years old',
       ],
       'default': '65 years old or older',
+    },
+    'name_badge': {
+      'type': 'boolean',
+      'title': `I would like to purchase a name badge for $${pricing.name_badge}`,
+      'enum': [false, true],
+      'enumNames': ['No', 'Yes'],
+      'default': false,
     },
     'address_different_than_payer': {
       'type': 'boolean',
@@ -144,7 +165,7 @@ export default {
             'title': 'Vehicle Type',
             'enum': [
               'Regular car',
-              'RV under 15\' long',
+							'RV under 15\' long',
               'RV 15\'-20\' long',
             ],
             'default': 'Regular car',
