@@ -1,3 +1,5 @@
+import pricing from './pricing.js';
+
 export const ageLookup = {
   65: '65 years old or older',
   64: '50-64 years old',
