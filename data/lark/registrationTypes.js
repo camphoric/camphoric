@@ -150,6 +150,7 @@ export default [
   { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew' },
   { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew' },
   { name: 'talent', label: 'Talent Staff' },
+  { name: 'talent-guest', label: 'Guest of Talent Staff' },
   { name: 'management', label: 'Management' },
   { name: 'misc-staff', label: 'Miscellaneous Staff' },
   { name: 'late-registrant', label: 'Late Registrant' },
