@@ -60,6 +60,16 @@ const data = {
   lodgings,
   reports,
   registration_types,
+  custom_charge_types: [
+    {
+      label: 'New Camper Discount',
+      name: 'new-camper-discount',
+    },
+    {
+      label: 'New Camper Referer Discount',
+      name: 'new-camper-referer-discount',
+    },
+  ]
 };
 
 if (process.env.PAYPAL_CLIENT_ID) {

@@ -224,6 +224,38 @@ export default class CamphoricEventCreator extends Fetcher {
     ));
   }
 
+  async loadCustomChargeTypes() {
+    const { custom_charge_types } = this.data;
+
+    if (!custom_charge_types || !custom_charge_types.length) return;
+
+    const { event } = this.results;
+
+    let response = await this.fetch('GET', '/api/customchargetypes/');
+
+    const existing = response.filter(ctype => ctype.event === event.id);
+
+    await Promise.all(
+      custom_charge_types.map(
+        async (customChargeType) => {
+          const exists = existing.find(r => r.name === ctype.name);
+
+          if (exists) {
+            customChargeType.id = exists.id;
+          }
+
+          customChargeType.event = event.id;
+
+          return this.fetch(
+            exists ? 'PUT' : 'POST', 
+            `/api/customchargetypes${exists ? `/${customChargeType.id}` : ''}/`,
+            customChargeType,
+          );
+        }
+      )
+    );
+  }
+
   async loadRegTypes() {
     const { event } = this.results;
 
@@ -389,13 +421,12 @@ export default class CamphoricEventCreator extends Fetcher {
 
     await imp('organization', this.organization);
     await imp('event', this.loadEvent());
+    await imp('custom charge types', this.loadCustomChargeTypes());
+    await imp('reports', this.loadReports());
+    await imp('registration types', this.loadRegTypes());
 
     await this.loadLodgings();
     await imp('lodging', Promise.resolve());
-
-    await imp('reports', this.loadReports());
-
-    await imp('registration types', this.loadRegTypes());
 
     // Run the overrides in series in case order matters
     for (let i = 0; i < this.overrides.length; i++) {
