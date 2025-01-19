@@ -82,6 +82,20 @@ export default {
         },
       },
     },
+    custom_charge_types: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: [
+          'name',
+          'label',
+        ],
+        properties: {
+          name: str('custom charge type name'),
+          label: str('custom charge type label'),
+        }
+      }
+    },
     registration_types: {
       type: 'array',
       items: {

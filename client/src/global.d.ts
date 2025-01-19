@@ -126,6 +126,7 @@ declare global {
     lodging_shared: any;
     lodging_shared_with: string;
     lodging_comments: string;
+    server_pricing_results: any;
     sequence: number;
     stay: any | null;
   }
@@ -238,6 +239,26 @@ declare global {
     amount: number;
   }
 
+  export interface ApiCustomCharge {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    camper: number | string;
+    custom_charge_type: number | string;
+    amount: number;
+    notes: string;
+  }
+
+  export interface ApiCustomChargeType {
+    id: number;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    event: number | string;
+    name: string;
+    label: string;
+  }
   export interface RouterUrlParams {
     eventId?: string;
     organizationId?: string;

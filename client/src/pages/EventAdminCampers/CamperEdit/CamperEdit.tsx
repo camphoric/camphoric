@@ -6,6 +6,7 @@ import {
 import EditTab from './EditTab';
 import AdminAttributesTab from './AdminAttributesTab';
 import LodgingTab from './LodgingTab';
+import FeesTab from './FeesTab';
 
 interface Props {
   camper: ApiCamper;
@@ -29,6 +30,9 @@ function CamperEdit(props: Props) {
       </Tab>
       <Tab eventKey="camper_lodging" title="Lodging">
         <LodgingTab {...props} />
+      </Tab>
+      <Tab eventKey="camper_fees" title="Fees">
+        <FeesTab {...props} />
       </Tab>
     </Tabs>
   );

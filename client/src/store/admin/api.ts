@@ -15,6 +15,8 @@ const apiObjectNames = [
   'Camper',
   'Deposit',
   'Payment',
+  'CustomCharge',
+  'CustomChargeType',
   'User',
   'WhoAmI',
 ] as const;
@@ -62,6 +64,26 @@ export const api = createApi({
       updateEvent: updateCreator<ApiEvent>('Event'),
       createEvent: createCreator<ApiEvent>('Event'),
       deleteEvent: deleteCreator<ApiEvent>('Event'),
+
+      /** /api/customchargetypes*/
+      getCustomChargeTypes: getCreator<ApiCustomChargeType>('CustomChargeType'),
+      getCustomChargeTypeById: getByIdCreator<ApiCustomChargeType>('CustomChargeType'),
+      updateCustomChargeType: updateCreator<ApiCustomChargeType>('CustomChargeType'),
+      createCustomChargeType: createCreator<ApiCustomChargeType>('CustomChargeType'),
+      deleteCustomChargeType: deleteCreator<ApiCustomChargeType>('CustomChargeType'),
+
+      /** /api/customcharges */
+      getCustomCharges: getCreator<ApiCustomCharge>('CustomCharge'),
+      updateCustomCharge: updateCreator<ApiCustomCharge>('CustomCharge', ['CustomCharge', 'Registration', 'Camper']),
+      createCustomCharge: createCreator<ApiCustomCharge>('CustomCharge', ['CustomCharge', 'Registration', 'Camper']),
+      deleteCustomCharge: deleteCreator<ApiCustomCharge>('CustomCharge', ['CustomCharge', 'Registration', 'Camper']),
+      getCustomChargesByCamper: builder.query<ApiCustomCharge, ApiCamper>({
+        query: (arg: ApiCamper) => ({
+          url: `customcharges/${arg.id}`,
+          method: 'GET',
+        }),
+        providesTags: ['CustomCharge'],
+      }),
 
       /** /api/registrations */
       getRegistrations: getCreator<ApiRegistration>('Registration'),
