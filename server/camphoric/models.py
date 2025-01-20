@@ -234,6 +234,10 @@ class Registration(TimeStampedModel):
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
 
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        self.recalculate_server_pricing()
+
     def recalculate_server_pricing(self):
         campers = self.campers.all()
         server_pricing_results = pricing.calculate_price(
@@ -244,10 +248,10 @@ class Registration(TimeStampedModel):
         camper_pricing = server_pricing_results['campers']
         for index, camper in enumerate(campers):
             camper.server_pricing_results = camper_pricing[index]
-            camper.save()
+            camper.save_without_recalc()
 
         self.server_pricing_results = server_pricing_results
-        self.save()
+        super().save()
 
 
 class Report(TimeStampedModel):
@@ -384,6 +388,18 @@ class Camper(TimeStampedModel):
         default=dict,
         help_text="custom attributes for administrative use")
 
+    def save_without_recalc(self, **kwargs):
+        super().save(**kwargs)
+
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        self.registration.recalculate_server_pricing()
+
+    def delete(self, **kwargs):
+        reg = self.registration
+        super().delete(**kwargs)
+        reg.recalculate_server_pricing()
+
     class Meta:
         ordering = ('sequence', 'id',)
 
@@ -407,6 +423,15 @@ class CustomCharge(TimeStampedModel):
     camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     notes = models.TextField(blank=True, default='')
+
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        self.camper.registration.recalculate_server_pricing()
+
+    def delete(self, **kwargs):
+        reg = self.camper.registration
+        super().delete(**kwargs)
+        reg.recalculate_server_pricing()
 
 
 class Deposit(TimeStampedModel):
