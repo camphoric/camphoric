@@ -3,7 +3,6 @@ from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
 from camphoric import (
     models,
-    pricing,
 )
 
 
@@ -44,18 +43,6 @@ class RegistrationSerializer(ModelSerializer):
     class Meta:
         model = models.Registration
         fields = '__all__'
-
-    def update(self, instance, validated_data):
-        updated_instance = super().update(instance, validated_data)
-
-        server_pricing_results = pricing.calculate_price(
-            updated_instance,
-            updated_instance.campers.all()
-        )
-        updated_instance.server_pricing_results = server_pricing_results
-        updated_instance.save()
-
-        return updated_instance
 
     def validate(self, data):
         if self.partial and 'event' not in data:
@@ -104,13 +91,6 @@ class CamperSerializer(ModelSerializer):
     class Meta:
         model = models.Camper
         fields = '__all__'
-
-    def update(self, instance, validated_data):
-        updated_instance = super().update(instance, validated_data)
-        updated_instance.registration.refresh_from_db()
-        updated_instance.registration.recalculate_server_pricing()
-
-        return updated_instance
 
     def validate(self, data):
         if self.partial and 'registration' not in data:
