@@ -69,14 +69,11 @@ export default {
         'camper_address',
         'gender',
         'age',
-        'vaccination_status',
         'session',
         'meals',
         'lodging',
         '*',
 				'name_badge',
-				'name_badge_name',
-				'name_badge_gender',
       ],
       'camper_address': address,
       'meals': {
@@ -87,8 +84,14 @@ export default {
       'lodging': {
         'ui:description': lodgingDescription,
       },
-      'vaccination_status': {
-        'ui:widget': 'checkboxes'
+      'name_badge': {
+        'properties': {
+          'ui:order': [
+            'purchase',
+            'name',
+            'pronouns',
+          ],
+        }
       },
       'parking_passes': {
         'ui:options':  {
@@ -99,7 +102,7 @@ export default {
         'items': {
           'ui:title': 'parking pass',
           'pass_type': {
-            'ui:disabled': true,
+            'ui:classNames': 'camphoric-hide-during-registration',
           }
         },
       },

@@ -11,7 +11,8 @@ your camping preferences are processed on a "first come - first served" basis.
 ### PROOF OF NEGATIVE COVID TEST JUST BEFORE CAMP WILL BE REQUIRED FOR ALL ATTENDEES
 
 Campers must produce a negative COVID test taken WITHIN 48 HOURS before
-arriving at camp. Everyone comes at their own risk. Updates based on CDC
+arriving at camp. We highly recommend you also get vaccinated against COVID for
+additional protection. Everyone comes at their own risk. Updates based on CDC
 recommendations may be sent out shortly before camp.
 `,
   'type': 'object',
