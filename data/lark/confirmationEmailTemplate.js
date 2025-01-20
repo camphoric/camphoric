@@ -19,9 +19,6 @@ accommodate your choice.
 - If you have not yet paid for your meals that amount is also due NO LATER THAN
   JUNE 20. Look for instructions in future emails to add a meal plan to your
   registration.
-- Please email either a photo of your current vaccination cards or a current QR
-  code to registration@larkcamp.org. The QR Code can be acquired from the State
-  of California: https://myvaccinerecord.cdph.ca.gov/.
 
 **YOU HAVE REGISTERED FOR:**
 
@@ -29,19 +26,25 @@ accommodate your choice.
 {{first_name}} {{last_name}} - {{session}}    
 {{lodging_full}}    
 {{meals.meal_plan}}, {{meals.meal_type}}: \${{pricing_result.meals}}    
-Tuition: \${{pricing_result.tuition}}    
+{{#name_badge.purchase}}
+Name badge (\${{pricing_result.name_badge}}): {{name_badge.name}} - {{name_badge.pronouns}}     
+{{/name_badge.purchase}}
+Parking Passes Total: \${{pricing_result.parking}}    
+{{#parking_passes}}
+- {{first_name}} {{last_name}}: {{vehicle_type}}    
+{{/parking_passes}}
 
+Tuition: \${{pricing_result.tuition}}    
+#########    
 {{/campers}}
 
 Donation to Lark Traditional Arts: \${{pricing_results.donation}}    
 
-Parking Passes Purchased: \${{pricing_results.parking}}    
-{{#registration.attributes.parking_passes}}
-- {{holder}}
-{{/registration.attributes.parking_passes}}
-{{^registration.attributes.parking_passes}}
-None
-{{/registration.attributes.parking_passes}}
+{{^pricing_results.parking}}    
+You have not purchased a parking pass, be warned that it will cost a lot more
+if you need to purchase one at camp.  If you meant to purchase a parking pass,
+please contact the registrar to have it added to your registration.
+{{/pricing_results.parking}}    
 
 Payment info:
 

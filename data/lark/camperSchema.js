@@ -10,7 +10,6 @@ export const sessionTypes = {
 export default {
   'type': 'object',
   'required': [
-    'vaccination_status',
     'first_name',
     'last_name',
     'gender',
@@ -18,36 +17,6 @@ export default {
     'meals'
   ],
   'dependencies': {
-    'name_badge': {
-      'oneOf': [
-        {
-          'properties': {
-            'name_badge': {
-              'enum': [false, ''],
-            },
-          },
-        },
-        {
-          'properties': {
-            'name_badge': {
-              'enum': [true],
-            },
-            'name_badge_name': {
-              'type': 'string',
-              'maxLength': 50,
-              'title': 'Name for name badge'
-            },
-            'name_badge_gender': {
-              'type': 'string',
-              'maxLength': 10,
-              'title': 'Gender for name badge'
-            },
-          },
-          'required': ['name_badge_name'],
-        },
-      ],
-    },
-
     'address_different_than_payer': {
       'oneOf': [
         {
@@ -131,11 +100,53 @@ export default {
       'default': '65 years old or older',
     },
     'name_badge': {
-      'type': 'boolean',
-      'title': `I would like to purchase a name badge for $${pricing.name_badge}`,
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
-      'default': false,
+      'title': 'Name Badge',
+      'description': `
+**New This Year**    
+We are allowing all campers to purchase a special name badge. The name badge
+will be 2.25", and you can see a [sample of the design here](test).
+`,
+      'type': 'object',
+      'dependencies': {
+        'purchase': {
+          'oneOf': [
+            {
+              'properties': {
+                'purchase': {
+                  'enum': [false, ''],
+                },
+              },
+            },
+            {
+              'properties': {
+                'purchase': {
+                  'enum': [true],
+                },
+                'name': {
+                  'type': 'string',
+                  'maxLength': 50,
+                  'title': 'Name for name badge'
+                },
+                'pronouns': {
+                  'type': 'string',
+                  'maxLength': 10,
+                  'title': 'Pronouns for name badge'
+                },
+              },
+              'required': ['name'],
+            },
+          ],
+        },
+      },
+      'properties': {
+        'purchase': {
+          'type': 'boolean',
+          'title': `I would like to purchase a name badge for $${pricing.name_badge}`,
+          'enum': [false, true],
+          'enumNames': ['No', 'Yes'],
+          'default': false,
+        },
+      },
     },
     'address_different_than_payer': {
       'type': 'boolean',
@@ -153,7 +164,7 @@ export default {
 *Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
 
 *   You can pre-purchase parking passes for \${{pricing.parking_pass}}; you’ll receive your parking pass when you arrive at camp.
-*   If you purchase your parking pass at camp, the cost will be \${{pricing.parking_pass_at_camp}} (no credit cards accepted at camp).`,
+*   If you purchase your parking pass at camp, the cost will be \$${pricing.parking_pass_at_camp_extra + pricing.parking_pass} (no credit cards accepted at camp).`,
       'minItems': 0,
       'maxItems': 4,
       'items': {
