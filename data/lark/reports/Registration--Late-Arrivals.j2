@@ -1,0 +1,44 @@
+# Camper Late Arrivals Instructions
+
+Hello camper, welcome to Lark Camp!  We're sorry we wern't here to greet you
+and get you settled, but even we need sleep.  Please follow the instructions
+below and come back in the morning to finish your registration.
+
+Find your name in the list below, and find out where you're lodged There is
+a pile of maps on this desk, look for a map corresponding to the camp that
+you're lodged in to help get your bearings.
+1.  If you are in a cabin please be quiet when you enter. You may have
+    roommates that are asleep!
+2.  If you are in a tent, you may go directly to your tent area and set up.  If
+    it's your first time, you can find a tent area nearby and temporarly setup
+    there for the night. We'll sort you out in the morning.
+3.  If you're vehicle camping, you should see signs in the camp where you're
+    staying that will guide you to a vehicle camping spot. If you're not sure,
+    park somewhere well off the road and we'll sort you out in the morning.
+
+| Last Name | First Name | Camp | Lodging Type | Parking Type | COVID |
+| --------- | ---------- | ---- | ------------ | ------------ | ----- |
+{% for camper in campers | sort(attribute="attributes.last_name") if not camper.admin_attributes.checked_in -%}
+| {{ camper.attributes.last_name }} |
+  {{- camper.attributes.first_name }} |
+  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string]}) -%}
+	{%- set _ = camper.update({'lodging_type': '???' }) -%}
+	{%- set _ = camper.update({'lodging_type': 'Vehicle Camping' }) if 'RV' in camper.ldg.pathParts  -%}
+  {%- set _ = camper.update({'lodging_type': camper.ldg.pathParts | last }) if 'Cabin' in camper.ldg.pathParts -%}
+  {%- set _ = camper.update({'lodging_type': 'Tent ' + camper.ldg.pathParts[-2] }) if 'Tent' in camper.ldg.pathParts -%}
+  {{- camper.ldg.pathParts[0] }} |
+  {{- camper.lodging_type }} |
+	{%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+  {%- if camper.registration.attributes.parking_passes | length > 0 -%}
+    {%- set _ = camper.update({'parking': camper.registration.attributes.parking_exception or 'Long Term'}) -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+  {%- endif -%}
+  {{- camper.parking or 'None' }} |
+  {%- if camper.admin_attributes.vaccination_checked -%}
+    Vaxxed
+  {%- else -%}
+    Check Test
+  {%- endif %} |
+{% endfor -%}

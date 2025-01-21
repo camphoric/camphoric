@@ -1,0 +1,75 @@
+{%- set parking_short = {
+"Long Term": "LT",
+"Vehicle Camp 1": "V1",
+"Vehicle Camp 2": "V2",
+"Vehicle Camp 3": "V3",
+"Short Term": "ST",
+"Camp 1": "C1",
+"Camp 2": "C2",
+"Camp 3": "C3",
+"Park Anywhere": "PA",
+} -%}
+{%- set session_short = {
+"Full camp": "Full",
+"Half camp - 1st half": "1st½",
+"Half camp - 2nd half": "2nd½",
+} -%}
+{%- for camper in campers -%}
+  {%- set _ = camper.update({'lodging_parts': lodgingLookup[camper.lodging | string]}) -%}
+  {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
+  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
+  {%- set _ = camper.update({'fullLodgingPath': camper.ldg.fullPath }) if camper.lodging -%}
+  {%- set _ = camper.update({'lodging_short': camper.fullLodgingPath or ''}) -%}
+  {%- if 'RV' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'lodging_short': camper.lodging_short[:camper.lodging_short.find('RV→')] + 'VCamp' }) -%}
+  {%- endif -%}
+  {%- if 'Cabin' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('→Cabin→', '→')}) -%}
+    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin ', 'Cbn')}) -%}
+  {%- endif -%}
+  {%- if 'Tent' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'lodging_short': camper.lodging_parts.pathParts[0] + '→Tent' + (camper.lodging_parts.pathParts | last ) }) -%}
+    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Spot ', '')}) -%}
+  {%- endif -%}
+  {%- if camper.registration.attributes.parking_passes | length > 0 -%}
+    {%- set _ = camper.update({'parking': camper.registration.attributes.parking_exception or 'Long Term'}) -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+    {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+  {%- endif -%}
+  {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) -%}
+  {%- set _ = camper.update({
+  'tent_tag_holder':
+  (camper.ldg.campers | selectattr('attributes.session', '==', camper.attributes.session) | sort(attribute="sequence,attributes.last_name,attributes.first_name") | first)
+  }) if 'Tent' in camper.fullLodgingPath -%}    
+{%- endfor -%} 
+Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park, COVID
+{% for camper in campers | sort(attribute="attributes.last_name") if camper.attributes.session != 'Half camp - 2nd half' -%}
+  {{ camper.attributes.last_name }},
+  {{- camper.attributes.first_name }},
+  {{- camper.attributes.age[:camper.attributes.age.find(' ')] | replace('65', '65+') }},
+  {{- '"' + (camper.admin_attributes.guardian_name if 'guardian_name' in camper.admin_attributes else '') }}",
+  {%- if camper.admin_attributes.guardian_forms_required and camper.admin_attributes.guardian_forms_received -%}
+    Received
+  {%- elif camper.admin_attributes.guardian_forms_required and not camper.admin_attributes.guardian_forms_received -%}
+    NEEDED
+  {%- else -%}
+    N/A
+  {%- endif -%},
+  {{- (camper.crew | replace('crew-', '') | replace('-partial', '') | replace('-full', '')) or '-' }},
+  {{- camper.lodging_short }},
+  {{- session_short[camper.attributes.session] }},
+  {{- (
+  (camper.registration.attributes.parking_passes | length | string) +
+  'x' +
+  parking_short[camper.parking] +
+  ('$' if camper.registration.server_pricing_results.parking > 0 else '')
+  ) if camper.registration.attributes.parking_passes else '-'
+  }},
+  {%- if camper.admin_attributes.vaccination_checked -%}
+    Vaxxed
+  {%- else -%}
+    Check Test
+  {%- endif %}
+{% endfor -%}

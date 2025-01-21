@@ -1,0 +1,14 @@
+{%- for camper in campers -%}
+  {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
+{%- endfor -%} 
+first, last, email, total, payments, balance, type
+{% for camper in campers | sort(False, attribute='attributes.last_name') | sort(True, attribute='registration.total_balance') -%}
+  {{ camper.attributes.first_name }},
+  {{- camper.attributes.last_name }},
+  {{- camper.attributes.email or camper.registration.registrant_email or '-'}},
+  {{- camper.registration.total_owed}},
+  {{- camper.registration.total_payments}},
+  {{- camper.registration.total_balance}},
+  {{- camper.crew or 'camper' }}
+{% endfor -%}

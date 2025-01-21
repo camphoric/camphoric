@@ -1,0 +1,49 @@
+last, first, registration_type, created_at, vax_status, vax_verified, will_test, email, phone
+{% for camper in campers | sort(attribute="attributes.last_name") if not camper.admin_attributes.vaccination_checked and not camper.admin_attributes.vaccination_opt_to_test -%}
+  {{camper.attributes.last_name}}, {{camper.attributes.first_name}},
+  {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string] or {} }) -%}
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
+  {{- camper.crew }},
+  {{- camper.created_at}},
+  {{- '"' + camper.attributes.vaccination_status | join(', ')  + '"' }},
+  {{- camper.admin_attributes.vaccination_checked or 'False' }},
+  {{- camper.admin_attributes.vaccination_opt_to_test or 'False' }},
+  {{- camper.attributes.email or camper.reg.registrant_email }},
+  {%- if camper.reg.attributes.payment and camper.reg.attributes.payment.payer_number -%}
+    {{- camper.reg.attributes.payment.payer_number -}}
+  {%- else -%}
+no phone
+  {%- endif %}
+{% endfor -%}
+{% for camper in campers | sort(attribute="attributes.last_name") if not camper.admin_attributes.vaccination_checked and camper.admin_attributes.vaccination_opt_to_test -%}
+  {{camper.attributes.last_name}}, {{camper.attributes.first_name}},
+  {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string] or {} }) -%}
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
+  {{- camper.crew }},
+  {{- camper.created_at}},
+  {{- '"' + camper.attributes.vaccination_status | join(', ')  + '"' }},
+  {{- camper.admin_attributes.vaccination_checked or 'False' }},
+  {{- camper.admin_attributes.vaccination_opt_to_test or 'False' }},
+  {{- camper.attributes.email or camper.reg.registrant_email }},
+  {%- if camper.reg.attributes.payment and camper.reg.attributes.payment.payer_number -%}
+    {{- camper.reg.attributes.payment.payer_number -}}
+  {%- else -%}
+no phone
+  {%- endif %}
+{% endfor -%}
+{% for camper in campers | sort(attribute="attributes.last_name")  if camper.admin_attributes.vaccination_checked -%}
+  {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string] or {} }) -%}
+  {{camper.attributes.last_name}}, {{camper.attributes.first_name}},
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
+  {{- camper.crew }},
+  {{- camper.created_at}},
+  {{- '"' + camper.attributes.vaccination_status | join(', ')  + '"' }},
+  {{- camper.admin_attributes.vaccination_checked or 'False' }},
+  {{- camper.admin_attributes.vaccination_opt_to_test or 'False' }},
+  {{- camper.attributes.email or camper.reg.registrant_email }},
+  {%- if camper.reg.attributes.payment and camper.reg.attributes.payment.payer_number -%}
+    {{- camper.reg.attributes.payment.payer_number -}}
+  {%- else -%}
+no phone
+  {%- endif %}
+{% endfor -%}

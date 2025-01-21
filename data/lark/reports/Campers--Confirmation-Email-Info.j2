@@ -1,64 +1,55 @@
-{%- set regTypeLookup = {
-  2: "talent",
-  4: "cleanup",
-  5: "setup",
-  6: "registration",
-  7: "kitchen-full",
-  8: "management",
-  3: "kitchen-partial",
-} -%}
 {%- set parking_short = {
-  "Long Term": "LT",
-  "Vehicle Camp 1": "V1",
-  "Vehicle Camp 2": "V2",
-  "Vehicle Camp 3": "V3",
-  "Short Term": "ST",
-  "Camp 1": "C1",
-  "Camp 2": "C2",
-  "Camp 3": "C3",
-  "Park Anywhere": "PA",
+"Long Term": "LT",
+"Vehicle Camp 1": "V1",
+"Vehicle Camp 2": "V2",
+"Vehicle Camp 3": "V3",
+"Short Term": "ST",
+"Camp 1": "C1",
+"Camp 2": "C2",
+"Camp 3": "C3",
+"Park Anywhere": "PA",
 } -%}
 {%- set crewLeadLookup = {
-  'talent': {
-    'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-    'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-    'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-  },
-  'cleanup': {
-    'Camp 1': { 'lead': 'Janet Finney-Krull', 'email': 'jrf7001@humboldt.edu' },
-    'Camp 2': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
-    'Camp 3': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
-  },
-  'setup': {
-    'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-    'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-    'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-  },
-  'registration': {
-    'Camp 1': { 'lead': 'Robin Cohen', 'email': 'rcohen0808@gmail.com' },
-    'Camp 2': { 'lead': 'Robin McClish', 'email': 'mcclish@mac.com' },
-    'Camp 3': { 'lead': 'Deb Fischbach', 'email': 'itsdeb@mcn.org' },
-  },
-  'management': {
-    'Camp 1': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
-    'Camp 2': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
-    'Camp 3': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
-  },
-  'kitchen-full': {
-    'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-    'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-    'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-  },
-  'kitchen-partial': {
-    'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-    'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-    'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
-  },
+'talent': {
+'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+},
+'crew-cleanup': {
+'Camp 1': { 'lead': 'Janet Finney-Krull', 'email': 'jrf7001@humboldt.edu' },
+'Camp 2': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
+'Camp 3': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
+},
+'crew-setup': {
+'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+},
+'crew-registration': {
+'Camp 1': { 'lead': 'Robin Cohen', 'email': 'rcohen0808@gmail.com' },
+'Camp 2': { 'lead': 'Robin McClish', 'email': 'mcclish@mac.com' },
+'Camp 3': { 'lead': 'Deb Fischbach', 'email': 'itsdeb@mcn.org' },
+},
+'management': {
+'Camp 1': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
+'Camp 2': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
+'Camp 3': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
+},
+'crew-kitchen-full': {
+'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+},
+'crew-kitchen-partial': {
+'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
+},
 } -%}
 {%- for camper in campers -%}
     {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
     {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) if camper.registration -%}
-    {%- set _ = camper.update({'crew': regTypeLookup[camper.reg.registration_type]}) -%}
+    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
     {%- set _ = camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  -%}
     {%- set _ = camper.update({'lodging_short': camper.fullLodgingPath or ''}) -%}
     {%- for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] -%}
@@ -94,19 +85,19 @@
 {%- endfor -%} 
 last, first, lodging, registration_type, parking_type, stay,vaccination_verified,balance_due , meal_plan, meal_location, first_day, precamp_meal_comp, crew, crew_leader, crew_leader_email
 {% for camper in campers | sort(attribute="fullLodgingPath") -%}
-{{- camper.attributes.last_name }},
-{{- camper.attributes.first_name }},
-{{- camper.fullLodgingPath}},
-{{- camper.crew or 'none' }},
-{{- parking_short[camper.parking] or '-'}},
-{{- camper.attributes.session}},
-{{- camper.admin_attributes.vaccination_checked or 'False' }},
-{{- '$' + (camper.reg.total_balance | string) or '0' }},
-{{- camper.attributes.meals.meal_plan }},
-{{- camper.admin_attributes.meal_assignment or camper.camp }},
-{{- camper.stay[0]}},
-{{- camper.comp_reason or '' }},
-{{- camper.crew or '' }},
-{{- crewLeadLookup[camper.crew][camper.camp].lead if camper.crew and camper.camp else '' }},
-{{- crewLeadLookup[camper.crew][camper.camp].email if camper.crew and camper.camp else '' }}
+    {{- camper.attributes.last_name }},
+    {{- camper.attributes.first_name }},
+    {{- camper.fullLodgingPath}},
+    {{- camper.crew or 'none' }},
+    {{- parking_short[camper.parking] or '-'}},
+    {{- camper.attributes.session}},
+    {{- camper.admin_attributes.vaccination_checked or 'False' }},
+    {{- '$' + (camper.reg.total_balance | string) or '0' }},
+    {{- camper.attributes.meals.meal_plan }},
+    {{- camper.admin_attributes.meal_assignment or camper.camp }},
+    {{- camper.stay[0]}},
+    {{- camper.comp_reason or '' }},
+    {{- camper.crew or '' }},
+    {{- crewLeadLookup[camper.crew][camper.camp].lead if camper.crew and camper.camp else '' }},
+    {{- crewLeadLookup[camper.crew][camper.camp].email if camper.crew and camper.camp else '' }}
 {% endfor %}

@@ -1,8 +1,0 @@
-email,first_name,last_name,invoice_number,due_date,reference,item_name,description,item_amount,shipping_amount,discount_amount,currency_code,note,terms,memo
-{%- for reg in registrations %}
-{{- reg.registrant_email -}},
-{{- reg.attributes.payment.payer_first_name -}},
-{{- reg.attributes.payment.payer_last_name -}}
-,balance-{{reg.id}}-lark-2024,2024-07-01,none,Registration balance for {{registrant_email}},none,
-{{- reg.total_balance -}},0,0,USD,"We're looking forward to seeing you at camp!","",""
-

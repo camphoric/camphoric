@@ -1,3 +1,0 @@
-Last Name, First Name, Age, Vaccination
-{% for camper in campers | sort(attribute='attributes.vaccination_status', reverse=True) %} {{ camper.attributes.last_name }}, {{ camper.attributes.first_name }}, {{ camper.attributes.age }}, {{- '"' + camper.attributes.vaccination_status | join(', ')  + '"' }}
-{% endfor %}

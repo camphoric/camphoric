@@ -91,7 +91,7 @@ export default {
             'name',
             'pronouns',
           ],
-        }
+        },
       },
       'parking_passes': {
         'ui:options':  {

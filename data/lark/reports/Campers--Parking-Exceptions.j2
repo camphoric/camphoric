@@ -1,0 +1,13 @@
+first, last, crew, lodging, park, email
+{% for camper in campers | sort(attribute="attributes.last_name") -%}
+  {%- set registration = registrationLookup[camper.registration | string] -%}
+  {%- if not registration.admin_attributes.parking_exception -%}
+    {%- continue -%}
+  {%- endif -%}  
+  {{- camper.attributes.first_name }},
+  {{- camper.attributes.last_name }},
+  {{- registrationTypeLookup[registration.registration_type | string].name if registrationTypeLookup[registration.registration_type | string] else 'camper' }},
+  {{- lodgingLookup[camper.lodging | string].fullPath }},
+  {{- registration.admin_attributes.parking_exception or '-'}},
+  {{- registration.registrant_email or '-'}},
+{% endfor -%}

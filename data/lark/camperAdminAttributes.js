@@ -41,22 +41,6 @@ export default
       ]
     }
   },
-  "vaccination_checked": {
-    "ui": {},
-    "data": {
-      "enum": [
-        false,
-        true
-      ],
-      "type": "boolean",
-      "title": "Vaccination: verified",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
-    }
-  },
   "instructor_meal_rate": {
     "ui": {},
     "data": {
@@ -135,22 +119,6 @@ export default
       ]
     }
   },
-  "vaccination_opt_to_test": {
-    "ui": {},
-    "data": {
-      "enum": [
-        false,
-        true
-      ],
-      "type": "boolean",
-      "title": "Vaccination: will submit negative Covid test",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
-    }
-  },
   "meal_assignment_breakfast": {
     "ui": {
       "ui:placeholder": "Choose an option"
@@ -164,5 +132,12 @@ export default
       "title": "Meals: Breakfast in",
       "description": "If camper is not eating meals in the camp where they're staying"
     }
-  }
+  },
+	'badge_role': {
+		"data": {
+			'type': 'string',
+			'maxLength': 10,
+			'title': 'Role for name badge'
+		},
+	},
 };
