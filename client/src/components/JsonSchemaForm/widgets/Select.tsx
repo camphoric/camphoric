@@ -3,6 +3,7 @@ import Form from 'react-bootstrap/Form';
 import { WidgetProps, utils } from '@rjsf/core';
 import CustomDescriptionField from '../fields/Description';
 import { getSchemaValue } from '../utils';
+import getFromPath from 'lodash/get';
 
 const { asNumber, guessType } = utils;
 
@@ -77,9 +78,10 @@ const SelectWidget = (props: WidgetProps) => {
 
   const title = label || getSchemaValue(props, 'title');
   const description = getSchemaValue(props, 'description');
+  const classNames = getFromPath(props, 'uiSchema.ui:classNames', '');
 
   return (
-    <Form.Group>
+    <Form.Group className={classNames}>
       <Form.Label className={rawErrors.length > 0 ? "text-danger" : ""}>
         {title}
         {title && required ? "*" : null}

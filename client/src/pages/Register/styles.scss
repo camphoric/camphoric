@@ -8,6 +8,10 @@
     color: #61dafb;
   }
 
+  .camphoric-hide-during-registration {
+    display: none;
+  }
+
   .registration-form .payment-form {
     background-color: white;
     box-shadow: 0 0 5px black;
@@ -22,6 +26,8 @@
       padding: 1rem;
       margin-top: 1rem;
       margin-bottom: 1rem;
+
+
     }
 
     .payby-check-button {
