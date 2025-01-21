@@ -6,12 +6,18 @@
 ['2024-12-31', 'Tue' ],
 ]
 -%}
+{%- macro fphone(phone) -%}
+[({{phone[2:5]}}) {{phone[5:8]}}-{{phone[8:12]}}](tel:{{phone}})
+{%- endmacro %}
 {%- for camper in campers | sort(attribute='attributes.last_name,attributes.first_name') -%}
     {%- set lodging = lodgingLookup[camper.lodging | string] -%}
-**{{ camper.attributes.last_name }}, {{ camper.attributes.first_name }}**    
-{{ lodging.pathParts.0 if lodging else 'NotSet' }}: {{ lodging.name if lodging else 'NotSet' }} - | {% for dt in dates -%}
+**{{ camper.attributes.last_name | trim }}, {{ camper.attributes.first_name | trim }}**    
+{{ lodging.pathParts.0 if lodging else 'NotLodging' }}: {{ lodging.name if lodging else 'NotSet' }} - | {% for dt in dates -%}
 {{- dt[1] if dt[0] in (camper.stay or []) else 'xxx' }} | {% endfor %}    
-Linens: {{ camper.attributes.linens }}&nbsp;&nbsp;&nbsp;Meals: {{ camper.attributes.meal_type }}&nbsp;&nbsp;&nbsp;Mobile Phone: ________________   
-Negative Covid Test ⬜️&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;License plate: ________________
+Linens: {{ camper.attributes.linens }}&nbsp;&nbsp;&nbsp;Meals: {{
+camper.attributes.meal_type }}&nbsp;&nbsp;&nbsp;Mobile Phone: {{
+  fphone(camper.attributes.mobile_phone) if camper.attributes.mobile_phone else '________________'
+}}   
+Negative Covid Test ⬜️&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;License plate: {{ (camper.attributes.license_plate | upper) if camper.attributes.license_plate else '________________' }}   
 _________
 {% endfor -%}

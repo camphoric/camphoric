@@ -79,8 +79,8 @@ totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + total
 {%- if camper.attributes.linens == 'No' or not camper.lodging or not camper.stay -%}{%- continue -%}{%- endif -%}
 {%- set val = lodgingLookup[camper.lodging | string]-%}
 {%- set tot = tot + 1 -%}
-| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{
-val.name }} | {% for dt in dates %}{{ ' X |' if dt[0] in camper.stay else ' &nbsp; |' }}{% endfor %}
+| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{val.pathParts[0]}}: {{val.name}} | {%
+     for dt in dates %}{{ ' X |' if dt[0] in camper.stay else ' &nbsp; |' }}{% endfor %}
 {% endfor %}
 
 Total: {{ campers | map(attribute='attributes.linens') | select('eq', 'Yes') | list | count  }}

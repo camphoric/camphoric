@@ -32,11 +32,6 @@ export default [
     template: readFile('Total-camper-nights.j2'),
   },
   {
-    title: 'Registration Check-in',
-    output: 'md',
-    template: readFile('Registration-Check-in.j2'),
-  },
-  {
     title: 'Arrivals and Departures',
     output: 'md',
     template: readFile('Arrivals-and-Departures.j2'),
@@ -50,6 +45,16 @@ export default [
     title: 'Campership donations',
     output: 'csv',
     template: readFile('Campership-donations.j2'),
+  },
+  {
+    title: 'Registration Check-in',
+    output: 'md',
+    template: readFile('Registration-Check-in.j2'),
+  },
+  {
+    title: 'Arrivals - Drivers and Passengers',
+    output: 'md',
+    template: readFile('Arrivals---Drivers-and-Passengers.j2'),
   },
   {
     title: 'Chore and Dance Lead',

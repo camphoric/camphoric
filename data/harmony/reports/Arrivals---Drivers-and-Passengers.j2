@@ -1,0 +1,239 @@
+{%- set dates = [
+['2024-12-27', 'Fri'],
+['2024-12-28', 'Sat' ],
+['2024-12-29', 'Sun' ],
+['2024-12-30', 'Mon' ],
+['2024-12-31', 'Tue' ],
+]
+-%}
+{%- set totals = {
+dates.0.0~'v1aP': 0,
+dates.0.0~'v2aP': 0,
+dates.0.0~'v4aP': 0,
+dates.0.0~'v5aP': 0,
+dates.0.0~'v7aP': 0,
+dates.0.0~'vWaP': 0,
+dates.0.0~'vTaP': 0,
+dates.0.0~'v1aD': 0,
+dates.0.0~'v2aD': 0,
+dates.0.0~'v4aD': 0,
+dates.0.0~'v5aD': 0,
+dates.0.0~'v7aD': 0,
+dates.0.0~'vWaD': 0,
+dates.0.0~'vTaD': 0,
+dates.0.0~'v1aN': 0,
+dates.0.0~'v2aN': 0,
+dates.0.0~'v4aN': 0,
+dates.0.0~'v5aN': 0,
+dates.0.0~'v7aN': 0,
+dates.0.0~'vWaN': 0,
+dates.0.0~'vTaN': 0,
+
+
+dates.1.0~'v1aP': 0,
+dates.1.0~'v2aP': 0,
+dates.1.0~'v4aP': 0,
+dates.1.0~'v5aP': 0,
+dates.1.0~'v7aP': 0,
+dates.1.0~'vWaP': 0,
+dates.1.0~'vTaP': 0,
+dates.1.0~'v1aD': 0,
+dates.1.0~'v2aD': 0,
+dates.1.0~'v4aD': 0,
+dates.1.0~'v5aD': 0,
+dates.1.0~'v7aD': 0,
+dates.1.0~'vWaD': 0,
+dates.1.0~'vTaD': 0,
+dates.1.0~'v1aN': 0,
+dates.1.0~'v2aN': 0,
+dates.1.0~'v4aN': 0,
+dates.1.0~'v5aN': 0,
+dates.1.0~'v7aN': 0,
+dates.1.0~'vWaN': 0,
+dates.1.0~'vTaN': 0,
+
+
+dates.2.0~'v1aP': 0,
+dates.2.0~'v2aP': 0,
+dates.2.0~'v4aP': 0,
+dates.2.0~'v5aP': 0,
+dates.2.0~'v7aP': 0,
+dates.2.0~'vWaP': 0,
+dates.2.0~'vTaP': 0,
+dates.2.0~'v1aD': 0,
+dates.2.0~'v2aD': 0,
+dates.2.0~'v4aD': 0,
+dates.2.0~'v5aD': 0,
+dates.2.0~'v7aD': 0,
+dates.2.0~'vWaD': 0,
+dates.2.0~'vTaD': 0,
+dates.2.0~'v1aN': 0,
+dates.2.0~'v2aN': 0,
+dates.2.0~'v4aN': 0,
+dates.2.0~'v5aN': 0,
+dates.2.0~'v7aN': 0,
+dates.2.0~'vWaN': 0,
+dates.2.0~'vTaN': 0,
+
+
+
+dates.3.0~'v1aP': 0,
+dates.3.0~'v2aP': 0,
+dates.3.0~'v4aP': 0,
+dates.3.0~'v5aP': 0,
+dates.3.0~'v7aP': 0,
+dates.3.0~'vWaP': 0,
+dates.3.0~'vTaP': 0,
+dates.3.0~'v1aD': 0,
+dates.3.0~'v2aD': 0,
+dates.3.0~'v4aD': 0,
+dates.3.0~'v5aD': 0,
+dates.3.0~'v7aD': 0,
+dates.3.0~'vWaD': 0,
+dates.3.0~'vTaD': 0,
+dates.3.0~'v1aN': 0,
+dates.3.0~'v2aN': 0,
+dates.3.0~'v4aN': 0,
+dates.3.0~'v5aN': 0,
+dates.3.0~'v7aN': 0,
+dates.3.0~'vWaN': 0,
+dates.3.0~'vTaN': 0,
+
+
+
+dates.4.0~'v1aP': 0,
+dates.4.0~'v2aP': 0,
+dates.4.0~'v4aP': 0,
+dates.4.0~'v5aP': 0,
+dates.4.0~'v7aP': 0,
+dates.4.0~'vWaP': 0,
+dates.4.0~'vTaP': 0,
+dates.4.0~'v1aD': 0,
+dates.4.0~'v2aD': 0,
+dates.4.0~'v4aD': 0,
+dates.4.0~'v5aD': 0,
+dates.4.0~'v7aD': 0,
+dates.4.0~'vWaD': 0,
+dates.4.0~'vTaD': 0,
+dates.4.0~'v1aN': 0,
+dates.4.0~'v2aN': 0,
+dates.4.0~'v4aN': 0,
+dates.4.0~'v5aN': 0,
+dates.4.0~'v7aN': 0,
+dates.4.0~'vWaN': 0,
+dates.4.0~'vTaN': 0,
+
+}
+-%}
+{%- for camper in campers -%}
+    {%- set ldg = lodgingLookup[camper.lodging | string] -%}
+    {%- set stay = ((camper.stay or []) | sort) -%}
+    {%- do camper.update({'ldg': ldg.pathParts if ldg else [] }) -%}
+    {%- for dt in dates -%}
+        {%- if dt[0] == stay[0] -%}
+            {%- if camper.attributes.driving == 'Driver' -%}
+                {%- if 'Village 1'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v1aD': totals[dt.0~'v1aD'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 2'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v2aD': totals[dt.0~'v2aD'] + 1}) -%}{%- endif -%}
+                {%- if 'Apartments' in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v4aD': totals[dt.0~'v4aD'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 5'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aD': totals[dt.0~'v5aD'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 6'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aD': totals[dt.0~'v5aD'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 7'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v7aD': totals[dt.0~'v7aD'] + 1}) -%}{%- endif -%}
+                {%- if  'Wellness'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vWaD': totals[dt.0~'vWaD'] + 1}) -%}{%- endif -%}
+                {%- if 'RV Camping'    in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaD': totals[dt.0~'vTaD'] + 1}) -%}{%- endif -%}
+                {%- if 'Tent Camping'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaD': totals[dt.0~'vTaD'] + 1}) -%}{%- endif -%}
+            {%- endif -%}
+            {%- if camper.attributes.driving == 'Passenger' -%}
+                {%- if 'Village 1'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v1aP': totals[dt.0~'v1aP'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 2'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v2aP': totals[dt.0~'v2aP'] + 1}) -%}{%- endif -%}
+                {%- if 'Apartments' in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v4aP': totals[dt.0~'v4aP'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 5'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aP': totals[dt.0~'v5aP'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 6'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aP': totals[dt.0~'v5aP'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 7'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v7aP': totals[dt.0~'v7aP'] + 1}) -%}{%- endif -%}
+                {%- if  'Wellness'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vWaP': totals[dt.0~'vWaP'] + 1}) -%}{%- endif -%}
+                {%- if 'RV Camping'    in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaP': totals[dt.0~'vTaP'] + 1}) -%}{%- endif -%}
+                {%- if 'Tent Camping'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaP': totals[dt.0~'vTaP'] + 1}) -%}{%- endif -%}
+            {%- endif -%}
+            {%- if camper.attributes.driving == 'Not sure yet' -%}
+                {%- if 'Village 1'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v1aN': totals[dt.0~'v1aN'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 2'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v2aN': totals[dt.0~'v2aN'] + 1}) -%}{%- endif -%}
+                {%- if 'Apartments' in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v4aN': totals[dt.0~'v4aN'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 5'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aN': totals[dt.0~'v5aN'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 6'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v5aN': totals[dt.0~'v5aN'] + 1}) -%}{%- endif -%}
+                {%- if 'Village 7'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'v7aN': totals[dt.0~'v7aN'] + 1}) -%}{%- endif -%}
+                {%- if  'Wellness'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vWaN': totals[dt.0~'vWaN'] + 1}) -%}{%- endif -%}
+                {%- if 'RV Camping'    in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaN': totals[dt.0~'vTaN'] + 1}) -%}{%- endif -%}
+                {%- if 'Tent Camping'  in (ldg.pathParts) -%}{%- do totals.update({dt.0 ~ 'vTaN': totals[dt.0~'vTaN'] + 1}) -%}{%- endif -%}
+            {%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor -%}
+## Arrivals: Driver
+
+| Day | Village1 | Village2 | Village4 (apt) | Village5&6 | Village7 | Wellness | RV/Tent | Total |
+| --- | -------- | -------- | -------- | ---------- | -------- | -------- | ------- | ----- |
+{% for dt in dates -%}
+| {{ dt[1] }} | {{
+    totals[dt.0 ~ 'v1aD'] }} | {{
+    totals[dt.0 ~ 'v2aD'] }} | {{
+    totals[dt.0 ~ 'v4aD'] }} | {{
+    totals[dt.0 ~ 'v5aD'] }} | {{
+    totals[dt.0 ~ 'v7aD'] }} | {{
+    totals[dt.0 ~ 'vWaD'] }} | {{
+    totals[dt.0 ~ 'vTaD'] }} | {{
+    totals[dt.0 ~ 'v1aD'] +
+    totals[dt.0 ~ 'v2aD'] +
+    totals[dt.0 ~ 'v4aD'] +
+    totals[dt.0 ~ 'v5aD'] +
+    totals[dt.0 ~ 'v7aD'] +
+    totals[dt.0 ~ 'vWaD'] +
+    totals[dt.0 ~ 'vTaD']
+}} |
+{% endfor %}
+
+
+## Arrivals: Passenger
+
+| Day | Village1 | Village2 | Village4 (apt) | Village5&6 | Village7 | Wellness | RV/Tent | Total |
+| --- | -------- | -------- | -------- | ---------- | -------- | -------- | ------- | ----- |
+{% for dt in dates -%}
+| {{ dt[1] }} | {{
+    totals[dt.0 ~ 'v1aP'] }} | {{
+    totals[dt.0 ~ 'v2aP'] }} | {{
+    totals[dt.0 ~ 'v4aP'] }} | {{
+    totals[dt.0 ~ 'v5aP'] }} | {{
+    totals[dt.0 ~ 'v7aP'] }} | {{
+    totals[dt.0 ~ 'vWaP'] }} | {{
+    totals[dt.0 ~ 'vTaP'] }} | {{
+    totals[dt.0 ~ 'v1aP'] +
+    totals[dt.0 ~ 'v2aP'] +
+    totals[dt.0 ~ 'v4aP'] +
+    totals[dt.0 ~ 'v5aP'] +
+    totals[dt.0 ~ 'v7aP'] +
+    totals[dt.0 ~ 'vWaP'] +
+    totals[dt.0 ~ 'vTaP']
+}} |
+{% endfor %}
+
+
+## Arrivals: Not sure yet
+
+| Day | Village1 | Village2 | Village4 (apt) | Village5&6 | Village7 | Wellness | RV/Tent | Total |
+| --- | -------- | -------- | -------- | ---------- | -------- | -------- | ------- | ----- |
+{% for dt in dates -%}
+    | {{ dt[1] }} | {{
+    totals[dt.0 ~ 'v1aN'] }} | {{
+    totals[dt.0 ~ 'v2aN'] }} | {{
+    totals[dt.0 ~ 'v4aN'] }} | {{
+    totals[dt.0 ~ 'v5aN'] }} | {{
+    totals[dt.0 ~ 'v7aN'] }} | {{
+    totals[dt.0 ~ 'vWaN'] }} | {{
+    totals[dt.0 ~ 'vTaN'] }} | {{
+    totals[dt.0 ~ 'v1aN'] +
+    totals[dt.0 ~ 'v2aN'] +
+    totals[dt.0 ~ 'v4aN'] +
+    totals[dt.0 ~ 'v5aN'] +
+    totals[dt.0 ~ 'v7aN'] +
+    totals[dt.0 ~ 'vWaN'] +
+    totals[dt.0 ~ 'vTaN']
+    }} |
+{% endfor %}
