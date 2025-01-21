@@ -79,6 +79,6 @@ export default [
   {
     title: 'Food Prefs',
     output: 'md',
-    template: readFile('Food-Prefs.j2'),
+    template: readFile('Food-prefs.j2'),
   },
 ];
