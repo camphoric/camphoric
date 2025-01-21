@@ -1,5 +1,0 @@
-last, first, parking pass names, qty
-{% for reg in registrations | sort(attribute="attributes.payment.payer_last_name") if  (reg.attributes. parking_passes | count) > 0 -%}
-{{- reg.attributes.payment.payer_last_name }},
-{{- reg.attributes.payment.payer_first_name }},"{{- reg.attributes. parking_passes | map(attribute='holder') | join(',') }}", {{- reg.attributes. parking_passes | count }}
-{% endfor %}

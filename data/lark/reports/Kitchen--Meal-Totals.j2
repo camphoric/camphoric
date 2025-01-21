@@ -1,0 +1,34 @@
+{%- for camper in campers -%}
+    {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
+    {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) if camper.registration -%}
+    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
+    {%- set _ = camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  -%}
+    {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
+    {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
+    {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
+		{%- set _ = camper.update({'meals_in': camper.camp }) -%}
+		{%- set _ = camper.update({'meals_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+    {%- set _ = camper.update({'meals_in': camper.admin_attributes.meal_assignment_dinner or camper.admin_attributes.meal_assignment_breakfast or camper.meals_in }) -%}
+		{%- set _ = camper.update({'age_cat': 'Adult' }) -%}
+		{%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '0-4 years old' -%}
+		{%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '5-11 years old' -%}
+		{%- set _ = camper.update({'meal_plan': camper.attributes.meals.meal_plan }) -%}
+		{%- set _ = camper.update({'meal_type': camper.attributes.meals.meal_type }) -%}
+{%- endfor -%} 
+
+{%- for camp in ["Camp 1", "Camp 2"] %}
+,,,,,
+{{ camp }},Age,Non-Veg,Veg,Vegan,Total
+{%- for mplan in ["All Meals", "All Meals - 1st half", "All Meals - 2nd half", "Just Dinners"] -%}
+{%- for age in ["Adult", "Child"] %}
+{{ mplan }},{{ age }},{% for mtype in ["Non-Vegetarian","Vegetarian","Vegan"] -%}
+{{ campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan", "==", mplan) | selectattr("age_cat", "==", age) | selectattr("meal_type", "==", mtype) | list | length }},{% endfor -%}
+{{ campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan", "==", mplan) | selectattr("age_cat", "==", age) | list | length }}
+{%- endfor -%}
+{%- endfor %}
+,,
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Non-Vegetarian") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Vegetarian") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Vegan") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | list | length }}
+{%- endfor %}

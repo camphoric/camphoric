@@ -12,19 +12,39 @@ function readFile(filename) {
 
 export default [
   {
-    title: 'Campers, All Camp 3',
+    title: 'Kitchen, All Meal Tickets',
     output: 'csv',
-    template: readFile('Campers--All-Camp-3.j2'),
+    template: readFile('Kitchen--All-Meal-Tickets.j2'),
   },
   {
-    title: 'Camper Vaccinations by Last Name',
+    title: 'Kitchen, Meal Location Exceptions',
     output: 'csv',
-    template: readFile('Camper-Vaccinations-by-Last-Name.j2'),
+    template: readFile('Kitchen--Meal-Location-Exceptions.j2'),
   },
   {
-    title: 'Camper Vaccinations',
+    title: 'PayPal Invoice Bulkkkk',
     output: 'csv',
-    template: readFile('Camper-Vaccinations.j2'),
+    template: readFile('PayPal-Invoice-Bulkkkk.j2'),
+  },
+  {
+    title: 'Campers, Lodging by Alpha',
+    output: 'csv',
+    template: readFile('Campers--Lodging-by-Alpha.j2'),
+  },
+  {
+    title: 'Campers, NOT Checked In',
+    output: 'csv',
+    template: readFile('Campers--NOT-Checked-In.j2'),
+  },
+  {
+    title: 'Donation Report - Lark',
+    output: 'csv',
+    template: readFile('Donation-Report---Lark.j2'),
+  },
+  {
+    title: 'Campers, Email List for All Campers',
+    output: 'md',
+    template: readFile('Campers--Email-List-for-All-Campers.j2'),
   },
   {
     title: 'Crew, Special Invites',
@@ -32,119 +52,29 @@ export default [
     template: readFile('Crew--Special-Invites.j2'),
   },
   {
-    title: 'PayPal Invoice Bulk',
-    output: 'hbs',
-    template: readFile('PayPal-Invoice-Bulk.hbs'),
-  },
-  {
-    title: 'Campers by Reg Date (Paid)',
-    output: 'hbs',
-    template: readFile('Campers-by-Reg-Date--Paid-.hbs'),
-  },
-  {
-    title: 'Camper, Parking Passes',
+    title: 'Campers, Lodging by Lodging',
     output: 'csv',
-    template: readFile('Camper--Parking-Passes.j2'),
+    template: readFile('Campers--Lodging-by-Lodging.j2'),
   },
   {
-    title: 'Camper Lodging by Alpha',
+    title: 'Campers, By Reg Date',
     output: 'csv',
-    template: readFile('Camper-Lodging-by-Alpha.j2'),
+    template: readFile('Campers--By-Reg-Date.j2'),
   },
   {
-    title: 'Registration Payments',
-    output: 'hbs',
-    template: readFile('Registration-Payments.hbs'),
-  },
-  {
-    title: 'Campers by Reg Date',
-    output: 'hbs',
-    template: readFile('Campers-by-Reg-Date.hbs'),
-  },
-  {
-    title: 'Camper Email List for All Campers',
-    output: 'hbs',
-    template: readFile('Camper-Email-List-for-All-Campers.hbs'),
-  },
-  {
-    title: 'Camper Meal Tallies',
-    output: 'hbs',
-    template: readFile('Camper-Meal-Tallies.hbs'),
-  },
-  {
-    title: 'Camper Lodging by Lodging',
+    title: 'Campers, Registration Volunteers',
     output: 'csv',
-    template: readFile('Camper-Lodging-by-Lodging.j2'),
+    template: readFile('Campers--Registration-Volunteers.j2'),
   },
   {
-    title: 'Camper Confirmation Email Info',
+    title: 'Campers, Registration Payments',
     output: 'csv',
-    template: readFile('Camper-Confirmation-Email-Info.j2'),
+    template: readFile('Campers--Registration-Payments.j2'),
   },
   {
-    title: 'Crew, Managers',
+    title: 'Crew, Setup and Teardown',
     output: 'csv',
-    template: readFile('Crew--Managers.j2'),
-  },
-  {
-    title: 'Crew, Kitchen, w/ Lodging',
-    output: 'csv',
-    template: readFile('Crew--Kitchen--w--Lodging.j2'),
-  },
-  {
-    title: 'Camper Meals by Camp',
-    output: 'hbs',
-    template: readFile('Camper-Meals-by-Camp.hbs'),
-  },
-  {
-    title: 'Crew, Reg, C1',
-    output: 'csv',
-    template: readFile('Crew--Reg--C1.j2'),
-  },
-  {
-    title: 'Crew, Clean, C2&3',
-    output: 'csv',
-    template: readFile('Crew--Clean--C2-3.j2'),
-  },
-  {
-    title: 'Camper Early Arrivals',
-    output: 'csv',
-    template: readFile('Camper-Early-Arrivals.j2'),
-  },
-  {
-    title: 'Crew, Clean, C1',
-    output: 'csv',
-    template: readFile('Crew--Clean--C1.j2'),
-  },
-  {
-    title: 'Crew, Reg, C2',
-    output: 'csv',
-    template: readFile('Crew--Reg--C2.j2'),
-  },
-  {
-    title: 'Crew, Setup',
-    output: 'csv',
-    template: readFile('Crew--Setup.j2'),
-  },
-  {
-    title: 'Camper Minors',
-    output: 'csv',
-    template: readFile('Camper-Minors.j2'),
-  },
-  {
-    title: 'Donation Report - Lark',
-    output: 'hbs',
-    template: readFile('Donation-Report---Lark.hbs'),
-  },
-  {
-    title: 'Camper Email List by Crew',
-    output: 'hbs',
-    template: readFile('Camper-Email-List-by-Crew.hbs'),
-  },
-  {
-    title: 'All Campers',
-    output: 'csv',
-    template: readFile('All-Campers.j2'),
+    template: readFile('Crew--Setup-and-Teardown.j2'),
   },
   {
     title: 'Crew, Security',
@@ -152,18 +82,148 @@ export default [
     template: readFile('Crew--Security.j2'),
   },
   {
-    title: 'TEST Camper Lodging by Entry Date',
-    output: 'hbs',
-    template: readFile('TEST-Camper-Lodging-by-Entry-Date.hbs'),
-  },
-  {
     title: 'Campers, Half Campers',
     output: 'csv',
     template: readFile('Campers--Half-Campers.j2'),
   },
   {
+    title: 'Registration, Early Arrivals',
+    output: 'csv',
+    template: readFile('Registration--Early-Arrivals.j2'),
+  },
+  {
+    title: 'Security, Campers',
+    output: 'csv',
+    template: readFile('Security--Campers.j2'),
+  },
+  {
+    title: 'Campers, All Camp 3',
+    output: 'csv',
+    template: readFile('Campers--All-Camp-3.j2'),
+  },
+  {
+    title: 'Crew, Kitchen, w/ Lodging',
+    output: 'csv',
+    template: readFile('Crew--Kitchen--w--Lodging.j2'),
+  },
+  {
+    title: 'Registration, First Half Arrivals',
+    output: 'csv',
+    template: readFile('Registration--First-Half-Arrivals.j2'),
+  },
+  {
+    title: 'Registration, Second Half Arrivals',
+    output: 'csv',
+    template: readFile('Registration--Second-Half-Arrivals.j2'),
+  },
+  {
+    title: 'Registration, All reg workers',
+    output: 'csv',
+    template: readFile('Registration--All-reg-workers.j2'),
+  },
+  {
+    title: 'Crew, Clean, C2&3',
+    output: 'csv',
+    template: readFile('Crew--Clean--C2-3.j2'),
+  },
+  {
+    title: 'PayPal Invoice Bulkkkk',
+    output: 'csv',
+    template: readFile('PayPal-Invoice-Bulkkkk.j2'),
+  },
+  {
+    title: 'Crew, Office, Camp 1',
+    output: 'csv',
+    template: readFile('Crew--Office--Camp-1.j2'),
+  },
+  {
+    title: 'Crew, Managers and Others',
+    output: 'csv',
+    template: readFile('Crew--Managers-and-Others.j2'),
+  },
+  {
+    title: 'Campers, Vaccinations by Last Name',
+    output: 'csv',
+    template: readFile('Campers--Vaccinations-by-Last-Name.j2'),
+  },
+  {
+    title: 'Crew, Clean, C1',
+    output: 'csv',
+    template: readFile('Crew--Clean--C1.j2'),
+  },
+  {
+    title: 'Campers, Minors',
+    output: 'csv',
+    template: readFile('Campers--Minors.j2'),
+  },
+  {
+    title: 'All Campers',
+    output: 'csv',
+    template: readFile('All-Campers.j2'),
+  },
+  {
+    title: 'Campers, Early Arrivals',
+    output: 'csv',
+    template: readFile('Campers--Early-Arrivals.j2'),
+  },
+  {
+    title: 'Campers, Tent Tags',
+    output: 'csv',
+    template: readFile('Campers--Tent-Tags.j2'),
+  },
+  {
+    title: 'Campers, Parking Exceptions',
+    output: 'csv',
+    template: readFile('Campers--Parking-Exceptions.j2'),
+  },
+  {
+    title: 'Crew, Office, Camp 3',
+    output: 'csv',
+    template: readFile('Crew--Office--Camp-3.j2'),
+  },
+  {
+    title: 'Registration, Late Arrivals',
+    output: 'md',
+    template: readFile('Registration--Late-Arrivals.j2'),
+  },
+  {
+    title: 'Campers, Parking Passes',
+    output: 'csv',
+    template: readFile('Campers--Parking-Passes.j2'),
+  },
+  {
+    title: 'Kitchen, No Meal Ticket',
+    output: 'csv',
+    template: readFile('Kitchen--No-Meal-Ticket.j2'),
+  },
+  {
     title: 'MWCA Final Report',
     output: 'md',
     template: readFile('MWCA-Final-Report.j2'),
+  },
+  {
+    title: 'Campers, Confirmation Email Info',
+    output: 'csv',
+    template: readFile('Campers--Confirmation-Email-Info.j2'),
+  },
+  {
+    title: 'Crew, Office, Camp 2',
+    output: 'csv',
+    template: readFile('Crew--Office--Camp-2.j2'),
+  },
+  {
+    title: 'Crew, Camper Email List by Crew',
+    output: 'md',
+    template: readFile('Crew--Camper-Email-List-by-Crew.j2'),
+  },
+  {
+    title: 'Campers, By Zip Code (For Carpool)',
+    output: 'csv',
+    template: readFile('Campers--By-Zip-Code--For-Carpool-.j2'),
+  },
+  {
+    title: 'Kitchen, Meal Totals',
+    output: 'csv',
+    template: readFile('Kitchen--Meal-Totals.j2'),
   },
 ];

@@ -1,0 +1,6 @@
+{%- for camper in campers -%}
+    {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+{%- endfor -%} 
+{%- for camper in campers | sort(attribute="attributes.last_name") %}
+{{camper.attributes.first_name}} {{camper.attributes.last_name}} {{ '&lt;' }}{{camper.attributes.email or camper.registration.registrant_email}}{{ '&gt;' }},
+{%- endfor -%}

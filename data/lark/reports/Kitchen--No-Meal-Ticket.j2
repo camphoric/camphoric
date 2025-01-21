@@ -1,0 +1,22 @@
+{%- for camper in campers -%}
+    {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
+    {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) if camper.registration -%}
+    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
+    {%- set _ = camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  -%}
+    {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
+    {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
+    {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
+{%- endfor -%} 
+last, first, camp, registration_type, stay, meal_plan, meal_location
+{% for camper in campers | sort(attribute="fullLodgingPath") -%}
+    {%- if camper.attributes.meals.meal_plan != 'No meals' -%}
+      {%- continue -%}
+    {%- endif -%}  
+    {{- camper.attributes.last_name }},
+    {{- camper.attributes.first_name }},
+    {{- camper.camp}},
+    {{- camper.crew or 'none' }},
+    {{- camper.attributes.session}},
+    {{- camper.attributes.meals.meal_plan }},
+    {{- "N/A" }}
+{% endfor %}

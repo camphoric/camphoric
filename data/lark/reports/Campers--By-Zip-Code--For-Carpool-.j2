@@ -1,0 +1,33 @@
+{%- for camper in campers -%}
+    {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
+    {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
+		{%- set _ = camper.update( {'fullLodgingPath': '' }) -%}
+    {%- set _ = camper.update(
+    {'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath}
+    ) if camper.lodging  -%}
+		{%- set _ = camper.update({'camp': '--'}) -%}
+    {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
+    {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
+    {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
+		{%- set _ = camper.update({'address': camper.registration.attributes.payment.payer_billing_address }) -%}
+		{%- set _ = camper.update({'address': camper.attributes.camper_address })
+	  if camper.attributes.address_different_than_payer	-%}
+{%- endfor -%} 
+last, first, crew, diff, zip, state, city, address, country, camp, session, arrival, email, reg_phone
+{% for camper in campers | sort(attribute="address.zip_code") -%}
+	{{  '"' + camper.attributes.first_name }}",
+  {{- '"' + camper.attributes.last_name }}",
+  {{- '"' + (camper.crew or 'camper') }}",
+  {{- '"' + (camper.attributes.address_different_than_payer | string) }}",
+	{{- '"' + camper.address.zip_code }}",
+	{{- '"' + camper.address.state_or_province }}",
+	{{- '"' + camper.address.city }}",
+	{{- '"' + camper.address.street_address }}",
+	{{- '"' + camper.address.country }}",
+  {{- '"' + camper.camp }}",
+  {{- '"' + camper.attributes.session }}",
+	{{- '"' + ( camper.stay[0] if camper.stay else '??' ) }}",
+  {{- '"' + (camper.attributes.email or camper.registration.registrant_email or '-')}}",
+  {{- '"' + (camper.attributes.phone or camper.registration.attributes.payment.payer_number or '-')}}"
+{% endfor -%}

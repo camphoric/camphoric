@@ -1,8 +1,8 @@
-{%- set lodging = lodgingLookup | items | map("last") | list -%}
-{%- set camp1 = lodging | selectattr("name", "==", "Camp 1") | first -%}
-{%- set camp2 = lodging | selectattr("name", "==", "Camp 2") | first -%}
-{%- set camp3 = lodging | selectattr("name", "==", "Camp 3") | first -%}
-{%- set offsite = lodging | selectattr("name", "==", "Off Site") | first -%}
+{%- set lodging = lodgingLookup.values() | list -%}
+{%- set camp1 = lodging | selectattr("name", "==", "Camp 1") | first | default({}) -%}
+{%- set camp2 = lodging | selectattr("name", "==", "Camp 2") | first | default({}) -%}
+{%- set camp3 = lodging | selectattr("name", "==", "Camp 3") | first | default({}) -%}
+{%- set offsite = lodging | selectattr("name", "==", "Off-site") | first | default({}) -%}
 
 {%- for camp in [camp1, camp2, camp3, offsite] -%}
 {%- set adults_overnight = [] | list -%}
@@ -12,25 +12,32 @@
 
 {% for camper in campers -%}
 {%- set clodge = lodgingLookup[camper.lodging | string] -%}
-{%- if not camp.name in clodge["pathParts"] -%}
-  {%- continue -%}
-{%- endif -%}
 {%- if not camper.admin_attributes.checked_in -%}
+	{%- continue -%}
+{%- endif -%}
+{%- if not clodge -%}
+	{%- continue -%}
+{%- endif -%}
+{%- if not camp.name in clodge.pathParts -%}
   {%- continue -%}
 {%- endif -%}
 {%- if camper.attributes.age == '0-4 years old' -%}
     {%- do under_5_overnight.extend(camper.stay) -%}
-{%- else -%}
+{%- elif not camper.attributes.age == '0-4 years old' and camper.stay is not none-%}
     {%- do adults_overnight.extend(camper.stay) -%}
 {%- endif -%}
 
-{% endfor -%}
+{%- endfor -%}
 
 {%- set dates = (adults_overnight + under_5_overnight) | unique | sort -%}
 
+{%- if dates -%}
 |     | {{ dates | join(" | ") }} |
 | --- | {% for d in dates %} --- |{% endfor %}
 | Adults | {% for d in dates %} {{ adults_overnight |  select('==', d) | list | count }} |{% endfor %}
 | < 5 yo | {% for d in dates %} {{ under_5_overnight | select('==', d) | list | count }} |{% endfor %}
+{%- else -%}
+ {{ camp.name }} table will display when populated; currently no one staying off site
+{%- endif -%}
 
 {% endfor -%}

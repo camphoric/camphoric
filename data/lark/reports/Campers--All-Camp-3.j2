@@ -1,13 +1,4 @@
 {%- set camps = ['Camp 3'] -%}
-{%- set regTypeLookup = {
-  2: "talent",
-  4: "cleanup",
-  5: "setup",
-  6: "registration",
-  7: "kitchen-full",
-  8: "management",
-  3: "kitchen-partial",
-} -%}
 {%- set parking_short = {
   "Long Term": "LT",
   "Vehicle Camp 1": "V1",
@@ -27,7 +18,7 @@
     {% do camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') %}
     {% do camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) %}
     {% do camper.update({'registration': registrationLookup[camper.registration | string]}) %}
-    {% do camper.update({'crew': regTypeLookup[camper.registration.registration_type]}) %}
+    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
     {% do camper.update({'lodging_short': camper.fullLodgingPath or ''}) %}
     {% for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] %}
         {% do camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) %}

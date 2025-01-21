@@ -1,5 +1,0 @@
-| Recipient Email | Recipient First Name | Recipient Last Name | Invoice Number | Due Date | Reference | Item Name | Description | Item Amount | Shipping Amount | Discount Amount | Currency Code | Note to Customer | Terms and Conditions | Memo to Self |
-| --------------- | -------------------- | ------------------- | -------------- | -------- | --------- | --------- | ----------- | ----------- | --------------- | --------------- | ------------- | ---------------- | -------------------- | ------------ |
-{{#eachrsort registrations "total_balance"}}
-| [{{registrant_email}}](mailto:{{registrant_email}}) | {{campers.0.attributes.first_name}} | {{campers.0.attributes.last_name}} | balance-{{campers.0.registration}} | 7/1/2023 | none | Registration balance for {{registrant_email}} | none | {{total_balance}} | 0 | 0 | USD | We're looking forward to seeing you at camp! | |
-{{/eachrsort}}

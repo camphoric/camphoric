@@ -1,9 +1,0 @@
-| First Name | Last Name | Age | Lodging |
-| ---------- | --------- | --- | ------- |
-{{#eachrsort campers "created_at"}}
-{{#with (lookup ../registrationLookup [registration]) as | registrationType |}}
-{{#unless this.registrationType}}
-| {{../attributes.first_name}} | {{../attributes.last_name}} | {{../attributes.age}} | {{#with (lookup ../../lodgingLookup ../lodging)~}} {{name}} | {{/with}}
-{{/unless}}
-{{/with}}
-{{/eachrsort}}
