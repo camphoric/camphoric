@@ -104,7 +104,7 @@ export default {
       'description': `
 **New This Year**    
 We are allowing all campers to purchase a special name badge. The name badge
-will be 2.25", and you can see a [sample of the design here](test).
+will be 2.25", and you can see a [sample of the design here](https://www.larkcamp.org/wp-content/uploads/2025/01/name-badge-2025.jpeg).
 `,
       'type': 'object',
       'dependencies': {

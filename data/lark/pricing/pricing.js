@@ -18,7 +18,7 @@ export default {
   'meals_youth_half': 192,
 
   'parking_pass': 85,
-  'parking_pass_at_camp_extra': 35,
+  'parking_pass_at_camp_extra': 20,
 
   'name_badge': 5,
 };

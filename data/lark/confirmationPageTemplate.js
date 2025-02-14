@@ -20,10 +20,6 @@ problems with your payment, the registrar will be in touch.
 {{/compare}}
 
 
-Please email either a photo of your current vaccination cards or a current QR
-code to registration@larkcamp.org. The QR Code can be acquired from the State
-of California: https://myvaccinerecord.cdph.ca.gov/.  
-
 Do you need approval for your vehicle or trailer, have questions about
 carpooling, payments, meals, ordering t-shirts, or anything else? Email us at
 [registration@larkcamp.org](mailto:registration@larkcamp.org) or call
