@@ -313,7 +313,7 @@ export default {
 
   camp2_cabin: { parentKey: 'camp2', name: 'Cabin', visible: true, children_title: 'Select your cabin preference' },
 
-  ...Array.apply(null, Array(34)).map(function () {}).reduce(
+  ...Array.apply(null, Array(35)).map(function () {}).reduce(
     (acc, v, i) => {
       const cabinNum = (i + 1).toString().padStart(2, '0');
       let capacity = 4;

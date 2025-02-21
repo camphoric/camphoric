@@ -93,6 +93,7 @@ recommendations may be sent out shortly before camp.
     'lta_donation': {
       'type': 'integer',
       'minimum': 0,
+      'maximum': 10000,
       'title': 'Donation to Lark Traditional Arts (Tax Deductible, Dollars)',
       'description': 'Lark Traditional Arts (EIN 83-2424940) is the nonprofit organization that runs Lark Camp. If you would like to support camp with a tax-deductible donation in addition to your registration today, please use the space below to add the amount. Or you may go to: [https://www.larkcamp.org/](https://www.larkcamp.org/)',
     },
