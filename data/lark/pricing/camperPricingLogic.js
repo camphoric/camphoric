@@ -51,25 +51,6 @@ const regTypeEquals = (type, price) => ([
   }, price,
 ]);
 
-const instructorTypeEquals = (type, price) => ([
-  {
-    and: [
-      { '===': [type, regType] },
-      // Only apply special pricing to the first one
-      {
-        or: [
-          {
-            '===': [{var: ['camper.index']}, 0],
-          },
-          {
-            '===': [{var: ['camper.index']}, 1],
-          },
-        ],
-      }
-    ],
-  }, price,
-]);
-
 const regularPrice = {
   tuition: {
     '+': [{
@@ -82,21 +63,12 @@ const regularPrice = {
         ...regTypeEquals('cleanup-camp-2', 0),
         ...regTypeEquals('cleanup-camp-3', 0),
         ...regTypeEquals('misc-staff', 0),
-
         ...regTypeEquals('management', 0),
         ...regTypeEquals('security', 0),
-        ...instructorTypeEquals('talent', 0),
-        ...instructorTypeEquals(
-          'talent-guest',
-          Math.floor(pricing.full_adult * 0.6)
-        ),
-
-        ...regTypeEquals('crew-kitchen-full', 0),
-        ...regTypeEquals(
-          'crew-kitchen-partial',
-          { '/': [ { var: 'pricing.full_adult' }, 2 ]}
-        ),
-        // First or second registrant is free for instructor 
+        ...regTypeEquals('talent', 0),
+        ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
+        ...regTypeEquals('kitchen-full', 0),
+        ...regTypeEquals('kitchen-partial', {var: 'pricing.kitchen_partial'}),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [

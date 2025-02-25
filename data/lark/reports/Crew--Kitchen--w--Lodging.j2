@@ -1,6 +1,6 @@
 {%- set valid_reg_types = [
-"crew-kitchen-full",
-"crew-kitchen-partial",
+"kitchen-full",
+"kitchen-partial",
 ] -%}
 {%- set session_short = {
 "Full camp": "Full",
@@ -25,10 +25,10 @@
 First, Last, Type, Session, Lodging
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
 {%- if 
-  not camper.crew == "crew-kitchen-full" and 
-  not camper.crew == "crew-kitchen-partial"
+  not camper.crew == "kitchen-full" and 
+  not camper.crew == "kitchen-partial"
   -%}{% continue %}{%- endif -%}
-  {{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{ camper.crew | replace('crew-kitchen-', '') }},
+  {{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{ camper.crew | replace('kitchen-', '') }},
   {{- session_short[camper.attributes.session] }},
   {{- camper.lodging_short if camper.ldg else 'Not assigned' }}
 {% endfor %}

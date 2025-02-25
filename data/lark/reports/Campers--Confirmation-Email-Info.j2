@@ -11,21 +11,21 @@
 } -%}
 {%- set crewLeadLookup = {
 'talent': {
-'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
-'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
+'Camp 1': { 'lead': 'Celia Ramsay', 'email': 'celiaramsay@gmail.com' },
+'Camp 2': { 'lead': 'Celia Ramsay', 'email': 'celiaramsay@gmail.com' },
+'Camp 3': { 'lead': 'Celia Ramsay', 'email': 'celiaramsay@gmail.com' },
 },
-'crew-cleanup': {
+'cleanup': {
 'Camp 1': { 'lead': 'Janet Finney-Krull', 'email': 'jrf7001@humboldt.edu' },
 'Camp 2': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
 'Camp 3': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
 },
-'crew-setup': {
+'setup': {
 'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
 'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
 'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
 },
-'crew-registration': {
+'registration': {
 'Camp 1': { 'lead': 'Robin Cohen', 'email': 'rcohen0808@gmail.com' },
 'Camp 2': { 'lead': 'Robin McClish', 'email': 'mcclish@mac.com' },
 'Camp 3': { 'lead': 'Deb Fischbach', 'email': 'itsdeb@mcn.org' },
@@ -35,12 +35,12 @@
 'Camp 2': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
 'Camp 3': { 'lead': 'Alex Miller', 'email': 'miller@larkcamp.org' },
 },
-'crew-kitchen-full': {
+'kitchen-full': {
 'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 },
-'crew-kitchen-partial': {
+'kitchen-partial': {
 'Camp 1': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 'Camp 2': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
@@ -83,15 +83,14 @@
         {%- set _ = camper.update({'comp_reason': 'trade'}) if camper.admin_attributes.food_trade_only -%}
     {%- endif -%}
 {%- endfor -%} 
-last, first, lodging, registration_type, parking_type, stay,vaccination_verified,balance_due , meal_plan, meal_location, first_day, precamp_meal_comp, crew, crew_leader, crew_leader_email
-{% for camper in campers | sort(attribute="fullLodgingPath") -%}
+last, first, lodging, registration_type, parking_type, stay,balance_due , meal_plan, meal_location, first_day, precamp_meal_comp, crew, crew_leader, crew_leader_email
+{% for camper in campers if camper.crew in crewLeadLookup.keys()| sort(attribute="fullLodgingPath") -%}
     {{- camper.attributes.last_name }},
     {{- camper.attributes.first_name }},
     {{- camper.fullLodgingPath}},
     {{- camper.crew or 'none' }},
     {{- parking_short[camper.parking] or '-'}},
     {{- camper.attributes.session}},
-    {{- camper.admin_attributes.vaccination_checked or 'False' }},
     {{- '$' + (camper.reg.total_balance | string) or '0' }},
     {{- camper.attributes.meals.meal_plan }},
     {{- camper.admin_attributes.meal_assignment or camper.camp }},

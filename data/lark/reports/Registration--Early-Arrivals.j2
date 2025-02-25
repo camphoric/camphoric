@@ -58,7 +58,7 @@ Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park, COVID
   {%- else -%}
     N/A
   {%- endif -%},
-  {{- (camper.crew | replace('crew-', '') | replace('-partial', '') | replace('-full', '')) or '-' }},
+  {{- (camper.crew | replace('', '') | replace('-partial', '') | replace('-full', '')) or '-' }},
   {{- camper.lodging_short }},
   {{- session_short[camper.attributes.session] }},
   {{- (

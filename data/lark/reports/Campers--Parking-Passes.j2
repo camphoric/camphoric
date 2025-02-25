@@ -49,7 +49,7 @@ last, first, name, reg, type, paid, session, lodging, url, code, session_display
 	{%- set i = loop.index -%}
 	{%- set _ = reg.update({'is_vehicle_camping': None if i == 1 and (reg.attributes.parking_passes | count) > 1 else reg.is_vehicle_camping}) -%}
 	{{- reg.attributes.payment.payer_last_name }},{{- reg.attributes.payment.payer_first_name }},"{{ parking_pass.holder }}",
-	{{- (reg.crew | replace('crew-', '')) if 'crew' in reg.crew else reg.crew  }},
+	{{- (reg.crew | replace('', '')) if 'crew' in reg.crew else reg.crew  }},
 	{{- parking_short[reg.parking] }},
 	{{- '$' if reg.parking_paid else '' }},
 	{{- session_short[reg.session] }},
