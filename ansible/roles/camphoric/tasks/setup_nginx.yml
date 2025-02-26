@@ -1,0 +1,26 @@
+---
+- name: Add camphoric nginx config
+  template:
+      src: camphoric.nginx.j2
+  dest: "/etc/nginx/sites-available/camphoric"
+
+- name: Disable default nginx site
+  file:
+      path: "/etc/nginx/sites-enabled/default"
+  state: absent
+
+- name: Enable camphoric nginx site
+  file:
+      src: "/etc/nginx/sites-available/camphoric"
+  dest: "/etc/nginx/sites-enabled/camphoric"
+  state: link
+
+- name: Reload nginx to activate camphoric site
+  service:
+      name: nginx
+  state: restarted
+
+- name: Start camphoric service
+  service:
+      name: camphoric
+  state: restarted

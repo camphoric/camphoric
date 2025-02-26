@@ -3,22 +3,22 @@
 from camphoric_server.settings_default import *  # noqa: F403 F401
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://localhost',
-    'http://NXDOMAIN:8000',
+    'https://{{ camphoric_domain_name }}',
+    'http://{{ lookup('dig', ansible_host) }}:8000',
+    'http://{{ lookup('dig', ansible_host) }}:3000',
     'http://localhost:8000',
-    'http://NXDOMAIN:3000',
     'http://localhost:3000',
 ]
 ALLOWED_HOSTS = [
-    'localhost',
-    'NXDOMAIN',
+    '{{ camphoric_domain_name }}',
+    '{{ lookup('dig', ansible_host) }}',
     'localhost',
 ]
 CORS_ORIGIN_WHITELIST = [
-    'https://localhost',
+    'https://{{ camphoric_domain_name }}',
+    'http://{{ lookup('dig', ansible_host) }}:8000',
+    'http://{{ lookup('dig', ansible_host) }}:3000',
     'http://localhost:8000',
-    'http://NXDOMAIN:8000',
-    'http://NXDOMAIN:3000',
     'http://localhost:3000',
 ]
 
@@ -30,7 +30,7 @@ DBBACKUP_STORAGE = env(
 )
 DBBACKUP_STORAGE_OPTIONS = env.json(
     'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': '/home/vagrant/camphoric/server/backup/'}
+    default={'location': '/home/{{ camphoric_user }}/camphoric/server/backup/'}
 )
 
 

@@ -1,0 +1,11 @@
+from django.contrib.auth.models import User
+
+{% for item in camphoric_django_users %}
+
+try:
+  User.objects.get(email='{{ item.email }}')
+except User.DoesNotExist:
+  User.objects.create_superuser('{{ item.username }}', '{{ item.email }}', '{{ item.password }}')
+
+{% endfor %}
+

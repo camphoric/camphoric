@@ -1,0 +1,3 @@
+- name: nodesource.node
+- name: nginxinc.nginx
+- name: community.postgresql

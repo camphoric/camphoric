@@ -23,6 +23,7 @@ mimetypes.add_type("image/jpeg", ".jpeg", True)
 env = environ.Env(
     DEBUG=(bool, False)
 )
+
 environ.Env.read_env(env.str('ENV_PATH', '.env/local/django'))
 
 
@@ -41,11 +42,7 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
-# TODO: https://github.com/camphoric/camphoric/issues/185
-STATIC_URL = '/static/'
-
 # Application definition
-
 INSTALLED_APPS = [
     'camphoric.apps.CamphoricConfig',
     'django.contrib.admin',
@@ -151,14 +148,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 REACT_BUILD_DIR = os.path.join(BASE_DIR, "frontend_bootstrap/build")
+REACT_STATIC_DIR = os.path.join(REACT_BUILD_DIR, 'static/')
+REACT_STATIC_INDEX = os.path.join(REACT_BUILD_DIR, 'index.html')
 
 # TODO: https://github.com/camphoric/camphoric/issues/185
+STATIC_URL = 'static/'
+MEDIA_URL = 'user_media/'
 STATICFILES_DIRS = [
-    os.path.join(REACT_BUILD_DIR, 'static'),
+    REACT_STATIC_DIR,
 ]
-
 STATIC_ROOT = 'static/'
-WHITENOISE_ROOT = os.path.join(REACT_BUILD_DIR)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -183,7 +182,7 @@ DBBACKUP_STORAGE = env(
 )
 DBBACKUP_STORAGE_OPTIONS = env.json(
     'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': '/app/backup/'}
+    default={'location': '.'}
 )
 
 CSRF_TRUSTED_ORIGINS = [

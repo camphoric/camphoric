@@ -1,0 +1,36 @@
+---
+camphoric_uid: 1040
+camphoric_user: camphoric
+camphoric_environment: development
+camphoric_release: HEAD
+camphoric_force_update: false
+camphoric_domain_name: localhost
+camphoric_url: http://{{ camphoric_domain_name }}
+
+camphoric_hosted_location: "/"
+camphoric_postgresql_user: camphoric
+camphoric_postgresql_password: this-should-be-in-a-vault
+camphoric_postgresql_db: camphoric
+
+camphoric_email_backend: django.core.mail.backends.smtp.EmailBackend
+camphoric_email_host: smtp.example.com
+camphoric_email_port: 587
+camphoric_email_host_user: registration@example.com
+camphoric_email_host_password: abc123
+camphoric_email_use_tls: on
+camphoric_email_timeout: 30
+
+camphoric_django_superuser_username: admin
+camphoric_django_superuser_email: registration@larkcamp.org
+camphoric_django_superuser_password: admin
+camphoric_django_secret_key: this-should-be-in-vault
+camphoric_django_dbbackup_storage: ''
+camphoric_django_dbbackup_storage_options: '{}'
+
+camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
+camphoric_paypal_client_id: this-should-be-in-vault
+camphoric_paypal_secret: this-should-be-in-vault
+
+nodejs_version: 22.x
+nginx_ssl_on: True
+

@@ -1,0 +1,30 @@
+---
+# based on
+# https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu-18-04
+- name: Install node modules
+  ansible.builtin.shell:
+    chdir: "/home/{{ camphoric_user }}/camphoric/client"
+    cmd: npm ci
+
+- name: Create react_dev socket file
+  template:
+    src: react_dev.socket.j2
+    dest: /etc/systemd/system/react_dev.socket
+
+- name: Create react_dev service file
+  template:
+    src: react_dev.service.j2
+    dest: /etc/systemd/system/react_dev.service
+
+- name: Start react_dev socket listener
+  ansible.builtin.systemd:
+    name: react_dev.socket
+    state: started
+    enabled: yes
+
+- name: Start react_dev service
+  ansible.builtin.systemd:
+    name: react_dev
+    state: started
+    enabled: yes
+
