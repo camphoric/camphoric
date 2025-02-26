@@ -122,7 +122,7 @@ const regularPrice = {
     'if': [
       ...regTypeEquals('management', 0),
       ...regTypeEquals('security', 0),
-      ...instructorTypeEquals('talent', 0),
+      ...regTypeEquals('talent', 0),
       {var: ['camper.name_badge.purchase']},
       {var: ['pricing.name_badge']},
       0,
