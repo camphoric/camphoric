@@ -15,6 +15,7 @@ camphoric_postgresql_db: camphoric
 camphoric_email_backend: django.core.mail.backends.smtp.EmailBackend
 camphoric_email_host: smtp.example.com
 camphoric_email_port: 587
+camphoric_email_name: tester
 camphoric_email_host_user: registration@example.com
 camphoric_email_host_password: abc123
 camphoric_email_use_tls: on

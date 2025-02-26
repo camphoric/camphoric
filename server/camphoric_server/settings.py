@@ -5,8 +5,8 @@ from camphoric_server.settings_default import *  # noqa: F403 F401
 CSRF_TRUSTED_ORIGINS = [
     'https://localhost',
     'http://NXDOMAIN:8000',
-    'http://localhost:8000',
     'http://NXDOMAIN:3000',
+    'http://localhost:8000',
     'http://localhost:3000',
 ]
 ALLOWED_HOSTS = [
@@ -16,9 +16,9 @@ ALLOWED_HOSTS = [
 ]
 CORS_ORIGIN_WHITELIST = [
     'https://localhost',
-    'http://localhost:8000',
     'http://NXDOMAIN:8000',
     'http://NXDOMAIN:3000',
+    'http://localhost:8000',
     'http://localhost:3000',
 ]
 
