@@ -1,0 +1,5 @@
+galaxy_info:
+  author: Will Wheeler
+  description: Installs camphoric
+  license: MIT
+  min_ansible_version: 2.1

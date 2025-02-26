@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+
+# JS files static, only requires a pull
+cd /home/{{ camphoric_user }}/camphoric/server/frontend_bootstrap/build
+git fetch
+git reset --hard origin/js-build-main > /dev/null
+
+cd /home/{{ camphoric_user }}/camphoric/server
+head_main_ref="$(git rev-parse main)"
+git fetch
+origin_main_ref="$(git rev-parse origin/main)"
+
+# if server refs are the same, we're finished
+if [ "$head_main_ref" = "$origin_main_ref" ] && [ -z "$FORCE_UPGRADE" ]
+then
+  # exit 1 so that the cron job knows not to restart service
+  exit 1
+fi
+
+echo "Running updates" 1>&2
+
+git pull origin 1>&2
+
+echo "pipenv install --three" 1>&2
+pipenv install --three 1>&2
+
+echo "pipenv run python manage.py createstaticdirs" 1>&2
+pipenv run python manage.py createstaticdirs || true
+
+echo "pipenv run python manage.py migrate" 1>&2
+pipenv run python manage.py migrate --noinput 1>&2
+
+echo "Running building django static resources" 1>&2
+pipenv run python manage.py collectstatic --noinput 1>&2
+
+echo "data reset" 1>&2
+pipenv run python manage.py flush --noinput 1>&2
+pipenv run python manage.py createsuperuser --noinput 1>&2
+
+cd /home/{{ camphoric_user }}/camphoric/data 1>&2
+npm ci 1>&2
+node loadAllData.js 1>&2
