@@ -12,6 +12,9 @@ Run the ansible provisioner
 Restart the VM
   vagrant reload
 
+Show the state of the current VMs
+  vagrant status
+
 Run the data reset part of the provisioner
   ANSIBLE_ARGS='--tags camphoric_data_reset' vagrant provision
 
