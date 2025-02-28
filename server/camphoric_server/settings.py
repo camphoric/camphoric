@@ -24,13 +24,12 @@ CORS_ORIGIN_WHITELIST = [
 
 # Backup
 # https://django-dbbackup.readthedocs.io/en/master/index.html
-DBBACKUP_STORAGE = env(
+DBBACKUP_STORAGE = env( # noqa F405
     'DBBACKUP_STORAGE',
     default='django.core.files.storage.FileSystemStorage'
 )
-DBBACKUP_STORAGE_OPTIONS = env.json(
+
+DBBACKUP_STORAGE_OPTIONS = env.json( # noqa F405
     'DBBACKUP_STORAGE_OPTIONS',
     default={'location': '/home/vagrant/camphoric/server/backup/'}
 )
-
-
