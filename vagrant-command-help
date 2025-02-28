@@ -27,6 +27,12 @@ Watch the django log files
 Run the frontend development server at localhost:3000
   vagrant ssh -c "cd camphoric/client; npm start"
 
+Run flake8
+  vagrant ssh -c "cd camphoric/server; pipenv run flake8"
+
+Run django tests
+  vagrant ssh -c "cd camphoric/server; pipenv run ./manage.py test"
+
 Destroy the VM
   vagrant destroy
 
