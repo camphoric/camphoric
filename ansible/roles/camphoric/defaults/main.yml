@@ -22,7 +22,7 @@ camphoric_email_use_tls: on
 camphoric_email_timeout: 30
 
 camphoric_django_superuser_username: admin
-camphoric_django_superuser_email: registration@larkcamp.org
+camphoric_django_superuser_email: registration@example.com
 camphoric_django_superuser_password: admin
 camphoric_django_secret_key: this-should-be-in-vault
 camphoric_django_dbbackup_storage: ''
