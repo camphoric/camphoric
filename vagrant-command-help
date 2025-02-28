@@ -1,0 +1,39 @@
+#!/bin/bash
+cat <<EOF
+helpful vagrant commands
+
+Create, start and provision the vm
+This also starts the django server at localhost:8000
+  vagrant up
+
+Run the ansible provisioner
+  vagrant provision
+
+Restart the VM
+  vagrant reload
+
+Show the state of the current VMs
+  vagrant status
+
+Run the data reset part of the provisioner
+  ANSIBLE_ARGS='--tags camphoric_data_reset' vagrant provision
+
+SSH into the vagrant machine
+  vagrant ssh
+
+Watch the django log files
+  vagrant ssh -c "journalctl -f -u camphoric"
+
+Run the frontend development server at localhost:3000
+  vagrant ssh -c "cd camphoric/client; npm start"
+
+Run flake8
+  vagrant ssh -c "cd camphoric/server; pipenv run flake8"
+
+Run django tests
+  vagrant ssh -c "cd camphoric/server; pipenv run ./manage.py test"
+
+Destroy the VM
+  vagrant destroy
+
+EOF

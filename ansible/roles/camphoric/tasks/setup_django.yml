@@ -1,0 +1,51 @@
+- name: Setup Django
+  become: true
+  become_user: "{{ camphoric_user }}"
+  block:
+    - name: Install virtual environment
+      ansible.builtin.shell:
+        chdir: "/home/{{ camphoric_user }}/camphoric/server"
+        cmd: pipenv install --dev
+
+    - name: Create Django.env
+      template:
+        owner: "{{ camphoric_user }}"
+        group: "{{ camphoric_user }}"
+        src: "templates/django.env.j2"
+        dest: "/home/{{ camphoric_user }}/camphoric/server/.env"
+        mode: 0700
+
+    - name: Create settings.py
+      template:
+        owner: "{{ camphoric_user }}"
+        group: "{{ camphoric_user }}"
+        src: "templates/settings.py.j2"
+        dest: "/home/{{ camphoric_user }}/camphoric/server/camphoric_server/settings.py"
+        mode: 0664
+
+    # These are static files built from the main branch
+    - name: Clone camphoric js-main repo
+      ansible.builtin.git:
+        repo: 'https://github.com/camphoric/camphoric.git'
+        dest: "/home/{{ camphoric_user }}/camphoric/server/frontend_bootstrap/build/"
+        version: js-build-main
+        depth: 1
+        force: yes
+
+    - name: Run Django migrations
+      ansible.builtin.shell:
+        chdir: "/home/{{ camphoric_user }}/camphoric/server"
+        cmd: "pipenv run python manage.py migrate"
+
+    - name: Flush Django db
+      ansible.builtin.shell:
+        chdir: "/home/{{ camphoric_user }}/camphoric/server"
+        cmd: "pipenv run python manage.py flush --noinput"
+
+    - ignore_errors: yes
+      block:
+        - name: Create Django superuser
+          ansible.builtin.shell:
+            chdir: "/home/{{ camphoric_user }}/camphoric/server"
+            cmd: "pipenv run python manage.py createsuperuser --noinput"
+

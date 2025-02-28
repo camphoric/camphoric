@@ -1,0 +1,27 @@
+---
+- name: Install postgresql packages
+  apt:
+    pkg:
+      - postgresql
+      - postgresql-contrib
+      - libpq-dev
+    state: latest
+
+- name: create camphoric user role
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ camphoric_postgresql_user }}"
+    password: "{{ camphoric_postgresql_password }}"
+    comment: camphoric user
+
+- name: create camphoric database
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ camphoric_postgresql_db }}"
+    owner: "{{ camphoric_postgresql_user }}"
+    state: present
+  register: camphoric_db_created
+
+

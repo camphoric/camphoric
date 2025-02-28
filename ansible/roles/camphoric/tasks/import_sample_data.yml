@@ -1,0 +1,38 @@
+---
+- name: Import sample data
+  become: true
+  become_user: "{{ camphoric_user }}"
+  tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+  environment:
+    DJANGO_SUPERUSER_USERNAME: "{{ camphoric_django_superuser_username }}"
+    DJANGO_SUPERUSER_PASSWORD: "{{ camphoric_django_superuser_password }}"
+    DJANGO_SUPERUSER_EMAIL: "{{ camphoric_django_superuser_email }}"
+    SECRET_KEY: "{{ camphoric_django_secret_key }}"
+    CAMPHORIC_LTA_GMAIL_NAME: "{{ camphoric_email_name }}"
+    CAMPHORIC_LTA_GMAIL_USERNAME: "{{ camphoric_email_host_user }}"
+    CAMPHORIC_LTA_GMAIL_PASSWORD: "{{ camphoric_email_host_password }}"
+    PAYPAL_BASE_URL: "{{ camphoric_paypal_base_url }}"
+    PAYPAL_CLIENT_ID: "{{ camphoric_paypal_client_id }}"
+    PAYPAL_SECRET: "{{ camphoric_paypal_secret }}"
+    CAMPHORIC_URL: "{{ camphoric_url }}:8000"
+  block:
+    - name: Reset data
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: |
+          pipenv run python manage.py flush --noinput
+          pipenv run python manage.py createsuperuser --noinput
+        chdir: "/home/{{ camphoric_user }}/camphoric/server"
+
+    - name: Install npm modules
+      ansible.builtin.shell:
+        chdir: "/home/{{ camphoric_user }}/camphoric/data"
+        cmd: "npm ci"
+
+    - name: Load sample data
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: node loadAllData.js
+        chdir: "/home/{{ camphoric_user }}/camphoric/data"

@@ -1,0 +1,23 @@
+---
+- name: apt-get update
+  become: yes
+  apt:
+    update_cache: yes
+
+- name: Upgrade all packages
+  become: yes
+  apt:
+    name: '*'
+    state: latest
+
+- name: Install common tooling
+  become: yes
+  apt:
+    name: "{{ packages }}"
+    state: latest
+  vars:
+    packages:
+      - vim
+      - git
+      - wget
+      - cron

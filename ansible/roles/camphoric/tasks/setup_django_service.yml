@@ -1,0 +1,25 @@
+---
+# based on
+# https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu-18-04
+- name: Create camphoric socket file
+  template:
+    src: camphoric.socket.j2
+    dest: /etc/systemd/system/camphoric.socket
+
+- name: Create camphoric service file
+  template:
+    src: camphoric.service.j2
+    dest: /etc/systemd/system/camphoric.service
+
+- name: Start camphoric socket listener
+  ansible.builtin.systemd:
+    name: camphoric.socket
+    state: started
+    enabled: yes
+  when: camphoric_environment != 'development'
+
+- name: Start camphoric service
+  ansible.builtin.systemd:
+    name: camphoric
+    state: started
+    enabled: yes

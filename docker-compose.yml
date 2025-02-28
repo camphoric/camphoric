@@ -44,6 +44,8 @@ services:
     env_file:
       - ./env/local/shared.env
       - ./env/local/react.env
+    environment:
+      VITE_API_PROXY: 'http://django:8000/'
     build:
       context: client
       shm_size: '2gb'

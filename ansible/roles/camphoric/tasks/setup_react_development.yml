@@ -1,0 +1,9 @@
+---
+- name: Setup React development
+  become: true
+  become_user: "{{ camphoric_user }}"
+  block:
+    - name: Install npm modules
+      ansible.builtin.shell:
+        chdir: "/home/{{ camphoric_user }}/camphoric/client"
+        cmd: "npm ci"

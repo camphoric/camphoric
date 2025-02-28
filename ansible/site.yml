@@ -1,0 +1,27 @@
+---
+- hosts: all
+  become: true
+  roles:
+    - common
+    - nodesource.node
+    - camphoric
+
+# Just note here
+# - hosts: localhost
+#   tasks:
+#     - name: Turn on builder instance
+#       amazon.aws.ec2_instance:
+#         state: running
+#         tags:
+#             Name: builder
+# 
+# 
+# 
+# - hosts: localhost
+#   tasks:
+#     - name: Turn off builder instance
+#       amazon.aws.ec2_instance:
+#         state: stopped
+#         tags:
+#             Name: builder
+# 

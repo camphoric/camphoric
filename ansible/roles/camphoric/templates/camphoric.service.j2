@@ -1,0 +1,25 @@
+[Unit]
+Description=camphoric daemon
+After=network.target
+{% if camphoric_environment != 'development' -%}
+Requires=camphoric.socket
+{%- endif %}
+
+[Service]
+User={{ camphoric_user }}
+Group={{ camphoric_user }}
+WorkingDirectory=/home/{{ camphoric_user }}/camphoric/server
+
+{% if camphoric_environment == 'development' %}
+ExecStart=/usr/local/bin/pipenv run python \
+          manage.py runserver 0.0.0.0:8000
+{% else %}
+ExecStart=/usr/local/bin/pipenv run gunicorn \
+          --access-logfile - \
+          --workers 3 \
+          --bind unix:/run/camphoric.sock \
+          camphoric_server.wsgi
+{% endif %}
+
+[Install]
+WantedBy=multi-user.target

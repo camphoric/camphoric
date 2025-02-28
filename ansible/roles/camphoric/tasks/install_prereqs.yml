@@ -1,0 +1,51 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Install apt prerequisites
+  apt:
+    pkg:
+      - python3
+      - awscli
+      - python3-pip
+      - openssl
+      - build-essential
+      - musl-dev
+      - acl
+      - git
+    state: latest
+    update_cache: true
+
+- name: Check node is installed
+  ansible.builtin.raw: node --version
+  check_mode: false
+  changed_when: false
+  failed_when: node_version_res.rc > 0
+  register: node_version_res
+
+- name: Check node version
+  debug: 
+    msg: "'{{node_version_res.stdout.split('.').0}}' is 'v{{nodejs_version.split('.').0}}'"
+  failed_when: node_version_res.stdout.split('.').0 != ('v' + nodejs_version.split('.').0)
+
+- name: Install pip prerequisites
+  pip:
+    executable: pip3
+    name:
+      - pipenv # required for django setup
+      - psycopg2-binary # required for postgresql playbook
+
+- name: Setup postgresql
+  include_tasks: setup_postgresql.yml
+
+- name: Create camphoric group
+  ansible.builtin.group:
+    name: "{{ camphoric_user }}"
+    state: present
+
+- name: Create camphoric user
+  ansible.builtin.user:
+    name: "{{ camphoric_user }}"
+    group: "{{ camphoric_user }}"
+    groups: "{{ camphoric_user }}"
+    shell: /bin/bash
+    uid: "{{ camphoric_uid }}"
+    append: yes

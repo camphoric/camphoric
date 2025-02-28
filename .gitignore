@@ -107,6 +107,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# vagrant
+.vagrant/
+
 # Data import tool
 .auth-token
 
