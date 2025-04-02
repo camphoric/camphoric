@@ -53,7 +53,7 @@ jobs:
       - name: Make build dir
         run: mkdir -p frontend_bootstrap/build/
       - id: cache-pipenv
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.local/share/virtualenvs
           key: ${{ runner.os }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}-3
