@@ -23,11 +23,11 @@
         cmd: |
           pipenv run python manage.py flush --noinput
           pipenv run python manage.py createsuperuser --noinput
-        chdir: "/home/{{ camphoric_user }}/camphoric/server"
+        chdir: "{{camphoric_folder}}/server"
 
     - name: Install npm modules
       ansible.builtin.shell:
-        chdir: "/home/{{ camphoric_user }}/camphoric/data"
+        chdir: "{{camphoric_folder}}/data"
         cmd: "npm ci"
 
     - name: Load sample data
@@ -35,4 +35,4 @@
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
         cmd: node loadAllData.js
-        chdir: "/home/{{ camphoric_user }}/camphoric/data"
+        chdir: "{{camphoric_folder}}/data"

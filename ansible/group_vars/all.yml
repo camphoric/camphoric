@@ -4,6 +4,7 @@ camphoric_user: vagrant
 camphoric_environment: development
 camphoric_release: HEAD
 camphoric_force_update: false
+camphoric_folder: "/vagrant"
 
 camphoric_hosted_location: "/"
 camphoric_postgresql_user: vagrant
