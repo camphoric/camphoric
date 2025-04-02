@@ -8,7 +8,7 @@ Requires=camphoric.socket
 [Service]
 User={{ camphoric_user }}
 Group={{ camphoric_user }}
-WorkingDirectory=/home/{{ camphoric_user }}/camphoric/server
+WorkingDirectory={{ camphoric_folder }}/server
 
 {% if camphoric_environment == 'development' %}
 ExecStart=/usr/local/bin/pipenv run python \

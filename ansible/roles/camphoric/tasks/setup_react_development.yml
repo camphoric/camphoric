@@ -5,5 +5,5 @@
   block:
     - name: Install npm modules
       ansible.builtin.shell:
-        chdir: "/home/{{ camphoric_user }}/camphoric/client"
+        chdir: "{{camphoric_folder}}/client"
         cmd: "npm ci"

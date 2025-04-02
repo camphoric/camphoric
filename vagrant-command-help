@@ -25,13 +25,15 @@ Watch the django log files
   vagrant ssh -c "journalctl -f -u camphoric"
 
 Run the frontend development server at localhost:3000
-  vagrant ssh -c "cd camphoric/client; npm start"
+(NOTE: it is recommended that you run this locally, not in a VM.
+This is because vite's watch-rebuild functionality won't work)
+  vagrant ssh -c "cd /vagrant/client; npm start"
 
 Run flake8
-  vagrant ssh -c "cd camphoric/server; pipenv run flake8"
+  vagrant ssh -c "cd /vagrant/server; pipenv run flake8"
 
 Run django tests
-  vagrant ssh -c "cd camphoric/server; pipenv run ./manage.py test"
+  vagrant ssh -c "cd /vagrant/server; pipenv run ./manage.py test"
 
 Destroy the VM
   vagrant destroy

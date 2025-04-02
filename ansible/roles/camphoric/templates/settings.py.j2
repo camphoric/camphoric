@@ -8,6 +8,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://{{ lookup('dig', ansible_host) }}:3000',
     'http://localhost:8000',
     'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
 ]
 ALLOWED_HOSTS = [
     '{{ camphoric_domain_name }}',
@@ -20,6 +23,9 @@ CORS_ORIGIN_WHITELIST = [
     'http://{{ lookup('dig', ansible_host) }}:3000',
     'http://localhost:8000',
     'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
 ]
 
 # Backup
@@ -30,7 +36,7 @@ DBBACKUP_STORAGE = env(
 )
 DBBACKUP_STORAGE_OPTIONS = env.json(
     'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': '/home/{{ camphoric_user }}/camphoric/server/backup/'}
+    default={'location': '{{ camphoric_folder }}/server/backup/'}
 )
 
 

@@ -6,6 +6,7 @@ camphoric_release: HEAD
 camphoric_force_update: false
 camphoric_domain_name: localhost
 camphoric_url: http://{{ camphoric_domain_name }}
+camphoric_folder: "/home/{{camphoric_user}}/camphoric"
 
 camphoric_hosted_location: "/"
 camphoric_postgresql_user: camphoric
