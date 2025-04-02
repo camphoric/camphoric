@@ -27,15 +27,14 @@ import {
   useAppDispatch,
 } from 'store/register/store';
 
-import { useNavigateToRegPage } from './utils';
+import { useNavigateToRegPage } from '../utils';
 import checkImage from './check-image.png';
 import PayPalButtons from './PayPalButtons';
-import PageWrapper from './PageWrapper';
 
 export type PayPalCreateOrder = PayPalButtonCreateOrder;
 export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonOnApprove;
 
-function PaymentStep() {
+function PaymentStepPaymentNeeded() {
   const registrationApi = api.useGetRegistrationQuery();
   const [createInitialPayment] = api.useCreateInitialPaymentMutation();
   const regFormData = useRegFormData();
@@ -188,71 +187,69 @@ function PaymentStep() {
   console.log({ payPalOptions });
 
   return (
-    <PageWrapper>
-      <div className="payment-form" style={loading ? { pointerEvents: 'none' } : undefined}>
-        {
-          !!loading && (
-            <div className="payment-disable-overlay">
-              <div>
-                <Spinner />
-              </div>
+    <div className="payment-form" style={loading ? { pointerEvents: 'none' } : undefined}>
+      {
+        !!loading && (
+          <div className="payment-disable-overlay">
+            <div>
+              <Spinner />
             </div>
-          )
-        }
-        <h1>Choose your payment option</h1>
-        <h3>Total: ${(total || 0).toFixed(2)}</h3>
-        {
-          paymentStep.deposit && (
-            <JsonSchemaForm
-              schema={{ 
-                type: 'object',
-                properties: {
-                  deposit: {
-                    type: 'string',
-                    ...paymentStep.deposit,
-                  }
-                }
-              }}
-              uiSchema={{
+          </div>
+        )
+      }
+      <h1>Choose your payment option</h1>
+      <h3>Total: ${(total || 0).toFixed(2)}</h3>
+      {
+        paymentStep.deposit && (
+          <JsonSchemaForm
+            schema={{ 
+              type: 'object',
+              properties: {
                 deposit: {
-                  'ui:placeholder': 'Choose an option',
+                  type: 'string',
+                  ...paymentStep.deposit,
                 }
-              }}
-              onChange={onDepositChange}
-              formData={depositChoice}
-              templateData={{ }}
-              noHtml5Validate
-            >&nbsp;</JsonSchemaForm>
-          )
-        }
-        <p>
-          If you would like to pay by credit card, please select "PayPal", then
-          select "Pay with debit or credit card" in the PayPal window.
-        </p>
-        <button
-          onClick={submitPayByCheck}
-          className="payby-check-button"
-        >
-          <img alt="Check" src={checkImage} />
-          Check
-        </button>
-        {
-          !!payPalOptions && (
-            <PayPalScriptProvider
-              options={payPalOptions}
-              deferLoading
-            >
-              <PayPalButtons
-                payPalOptions={payPalOptions}
-                payPalCreateOrder={payPalCreateOrder}
-                payPalOnApprove={payPalOnApprove}
-              />
-            </PayPalScriptProvider>
-          )
-        }
-      </div>
-    </PageWrapper>
+              }
+            }}
+            uiSchema={{
+              deposit: {
+                'ui:placeholder': 'Choose an option',
+              }
+            }}
+            onChange={onDepositChange}
+            formData={depositChoice}
+            templateData={{ }}
+            noHtml5Validate
+          >&nbsp;</JsonSchemaForm>
+        )
+      }
+      <p>
+        If you would like to pay by credit card, please select "PayPal", then
+        select "Pay with debit or credit card" in the PayPal window.
+      </p>
+      <button
+        onClick={submitPayByCheck}
+        className="payby-check-button"
+      >
+        <img alt="Check" src={checkImage} />
+        Check
+      </button>
+      {
+        !!payPalOptions && (
+          <PayPalScriptProvider
+            options={payPalOptions}
+            deferLoading
+          >
+            <PayPalButtons
+              payPalOptions={payPalOptions}
+              payPalCreateOrder={payPalCreateOrder}
+              payPalOnApprove={payPalOnApprove}
+            />
+          </PayPalScriptProvider>
+        )
+      }
+    </div>
   );
 }
 
-export default PaymentStep;
+export default PaymentStepPaymentNeeded;

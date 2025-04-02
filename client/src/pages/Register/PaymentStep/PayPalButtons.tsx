@@ -18,7 +18,7 @@ import type {
 import type {
   PayPalCreateOrder,
   PayPalOnApprove,
-} from './PaymentStep';
+} from './PaymentStepPaymentNeeded';
 
 const payPalFundingSources: Array<FUNDING_SOURCE> = [
   'paypal',
