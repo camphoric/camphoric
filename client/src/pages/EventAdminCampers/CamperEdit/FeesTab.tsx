@@ -33,7 +33,9 @@ function FeesTab({ camper, event }: Props) {
   if (customChargeApi.isLoading || !customChargeApi.data) return <Spinner />;
   if (customChargeTypeApi.isLoading || !customChargeTypeApi.data) return <Spinner />;
 
-  const customCharges = customChargeApi.data;
+  const customCharges = customChargeApi.data.filter(
+    cc => camper.id.toString() === cc.camper.toString()
+  );
   const customChargeTypes = customChargeTypeApi.data;
   const camperFees = camper.server_pricing_results;
 
