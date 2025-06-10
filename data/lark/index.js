@@ -69,6 +69,14 @@ const data = {
       label: 'New Camper Referer Discount',
       name: 'new-camper-referer-discount',
     },
+		{
+			label: 'Badge Refund',
+			name: 'badge-refund',
+		},
+		{
+			label: 'Other',
+			name: 'other',
+		},
   ]
 };
 
