@@ -1,5 +1,6 @@
 import pricing from './pricing.js';
 import { regTypes } from '../registrationTypes.js';
+import { difference } from 'lodash';
 
 export const ageLookup = {
   65: '65 years old or older',
@@ -59,23 +60,38 @@ const regTypeEquals = (type, price) => {
   ];
 };
 
+const regTypeIn = (types, price) => {
+  const badRegTypes = difference(types, regTypes);
+
+  if (badRegTypes.length) {
+    throw new Error(`regTypeIn: reg type(s) do not exist: ${badRegTypes.join(', ')}`);
+  }
+
+  return [
+    { 'in': [regType, types] },
+    price,
+  ];
+}
+
 const regularPrice = {
   tuition: {
     '+': [{
       'if': [
-        ...regTypeEquals('office-camp-1', 0),
-        ...regTypeEquals('office-camp-2', 0),
-        ...regTypeEquals('office-camp-3', 0),
-        ...regTypeEquals('setup-teardown', 0),
-        ...regTypeEquals('cleanup-camp-1', 0),
-        ...regTypeEquals('cleanup-camp-2', 0),
-        ...regTypeEquals('cleanup-camp-3', 0),
-        ...regTypeEquals('misc-staff', 0),
-        ...regTypeEquals('management', 0),
-        ...regTypeEquals('security', 0),
-        ...regTypeEquals('talent', 0),
+        ...regTypeIn([
+          'office-camp-1',
+          'office-camp-2',
+          'office-camp-3',
+          'setup-teardown',
+          'cleanup-camp-1',
+          'cleanup-camp-2',
+          'cleanup-camp-3',
+          'misc-staff',
+          'management',
+          'security',
+          'talent',
+          'kitchen-full',
+        ], 0),
         ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
-        ...regTypeEquals('kitchen-full', 0),
         ...regTypeEquals('kitchen-partial', {var: 'pricing.kitchen_partial'}),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
@@ -99,12 +115,13 @@ const regularPrice = {
     '+': [
       {
         'if': [
-          ...regTypeEquals('kitchen-full', 0),
-          ...regTypeEquals('kitchen-partial', 0),
-          ...regTypeEquals('management', 0),
-          ...regTypeEquals('security', 0),
-          // First registrant meal is free for instructor 
-          ...regTypeEquals('talent', 0),
+          ...regTypeIn([
+            'kitchen-full',
+            'kitchen-partial',
+            'management',
+            'security',
+            'talent',
+          ], 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
             return [
               ...acc,
@@ -128,12 +145,14 @@ const regularPrice = {
 
   name_badge: {
     'if': [
-      ...regTypeEquals('management', 0),
-      ...regTypeEquals('security', 0),
-      ...regTypeEquals('talent', 0),
-      ...regTypeEquals('office-camp-1', 0),
-      ...regTypeEquals('office-camp-2', 0),
-      ...regTypeEquals('office-camp-3', 0),
+      ...regTypeIn([
+        'management',
+        'security',
+        'talent',
+        'office-camp-1',
+        'office-camp-2',
+        'office-camp-3',
+      ], 0),
       {var: ['camper.name_badge.purchase']},
       {var: ['pricing.name_badge']},
       0,
@@ -150,8 +169,8 @@ const regularPrice = {
         ]}, 0
       ]},
       { if: [
-        { 'in': [ regType, [
-          // reg types that get free parking
+        // reg types that get free parking
+        ...regTypeIn([
           'office-camp-1',
           'office-camp-2',
           'office-camp-3',
@@ -167,8 +186,7 @@ const regularPrice = {
           'misc-staff',
           // 'late-registrant',
           'security',
-        ]]},
-        0,
+        ], 0),
         {'var': 'pricing.parking_pass'},
       ] },
     ]
