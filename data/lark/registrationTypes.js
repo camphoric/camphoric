@@ -139,7 +139,7 @@ const specialType = (regType) => ({
       : createCrewEmailTemplate(regType),
 });
 
-export default [
+export const regTypes = [
   { name: 'office-camp-1', label: 'Camp 1 registration/office crew' },
   { name: 'office-camp-2', label: 'Camp 2 registration/office crew' },
   { name: 'office-camp-3', label: 'Camp 3 registration/office crew' },
@@ -155,4 +155,6 @@ export default [
   { name: 'misc-staff', label: 'Miscellaneous Staff' },
   { name: 'late-registrant', label: 'Late Registrant' },
   { name: 'security', label: 'Security' },
-].map(specialType);
+];
+
+export default regTypes.map(specialType);

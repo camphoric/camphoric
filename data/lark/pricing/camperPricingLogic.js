@@ -1,4 +1,5 @@
 import pricing from './pricing.js';
+import { regTypes } from '../registrationTypes.js';
 
 export const ageLookup = {
   65: '65 years old or older',
@@ -19,6 +20,7 @@ export const mealsLookup = {
 
 const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
+const regTypeNames = regTypes.map(t => t.name);
 
 const regularTuitionPriceMatrix = [
   [ 65, 'pricing.full_adult',   'pricing.half_adult' ],
@@ -41,15 +43,21 @@ const regularMealsPriceMatrix = [
 ];
 
 const regType = {var: ['registration.registration_type']};
-const regTypeEquals = (type, price) => ([
-  {
-    and: [
-      { '===': [type, regType] },
-      // Only apply special pricing to the first one
-      { '===': [{var: ['camper.index']}, 0] },
-    ],
-  }, price,
-]);
+const regTypeEquals = (type, price) => {
+  if (!regTypeNames.find(type)) {
+    throw new Error(`regTypeEquals: reg type ${type} does not exist`);
+  }
+
+  return [
+    {
+      and: [
+        { '===': [type, regType] },
+        // Only apply special pricing to the first one
+        { '===': [{var: ['camper.index']}, 0] },
+      ],
+    }, price,
+  ];
+};
 
 const regularPrice = {
   tuition: {
@@ -123,6 +131,9 @@ const regularPrice = {
       ...regTypeEquals('management', 0),
       ...regTypeEquals('security', 0),
       ...regTypeEquals('talent', 0),
+      ...regTypeEquals('office-camp-1', 0),
+      ...regTypeEquals('office-camp-2', 0),
+      ...regTypeEquals('office-camp-3', 0),
       {var: ['camper.name_badge.purchase']},
       {var: ['pricing.name_badge']},
       0,
