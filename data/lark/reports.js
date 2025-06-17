@@ -127,9 +127,9 @@ export default [
     template: readFile('Crew--Clean--C2-3.j2'),
   },
   {
-    title: 'PayPal Invoice Bulkkkk',
+    title: 'Registration, PayPal Invoices',
     output: 'csv',
-    template: readFile('PayPal-Invoice-Bulkkkk.j2'),
+    template: readFile('Registration--Paypal-Invoices.j2'),
   },
   {
     title: 'Crew, Office, Camp 1',
