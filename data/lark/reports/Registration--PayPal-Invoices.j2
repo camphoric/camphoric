@@ -1,0 +1,45 @@
+{%- set camp_year = event.registration_end[:4] -%}
+{%- set due_date = '07/01/' ~ camp_year -%}
+{%- macro item_name(r) -%}
+    {%- set camper = r.campers[0] -%}
+    "Registration balance for #{{r.id}} {{ camper.attributes.first_name }} {{
+    camper.attributes.last_name }} {{ r.registrant_email }}"
+{%- endmacro -%}
+{%- macro paypal_name_or(r, if_pp, if_check) -%}
+    "
+    {%- if r.payment_type == 'PayPal' -%}
+        {{- r.paypal_response.payer.name[if_pp] -}}
+    {%- else -%}
+        {{- r.campers[0].attributes[if_check] or r.registrant_email -}}
+    {%- endif -%}
+    "
+{%- endmacro -%}
+
+{%- macro paypal_or(r, if_pp, if_check) -%}
+    "
+    {%- if r.payment_type == 'PayPal' -%}
+        {{- r.paypal_response.payer[if_pp] -}}
+    {%- else -%}
+        {{- r.campers[0].attributes[if_check] or r.registrant_email -}}
+    {%- endif -%}
+    "
+{%- endmacro -%}
+Recipient Email,Recipient First Name,Recipient Last Name,Invoice Number,Due Date,Reference,Item Name,Description,Item Amount,Shipping Amount,Discount Amount,Currency Code,Note to Customer,Terms and Conditions,Memo to Self
+{% for reg in registrations | sort(attribute="attributes.payment.payer_last_name") -%}
+{%- if reg.total_balance <= 0 -%} {%- continue -%} {%- endif -%}
+{{- paypal_or(reg, 'email_address', 'email') -}},
+{{- paypal_name_or(reg, 'given_name', 'first_name') -}},
+{{- paypal_name_or(reg, 'surname', 'last_name') -}},
+{{- '"lc' ~ reg.id ~ 'bal"' -}},{# Invoice Number #}
+{{- '"' ~ due_date ~ '"' -}},{# Due Date #}
+{{- '""' -}},{# Reference #}
+{{- item_name(reg) -}},{# Item Name #}
+{{- '"Lark Camp ' ~ camp_year ~ ', #' ~ reg.id ~ ' Balance; Original Payment: ' ~ reg.payment_type ~'"' -}},{# Description #}
+{{- reg.total_balance -}},{# Item Amount #}
+{{- '0' -}},{# Shipping Amount #}
+{{- '0' -}},{# Discount Amount #}
+{{- '"USD"' -}},{# Currency Code #}
+{{- '"We\'re looking forward to seeing you at camp!"' -}},{# Note to Customer #}
+{{- '""' -}},{# Terms and Conditions #}
+{{- '""' -}}{# Memo to Self #}
+{% endfor -%}
