@@ -141,6 +141,7 @@ const specialType = (regType) => ({
 
 export const regTypes = [
   { name: 'bus-driver', label: 'Bus Driver' },
+  { name: 'reg-volunteer', label: 'Registration Volunteer' },
   { name: 'cleanup-camp-1', label: 'Camp 1 cleanup crew' },
   { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew' },
   { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew' },
