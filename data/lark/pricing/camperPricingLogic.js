@@ -19,6 +19,31 @@ export const mealsLookup = {
   'B': 'All Meals - 2nd half',
 };
 
+const freeCamp = [
+  'bus-driver',
+  'cleanup-camp-1',
+  'cleanup-camp-2',
+  'cleanup-camp-3',
+  'kitchen-full',
+  'management',
+  'misc-staff',
+  'office-camp-1',
+  'office-camp-2',
+  'office-camp-3',
+  'security',
+  'setup-teardown',
+  'talent',
+];
+
+const freeMeals = [
+  'bus-driver',
+  'kitchen-full',
+  'kitchen-partial',
+  'management',
+  'security',
+  'talent',
+];
+
 const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 const regTypeNames = regTypes.map(t => t.name);
@@ -77,20 +102,7 @@ const regularPrice = {
   tuition: {
     '+': [{
       'if': [
-        ...regTypeIn([
-          'office-camp-1',
-          'office-camp-2',
-          'office-camp-3',
-          'setup-teardown',
-          'cleanup-camp-1',
-          'cleanup-camp-2',
-          'cleanup-camp-3',
-          'misc-staff',
-          'management',
-          'security',
-          'talent',
-          'kitchen-full',
-        ], 0),
+        ...regTypeIn(freeCamp, 0),
         ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
         ...regTypeEquals('kitchen-partial', {var: 'pricing.kitchen_partial'}),
         // Standard pricing
@@ -115,13 +127,7 @@ const regularPrice = {
     '+': [
       {
         'if': [
-          ...regTypeIn([
-            'kitchen-full',
-            'kitchen-partial',
-            'management',
-            'security',
-            'talent',
-          ], 0),
+          ...regTypeIn(freeMeals, 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
             return [
               ...acc,
