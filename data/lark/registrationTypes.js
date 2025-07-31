@@ -140,21 +140,22 @@ const specialType = (regType) => ({
 });
 
 export const regTypes = [
-  { name: 'office-camp-1', label: 'Camp 1 registration/office crew' },
-  { name: 'office-camp-2', label: 'Camp 2 registration/office crew' },
-  { name: 'office-camp-3', label: 'Camp 3 registration/office crew' },
-  { name: 'kitchen-full', label: 'Kitchen crew' },
-  { name: 'kitchen-partial', label: 'Kitchen crew - partial pay' },
-  { name: 'setup-teardown', label: 'Setup/teardown crew' },
+  { name: 'bus-driver', label: 'Bus Driver' },
   { name: 'cleanup-camp-1', label: 'Camp 1 cleanup crew' },
   { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew' },
   { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew' },
-  { name: 'talent', label: 'Talent Staff' },
-  { name: 'talent-guest', label: 'Guest of Talent Staff' },
+  { name: 'kitchen-full', label: 'Kitchen crew' },
+  { name: 'kitchen-partial', label: 'Kitchen crew - partial pay' },
+  { name: 'late-registrant', label: 'Late Registrant' },
   { name: 'management', label: 'Management' },
   { name: 'misc-staff', label: 'Miscellaneous Staff' },
-  { name: 'late-registrant', label: 'Late Registrant' },
+  { name: 'office-camp-1', label: 'Camp 1 registration/office crew' },
+  { name: 'office-camp-2', label: 'Camp 2 registration/office crew' },
+  { name: 'office-camp-3', label: 'Camp 3 registration/office crew' },
   { name: 'security', label: 'Security' },
+  { name: 'setup-teardown', label: 'Setup/teardown crew' },
+  { name: 'talent', label: 'Talent Staff' },
+  { name: 'talent-guest', label: 'Guest of Talent Staff' },
 ];
 
 export default regTypes.map(specialType);
