@@ -11,6 +11,7 @@
 //notes = models.TextField(blank=True, default='')
 
 const twoBedCabins2 = [3, 8, 11, 13, 19, 24, 26, 31];
+const nonExistantCabins2 = [32, 33];
 
 export default {
   root: {
@@ -318,6 +319,11 @@ export default {
       const cabinNum = (i + 1).toString().padStart(2, '0');
       let capacity = 4;
 
+			// check for 2-bed cabins
+			if (nonExistantCabins2.includes(cabinNum)) {
+				return acc;
+			}
+
       // check for 2-bed cabins
       if (twoBedCabins2.includes(cabinNum)) {
         capacity = 2;
@@ -457,4 +463,5 @@ export default {
     {},
   ),
 
+	offsite: { parentKey: 'root', capacity: 50, name: 'Off Site', visible: false },
 };
