@@ -158,6 +158,8 @@ const regularPrice = {
         'office-camp-1',
         'office-camp-2',
         'office-camp-3',
+				'bus-driver',
+				'reg-volunteer',
       ], 0),
       {var: ['camper.name_badge.purchase']},
       {var: ['pricing.name_badge']},
