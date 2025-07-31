@@ -6,14 +6,14 @@
     {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
     {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
     {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
-		{%- set _ = camper.update({'meals_in': camper.camp }) -%}
-		{%- set _ = camper.update({'meals_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+    {%- set _ = camper.update({'meals_in': camper.camp }) -%}
+    {%- set _ = camper.update({'meals_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
     {%- set _ = camper.update({'meals_in': camper.admin_attributes.meal_assignment_dinner or camper.admin_attributes.meal_assignment_breakfast or camper.meals_in }) -%}
-		{%- set _ = camper.update({'age_cat': 'Adult' }) -%}
-		{%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '0-4 years old' -%}
-		{%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '5-11 years old' -%}
-		{%- set _ = camper.update({'meal_plan': camper.attributes.meals.meal_plan }) -%}
-		{%- set _ = camper.update({'meal_type': camper.attributes.meals.meal_type }) -%}
+    {%- set _ = camper.update({'age_cat': 'Adult' }) -%}
+    {%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '0-4 years old' -%}
+    {%- set _ = camper.update({'age_cat': 'Child' }) if camper.attributes.age == '5-11 years old' -%}
+    {%- set _ = camper.update({'meal_plan': camper.attributes.meals.meal_plan }) -%}
+    {%- set _ = camper.update({'meal_type': camper.attributes.meals.meal_type }) -%}
 {%- endfor -%} 
 
 {%- for camp in ["Camp 1", "Camp 2"] %}
@@ -27,8 +27,8 @@
 {%- endfor -%}
 {%- endfor %}
 ,,
-{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Non-Vegetarian") | list | length -}},
-{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Vegetarian") | list | length -}},
-{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_type", "==", "Vegan") | list | length -}},
-{{- campers | selectattr("meals_in", "==", camp) | list | length }}
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan","!=","No meals") | selectattr("meal_type", "==", "Non-Vegetarian") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan","!=","No meals") | selectattr("meal_type", "==", "Vegetarian") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan","!=","No meals") | selectattr("meal_type", "==", "Vegan") | list | length -}},
+{{- campers | selectattr("meals_in", "==", camp) | selectattr("meal_plan","!=","No meals") | list | length }}
 {%- endfor %}
