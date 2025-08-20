@@ -1,6 +1,8 @@
 import pricing from './pricing.js';
 import { regTypes } from '../registrationTypes.js';
-import { difference } from 'lodash';
+import _ from 'lodash';
+
+const { difference } = _;
 
 export const ageLookup = {
   65: '65 years old or older',
