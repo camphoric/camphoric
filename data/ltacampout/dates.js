@@ -1,5 +1,5 @@
 export const lengthInDays = 3;
-const startDate = new Date('2024-10-11T14:00:00.000-07:00');
+const startDate = new Date('2025-10-10T14:00:00.000-07:00');
 
 const dateHash = {
   registration_start: new Date(),

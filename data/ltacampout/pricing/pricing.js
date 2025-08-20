@@ -1,6 +1,7 @@
 export const pricingMatrix = {
   adult: {
     offsite: 75,
+    premium: 300,
     privateroom: 250,
     sharedroom: 200,
     rvlg: 150,
@@ -9,6 +10,7 @@ export const pricingMatrix = {
   },
   yadult: {
     offsite: 75,
+		premium: 300,
     privateroom: 125,
     sharedroom: 100,
     rvlg: 75,
@@ -17,6 +19,7 @@ export const pricingMatrix = {
   },
   child: {
     offsite: 75,
+		premium: 300,
     privateroom: 125,
     sharedroom: 100,
     rvlg: 75,
