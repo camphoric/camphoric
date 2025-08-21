@@ -28,6 +28,7 @@ export const pricingMatrix = {
   },
   baby: {
     offsite: 0,
+    premium: 0,
     privateroom: 0,
     sharedroom: 0,
     rvlg: 0,
