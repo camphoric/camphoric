@@ -75,19 +75,18 @@ export default {
       'title': 'Last name'
     },
     'email': {
-      'title': 'Camper Email',
+      'title': 'Camper email',
       'type': 'string',
       'format': 'email',
     },
     'gender': {
       'type': 'string',
       'title': 'Gender',
-      'enum': ['Male', 'Female', 'Non-binary'],
+      'enum': ['Man', 'Woman', 'Non-binary'],
     },
     'age': {
       'type': 'string',
       'title': 'Age (at the beginning of camp)',
-      'description': 'In order to help us abide by CDC recommendations, please select your age category at time of camp',
       'enum': [
         '65 years old or older',
         '50-64 years old',
@@ -100,11 +99,10 @@ export default {
       'default': '65 years old or older',
     },
     'name_badge': {
-      'title': 'Name Badge',
+      'title': 'Name badge',
       'description': `
-**New This Year**    
-We are allowing all campers to purchase a special name badge. The name badge
-will be 2.25", and you can see a [sample of the design here](https://www.larkcamp.org/wp-content/uploads/2025/01/name-badge-2025.jpeg).
+All campers may purchase a name badge. The name badge will be 2.25", and you
+can see a [sample of the design here](https://www.larkcamp.org/wp-content/uploads/2025/01/name-badge-2025.jpeg).
 `,
       'type': 'object',
       'dependencies': {
@@ -142,6 +140,65 @@ will be 2.25", and you can see a [sample of the design here](https://www.larkcam
         'purchase': {
           'type': 'boolean',
           'title': `I would like to purchase a name badge for $${pricing.name_badge}`,
+          'enum': [false, true],
+          'enumNames': ['No', 'Yes'],
+          'default': false,
+        },
+      },
+    },
+    'good_samaritan': {
+      'title': 'Volunteer medical and psychiatric response team',
+      'description': `
+Our camp is located a far distance from many services. In the case of an
+emergency, we depend on our community. Please let us know if you are willing to
+help.
+`,
+      'type': 'object',
+      'dependencies': {
+        'volunteer': {
+          'oneOf': [
+            {
+              'properties': {
+                'volunteer': {
+                  'enum': [false, ''],
+                },
+              },
+            },
+            {
+              'properties': {
+                'volunteer': {
+                  'enum': [true],
+                },
+                'skills': {
+                  'title': 'Skills',
+                  'description': 'Check all that apply',
+                  'type': 'array',
+                  'items': {
+                    'type': 'string',
+                    'enum': [
+                      'Medical',
+                      'Counceling/psychiatric',
+                      'Emergency management',
+                      'Firefighting',
+                    ],
+                  },
+                  'uniqueItems': true
+                },
+                'credentials': {
+                  'type': 'string',
+                  'maxLength': 100,
+                  'title': 'Relevent credentials and certifications',
+                },
+              },
+              'required': ['skills', 'credentials'],
+            },
+          ],
+        },
+      },
+      'properties': {
+        'volunteer': {
+          'type': 'boolean',
+          'title': 'Willing to help',
           'enum': [false, true],
           'enumNames': ['No', 'Yes'],
           'default': false,
