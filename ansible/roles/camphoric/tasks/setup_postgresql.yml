@@ -15,6 +15,16 @@
     password: "{{ camphoric_postgresql_password }}"
     comment: camphoric user
 
+- name: DEV add create db permissions for django tests
+  when: camphoric_environment == 'development'
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ camphoric_postgresql_user }}"
+    password: "{{ camphoric_postgresql_password }}"
+    role_attr_flags: "CREATEDB"
+    comment: camphoric user with CREATEDB
+
 - name: create camphoric database
   become: yes
   become_user: postgres
