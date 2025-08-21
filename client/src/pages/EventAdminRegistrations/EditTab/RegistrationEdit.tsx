@@ -10,7 +10,7 @@ import ConfirmDialog from 'components/Modal/ConfirmDialog';
 import TextInput, { Select } from 'components/Input';
 import Spinner from 'components/Spinner';
 
-import api from 'store/admin/api';
+import api, { useRegistrationTypeLookup } from 'hooks/api';
 
 interface Props {
   registration: AugmentedRegistration;
@@ -20,7 +20,7 @@ interface Props {
 function RegistrationEdit({ registration, event, ...props}: Props) {
   const [deleteRegistrationApi] = api.useDeleteRegistrationMutation();
   const [patchRegistration] = api.useUpdateRegistrationMutation();
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const registrationTypeLookup = useRegistrationTypeLookup();
   const deleteModal  = React.useRef<ConfirmDialog>(null);
   const [registrationId, setRegistrationId] = React.useState(registration.id);
   const [formData, setFormData] = React.useState(registration.attributes);
@@ -48,16 +48,13 @@ function RegistrationEdit({ registration, event, ...props}: Props) {
     });
   }
 
-  if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+  if (!registrationTypeLookup) return <Spinner />;
 
-  const regTypesOptions = registrationTypesApi.data
-    .filter(r => r.event.toString() === event.id.toString())
-    .map(
-    (rt: ApiRegistrationType) => ({
+  const regTypesOptions = Object.values(registrationTypeLookup)
+    .map( (rt) => ({
       label: rt.label,
       value: rt.id,
-    })
-  );
+    }));
 
   const onRegTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRegType(e.target.value === 'none' ? null : e.target.value);

@@ -28,10 +28,6 @@ export type LodgingLookup = {
   [id: string]: AugmentedLodging,
 }
 
-export type RegistrationTypeLookup = {
-  [id: string]: ApiRegistrationType,
-}
-
 export function useEvent() {
   const { eventId } = useParams<UrlParams>();
   const event = api.useGetEventByIdQuery(eventId || 0);
@@ -59,11 +55,30 @@ const basicSearchOptions = {
  * HOOKS FOR ApiRegistrations
  */
 
+export type RegistrationTypeLookup = { [id: string]: ApiRegistrationType };
+export function useRegistrationTypeLookup(): RegistrationTypeLookup | undefined {
+  const { eventId } = useParams<UrlParams>();
+  const registrationTypeApi = api.useGetRegistrationTypesQuery({ event: eventId });
+  const [lookup, setLookup] = React.useState<RegistrationTypeLookup>();
+
+  React.useEffect(() => {
+    if (!registrationTypeApi.data || !eventId) return;
+
+    const result = {} as RegistrationTypeLookup;
+
+    registrationTypeApi.data.forEach(p => (result[p.id.toString()] = p));
+
+    setLookup(result);
+  }, [registrationTypeApi, eventId]);
+
+  return lookup;
+}
+
 const createRegistrationLookup = (
   registrations: Array<ApiRegistration>,
   campers: Array<ApiCamper>,
   payments: Array<ApiPayment>,
-  regTypes: Array<ApiRegistrationType>,
+  regTypes: RegistrationTypeLookup,
   eventId: CtxId
 ): RegistrationLookup => {
     const eventIdStr = eventId.toString();
@@ -75,9 +90,7 @@ const createRegistrationLookup = (
           p => p.registration === r.id
         );
 
-        const registrationType = regTypes.find(
-          t => t.id === r.registration_type
-        );
+        const registrationType = regTypes[r.registration_type];
 
         const total_owed = r.server_pricing_results.total;
         const total_payments = paymentRecords.reduce((acc, p) => Number(p.amount) + acc, 0);
@@ -104,11 +117,11 @@ const createRegistrationLookup = (
   }
 
 export function useRegistrationLookup(): RegistrationLookup | undefined {
-  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1 });
-  const campersApi = api.useGetCampersQuery({ registration__completed: 1 });
-  const paymentsApi = api.useGetPaymentsQuery();
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
   const { eventId } = useParams<UrlParams>();
+  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1, event: eventId });
+  const campersApi = api.useGetCampersQuery({ registration__completed: 1, registration__event: eventId });
+  const paymentsApi = api.useGetPaymentsQuery({ registration__completed: 1, registration__event: eventId });
+  const registrationTypeLookup = useRegistrationTypeLookup();
   const [lookup, setLookup] = React.useState<RegistrationLookup>();
 
   React.useEffect(() => {
@@ -116,7 +129,7 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
       !registrationsApi.data ||
       !campersApi.data ||
       !paymentsApi.data ||
-      !registrationTypesApi.data
+      !registrationTypeLookup
     ) return;
     if (!eventId) return;
 
@@ -124,12 +137,12 @@ export function useRegistrationLookup(): RegistrationLookup | undefined {
       registrationsApi.data,
       campersApi.data,
       paymentsApi.data,
-      registrationTypesApi.data,
+      registrationTypeLookup,
       eventId,
     );
 
     setLookup(result);
-  }, [registrationsApi, campersApi, paymentsApi, registrationTypesApi, eventId]);
+  }, [registrationsApi, campersApi, paymentsApi, registrationTypeLookup, eventId]);
 
   return lookup;
 }
@@ -200,9 +213,9 @@ const createCamperLookup =
   };
 
 export function useCamperLookup(): CamperLookup | undefined {
-  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1 });
-  const campersApi = api.useGetCampersQuery({ registration__completed: 1 });
   const { eventId } = useParams<UrlParams>();
+  const registrationsApi = api.useGetRegistrationsQuery({ completed: 1, event: eventId });
+  const campersApi = api.useGetCampersQuery({ registration__completed: 1, registration__event: eventId });
 
   const [lookup, setLookup] = React.useState<CamperLookup>();
 
@@ -270,8 +283,8 @@ const createReportLookup =
   };
 
 export function useReportLookup(): ReportLookup | undefined {
-  const { data: reports } = api.useGetReportsQuery();
   const { eventId } = useParams<UrlParams>();
+  const { data: reports } = api.useGetReportsQuery({ event: eventId });
 
   const [lookup, setLookup] = React.useState<ReportLookup>();
 
@@ -348,10 +361,67 @@ export function useLodgingLookup(): LodgingLookup | undefined {
   return lodgingLookup;
 }
 
+export type InvitationLookup = { [id: string]: ApiInvitation };
+export function useInvitationLookup(): InvitationLookup | undefined {
+  const { eventId } = useParams<UrlParams>();
+  const apiResponse = api.useGetInvitationsQuery({ registration__event: eventId });
+  const [lookup, setLookup] = React.useState<InvitationLookup>();
+
+  React.useEffect(() => {
+    if (!apiResponse.data || !eventId) return;
+
+    const result = {} as InvitationLookup;
+
+    apiResponse.data.forEach(p => (result[p.id.toString()] = p));
+
+    setLookup(result);
+  }, [apiResponse, eventId]);
+
+  return lookup;
+}
+
+export type PaymentsLookup = { [id: string]: ApiPayment };
+export function usePaymentsLookup(): PaymentsLookup | undefined {
+  const { eventId } = useParams<UrlParams>();
+  const paymentApi = api.useGetPaymentsQuery({ registration__event: eventId });
+  const [lookup, setLookup] = React.useState<PaymentsLookup>();
+
+  React.useEffect(() => {
+    if (!paymentApi.data || !eventId) return;
+
+    const result = {} as PaymentsLookup;
+
+    paymentApi.data.forEach(p => (result[p.id.toString()] = p));
+
+    setLookup(result);
+  }, [paymentApi, eventId]);
+
+  return lookup;
+}
+
+export type CustomChargeTypeLookup = { [id: string]: ApiCustomChargeType };
+export function useCustomChargeTypeLookup(): CustomChargeTypeLookup | undefined {
+  const { eventId } = useParams<UrlParams>();
+  const customChargeTypeApi = api.useGetCustomChargeTypesQuery({ event: eventId });
+  const [lookup, setLookup] = React.useState<CustomChargeTypeLookup>();
+
+  React.useEffect(() => {
+    if (!customChargeTypeApi.data || !eventId) return;
+
+    const result = {} as CustomChargeTypeLookup;
+
+    customChargeTypeApi.data.forEach(p => (result[p.id.toString()] = p));
+
+    setLookup(result);
+  }, [customChargeTypeApi, eventId]);
+
+  return lookup;
+}
+
 export function useLodgingTree(): AugmentedLodging | undefined {
-  const lodgingsAllApi = api.useGetLodgingsQuery();
-  const camperLookup = useCamperLookup();
   const { data: event } = useEvent();
+  const lodgingsAllApi = api.useGetLodgingsQuery({ event: event?.id });
+  const camperLookup = useCamperLookup();
   const [tree, setTree] = React.useState<AugmentedLodging>();
 
   React.useEffect(() => {
@@ -426,7 +496,7 @@ export function useTemplateVars(): ReportTemplateVars | undefined {
   const registrationLookup = useRegistrationLookup();
   const camperLookup = useCamperLookup();
   const lodgingLookup = useLodgingLookup();
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const registrationTypesApi = api.useGetRegistrationTypesQuery({ event: event?.id });
 
   if (
     !event ||

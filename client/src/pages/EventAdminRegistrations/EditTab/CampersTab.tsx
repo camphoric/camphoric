@@ -6,12 +6,12 @@ import {
   Button
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
-import api from 'hooks/api';
+import api, { useCamperLookup } from 'hooks/api';
 import {
   useLocation,
   matchPath,
   generatePath,
-} from "react-router-dom";
+} from 'react-router-dom';
 
 interface Props {
   registration: AugmentedRegistration;
@@ -37,18 +37,13 @@ type UrlParams = {
 
 function PaymentTab(props: Props) {
   const [patchCamper] = api.useUpdateCamperMutation();
-  const camperApi = api.useGetCampersQuery();
+  const camperLookup = useCamperLookup();
   const [isLoading, setIsLoading] = React.useState(false);
   const loc = useLocation();
 
-  if (
-    isLoading ||
-    camperApi.isFetching ||
-    camperApi.isLoading ||
-    !camperApi.data
-  ) return <Spinner />;
+  if ( isLoading || !camperLookup) return <Spinner />;
 
-  const campers = camperApi.data
+  const campers = Object.values(camperLookup)
     .filter(c => c.registration === props.registration.id)
     .sort((ca, cb) => ca.sequence - cb.sequence);
 

@@ -24,14 +24,12 @@ interface Props {
 const defaultDate = () => formatDateTimeForForm(new Date().toISOString()) as string;
 
 function AddPaymentForm(props: Props) {
-  const paymentApi = api.useGetPaymentsQuery();
   const [createPayment, createPaymentResult] = api.useCreatePaymentMutation();
   const [paymentAttributes, setPaymentAttributes] = React.useState({});
   const [paymentAmount, setPaymentAmount] = React.useState(0);
   const [paymentDate, setPaymentDate] = React.useState(defaultDate());
   const [paymentType, setPaymentType] = React.useState('Check');
 
-  if (paymentApi.isLoading || !paymentApi.data) return <Spinner />;
   if (createPaymentResult.isLoading) return <Spinner />;
 
   const handleChange = (setter: Function) => (changeEvent: React.ChangeEvent<HTMLInputElement>) => {

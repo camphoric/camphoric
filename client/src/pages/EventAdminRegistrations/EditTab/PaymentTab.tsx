@@ -9,7 +9,7 @@ import {
 } from 'utils/time';
 import getFromPath from 'lodash/get';
 
-import api from 'hooks/api';
+import { usePaymentsLookup } from 'hooks/api';
 
 import AddPaymentFormModal from './AddPaymentFormModal';
 
@@ -20,12 +20,12 @@ interface Props {
 
 
 function PaymentTab(props: Props) {
-  const paymentApi = api.useGetPaymentsQuery();
+  const allPayments = usePaymentsLookup();
   const [showAddPayment, setShowAddPayment] = React.useState(false);
 
-  if (paymentApi.isLoading || !paymentApi.data) return <Spinner />;
+  if (!allPayments) return <Spinner />;
 
-  const payments = paymentApi.data.filter(
+  const payments = Object.values(allPayments).filter(
     p => p.registration === props.registration.id
   );
 

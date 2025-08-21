@@ -4,7 +4,7 @@ import Spinner from 'components/Spinner';
 import Modal from 'components/Modal';
 import Input, { Money, Select } from 'components/Input';
 
-import api from 'hooks/api';
+import api, { useCustomChargeTypeLookup } from 'hooks/api';
 
 interface Props {
   event: ApiEvent;
@@ -16,17 +16,17 @@ interface Props {
 
 
 function AddCustomChargeForm(props: Props) {
-  const customChargeTypeApi = api.useGetCustomChargeTypesQuery();
+  const customChargeTypeLookup = useCustomChargeTypeLookup();
   const [createCustomCharge, createCustomChargeResult] = api.useCreateCustomChargeMutation();
 
   const [customChargeAmount, setCustomChargeAmount] = React.useState(0);
   const [customChargeType, setCustomChargeType] = React.useState(0);
   const [customChargeNotes, setCustomChargeNotes] = React.useState('');
 
-  if (customChargeTypeApi.isLoading || !customChargeTypeApi.data) return <Spinner />;
+  if (!customChargeTypeLookup) return <Spinner />;
   if (createCustomChargeResult.isLoading) return <Spinner />;
 
-  const customChargeTypes = customChargeTypeApi.data;
+  const customChargeTypes = Object.values(customChargeTypeLookup);
 
   if (!customChargeTypes.length) return (<div>No custom charge types defined</div>);
 
