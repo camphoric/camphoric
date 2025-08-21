@@ -20,10 +20,11 @@ const pricing = {
 	parking_pass: 85,
 	parking_pass_at_camp_extra: 20,
 
+	talent_guest_discount: -0.4,
+
 	name_badge: 5,
 };
 
-pricing.talent_guest = Math.floor(pricing.full_adult * 0.6);
 pricing.kitchen_partial = Math.floor(pricing.full_adult / 2);
 
 export default pricing;

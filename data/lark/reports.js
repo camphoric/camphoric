@@ -22,11 +22,6 @@ export default [
     template: readFile('Kitchen--Meal-Location-Exceptions.j2'),
   },
   {
-    title: 'PayPal Invoice Bulkkkk',
-    output: 'csv',
-    template: readFile('PayPal-Invoice-Bulkkkk.j2'),
-  },
-  {
     title: 'Campers, Lodging by Alpha',
     output: 'csv',
     template: readFile('Campers--Lodging-by-Alpha.j2'),
@@ -77,9 +72,9 @@ export default [
     template: readFile('Crew--Setup-and-Teardown.j2'),
   },
   {
-    title: 'Crew, Security',
+    title: 'Crew, Community Care',
     output: 'csv',
-    template: readFile('Crew--Security.j2'),
+    template: readFile('Crew--Community-Care.j2'),
   },
   {
     title: 'Campers, Half Campers',
