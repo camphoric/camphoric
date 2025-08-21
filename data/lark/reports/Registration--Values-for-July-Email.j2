@@ -1,0 +1,37 @@
+{%- for camper in campers -%}
+  {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
+  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].label if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
+  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
+  {%- set _ = camper.update({'fullLodgingPath': camper.ldg.fullPath if camper.lodging else "" }) -%}
+  {%- set _ = camper.update({'lodging_display': camper.fullLodgingPath[:camper.fullLodgingPath.find('→Spot')] if '→Spot' in camper.fullLodgingPath else camper.fullLodgingPath }) -%}
+  {%- set _ = camper.update({'camp': camper.ldg.pathParts[0] }) if camper.ldg -%}
+	{%- set _ = camper.update({'dinner_in': camper.camp }) -%}
+	{%- set _ = camper.update({'breakfast_in': camper.camp }) -%}
+	{%- set _ = camper.update({'dinner_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+	{%- set _ = camper.update({'breakfast_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+  {%- set _ = camper.update({'dinner_in': camper.admin_attributes.meal_assignment_dinner or camper.dinner_in }) -%}
+  {%- set _ = camper.update({'breakfast_in': camper.admin_attributes.meal_assignment_breakfast or camper.breakfast_in }) -%}
+{%- endfor -%} 
+full_name,first_name,id,email,guardian_forms_required,guardian_forms_received,registration_volunteer,arrives,meal_plan,session,crew,camp,lodging_fullpath,meal_assignment_breakfast,meal_assignment_dinner,parking,total_balance
+{% for camper in campers | sort(attribute='attributes.last_name') -%}
+  {{camper.attributes.first_name }} {{ camper.attributes.last_name }},
+  {{- camper.attributes.first_name }},
+  {{- camper.id }},
+  {{- camper.attributes.email or camper.registration.registrant_email or '-'}},
+  {{- "" if not camper.admin_attributes.guardian_forms_required else "Yes" }},
+	{{- "" if not camper.admin_attributes.guardian_forms_received else "Yes" }},
+  {{- "" if not camper.admin_attributes.registration_volunteer else "Yes" }},
+  {{- camper.stay[0] }},
+  {{- camper.attributes.meals.meal_plan }},
+  {{- camper.attributes.session }},
+  {{- camper.crew }},
+  {{- camper.camp }},
+  {{- camper.lodging_display }},
+  {{- camper.breakfast_in }},
+  {{- camper.dinner_in }},
+	{{- '"' }}{%- for parking_pass in camper.attributes.parking_passes -%}	
+		{{- parking_pass.pass_type }} {{ parking_pass.vehicle_type -}}
+		{{- ";" if not loop.last else "" -}}
+	{%- endfor -%}",
+  {{- camper.registration.total_balance or '0' }}
+{% endfor -%}

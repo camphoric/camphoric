@@ -23,43 +23,41 @@
   {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV→', 'Vehicle Camping')}) -%}
   {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('→Cabin→', '→')}) -%}
   {%- set _ = camper.update({'lodging_short': camper.lodging_short[:camper.lodging_short.find('→Spot')] }) if '→Spot' in camper.lodging_short -%}
-  {%- if camper.registration.attributes.parking_passes | length > 0 -%}
-    {%- set _ = camper.update({'parking': camper.registration.attributes.parking_exception or 'Long Term'}) -%}
-    {%- set _ = camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
-    {%- set _ = camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
-    {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+  {%- set _ = camper.update({'lodging_set': camper.ldg.isLeaf if camper.ldg else false }) -%}
+	{%- set _ = camper.update({'parking_pass_qty': camper.attributes.parking_passes | length }) -%}
+  {%- set _ = camper.update({'parking': 'NONE'}) -%}
+  {%- if camper.parking_pass_qty > 0 -%}
+		{%- set _ = camper.update({'parking': camper.parking_pass_qty ~ (' passes (' if camper.parking_pass_qty > 1 else ' pass (' )}) -%}
+		{%- for pass in camper.attributes.parking_passes -%}
+			{%- set _ = camper.update({'parking': camper.parking ~ parking_short[pass.pass_type] }) -%}
+			{%- set _ = camper.update({'parking': camper.parking ~ ',' }) if not loop.last -%}
+		{%- endfor -%}
+		{%- set _ = camper.update({'parking': camper.parking ~ ')' }) if not loop.last -%}
   {%- endif -%}
   {%- set _ = camper.update({
     'tent_tag_holder':
        (camper.ldg.campers | selectattr('attributes.session', '==', camper.attributes.session) | sort(attribute="sequence,attributes.last_name,attributes.first_name") | first)
   }) if 'Tent' in camper.fullLodgingPath -%}    
 {%- endfor -%} 
-last, first, age, crew, camp, lodging, park, email, parking, tent tag, session, row
-{% for camper in campers | sort(attribute='attributes.last_name') -%}
-  {{ camper.attributes.last_name }},
-  {{- camper.attributes.first_name }},
+last,first,age,crew,camp,lodging,email,parking,tenttag,session,id
+{% for camper in campers | sort(attribute='attributes.last_name,attributes.first_name') -%}
+	{{ '"' ~ (camper.attributes.last_name | replace('"', '""'))	}}",
+	{{- '"' ~ (camper.attributes.first_name | replace('"', '""'))	}}",
   {{- camper.attributes.age }},
   {{- camper.crew or 'Camper' }},
   {{- camper.camp }},
   {{- camper.lodging_short}},
-  {{- parking_short[camper.parking] or '-'}},
   {{- camper.attributes.email or camper.registration.registrant_email or '-'}},
-  {%- if (camper.registration.attributes.parking_passes | length) == 1 and camper.registration.campers[0].id == camper.id -%}
-    1 parking pass
-  {%- elif (camper.registration.attributes.parking_passes | length) > 1 and camper.registration.campers[0].id == camper.id -%}
-    {{- camper.registration.attributes.parking_passes | length }} parking passes
-  {%- elif (camper.registration.attributes.parking_passes | length) > 0 and camper.registration.campers[0].id != camper.id -%}
-    under {{ camper.registration.campers[0].attributes.first_name }} {{ camper.registration.campers[0].attributes.last_name }}
-  {%- else -%}
-    NONE
-  {%- endif -%},
-  {%- if 'Tent' in camper.fullLodgingPath and camper.tent_tag_holder.id == camper.id -%}
-    tent tag {{ camper.fullLodgingPath[camper.fullLodgingPath.find('→Spot '):] | replace('→Spot ', '') }}
-  {%- elif 'Tent' in camper.fullLodgingPath -%}
+	{{- '"' ~ camper.parking -}}",
+  {%- if not camper.lodging_set -%}
+		unassigned
+  {%- elif 'Tent' in camper.fullLodgingPath and camper.tent_tag_holder.id == camper.id -%}
+    {{ camper.fullLodgingPath[camper.fullLodgingPath.find('→Spot '):] | replace('→Spot ', '') }}
+  {%- elif 'Tent' in camper.fullLodgingPath and camper.tent_tag_holder.attributes.first_name -%}
     under {{ camper.tent_tag_holder.attributes.first_name }} {{ camper.tent_tag_holder.attributes.last_name }}
   {%- else -%}
     NONE
   {%- endif -%},
-  {{- camper.attributes.session }},
-  {{- loop.index }}
+  {{- camper.attributes.session | replace('Half camp - ', '') }},
+  {{- camper.id }}
 {% endfor -%}

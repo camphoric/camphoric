@@ -3,7 +3,7 @@
   "Half camp - 1st half": "1st",
   "Half camp - 2nd half": "2nd",
 } -%}
-campers, session, tag
+campers,session,camp,tag
 {% for spot in lodgingLookup.values() | sort(attribute="fullPath") if spot.isLeaf and 'Tent' in spot.fullPath and (spot.campers | length) -%}
 {% for session in ["Full camp", "Half camp - 1st half", "Half camp - 2nd half"] -%}
 {%- if (spot.campers | selectattr('attributes.session', '==', session) | list | length) < 1 -%}
@@ -13,6 +13,7 @@ campers, session, tag
     {{- camper.attributes.first_name }} {{	camper.attributes.last_name }}{{- ',' if not loop.last else '' -}}
 {%- endfor -%}",
   {{- session_short[session] }},
+  {{- spot.pathParts[0] -}},
   {{- spot.pathParts[-1].removeprefix('Spot ') }}{%- if '1st' in session -%}A{%- elif '2nd' in session -%}B{%- else -%}{%- endif %}
 {% endfor -%}
 {%- endfor -%}

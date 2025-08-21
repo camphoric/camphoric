@@ -1,6 +1,4 @@
-{%- set crew = 'registration' -%}
-{%- set camps = ['Camp 1'] -%}
-{%- set manager = 'Manager of Camp 1' -%}
+{%- set crew = 'office-camp-1' -%}
 {%- set parking_short = {
   "Long Term": "LT",
   "Vehicle Camp 1": "V1",
@@ -38,22 +36,14 @@
         {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
     {%- endif -%}
 {%- endfor -%} 
-first, last, crew, lodging, arrival_date, park, email
-{% for camper in campers | sort(attribute="attributes.last_name") if camper.admin_attributes.crew_exception == manager and camper.camperLodgingParts.pathParts[0] in camps -%}
+first, last, crew, lodging, arrival_date, park, badge, email
+{% for camper in campers | sort(attribute="attributes.last_name") if camper.crew.name == crew -%}
 {{ camper.attributes.first_name }},
 {{- camper.attributes.last_name }},
 {{- camper.crew.label or 'none' }},
 {{- camper.lodging_short}},
 {{- camper.stay[0] }},
 {{- parking_short[camper.parking] or '-'}},
+{{- '✔️' if camper.attributes.name_badge.purchase or '' }},
 {{- camper.registration. registrant_email }}
-{% endfor -%}
-{% for camper in campers | sort(attribute="attributes.last_name") if ((camper.crew.name == crew) and camper.admin_attributes.crew_exception != manager) and camper.camperLodgingParts.pathParts[0] in camps -%}
-{{ camper.attributes.first_name }},
-{{- camper.attributes.last_name }},
-{{- camper.crew.label or 'none' }},
-{{- camper.lodging_short}},
-{{- camper.stay[0] }},
-{{- parking_short[camper.parking] or '-'}},
-{{- camper.registration. registrant_email  }}
 {% endfor -%}

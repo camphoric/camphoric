@@ -1,0 +1,42 @@
+{%- set early_day = '2025-07-31' -%}
+{%- set session_display = {
+	"Full camp": "Full",
+	"Half camp - 1st half": "1st½",
+	"Half camp - 2nd half": "2nd½",
+} -%}
+{%- set type_display = {
+  "office-camp-1": "Office, Camp 1",
+  "office-camp-2": "Office, Camp 2",
+  "office-camp-3": "Office, Camp 3",
+  "kitchen-full": "",
+  "kitchen-partial": "",
+  "setup-teardown": "Setup/Teardown Crew",
+  "cleanup-camp-1": "Cleanup, Camp 1",
+  "cleanup-camp-2": "Cleanup, Camp 2",
+  "cleanup-camp-3": "Cleanup, Camp 3",
+  "talent": "Instructor",
+  "talent-guest": "",
+  "management": "Camp Manager",
+  "misc-staff": "",
+  "late-registrant": "",
+  "security": "Security",
+  "none": "",
+} -%}
+camper,badge_title,badge_name,badge_gender,camp,arrive_thurs,amt,reg_date
+{% for camper in campers | sort(attribute='created_at') if camper.attributes.name_badge.purchase -%}
+	{%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) -%}
+	{%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if camper.reg.registration_type else 'none' }) -%}
+  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
+  {%- set _ = camper.update({'fullLodgingPath': camper.ldg.fullPath }) if camper.lodging -%}
+  {%- set _ = camper.update({'camp': camper.ldg.pathParts[0] }) if camper.ldg -%}
+  {%- set badge_title = 'Reg Volunteer' if camper.admin_attributes.registration_volunteer else '' -%}
+	{%- set badge_title = (camper.admin_attributes.badge_role or type_display[camper.crew] or badge_title) -%}
+	{{- '"' +  camper.attributes.first_name }} {{ camper.attributes.last_name }}",
+	{{- '"' + badge_title + '"'}},
+  {{- '"' + camper.attributes.name_badge.name }}",
+  {{- '"' + (camper.attributes.name_badge.pronouns if camper.attributes.name_badge.pronouns else '') + '"' }},
+  {{- camper.camp }},
+  {{- "yes" if camper.stay[0] == early_day else "" }},
+  {{- camper.server_pricing_results.name_badge or 0 }},
+  {{- camper.created_at }}
+{% endfor -%}

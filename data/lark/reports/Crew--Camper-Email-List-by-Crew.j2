@@ -1,22 +1,15 @@
 {%- set crews = [
-  {'title': 'Talent Crew',
-  'name': 'talent'
-  },
-  {'title': 'Kitchen Crew',
-  'name': 'kitchen-'
-  },
-  {'title': 'Setup/Teardown Crew',
-  'name': 'setup'
-  },
-  {'title': 'Cleanup Crew',
-  'name': 'cleanup'
-  },
-  {'title': 'Registration Crew',
-  'name': 'registration'
-  },
-  {'title': 'Management Crew',
-  'name': 'management'
-  }
+  {'title': 'Talent Crew', 'name': 'talent' },
+  {'title': 'Kitchen Crew', 'name': 'kitchen' },
+  {'title': 'Setup/Teardown Crew', 'name': 'setup-teardown' },
+  {'title': 'Cleanup Crew, Camp 1', 'name': 'cleanup-camp-1' },
+  {'title': 'Cleanup Crew, Camp 2', 'name': 'cleanup-camp-2' },
+  {'title': 'Cleanup Crew, Camp 3', 'name': 'cleanup-camp-3' },
+  {'title': 'Office Crew, Camp 1', 'name': 'office-camp-1' },
+  {'title': 'Office Crew, Camp 2', 'name': 'office-camp-2' },
+  {'title': 'Office Crew, Camp 3', 'name': 'office-camp-3' },
+  {'title': 'Management Crew', 'name': 'management' },
+  {'title': 'Community Care', 'name': 'security' },
 ] -%}
 
 {%- for camper in campers -%}
@@ -29,7 +22,7 @@
 **{{ crew.title }}**
 <br>
 <br>
-{%- for camper in campers | sort(attribute="attributes.last_name") if camper.crew.startswith(crew.name) %}
+{%- for camper in campers | sort(attribute="attributes.last_name") if camper.crew == crew.name %}
 {{camper.attributes.first_name}} {{camper.attributes.last_name}} {{ '&lt;' }}{{camper.attributes.email or camper.registration.registrant_email}}{{ '&gt;' }},
 {%- endfor -%} 
 {%- endfor -%}
