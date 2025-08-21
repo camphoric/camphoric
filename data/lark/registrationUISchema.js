@@ -84,6 +84,9 @@ export default {
       'lodging': {
         'ui:description': lodgingDescription,
       },
+      'good_samaritan': {
+        'skills': { 'ui:widget': 'checkboxes' },
+      },
       'name_badge': {
         'properties': {
           'ui:order': [
