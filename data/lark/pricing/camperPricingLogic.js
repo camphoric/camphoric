@@ -32,7 +32,7 @@ const freeCamp = [
   'office-camp-1',
   'office-camp-2',
   'office-camp-3',
-  'security',
+  'community-care',
   'setup-teardown',
   'talent',
 ];
@@ -42,7 +42,7 @@ const freeMeals = [
   'kitchen-full',
   'kitchen-partial',
   'management',
-  'security',
+  'community-care',
   'talent',
 ];
 
@@ -72,7 +72,7 @@ const regularMealsPriceMatrix = [
 
 const regType = {var: ['registration.registration_type']};
 const regTypeEquals = (type, price) => {
-  if (!regTypeNames.find(type)) {
+  if (!regTypeNames.find(t => t === type)) {
     throw new Error(`regTypeEquals: reg type ${type} does not exist`);
   }
 
@@ -88,7 +88,7 @@ const regTypeEquals = (type, price) => {
 };
 
 const regTypeIn = (types, price) => {
-  const badRegTypes = difference(types, regTypes);
+  const badRegTypes = difference(types, regTypeNames);
 
   if (badRegTypes.length) {
     throw new Error(`regTypeIn: reg type(s) do not exist: ${badRegTypes.join(', ')}`);
@@ -105,7 +105,7 @@ const regularPrice = {
     '+': [{
       'if': [
         ...regTypeIn(freeCamp, 0),
-        ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
+				// ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
         ...regTypeEquals('kitchen-partial', {var: 'pricing.kitchen_partial'}),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
@@ -121,6 +121,28 @@ const regularPrice = {
           ];
         }, []).concat([9999]),
         // END Standard pricing
+      ],
+    },{
+      // apply talent guest discount
+      'if': [
+        ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
+          return [
+            ...acc,
+            {
+              'and': [
+                { '===': [ageLookup[age], camperAge] },
+                { '===': ['talent-guest', regType] },
+              ],
+            },
+            {
+              'if': [
+                {'===': ['Full camp', {var: 'camper.session'}]},
+                { '*': [ {var: full}, {var: 'pricing.talent_guest_discount'} ] },
+                { '*': [ {var: half}, {var: 'pricing.talent_guest_discount'} ] },
+              ]
+            }
+          ];
+        }, []).concat([0]),
       ],
     }]
   }, // END regularPrice tuition
@@ -155,7 +177,7 @@ const regularPrice = {
     'if': [
       ...regTypeIn([
         'management',
-        'security',
+        'community-care',
         'talent',
         'office-camp-1',
         'office-camp-2',
@@ -195,7 +217,7 @@ const regularPrice = {
           'management',
           'misc-staff',
           // 'late-registrant',
-          'security',
+          'community-care',
         ], 0),
         {'var': 'pricing.parking_pass'},
       ] },
