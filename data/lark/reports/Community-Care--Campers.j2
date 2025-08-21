@@ -1,4 +1,3 @@
-{%- set early_day = '2025-07-31' -%}
 {%- set parking_short = {
 "Long Term": "LT",
 "Vehicle Camp 1": "V1",
@@ -45,27 +44,27 @@
   (camper.ldg.campers | selectattr('attributes.session', '==', camper.attributes.session) | sort(attribute="sequence,attributes.last_name,attributes.first_name") | first)
   }) if 'Tent' in camper.fullLodgingPath -%}    
 {%- endfor -%} 
-Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park
-{% for camper in campers | sort(attribute="attributes.last_name") if camper.stay[0] == early_day -%}
-  {{ camper.attributes.last_name }},
-  {{- camper.attributes.first_name }},
+Last, First, Age, Guardian, GForms, Crew, Title, Lodging, Stay, Park, VLicense, VState, VModel, VPassengers, Arrived
+{% for camper in campers | sort(attribute='attributes.last_name') -%}
+  {{ '"' + camper.attributes.last_name }}",
+  {{- '"' + camper.attributes.first_name }}",
   {{- camper.attributes.age[:camper.attributes.age.find(' ')] | replace('65', '65+') }},
   {{- '"' + (camper.admin_attributes.guardian_name if 'guardian_name' in camper.admin_attributes else '') }}",
-  {%- if camper.admin_attributes.guardian_forms_required and camper.admin_attributes.guardian_forms_received -%}
-    Received
-  {%- elif camper.admin_attributes.guardian_forms_required and not camper.admin_attributes.guardian_forms_received -%}
-    NEEDED
-  {%- else -%}
-    N/A
-  {%- endif -%},
-  {{- camper.crew or '-' }},
+  {{- 'Yes' if camper.admin_attributes.guardian_forms_required else '' }},
+  {{- (camper.crew | replace('crew-', '') | replace('-partial', '') | replace('-full', '')) or '-' }},
+  {{- '"' + (camper.admin_attributes.crew_exception if 'crew_exception' in camper.admin_attributes else '' )}}",
   {{- camper.lodging_short }},
   {{- session_short[camper.attributes.session] }},
-  {{- (
-  (camper.registration.attributes.parking_passes | length | string) +
-  'x' +
-  parking_short[camper.parking] +
-  ('$' if camper.registration.server_pricing_results.parking > 0 else '')
-  ) if camper.registration.attributes.parking_passes else '-'
-  }}
+  {{- ((camper.registration.attributes.parking_passes | length | string) + 'x' + parking_short[camper.parking]) if camper.registration.attributes.parking_passes else '-' }},
+  {%- if camper.admin_attributes.vehicles -%}
+    {{- '"' + (camper.admin_attributes.vehicles | map(attribute="license", default="-") | join('\n')) -}}",
+    {{- '"' + (camper.admin_attributes.vehicles | map(attribute="state", default="-") | join('\n')) -}}",
+    {{- '"' -}}{%- for v in camper.admin_attributes.vehicles -%}
+      {{- v.year }} {{ v.color }} {{ v.make }} {{ v.model }}{{ '' if loop.last else '\n' }}
+    {%- endfor -%}",
+    {{- '"' + (camper.admin_attributes.vehicles | map(attribute="passengers") | map('join', ',') | join('\n')) -}}"
+  {%- else -%}
+    -, -, -, -
+  {%- endif -%},
+  {{- 'Y' if camper.admin_attributes.checked_in else 'N' }}
 {% endfor -%}

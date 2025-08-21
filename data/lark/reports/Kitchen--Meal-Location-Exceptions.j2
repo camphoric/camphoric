@@ -16,7 +16,7 @@
 		{%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '0-4 years old' -%}
 		{%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '5-11 years old' -%}
 		{%- set _ = camper.update({'meal_rate': 'camper' }) -%}
-		{%- set _ = camper.update({'meal_rate': 'at_cost' }) if camper.admin_attributes.instructor_meal_rate -%}
+		{%- set _ = camper.update({'meal_rate': 'at_cost' }) if camper.crew == 'talent' -%}
 		{%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-full' -%}
 		{%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-partial' -%}
 		{%- set _ = camper.update({'meal_rate': 'trade' }) if camper.admin_attributes.food_trade_only -%}

@@ -1,3 +1,4 @@
+{%- set crew = 'management' -%}
 {%- set parking_short = {
   "Long Term": "LT",
   "Vehicle Camp 1": "V1",
@@ -34,24 +35,15 @@
         {%- set _ = camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
         {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
     {%- endif -%}
-    {%- if camper.stay[0] == '2023-07-27' -%}
-        {%- set _ = camper.update({'comp_reason': 'kitchen'}) if camper.crew == 'kitchen-full' -%}
-        {%- set _ = camper.update({'comp_reason': 'kitchen'}) if camper.crew == 'kitchen-partial' -%}
-        {%- set _ = camper.update({'comp_reason': 'cleanup'}) if camper.crew == 'cleanup' -%}
-        {%- set _ = camper.update({'comp_reason': 'setup'}) if camper.crew == 'setup' -%}
-        {%- set _ = camper.update({'comp_reason': 'reg'}) if camper.crew == 'registration' -%}
-        {%- set _ = camper.update({'comp_reason': 'manage'}) if camper.crew == 'management' -%}
-        {%- set _ = camper.update({'comp_reason': 'trade'}) if camper.food_trade_only -%}
-        {%- set _ = camper.update({'comp_reason': 'gift'}) if camper.precamp_meals_comp -%}
-    {%- endif -%}
 {%- endfor -%} 
-first, last, description, lodging, arrival_date, park, email
-{% for camper in campers | sort(attribute="attributes.last_name") if (camper.crew.name == 'management') and camper.admin_attributes.crew_exception -%}
+first, last, crew, lodging, arrival_date, park, badge, email
+{% for camper in campers | sort(attribute="attributes.last_name") if camper.crew.name == crew -%}
 {{ camper.attributes.first_name }},
 {{- camper.attributes.last_name }},
-{{- camper.admin_attributes.crew_exception or '' }},
+{{- camper.crew.label or 'none' }},
 {{- camper.lodging_short}},
 {{- camper.stay[0] }},
 {{- parking_short[camper.parking] or '-'}},
-{{- camper.registration. registrant_email  }}
+{{- '✔️' if camper.attributes.name_badge.purchase or '' }},
+{{- camper.registration. registrant_email }}
 {% endfor -%}

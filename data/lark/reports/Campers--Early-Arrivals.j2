@@ -1,3 +1,4 @@
+{%- set early_date = '2025-07-31' -%}
 {%- set parking_short = {
   "Long Term": "LT",
   "Vehicle Camp 1": "V1",
@@ -20,6 +21,16 @@
     {%- for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] -%}
         {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) -%}
     {%- endfor -%} 
+    {%- set _ = camper.update({'parking_pass_qty': camper.attributes.parking_passes | length }) -%}
+    {%- set _ = camper.update({'parking': '-'}) -%}
+    {%- if camper.parking_pass_qty > 0 -%}
+      {%- set _ = camper.update({'parking': camper.parking_pass_qty ~ (' (' if camper.parking_pass_qty > 1 else ' (' )}) -%}
+      {%- for pass in camper.attributes.parking_passes -%}
+        {%- set _ = camper.update({'parking': camper.parking ~ parking_short[pass.pass_type] }) -%}
+        {%- set _ = camper.update({'parking': camper.parking ~ ',' }) if not loop.last -%}
+      {%- endfor -%}
+      {%- set _ = camper.update({'parking': camper.parking ~ ')' }) if not loop.last -%}
+    {%- endif -%}
     {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) -%}
     {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin→', '')}) -%}
     {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long→Spot ', '')}) -%}
@@ -36,6 +47,6 @@
     {%- endif -%}
 {%- endfor -%} 
 first, last, crew, lodging, park, email
-{% for camper in campers | sort(attribute="attributes.last_name") if camper.stay[0] == '2024-07-25' -%}
-    {{ camper.attributes.first_name }}, {{ camper.attributes.last_name }}, {{ camper.crew or 'camper' }}, {{camper.lodging_short}}, {{parking_short[camper.parking] or '-'}}, {{ camper.registration.registrant_email }}
+{% for camper in campers | sort(attribute="attributes.last_name") if camper.stay[0] == early_date -%}
+    {{ camper.attributes.first_name }}, {{ camper.attributes.last_name }}, {{ camper.crew or 'camper' }}, {{camper.lodging_short}},"{{camper.parking}}", {{ camper.registration.registrant_email }}
 {% endfor -%}

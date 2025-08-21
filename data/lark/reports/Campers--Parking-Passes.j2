@@ -1,64 +1,61 @@
 {%- set parking_short = {
-  "Long Term": "LT",
-  "Vehicle Camp 1": "V1",
-  "Vehicle Camp 2": "V2",
-  "Vehicle Camp 3": "V3",
-  "Short Term": "ST",
-  "Camp 1": "C1",
-  "Camp 2": "C2",
-  "Camp 3": "C3",
-  "Park Anywhere": "PA",
+	"Long Term": "LT",
+	"Vehicle Camp 1": "V1",
+	"Vehicle Camp 2": "V2",
+	"Vehicle Camp 3": "V3",
+	"Short Term": "ST",
+	"Camp 1": "C1",
+	"Camp 2": "C2",
+	"Camp 3": "C3",
+	"Park Anywhere": "PA",
 } -%}
 {%- set session_short = {
-  "Full camp": "F",
-  "Half camp - 1st half": "A",
-  "Half camp - 2nd half": "B",
+	"Full camp": "F",
+	"Half camp - 1st half": "A",
+	"Half camp - 2nd half": "B",
 } -%}
 {%- set session_display = {
-  "Full camp": "Full",
-  "Half camp - 1st half": "1st½",
-  "Half camp - 2nd half": "2nd½",
+	"Full camp": "Full",
+	"Half camp - 1st half": "1st½",
+	"Half camp - 2nd half": "2nd½",
 } -%}
-{%- for reg in registrations -%}
-	{%- set _ = reg.update({'session': reg.campers[0].attributes.session or '??' }) -%}
-  {%- set _ = reg.update({'crew': registrationTypeLookup[reg.registration_type | string].name if registrationTypeLookup[reg.registration_type | string] }) -%}
-	{%- set _ = reg.update({'pts': lodgingLookup[reg.campers[0].lodging | string]}) -%}
-	{%- set _ = reg.update({'ldg': reg.pts.pathParts | join('→') if reg.pts else ''}) -%}
-	{%- set _ = reg.update({'is_vehicle_camping': 'Vehicle Camp 1' if 'RV' in reg.ldg and 'Camp 1' in reg.ldg else reg.is_vehicle_camping}) -%}
-	{%- set _ = reg.update({'is_vehicle_camping': 'Vehicle Camp 2' if 'RV' in reg.ldg and 'Camp 2' in reg.ldg else reg.is_vehicle_camping}) -%}
-	{%- set _ = reg.update({'is_vehicle_camping': 'Vehicle Camp 3' if 'RV' in reg.ldg and 'Camp 3' in reg.ldg else reg.is_vehicle_camping}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.ldg or ''}) -%}
+id,last,first,reg,type,paid,session,lodging,url,code,session_display
+{% for camper in campers | sort(attribute='attributes.last_name,attributes.first_name') -%}
+	{%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) -%}
+	{%- set _ = camper.update({'pts': lodgingLookup[camper.lodging | string] if lodgingLookup[camper.lodging | string] }) -%}
+	{%- set _ = camper.update({'ldg': camper.pts.pathParts | join('→') if camper.pts else ''}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.ldg or ''}) -%}
 	{%- for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] -%}
-		{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) -%}
+		{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) -%}
 	{%- endfor -%} 
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('Camp ', 'C')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('Cabin→', '')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('RV under 15\' long→Spot ', '')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('RV 15\'-20\' long→Spot ', '')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('RV→', '')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('Cooks Cabin', 'Cook')}) -%}
-	{%- set _ = reg.update({'lodging_short': reg.lodging_short | replace('Cabin ', 'Cbn')}) -%}
-	{%- set _ = reg.update({'parking': reg.admin_attributes.parking_exception or reg.is_vehicle_camping or 'Long Term' }) -%}
-	{%- set _ = reg.update({'parking_paid': reg.server_pricing_results.parking > 0 }) -%}
-{%- endfor -%}
-last, first, name, reg, type, paid, session, lodging, url, code, session_display
-{% for reg in registrations | sort(attribute="session,parking,attributes.payment.payer_last_name") if (reg.attributes.parking_passes | count) > 0 -%}
-{%- for parking_pass in reg.attributes.parking_passes -%}
-	{%- set _ = reg.update({'is_vehicle_camping': ''}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin→', '')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long→Spot ', '')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV 15\'-20\' long→Spot ', '')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV→', '')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cooks Cabin', 'Cook')}) -%}
+	{%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin ', 'Cbn')}) -%}
+	{%- set _ = camper.update({'full_name': (camper.attributes.last_name ~ ", " ~	camper.attributes.first_name) | replace('"', '""') }) -%}
+	{%- set _ = camper.update({'short_name': (camper.attributes.last_name ~ "," ~	camper.attributes.first_name) | replace('"', '""') }) -%}
+	{%- set _ = camper.update({'parking_paid': camper.reg.server_pricing_results.parking > 0 }) -%}
+	{%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if camper.reg.registration_type else '' }) -%}
+	{%- set _ = camper.update({'is_vehicle_camping': ''}) -%}
+	{%- set _ = camper.update({'is_vehicle_camping': None if i == 1 and (camper.attributes.parking_passes | count) > 1 else camper.is_vehicle_camping}) -%}
+{%- for parking_pass in camper.attributes.parking_passes | sort(attribute='pass_type') -%}	
 	{%- set i = loop.index -%}
-	{%- set _ = reg.update({'is_vehicle_camping': None if i == 1 and (reg.attributes.parking_passes | count) > 1 else reg.is_vehicle_camping}) -%}
-	{{- reg.attributes.payment.payer_last_name }},{{- reg.attributes.payment.payer_first_name }},"{{ parking_pass.holder }}",
-	{{- (reg.crew | replace('', '')) if 'crew' in reg.crew else reg.crew  }},
-	{{- parking_short[reg.parking] }},
-	{{- '$' if reg.parking_paid else '' }},
-	{{- session_short[reg.session] }},
-	{{- reg.lodging_short }},
-	{{- '"larkadmin://registration/' + (reg.id | string) }}","
-	{{- reg.attributes.payment.payer_last_name }},
-	{{- reg.attributes.payment.payer_first_name }};
-	{{- session_short[reg.session] }};
-    {{- reg.lodging_short }}",
-	{{- session_display[reg.session] }}
+	{{- camper.id ~ '-' ~ i }},
+	{{- '"' ~ (camper.attributes.last_name | replace('"', '""')) }}",
+	{{- '"' ~ (camper.attributes.first_name | replace('"', '""')) }}",
+	{{- camper.crew }},
+	{{- parking_short[parking_pass.pass_type] }},
+	{{- '$' if camper.parking_paid else '' }},
+	{{- camper.attributes.session }},
+	{{- camper.lodging_short }},
+	{{- '"larkadmin://registration/' + (camper.id | string) }}","
+	{{- camper.short_name }};
+	{{- session_short[camper.attributes.session] }};
+	{{- camper.lodging_short }}",
+	{{- session_display[camper.attributes.session] }}
 {% endfor -%}
-{% endfor %}
+{% endfor -%}

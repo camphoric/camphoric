@@ -83,7 +83,7 @@
         {%- set _ = camper.update({'comp_reason': 'trade'}) if camper.admin_attributes.food_trade_only -%}
     {%- endif -%}
 {%- endfor -%} 
-last, first, lodging, registration_type, parking_type, stay,balance_due , meal_plan, meal_location, first_day, precamp_meal_comp, crew, crew_leader, crew_leader_email
+last,first,lodging,registration_type,parking_type,stay,balance_due,meal_plan,meal_location,first_day,precamp_meal_comp,crew,crew_leader,crew_leader_email
 {% for camper in campers if camper.crew in crewLeadLookup.keys()| sort(attribute="fullLodgingPath") -%}
     {{- camper.attributes.last_name }},
     {{- camper.attributes.first_name }},

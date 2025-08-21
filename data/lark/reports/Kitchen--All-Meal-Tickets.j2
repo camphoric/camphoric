@@ -6,20 +6,20 @@
     {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
     {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
     {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
-    {%- set _ = camper.update({'dinner_in': camper.camp }) -%}
-    {%- set _ = camper.update({'breakfast_in': camper.camp }) -%}
-    {%- set _ = camper.update({'dinner_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
-    {%- set _ = camper.update({'breakfast_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+		{%- set _ = camper.update({'dinner_in': camper.camp }) -%}
+		{%- set _ = camper.update({'breakfast_in': camper.camp }) -%}
+		{%- set _ = camper.update({'dinner_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
+		{%- set _ = camper.update({'breakfast_in': 'Camp 2' }) if camper.fullLodgingPath.startswith('Camp 3') -%}
     {%- set _ = camper.update({'dinner_in': camper.admin_attributes.meal_assignment_dinner or camper.dinner_in }) -%}
     {%- set _ = camper.update({'breakfast_in': camper.admin_attributes.meal_assignment_breakfast or camper.breakfast_in }) -%}
-    {%- set _ = camper.update({'age_category': 'adult' }) -%}
-    {%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '0-4 years old' -%}
-    {%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '5-11 years old' -%}
-    {%- set _ = camper.update({'meal_rate': 'camper' }) -%}
-    {%- set _ = camper.update({'meal_rate': 'at_cost' }) if camper.admin_attributes.instructor_meal_rate -%}
-    {%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-full' -%}
-    {%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-partial' -%}
-    {%- set _ = camper.update({'meal_rate': 'trade' }) if camper.admin_attributes.food_trade_only -%}
+		{%- set _ = camper.update({'age_category': 'adult' }) -%}
+		{%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '0-4 years old' -%}
+		{%- set _ = camper.update({'age_category': 'child' }) if camper.attributes.age == '5-11 years old' -%}
+		{%- set _ = camper.update({'meal_rate': 'camper' }) -%}
+		{%- set _ = camper.update({'meal_rate': 'at_cost' }) if camper.crew == 'talent' -%}
+		{%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-full' -%}
+		{%- set _ = camper.update({'meal_rate': 'kitchen' }) if camper.crew == 'kitchen-partial' -%}
+		{%- set _ = camper.update({'meal_rate': 'trade' }) if camper.admin_attributes.food_trade_only -%}
 {%- endfor -%} 
 last, first, camp, registration_type, stay, meal_plan, meal_type,dinner_location,breakfast_location, age, age_category, rate, charged_at_reg
 {% for camper in campers | sort(attribute="fullLodgingPath") -%}
@@ -32,11 +32,11 @@ last, first, camp, registration_type, stay, meal_plan, meal_type,dinner_location
     {{- camper.crew or 'none' }},
     {{- camper.attributes.session}},
     {{- camper.attributes.meals.meal_plan }},
-    {{- camper.attributes.meals.meal_type }},
+		{{- camper.attributes.meals.meal_type }},
     {{- camper.dinner_in }},
     {{- camper.breakfast_in }},
-    {{- camper.attributes.age }},
-    {{- camper.age_category }},
-    {{- camper.meal_rate }},
-    {{- '$' + (camper.server_pricing_results.meals | string) }}
+		{{- camper.attributes.age }},
+		{{- camper.age_category }},
+		{{- camper.meal_rate }},
+		{{- '$' + (camper.server_pricing_results.meals | string) }}
 {% endfor %}
