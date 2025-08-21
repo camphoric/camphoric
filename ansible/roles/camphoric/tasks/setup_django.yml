@@ -20,7 +20,7 @@
         owner: "{{ camphoric_user }}"
         group: "{{ camphoric_user }}"
         src: "templates/settings.py.j2"
-        dest: "{{ camphoric_folder }}/server/camphoric_server/settings.py"
+        dest: "{{ camphoric_folder }}/server/camphoric_server/settings_override.py"
         mode: 0664
 
     # These are static files built from the main branch

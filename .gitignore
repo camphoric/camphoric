@@ -120,6 +120,7 @@ server/backup/*.psql.bin
 # TODO: https://github.com/camphoric/camphoric/issues/185
 server/staticfiles/
 server/static/
+server/camphoric_server/settings_override.py
 
 # Camphoric frontend 
 frontend_bootstrap/build/

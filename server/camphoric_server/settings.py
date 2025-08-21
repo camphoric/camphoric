@@ -39,3 +39,8 @@ DBBACKUP_STORAGE_OPTIONS = env.json(  # noqa: F405
     'DBBACKUP_STORAGE_OPTIONS',
     default={'location': '/home/vagrant/camphoric/server/backup/'}
 )
+
+try:
+    from camphoric_server.settings_override import *  # noqa: F403 F401
+except ImportError:
+    pass
