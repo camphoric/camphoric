@@ -5,7 +5,7 @@ import {
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
 
-import api from 'hooks/api';
+import { useRegistrationTypeLookup } from 'hooks/api';
 
 import { TabProps } from './EventAdminSettings';
 
@@ -13,9 +13,9 @@ interface Props extends TabProps {
 }
 
 function EditRegistrationTypes({ event, ...props }: Props) {
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const registrationTypesLookup = useRegistrationTypeLookup();
 
-  if (registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+  if (!registrationTypesLookup) return <Spinner />;
 
   const save = () => { }
   const postNew = () => { }

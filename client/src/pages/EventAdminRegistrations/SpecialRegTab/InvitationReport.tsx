@@ -1,6 +1,10 @@
 import React from 'react';
-import api from 'store/admin/api';
-import { useEvent, useRegistrationLookup } from 'hooks/api';
+import api, {
+  useEvent,
+  useRegistrationLookup,
+  useRegistrationTypeLookup,
+  useInvitationLookup,
+} from 'hooks/api';
 import Spinner from 'components/Spinner';
 import { formatDateTimeForViewing } from 'utils/time';
 import {
@@ -22,31 +26,17 @@ function InvitationReport() {
   const [selectedInvitation, setSelectedInvitation] = React.useState<ApiInvitation>();
   const [popoverTarget, setPopoverTarget] = React.useState<HTMLElement>();
 
-  const invitationsApi = api.useGetInvitationsQuery();
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const invitationLookup = useInvitationLookup();
+  const registrationTypeLookup = useRegistrationTypeLookup();
+
   const [sendInvitation] = api.useSendInvitationMutation();
   const [deleteInvitation] = api.useDeleteInvitationMutation();
   const registrationLookup = useRegistrationLookup();
 
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
-  if (invitationsApi.isFetching || invitationsApi.isLoading || !invitationsApi.data) return <Spinner />;
-  if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+  if (!invitationLookup) return <Spinner />;
+  if (!registrationTypeLookup) return <Spinner />;
   if (!registrationLookup) return <Spinner />;
-
-  const eventId = eventApi.data.id;
-  const regTypeIds = registrationTypesApi.data
-    .filter(r => r.event === eventId)
-    .map(r => r.id);
-
-  const regTypeLookup = registrationTypesApi.data
-    .filter(r => r.event === eventId)
-    .reduce(
-      (acc, t) => ({
-        ...acc,
-        [t.id]: t.label,
-      }),
-      {} as { [a: string]: string },
-    );
 
   const sent = (i: ApiInvitation) => {
     if (i.sent_time) {
@@ -72,15 +62,14 @@ function InvitationReport() {
         </thead>
         <tbody>
           {
-            invitationsApi.data
-              .filter(i => i.registration_type && regTypeIds.includes(i.registration_type))
+            Object.values(invitationLookup)
               .sort((a, b) => compareDates(b.created_at, a.created_at))
               .map(
                 i => (
                   <tr key={i.id}>
                     <td>{i.recipient_name}</td>
                     <td>{i.recipient_email}</td>
-                    <td>{i.registration_type && regTypeLookup[i.registration_type]}</td>
+                    <td>{i.registration_type && registrationTypeLookup[i.registration_type]}</td>
                     <td>{i.sent_time ? 'Yes' : '-'}</td>
                     <td>
                       {

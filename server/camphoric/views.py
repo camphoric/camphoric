@@ -156,6 +156,7 @@ class InvitationViewSet(ModelViewSet):
     queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
     permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['registration', 'registration__event']
 
 
 class LodgingViewSet(ModelViewSet):
@@ -169,7 +170,7 @@ class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['registration', 'registration__completed']
+    filterset_fields = ['registration__event', 'registration', 'registration__completed']
 
 
 class DepositViewSet(ModelViewSet):
@@ -183,7 +184,7 @@ class PaymentViewSet(ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['registration']
+    filterset_fields = ['registration', 'registration__event']
 
 
 class BulkEmailTaskViewSet(ModelViewSet):
@@ -197,7 +198,7 @@ class BulkEmailRecipientViewSet(ModelViewSet):
     queryset = models.BulkEmailRecipient.objects.all()
     serializer_class = serializers.BulkEmailRecipientSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['task']
+    filterset_fields = ['task', 'task__event']
 
 
 class CustomChargeTypeViewSet(ModelViewSet):
@@ -211,7 +212,7 @@ class CustomChargeViewSet(ModelViewSet):
     queryset = models.CustomCharge.objects.all()
     serializer_class = serializers.CustomChargeSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['camper']
+    filterset_fields = ['camper', 'custom_charge_type__event']
 
 
 class UserViewSet(ModelViewSet):
@@ -234,6 +235,8 @@ class PaymentError(Exception):
 
 
 class EventList(APIView):
+    filterset_fields = ['organization']
+
     def get(self, request):
         '''
         Return an array of objects with the following keys:

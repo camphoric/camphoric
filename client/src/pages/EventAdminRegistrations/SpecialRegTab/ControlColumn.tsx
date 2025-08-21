@@ -5,8 +5,7 @@ import {
   Row,
 } from 'react-bootstrap';
 import Spinner from 'components/Spinner';
-import api from 'store/admin/api';
-import { useEvent } from 'hooks/api';
+import api, { useEvent, useRegistrationTypeLookup } from 'hooks/api';
 import { alphaSort } from 'utils/display';
 
 import InviteForm from './InviteForm';
@@ -15,7 +14,7 @@ import RegTypeForm from './RegTypeForm';
 function ControlColumn() {
   const eventApi = useEvent();
 
-  const registrationTypesApi = api.useGetRegistrationTypesQuery();
+  const registrationTypeLookup = useRegistrationTypeLookup();
   const [deleteRegType] = api.useDeleteRegistrationTypeMutation();
 
   const [showInviteModal, setShowInviteModal] = React.useState<boolean>(false);
@@ -23,13 +22,9 @@ function ControlColumn() {
   const [regTypeSelected, setRegTypeSelected] = React.useState<ApiRegistrationType | undefined>();
 
   if (eventApi.isFetching || eventApi.isLoading || !eventApi.data) return <Spinner />;
-  if (registrationTypesApi.isFetching || registrationTypesApi.isLoading || !registrationTypesApi.data) return <Spinner />;
+  if (!registrationTypeLookup) return <Spinner />;
 
-  const eventId = eventApi.data.id;
-
-  const regTypes = registrationTypesApi.data
-    .filter(r => r.event === eventId)
-    .sort(alphaSort('label'));
+  const regTypes = Object.values(registrationTypeLookup).sort(alphaSort('label'));
 
   const onClickEdit = (rt: ApiRegistrationType) => () => {
     setRegTypeSelected(rt);
