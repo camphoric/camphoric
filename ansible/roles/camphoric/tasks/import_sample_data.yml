@@ -26,6 +26,8 @@
         chdir: "{{camphoric_folder}}/server"
 
     - name: Install npm modules
+      when: camphoric_environment == 'development'
+      tags: [npm]
       ansible.builtin.shell:
         chdir: "{{camphoric_folder}}/data"
         cmd: "npm ci"
