@@ -31,7 +31,7 @@ USA
 
 Do you have questions? Email us at registration@larkcamp.org or call 707-397-5275
 
-Registration Number: ${year}LC{{ registration.id }}
+Registration Number: ${year}JC{{ registration.id }}
 `;
 
 export const confirmation_email_template = template;
