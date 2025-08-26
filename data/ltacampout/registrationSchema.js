@@ -26,8 +26,19 @@ const dateFormat = (d) => {
   const month = months[d.getMonth()];
   const day = ordinate(d.getDate());
   const dow = daysOfWeek[d.getDay()];
+  let hour = d.getHours();
+  const min = d.getMinutes().toString().padStart(2, 0);
+  let ampm = 'am';
 
-  return `${dow} ${month} ${day}`;
+  if (hour >= 12) {
+    hour = hour - 12; // this may set hour to zero
+    ampm = 'pm'
+  }
+
+  // fix above if hour is zero
+  if (hour === 0) hour = 12;
+
+  return `${dow} ${month} ${day} at ${hour}:${min}${ampm}`;
 };
 
 
