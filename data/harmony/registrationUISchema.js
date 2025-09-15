@@ -1,5 +1,5 @@
 const lodgingDescription = `
-[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1Ib164P-xt45RVV6UKnngH32_hiXLkYOgDgb9xhEK1u4/edit?gid=417741577#gid=417741577) for lodging (all prices include meals)
+[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1yZ_e924wB-26Znmz4pzBYgkW6Zt8erobgKvM6H90oo0/edit?gid=417741577) for lodging (all prices include meals)
 
 For Lodge: Linens included. Preference given to campers staying for full camp.
 `;
@@ -31,6 +31,8 @@ export default {
         'age',
         'email',
         'phone',
+        'emergency_contact',
+        'address',
         'attendance',
         'driving',
         'license_plate',
@@ -40,10 +42,19 @@ export default {
         'meal_type',
         'meal_exceptions',
         'meal_exceptions_other',
+        'health_conditions',
+        'first_time',
+        'referer',
         '*',
       ],
       'phone': {
         'ui:widget': 'PhoneInput'
+      },
+      'emergency_contact': {
+        'ui:order': [
+          'name',
+          'phone',
+        ],
       },
       'mobile_phone': {
         'ui:widget': 'PhoneInput'
@@ -57,6 +68,12 @@ export default {
 			'driving': {
 				'ui:placeholder': 'Choose an option',
 			},
+      'health_conditions': {
+        'ui:widget': 'textarea',
+        'ui:options': {
+          'rows': 3
+        }
+      },
       'meal_exceptions_other': {
         'ui:widget': 'textarea',
         'ui:options': {

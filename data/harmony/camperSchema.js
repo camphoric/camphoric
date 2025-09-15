@@ -1,16 +1,31 @@
-export const days = [
-  'Friday Dec. 27',
-  'Saturday Dec. 28',
-  'Sunday Dec. 29',
-  'Monday Dec. 30',
-  'Tuesday Dec. 31',
-];
+import { dates } from './dates.js';
+
+export const days = [0, 1, 2, 3, 4]
+  .map((i) => dates.start.plus({days: i}).toFormat('EEE MMM d'));
 
 // export default (args) => ({
 export default {
   'type': 'object',
   'required': ['first_name', 'last_name', 'email', 'phone', 'driving', 'attendance'],
   'dependencies': {
+    'first_time': {
+      'allOf': [
+        {
+          'if': {
+            'properties': { 'first_time': { 'const': true } }
+          },
+          'then': {
+            'properties': {
+              'referer': {
+                'type': 'string',
+                'maxLength': 30,
+                'title': 'If a particular person encouraged you to attend, please tell us who referred you.',
+              },
+            },
+          },
+        },
+      ],
+    },
     'driving': {
       'allOf': [
         {
@@ -53,13 +68,14 @@ export default {
       'type': 'string',
       'title': 'Age (at the beginning of camp)',
       'enum': [
-        '31+ years old',
+        '70+ years old',
+        '31-69 years old',
         '18-30 years old',
         '13-17 years old',
         '3-12 years old',
         '0-2 years old',
       ],
-      'default': '31+ years old',
+      'default': '70+ years old',
     },
     'email': {
       'title': 'Camper Email',
@@ -72,9 +88,35 @@ export default {
       'pattern': '^\\+[0-9]+$',
       'title': 'Phone Number'
     },
+    'address': {
+      'title': 'Address',
+      '$ref': '#/definitions/address'
+    },
+    'emergency_contact': {
+      'title': 'Emergency Contact',
+      'type': 'object',
+      'properties': {
+        'phone': {
+          'type': 'string',
+          'maxLength': 20,
+          'pattern': '^\\+[0-9]+$',
+          'title': 'Phone Number'
+        },
+        'name': {
+          'type': 'string',
+          'maxLength': 50,
+          'title': 'Full name'
+        },
+      },
+    },
+    'first_time': {
+      'title': 'Is this your first time attending Camp Harmony?',
+      'type': 'boolean',
+      'default': false,
+    },
     'attendance': {
       'title': 'When will you attend?',
-      'description': 'Check all for full camp',
+      'description': 'Each camp day starts at 2pm and ends at 2pm the following day. Each camp day includes dinner on the day you arrive, and breakfast & lunch the following day.',
       'type': 'array',
       'items': {
         'type': 'string',
@@ -135,6 +177,12 @@ and towel) for an additional $25. Would you like to rent linens?
     'meal_exceptions_other': {
       'title': 'Any additional dietary restrictions or allergies',
       'type': 'string',
+    },
+    'health_conditions': {
+      'title': 'Non-food allergies and health conditions',
+      'description': 'Camp Newman requires all campers to provide known allergies, health conditions that require treatment, restrictions, or other accommodations needed while at camp. If you have food allergies, please put them in the section above',
+      'type': 'string',
+      'maxLength': 200,
     },
     'campership_request': {
       'title': 'Campership request',
