@@ -1,7 +1,7 @@
 import pricingValues from './pricing.js';
 
 export const ageLookup = {
-  adult: ['31+ years old'],
+  adult: ['31-69 years old', '70+ years old'],
   yadult: ['18-30 years old', '13-17 years old'],
   child: ['3-12 years old'],
   baby: ['0-2 years old'],

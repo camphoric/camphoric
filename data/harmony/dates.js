@@ -1,19 +1,23 @@
+import { DateTime } from 'luxon';
+
 export const lengthInDays = 5;
-const startDate = new Date(Date.parse('27 Dec 2024 12:00:00 PST'));
+
+const today = DateTime.now();
+export let year = today.year;
+
+let startDate = DateTime.fromISO(`${year}-12-30T14:00:00.000-07:00`);
 
 const dateHash = {
-  registration_start: new Date(),
-  registration_end: new Date(Date.parse('15 Dec 2024 12:00:00 PST')),
+  registration_start: today,
+  registration_end: startDate.set({ day: 15, hour: 7 }),
   start: startDate,
-  end: new Date(startDate),
+  end: startDate.plus({ day: lengthInDays }),
 };
 
-dateHash.end.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
-
-export const year = dateHash.start.getFullYear();
 export const yearDisplay = `${
-  dateHash.start.getFullYear()
+  startDate.year
 }-${
-  (dateHash.start.getFullYear() + 1).toString().substring(2)
+  (startDate.year + 1).toString().substring(2)
 }`;
 export const dates = dateHash;
+

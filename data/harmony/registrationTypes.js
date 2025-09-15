@@ -1,4 +1,4 @@
-import { dates, yearDisplay } from './dates.js';
+import { yearDisplay } from './dates.js';
 
 const emails = {
   'late-registrant': () => `
