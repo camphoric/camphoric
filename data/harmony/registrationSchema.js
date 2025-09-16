@@ -64,13 +64,18 @@ Fields marked with an asterisk (*) are required
   },
   'required': [
     'campers',
-    'membership_check'
+    'membership_check',
+    'address',
   ],
   'properties': {
     'comments': {
       'type': 'string',
       'maxLength': 500,
       'title': 'Comments'
+    },
+    'address': {
+      'title': 'Main Address',
+      '$ref': '#/definitions/address'
     },
     'campership_donation': {
       'title': 'Campership Donation',

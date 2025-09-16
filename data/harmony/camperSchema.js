@@ -8,6 +8,29 @@ export default {
   'type': 'object',
   'required': ['first_name', 'last_name', 'email', 'phone', 'driving', 'attendance'],
   'dependencies': {
+    'address_different_than_payer': {
+      'oneOf': [
+        {
+          'properties': {
+            'address_different_than_payer': {
+              'enum': [false, ''],
+            },
+          },
+        },
+        {
+          'properties': {
+            'address_different_than_payer': {
+              'enum': [true],
+            },
+            'address': {
+              'title': 'Address',
+              '$ref': '#/definitions/address'
+            },
+          },
+          'required': ['address'],
+        },
+      ],
+    },
     'first_time': {
       'allOf': [
         {
@@ -88,9 +111,12 @@ export default {
       'pattern': '^\\+[0-9]+$',
       'title': 'Phone Number'
     },
-    'address': {
-      'title': 'Address',
-      '$ref': '#/definitions/address'
+    'address_different_than_payer': {
+      'type': 'boolean',
+      'title': 'This camper\'s address is different than the main address',
+      'enum': [false, true],
+      'enumNames': ['No', 'Yes'],
+      'default': false,
     },
     'emergency_contact': {
       'title': 'Emergency Contact',
@@ -110,8 +136,10 @@ export default {
       },
     },
     'first_time': {
-      'title': 'Is this your first time attending Camp Harmony?',
+      'title': 'This is my first time attending Camp Harmony',
       'type': 'boolean',
+      'enum': [false, true],
+      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'attendance': {
