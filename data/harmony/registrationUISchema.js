@@ -8,6 +8,7 @@ For Lodge: Linens included. Preference given to campers staying for full camp.
 export default {
   'ui:order': [
     'registrant_email',
+    'address',
     'payment_type',
     'paypal_email',
     'campers',
@@ -31,8 +32,9 @@ export default {
         'age',
         'email',
         'phone',
-        'emergency_contact',
+        'address_different_than_payer',
         'address',
+        'emergency_contact',
         'attendance',
         'driving',
         'license_plate',
