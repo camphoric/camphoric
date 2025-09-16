@@ -27,6 +27,10 @@ form.rjsf {
 
   .jsonform-field.form-group {
     margin-top: 0.5rem;
+
+    & > fieldset {
+      border-bottom: 1px solid;
+    }
   }
 
   div.jsonschema-address {

@@ -57,6 +57,9 @@ export default {
           'name',
           'phone',
         ],
+        'phone': {
+          'ui:widget': 'PhoneInput'
+        },
       },
       'mobile_phone': {
         'ui:widget': 'PhoneInput'
