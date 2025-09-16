@@ -126,7 +126,7 @@ export default {
           'type': 'string',
           'maxLength': 20,
           'pattern': '^\\+[0-9]+$',
-          'title': 'Phone Number'
+          'title': 'Phone number'
         },
         'name': {
           'type': 'string',
