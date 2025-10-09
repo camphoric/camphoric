@@ -1,15 +1,15 @@
 import pricingValues from './pricing.js';
+import { earlybirdCutoff } from '../dates.js';
 
 export const ageLookup = {
-  adult: ['31-69 years old', '70+ years old'],
+  adult: ['31-79 years old', '80+ years old'],
   yadult: ['18-30 years old', '13-17 years old'],
   child: ['3-12 years old'],
   baby: ['0-2 years old'],
 };
 
-const cutoff = Math.floor(
-  Date.parse('15 Nov 2024 00:00:00 PST') / 1000
-);
+const cutoff = Math.floor(earlybirdCutoff.toSeconds());
+
 const defaultCamperAge = ageLookup.adult;
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 

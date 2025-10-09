@@ -14,6 +14,8 @@ const dateHash = {
   end: startDate.plus({ day: lengthInDays }),
 };
 
+export const earlybirdCutoff = DateTime.fromISO(`${year}-11-15T00:00:00.000-07:00`);
+
 export const yearDisplay = `${
   startDate.year
 }-${
