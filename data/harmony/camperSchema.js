@@ -91,8 +91,8 @@ export default {
       'type': 'string',
       'title': 'Age (at the beginning of camp)',
       'enum': [
-        '70+ years old',
-        '31-69 years old',
+        '80+ years old',
+        '31-79 years old',
         '18-30 years old',
         '13-17 years old',
         '3-12 years old',
