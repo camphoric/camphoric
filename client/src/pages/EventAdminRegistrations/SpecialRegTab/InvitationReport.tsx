@@ -47,7 +47,6 @@ function InvitationReport() {
   };
 
 
-
   return (
     <>
       <Table striped bordered hover>
@@ -65,35 +64,38 @@ function InvitationReport() {
             Object.values(invitationLookup)
               .sort((a, b) => compareDates(b.created_at, a.created_at))
               .map(
-                i => (
-                  <tr key={i.id}>
-                    <td>{i.recipient_name}</td>
-                    <td>{i.recipient_email}</td>
-                    <td>{i.registration_type && registrationTypeLookup[i.registration_type]}</td>
-                    <td>{i.sent_time ? 'Yes' : '-'}</td>
-                    <td>
-                      {
-                        i.registration && registrationLookup[i.registration] ?
-                        <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
-                          View/Edit
-                        </Link>
-                        : <Badge variant="danger">None</Badge>
-                      }
-                    </td>
-                    <td>
-                      <Button
-                        variant="secondary"
-                        onClick={(e) => {
-                          setSelectedInvitation(i);
-                          // @ts-ignore
-                          setPopoverTarget(e.target);
-                        }}
-                      >
-                        ⚙
-                      </Button>
-                    </td>
-                  </tr>
-                )
+                i => {
+                  return (
+                    <tr key={i.id}>
+
+                      <td>{i.recipient_name}</td>
+                      <td>{i.recipient_email}</td>
+                      <td>{i.registration_type && registrationTypeLookup[i.registration_type].label}</td>
+                      <td>{i.sent_time ? 'Yes' : '-'}</td>
+                      <td>
+                        {
+                          i.registration && registrationLookup[i.registration] ?
+                          <Link to={`${url}?registrationId=${i.registration}&registrationsTab=reg_edit`}>
+                            View/Edit
+                          </Link>
+                          : <Badge variant="danger">None</Badge>
+                        }
+                      </td>
+                      <td>
+                        <Button
+                          variant="secondary"
+                          onClick={(e) => {
+                            setSelectedInvitation(i);
+                            // @ts-ignore
+                            setPopoverTarget(e.target);
+                          }}
+                        >
+                          ⚙
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                }
               )
           }
         </tbody>
