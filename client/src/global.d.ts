@@ -68,6 +68,7 @@ declare global {
     confirmation_email_from: string;
     paypal_enabled: boolean;
     paypal_client_id: string;
+    epayment_handling: string;
     organization: number;
   }
 
@@ -167,6 +168,7 @@ declare global {
     dataSchema: JSONSchema7;
     uiSchema: JsonFormUiSchema;
     preSubmitTemplate: string;
+    epayment_handling?: number;
     templateVars: Hash<any>;
     event: Hash<any>;
     pricingLogic: {

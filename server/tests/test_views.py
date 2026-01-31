@@ -375,6 +375,7 @@ class RegisterGetTests(APITestCase):
             paypal_enabled=True,
             paypal_client_id='test-client-id',
         )
+        # Test without epayment_handling field
         response = self.client.get(f'/api/events/{event.id}/register')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['pricing'], event.pricing)
@@ -387,6 +388,28 @@ class RegisterGetTests(APITestCase):
             {
                 'start': {'day': 25, 'month': 2, 'year': 2019, 'epoch': 1551052800.0},
                 'is_open': True,
+            }
+        )
+        self.assertEqual(response.data['payPalOptions'], {
+            'clientId': 'test-client-id',
+        })
+
+        # Test with epayment_handling field
+        event.epayment_handling = 2.5
+        event.save()
+        response = self.client.get(f'/api/events/{event.id}/register')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['pricing'], event.pricing)
+        self.assertEqual(response.data['pricingLogic'], {
+            'camper': event.camper_pricing_logic,
+            'registration': event.registration_pricing_logic,
+        })
+        self.assertEqual(
+            response.data['event'],
+            {
+                'start': {'day': 25, 'month': 2, 'year': 2019, 'epoch': 1551052800.0},
+                'is_open': True,
+                'epayment_handling': 2.50,
             }
         )
         self.assertEqual(response.data['payPalOptions'], {

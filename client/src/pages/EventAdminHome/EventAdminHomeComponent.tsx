@@ -85,7 +85,12 @@ function EventAdminHomeComponent(props: TabProps) {
         defaultValue={defaultFor('paypal_enabled')}
       />
       <Input
-        label="PayPal Key"
+        label="Handling charge/Check Discount"
+        onChange={props.handleFormChange('epayment_handling')}
+        defaultValue={defaultFor('epayment_handling')}
+      />
+      <Input
+        label="PayPal Client ID"
         onChange={props.handleFormChange('paypal_client_id')}
         defaultValue={defaultFor('paypal_client_id')}
       />

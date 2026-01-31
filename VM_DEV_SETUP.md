@@ -74,6 +74,9 @@ localhost:3000 using the following command:
 Setup instructions for Windows
 ------------------------------
 
+Alternative instructions:
+https://smhk.net/note/2023/12/ansible-and-vagrant-in-wsl/
+
 ### 1. Install Windows Subsystem for Linux (wsl)
 
 Instructions for installation can be found here:
@@ -173,3 +176,59 @@ localhost:3000 using the following command:
 
 `vagrant ssh -c "cd camphoric/client; npm start"`
 
+
+Vault setup instructions
+------------------------
+
+Prereq: get a paypal developer account and setup a sandbox, and setup app
+specific passwords with a throwaway gmail account.
+
+If you need to do some development that involves PayPal, or want to test the
+emails that the system will produce, you'll want to put your PayPal and gmail
+credentials in an encrypted place.  The following files are in the .gitignore
+so that you can safely create these files and not be worried that they'll end
+up in your git commits.
+
+There are also good docs to be found in [the ansible docs for encryping vault
+content](https://docs.ansible.com/projects/ansible/latest/vault_guide/vault_encrypting_content.html)
+
+**ansible/host_vars/default.yml**
+
+This is where you'll want your creds to go.  It should look like this when you
+first create it:
+
+```yaml
+---
+camphoric_paypal_client_id: <longstringofencrypedbullshithere>
+camphoric_paypal_secret: <longstringofencrypedbullshithere>
+camphoric_email_name: 'TEST camphoric registration'
+camphoric_email_host: 'smtp.gmail.com'
+camphoric_email_port: '587'
+camphoric_email_host_user: my.throwaway.account@gmail.com
+camphoric_email_host_password: aaaaaaaaaaaaaaaa 
+```
+
+**ansible/.ansible-vault-pw**
+
+Make up a password to use to encrypt the file above, then put it into this file.
+
+### Encrypting the file with sensitive data
+
+First encrypt the host_vars/default.yml
+
+`ansible-vault encrypt --vault-pass-file ansible/.ansible-vault-pw ansible/host_vars/default.yml`
+
+### Editing your file with sensitive data
+
+If you want to edit, you can use the following command:
+
+`ansible-vault edit --vault-pass-file ansible/.ansible-vault-pw ansible/host_vars/default.yml`
+
+With the edit command, it will automatically re-encrypt the file when you close
+it. If you'd rather decrypt the file until the foreseeable future, use the
+following command:
+
+`ansible-vault decrypt --vault-pass-file ansible/.ansible-vault-pw ansible/host_vars/default.yml`
+
+You can then edit this file however you'd like, just DON'T FORGET TO RE-ENCRYPT
+IT WHEN YOU'RE FINISHED! (see the above instructions)

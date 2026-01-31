@@ -27,6 +27,9 @@ Vagrant.configure("2") do |config|
   # Provision with ansible
   config.vm.provision "ansible" do |ansible|
       ansible.verbose = "v"
+      if File.exist?(File.expand_path("ansible/.ansible-vault-pw"))
+          ansible.vault_password_file = "ansible/.ansible-vault-pw"
+      end
       ansible.playbook = "ansible/site.yml"
       ansible.raw_arguments = Shellwords.shellsplit(ENV['ANSIBLE_ARGS']) if ENV['ANSIBLE_ARGS']
   end

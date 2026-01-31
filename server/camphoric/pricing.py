@@ -118,6 +118,11 @@ def calculate_price(registration, campers):
 
         results['campers'].append(camper_results)
 
+    if event.epayment_handling and registration.payment_type != 'Check':
+        handling = results['total'] * (event.epayment_handling / 100)
+        results['handling'] = handling
+        results['total'] = results['total'] + handling
+
     return dict(results)
 
 
@@ -155,6 +160,9 @@ def get_date_props(camper_schema):
 
 def get_event_attributes(event):
     attributes = {'is_open': event.is_open()}
+    if (event.epayment_handling):
+        attributes['epayment_handling'] = event.epayment_handling
+
     for field in ["registration_start", "registration_end", "start", "end"]:
         if getattr(event, field):
             attributes[field] = datetime_to_dict(getattr(event, field))

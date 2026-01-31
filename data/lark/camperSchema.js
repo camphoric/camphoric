@@ -128,7 +128,8 @@ can see a [sample of the design here](https://www.larkcamp.org/wp-content/upload
                 'pronouns': {
                   'type': 'string',
                   'maxLength': 10,
-                  'title': 'Pronouns for name badge'
+                  'title': 'Pronouns for name badge',
+                  'description': 'Leave blank for none'
                 },
               },
               'required': ['name'],

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import debug from 'utils/debug';
+import { moneyFmt } from 'utils/display';
 import { Spinner } from 'react-bootstrap';
 import { useRegFormData } from 'store/register/store';
 
@@ -14,7 +15,7 @@ function PriceTicker() {
           <Spinner style={{ position: 'absolute', color: 'rgba(0, 0, 0, 0.4)' }} animation="border" role="status" />
           )
       }
-      <div>Total: ${(regFormData.totals.total || 0).toFixed(2)}</div>
+      <div>Total: {moneyFmt(regFormData.totals.total)}</div>
     </div>
   );
 }

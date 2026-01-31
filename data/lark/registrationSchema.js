@@ -106,6 +106,6 @@ recommendations may be sent out shortly before camp.
       'type': 'string',
       'maxLength': 500,
       'title': 'Comments'
-    }
+    },
   }
 };

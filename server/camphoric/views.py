@@ -5,6 +5,7 @@ import traceback
 
 import cmarkgfm
 import chevron
+from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -380,13 +381,16 @@ class RegisterView(APIView):
                                ', '.join(event.valid_payment_types)
             })
 
+        # Do a save here because payment type could affect pricing
+        registration.payment_type = payment_type
+        registration.save()
+        registration.refresh_from_db()
+
         registration.initial_payment = request.data.get('paymentData')
         registration.initial_payment['balance'] = (
-            registration.server_pricing_results['total']
-            - registration.initial_payment['total']
+            Decimal(registration.server_pricing_results['total'])
+            - Decimal(registration.initial_payment['total'])
         )
-
-        registration.payment_type = payment_type
 
         is_paypal_captured_payment = (
             payment_type == models.PaymentType.PAYPAL or
@@ -627,6 +631,8 @@ class RegisterView(APIView):
         paypal_client = PayPalClient(
             settings.PAYPAL_BASE_URL,
             registration.event.paypal_client_id,
+            # TODO: need to move this to DB so that events can have different
+            # PayPal accounts on the same server
             settings.PAYPAL_SECRET,
         )
 
