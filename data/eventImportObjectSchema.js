@@ -38,6 +38,7 @@ export default {
         camper_pricing_logic: arr('JSON logic for individual camper'),
         paypal_enabled: bool('whether to enable paypal payments'),
         paypal_client_id: str('paypal api client id', { maxLength: 200 }),
+        epayment_handling: str('a handling charge added to all payments, but discounted if you pay by check', { maxLength: 6 }),
         pre_submit_template: str('Handlebars template, rendered right before registration submit button', { maxLength: undefined }),
         confirmation_page_template: str('Handlebars template rendered after registration completed', { maxLength: undefined }),
         confirmation_email_subject: str(''),

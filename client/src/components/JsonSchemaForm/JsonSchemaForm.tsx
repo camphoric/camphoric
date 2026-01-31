@@ -6,6 +6,8 @@ import jsonLogic from 'json-logic-js';
 import get from 'lodash/get';
 import debug from 'utils/debug';
 
+import { PaymentType } from 'store/register/api';
+
 import { Theme as Bootstrap4Theme } from '@rjsf/bootstrap-4';
 
 import Spinner from '../Spinner';
@@ -130,7 +132,8 @@ export type PricingResults = {
  * This should produce identical results to camphoric.pricing.calculate_price
  * (see server/camphoric/pricing.py)
  */
-export function calculatePrice(config: ApiRegister, formData: FormData): PricingResults {
+
+export function calculatePrice(config: ApiRegister, formData: FormData, paymentType?: PaymentType): PricingResults {
   // calculation should be done in whole dollars for sake of
   // avoiding funky issues with floats. If sub-dollar amounts
   // are necessary, we should switch this to cents.
@@ -185,11 +188,17 @@ export function calculatePrice(config: ApiRegister, formData: FormData): Pricing
         data[varName] = value;
       }
 
-      debug(`pricingResults camper ${index}`, { component, data, value });
+      debug(`pricingResults camper ${index} ${component.var}`, { component, data, value });
     });
 
     results.campers.push(camperResults);
   });
+
+  if (event.epayment_handling && paymentType !== 'Check') {
+    const handling = results.total * (event.epayment_handling / 100);
+    results.handling = handling;
+    results.total += handling;
+  }
 
   debug(`pricingResults all`, results);
 

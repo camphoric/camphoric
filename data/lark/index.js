@@ -83,6 +83,7 @@ const data = {
 if (process.env.PAYPAL_CLIENT_ID) {
   data.event.paypal_enabled = true;
   data.event.paypal_client_id = process.env.PAYPAL_CLIENT_ID;
+  data.event.epayment_handling = '2.5';
 }
 
 const sampleRegGenerator = async (fetch, results) => {

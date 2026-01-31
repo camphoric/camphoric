@@ -13,9 +13,10 @@ import {
 } from '@paypal/react-paypal-js';
 
 import debug from 'utils/debug';
+import { moneyFmt } from 'utils/display';
 import jsonLogic from 'json-logic-js';
 import Spinner from 'components/Spinner';
-import JsonSchemaForm from 'components/JsonSchemaForm';
+import JsonSchemaForm, { calculatePrice } from 'components/JsonSchemaForm';
 import api, {
   PaymentType,
   DepositType,
@@ -25,6 +26,7 @@ import {
   setConfirmationStep,
   setPaymentInfo,
   useAppDispatch,
+  setTotals,
 } from 'store/register/store';
 
 import { useNavigateToRegPage } from '../utils';
@@ -67,6 +69,7 @@ function PaymentStepPaymentNeeded() {
 
   debug('PaymentStep info', {
     total,
+    totals,
     depositChoice,
     regFormData,
   });
@@ -98,9 +101,40 @@ function PaymentStepPaymentNeeded() {
     return response;
   };
 
+  const onDepositChange = ({ formData }: { formData: { deposit: string  } }, newTotals?: any) => {
+    try {
+      setDepositChoice(formData);
+      const values = JSON.parse(formData.deposit);
+
+      const newTotal = jsonLogic.apply(values.logic, newTotals || totals);
+      setTotal(newTotal);
+
+      return newTotal;
+    } catch (e) {
+      console.error('deposit logic error', e);
+    }
+
+  };
+
   const processResult = async (paymentType: PaymentType, payPalResponse?: OrderResponseBody) => {
     let depositType: DepositType = 'none';
 
+    let finalTotal = total;
+    // If they get a check discount, we need to give that here.
+    if (registrationApi.data?.event?.epayment_handling && paymentType === 'Check') {
+      const newTotals = calculatePrice(
+        registrationApi.data,
+        regFormData.registration,
+        paymentType,
+      );
+
+      if (depositChoice) {
+        dispatch(setTotals(newTotals));
+        finalTotal = onDepositChange({ formData: depositChoice }, newTotals);
+      }
+    }
+
+    console.log('finalTotal', finalTotal);
     try {
       const parsedDepositChoice = JSON.parse(depositChoice?.deposit);
 
@@ -114,7 +148,7 @@ function PaymentStepPaymentNeeded() {
       paymentType,
       paymentData: {
         type: depositType,
-        total,
+        total: finalTotal,
       },
       payPalResponse,
     };
@@ -162,19 +196,6 @@ function PaymentStepPaymentNeeded() {
     processResult('Check');
   };
 
-  const onDepositChange = ({ formData }: { formData: { deposit: string  } }) => {
-    try {
-      setDepositChoice(formData);
-      const values = JSON.parse(formData.deposit);
-
-      setTotal(jsonLogic.apply(values.logic, totals));
-
-    } catch (e) {
-      console.error('deposit logic error', e);
-    }
-
-  }
-
   let payPalOptions: PayPalScriptOptions | undefined = config.payPalOptions;
 
   if (import.meta.env.DEV && !!payPalOptions && !payPalOptions.clientId) {
@@ -198,7 +219,7 @@ function PaymentStepPaymentNeeded() {
         )
       }
       <h1>Choose your payment option</h1>
-      <h3>Total: ${(total || 0).toFixed(2)}</h3>
+      <h3>Total: {moneyFmt(total)}</h3>
       {
         paymentStep.deposit && (
           <JsonSchemaForm
@@ -226,6 +247,7 @@ function PaymentStepPaymentNeeded() {
       <p>
         If you would like to pay by credit card, please select "PayPal", then
         select "Pay with debit or credit card" in the PayPal window.
+
       </p>
       <button
         onClick={submitPayByCheck}

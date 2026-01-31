@@ -3,6 +3,7 @@
  */
 import { LodgingLookup } from 'hooks/api';
 import getFromPath from 'lodash/get';
+import debug from 'utils/debug';
 
 export function getCamperDisplayId(camper: ApiCamper) {
   // gather possible identifiers
@@ -60,6 +61,19 @@ const ordinalsLessThan10 = [
   'Eighth',
   'Ninth',
 ];
+
+export function moneyFmt(price: number | string) {
+  let numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+
+  // Step 2: Check if input is a valid number
+  if (isNaN(numericPrice)) {
+    debug(`Invalid moneyFmt input. Expected number or numeric string, got ${price}`)
+    numericPrice = 0;
+  }
+
+  // Step 3: Format to 2 decimal places (adds trailing zeros)
+  return `$${numericPrice.toFixed(2)}`;
+}
 
 export function ordinal(i: number) {
   if (i < 10 && i > 0) return ordinalsLessThan10[i];

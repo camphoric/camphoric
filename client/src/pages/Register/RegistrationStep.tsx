@@ -20,6 +20,7 @@ import {
   setUpdating,
 } from 'store/register/store';
 
+import { moneyFmt } from 'utils/display';
 import {
   useNavigateToRegPage,
   useLocalStorageFormData,
@@ -138,6 +139,8 @@ function RegistrationStep() {
     }
   };
 
+  console.log('JsonSchemaForm registrationApi.data', config);
+
   return (
     <PageWrapper>
       <ErrorBoundary section="RegistrationStep">
@@ -162,6 +165,18 @@ function RegistrationStep() {
           liveValidate={liveValidate}
         >
           <div>
+            {
+              !!config.event.epayment_handling && (
+                <>
+                  <h5>Handling charge</h5>
+                  <div className="md-template">
+                    There is a handling charge of <strong>{moneyFmt(regFormData.totals.handling)}</strong> ({config.event.epayment_handling}% of the total),
+                    however, we offer a {config.event.epayment_handling}% discount if you pay by check.
+                  </div>
+                  <hr />
+                </>
+              )
+            }
             <Template markdown={config.preSubmitTemplate} />
             <button type="submit" className="btn btn-info">
               Continue to payment

@@ -28,7 +28,7 @@ const deposit = {
       {
         '*': [
           { var: ['donation'] },
-          0.5,
+          1.5,
         ],
       },
     ],

@@ -3,6 +3,7 @@ import datetime
 import random
 import uuid
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -12,6 +13,12 @@ from camphoric import (
 
 # Useful docs:
 # - https://docs.djangoproject.com/en/4.1/ref/models/fields/
+
+
+class CustomJSONField(models.JSONField):
+    def __init__(self, *args, **kwargs):
+        kwargs["encoder"] = DjangoJSONEncoder
+        super().__init__(*args, **kwargs)
 
 
 class PaymentType(models.TextChoices):
@@ -120,37 +127,42 @@ class Event(TimeStampedModel):
     default_stay_length = models.SmallIntegerField(
         default=1,
         help_text="The number of days that a camper stays by default")
-    camper_schema = models.JSONField(default=dict, help_text="JSON schema for Camper.attributes")
-    camper_admin_schema = models.JSONField(
+    camper_schema = CustomJSONField(default=dict, help_text="JSON schema for Camper.attributes")
+    camper_admin_schema = CustomJSONField(
         default=dict,
         help_text="JSON schema for Camper.admin_attributes")
-    payment_schema = models.JSONField(default=dict, help_text="JSON schema for Payment.attributes")
-    registration_deposit_schema = models.JSONField(
+    payment_schema = CustomJSONField(default=dict, help_text="JSON schema for Payment.attributes")
+    registration_deposit_schema = CustomJSONField(
         null=True,
         help_text="variables to be used on the registration page deposits")
-    registration_template_vars = models.JSONField(
+    registration_template_vars = CustomJSONField(
         default=dict,
         help_text="variables to be used on the registration page descriptions")
-    registration_schema = models.JSONField(
+    registration_schema = CustomJSONField(
         default=dict,
         help_text="JSON schema for Registration.attributes")
-    registration_ui_schema = models.JSONField(
+    registration_ui_schema = CustomJSONField(
         default=dict,
         help_text="react-jsonschema-form uiSchema for registration form")
-    registration_admin_schema = models.JSONField(
+    registration_admin_schema = CustomJSONField(
         default=dict,
         help_text="JSON schema for Registration.admin_attributes")
-    deposit_schema = models.JSONField(default=dict, help_text="JSON schema for Deposit.attributes")
-    pricing = models.JSONField(default=dict, help_text="key-value object with pricing variables")
+    deposit_schema = CustomJSONField(default=dict, help_text="JSON schema for Deposit.attributes")
+    pricing = CustomJSONField(default=dict, help_text="key-value object with pricing variables")
 
-    camper_pricing_logic = models.JSONField(
+    camper_pricing_logic = CustomJSONField(
         default=dict,
         help_text="JsonLogic Camper-level pricing components")
-    registration_pricing_logic = models.JSONField(
+    registration_pricing_logic = CustomJSONField(
         default=dict,
         help_text="JsonLogic Registration-level pricing components")
 
     paypal_enabled = models.BooleanField(default=True)
+    epayment_handling = models.DecimalField(
+            null=True,
+            max_digits=4,
+            decimal_places=2,
+            help_text="a handling charge added to all payments, but discounted if you pay by check")
     paypal_client_id = models.CharField(null=True, blank=True, max_length=255)
 
     pre_submit_template = models.TextField(
@@ -212,20 +224,20 @@ class Registration(TimeStampedModel):
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
-    attributes = models.JSONField(null=True)
-    admin_attributes = models.JSONField(
+    attributes = CustomJSONField(null=True)
+    admin_attributes = CustomJSONField(
         default=dict,
         help_text="custom attributes for administrative use")
     registrant_email = models.EmailField()
-    server_pricing_results = models.JSONField(null=True)
-    client_reported_pricing = models.JSONField(null=True)
-    initial_payment = models.JSONField(null=True)
+    server_pricing_results = CustomJSONField(null=True)
+    client_reported_pricing = CustomJSONField(null=True)
+    initial_payment = CustomJSONField(null=True)
     payment_type = models.CharField(
         max_length=255,
         null=True,
         choices=PaymentType.choices,
     )
-    paypal_response = models.JSONField(null=True)
+    paypal_response = CustomJSONField(null=True)
     completed = models.BooleanField(
         default=False,
         help_text="True if the user has made it to the end of the registration process",
@@ -268,7 +280,7 @@ class Report(TimeStampedModel):
         choices=ReportOutputType.choices,
         default=ReportOutputType.CSV,
     )
-    variables_schema = models.JSONField(
+    variables_schema = CustomJSONField(
         default=dict,
         help_text="values schema for this reports variables")
     template = models.TextField(blank=True, default='', help_text="Handlebars template")
@@ -376,15 +388,15 @@ class Camper(TimeStampedModel):
         blank=True,
         default='',
         help_text="comments from the camper re: lodging")
-    stay = models.JSONField(
+    stay = CustomJSONField(
         null=True,
         help_text="JSON array of dates")
-    server_pricing_results = models.JSONField(null=True)
-    attributes = models.JSONField(null=True)
+    server_pricing_results = CustomJSONField(null=True)
+    attributes = CustomJSONField(null=True)
     sequence = models.IntegerField(
         default=0,
         help_text="order of the campers")
-    admin_attributes = models.JSONField(
+    admin_attributes = CustomJSONField(
         default=dict,
         help_text="custom attributes for administrative use")
 
@@ -440,7 +452,7 @@ class Deposit(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     deposited_on = models.DateField(null=True)
-    attributes = models.JSONField(null=True)
+    attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
 
@@ -458,9 +470,9 @@ class Payment(TimeStampedModel):
     )
     deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE, null=True)
     paid_on = models.DateField(null=True)
-    attributes = models.JSONField(null=True)
+    attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
-    paypal_order_details = models.JSONField(null=True)
+    paypal_order_details = CustomJSONField(null=True)
 
 
 class BulkEmailTask(TimeStampedModel):

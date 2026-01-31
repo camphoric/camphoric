@@ -116,6 +116,10 @@ venv.bak/
 # Django backup files
 server/backup/*.psql.bin
 
+# Ansible vault files used for developement
+ansible/host_vars/default.yml
+ansible/.ansible-vault-pw
+
 # Django generated with manage.py collectstatic
 # TODO: https://github.com/camphoric/camphoric/issues/185
 server/staticfiles/
