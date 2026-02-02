@@ -1,5 +1,12 @@
-import pricing from './pricing.js';
 import { regTypes } from '../registrationTypes.js';
+import {
+  freeCamp,
+  crewCamp,
+  freeMeals,
+  freeBadge,
+  freeParking,
+  crewParking,
+} from './pricingLists.js';
 import _ from 'lodash';
 
 const { difference } = _;
@@ -21,31 +28,6 @@ export const mealsLookup = {
   'B': 'All Meals - 2nd half',
 };
 
-const freeCamp = [
-  'bus-driver',
-  'cleanup-camp-1',
-  'cleanup-camp-2',
-  'cleanup-camp-3',
-  'kitchen-full',
-  'management',
-  'misc-staff',
-  'office-camp-1',
-  'office-camp-2',
-  'office-camp-3',
-  'community-care',
-  'setup-teardown',
-  'talent',
-];
-
-const freeMeals = [
-  'bus-driver',
-  'kitchen-full',
-  'kitchen-partial',
-  'management',
-  'community-care',
-  'talent',
-];
-
 const defaultCamperAge = ageLookup[65];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 const regTypeNames = regTypes.map(t => t.name);
@@ -55,9 +37,9 @@ const regularTuitionPriceMatrix = [
   [ 64, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 49, 'pricing.full_adult',   'pricing.half_adult' ],
   [ 25, 'pricing.full_adult',   'pricing.half_adult' ],
-  [ 17, 'pricing.full_youth',    'pricing.half_youth' ],
-  [ 11, 'pricing.full_youth',    'pricing.half_youth' ],
-  [ 4,  'pricing.full_kid', 'pricing.half_kid' ],
+  [ 17, 'pricing.full_youth',   'pricing.half_youth' ],
+  [ 11, 'pricing.full_youth',   'pricing.half_youth' ],
+  [ 4,  'pricing.full_kid',     'pricing.half_kid' ],
 ];
 
 const regularMealsPriceMatrix = [
@@ -100,13 +82,33 @@ const regTypeIn = (types, price) => {
   ];
 }
 
+
+// test reg types lists
+[
+  ['freeCamp', freeCamp],
+  ['crewCamp', crewCamp],
+  ['freeMeals', freeMeals],
+  ['freeBadge', freeBadge],
+  ['freeParking', freeParking],
+  ['crewParking', crewParking],
+].forEach(([name, list]) => {
+  list.forEach(ctype => {
+    try {
+      regTypeEquals(ctype);
+    } catch (e) {
+      if (e.message.startsWith('regTypeEquals:')) {
+        throw new Error(`${ctype} does not exist, found in ${name}`);
+      }
+    }
+  });
+});
+
 const regularPrice = {
   tuition: {
     '+': [{
       'if': [
         ...regTypeIn(freeCamp, 0),
-				// ...regTypeEquals('talent-guest',{var: 'pricing.talent_guest'}),
-        ...regTypeEquals('kitchen-partial', {var: 'pricing.kitchen_partial'}),
+        ...regTypeIn(crewCamp, {var: 'pricing.crew_enrollment'}),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
@@ -144,6 +146,28 @@ const regularPrice = {
           ];
         }, []).concat([0]),
       ],
+    },{
+      // apply partial pay discount
+      'if': [
+        ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
+          return [
+            ...acc,
+            {
+              'and': [
+                { '===': [ageLookup[age], camperAge] },
+                { '===': ['kitchen-partial', regType] },
+              ],
+            },
+            {
+              'if': [
+                {'===': ['Full camp', {var: 'camper.session'}]},
+                { '*': [ {var: full}, {var: 'pricing.partial_pay_discount'} ] },
+                { '*': [ {var: half}, {var: 'pricing.partial_pay_discount'} ] },
+              ]
+            }
+          ];
+        }, []).concat([0]),
+      ],
     }]
   }, // END regularPrice tuition
 
@@ -175,16 +199,7 @@ const regularPrice = {
 
   name_badge: {
     'if': [
-      ...regTypeIn([
-        'management',
-        'community-care',
-        'talent',
-        'office-camp-1',
-        'office-camp-2',
-        'office-camp-3',
-				'bus-driver',
-				'reg-volunteer',
-      ], 0),
+      ...regTypeIn(freeBadge, 0),
       {var: ['camper.name_badge.purchase']},
       {var: ['pricing.name_badge']},
       0,
@@ -202,24 +217,13 @@ const regularPrice = {
       ]},
       { if: [
         // reg types that get free parking
-        ...regTypeIn([
-          'office-camp-1',
-          'office-camp-2',
-          'office-camp-3',
-          'kitchen-full',
-          'kitchen-partial',
-          'setup-teardown',
-          'cleanup-camp-1',
-          'cleanup-camp-2',
-          'cleanup-camp-3',
-          'talent',
-          // 'talent-guest',
-          'management',
-          'misc-staff',
-          // 'late-registrant',
-          'community-care',
-        ], 0),
-        {'var': 'pricing.parking_pass'},
+        ...regTypeIn(freeParking, 0),
+
+        // reg types that get reduced parking
+        ...regTypeIn(crewParking, {'var': 'pricing.crew_parking_pass'}),
+
+        // default is camper parking pass price
+        {'var': 'pricing.camper_parking_pass'},
       ] },
     ]
   }, // END regularPrice parking

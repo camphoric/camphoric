@@ -1,9 +1,18 @@
 const pricing = {
-	full_adult: 880,
-	half_adult: 670,
+	full_adult: 920,
+	full_youth: 658,
 
-	full_youth: 620,
-	half_youth: 470,
+	half_adult: 710,
+	half_youth: 510,
+
+	crew_enrollment: 60,
+
+	partial_pay_discount: -0.4,
+	talent_guest_discount: -0.4,
+
+	camper_parking_pass: 90,
+	crew_parking_pass: 35,
+	parking_pass_at_camp_extra: 20,
 
 	full_kid: 0,
 	half_kid: 0,
@@ -17,14 +26,7 @@ const pricing = {
 	meals_adult_half: 268,
 	meals_youth_half: 192,
 
-	parking_pass: 85,
-	parking_pass_at_camp_extra: 20,
-
-	talent_guest_discount: -0.4,
-
 	name_badge: 5,
 };
-
-pricing.kitchen_partial = Math.floor(pricing.full_adult / 2);
 
 export default pricing;
