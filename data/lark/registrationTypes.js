@@ -1,3 +1,5 @@
+import * as priceLists from './pricing/pricingLists.js';
+import * as pricing from './pricing/pricing.js';
 // 'recipient_name': to_name or to_email,
 // 'recipient_email': to_email,
 // 'invitation_code': invitation.invitation_code,
@@ -11,10 +13,24 @@ You have been invited to join the following Lark Camp crew:
 ${regType.label}
 
 [Please click here to register!]({{register_link}})
+${priceLists.crewCamp.includes(regType) && `
+
+You will be charged a non-refundable enrollment fee of $${pricing.crew_enrollment}.`}
 
 If you need a parking pass YOU MUST ADD ONE. This is not done automatically. If
 you are not sure if you need one, add one.  It is easier to remove a pass than
-add one at the last minute.
+add one at the last minute. ${(priceLists.freeParking.includes(regType) && `
+You will not be charged for a parking pass.`) || (priceLists.crewParking.includes(regType) && `
+As a member of Lark Camp's crew, you will only be charged $${pricing.crew_parking_pass}
+for parking passes.`)}
+${priceLists.freeMeals.includes(regType) && `
+
+You will not be charged for meals, please make sure to include a meal selection
+in your registration.`}
+${priceLists.freeBadge.includes(regType) && `
+
+You will not be charged for a name badge, please make sure to include a name
+badge in your registration.`}
 
 If you have a specific lodging request, please make a note in the lodging
 preferences box. Please remember that lodging choices are first come/ first
@@ -128,11 +144,42 @@ The LTA Lark Camp Committee
 https://www.larkcamp.org
 
 https://www.larktraditionalarts.org`,
+  'reg-volunteer': () => `
+Dear {{recipient_name}},
+
+Thank you for volunteering to be on our registration volunteer list! This
+volunteering in this way entitles you to the following perks:
+
+- You are allowed in early to help with setup and allows you to setup your
+  campsite early before other campers arrive
+- You get a free name badge
+
+[Please click here to register!]({{register_link}})
+
+If you need a parking pass YOU MUST ADD ONE. This is not done automatically. If
+you are not sure if you need one, add one.  It is easier to remove a pass than
+add one at the last minute. 
+
+You will not be charged for a name badge, please make sure to include a name
+badge in your registration.
+
+If you have any other questions, please email us at
+[registration@larkcamp.org](mailto:registration@larkcamp.org) or call
+[707-397-5275](tel:707-397-5275)
+
+All the best,
+
+The LTA Lark Camp Committee
+
+https://www.larkcamp.org
+
+https://www.larktraditionalarts.org
+`,
 };
 
 const specialType = (regType) => ({
   ...regType,
-  invitation_email_subject: `Register for ${regType.label}`,
+  invitation_email_subject: `Register for Lark Camp ${regType.label}`,
   invitation_email_template:
     crewEmailTemplateOverrides[regType.name]
       ? crewEmailTemplateOverrides[regType.name](regType)
