@@ -211,6 +211,15 @@ class RegistrationType(TimeStampedModel):
     label = models.CharField(max_length=255, help_text="Human readable name")
     invitation_email_subject = models.CharField(max_length=255)
     invitation_email_template = models.TextField(null=True, blank=True)
+    camper_schema_overrides = CustomJSONField(
+            default=dict,
+            help_text="JSON schema for overriding camper schema items")
+    registration_schema_overrides = CustomJSONField(
+            default=dict,
+            help_text="JSON schema for overriding registration schema items")
+    ui_schema_overrides = CustomJSONField(
+            default=dict,
+            help_text="JSON schema for overriding camper schema items")
 
 
 class Registration(TimeStampedModel):

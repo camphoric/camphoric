@@ -416,6 +416,75 @@ class RegisterGetTests(APITestCase):
             'clientId': 'test-client-id',
         })
 
+    def test_invitation_code_overrides(self):
+        event = models.Event.objects.create(
+                organization=self.organization,
+                name='Test Data Event 1',
+                registration_schema={
+                    'type': 'object',
+                    'properties': {
+                        'billing_name': {'type': 'string'},
+                        'billing_address': {'type': 'string'},
+                        },
+                    },
+                registration_ui_schema={
+                    'ui:title': 'Test UI Schema',
+                    'ui:description': 'Test Description',
+                    },
+                camper_schema={
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'},
+                        },
+                    },
+                )
+        registration_type = models.RegistrationType.objects.create(
+            event=event,
+            name='worktrade',
+            label="Work-trade",
+            ui_schema_overrides={
+                'ui:title': 'OVERRIDE',
+                },
+            camper_schema_overrides={
+                'properties': {
+                    'favorite_monkey': {'type': 'string'},
+                    },
+                },
+            registration_schema_overrides={
+                'properties': {
+                    'campers': {
+                        'maxItems': 1,
+                        },
+                    },
+                },
+            )
+        invitation = models.Invitation.objects.create(
+                registration_type=registration_type,
+                recipient_name='Campy McCampface',
+                recipient_email='camper@example.com',
+                expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+            )
+
+        # good email/code
+        response = self.client.get(
+            f'/api/events/{event.id}/register?email=camper@example.com&code='
+            + invitation.invitation_code)
+        self.assertEqual(response.status_code, 200)
+        # camper override
+        prop_to_test = (response.data
+                        ['dataSchema']['definitions']
+                        ['camper']['properties']['favorite_monkey'])
+        self.assertEqual({'type': 'string'}, prop_to_test,
+                         "Should override camper properties")
+        # registration override
+        prop_to_test = response.data['dataSchema']['properties']['campers']['maxItems']
+        self.assertEqual(1, prop_to_test,
+                         "Should override registration properties")
+        # uiSchema override
+        prop_to_test = response.data['uiSchema']['ui:title']
+        self.assertEqual('OVERRIDE', prop_to_test,
+                         "Should override uiSchema properties")
+
     def test_invitation_code(self):
         event = models.Event.objects.create(organization=self.organization)
         registration_type = models.RegistrationType.objects.create(
