@@ -6,6 +6,7 @@ import traceback
 import cmarkgfm
 import chevron
 from decimal import Decimal
+from deepmerge import always_merger
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -311,6 +312,7 @@ class RegisterView(APIView):
                 'name': invitation.registration_type.name,
                 'label': invitation.registration_type.label,
             }
+            response_data = self.apply_invitation_overrides(invitation, response_data)
 
         return Response(response_data)
 
@@ -591,6 +593,20 @@ class RegisterView(APIView):
             lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
             lodging_comments=lodging_data.get('lodging_comments', ''),
         )
+
+    @classmethod
+    def apply_invitation_overrides(cls, invitation, response_data):
+        registration_type = invitation.registration_type
+        always_merger.merge(
+                response_data['dataSchema'],
+                registration_type.registration_schema_overrides)
+        always_merger.merge(
+                response_data['dataSchema']['definitions']['camper'],
+                registration_type.camper_schema_overrides)
+        always_merger.merge(
+                response_data['uiSchema'],
+                registration_type.ui_schema_overrides)
+        return response_data
 
     @classmethod
     def find_invitation(cls, request):

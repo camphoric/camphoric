@@ -186,23 +186,31 @@ const specialType = (regType) => ({
       : createCrewEmailTemplate(regType),
 });
 
+const override_only_one_camper = {
+  properties: {
+    campers: {
+      maxItems: 1,
+    },
+  },
+};
+
 export const regTypes = [
   { name: 'bus-driver', label: 'Bus Driver' },
   { name: 'reg-volunteer', label: 'Registration Volunteer' },
-  { name: 'cleanup-camp-1', label: 'Camp 1 cleanup crew' },
-  { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew' },
-  { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew' },
-  { name: 'kitchen-full', label: 'Kitchen crew' },
-  { name: 'kitchen-partial', label: 'Kitchen crew - partial pay' },
+  { name: 'cleanup-camp-1', label: 'Camp 1 cleanup crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'kitchen-full', label: 'Kitchen crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'kitchen-partial', label: 'Kitchen crew - partial pay', registration_schema_overrides: override_only_one_camper },
   { name: 'late-registrant', label: 'Late Registrant' },
-  { name: 'management', label: 'Management' },
-  { name: 'misc-staff', label: 'Miscellaneous Staff' },
-  { name: 'office-camp-1', label: 'Camp 1 office crew' },
-  { name: 'office-camp-2', label: 'Camp 2 office crew' },
-  { name: 'office-camp-3', label: 'Camp 3 office crew' },
-  { name: 'community-care', label: 'Community Care' },
-  { name: 'setup-teardown', label: 'Setup/teardown crew' },
-  { name: 'talent', label: 'Talent Staff' },
+  { name: 'management', label: 'Management', registration_schema_overrides: override_only_one_camper },
+  { name: 'misc-staff', label: 'Miscellaneous Staff', registration_schema_overrides: override_only_one_camper },
+  { name: 'office-camp-1', label: 'Camp 1 office crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'office-camp-2', label: 'Camp 2 office crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'office-camp-3', label: 'Camp 3 office crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'community-care', label: 'Community Care', registration_schema_overrides: override_only_one_camper },
+  { name: 'setup-teardown', label: 'Setup/teardown crew', registration_schema_overrides: override_only_one_camper },
+  { name: 'talent', label: 'Talent Staff', registration_schema_overrides: override_only_one_camper },
   { name: 'talent-guest', label: 'Guest of Talent Staff' },
 ];
 
