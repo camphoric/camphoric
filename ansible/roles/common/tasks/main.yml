@@ -3,12 +3,14 @@
   become: yes
   apt:
     update_cache: yes
+  when: not is_vagrant
 
 - name: Upgrade all packages
   become: yes
   apt:
     name: '*'
     state: latest
+  when: not is_vagrant
 
 - name: Install common tooling
   become: yes
