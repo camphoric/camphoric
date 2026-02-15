@@ -243,7 +243,7 @@ class RegisterGetTests(APITestCase):
                 'registrant_email': {
                     'type': 'string',
                     'format': 'email',
-                    'pattern': r'^[a-zA-Z0-9_+\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    'pattern': r'^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$',
                     'title': 'Registrant email',
                 },
                 'campers': {
@@ -758,7 +758,7 @@ Total due: $300
 """.lstrip())
 
         self.assertEqual(message.from_email, 'reg@camp.org')
-        self.assertEqual(message.to, ['testi@mctesterson.com'])
+        self.assertEqual(message.to, ['testi-test@mctesterson.com'])
 
     def test_post_lodging(self):
         lodging_root = self.event.lodging_set.create(
@@ -1067,7 +1067,8 @@ class PriceAutoUpdateTests(APITestCase):
             },
             format='json'
         )
-        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.status_code, 200, msg=response.data)
         registrations = models.Registration.objects.all()
         self.assertEqual(len(registrations), 1)
         registration = registrations[0]
@@ -1383,7 +1384,7 @@ def create_standard_test_event(
         recipient_email='camper@example.com',
     )
     self.valid_form_data = {
-        'registrant_email': 'testi@mctesterson.com',
+        'registrant_email': 'testi-test@mctesterson.com',
         'campers': [
             {'name': 'Testi McTesterton'},
             {'name': 'Testi McTesterton Junior'},
