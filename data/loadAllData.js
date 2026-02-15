@@ -15,10 +15,10 @@ const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 main();
 
 const events = [
-  // ltacampout,
+  ltacampout,
   lark,
-  // familyWeek,
-  // harmony
+  familyWeek,
+  harmony
 ];
 
 async function main() {
