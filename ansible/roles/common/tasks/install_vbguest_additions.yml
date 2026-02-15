@@ -1,0 +1,13 @@
+---
+- name: Install VirtualBox guest additions 
+  become: yes
+  apt:
+    name: "{{ packages }}"
+    state: latest
+  vars:
+    packages:
+      - dkms
+      - build-essential
+      - "linux-headers-{{ansible_facts.kernel}}"
+      - virtualbox-guest-additions-iso
+  
