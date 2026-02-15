@@ -2,7 +2,7 @@ server_tokens off;
 
 server {
     include mime.types;
-    server_name {{ domain_name }};
+    server_name {{ camphoric_domain_name }};
 
     location {{ camphoric_hosted_location }} {
       client_max_body_size 10M; # some uploads to django can get large
@@ -13,15 +13,19 @@ server {
 
     location @proxy_django {
       include proxy_params;
-      proxy_pass http://unix:/run/camphoric.sock;
+      {% if camphoric_environment == 'development' %}
+      proxy_pass http://localhost:8000;
+      {% else %}
+      proxy_pass http://unix:/run/camphoric.socket;
+      {% endif %}
     }
 
     {%- if nginx_ssl_on | bool %}
 
     listen 443 ssl; # managed by Certbot
 
-    ssl_certificate /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/{{ camphoric_domain_name }}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/{{ camphoric_domain_name }}/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -36,13 +40,13 @@ server {
 {%- if nginx_ssl_on | bool %}
 
 server {
-    if ($host = {{ domain_name }}) {
+    if ($host = {{ camphoric_domain_name }}) {
         return 301 https://$host$request_uri;
     } # managed by Certbot
 
 
     listen 80 default_server;
-    server_name {{ domain_name }};
+    server_name {{ camphoric_domain_name }};
     return 404; # managed by Certbot
 }
 

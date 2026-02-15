@@ -11,6 +11,7 @@
       - musl-dev
       - acl
       - git
+      - nginx
     state: latest
     update_cache: true
 

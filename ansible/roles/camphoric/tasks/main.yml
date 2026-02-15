@@ -4,24 +4,23 @@
   include_tasks: install_prereqs.yml
 
 - name: Setup Django
-  tags: [camphoric_install, camphoric_update, camphoric_reset]
+  tags: [camphoric_django, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_django.yml
 
 - name: Setup Django service
-  tags: [camphoric_install, camphoric_update, camphoric_reset]
+  tags: [camphoric_django, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_django_service.yml
 
 - name: Setup nginx site
-  tags: [camphoric_install, camphoric_update, camphoric_reset]
-  include_tasks: setup_django_service.yml
-  when: camphoric_environment != 'development'
+  tags: [camphoric_nginx, camphoric_install, camphoric_update, camphoric_reset]
+  include_tasks: setup_nginx.yml
 
 - name: Setup React development
-  tags: [camphoric_install, camphoric_update, camphoric_reset]
+  tags: [camphoric_development, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_react_development.yml
   when: camphoric_environment == 'development'
 
 - name: Import sample data
-  tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+  tags: [camphoric_data, camphoric_install, camphoric_reset, camphoric_data_reset]
   include_tasks: import_sample_data.yml
   when: camphoric_environment != 'production'
