@@ -1,4 +1,6 @@
 ---
+is_vagrant: false
+
 camphoric_uid: 1000
 camphoric_user: vagrant
 camphoric_environment: development
@@ -28,5 +30,4 @@ camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
 camphoric_paypal_client_id: this-should-be-in-vault
 camphoric_paypal_secret: this-should-be-in-vault
 
-nginx_ssl_on: True
-
+nginx_ssl_on: true
