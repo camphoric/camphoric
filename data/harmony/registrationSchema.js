@@ -11,7 +11,7 @@ export default {
   'description': `
 ${start} through ${end}
 
-Please note that registrations are accepted in the order they are received and your housing preferences are processed on a "first come - first served" basis.
+Please note that registrations are accepted in the order they are received and your housing preferences are processed on a "first-come, first-served basis" basis.
 
 **COVID AND CANCELLATION POLICIES**    
 
@@ -50,7 +50,7 @@ Fields marked with an asterisk (*) are required
           'type': 'string',
           'minLength': 3,
           'maxLength': 10,
-          'title': 'Zipcode or Postal Code'
+          'title': 'ZIP code or Postal Code'
         },
         'country': {
           'type': 'string',

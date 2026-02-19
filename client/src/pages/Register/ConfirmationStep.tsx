@@ -49,7 +49,7 @@ function ConfirmationStep() {
       totals: paymentStep.serverPricingResults,
       pricing_results: confirmationStep.serverPricingResults
     });
-    // storage.resetFormData();
+    storage.resetFormData();
   }, [regFormData, templateVars, storage]);
 
   if (!regFormData.confirmationStep && !templateVars && !template) {

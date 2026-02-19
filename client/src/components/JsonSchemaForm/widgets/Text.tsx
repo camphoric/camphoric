@@ -17,7 +17,6 @@ const TextWidget = (props: TextWidgetProps) => {
     readonly,
     disabled,
     label,
-    value,
     onChange,
     onBlur,
     onFocus,
@@ -27,16 +26,27 @@ const TextWidget = (props: TextWidgetProps) => {
     rawErrors = [],
   } = props;
 
+  const isIntegerInput = (props.type || schema.type) === 'integer';
+
   const _onChange = ({
     target: { value },
-  }: React.ChangeEvent<HTMLInputElement>) =>
-    onChange(value === "" ? options.emptyValue : value);
+  }: React.ChangeEvent<HTMLInputElement>) => {
+    let finalValue = value;
+
+    if (isIntegerInput) {
+      finalValue = finalValue.toString().replace(/\D/g, '');
+    }
+
+    console.log('finalValue', finalValue);
+    onChange(finalValue === "" ? options.emptyValue : finalValue);
+  }
   const _onBlur = ({ target: { value } }: React.FocusEvent<HTMLInputElement>) =>
     onBlur(id, value);
   const _onFocus = ({
     target: { value },
   }: React.FocusEvent<HTMLInputElement>) => onFocus(id, value);
 
+  let value = props.value;
   const title = label || getSchemaValue(props, 'title');
   const description = getSchemaValue(props, 'description');
   const prefix = getSchemaValue(props, 'prefix');
@@ -47,10 +57,9 @@ const TextWidget = (props: TextWidgetProps) => {
     pattern: undefined as undefined | string,
   }
 
-  if (typeProps.type === 'integer') {
-    typeProps.type = 'number';
-    typeProps.step = '1';
-    typeProps.pattern = '[0-9]+';
+  if (isIntegerInput) {
+    typeProps.type = 'text';
+    value = value ? value.toString().replace(/\D/g,'') : "";
   }
 
   return (
@@ -80,7 +89,7 @@ const TextWidget = (props: TextWidgetProps) => {
             readOnly={readonly}
             className={rawErrors.length > 0 ? "is-invalid" : ""}
             list={schema.examples ? `examples_${id}` : undefined}
-            value={value || value === 0 ? value : ""}
+            value={value || (value === 0 ? value : "")}
             onChange={_onChange}
             onBlur={_onBlur}
             onFocus={_onFocus}

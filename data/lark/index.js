@@ -30,7 +30,7 @@ const data = {
     // convert dates to strings
     ...Object.entries(dates).reduce((acc, [k, d]) => ({
       ...acc,
-      [k]: d.toISOString(),
+      [k]: d.toISO(),
     }), {}),
     default_stay_length: lengthInDays - 1,
     camper_schema,

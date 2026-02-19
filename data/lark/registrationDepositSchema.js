@@ -18,19 +18,10 @@ const full = {
 const deposit = {
   name: '50% Deposit',
   logic: {
-    '+': [
-      {
-        '*': [
-          { var: ['total'] },
-          0.5,
-        ],
-      },
-      {
-        '*': [
-          { var: ['donation'] },
-          1.5,
-        ],
-      },
+    '-': [
+      { var: ['total'] },
+      { '*': [{ var: ['tuition', 0]}, 0.5] },
+      { '*': [{ var: ['meals', 0]}, 0.5] },
     ],
   },
 };
@@ -45,10 +36,11 @@ export default {
   'title': 'Full Payment or Deposit Only',
   'type': 'string',
   'description': `
-You may either: make a nonrefundable 50% deposit to hold your place,  or pay in
+You may either: make a nonrefundable 50% deposit to hold your place, or pay in
 full. If you choose the deposit option, the balance will be due by June 20.
 
-Note: Any donation must be made in full, and is non-refundable.
+The 50% deposit only applies to tuition and meals. All other charges must be
+paid in full up front.
 `,
   enum: options.map(o => JSON.stringify(o)),
   enumNames: options.map(o => o.name),

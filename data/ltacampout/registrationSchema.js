@@ -51,7 +51,7 @@ Read the [Terms of Registration](https://docs.google.com/document/d/1pq2i2rHpHns
 before you fill out this form.
 
 Please note that registrations are accepted in the order they are received and
-your camping preferences are processed on a "first come - first served" basis.
+your camping preferences are processed on a "first-come, first-served basis" basis.
 
 | Pricing | 26+ years old | 18-25 years old | 5-17 years old | 0-4 years old |
 | ------- | ------------- | --------------- | -------------- | ------------- |

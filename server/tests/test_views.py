@@ -665,7 +665,7 @@ class RegisterPostTests(APITestCase):
         self.assertFalse(registration.completed)
 
         self.assertEqual({
-            'deposit': None,
+            'deposit': self.event.registration_deposit_schema,
             'registrationUUID': registration.uuid,
             'serverPricingResults': expected_pricing_results,
         }, response.data)
@@ -728,7 +728,10 @@ Campers:
 | Testi McTesterton | 100 |
 | Testi McTesterton Junior | 100 |
 
-Total due: $300
+Total: $300
+
+
+Due now: $300
 """.lstrip())
         self.assertEqual(len(message.alternatives), 1)
         self.assertIsInstance(message.alternatives[0], tuple)
@@ -754,7 +757,8 @@ Total due: $300
 </tr>
 </tbody>
 </table>
-<p>Total due: $300</p>
+<p>Total: $300</p>
+<p>Due now: $300</p>
 """.lstrip())
 
         self.assertEqual(message.from_email, 'reg@camp.org')
@@ -903,6 +907,102 @@ Total due: $300
         self.assertEqual(registration.registration_type.id, registration_type.id)
         invitation.refresh_from_db()
         self.assertEqual(invitation.registration.id, registration.id)
+
+    def test_post_deposit(self):
+        self.assertEqual(models.Registration.objects.count(), 0)
+        expected_pricing_results = {
+            'cabins': 100,
+            'tuition': 200,
+            'campers': [
+                {'total': 100, 'tuition': 100},
+                {'total': 100, 'tuition': 100},
+            ],
+            'worktrade_discount': 0,
+            'total': 300,
+        }
+
+        #
+        # registration step
+        #
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'formData': self.valid_form_data,
+                'pricingResults': expected_pricing_results,
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        registrations = models.Registration.objects.all()
+        self.assertEqual(len(registrations), 1)
+        registration = registrations[0]
+        self.assertEqual({
+            'deposit': self.event.registration_deposit_schema,
+            'registrationUUID': registration.uuid,
+            'serverPricingResults': expected_pricing_results,
+            }, response.data)
+
+        #
+        # payment step
+        #
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'registrationUUID': registration.uuid,
+                'step': 'payment',
+                'paymentType': 'Check',
+                'paymentData': {
+                    'type': '50% Deposit',
+                    'total': 200,
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+
+        self.assertEqual(message.body, """
+Thanks for registering, Testi McTesterton!
+
+Campers:
+| Name | Total |
+| ---- | ----- |
+| Testi McTesterton | 100 |
+| Testi McTesterton Junior | 100 |
+
+Total: $300
+
+
+Due now: $200
+""".lstrip())
+        self.assertEqual(len(message.alternatives), 1)
+        self.assertIsInstance(message.alternatives[0], tuple)
+        self.assertEqual(message.alternatives[0][1], "text/html")
+        self.assertEqual(message.alternatives[0][0], """
+<p>Thanks for registering, Testi McTesterton!</p>
+<p>Campers:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Testi McTesterton</td>
+<td>100</td>
+</tr>
+<tr>
+<td>Testi McTesterton Junior</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<p>Total: $300</p>
+<p>Due now: $200</p>
+""".lstrip())
 
 
 class SendInvitationPostTests(APITestCase):
@@ -1360,6 +1460,19 @@ def create_standard_test_event(
                 'exp': {'var': 'tuition'},
             },
         ],
+        registration_deposit_schema={
+            'enum': [
+                '{"name":"Full Payment","logic":{"var":["total"]}}',
+                '{"name":"50% Deposit","logic":{"-":[{"var":["total"]},{"*":[{"var":["tuition",0]},0.5]}]}}',  # noqa: E501
+                ],
+            'type': 'string',
+            'title': 'Deposit',
+            'default': '{"name":"Full Payment","logic":{"var":["total"]}}',
+            'enumNames': [
+                'Full Payment',
+                '50% Deposit',
+                ],
+        },
         confirmation_page_template='{{client renders this}}',
         confirmation_email_subject='Registration confirmation',
         confirmation_email_template=''.join([
@@ -1370,7 +1483,8 @@ def create_standard_test_event(
             '{{#campers}}',
             '| {{name}} | {{pricing_result.total}} |\n',
             '{{/campers}}',
-            '\n\nTotal due: ${{pricing_results.total}}\n',
+            '\n\nTotal: ${{pricing_results.total}}\n',
+            '\n\nDue now: ${{initial_payment.total}}\n',
         ]),
         confirmation_email_from='reg@camp.org',
     )

@@ -104,11 +104,18 @@ const regTypeIn = (types, price) => {
 });
 
 const regularPrice = {
+  enrollment_fee: {
+    'if': [
+      ...regTypeIn(crewCamp, {var: 'pricing.crew_enrollment'}),
+			0
+    ],
+  },
+
   tuition: {
     '+': [{
       'if': [
         ...regTypeIn(freeCamp, 0),
-        ...regTypeIn(crewCamp, {var: 'pricing.crew_enrollment'}),
+        ...regTypeIn(crewCamp, 0),
         // Standard pricing
         ...regularTuitionPriceMatrix.reduce((acc, [ age, full, half ]) => {
           return [
@@ -241,6 +248,11 @@ export default [
     exp: regularPrice.tuition,
   },
   {
+    label: 'Crew Enrollment Fee',
+    var: 'enrollment_fee',
+    exp: regularPrice.enrollment_fee,
+  },
+  {
     label: 'Meals',
     var: 'meals',
     exp: regularPrice.meals
@@ -256,6 +268,17 @@ export default [
     exp: regularPrice.name_badge
   },
   {
+    label: 'Parking Pass Count',
+    var: 'parking_pass_count',
+    exp: {'reduce': [
+      {'var': 'camper.parking_passes'},
+      {'+':[
+        {'var': 'accumulator'},
+        1
+      ]}, 0
+    ]},
+  },
+  {
     label: 'Custom Charges',
     var: 'custom_charges',
     exp: { 'reduce': [
@@ -269,11 +292,12 @@ export default [
     var: 'total',
     exp: {
       '+': [
-				{var: 'tuition'},
-        {var: 'meals'},
-        {var: 'parking'},
-        {var: 'name_badge'},
-        {var: 'custom_charges'},
+        {var: ['tuition', 0]},
+        {var: ['meals', 0]},
+        {var: ['parking', 0]},
+        {var: ['name_badge', 0]},
+        {var: ['custom_charges', 0]},
+        {var: ['enrollment_fee', 0]},
       ]
     }
   }
