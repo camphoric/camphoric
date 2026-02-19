@@ -102,7 +102,7 @@ export default {
       'title': 'Name badge',
       'description': `
 All campers may purchase a name badge. The name badge will be 2.25", and you
-can see a [sample of the design here](https://www.larkcamp.org/wp-content/uploads/2025/01/name-badge-2025.jpeg).
+can see a [sample of the design here](https://www.larkcamp.org/wp-content/uploads/2026/02/LarkBadge2026_sample.png).
 `,
       'type': 'object',
       'dependencies': {
@@ -127,9 +127,9 @@ can see a [sample of the design here](https://www.larkcamp.org/wp-content/upload
                 },
                 'pronouns': {
                   'type': 'string',
-                  'maxLength': 10,
+                  'maxLength': 15,
                   'title': 'Pronouns for name badge',
-                  'description': 'Leave blank for none'
+                  'description': 'Leave blank for none. Non-serious entries will be removed'
                 },
               },
               'required': ['name'],
@@ -178,11 +178,12 @@ help.
                     'type': 'string',
                     'enum': [
                       'Medical',
-                      'Counceling/psychiatric',
+                      'Counseling/psychiatric',
                       'Emergency management',
                       'Firefighting',
                     ],
                   },
+                  'minItems': 1,
                   'uniqueItems': true
                 },
                 'credentials': {
@@ -221,8 +222,8 @@ help.
 **ALL vehicles and trailers are required to have a parking pass.**  
 *Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
 
-*   You can pre-purchase parking passes for \${{pricing.parking_pass}}; you’ll receive your parking pass when you arrive at camp.
-*   If you purchase your parking pass at camp, the cost will be \$${pricing.parking_pass_at_camp_extra + pricing.parking_pass} (no credit cards accepted at camp).`,
+*   You can pre-purchase parking passes for \${{pricing.camper_parking_pass}}; you’ll receive your parking pass when you arrive at camp.
+*   If you purchase your parking pass at camp, the cost will be \$${pricing.parking_pass_at_camp_extra + pricing.camper_parking_pass} (no credit cards accepted at camp).`,
       'minItems': 0,
       'maxItems': 4,
       'items': {

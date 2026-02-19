@@ -134,7 +134,7 @@ function PaymentStepPaymentNeeded() {
       }
     }
 
-    console.log('finalTotal', finalTotal);
+    debug('finalTotal', finalTotal);
     try {
       const parsedDepositChoice = JSON.parse(depositChoice?.deposit);
 
@@ -152,6 +152,8 @@ function PaymentStepPaymentNeeded() {
       },
       payPalResponse,
     };
+
+    debug('initialPayment', initialPayment);
 
     dispatch(setPaymentInfo(initialPayment));
     const result = await createInitialPayment(initialPayment);

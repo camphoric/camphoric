@@ -6,7 +6,7 @@ export default {
 Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before you fill out this form.
 
 Please note that registrations are accepted in the order they are received and
-your camping preferences are processed on a "first come - first served" basis.  
+your camping preferences are processed on a "first-come, first-served basis" basis.  
 
 ### PROOF OF NEGATIVE COVID TEST JUST BEFORE CAMP WILL BE REQUIRED FOR ALL ATTENDEES
 
@@ -14,6 +14,9 @@ Campers must produce a negative COVID test taken WITHIN 48 HOURS before
 arriving at camp. We highly recommend you also get vaccinated against COVID for
 additional protection. Everyone comes at their own risk. Updates based on CDC
 recommendations may be sent out shortly before camp.
+
+
+\\* indicates a required field
 `,
   'type': 'object',
   'definitions': {
@@ -45,7 +48,7 @@ recommendations may be sent out shortly before camp.
           'type': 'string',
           'minLength': 3,
           'maxLength': 10,
-          'title': 'Zipcode or Postal Code'
+          'title': 'ZIP code or Postal Code'
         },
         'country': {
           'type': 'string',

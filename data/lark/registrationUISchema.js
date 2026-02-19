@@ -1,7 +1,7 @@
 const lodgingDescription = `
 The Mendocino Woodlands is a WPA-era campground with rustic wooden cabins. Each of the three camps has cabins or tent-cabins and in most cases are shared by four people. All are equipped with cots and mattresses, but no bedding and none have electricity. Each camp has designated tent camping areas for a pre-assigned number of tents. Each camp has limited, designated space for camping vehicles.
 
-[There are three camps](https://www.larkcamp.org/wp-content/uploads/2019/10/About_WoodlandsMap.jpg) divided roughly by the following themes, with busses that run regularly between camps. Each has workshops, sessions, dances, and events related to these themes.
+[There are three camps](https://www.larkcamp.org/wp-content/uploads/2019/10/About_WoodlandsMap.jpg) divided roughly by the following themes, with buses that run regularly between camps. Each has workshops, sessions, dances, and events related to these themes.
 
 **Camp One**    
 [Map of Camp One.](https://www.larkcamp.org/wp-content/uploads/2023/02/Camp-1-LARGE.pdf)
@@ -12,7 +12,7 @@ Ireland, British Isles, Greece, Eastern Europe, and Sweden.
 Latin America, North America, Spain, and France
 
 **Camp Three**    
-[Map of Camp Three.](https://www.larkcamp.org/wp-content/uploads/2023/02/Camp-3-LARGE.pdf)
+[Map of Camp Three.](https://www.larkcamp.org/wp-content/uploads/2023/02/Camp-3-SMALL.pdf)
 The Middle East, Greece, Asia, and Africa
 `;
 

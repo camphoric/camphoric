@@ -1763,7 +1763,7 @@ carpooling, payments, meals, ordering t-shirts, or anything else? Email us at
           "zip_code": {
             "maxLength": 10,
             "minLength": 3,
-            "title": "Zipcode or Postal Code",
+            "title": "ZIP code or Postal Code",
             "type": "string",
           },
         },
@@ -1787,7 +1787,7 @@ carpooling, payments, meals, ordering t-shirts, or anything else? Email us at
 Read the [Terms of Registration](http://www.larkcamp.org/campterms.html) before you fill out this form.
 
 Please note that registrations are accepted in the order they are received and
-your camping preferences are processed on a "first come - first served" basis.
+your camping preferences are processed on a "first-come, first-served basis" basis.
 
 Fields marked with an asterisk (*) are required.
 ",

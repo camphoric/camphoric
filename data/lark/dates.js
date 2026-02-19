@@ -1,42 +1,38 @@
+import { DateTime } from 'luxon';
+
 export const lengthInDays = 9;
 
-const today = new Date();
+const today = DateTime.now().setZone("America/Los_Angeles");
 
-export let year = today.getFullYear();
+export let year = today.year;
 
 // if it is August or later, it's next years camp
-// January gives 0 for getMonth
-if (today.getMonth() > 6) {
+// January gives 1 for getMonth
+if (today.month > 7) {
   year = year + 1;
 }
 
 // find last Thursday in July as startDate
 const getStartDate = (d) => {
-  // Sunday - Saturday : 0 - 6
-  const dayOfWeek = d.getDay();
+  // Mon - Sun: 1 - 7
+  if (d.weekday === 4) return d;
 
-  if (dayOfWeek === 4) return d;
-
-  d.setDate(d.getDate() - 1);
-
-  return getStartDate(d)
+  return getStartDate(d.minus({ days: 1 }))
 }
-const startDate = getStartDate(new Date(year, 7, 0));
+
+const startDate = getStartDate(DateTime.fromISO(`${year}-08-01T14:00:00.000-07:00`));
 
 const getRegEnd = (d) => {
-  // Sunday - Saturday : 0 - 6
-  const dayOfWeek = d.getDay();
+  // Mon - Sun: 1 - 7
+  // reg ends on the Monday before camp starts
+  if (d.weekday === 1) return d;
 
-  if (dayOfWeek === 1) return d;
-
-  d.setDate(d.getDate() - 1);
-
-  return getRegEnd(d)
+  return getRegEnd(d.minus({ days: 1 }))
 }
-const regEnd = getRegEnd(new Date(startDate));
 
-const eventEnd = new Date(startDate);
-eventEnd.setUTCHours(startDate.getUTCHours() + (lengthInDays * 24));
+const regEnd = getRegEnd(startDate.minus({ days: 1 }));
+
+const eventEnd = startDate.plus({ days: lengthInDays });
 
 const dateHash = {
   registration_start: today,

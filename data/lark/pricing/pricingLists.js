@@ -38,7 +38,6 @@ export const freeBadge = [
   'office-camp-2',
   'office-camp-3',
   'bus-driver',
-  'reg-volunteer',
 ];
 
 // those that get free parking

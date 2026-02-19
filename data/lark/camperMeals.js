@@ -55,7 +55,7 @@ const allOf = [
 const createMeals = (...options) => ({
   'type': 'object',
   'title': 'Meal Plans',
-  'description': `Meal plans must be fully paid {{meals_due_date}}. We cannot accept partial payments. Food prices include sales tax.
+  'description': `Meal plans must be fully paid by {{meals_due_date}}. We cannot accept partial payments. Food prices include sales tax.
 
 NOTE: You may only cook if you’re camping in a vehicle with a built-in kitchen. No portable white gas or propane stoves are allowed in the park.
 

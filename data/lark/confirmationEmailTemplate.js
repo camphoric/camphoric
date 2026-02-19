@@ -16,9 +16,8 @@ accommodate your choice.
   via email.
 - If you paid 50% of your tuition, your final payment will be due NO LATER THAN
   JUNE 20. 
-- If you have not yet paid for your meals that amount is also due NO LATER THAN
-  JUNE 20. Look for instructions in future emails to add a meal plan to your
-  registration.
+- If you have not yet ordered meals then they also need to be ordered before
+  June 20th by emailing registration@larkcamp.org..
 
 **YOU HAVE REGISTERED FOR:**
 
@@ -34,17 +33,22 @@ Parking Passes Total: \${{pricing_result.parking}}
 - {{first_name}} {{last_name}}: {{vehicle_type}}    
 {{/parking_passes}}
 
+{{#pricing_result.tuition}}
 Tuition: \${{pricing_result.tuition}}    
+{{/pricing_result.tuition}}
+{{#pricing_result.enrollment_fee}}
+Enrollment Fee: \${{pricing_result.enrollment_fee}}    
+{{/pricing_result.enrollment_fee}}
 #########    
 {{/campers}}
 
 Donation to Lark Traditional Arts: \${{pricing_results.donation}}    
 
-{{^pricing_results.parking}}    
+{{^pricing_results.parking_pass_count}}    
 You have not purchased a parking pass, be warned that it will cost a lot more
 if you need to purchase one at camp.  If you meant to purchase a parking pass,
 please contact the registrar to have it added to your registration.
-{{/pricing_results.parking}}    
+{{/pricing_results.parking_pass_count}}    
 
 Payment info:
 

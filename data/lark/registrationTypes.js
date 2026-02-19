@@ -144,37 +144,6 @@ The LTA Lark Camp Committee
 https://www.larkcamp.org
 
 https://www.larktraditionalarts.org`,
-  'reg-volunteer': () => `
-Dear {{recipient_name}},
-
-Thank you for volunteering to be on our registration volunteer list! This
-volunteering in this way entitles you to the following perks:
-
-- You are allowed in early to help with setup and allows you to setup your
-  campsite early before other campers arrive
-- You get a free name badge
-
-[Please click here to register!]({{register_link}})
-
-If you need a parking pass YOU MUST ADD ONE. This is not done automatically. If
-you are not sure if you need one, add one.  It is easier to remove a pass than
-add one at the last minute. 
-
-You will not be charged for a name badge, please make sure to include a name
-badge in your registration.
-
-If you have any other questions, please email us at
-[registration@larkcamp.org](mailto:registration@larkcamp.org) or call
-[707-397-5275](tel:707-397-5275)
-
-All the best,
-
-The LTA Lark Camp Committee
-
-https://www.larkcamp.org
-
-https://www.larktraditionalarts.org
-`,
 };
 
 const specialType = (regType) => ({
@@ -196,7 +165,6 @@ const override_only_one_camper = {
 
 export const regTypes = [
   { name: 'bus-driver', label: 'Bus Driver' },
-  { name: 'reg-volunteer', label: 'Registration Volunteer' },
   { name: 'cleanup-camp-1', label: 'Camp 1 cleanup crew', registration_schema_overrides: override_only_one_camper },
   { name: 'cleanup-camp-2', label: 'Camp 2 cleanup crew', registration_schema_overrides: override_only_one_camper },
   { name: 'cleanup-camp-3', label: 'Camp 3 cleanup crew', registration_schema_overrides: override_only_one_camper },
