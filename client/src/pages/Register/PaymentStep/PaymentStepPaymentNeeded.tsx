@@ -106,7 +106,17 @@ function PaymentStepPaymentNeeded() {
       setDepositChoice(formData);
       const values = JSON.parse(formData.deposit);
 
-      const newTotal = jsonLogic.apply(values.logic, newTotals || totals);
+      debug('deposit changed', formData.deposit)
+
+      const newTotal = jsonLogic.apply(values.logic, totals || newTotals);
+
+      debug('deposit changed', {
+        choice: formData.deposit,
+        newTotals,
+        totals,
+        newTotal,
+      });
+
       setTotal(newTotal);
 
       return newTotal;
@@ -207,7 +217,7 @@ function PaymentStepPaymentNeeded() {
     };
   }
 
-  console.log({ payPalOptions });
+  debug({ payPalOptions });
 
   return (
     <div className="payment-form" style={loading ? { pointerEvents: 'none' } : undefined}>

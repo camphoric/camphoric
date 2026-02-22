@@ -37,7 +37,6 @@ const TextWidget = (props: TextWidgetProps) => {
       finalValue = finalValue.toString().replace(/\D/g, '');
     }
 
-    console.log('finalValue', finalValue);
     onChange(finalValue === "" ? options.emptyValue : finalValue);
   }
   const _onBlur = ({ target: { value } }: React.FocusEvent<HTMLInputElement>) =>

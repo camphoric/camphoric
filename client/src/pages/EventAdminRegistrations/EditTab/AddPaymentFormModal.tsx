@@ -10,6 +10,7 @@ import {
 } from 'utils/time';
 import getFromPath from 'lodash/get';
 
+import debug from 'utils/debug';
 import api from 'hooks/api';
 
 interface Props {
@@ -100,7 +101,7 @@ function AddPaymentForm(props: Props) {
             schema={paymentSchema}
             onChange={(f) => setPaymentAttributes(f.formData)}
             onSubmit={handleSaveNewPayment}
-            onError={() => console.log("errors")}
+            onError={() => debug("errors")}
             formData={paymentAttributes}
             templateData={{}}
           >

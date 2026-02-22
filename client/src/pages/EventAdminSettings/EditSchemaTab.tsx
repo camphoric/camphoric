@@ -5,6 +5,7 @@ import {
 import api from 'hooks/api';
 import Spinner from 'components/Spinner';
 import JsonEditor, { type Content } from 'components/JsonEditor';
+import debug from 'utils/debug';
 
 import { TabProps, EditableSchemaKeys } from './EventAdminSettings';
 
@@ -19,7 +20,7 @@ function EditSchemaTab(props: Props) {
   if (!value) return <Spinner />;
 
   const save = (val: Content) => {
-    console.log('onSave', val);
+    debug('onSave', val);
 
     let newValue;
 
