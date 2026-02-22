@@ -18,10 +18,10 @@ const full = {
 const deposit = {
   name: '50% Deposit',
   logic: {
-    '-': [
+    '+': [
       { var: ['total'] },
-      { '*': [{ var: ['tuition', 0]}, 0.5] },
-      { '*': [{ var: ['meals', 0]}, 0.5] },
+      { '*': [{ var: ['tuition', 0]}, -0.5] },
+      { '*': [{ var: ['meals', 0]}, -0.5] },
     ],
   },
 };
