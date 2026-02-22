@@ -5,6 +5,7 @@ import {
 } from 'react-bootstrap';
 import JsonEditor, { type Content } from 'components/JsonEditor';
 import Spinner from 'components/Spinner';
+import debug from 'utils/debug';
 
 import api, { useEvent } from 'hooks/api';
 
@@ -25,7 +26,7 @@ function EditJSONType({ keyToEdit }: Props) {
   if (eventApi.isLoading || !event || loading) return <Spinner />;
 
   const save = async (val: Content) => {
-    console.log('onSave', val);
+    debug('onSave', val);
 
     let newValue;
 

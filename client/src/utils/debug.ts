@@ -4,9 +4,8 @@
  * These functions are used to console.log when in development only.
  */
 
-// @ts-ignore
-export default function debug(...args) {
-  if (import.meta.env.DEV) {
+export default function debug(...args: Parameters<typeof console.log>) {
+  if (import.meta.env.DEV || localStorage.getItem('DEBUG')) {
     console.log(...args);
   }
 }

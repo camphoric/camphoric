@@ -6,6 +6,7 @@
 import getFromPath from 'lodash/get';
 import flattenDeep from 'lodash/flattenDeep';
 import { sortComparison } from 'utils/sort';
+import debug from 'utils/debug';
 
 /**
  * HelpText
@@ -70,7 +71,6 @@ const helpers: HelperHash = {
     Lookup a lodging object and return a value from a path
     `,
     function (lodgingId, path, options) {
-      console.log(options.data.root);
       const lookup = options.data.root.lodgingLookup;
       const reg = lookup[lodgingId];
 
@@ -150,11 +150,7 @@ const helpers: HelperHash = {
         throw new Error('handlebars Helper {{filter}} expects 5 arguments');
       }
 
-      const [arr, path, operator, b, options] = args;
-
-      console.log({
-        arr, path, operator, b, options
-      });
+      const [arr, path, operator, b] = args;
 
       try {
         const result = arr.filter((item) => {
@@ -297,7 +293,6 @@ const helpers: HelperHash = {
     Block helper that sorts an array of objects by a value found in a lookup
     `,
     function(arr, objKey, lookupName, lookupValueKey, options) {
-      console.log(options);
       const lookup = options.data.root[lookupName];
 
       if (!lookup) {

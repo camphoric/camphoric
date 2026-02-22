@@ -139,7 +139,7 @@ function RegistrationStep() {
     }
   };
 
-  console.log('JsonSchemaForm registrationApi.data', config);
+  debug('JsonSchemaForm registrationApi.data', config);
 
   return (
     <PageWrapper>
