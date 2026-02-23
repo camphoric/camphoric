@@ -1,5 +1,5 @@
 import * as priceLists from './pricing/pricingLists.js';
-import * as pricing from './pricing/pricing.js';
+import pricing from './pricing/pricing.js';
 // 'recipient_name': to_name or to_email,
 // 'recipient_email': to_email,
 // 'invitation_code': invitation.invitation_code,
@@ -13,24 +13,24 @@ You have been invited to join the following Lark Camp crew:
 ${regType.label}
 
 [Please click here to register!]({{register_link}})
-${priceLists.crewCamp.includes(regType) && `
+${priceLists.crewCamp.includes(regType.name) ? `
 
-You will be charged a non-refundable enrollment fee of $${pricing.crew_enrollment}.`}
+You will be charged a non-refundable enrollment fee of $${pricing.crew_enrollment}.` : ''}
 
 If you need a parking pass YOU MUST ADD ONE. This is not done automatically. If
 you are not sure if you need one, add one.  It is easier to remove a pass than
-add one at the last minute. ${(priceLists.freeParking.includes(regType) && `
-You will not be charged for a parking pass.`) || (priceLists.crewParking.includes(regType) && `
+add one at the last minute. ${(priceLists.freeParking.includes(regType.name) ? `
+You will not be charged for a parking pass.` : '') || (priceLists.crewParking.includes(regType.name) ? `
 As a member of Lark Camp's crew, you will only be charged $${pricing.crew_parking_pass}
-for parking passes.`)}
-${priceLists.freeMeals.includes(regType) && `
+for parking passes.` : '')}
+${priceLists.freeMeals.includes(regType.name) ? `
 
 You will not be charged for meals, please make sure to include a meal selection
-in your registration.`}
-${priceLists.freeBadge.includes(regType) && `
+in your registration.` : ''}
+${priceLists.freeBadge.includes(regType.name) ? `
 
 You will not be charged for a name badge, please make sure to include a name
-badge in your registration.`}
+badge in your registration.` : ''}
 
 If you have a specific lodging request, please make a note in the lodging
 preferences box. Please remember that lodging choices are first come/ first
