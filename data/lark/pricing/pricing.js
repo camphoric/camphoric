@@ -12,7 +12,7 @@ const pricing = {
 
 	camper_parking_pass: 90,
 	crew_parking_pass: 35,
-	parking_pass_at_camp_extra: 20,
+	parking_pass_at_camp_extra: 15,
 
 	full_kid: 0,
 	half_kid: 0,

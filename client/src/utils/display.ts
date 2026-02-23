@@ -72,7 +72,7 @@ export function moneyFmt(price: number | string) {
   }
 
   // Step 3: Format to 2 decimal places (adds trailing zeros)
-  return `$${numericPrice.toFixed(2)}`;
+  return numericPrice.toFixed(2);
 }
 
 export function ordinal(i: number) {
