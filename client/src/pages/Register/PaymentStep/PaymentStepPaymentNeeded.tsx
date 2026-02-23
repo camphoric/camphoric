@@ -82,7 +82,7 @@ function PaymentStepPaymentNeeded() {
       intent: 'CAPTURE',
       purchase_units: [
         {
-          amount: { currency_code: 'USD', value: total.toString() },
+          amount: { currency_code: 'USD', value: moneyFmt(total) },
           description,
           invoice_id: paymentStep.registrationUUID,
           reference_id: paymentStep.registrationUUID,
@@ -108,7 +108,7 @@ function PaymentStepPaymentNeeded() {
 
       debug('deposit changed', formData.deposit)
 
-      const newTotal = jsonLogic.apply(values.logic, totals || newTotals);
+      const newTotal = jsonLogic.apply(values.logic, newTotals || totals);
 
       debug('deposit changed', {
         choice: formData.deposit,
@@ -231,7 +231,7 @@ function PaymentStepPaymentNeeded() {
         )
       }
       <h1>Choose your payment option</h1>
-      <h3>Total: {moneyFmt(total)}</h3>
+      <h3>Total: ${moneyFmt(total)}</h3>
       {
         paymentStep.deposit && (
           <JsonSchemaForm

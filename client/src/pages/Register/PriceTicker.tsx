@@ -15,7 +15,7 @@ function PriceTicker() {
           <Spinner style={{ position: 'absolute', color: 'rgba(0, 0, 0, 0.4)' }} animation="border" role="status" />
           )
       }
-      <div>Total: {moneyFmt(regFormData.totals.total)}</div>
+      <div>Total: ${moneyFmt(regFormData.totals.total)}</div>
     </div>
   );
 }

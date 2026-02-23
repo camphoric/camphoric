@@ -170,7 +170,7 @@ function RegistrationStep() {
                 <>
                   <h5>Handling charge</h5>
                   <div className="md-template">
-                    There is a handling charge of <strong>{moneyFmt(regFormData.totals.handling)}</strong> ({config.event.epayment_handling}% of the total),
+                    There is a handling charge of <strong>${moneyFmt(regFormData.totals.handling)}</strong> ({config.event.epayment_handling}% of the total),
                     however, we offer a {config.event.epayment_handling}% discount if you pay by check.
                   </div>
                   <hr />
