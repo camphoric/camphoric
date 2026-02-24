@@ -327,6 +327,66 @@ class TestCalculatePrice(unittest.TestCase):
             "total": 675,
             }, price_components)
 
+    def test_sane_floats(self):
+        event = models.Event(
+            organization=self.organization,
+            epayment_handling=0.025,
+            name="Test Registration Event",
+            pricing={"cabin": 99},
+            registration_pricing_logic=[
+                {
+                    "label": "Random",
+                    "var": "random",
+                    "exp": "bobby flay",
+                    },
+                {
+                    "label": "Cabins",
+                    "var": "cabins",
+                    "exp": {
+                        "*": [
+                            {"var": "pricing.cabin"},
+                            1.033,
+                            ]
+                        },
+                    },
+                {
+                    "label": "Total",
+                    "var": "total",
+                    "exp": {
+                        "+": [
+                            {"var": "cabins"},
+                            ]
+                        },
+                    },
+                ],
+            camper_pricing_logic=[],
+        )
+        event.save()
+        registration = models.Registration(
+            event=event,
+            attributes={},
+        )
+        price_components = pricing.calculate_price(registration, [])
+        self.assertEqual(price_components, {
+            "campers": [],
+            "handling": 0.03,  # test rounding
+            "cabins": 102.27,  # test rounding
+            "random": "bobby flay",  # test non-numeric data
+            "total": 102.3,  # test rounding
+        })
+
+        # Test after database save
+        registration.save()
+        registration.recalculate_server_pricing()
+        registration.refresh_from_db()
+        self.assertEqual(registration.server_pricing_results, {
+            "campers": [],
+            "handling": 0.03,  # test rounding
+            "cabins": 102.27,  # test rounding
+            "random": "bobby flay",  # test non-numeric data
+            "total": 102.3,  # test rounding
+        })
+
     def test_calculate_registration(self):
         event = models.Event(
             organization=self.organization,

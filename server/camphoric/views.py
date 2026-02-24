@@ -389,7 +389,7 @@ class RegisterView(APIView):
         registration.refresh_from_db()
 
         registration.initial_payment = request.data.get('paymentData')
-        registration.initial_payment['balance'] = (
+        registration.initial_payment['balance'] = pricing.money_fmt(
             Decimal(registration.server_pricing_results['total'])
             - Decimal(registration.initial_payment['total'])
         )
