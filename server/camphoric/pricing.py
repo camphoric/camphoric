@@ -7,6 +7,12 @@ from json_logic import jsonLogic
 from camphoric import models
 
 
+def money_fmt(amt):
+    if isinstance(amt, numbers.Number):
+        return round(amt, 2)
+    return amt
+
+
 def calculate_price(registration, campers):
     '''
     Parameters
@@ -66,7 +72,7 @@ def calculate_price(registration, campers):
 
     for reg_component in event.registration_pricing_logic:
         var = reg_component["var"]
-        value = jsonLogic(reg_component["exp"], data)
+        value = money_fmt(jsonLogic(reg_component["exp"], data))
         results[var] = value
         data[var] = value
 
@@ -113,13 +119,13 @@ def calculate_price(registration, campers):
             value = jsonLogic(camper_component["exp"], data)
             camper_results[var] = value
             if isinstance(value, numbers.Number):
-                results[var] = (results[var] or 0) + value
+                results[var] = money_fmt((results[var] or 0) + value)
             data[var] = value
 
         results['campers'].append(camper_results)
 
     if event.epayment_handling and registration.payment_type != 'Check':
-        handling = results['total'] * (event.epayment_handling / 100)
+        handling = money_fmt(results['total'] * (float(event.epayment_handling) / 100))
         results['handling'] = handling
         results['total'] = results['total'] + handling
 

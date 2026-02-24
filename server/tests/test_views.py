@@ -1004,6 +1004,114 @@ Due now: $200
 <p>Due now: $200</p>
 """.lstrip())
 
+    def test_post_email_templates(self):
+        event = models.Event(
+            organization=self.organization,
+            epayment_handling=2.5,
+            name="Test Registration Event",
+            pricing={"cabin": 99},
+            registration_pricing_logic=[
+                {
+                    "label": "Random",
+                    "var": "random",
+                    "exp": "bobby flay",
+                    },
+                {
+                    "label": "Cabins",
+                    "var": "cabins",
+                    "exp": {
+                        "*": [
+                            {"var": "pricing.cabin"},
+                            1.033,
+                            ]
+                        },
+                    },
+                {
+                    "label": "Total",
+                    "var": "total",
+                    "exp": {
+                        "+": [
+                            {"var": "cabins"},
+                            ]
+                        },
+                    },
+                ],
+            camper_pricing_logic=[],
+            registration_deposit_schema=self.event.registration_deposit_schema,
+            confirmation_email_subject='Registration confirmation',
+            confirmation_email_template=''.join([
+                '- handling:{{ pricing_results.handling }}\n',
+                '- cabins: {{ pricing_results.cabins }}\n',
+                '- total: {{ pricing_results.total }}\n',
+                '- Initial Payment: {{initial_payment.type}}\n',
+                '- **Amount you are paying now: {{initial_payment.total}}**\n',
+                '- Due by June 20th: {{initial_payment.balance}}\n',
+                '- Your total: {{pricing_results.total}}',
+            ]),
+            confirmation_email_from='reg@camp.org',
+        )
+        self.maxDiff = None
+        event.save()
+        expected_pricing_results = {
+            "campers": [{}],
+            "handling": 2.56,
+            "cabins": 102.27,
+            "random": "bobby flay",
+            "total": 104.83,
+        }
+
+        #
+        # registration step
+        #
+        response = self.client.post(
+            f'/api/events/{event.id}/register',
+            {
+                'formData': {'registrant_email': 'joe@blow.org', 'campers': [{}]},
+                'pricingResults': expected_pricing_results,
+            },
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        registrations = models.Registration.objects.all()
+        self.assertEqual(len(registrations), 1)
+        registration = registrations[0]
+        self.assertEqual({
+            'deposit': event.registration_deposit_schema,
+            'registrationUUID': registration.uuid,
+            'serverPricingResults': expected_pricing_results,
+            }, response.data)
+
+        #
+        # payment step
+        #
+        response = self.client.post(
+            f'/api/events/{event.id}/register',
+            {
+                'registrationUUID': registration.uuid,
+                'step': 'payment',
+                'paymentType': 'Check',
+                'paymentData': {
+                    'type': '50% Deposit',
+                    'total': 50.25,
+                },
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+
+        # Not sure why handling isn't showing up
+        self.assertEqual("""
+- handling:
+- cabins: 102.27
+- total: 102.27
+- Initial Payment: 50% Deposit
+- **Amount you are paying now: 50.25**
+- Due by June 20th: 52.02
+- Your total: 102.27""".lstrip(), message.body)
+
 
 class SendInvitationPostTests(APITestCase):
     def setUp(self):
