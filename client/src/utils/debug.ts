@@ -5,8 +5,8 @@
  */
 
 export default function debug(...args: Parameters<typeof console.log>) {
-  if (import.meta.env.DEV || localStorage.getItem('DEBUG')) {
-    console.log(...args);
-  }
+  if (import.meta.env.DEV) return console.log(...args);
+
+  if (localStorage.getItem('DEBUG')) return console.log(...args);
 }
 
