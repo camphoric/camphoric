@@ -19,15 +19,20 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   # Keeping this in to future proof, so I don't have to find the code again
   if is_arm64()
-    config.vm.box = 'bento/ubuntu-22.04'
+      config.vm.box = 'bento/ubuntu-22.04'
+      # config.vm.box_version = '202206.03.0'
   elsif `uname -m` == "x86_64"
-    config.vm.box = 'bento/ubuntu-22.04'
+      config.vm.box = 'bento/ubuntu-22.04'
+  end
+
+  if File.exist?(ENV['CAMPHORIC_VAGRANT_BASE_IMAGE'] || '')
+      config.vm.box = ENV['CAMPHORIC_VAGRANT_BASE_IMAGE']
   end
 
   # Provision with ansible
   config.vm.provision "ansible" do |ansible|
       ansible.verbose = "v"
-      
+
       if File.exist?(File.dirname(__FILE__)+"/ansible/.ansible-vault-pw")
           ansible.vault_password_file = "ansible/.ansible-vault-pw"
       end
