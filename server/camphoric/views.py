@@ -158,7 +158,7 @@ class InvitationViewSet(ModelViewSet):
     queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['registration', 'registration__event']
+    filterset_fields = ['registration', 'registration_type__event']
 
 
 class LodgingViewSet(ModelViewSet):

@@ -364,7 +364,7 @@ export function useLodgingLookup(): LodgingLookup | undefined {
 export type InvitationLookup = { [id: string]: ApiInvitation };
 export function useInvitationLookup(): InvitationLookup | undefined {
   const { eventId } = useParams<UrlParams>();
-  const apiResponse = api.useGetInvitationsQuery({ registration__event: eventId });
+  const apiResponse = api.useGetInvitationsQuery({ registration_type__event: eventId });
   const [lookup, setLookup] = React.useState<InvitationLookup>();
 
   React.useEffect(() => {
