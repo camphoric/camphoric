@@ -10,6 +10,7 @@ import {
 import getFromPath from 'lodash/get';
 
 import { usePaymentsLookup } from 'hooks/api';
+import { moneyFmt } from 'utils/display';
 
 import AddPaymentFormModal from './AddPaymentFormModal';
 
@@ -44,9 +45,9 @@ function PaymentTab(props: Props) {
             props.registration.payment_type || 'None'
           }
         </div>
-        <div>Total Owed: ${props.registration.total_owed}</div>
-        <div>Total Payments: ${props.registration.total_payments}</div>
-        <div>Balance Due: ${props.registration.total_balance}</div>
+        <div>Total Owed: ${moneyFmt(props.registration.total_owed)}</div>
+        <div>Total Payments: ${moneyFmt(props.registration.total_payments)}</div>
+        <div>Balance Due: ${moneyFmt(props.registration.total_balance)}</div>
       </div>
       <hr />
       {
@@ -74,7 +75,7 @@ function PaymentTab(props: Props) {
                   <tr>
                     <td>{p.payment_type}</td>
                     <td>{formatDate(p.paid_on)}</td>
-                    <td>${p.amount}</td>
+                    <td>${moneyFmt(p.amount)}</td>
                     {
                       keys.map((k) => (
                         <td>{p.attributes && p.attributes[k]}</td>

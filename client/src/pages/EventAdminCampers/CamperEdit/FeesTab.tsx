@@ -10,6 +10,7 @@ import {
 import ConfirmDialog from 'components/Modal/ConfirmDialog';
 
 import api, { useCustomChargeTypeLookup } from 'hooks/api';
+import { moneyFmt } from 'utils/display';
 
 import AddCustomChargeFormModal from './AddCustomChargeFormModal';
 
@@ -17,6 +18,12 @@ interface Props {
   event: ApiEvent;
   camper: ApiCamper;
 }
+
+type CamperFeeEntry = {
+  exp: object,
+  var: string,
+  lable: string,
+};
 
 
 function FeesTab({ camper, event }: Props) {
@@ -44,17 +51,23 @@ function FeesTab({ camper, event }: Props) {
 
   const formatDate = formatDateTimeForViewing();
 
+  const camperFeeLabel = (k: string) => {
+    const v = event.camper_pricing_logic.find((kv: CamperFeeEntry) => kv.var === k);
+
+    return v?.label || k;
+  };
+
   return (
     <div>
       <div>
         {
           Object.keys(camperFees).filter(k => k !== 'total').map(
             (k) => (<div key={k}>
-              {k}: ${camperFees[k]}
+              {camperFeeLabel(k)}: ${moneyFmt(camperFees[k])}
             </div>)
           )
         }
-        <div>Total: ${camperFees.total}</div>
+        <div>Total: ${moneyFmt(camperFees.total)}</div>
       </div>
       <hr />
       <h2>Custom Charges</h2>
@@ -82,7 +95,7 @@ function FeesTab({ camper, event }: Props) {
                     <td>{
                       customChargeTypeLookup[cc.custom_charge_type].label || ''
                     }</td>
-                    <td>${cc.amount}</td>
+                    <td>${moneyFmt(cc.amount)}</td>
                     <td>{cc.notes}</td>
                     <td>
                       <Button variant="danger" onClick={deleteCustomCharge(cc)}>
