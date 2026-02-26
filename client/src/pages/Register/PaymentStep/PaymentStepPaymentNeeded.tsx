@@ -14,7 +14,7 @@ import {
 
 import debug from 'utils/debug';
 import { moneyFmt } from 'utils/display';
-import jsonLogic from 'json-logic-js';
+import jsonLogic, { RulesLogic } from 'json-logic-js';
 import Spinner from 'components/Spinner';
 import JsonSchemaForm, { calculatePrice } from 'components/JsonSchemaForm';
 import api, {
@@ -26,7 +26,6 @@ import {
   setConfirmationStep,
   setPaymentInfo,
   useAppDispatch,
-  setTotals,
 } from 'store/register/store';
 
 import { useNavigateToRegPage } from '../utils';
@@ -36,13 +35,38 @@ import PayPalButtons from './PayPalButtons';
 export type PayPalCreateOrder = PayPalButtonCreateOrder;
 export type PayPalOnApprove = (a: FUNDING_SOURCE) => PayPalButtonOnApprove;
 
+interface DepositChoice {
+  deposit: string;
+};
+
+interface ParsedDeposit {
+  name: string;
+  logic: RulesLogic;
+};
+
+interface InitialPayment {
+  registrationUUID: string;
+    paymentType: PaymentType;
+    paymentData: {
+      type: DepositType,
+      total: number,
+    },
+    payPalResponse?: OrderResponseBody,
+};
+
+// values passed via closure to PayPal
+interface PayPalContext {
+  deposit: DepositChoice;
+}
+
 function PaymentStepPaymentNeeded() {
   const registrationApi = api.useGetRegistrationQuery();
-  const [createInitialPayment] = api.useCreateInitialPaymentMutation();
+  const [postInitalPayment] = api.useCreateInitialPaymentMutation();
   const regFormData = useRegFormData();
   const dispatch = useAppDispatch();
   const [loading, setLoading] = React.useState(false);
-  const [depositChoice, setDepositChoice] = React.useState<{ deposit: any }>();
+  // This value is the unparsed version
+  const [depositChoice, setDepositChoice] = React.useState<DepositChoice>({ deposit: '' });
   const [total, setTotal] = React.useState<number>(
     regFormData.paymentStep?.serverPricingResults.total || 0
   );
@@ -60,33 +84,54 @@ function PaymentStepPaymentNeeded() {
     !registrationApi.data
   ) return <Spinner />;
 
-  const {
-    paymentStep,
-    paymentInfo,
-  } = regFormData;
+  const { paymentStep } = regFormData;
   const totals = paymentStep.serverPricingResults;
   const config = registrationApi.data;
 
-  debug('PaymentStep info', {
+  debug('PaymentStepPaymentNeeded data at start of render', {
     total,
     totals,
     depositChoice,
     regFormData,
+    paymentStep,
   });
 
-  const payPalCreateOrder: PayPalButtonCreateOrder = async (data, actions) => {
-    debug('payPalCreateOrder', paymentInfo);
+  const getParsedDeposit = (formData?: DepositChoice): ParsedDeposit => {
+    // set default result, this should never be returned, but it makes
+    // typescript happy
+    let result = {
+      name: 'none' as string,
+      logic: { '+': 0 },
+    };
+
+    try {
+      result = JSON.parse(formData?.deposit || depositChoice.deposit);
+    } catch (e) {
+      debug('getParsedDeposit error', e);
+    }
+
+    return result;
+  }
+
+  const payPalCreateOrder = (context: PayPalContext): PayPalButtonCreateOrder => async (_data, actions) => {
     setLoading(true);
     const description = `${config.dataSchema.title} payment for ${regFormData.registration.registrant_email}`;
+
+    let depositDescription = '';
+    if (paymentStep.deposit) {
+      const deposit = getParsedDeposit(context.deposit);
+      depositDescription = deposit.name;
+    }
+
     const order: CreateOrderRequestBody = {
       intent: 'CAPTURE',
       purchase_units: [
         {
           amount: { currency_code: 'USD', value: moneyFmt(total) },
           description,
-          invoice_id: paymentStep.registrationUUID,
+          // custom_id embeds the deposit choice, see payPalOnApprove below
+          custom_id: depositDescription,
           reference_id: paymentStep.registrationUUID,
-          custom_id: JSON.stringify(paymentInfo),
         },
       ],
       application_context: {
@@ -96,21 +141,21 @@ function PaymentStepPaymentNeeded() {
 
     const response = await actions.order.create(order);
 
-    debug('order', order, response);
+    debug('payPalCreateOrder end', { order, response });
 
     return response;
   };
 
-  const onDepositChange = ({ formData }: { formData: { deposit: string  } }, newTotals?: any) => {
+  const onDepositChange = ({ formData }: { formData: DepositChoice }, newTotals?: any) => {
+    debug('onDepositChange start', formData);
+
     try {
       setDepositChoice(formData);
-      const values = JSON.parse(formData.deposit);
-
-      debug('deposit changed', formData.deposit)
+      const values = getParsedDeposit(formData);
 
       const newTotal = jsonLogic.apply(values.logic, newTotals || totals);
 
-      debug('deposit changed', {
+      debug('onDepositChange after jsonLogic', {
         choice: formData.deposit,
         newTotals,
         totals,
@@ -121,39 +166,17 @@ function PaymentStepPaymentNeeded() {
 
       return newTotal;
     } catch (e) {
-      console.error('deposit logic error', e);
+      console.error('onDepositChange deposit logic error', e);
     }
-
   };
 
-  const processResult = async (paymentType: PaymentType, payPalResponse?: OrderResponseBody) => {
-    let depositType: DepositType = 'none';
-
-    let finalTotal = total;
-    // If they get a check discount, we need to give that here.
-    if (registrationApi.data?.event?.epayment_handling && paymentType === 'Check') {
-      const newTotals = calculatePrice(
-        registrationApi.data,
-        regFormData.registration,
-        paymentType,
-      );
-
-      if (depositChoice) {
-        dispatch(setTotals(newTotals));
-        finalTotal = onDepositChange({ formData: depositChoice }, newTotals);
-      }
-    }
-
-    debug('finalTotal', finalTotal);
-    try {
-      const parsedDepositChoice = JSON.parse(depositChoice?.deposit);
-
-      depositType = parsedDepositChoice.name;
-    } catch (e) {
-      // nothing to do here
-    }
-
-    const initialPayment = {
+  const createInitialPayment = (
+    paymentType: PaymentType,
+    finalTotal: number,
+    depositType: DepositType,
+    payPalResponse?: object,
+  ): InitialPayment => {
+    return {
       registrationUUID: paymentStep.registrationUUID,
       paymentType,
       paymentData: {
@@ -162,11 +185,13 @@ function PaymentStepPaymentNeeded() {
       },
       payPalResponse,
     };
+  }
 
-    debug('initialPayment', initialPayment);
+  const processResult = async (initialPayment: InitialPayment) => {
+    debug('processResult start', { initialPayment });
 
     dispatch(setPaymentInfo(initialPayment));
-    const result = await createInitialPayment(initialPayment);
+    const result = await postInitalPayment(initialPayment);
 
     if ('error' in result) {
       throw new Error(`error creating payment: ${JSON.stringify(result)}`);
@@ -176,10 +201,13 @@ function PaymentStepPaymentNeeded() {
 
     dispatch(setConfirmationStep(data));
 
+    debug('processResult finished');
     navigateToRegPage('/finished');
   }
 
   const payPalOnApprove: PayPalOnApprove = (fundingSource: FUNDING_SOURCE) => async (data, actions) => {
+    debug('payPalOnApprove start', { context, fundingSource, data, actions, depositChoice });
+
     if (!actions || !actions.order) return;
     setLoading(true);
 
@@ -187,25 +215,60 @@ function PaymentStepPaymentNeeded() {
 
     if (fundingSource === 'card') paymentType = 'Card';
 
-    debug('payPalOnApprove, type: ', paymentType);
+    debug('payPalOnApprove paymentType', paymentType);
 
     try {
       const payPalResponse = await actions.order.capture();
-      const paymentDataString = payPalResponse.purchase_units && payPalResponse.purchase_units[0]?.custom_id;
+      debug('PayPalOnApprove capture', payPalResponse);
 
-      debug('PayPalOnApprove capture', payPalResponse, paymentDataString);
+      const total = payPalResponse?.purchase_units ?
+        parseFloat(payPalResponse.purchase_units[0].amount?.value || '0') : 0;
 
-      processResult(paymentType, payPalResponse);
+
+      // find deposit choice
+      // as some sort of querk in the way that the PayPal code works, the
+      // original deposit choice is gone, and the only way I can find to get it
+      // back is to imbed it into the transaction (custom_id)
+      let depositType = 'None'; // if deposits are not set up
+
+      if (paymentStep.deposit) {
+        debug('PayPalOnApprove find deposit choice', payPalResponse);
+        depositType = (
+          payPalResponse.purchase_units &&
+          payPalResponse.purchase_units[0]?.custom_id
+        ) || 'None';
+      }
+
+      const initialPayment = createInitialPayment(paymentType, total, depositType, payPalResponse)
+      processResult(initialPayment);
     } catch (e) {
       setLoading(false);
-      debug('capture error!', e);
+      console.error('payPalOnApprove error', e);
     }
   };
 
   const submitPayByCheck = () => {
     setLoading(true);
 
-    processResult('Check');
+    const newTotals = calculatePrice(
+      config,
+      regFormData.registration,
+      'Check',
+    );
+
+    let depositType = 'None'; // if deposits are not set up
+    let newTotal = newTotals.total;
+
+    if (paymentStep.deposit) {
+      const deposit = getParsedDeposit();
+      depositType = deposit.name;
+
+      newTotal = jsonLogic.apply(deposit.logic, newTotals);
+    }
+
+    const initialPayment = createInitialPayment('Check', newTotal, depositType);
+
+    processResult(initialPayment);
   };
 
   let payPalOptions: PayPalScriptOptions | undefined = config.payPalOptions;
@@ -217,7 +280,9 @@ function PaymentStepPaymentNeeded() {
     };
   }
 
-  debug({ payPalOptions });
+  debug('PaymentStepPaymentNeeded rendering now', { payPalOptions });
+
+  const context: PayPalContext = { deposit: depositChoice };
 
   return (
     <div className="payment-form" style={loading ? { pointerEvents: 'none' } : undefined}>
@@ -276,7 +341,7 @@ function PaymentStepPaymentNeeded() {
           >
             <PayPalButtons
               payPalOptions={payPalOptions}
-              payPalCreateOrder={payPalCreateOrder}
+              payPalCreateOrder={payPalCreateOrder(context)}
               payPalOnApprove={payPalOnApprove}
             />
           </PayPalScriptProvider>
