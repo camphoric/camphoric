@@ -72,11 +72,19 @@ function PaymentStepPaymentNeeded() {
   );
   const navigateToRegPage = useNavigateToRegPage();
 
+  React.useEffect(() => {
+    if (!regFormData.paymentStep) return;
+
+    setDepositChoice({ deposit: regFormData.paymentStep.deposit?.default as string || '' });
+
+  }, [regFormData.paymentStep]);
+
   if (!regFormData.paymentStep) {
     navigateToRegPage('/registration');
 
     return null;
   }
+
 
   if (
     registrationApi.isFetching ||
@@ -262,9 +270,12 @@ function PaymentStepPaymentNeeded() {
     if (paymentStep.deposit) {
       const deposit = getParsedDeposit();
       depositType = deposit.name;
-
       newTotal = jsonLogic.apply(deposit.logic, newTotals);
     }
+
+    debug('submitPayByCheck', {
+      newTotal, depositType
+    });
 
     const initialPayment = createInitialPayment('Check', newTotal, depositType);
 

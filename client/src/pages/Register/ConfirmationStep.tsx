@@ -17,6 +17,7 @@ type ConfirmationTemplateVars = {
   registration: FormData,
   totals: PricingResults,
   pricing_results: PricingResults,
+  initialPayment: PricingResults,
 } | undefined;
 
 function ConfirmationStep() {
@@ -44,6 +45,7 @@ function ConfirmationStep() {
 
     setTemplate(confirmationStep.confirmationPageTemplate);
     setTemplateVars({
+      initialPayment: confirmationStep.initialPayment,
       paymentInfo,
       registration,
       totals: paymentStep.serverPricingResults,
@@ -66,6 +68,7 @@ function ConfirmationStep() {
   if (!templateVars) return <Spinner />;
 
   debug('ConfirmationStep data', {
+    confirmationStep: regFormData.confirmationStep,
     templateVars,
     regFormData,
   });

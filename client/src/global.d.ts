@@ -198,7 +198,7 @@ declare global {
   export interface ApiRegisterConfirmationStep {
     confirmationPageTemplate: string;
     serverPricingResults: any;
-    initialPayment: any,
+    initialPayment: any;
   }
 
   export interface ApiLodging {
