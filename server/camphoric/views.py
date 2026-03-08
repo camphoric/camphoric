@@ -653,6 +653,7 @@ class RegisterView(APIView):
             settings.PAYPAL_SECRET,
         )
 
+        notes = "Initial payment"
         order_details = paypal_client.fetch_order_details(order_id)
 
         if order_details['status'] != 'COMPLETED':
@@ -666,6 +667,9 @@ class RegisterView(APIView):
             if amount['currency_code'] != 'USD':
                 raise PaymentError(f'unexpected currency code {amount["currency_code"]}')
             total += pricing.money_fmt(float(amount['value']))
+            if 'custom_id' in unit and unit['custom_id'] != '':
+                notes = notes+": "+unit['custom_id']
+
         if not registration_uuid_found:
             raise PaymentError('registration.uuid not found in order')
         # This is commented out for now until we refactor the deposit code
@@ -679,6 +683,7 @@ class RegisterView(APIView):
             paid_on=timezone.now(),
             amount=pricing.money_fmt(total),
             paypal_order_details=order_details,
+            notes=notes
         )
 
 

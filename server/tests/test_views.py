@@ -678,6 +678,7 @@ class RegisterPostTests(APITestCase):
         paypal_order_details = copy.deepcopy(sample_order_details_response)
         paypal_order_details['purchase_units'][0]['reference_id'] = str(registration.uuid)
         paypal_order_details['purchase_units'][0]['amount']['value'] = '300.00'
+        paypal_order_details['purchase_units'][0]['custom_id'] = 'All of it'
         paypal_order_details['status'] = 'COMPLETED'
         self.paypal_server.add_mock_response(200, {}, paypal_order_details)
 
@@ -714,6 +715,7 @@ class RegisterPostTests(APITestCase):
         payment = payments[0]
         self.assertEqual(payment.paypal_order_details, paypal_order_details)
         self.assertEqual(payment.amount, 300)
+        self.assertEqual(payment.notes, 'Initial payment: All of it')
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]

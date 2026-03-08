@@ -239,6 +239,7 @@ declare global {
     paid_on: string | null;
     attributes: any;
     amount: number;
+    notes: string;
   }
 
   export interface ApiCustomCharge {

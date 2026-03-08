@@ -100,6 +100,7 @@ function PaymentTab(props: Props) {
                     <th>{paymentSchema[k].title}</th>
                   ))
                 }
+                <th>notes</th>
               </tr>
             </thead>
             <tbody>
@@ -114,6 +115,7 @@ function PaymentTab(props: Props) {
                         <td>{p.attributes && p.attributes[k]}</td>
                       ))
                     }
+                    <td>{p.notes}</td>
                   </tr>
                 ))
               }
