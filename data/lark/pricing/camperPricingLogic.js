@@ -182,6 +182,8 @@ const regularPrice = {
     '+': [
       {
         'if': [
+          // if instructor meal rate, cost is zero
+          {var: ['camper.admin_attributes.instructor_meal_rate']}, 0,
           ...regTypeIn(freeMeals, 0),
           ...regularMealsPriceMatrix.reduce((acc, [ age, full, dinners, half ]) => {
             return [
