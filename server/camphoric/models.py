@@ -482,6 +482,7 @@ class Payment(TimeStampedModel):
     attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     paypal_order_details = CustomJSONField(null=True)
+    notes = models.TextField(blank=True, default='')
 
 
 class BulkEmailTask(TimeStampedModel):

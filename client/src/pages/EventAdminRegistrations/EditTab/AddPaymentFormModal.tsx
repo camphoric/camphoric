@@ -30,6 +30,7 @@ function AddPaymentForm(props: Props) {
   const [paymentAmount, setPaymentAmount] = React.useState(0);
   const [paymentDate, setPaymentDate] = React.useState(defaultDate());
   const [paymentType, setPaymentType] = React.useState('Check');
+  const [paymentNotes, setPaymentNotes] = React.useState('');
 
   if (createPaymentResult.isLoading) return <Spinner />;
 
@@ -50,6 +51,7 @@ function AddPaymentForm(props: Props) {
       attributes: paymentAttributes,
       deposit: null,
       amount: Number(paymentAmount) || 0,
+      notes: paymentNotes,
     };
 
     try {
@@ -96,6 +98,11 @@ function AddPaymentForm(props: Props) {
             label="Amount"
             onChange={handleChange(setPaymentAmount)}
             defaultValue={paymentAmount}
+          />
+          <Input
+            label="Notes"
+            onChange={handleChange(setPaymentNotes)}
+            defaultValue={paymentNotes}
           />
           <JsonSchemaForm
             schema={paymentSchema}
