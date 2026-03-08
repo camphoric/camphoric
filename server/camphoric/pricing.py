@@ -82,6 +82,9 @@ def calculate_price(registration, campers):
         if camper.attributes:
             data["camper"] = camper.attributes.copy()
 
+        if camper.admin_attributes:
+            data["camper"]["admin_attributes"] = camper.admin_attributes.copy()
+
         data["camper"]["index"] = i
         for date_prop in date_props:
             if date_prop in data["camper"]:
