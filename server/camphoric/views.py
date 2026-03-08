@@ -664,7 +664,7 @@ class RegisterView(APIView):
             amount = unit['amount']
             if amount['currency_code'] != 'USD':
                 raise PaymentError(f'unexpected currency code {amount["currency_code"]}')
-            total += int(float(amount['value']))
+            total += pricing.money_fmt(float(amount['value']))
         if not registration_uuid_found:
             raise PaymentError('registration.uuid not found in order')
         # This is commented out for now until we refactor the deposit code
@@ -676,7 +676,7 @@ class RegisterView(APIView):
         registration.payment_set.create(
             payment_type=registration.payment_type,
             paid_on=timezone.now(),
-            amount=total,
+            amount=pricing.money_fmt(total),
             paypal_order_details=order_details,
         )
 
