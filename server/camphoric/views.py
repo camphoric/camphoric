@@ -52,6 +52,7 @@ def regex_replace(s, find, replace):
 
 
 jinja_env.filters['regex_replace'] = regex_replace
+jinja_env.filters['money_fmt'] = pricing.money_fmt
 
 
 class SetCSRFCookieView(APIView):
