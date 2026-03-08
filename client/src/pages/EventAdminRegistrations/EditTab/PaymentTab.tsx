@@ -7,6 +7,7 @@ import Spinner from 'components/Spinner';
 import {
   formatDateTimeForViewing,
 } from 'utils/time';
+import debug from 'utils/debug';
 import getFromPath from 'lodash/get';
 
 import { usePaymentsLookup } from 'hooks/api';
@@ -19,6 +20,11 @@ interface Props {
   registration: AugmentedRegistration;
 }
 
+type RegistrationFeeEntry = {
+  exp: object,
+  var: string,
+  lable: string,
+};
 
 function PaymentTab(props: Props) {
   const allPayments = usePaymentsLookup();
@@ -26,8 +32,10 @@ function PaymentTab(props: Props) {
 
   if (!allPayments) return <Spinner />;
 
+  const { registration, event } = props;
+
   const payments = Object.values(allPayments).filter(
-    p => p.registration === props.registration.id
+    p => p.registration === registration.id
   );
 
   const showAddPaymentModal = () => setShowAddPayment(true);
@@ -37,6 +45,23 @@ function PaymentTab(props: Props) {
 
   const formatDate = formatDateTimeForViewing();
 
+  const registrationFees = registration.server_pricing_results;
+  const registrationFeeLabel = (k: string) => {
+    const r = event.registration_pricing_logic.find((kv: RegistrationFeeEntry) => kv.var === k);
+    const c = event.camper_pricing_logic.find((kv: RegistrationFeeEntry) => kv.var === k);
+
+    return r?.label || c?.label || k;
+  };
+
+  debug('EventAdminRegistrations-PaymentTab', {
+    allPayments,
+    payments,
+    paymentSchema,
+    registration,
+    registrationFeeLabel,
+    event,
+  });
+
   return (
     <div>
       <div>
@@ -45,6 +70,14 @@ function PaymentTab(props: Props) {
             props.registration.payment_type || 'None'
           }
         </div>
+        {
+          Object.keys(registrationFees).filter(k => !['total', 'campers'].includes(k)).map(
+            (k) => (<div key={k}>
+              {registrationFeeLabel(k)}: ${moneyFmt(registrationFees[k])}
+            </div>)
+          )
+        }
+        <hr />
         <div>Total Owed: ${moneyFmt(props.registration.total_owed)}</div>
         <div>Total Payments: ${moneyFmt(props.registration.total_payments)}</div>
         <div>Balance Due: ${moneyFmt(props.registration.total_balance)}</div>
