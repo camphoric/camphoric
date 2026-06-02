@@ -23,22 +23,7 @@ const ordinate = (i) => {
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const dateFormat = (d) => {
-  const month = months[d.getMonth()];
-  const day = ordinate(d.getDate());
-  const dow = daysOfWeek[d.getDay()];
-  let hour = d.getHours();
-  const min = d.getMinutes().toString().padStart(2, 0);
-  let ampm = 'am';
-
-  if (hour >= 12) {
-    hour = hour - 12; // this may set hour to zero
-    ampm = 'pm'
-  }
-
-  // fix above if hour is zero
-  if (hour === 0) hour = 12;
-
-  return `${dow} ${month} ${day} at ${hour}:${min}${ampm}`;
+  return d.toFormat("EEEE MMMM d 'at' t");
 };
 
 
