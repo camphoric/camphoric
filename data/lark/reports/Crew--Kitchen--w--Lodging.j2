@@ -22,7 +22,7 @@
     {%- set _ = camper.update({'lodging_short': camper.lodging_short[:camper.lodging_short.find('→Spot')] }) if '→Spot' in camper.lodging_short -%}
   {%- endif -%}
 {%- endfor -%} 
-First, Last, Type, Session, Lodging, Meals
+First, Last, Type, Session, Lodging, Meals, Arrived
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
 {%- if 
   not camper.crew == "kitchen-full" and 
@@ -31,5 +31,6 @@ First, Last, Type, Session, Lodging, Meals
   {{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{ camper.crew | replace('crew-kitchen-', '') }},
   {{- session_short[camper.attributes.session] }},
   {{- camper.lodging_short if camper.ldg else 'Not assigned' }},
-  {{- camper.attributes.meals.meal_plan }}: {{- camper.attributes.meals.meal_type }}
+  {{- camper.attributes.meals.meal_plan }}: {{- camper.attributes.meals.meal_type }},
+  {{- camper.admin_attributes.checked_in }}
 {% endfor %}

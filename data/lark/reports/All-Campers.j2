@@ -39,7 +39,7 @@
        (camper.ldg.campers | selectattr('attributes.session', '==', camper.attributes.session) | sort(attribute="sequence,attributes.last_name,attributes.first_name") | first)
   }) if 'Tent' in camper.fullLodgingPath -%}    
 {%- endfor -%} 
-last,first,age,crew,camp,lodging,email,parking,tenttag,session,id
+last,first,age,crew,camp,lodging,email,phone,parking,tenttag,session,arrived,id
 {% for camper in campers | sort(attribute='attributes.last_name,attributes.first_name') -%}
 	{{ '"' ~ (camper.attributes.last_name | replace('"', '""'))	}}",
 	{{- '"' ~ (camper.attributes.first_name | replace('"', '""'))	}}",
@@ -47,7 +47,8 @@ last,first,age,crew,camp,lodging,email,parking,tenttag,session,id
   {{- camper.crew or 'Camper' }},
   {{- camper.camp }},
   {{- camper.lodging_short}},
-  {{- camper.attributes.email or camper.registration.registrant_email or '-'}},
+  {{- camper.attributes.email or camper.registration.registrant_email or '-'}},\
+  {{- camper.registration.attributes.payment.payer_number or '-'}},
 	{{- '"' ~ camper.parking -}}",
   {%- if not camper.lodging_set -%}
 		unassigned
@@ -59,5 +60,6 @@ last,first,age,crew,camp,lodging,email,parking,tenttag,session,id
     NONE
   {%- endif -%},
   {{- camper.attributes.session | replace('Half camp - ', '') }},
+  {{- camper.admin_attributes.checked_in -}},
   {{- camper.id }}
 {% endfor -%}

@@ -82,7 +82,8 @@ export default {
     'gender': {
       'type': 'string',
       'title': 'Gender',
-      'enum': ['Man', 'Woman', 'Non-binary'],
+      'description': 'We will use this to help us assign lodging',
+      'enum': ['Man', 'Woman', 'Nonbinary/other'],
     },
     'age': {
       'type': 'string',

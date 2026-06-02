@@ -57,14 +57,14 @@ export default [
     template: readFile('Campers--By-Reg-Date.j2'),
   },
   {
-    title: 'Kitchen, Meal Totals',
-    output: 'csv',
-    template: readFile('Kitchen--Meal-Totals.j2'),
-  },
-  {
     title: 'Crew, Kitchen, w/ Lodging',
     output: 'csv',
     template: readFile('Crew--Kitchen--w--Lodging.j2'),
+  },
+  {
+    title: 'Kitchen, Meal Totals',
+    output: 'csv',
+    template: readFile('Kitchen--Meal-Totals.j2'),
   },
   {
     title: 'Campers, Lodging by Alpha',
@@ -207,14 +207,14 @@ export default [
     template: readFile('Crew--Office--Camp-3.j2'),
   },
   {
-    title: 'MWCA Final Report',
-    output: 'md',
-    template: readFile('MWCA-Final-Report.j2'),
-  },
-  {
     title: 'Campers, Tent Tags',
     output: 'csv',
     template: readFile('Campers--Tent-Tags.j2'),
+  },
+  {
+    title: 'MWCA Final Report',
+    output: 'md',
+    template: readFile('MWCA-Final-Report.j2'),
   },
   {
     title: 'Kitchen, No Meal Ticket',
