@@ -11,7 +11,7 @@ export const pricingMatrix = {
   },
   yadult: {
     offsitefull: 75,
-    offsiteday: 50,
+    offsiteday: 25,
     premium: 300,
     privateroom: 125,
     sharedroom: 100,
@@ -21,7 +21,7 @@ export const pricingMatrix = {
   },
   child: {
     offsitefull: 75,
-    offsiteday: 50,
+    offsiteday: 25,
     premium: 300,
     privateroom: 125,
     sharedroom: 100,
