@@ -1,31 +1,9 @@
 import { year, dates } from './dates.js';
 import { pricingMatrix } from './pricing/pricing.js';
 
-
-const ordinate = (i) => {
-  const j = i % 10;
-  const k = i % 100;
-  let ordinal = 'th';
-
-  if (j === 1 && k !== 11) {
-    ordinal = 'st';
-  }
-  if (j === 2 && k !== 12) {
-    ordinal = 'nd';
-  }
-  if (j === 3 && k !== 13) {
-    ordinal = 'rd';
-  }
-
-  return `${i}${ordinal}`;
-};
-
-const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const dateFormat = (d) => {
   return d.toFormat("EEEE MMMM d 'at' t");
 };
-
 
 export default {
   'title': `Jughandle Campout ${year} Registration`,
@@ -35,6 +13,9 @@ export default {
 Read the [Terms of Registration](https://docs.google.com/document/d/1pq2i2rHpHnsoB8kqtpH7FFn50JA-XELaRRMHh4hdTFg/edit?usp=sharing)
 before you fill out this form.
 
+Please note that campers must produce a negative COVID test taken within 48 hours of arriving at camp.
+
+Registrations are accepted in the order they are received and your camping preferences are processed on a "first-come, first-served basis" basis.
 Please note that registrations are accepted in the order they are received and
 your camping preferences are processed on a "first-come, first-served basis" basis.
 
@@ -44,7 +25,8 @@ your camping preferences are processed on a "first-come, first-served basis" bas
 | Private Room | $${pricingMatrix.adult.privateroom} | $${pricingMatrix.yadult.privateroom} | $${pricingMatrix.child.privateroom} | $${pricingMatrix.baby.privateroom} |
 | Premium Suite<sup>†</sup> | $${pricingMatrix.adult.premium} | $${pricingMatrix.yadult.premium} | $${pricingMatrix.child.premium} | $${pricingMatrix.baby.premium} |
 | RV/Tent camping | $${pricingMatrix.adult.tent} | $${pricingMatrix.yadult.tent} | $${pricingMatrix.child.tent} | $${pricingMatrix.baby.tent} |
-| Lodging Off-site | $${pricingMatrix.adult.offsite} | $${pricingMatrix.yadult.offsite} | $${pricingMatrix.child.offsite} | $${pricingMatrix.baby.offsite} |
+| Lodging Off-site (full camp) | $${pricingMatrix.adult.offsitefull} | $${pricingMatrix.yadult.offsitefull} | $${pricingMatrix.child.offsitefull} | $${pricingMatrix.baby.offsitefull} |
+| Lodging Off-site (single day) | $${pricingMatrix.adult.offsiteday} | $${pricingMatrix.yadult.offsiteday} | $${pricingMatrix.child.offsiteday} | $${pricingMatrix.baby.offsiteday} |
 
 † Premium suites must be booked with 2 or more people
 

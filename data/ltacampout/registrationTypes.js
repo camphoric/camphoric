@@ -1,8 +1,8 @@
 export default [
   {
-    name: 'crew-registration',
-    label: 'registration crew',
-    invitation_email_subject: 'Register for registration crew',
-    invitation_email_template: 'Test registration crew email',
+    name: 'late-registration',
+    label: 'Late Registration',
+    invitation_email_subject: 'Register for LTA Jughandle Campout',
+    invitation_email_template: '[Please click here to register!]({{register_link}})',
   }
 ];

@@ -1,6 +1,6 @@
 export default {
   'type': 'object',
-  'required': ['first_name', 'last_name', 'email', 'phone', 'vaccination_status', 'chore'],
+  'required': ['first_name', 'last_name', 'email', 'phone', 'chore'],
   'properties': {
     'first_name': {
       'type': 'string',
@@ -42,22 +42,6 @@ export default {
       'maxLength': 20,
       'pattern': '^\\+[0-9]+$',
       'title': 'Phone Number'
-    },
-    'vaccination_status': {
-      'title': 'COVID-19 Vaccination Information',
-      'description': 'We highly recommend you get vaccinated against COVID-19 before you attend this event. Please indicate your vaccination status so we can take this into consideration when placing you in shared housing.',
-      'type': 'array',
-      'items': {
-        'type': 'string',
-        'enum': [
-          'First dose',
-          'Second dose',
-          'Booster',
-          'J&J',
-          'None',
-        ],
-      },
-      'uniqueItems': true
     },
     'chore': {
       'type': 'string',

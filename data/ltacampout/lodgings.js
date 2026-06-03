@@ -1,4 +1,5 @@
 /* eslint-disable indent */
+import { dates } from './dates.js';
 
 export default {
   root: {
@@ -8,10 +9,10 @@ export default {
   },
   // Tent, RV, House,Off Site
   tent: { parentKey: 'root', name: 'Tent', visible: true },
-    tent_1A: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 1 Spot A', notes: 'Tent'},
-    tent_1B: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 1 Spot B', notes: 'Tent'},
-    tent_1C: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 1 Spot C', notes: 'Tent'},
-    tent_1D: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 1 Spot D', notes: 'Tent'},
+    tent_3A: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 3 Spot A', notes: 'Tent'},
+    tent_3B: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 3 Spot B', notes: 'Tent'},
+    tent_3C: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 3 Spot C', notes: 'Tent'},
+    tent_3D: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 3 Spot D', notes: 'Tent'},
 
     tent_2A: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 2 Spot A', notes: 'Tent'},
     tent_2B: {parentKey:'tent', 'capacity':1, visible:false, name:'CS 2 Spot B', notes: 'Tent'},
@@ -43,18 +44,21 @@ export default {
     FH_Sitka:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Sitka', notes: 'Queen, CPAP' },
     FH_Skylight:  { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Skylight', notes: 'Queen (double?), CPAP' },
     FH_Terrace:   { parentKey: 'privateroom', capacity: 1, visible: false, name:'FH Terrace', notes: 'Queen' },
-		GrandFir:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'Grand Fir Cabin', notes: 'Queen' },
+    Eucalyptus:   { parentKey: 'privateroom', capacity: 1, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin' },
+    // Grand Fir not reserved in 2026
+    // GrandFir:     { parentKey: 'privateroom', capacity: 1, visible: false, name:'Grand Fir Cabin', notes: 'Queen' },
 
   premium: { parentKey: 'root', name: 'Premium Suite (must be double occupancy)', visible: true },
 		Osprey:  { parentKey: 'premium', capacity: 2, visible: false, name:'Osprey Cabin', notes: 'Queen, Twin, ADA' },
-		Pelican: { parentKey: 'premium', capacity: 2, visible: false, name:'Pelican Cabin', notes: 'Queen, Twin, ADA' },
+    // Pelican not reserved in 2026
+    // Pelican: { parentKey: 'premium', capacity: 2, visible: false, name:'Pelican Cabin', notes: 'Queen, Twin, ADA' },
 
 	sharedroom: { parentKey: 'root', name: 'Shared Room', visible: true },
     FH_Osprey:     { parentKey: 'sharedroom', capacity: 3, visible: false, name:'FH Osprey', notes: '3 Bunk Beds' },
     Orchard:       { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Orchard Cabin', notes: '2 Double Beds' },
-    Eucalyptus:    { parentKey: 'sharedroom', capacity: 2, visible: false, name:'Eucalyptus Cabin', notes: 'Double, Twin' },
     FH_GardenView: { parentKey: 'sharedroom', capacity: 2, visible: false, name:'FH Garden View', notes: '2 Twins, CPAP' },
 		FH_OceanView:  { parentKey: 'sharedroom', capacity: 2, visible: false, name:'FH Ocean View', notes: '2 Twins, CPAP' },
 
-  offsite: { parentKey: 'root', capacity: 50, name: 'Off Site', visible: true },
+  offsitefull: { parentKey: 'root', capacity: 50, name: 'Off Site - Full Camp', visible: true },
+  offsiteday: { parentKey: 'root', capacity: 50, name: 'Off Site - Single Day', visible: true },
 };
