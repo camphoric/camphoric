@@ -25,8 +25,8 @@ your camping preferences are processed on a "first-come, first-served basis" bas
 | Private Room | $${pricingMatrix.adult.privateroom} | $${pricingMatrix.yadult.privateroom} | $${pricingMatrix.child.privateroom} | $${pricingMatrix.baby.privateroom} |
 | Premium Suite<sup>†</sup> | $${pricingMatrix.adult.premium} | $${pricingMatrix.yadult.premium} | $${pricingMatrix.child.premium} | $${pricingMatrix.baby.premium} |
 | RV/Tent camping | $${pricingMatrix.adult.tent} | $${pricingMatrix.yadult.tent} | $${pricingMatrix.child.tent} | $${pricingMatrix.baby.tent} |
-| Lodging Off-site (full camp) | $${pricingMatrix.adult.offsitefull} | $${pricingMatrix.yadult.offsitefull} | $${pricingMatrix.child.offsitefull} | $${pricingMatrix.baby.offsitefull} |
-| Lodging Off-site (single day) | $${pricingMatrix.adult.offsiteday} | $${pricingMatrix.yadult.offsiteday} | $${pricingMatrix.child.offsiteday} | $${pricingMatrix.baby.offsiteday} |
+| Lodging Off site - Full Camp | $${pricingMatrix.adult.offsitefull} | $${pricingMatrix.yadult.offsitefull} | $${pricingMatrix.child.offsitefull} | $${pricingMatrix.baby.offsitefull} |
+| Lodging Off site - Single Day | $${pricingMatrix.adult.offsiteday} | $${pricingMatrix.yadult.offsiteday} | $${pricingMatrix.child.offsiteday} | $${pricingMatrix.baby.offsiteday} |
 
 † Premium suites must be booked with 2 or more people
 

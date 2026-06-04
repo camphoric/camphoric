@@ -1,3 +1,5 @@
+const lodgingDescription = 'If you choose Lodging Off-site (single day). You may attend on either Saturday or Sunday.';
+
 export default {
   'ui:order': [
     'registrant_email',
@@ -29,6 +31,9 @@ export default {
         'lodging',
         '*',
       ],
+      'lodging': {
+        'ui:description': lodgingDescription,
+      },
       'phone': {
         'ui:widget': 'PhoneInput'
       },

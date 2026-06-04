@@ -16,6 +16,10 @@ You have registered the following campers:
   - \${{pricing_result.total}}
 {{/campers}}
 
+{{#pricing_results.singledaycount}}    
+You chose *Lodging Off site - Single Day*.  You may attend on either Saturday or Sunday. When you arrive please check in at the registration table or with the on-call registration person and you will receive a single day wristband.
+{{/pricing_results.singledaycount}}    
+
 Donation to Lark Traditional Arts - \${{ pricing_results.donation }}
 
 TOTAL DUE: \${{pricing_results.total}}

@@ -48,11 +48,30 @@ const getRates = (lodgingIds) => ({
   }, []).concat([0]),
 });
 
+const totalSingleDay = (lodgingIds) => {
+	const lid = lodgingIds.offsiteday.id;
+
+  return {
+    if: [
+      {
+        'in': [
+          lid,
+          {var: 'camper.lodging.lodging_requested.choices'}
+        ]
+      }, 1, 0
+    ]
+  };
+};
+
 export default (lodgingIds) => [
   {
     var: 'tuition',
     exp: getRates(lodgingIds),
   },
+	{
+		var: 'singledaycount',
+		exp: totalSingleDay(lodgingIds),
+	},
   {
     var: 'total',
     exp: {
