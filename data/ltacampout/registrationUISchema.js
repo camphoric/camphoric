@@ -1,4 +1,4 @@
-const lodgingDescription = 'If you choose Lodging Off-site (single day). You may attend on either Saturday or Sunday.';
+const lodgingDescription = 'If you choose "Off Site - Single Day", you may attend on either Saturday or Sunday.';
 
 export default {
   'ui:order': [
