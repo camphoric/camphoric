@@ -15,9 +15,8 @@ before you fill out this form.
 
 Please note that campers must produce a negative COVID test taken within 48 hours of arriving at camp.
 
-Registrations are accepted in the order they are received and your camping preferences are processed on a "first-come, first-served basis" basis.
-Please note that registrations are accepted in the order they are received and
-your camping preferences are processed on a "first-come, first-served basis" basis.
+Registrations are accepted in the order they are received and your camping
+preferences are processed on a "first-come, first-served basis" basis.
 
 | Pricing | 26+ years old | 18-25 years old | 5-17 years old | 0-4 years old |
 | ------- | ------------- | --------------- | -------------- | ------------- |

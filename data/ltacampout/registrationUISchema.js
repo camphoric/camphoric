@@ -34,6 +34,9 @@ export default {
       'lodging': {
         'ui:description': lodgingDescription,
       },
+      'chore': {
+        'ui:placeholder': 'Choose an option',
+      },
       'phone': {
         'ui:widget': 'PhoneInput'
       },

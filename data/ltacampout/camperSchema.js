@@ -47,7 +47,6 @@ export default {
       'type': 'string',
       'title': 'Chore signup',
       'description': 'We require all campers to pitch in. We are asking that campers sign up for one chore shift during the weekend. [See this document](https://docs.google.com/document/d/1uHlAcjSAG112XhSPB7q_La4peZkLjsC6_CvjqhQQzNE/edit?usp=sharing) for a description of the chores.',
-      'default': 'Cleanup',
     },
   },
   'if': {
