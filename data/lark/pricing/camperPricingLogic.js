@@ -182,7 +182,7 @@ const regularPrice = {
     '+': [
       {
         'if': [
-          // if instructor meal rate, cost is zero
+          // if instructor meal rate, or food trade, cost is zero
           {var: ['camper.admin_attributes.instructor_meal_rate']}, 0,
           {var: ['camper.admin_attributes.food_trade_only']}, 0,
           ...regTypeIn(freeMeals, 0),

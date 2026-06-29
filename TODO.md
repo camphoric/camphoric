@@ -1,0 +1,8 @@
+# TODO / Feature Backlog
+
+- [ ] Create a way to pre-sign waiver for each camper, make sure to allow parents to sign on behalf of minors
+- [ ] Create a way to have "plugins", which allow for api code, and have a table attached about plugins attached to events, and a spot in the table where the plugin can store data in JSON format (one column only)
+- [ ] Active-edit monitoring via WebSocket: let a user tell when an admin record is being actively edited by another user, so two organizers don't clobber each other's changes. When a user opens/edits a record, others viewing or editing it see a presence indicator (e.g. "Jane Doe is editing this record"), optionally with a soft warning/lock before saving over someone else's in-progress edit. Scope is admin records only (registrations, campers, lodging nodes, reports, event settings) — the public registration flow is out of scope. Future enhancement: needs backend support (a WebSocket/presence channel keyed by record type + id) plus frontend work, so it must be coordinated with the backend (do not change the api without explicit permission)
+- [ ] Auto-generate the frontend API types from the backend instead of hand-maintaining them: add `drf-spectacular` to the Django backend to emit an OpenAPI schema, then generate the client's TypeScript types from it with `openapi-typescript` (run in CI so they can't drift from the serializers). The bespoke endpoints (register/payment bundle, report render) need `@extend_schema` annotations; JSON fields land as `unknown`. Needs a backend change, so coordinate with the backend (do not change the api without explicit permission). Replaces the hand-maintained API types described in SPEC_CLIENT_V2.md §5 / DR-27.
+
+
