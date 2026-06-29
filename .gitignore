@@ -126,7 +126,10 @@ server/staticfiles/
 server/static/
 server/camphoric_server/settings_override.py
 
-# Camphoric frontend 
+# Camphoric frontend
 frontend_bootstrap/build/
 node_modules/
+
+# Claude Code local preview/launch config
+.claude/launch.json
 

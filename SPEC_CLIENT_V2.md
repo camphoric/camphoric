@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-27)
+- §15 — Decision Records (DR-1…DR-28)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -766,6 +766,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 
 ### Testing & quality gates
 
+- **Tests ship with the code that they cover.** Every feature lands with its tests in the same
+  change — pure logic with unit tests, components with component tests — rather than deferring
+  testing to a later pass. A change that adds or alters behavior is incomplete until its tests
+  exist and pass. Co-locate tests as `*.test.ts(x)` next to the code (§15, DR-28).
 - **Unit (Vitest):** thorough coverage of the **pricing engine** and template helpers, plus
   date/money utilities and other pure functions.
 - **Pricing parity:** a shared fixture set (inputs → expected `PricingResults`) run against
@@ -1382,6 +1386,24 @@ JSON fields landing as `unknown`). This needs a `server/` change, so it's deferr
 `TODO.md`. Generators that also emit TanStack Query hooks (`orval`, `@hey-api/openapi-ts`) are an
 option if hand-rolled hooks become a burden; optional Zod output adds runtime validation.
 
+### DR-28 — Test-as-you-go (tests land with each feature)
+
+**Decision:** Tests are written incrementally, in the same change as the code they cover, rather
+than batched into a dedicated testing phase. Pure logic gets unit tests; components get component
+tests; the cross-cutting suites (pricing parity, the Playwright e2e) grow as their surfaces are
+built. A behavior change isn't done until its tests exist and pass (§11).
+**Context:** DR-15 set the test *stack and targets* but not *when* tests get written; the build
+order (Appendix B) could be read as "tests come at the hardening phase." Deferring tests lets
+regressions accumulate and lets the highest-leverage logic (pricing, the form engine) go
+unverified while it's being built — exactly when tests catch the most. Writing them alongside the
+code keeps each phase shippable and the quality gates meaningful from the first feature.
+**Tooling:** unchanged from DR-15 — **Vitest** is the runner (it reuses the app's Vite
+transform/aliases, so there's no parallel Jest/Babel config to maintain) with React Testing
+Library for components and Playwright for the one e2e. This DR is about cadence, not stack.
+**Alternatives:** A dedicated end-of-build testing phase (rejected: defers feedback to when it's
+least useful and least likely to happen); a strict TDD mandate (not required — the rule is that
+tests ship *with* the feature, not necessarily *before* it).
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -1453,7 +1475,8 @@ must be coordinated with the backend. Grouped by status.
 > freely.
 
 The ordering front-loads the shared, highest-leverage pieces (the form and pricing engines) and
-the foundations everything else depends on.
+the foundations everything else depends on. Each step lands with its own tests (§11, DR-28) — the
+Playwright e2e in step 6 is the *final* coverage layer, not the point at which testing begins.
 
 1. **Scaffold & foundations.** Vite + TypeScript + Mantine (CSS Modules + PostCSS) + ESLint/
    Prettier + the dev `/api` proxy. App bootstrap: the CSRF → user gate (§3) before the router
@@ -1472,7 +1495,8 @@ the foundations everything else depends on.
    lodging (§8.6, the most custom — tree + assignment). Introduce `mantine-react-table` (DR-19)
    and `match-sorter` (DR-20) with the first list.
 6. **Cross-cutting hardening.** Accessibility, responsive targets (DR-17), error boundaries,
-   the Playwright e2e over registration→payment→confirmation, and bundle posture
+   the Playwright e2e over registration→payment→confirmation (the final coverage layer on top of
+   the unit/component tests written in each prior step — DR-28), and bundle posture
    (lazy-load Monaco — admin/reports only).
 7. **Deferred / future (not V1):** the plugin system (§14) and the items in §13 (deposits UI,
    invitation link, dual-pricing exploration) and `TODO.md`.
