@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-28)
+- §15 — Decision Records (DR-1…DR-30)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -97,11 +97,16 @@ behaviors specified throughout this document.
   typed, validated search params (see §4).
 - **Forms:** React JSON Schema Form (**rjsf v6**, the latest major) with the official
   **`@rjsf/mantine`** theme, plus the custom fields/widgets/templates (see §9.1).
+- **Phone input:** `react-international-phone` (its `usePhoneInput` hook composed with Mantine
+  inputs) for the international phone widget — lighter than `react-phone-number-input` and
+  Mantine-native (see §15, DR-30).
 - **Pricing logic:** `json-logic-js` to evaluate server-provided pricing expressions.
 - **Templating:** `handlebars` for variable substitution + a `unified`/`remark`/`rehype`
   markdown→HTML pipeline with sanitization.
-- **UI kit:** Mantine (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
-  `@mantine/modals` for dialogs), with `@tabler/icons-react` for icons.
+- **UI kit:** Mantine **v8** (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
+  `@mantine/modals` for dialogs; `@mantine/form` for non-schema forms like login), with
+  `@tabler/icons-react` for icons. v8 is required by the official `@rjsf/mantine` v6 theme
+  (§15, DR-4) and keeps the CSS-Modules/PostCSS styling model (DR-24).
 - **Payments:** PayPal JS SDK (`@paypal/react-paypal-js`).
 - **Search:** `match-sorter` for lightweight client-side filtering/ranking of smaller admin
   lists (predictable starts-with → contains → acronym → fuzzy ranking). See §15, DR-20.
@@ -606,12 +611,20 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
 
-**Custom widgets:** Checkboxes, PhoneInput (international phone), NaturalNumberInput
-(digits-only), Select (enum + disabled options), Text (optional prefix, integer sanitization,
-datalist examples), Textarea (maxlength truncation).
+**Custom widgets.** The `@rjsf/mantine` base theme already provides the standard inputs —
+including **Select** (enum with disabled options + value coercion), **Checkboxes** (inline +
+disabled options), and text inputs with integer and datalist-examples support — so only the
+genuinely additive widgets are layered on (§15, DR-29):
+- **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30).
+- **NaturalNumberInput** — digits-only non-negative integer.
+- **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
+  or pre-filled overflow).
 
-**Custom templates:** Field (error list + templated description + help), Object (optional
-content wrapper class), Array (custom title/description/add/remove labels).
+**Templates.** The base theme's templates render field layout, errors, help, arrays, and objects;
+uiSchema options cover content-wrapper classes and array add/remove labels — so no custom Field/
+Object/Array templates are needed (§15, DR-29). The one custom template is the **Description**
+renderer (`DescriptionFieldTemplate`) noted above, which renders schema/uiSchema descriptions as
+templated markdown via the Template engine and the form's `templateData`.
 
 ### 9.2 Pricing engine (`calculatePrice`)
 
@@ -1113,14 +1126,16 @@ without a kit switch (see DR-19).
 ### DR-4 — Forms: rjsf + `@rjsf/mantine`
 
 **Decision:** Keep React JSON Schema Form, on the official `@rjsf/mantine` theme, **rjsf v6**
-(the latest major) (§9.1).
+(the latest major) (§9.1). `@rjsf/mantine` v6 requires **Mantine ≥8**, which sets the project's
+Mantine major (§2, DR-24).
 **Context:** The form engine drives both surfaces and is the highest-leverage component.
 `@rjsf/mantine` is an officially supported rjsf theme (an earlier assumption that no official
 Mantine theme existed was incorrect), so the base widgets come for free. The substantive work
 is therefore: (1) the rjsf **v4 → v6 upgrade** — form props/types move to `@rjsf/utils`,
-validation is supplied via a separate validator (e.g. `@rjsf/validator-ajv8`), and the
-`ObjectFieldTemplate`/`ArrayFieldTemplate`/`FieldTemplate` and widget/field registration APIs
-changed; and (2) re-implementing the custom fields/widgets/templates (§9.1) on the new base.
+validation is supplied via a separate validator (`@rjsf/validator-ajv8`), custom templates pass
+through a single `templates` prop (e.g. a templated `DescriptionFieldTemplate`), and the
+`@rjsf/mantine` default `Form` is rendered with custom `fields`/`widgets`/`templates` merged in;
+and (2) re-implementing the custom fields/widgets/templates (§9.1) on the new base.
 **Alternatives:** A hand-built Mantine theme or driving rendering with `@mantine/form` +
 a bespoke schema renderer (rejected: re-implements schema traversal, `$ref`/`definitions`,
 conditionals, and array handling that rjsf already provides).
@@ -1323,9 +1338,11 @@ non-deprecated API. The field stays optional (no key ⇒ plain address inputs).
 
 **Decision:** Style with Mantine's approach — CSS Modules + PostCSS (`postcss-preset-mantine`,
 which provides Mantine's mixins/variables) — rather than Sass (§2).
-**Context:** The current client uses Sass. Mantine v7 is built around CSS Modules + PostCSS;
-adopting it keeps styling consistent with the component library, drops the Sass toolchain, and
-provides Mantine's responsive/color-scheme mixins. Component-scoped styles avoid global leakage.
+**Context:** The current client uses Sass. Mantine (v7 and v8) is built around CSS Modules +
+PostCSS; adopting it keeps styling consistent with the component library, drops the Sass
+toolchain, and provides Mantine's responsive/color-scheme mixins. Component-scoped styles avoid
+global leakage. The project tracks Mantine **v8** (required by `@rjsf/mantine` v6 — DR-4); the
+styling model is unchanged across the two majors.
 **Alternatives:** Sass/SCSS (works, but a parallel styling system to Mantine's; dropped).
 CSS-in-JS (Mantine moved away from it in v7 for performance).
 
@@ -1403,6 +1420,44 @@ Library for components and Playwright for the one e2e. This DR is about cadence,
 **Alternatives:** A dedicated end-of-build testing phase (rejected: defers feedback to when it's
 least useful and least likely to happen); a strict TDD mandate (not required — the rule is that
 tests ship *with* the feature, not necessarily *before* it).
+
+### DR-29 — Custom form widgets/templates scoped to what the v6 theme lacks
+
+**Decision:** Only re-implement the form widgets/templates whose behavior the official
+`@rjsf/mantine` v6 theme does **not** already provide. The custom widget layer is therefore just
+**PhoneInput**, **NaturalNumberInput**, and a **maxLength-truncating Textarea**; the one custom
+template is the templated **DescriptionFieldTemplate**. Select, Checkboxes, integer/datalist text
+inputs, and the Field/Object/Array templates come from the base theme (§9.1).
+**Context:** The v4 reference (React-Bootstrap, rjsf v4) hand-built a long list of widgets and
+templates — Checkboxes, Select, Text, Textarea, and Field/Object/Array templates — because its
+base theme didn't cover them. Inspecting `@rjsf/mantine` v6 shows the base now provides those:
+its `SelectWidget` supports disabled options + value coercion, `CheckboxesWidget` supports
+inline + disabled options, `BaseInputTemplate` handles integer (`NumberInput`) and datalist
+examples, and uiSchema options cover content-wrapper classes and array add/remove labels.
+Re-implementing them would duplicate the theme for no behavior gain and add maintenance surface.
+This realizes DR-4's premise ("the base widgets come for free") concretely.
+**Alternatives:** Port the full v4 widget/template set 1:1 (rejected: redundant with the theme,
+more code to maintain, and diverges from the supported theme's accessibility/behavior). Revisit
+per-widget only if a base widget proves insufficient for a specific event configuration.
+
+### DR-30 — Phone input: react-international-phone (replacing react-phone-number-input)
+
+**Decision:** Implement the phone widget with **`react-international-phone`** — its
+`usePhoneInput` hook composed with a Mantine `TextInput` and the library's flag `CountrySelector`
+as the input's `leftSection` — rather than `react-phone-number-input` (§2, §9.1).
+**Context:** Both give an international phone field with a country picker and an E.164 value.
+`react-phone-number-input` hard-depends on `libphonenumber-js` (~75–145 KB depending on metadata)
+and renders its own non-Mantine input with its own stylesheet — weight and a styling mismatch
+that matter on the **mobile-first, bundle-sensitive registration surface** (§11). The original
+client used it. `react-international-phone` is markedly lighter (no mandatory `libphonenumber-js`;
+it formats via per-country masks), is TypeScript-native, and — via `usePhoneInput` — composes
+with native Mantine inputs for consistent styling and accessibility. Strict per-country
+*validation* (if ever needed beyond the server's) can add `libphonenumber-js` on demand.
+**Alternatives:** `react-phone-number-input` + `libphonenumber-js` (heavier, non-Mantine input;
+rejected for the registration bundle). A Mantine `TextInput` + `react-imask` US mask (lightest,
+but US-only, no country picker/validation — only worth it if phone is treated as US-only, which
+the spec's "international" intent rejects). Hand-rolling on `libphonenumber-js` (same weight as
+the rejected option, more code).
 
 ---
 

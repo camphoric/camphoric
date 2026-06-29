@@ -37,24 +37,37 @@ export default defineConfig({
       pages: fileURLToPath(new URL('./src/pages', import.meta.url)),
       pricing: fileURLToPath(new URL('./src/pricing', import.meta.url)),
       store: fileURLToPath(new URL('./src/store', import.meta.url)),
-      templating: fileURLToPath(new URL('./src/templating', import.meta.url)),
       utils: fileURLToPath(new URL('./src/utils', import.meta.url)),
     },
   },
   plugins: [
     react(),
-    checker({
-      typescript: true,
-      eslint: {
-        lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-        useFlatConfig: true,
-      },
-    }),
+    // Ladle reuses this config; its internal Vite root breaks the checker's
+    // eslint glob, so skip the checker under Ladle (the `ladle` scripts set
+    // LADLE). The app's own dev/build still run it.
+    ...(process.env.LADLE
+      ? []
+      : [
+          checker({
+            typescript: true,
+            eslint: {
+              lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
+              useFlatConfig: true,
+            },
+          }),
+        ]),
   ],
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // @rjsf/mantine (via @mantine/dates) imports dayjs plugins without a file
+    // extension; inline these so Vite's resolver handles them in tests.
+    server: {
+      deps: {
+        inline: [/@rjsf\/mantine/, /@mantine\/dates/],
+      },
+    },
   },
 });

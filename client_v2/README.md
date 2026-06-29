@@ -57,8 +57,11 @@ npm run format     # Prettier
 
 ## Path aliases
 
-Import via `components`, `hooks`, `navigation`, `pages`, `store`, `utils`, and `api-types`
-(declared in both `vite.config.ts` and `tsconfig.app.json`) rather than long relative paths.
+Import via `components`, `hooks`, `navigation`, `pages`, `store`, `utils`, `pricing`, and
+`api-types` (declared in both `vite.config.ts` and `tsconfig.app.json`) rather than long relative
+paths. The form engine and templating engine live under `components/` (`components/form`,
+`components/templating`); `pricing` is a standalone module since it's pure domain logic with no
+components.
 
 > Pre-commit hooks: `lint-staged` is configured but `husky` is not auto-initialized because the
 > git root is the repository root, not this folder. Wire it up alongside CI in a later pass.
