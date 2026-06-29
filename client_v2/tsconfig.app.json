@@ -29,7 +29,11 @@
       "hooks/*": ["./src/hooks/*"],
       "navigation/*": ["./src/navigation/*"],
       "pages/*": ["./src/pages/*"],
+      "pricing": ["./src/pricing/index.ts"],
+      "pricing/*": ["./src/pricing/*"],
       "store/*": ["./src/store/*"],
+      "templating": ["./src/templating/index.ts"],
+      "templating/*": ["./src/templating/*"],
       "utils/*": ["./src/utils/*"]
     },
 
