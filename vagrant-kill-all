@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Echo each command (after expansion) to stderr as it runs.
+set -x
+
+pkill -9 -f VBoxHeadless
+pkill -9 -f VirtualBoxVM
+# the COM/API server; it auto-respawns on next VBoxManage call
+pkill -9 -f VBoxSVC
+
+vagrant global-status --prune
+VBoxManage list vms
+vagrant status

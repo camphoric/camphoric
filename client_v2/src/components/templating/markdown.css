@@ -1,0 +1,16 @@
+/*
+ * Styles for template-rendered markdown (SPEC §9.3). The Template component
+ * inserts sanitized HTML into a `.md-template` wrapper; markdown (GFM) tables
+ * render as bare <table>s, so give them visible grid lines. Border color uses a
+ * Mantine variable so it adapts to the color scheme.
+ */
+
+.md-template table {
+  border-collapse: collapse;
+}
+
+.md-template th,
+.md-template td {
+  border: 1px solid var(--mantine-color-default-border);
+  padding: 4px 8px;
+}

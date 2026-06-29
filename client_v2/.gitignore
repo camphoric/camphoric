@@ -1,0 +1,17 @@
+node_modules
+build
+dist
+ladle-dist
+coverage
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

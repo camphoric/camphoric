@@ -1,3 +1,4 @@
+import datetime
 import logging
 import re
 from smtplib import SMTPException
@@ -5,6 +6,7 @@ import traceback
 
 import cmarkgfm
 import chevron
+from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from deepmerge import always_merger
 from django.conf import settings
@@ -246,14 +248,25 @@ class EventList(APIView):
         - name: event name
         - url: url to the registration form for the event
         - open: whether registration is open for this event
+        - registration_start: registration open date (ISO), or null
+        - registration_end: registration close date (ISO), or null
+
+        Events whose registration closed more than 3 months ago are omitted;
+        events with no registration close date are always included.
         '''
-        events = models.Event.objects.all()
+        cutoff = datetime.date.today() - relativedelta(months=3)
+        events = models.Event.objects.exclude(registration_end__lt=cutoff)
+
+        def iso_or_none(value):
+            return value.isoformat() if value else None
 
         def map_event(event):
             return {
                 'name': event.name,
                 'url': f"/events/{event.id}/register",
                 'open': event.is_open(),
+                'registration_start': iso_or_none(event.registration_start),
+                'registration_end': iso_or_none(event.registration_end),
             }
         response_data = list(map(map_event, events))
         return Response(response_data)

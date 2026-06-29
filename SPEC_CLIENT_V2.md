@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-01
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-27)
+- §15 — Decision Records (DR-1…DR-31)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -97,17 +97,22 @@ behaviors specified throughout this document.
   typed, validated search params (see §4).
 - **Forms:** React JSON Schema Form (**rjsf v6**, the latest major) with the official
   **`@rjsf/mantine`** theme, plus the custom fields/widgets/templates (see §9.1).
+- **Phone input:** `react-international-phone` (its `usePhoneInput` hook composed with Mantine
+  inputs) for the international phone widget — lighter than `react-phone-number-input` and
+  Mantine-native (see §15, DR-30).
 - **Pricing logic:** `json-logic-js` to evaluate server-provided pricing expressions.
 - **Templating:** `handlebars` for variable substitution + a `unified`/`remark`/`rehype`
   markdown→HTML pipeline with sanitization.
-- **UI kit:** Mantine (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
-  `@mantine/modals` for dialogs), with `@tabler/icons-react` for icons.
+- **UI kit:** Mantine **v8** (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
+  `@mantine/modals` for dialogs; `@mantine/form` for non-schema forms like login), with
+  `@tabler/icons-react` for icons. v8 is required by the official `@rjsf/mantine` v6 theme
+  (§15, DR-4) and keeps the CSS-Modules/PostCSS styling model (DR-24).
 - **Payments:** PayPal JS SDK (`@paypal/react-paypal-js`).
 - **Search:** `match-sorter` for lightweight client-side filtering/ranking of smaller admin
   lists (predictable starts-with → contains → acronym → fuzzy ranking). See §15, DR-20.
-- **Data tables:** `mantine-react-table` (built on TanStack Table + Mantine) for sortable,
-  filterable, paginated admin tables; fuzzy column/global filtering uses
-  `@tanstack/match-sorter-utils`. Sort/filter/pagination run **client-side** over the full
+- **Data tables:** headless `@tanstack/react-table` rendered with Mantine `Table` primitives for
+  sortable, filterable, paginated admin tables; fuzzy column/global filtering uses
+  `match-sorter`. Sort/filter/pagination run **client-side** over the full
   per-event dataset (which tops out around 500–700 campers — DR-25), with table state held in
   TanStack Router search params. (Headless TanStack Table is the lean alternative; see §15,
   DR-19.)
@@ -484,9 +489,8 @@ status) and works with it. For the selected registration they can:
 **Invitations and special registration types.** An interface to:
 
 - **Invite a special registration** — choose a registration type and enter recipient name and
-  email; this creates the invitation and sends it (`/invitations/{id}/send`).
-- **Manage registration types** — create/edit a type's machine `name`, `label`, and invitation
-  email subject/template.
+  email; this creates the invitation and sends it (`/invitations/{id}/send`). (The registration
+  types themselves are created/edited in Settings, §8.8.)
 - **Track invitations** — a sortable/filterable list of the event's invitations (default newest
   first) showing name, email, type, sent status, and linked registration (if redeemed), with
   per-row resend/delete. Status is derived: `redeemed` (has a registration), `unsent` (never
@@ -575,7 +579,9 @@ to the event via PATCH:
 - Admin attribute schemas: registration admin attributes, camper admin attributes (each a map
   of named `{ data, ui }` pairs).
 
-Registration types are managed with invitations (§8.4), not here (see §15, DR-11).
+Registration types are also managed here: create/edit a type's machine `name`, `label`, and
+invitation email subject/template (used to invite special registrations, §8.4). Each persists via
+POST (new) / PATCH (edit) on `registrationtypes` (see §15, DR-32).
 
 ---
 
@@ -606,12 +612,20 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
 
-**Custom widgets:** Checkboxes, PhoneInput (international phone), NaturalNumberInput
-(digits-only), Select (enum + disabled options), Text (optional prefix, integer sanitization,
-datalist examples), Textarea (maxlength truncation).
+**Custom widgets.** The `@rjsf/mantine` base theme already provides the standard inputs —
+including **Select** (enum with disabled options + value coercion), **Checkboxes** (inline +
+disabled options), and text inputs with integer and datalist-examples support — so only the
+genuinely additive widgets are layered on (§15, DR-29):
+- **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30).
+- **NaturalNumberInput** — digits-only non-negative integer.
+- **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
+  or pre-filled overflow).
 
-**Custom templates:** Field (error list + templated description + help), Object (optional
-content wrapper class), Array (custom title/description/add/remove labels).
+**Templates.** The base theme's templates render field layout, errors, help, arrays, and objects;
+uiSchema options cover content-wrapper classes and array add/remove labels — so no custom Field/
+Object/Array templates are needed (§15, DR-29). The one custom template is the **Description**
+renderer (`DescriptionFieldTemplate`) noted above, which renders schema/uiSchema descriptions as
+templated markdown via the Template engine and the form's `templateData`.
 
 ### 9.2 Pricing engine (`calculatePrice`)
 
@@ -751,7 +765,7 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   load as **lean and fast as possible** (it's the mobile-facing, first-load-sensitive surface).
   The entire **admin** application and its heavy, admin-only dependencies are **code-split behind
   the `/admin` routes and lazy-loaded** so none of it ships in the registration entry bundle — in
-  particular **Monaco** (load only when a report/schema editor opens), `mantine-react-table`,
+  particular **Monaco** (load only when a report/schema editor opens), `@tanstack/react-table`,
   `dnd-kit`, and the reports/templating tooling. Keep the registration bundle to what the form,
   pricing, and payment flow actually need (PayPal's SDK loads at the payment step); admin code
   may be heavier but should still code-split per section.
@@ -766,6 +780,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 
 ### Testing & quality gates
 
+- **Tests ship with the code that they cover.** Every feature lands with its tests in the same
+  change — pure logic with unit tests, components with component tests — rather than deferring
+  testing to a later pass. A change that adds or alters behavior is incomplete until its tests
+  exist and pass. Co-locate tests as `*.test.ts(x)` next to the code (§15, DR-28).
 - **Unit (Vitest):** thorough coverage of the **pricing engine** and template helpers, plus
   date/money utilities and other pure functions.
 - **Pricing parity:** a shared fixture set (inputs → expected `PricingResults`) run against
@@ -773,8 +791,9 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   updates both sides (§15, DR-14).
 - **Component (React Testing Library):** the form engine (custom fields/widgets/templates) and
   key admin screens.
-- **E2E (Playwright):** one pass over registration → payment (PayPal sandbox / pay-by-check) →
-  confirmation.
+- **E2E (Playwright):** component e2e drives the Ladle stories (the form engine, templating, the
+  data table, and admin widgets) against a static Ladle build, plus a registration-flow smoke
+  against the dev server; every test runs on desktop and two mobile devices (§15, DR-31).
 - **Gates:** type-check, lint, and tests pass in CI and in the pre-commit hook (§15, DR-15).
 
 ---
@@ -1103,20 +1122,22 @@ date-input and modal/notification helpers.
 `react-icons` is an equivalent alternative to `@tabler/icons-react` (minor). **Ant Design** was
 reconsidered for the admin's data-grid direction (sortable/filterable tables); Mantine was kept
 because forms are shared rjsf (one theme across both surfaces), the public registration surface
-favors Mantine, and antd's Table advantage is matched by `mantine-react-table`/TanStack Table
-without a kit switch (see DR-19).
+favors Mantine, and antd's Table advantage is matched by headless TanStack Table rendered with
+Mantine primitives without a kit switch (see DR-19).
 
 ### DR-4 — Forms: rjsf + `@rjsf/mantine`
 
 **Decision:** Keep React JSON Schema Form, on the official `@rjsf/mantine` theme, **rjsf v6**
-(the latest major) (§9.1).
+(the latest major) (§9.1). `@rjsf/mantine` v6 requires **Mantine ≥8**, which sets the project's
+Mantine major (§2, DR-24).
 **Context:** The form engine drives both surfaces and is the highest-leverage component.
 `@rjsf/mantine` is an officially supported rjsf theme (an earlier assumption that no official
 Mantine theme existed was incorrect), so the base widgets come for free. The substantive work
 is therefore: (1) the rjsf **v4 → v6 upgrade** — form props/types move to `@rjsf/utils`,
-validation is supplied via a separate validator (e.g. `@rjsf/validator-ajv8`), and the
-`ObjectFieldTemplate`/`ArrayFieldTemplate`/`FieldTemplate` and widget/field registration APIs
-changed; and (2) re-implementing the custom fields/widgets/templates (§9.1) on the new base.
+validation is supplied via a separate validator (`@rjsf/validator-ajv8`), custom templates pass
+through a single `templates` prop (e.g. a templated `DescriptionFieldTemplate`), and the
+`@rjsf/mantine` default `Form` is rendered with custom `fields`/`widgets`/`templates` merged in;
+and (2) re-implementing the custom fields/widgets/templates (§9.1) on the new base.
 **Alternatives:** A hand-built Mantine theme or driving rendering with `@mantine/form` +
 a bespoke schema renderer (rejected: re-implements schema traversal, `$ref`/`definitions`,
 conditionals, and array handling that rjsf already provides).
@@ -1190,6 +1211,8 @@ mechanism across admin mutations and the registration/payment flow.
 
 ### DR-11 — Registration types: one canonical home
 
+**Superseded by DR-32.** (Original decision: manage registration types in the registrations area
+alongside invitations, not in Settings.)
 **Decision:** Manage registration types in the registrations area, alongside invitations (§8.4)
 — not in Settings (remove the stubbed editor there; §8.8).
 **Context:** The current app exposed them in two places (one a stub). Co-locating with
@@ -1247,22 +1270,26 @@ audience is.
 **Context:** No current multi-language/currency requirement, and PayPal/formatting assume USD.
 Recorded as a non-goal so it isn't silently assumed in scope.
 
-### DR-19 — Admin data tables: mantine-react-table (TanStack Table)
+### DR-19 — Admin data tables: headless TanStack Table + Mantine primitives
 
-**Decision:** Use `mantine-react-table` (built on TanStack Table + Mantine) for sortable,
-filterable, paginated admin tables — the invitation report now, and the registrations and
-campers lists as they convert from fuzzy-search card lists to tables (§8.2, §8.4, §8.5).
-Sort/filter/pagination run **client-side** over the full per-event dataset (small at this scale —
-DR-25), with table state held in TanStack Router search params.
+**Decision:** Use headless **`@tanstack/react-table`** rendered with Mantine `Table` primitives
+for sortable, filterable, paginated admin tables — the registrations, campers, and invitations
+lists (§8.2, §8.4, §8.5). Sort/filter/pagination run **client-side** over the full per-event
+dataset (small at this scale — DR-25), with the URL-addressable bits (selection, and table state
+as it's wired) held in TanStack Router search params.
 **Context:** The admin is gaining real data-grid needs (sorting/filtering, and converting the
 two largest lists to tables). This is a component-level need met *within* the chosen stack:
 TanStack Table composes natively with TanStack Query (which fetches the per-event set) and
 TanStack Router (table state as typed search params — the admin URL-as-state pattern, DR-2). It
-does **not** justify switching UI kits — see DR-3.
-**Alternatives:** Headless **TanStack Table** rendered with Mantine primitives (leaner, more
-control, more wiring) — the lean fallback. **Ant Design Table** (turnkey, but would mean an antd
-kit switch with the rjsf/public-surface costs in DR-3, rejected). `match-sorter` (DR-20) handles
-lightweight client-side filtering on smaller lists.
+does **not** justify switching UI kits — see DR-3. The turnkey wrapper `mantine-react-table` was
+the original choice, but its stable line requires Mantine v6 and its v2 beta targets Mantine v7;
+neither supports the Mantine **v8** this client runs on (DR-4). The headless library — the lean
+fallback named below — has no Mantine peer constraint, so it's the realized choice; the extra
+wiring (column defs, a small reusable `DataTable`) is modest.
+**Alternatives:** `mantine-react-table` (turnkey, but Mantine ≤7 only — incompatible with our
+v8, the reason it was dropped). **Ant Design Table** (turnkey, but would mean an antd kit switch
+with the rjsf/public-surface costs in DR-3, rejected). `match-sorter` (DR-20) handles lightweight
+client-side filtering on smaller lists.
 
 ### DR-20 — Client-side search: match-sorter (replacing fuse.js)
 
@@ -1319,9 +1346,11 @@ non-deprecated API. The field stays optional (no key ⇒ plain address inputs).
 
 **Decision:** Style with Mantine's approach — CSS Modules + PostCSS (`postcss-preset-mantine`,
 which provides Mantine's mixins/variables) — rather than Sass (§2).
-**Context:** The current client uses Sass. Mantine v7 is built around CSS Modules + PostCSS;
-adopting it keeps styling consistent with the component library, drops the Sass toolchain, and
-provides Mantine's responsive/color-scheme mixins. Component-scoped styles avoid global leakage.
+**Context:** The current client uses Sass. Mantine (v7 and v8) is built around CSS Modules +
+PostCSS; adopting it keeps styling consistent with the component library, drops the Sass
+toolchain, and provides Mantine's responsive/color-scheme mixins. Component-scoped styles avoid
+global leakage. The project tracks Mantine **v8** (required by `@rjsf/mantine` v6 — DR-4); the
+styling model is unchanged across the two majors.
 **Alternatives:** Sass/SCSS (works, but a parallel styling system to Mantine's; dropped).
 CSS-in-JS (Mantine moved away from it in v7 for performance).
 
@@ -1381,6 +1410,97 @@ drift (with `@extend_schema` annotations for the bespoke register/payment/report
 JSON fields landing as `unknown`). This needs a `server/` change, so it's deferred and tracked in
 `TODO.md`. Generators that also emit TanStack Query hooks (`orval`, `@hey-api/openapi-ts`) are an
 option if hand-rolled hooks become a burden; optional Zod output adds runtime validation.
+
+### DR-28 — Test-as-you-go (tests land with each feature)
+
+**Decision:** Tests are written incrementally, in the same change as the code they cover, rather
+than batched into a dedicated testing phase. Pure logic gets unit tests; components get component
+tests; the cross-cutting suites (pricing parity, the Playwright e2e) grow as their surfaces are
+built. A behavior change isn't done until its tests exist and pass (§11).
+**Context:** DR-15 set the test *stack and targets* but not *when* tests get written; the build
+order (Appendix B) could be read as "tests come at the hardening phase." Deferring tests lets
+regressions accumulate and lets the highest-leverage logic (pricing, the form engine) go
+unverified while it's being built — exactly when tests catch the most. Writing them alongside the
+code keeps each phase shippable and the quality gates meaningful from the first feature.
+**Tooling:** unchanged from DR-15 — **Vitest** is the runner (it reuses the app's Vite
+transform/aliases, so there's no parallel Jest/Babel config to maintain) with React Testing
+Library for components and Playwright for the one e2e. This DR is about cadence, not stack.
+**Alternatives:** A dedicated end-of-build testing phase (rejected: defers feedback to when it's
+least useful and least likely to happen); a strict TDD mandate (not required — the rule is that
+tests ship *with* the feature, not necessarily *before* it).
+
+### DR-29 — Custom form widgets/templates scoped to what the v6 theme lacks
+
+**Decision:** Only re-implement the form widgets/templates whose behavior the official
+`@rjsf/mantine` v6 theme does **not** already provide. The custom widget layer is therefore just
+**PhoneInput**, **NaturalNumberInput**, and a **maxLength-truncating Textarea**; the one custom
+template is the templated **DescriptionFieldTemplate**. Select, Checkboxes, integer/datalist text
+inputs, and the Field/Object/Array templates come from the base theme (§9.1).
+**Context:** The v4 reference (React-Bootstrap, rjsf v4) hand-built a long list of widgets and
+templates — Checkboxes, Select, Text, Textarea, and Field/Object/Array templates — because its
+base theme didn't cover them. Inspecting `@rjsf/mantine` v6 shows the base now provides those:
+its `SelectWidget` supports disabled options + value coercion, `CheckboxesWidget` supports
+inline + disabled options, `BaseInputTemplate` handles integer (`NumberInput`) and datalist
+examples, and uiSchema options cover content-wrapper classes and array add/remove labels.
+Re-implementing them would duplicate the theme for no behavior gain and add maintenance surface.
+This realizes DR-4's premise ("the base widgets come for free") concretely.
+**Alternatives:** Port the full v4 widget/template set 1:1 (rejected: redundant with the theme,
+more code to maintain, and diverges from the supported theme's accessibility/behavior). Revisit
+per-widget only if a base widget proves insufficient for a specific event configuration.
+
+### DR-30 — Phone input: react-international-phone (replacing react-phone-number-input)
+
+**Decision:** Implement the phone widget with **`react-international-phone`** — its
+`usePhoneInput` hook composed with a Mantine `TextInput` and the library's flag `CountrySelector`
+as the input's `leftSection` — rather than `react-phone-number-input` (§2, §9.1).
+**Context:** Both give an international phone field with a country picker and an E.164 value.
+`react-phone-number-input` hard-depends on `libphonenumber-js` (~75–145 KB depending on metadata)
+and renders its own non-Mantine input with its own stylesheet — weight and a styling mismatch
+that matter on the **mobile-first, bundle-sensitive registration surface** (§11). The original
+client used it. `react-international-phone` is markedly lighter (no mandatory `libphonenumber-js`;
+it formats via per-country masks), is TypeScript-native, and — via `usePhoneInput` — composes
+with native Mantine inputs for consistent styling and accessibility. Strict per-country
+*validation* (if ever needed beyond the server's) can add `libphonenumber-js` on demand.
+**Alternatives:** `react-phone-number-input` + `libphonenumber-js` (heavier, non-Mantine input;
+rejected for the registration bundle). A Mantine `TextInput` + `react-imask` US mask (lightest,
+but US-only, no country picker/validation — only worth it if phone is treated as US-only, which
+the spec's "international" intent rejects). Hand-rolling on `libphonenumber-js` (same weight as
+the rejected option, more code).
+
+### DR-31 — Playwright e2e: static-Ladle component suite + mobile projects
+
+**Decision:** The Playwright e2e suite has two parts. The **component e2e** drives the **Ladle
+stories** (the form engine, templating pipeline, data table, and admin widgets) served from a
+**static `ladle build`** (not the dev server). A **registration-flow smoke** drives the Vite dev
+server (which proxies to the Django backend) and skips gracefully when the registration config
+can't load, so it stays green without a backend and never submits (creates no data). Every test
+runs across three projects — **Desktop Chrome, Mobile Chrome (Pixel 5), Mobile Safari
+(iPhone 13)** — exercising layouts responsively (DR-17).
+**Context:** The Ladle stories already exercise the real components through their providers, so
+they're the natural e2e render targets (DR-7) — no backend, fast, deterministic. Driving Ladle's
+**dev** server proved flaky: Vite's on-demand per-story compile and dep-optimization reload made
+story loads race the assertions under parallel workers. Serving a **static build** removes
+compilation from the hot path entirely, so the suite is fast and stable in parallel. The
+registration smoke covers the one genuinely end-to-end public path (load → live pricing →
+interact) without the fragility (or data mutation) of a full submit against a shared backend.
+**Alternatives:** Driving the dev server for everything (flaky compile races; rejected). A full
+registration→payment→confirmation submit e2e (mutates the shared dev backend and needs PayPal
+sandbox wiring — deferred to a seeded test backend). Cypress (heavier, no first-class multi-device
+projects; the stack is already Playwright-friendly).
+
+### DR-32 — Registration types managed in Settings (supersedes DR-11)
+
+**Decision:** Manage registration types (create/edit name, label, invitation email
+subject/template) in **Settings** (§8.8), alongside the event's other configuration. The
+Invitations area (§8.4) only *consumes* the types — choosing one when inviting — and points to
+Settings when none exist yet.
+**Context:** Registration types are event configuration, not per-invitation workflow: they're
+edited rarely and belong with the schemas/pricing/admin-attribute config already in Settings.
+Co-locating with invitations (DR-11) split configuration across two areas and cluttered the
+invitation-tracking view. Settings is the natural canonical home now that it holds all other
+event configuration.
+**Alternatives:** Keep them with invitations (DR-11 — mixes config with workflow). Expose in both
+places (the original app's mistake — two homes, one a stub; rejected in DR-11 and still rejected).
 
 ---
 
@@ -1453,7 +1573,8 @@ must be coordinated with the backend. Grouped by status.
 > freely.
 
 The ordering front-loads the shared, highest-leverage pieces (the form and pricing engines) and
-the foundations everything else depends on.
+the foundations everything else depends on. Each step lands with its own tests (§11, DR-28) — the
+Playwright e2e in step 6 is the *final* coverage layer, not the point at which testing begins.
 
 1. **Scaffold & foundations.** Vite + TypeScript + Mantine (CSS Modules + PostCSS) + ESLint/
    Prettier + the dev `/api` proxy. App bootstrap: the CSRF → user gate (§3) before the router
@@ -1469,10 +1590,11 @@ the foundations everything else depends on.
    templating engines end-to-end early.
 5. **Admin application.** The event-admin shell (navigation, §8.2), then the sections, simplest
    first: home/settings (§8.3) → reports (§8.7) → registrations (§8.4) → campers (§8.5) →
-   lodging (§8.6, the most custom — tree + assignment). Introduce `mantine-react-table` (DR-19)
+   lodging (§8.6, the most custom — tree + assignment). Introduce headless TanStack Table (DR-19)
    and `match-sorter` (DR-20) with the first list.
 6. **Cross-cutting hardening.** Accessibility, responsive targets (DR-17), error boundaries,
-   the Playwright e2e over registration→payment→confirmation, and bundle posture
+   the Playwright e2e over registration→payment→confirmation (the final coverage layer on top of
+   the unit/component tests written in each prior step — DR-28), and bundle posture
    (lazy-load Monaco — admin/reports only).
 7. **Deferred / future (not V1):** the plugin system (§14) and the items in §13 (deposits UI,
    invitation link, dual-pricing exploration) and `TODO.md`.

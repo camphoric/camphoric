@@ -1,0 +1,1 @@
+export { EventAdminLodging } from './EventAdminLodging';

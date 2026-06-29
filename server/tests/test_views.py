@@ -163,7 +163,46 @@ class EventListGetTests(APITestCase):
             'name': 'Test Data Event 1',
             'open': True,
             'url': f'/events/{self.event.id}/register',
+            'registration_start': None,
+            'registration_end': None,
         }])
+
+    def test_excludes_events_closed_over_three_months_ago(self):
+        today = datetime.date.today()
+        models.Event.objects.create(
+            organization=self.organization,
+            name='Recently Closed',
+            registration_end=today - datetime.timedelta(days=30),
+        )
+        models.Event.objects.create(
+            organization=self.organization,
+            name='Long Closed',
+            registration_end=today - datetime.timedelta(days=130),
+        )
+
+        response = self.client.get('/api/eventlist')
+        self.assertEqual(response.status_code, 200)
+        names = {event['name'] for event in response.data}
+        # No close date and recently-closed events stay; long-closed drops off.
+        self.assertIn('Test Data Event 1', names)
+        self.assertIn('Recently Closed', names)
+        self.assertNotIn('Long Closed', names)
+
+    def test_includes_registration_dates(self):
+        start = datetime.date.today() - datetime.timedelta(days=10)
+        end = datetime.date.today() + datetime.timedelta(days=20)
+        models.Event.objects.create(
+            organization=self.organization,
+            name='Dated Event',
+            registration_start=start,
+            registration_end=end,
+        )
+
+        response = self.client.get('/api/eventlist')
+        self.assertEqual(response.status_code, 200)
+        dated = next(e for e in response.data if e['name'] == 'Dated Event')
+        self.assertEqual(dated['registration_start'], start.isoformat())
+        self.assertEqual(dated['registration_end'], end.isoformat())
 
 
 class RegisterGetTests(APITestCase):

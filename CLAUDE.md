@@ -50,6 +50,16 @@ cross-references — so the document never contradicts itself.
 
 Abide by all principles in the [CONTRIBUTING.md](./CONTRIBUTING.md) document.
 
+## Component Stories (Ladle)
+
+The V2 client (`client_v2/`) uses [Ladle](https://ladle.dev) as its component workbench
+(`npm run ladle`). **Every form widget — and any other reusable UI component — must ship with a
+Ladle story when it's added.** Co-locate the story next to the component as
+`<Component>.stories.tsx`, wrap usage in a story that exercises the component's states (and, for
+form widgets, render them through the `JsonSchemaForm` engine with a representative schema so the
+real rjsf wiring is covered). Stories use the CSF format and double as render targets for the
+Playwright e2e suite, so keep them current as components change.
+
 ## Using Git
 
 Do not automatically commit code to git. All changes shall be reviewed by the human coder and committed by hand.
