@@ -12,6 +12,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@t
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { AuthGuard } from 'navigation/AuthGuard';
 import { EventAdminContainer } from 'navigation/EventAdminContainer';
+import { EventAdminCampers } from 'pages/admin/campers';
 import { EventAdminHome } from 'pages/admin/EventAdminHome';
 import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
 import { EventChooser } from 'pages/admin/EventChooser';
@@ -175,7 +176,7 @@ const registrationsRoute = createRoute({
 const campersRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'campers',
-  component: () => <Placeholder title="Campers" phase="Phase 6 (§8.5)" />,
+  component: EventAdminCampers,
 });
 const lodgingRoute = createRoute({
   getParentRoute: () => eventAdminRoute,

@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-06-29
+**Last updated:** 2026-06-30
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -110,9 +110,9 @@ behaviors specified throughout this document.
 - **Payments:** PayPal JS SDK (`@paypal/react-paypal-js`).
 - **Search:** `match-sorter` for lightweight client-side filtering/ranking of smaller admin
   lists (predictable starts-with → contains → acronym → fuzzy ranking). See §15, DR-20.
-- **Data tables:** `mantine-react-table` (built on TanStack Table + Mantine) for sortable,
-  filterable, paginated admin tables; fuzzy column/global filtering uses
-  `@tanstack/match-sorter-utils`. Sort/filter/pagination run **client-side** over the full
+- **Data tables:** headless `@tanstack/react-table` rendered with Mantine `Table` primitives for
+  sortable, filterable, paginated admin tables; fuzzy column/global filtering uses
+  `match-sorter`. Sort/filter/pagination run **client-side** over the full
   per-event dataset (which tops out around 500–700 campers — DR-25), with table state held in
   TanStack Router search params. (Headless TanStack Table is the lean alternative; see §15,
   DR-19.)
@@ -764,7 +764,7 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   load as **lean and fast as possible** (it's the mobile-facing, first-load-sensitive surface).
   The entire **admin** application and its heavy, admin-only dependencies are **code-split behind
   the `/admin` routes and lazy-loaded** so none of it ships in the registration entry bundle — in
-  particular **Monaco** (load only when a report/schema editor opens), `mantine-react-table`,
+  particular **Monaco** (load only when a report/schema editor opens), `@tanstack/react-table`,
   `dnd-kit`, and the reports/templating tooling. Keep the registration bundle to what the form,
   pricing, and payment flow actually need (PayPal's SDK loads at the payment step); admin code
   may be heavier but should still code-split per section.
@@ -1120,8 +1120,8 @@ date-input and modal/notification helpers.
 `react-icons` is an equivalent alternative to `@tabler/icons-react` (minor). **Ant Design** was
 reconsidered for the admin's data-grid direction (sortable/filterable tables); Mantine was kept
 because forms are shared rjsf (one theme across both surfaces), the public registration surface
-favors Mantine, and antd's Table advantage is matched by `mantine-react-table`/TanStack Table
-without a kit switch (see DR-19).
+favors Mantine, and antd's Table advantage is matched by headless TanStack Table rendered with
+Mantine primitives without a kit switch (see DR-19).
 
 ### DR-4 — Forms: rjsf + `@rjsf/mantine`
 
@@ -1266,22 +1266,26 @@ audience is.
 **Context:** No current multi-language/currency requirement, and PayPal/formatting assume USD.
 Recorded as a non-goal so it isn't silently assumed in scope.
 
-### DR-19 — Admin data tables: mantine-react-table (TanStack Table)
+### DR-19 — Admin data tables: headless TanStack Table + Mantine primitives
 
-**Decision:** Use `mantine-react-table` (built on TanStack Table + Mantine) for sortable,
-filterable, paginated admin tables — the invitation report now, and the registrations and
-campers lists as they convert from fuzzy-search card lists to tables (§8.2, §8.4, §8.5).
-Sort/filter/pagination run **client-side** over the full per-event dataset (small at this scale —
-DR-25), with table state held in TanStack Router search params.
+**Decision:** Use headless **`@tanstack/react-table`** rendered with Mantine `Table` primitives
+for sortable, filterable, paginated admin tables — the registrations, campers, and invitations
+lists (§8.2, §8.4, §8.5). Sort/filter/pagination run **client-side** over the full per-event
+dataset (small at this scale — DR-25), with the URL-addressable bits (selection, and table state
+as it's wired) held in TanStack Router search params.
 **Context:** The admin is gaining real data-grid needs (sorting/filtering, and converting the
 two largest lists to tables). This is a component-level need met *within* the chosen stack:
 TanStack Table composes natively with TanStack Query (which fetches the per-event set) and
 TanStack Router (table state as typed search params — the admin URL-as-state pattern, DR-2). It
-does **not** justify switching UI kits — see DR-3.
-**Alternatives:** Headless **TanStack Table** rendered with Mantine primitives (leaner, more
-control, more wiring) — the lean fallback. **Ant Design Table** (turnkey, but would mean an antd
-kit switch with the rjsf/public-surface costs in DR-3, rejected). `match-sorter` (DR-20) handles
-lightweight client-side filtering on smaller lists.
+does **not** justify switching UI kits — see DR-3. The turnkey wrapper `mantine-react-table` was
+the original choice, but its stable line requires Mantine v6 and its v2 beta targets Mantine v7;
+neither supports the Mantine **v8** this client runs on (DR-4). The headless library — the lean
+fallback named below — has no Mantine peer constraint, so it's the realized choice; the extra
+wiring (column defs, a small reusable `DataTable`) is modest.
+**Alternatives:** `mantine-react-table` (turnkey, but Mantine ≤7 only — incompatible with our
+v8, the reason it was dropped). **Ant Design Table** (turnkey, but would mean an antd kit switch
+with the rjsf/public-surface costs in DR-3, rejected). `match-sorter` (DR-20) handles lightweight
+client-side filtering on smaller lists.
 
 ### DR-20 — Client-side search: match-sorter (replacing fuse.js)
 
@@ -1547,7 +1551,7 @@ Playwright e2e in step 6 is the *final* coverage layer, not the point at which t
    templating engines end-to-end early.
 5. **Admin application.** The event-admin shell (navigation, §8.2), then the sections, simplest
    first: home/settings (§8.3) → reports (§8.7) → registrations (§8.4) → campers (§8.5) →
-   lodging (§8.6, the most custom — tree + assignment). Introduce `mantine-react-table` (DR-19)
+   lodging (§8.6, the most custom — tree + assignment). Introduce headless TanStack Table (DR-19)
    and `match-sorter` (DR-20) with the first list.
 6. **Cross-cutting hardening.** Accessibility, responsive targets (DR-17), error boundaries,
    the Playwright e2e over registration→payment→confirmation (the final coverage layer on top of
