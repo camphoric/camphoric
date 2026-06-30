@@ -1,7 +1,7 @@
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import { describe, expect, it } from 'vitest';
 
-import { deriveAdminUiSchema, injectDefinitions } from './adminSchema';
+import { combineAdminSchema, deriveAdminUiSchema, injectDefinitions } from './adminSchema';
 
 describe('deriveAdminUiSchema', () => {
   it('strips enumDisabled everywhere so admins can pick disabled options', () => {
@@ -48,5 +48,33 @@ describe('injectDefinitions', () => {
   it('returns the schema unchanged when there are no definitions', () => {
     const schema: RJSFSchema = { type: 'object' };
     expect(injectDefinitions(schema, undefined)).toBe(schema);
+  });
+});
+
+describe('combineAdminSchema', () => {
+  it('combines the {key:{data,ui}} map and orders fields by title', () => {
+    const map = {
+      notes: { data: { type: 'string', title: 'Zebra notes' }, ui: { 'ui:widget': 'textarea' } },
+      flag: { data: { type: 'boolean', title: 'Alpha flag' } },
+    };
+
+    const { schema, uiSchema } = combineAdminSchema(map);
+
+    expect(schema).toEqual({
+      type: 'object',
+      properties: {
+        notes: { type: 'string', title: 'Zebra notes' },
+        flag: { type: 'boolean', title: 'Alpha flag' },
+      },
+    });
+    expect(uiSchema.notes).toEqual({ 'ui:widget': 'textarea' });
+    // Ordered by data.title: "Alpha flag" before "Zebra notes".
+    expect(uiSchema['ui:order']).toEqual(['flag', 'notes']);
+  });
+
+  it('produces an empty object schema for an empty map', () => {
+    const { schema, uiSchema } = combineAdminSchema({});
+    expect(schema).toEqual({ type: 'object', properties: {} });
+    expect(uiSchema['ui:order']).toEqual([]);
   });
 });

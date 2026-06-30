@@ -16,6 +16,7 @@ import type { UiSchema } from '@rjsf/utils';
 import type { ApiCamper, ApiEvent, Hash } from 'api-types';
 import { deriveAdminUiSchema, injectDefinitions, JsonSchemaForm } from 'components/form';
 import { JsonViewer } from 'components/JsonViewer';
+import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { camperHooks } from 'store/entities';
 
@@ -36,6 +37,7 @@ function camperItemUiSchema(registrationUiSchema: Hash): UiSchema {
 
 export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) {
   const update = camperHooks.useUpdate();
+  const adminUpdate = camperHooks.useUpdate();
   const del = camperHooks.useDelete();
   const [attributes, setAttributes] = useState<Hash>(camper.attributes);
 
@@ -87,6 +89,18 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
           Delete
         </Button>
       </Group>
+      <AdminAttributesForm
+        key={`camper-admin-${camper.id}`}
+        adminSchema={event.camper_admin_schema}
+        value={camper.admin_attributes}
+        onSave={(admin_attributes) =>
+          adminUpdate.mutate(
+            { id: camper.id, admin_attributes },
+            { onSuccess: () => notifications.show({ color: 'green', message: 'Admin attributes saved' }) },
+          )
+        }
+        saving={adminUpdate.isPending}
+      />
       <JsonViewer value={camper} />
     </Stack>
   );

@@ -11,6 +11,12 @@ import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 
 type JsonValue = unknown;
 
+/** One named admin-attribute group: a data schema and its UI schema. */
+interface AdminSchemaEntry {
+  data: RJSFSchema;
+  ui?: UiSchema;
+}
+
 /** Recursively drop `enumDisabled` (in any form) from a UI schema. */
 function stripEnumDisabled(node: JsonValue): JsonValue {
   if (Array.isArray(node)) {
@@ -30,6 +36,36 @@ function stripEnumDisabled(node: JsonValue): JsonValue {
 /** Derive the admin UI schema from the registrant UI schema. */
 export function deriveAdminUiSchema(uiSchema: UiSchema): UiSchema {
   return stripEnumDisabled(uiSchema) as UiSchema;
+}
+
+/**
+ * Combine a `*_admin_schema` map — `{ key: { data, ui } }` — into a single
+ * object schema and UI schema for the admin-only attributes form (SPEC §8.4,
+ * §8.5). Each entry becomes a property; the fields are ordered by each entry's
+ * data-schema `title`.
+ */
+export function combineAdminSchema(adminSchema: Record<string, unknown>): {
+  schema: RJSFSchema;
+  uiSchema: UiSchema;
+} {
+  const entries = Object.entries(adminSchema).filter(
+    (entry): entry is [string, AdminSchemaEntry] =>
+      !!entry[1] && typeof entry[1] === 'object' && 'data' in entry[1],
+  );
+
+  const properties: Record<string, RJSFSchema> = {};
+  const uiSchema: UiSchema = {};
+  for (const [key, { data, ui }] of entries) {
+    properties[key] = data;
+    if (ui) uiSchema[key] = ui;
+  }
+
+  uiSchema['ui:order'] = entries
+    .slice()
+    .sort(([, a], [, b]) => (a.data.title ?? '').localeCompare(b.data.title ?? ''))
+    .map(([key]) => key);
+
+  return { schema: { type: 'object', properties }, uiSchema };
 }
 
 /**

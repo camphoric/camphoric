@@ -14,6 +14,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiEvent, AugmentedRegistration, Hash, RegistrationTypeLookup } from 'api-types';
 import { deriveAdminUiSchema, JsonSchemaForm } from 'components/form';
 import { JsonViewer } from 'components/JsonViewer';
+import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { registrationHooks } from 'store/entities';
 
@@ -33,6 +34,7 @@ export function RegistrationEdit({
   onDeleted,
 }: RegistrationEditProps) {
   const update = registrationHooks.useUpdate();
+  const adminUpdate = registrationHooks.useUpdate();
   const del = registrationHooks.useDelete();
 
   const [email, setEmail] = useState(registration.registrant_email);
@@ -118,6 +120,18 @@ export function RegistrationEdit({
           Delete
         </Button>
       </Group>
+      <AdminAttributesForm
+        key={`reg-admin-${registration.id}`}
+        adminSchema={event.registration_admin_schema}
+        value={registration.admin_attributes}
+        onSave={(admin_attributes) =>
+          adminUpdate.mutate(
+            { id: registration.id, admin_attributes },
+            { onSuccess: () => notifications.show({ color: 'green', message: 'Admin attributes saved' }) },
+          )
+        }
+        saving={adminUpdate.isPending}
+      />
       <JsonViewer value={registration} />
     </Stack>
   );
