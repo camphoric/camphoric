@@ -58,6 +58,9 @@ export interface AdminSearch {
   camperId?: string;
   reportId?: string;
   registrationsTab?: string;
+  // Per-table state (sort/filter/page) is namespaced by a table prefix, e.g.
+  // `regq`, `regsort`, `regpage` (DR-2, DR-19) — carried through as strings.
+  [tableParam: string]: string | undefined;
 }
 
 function asString(value: unknown): string | undefined {
@@ -65,12 +68,13 @@ function asString(value: unknown): string | undefined {
 }
 
 function validateAdminSearch(search: Record<string, unknown>): AdminSearch {
-  return {
-    registrationId: asString(search.registrationId),
-    camperId: asString(search.camperId),
-    reportId: asString(search.reportId),
-    registrationsTab: asString(search.registrationsTab),
-  };
+  const out: AdminSearch = {};
+  // Preserve every non-empty string search param (selection ids + table state).
+  for (const [key, value] of Object.entries(search)) {
+    const str = asString(value);
+    if (str !== undefined) out[key] = str;
+  }
+  return out;
 }
 
 // --- Root ----------------------------------------------------------------------

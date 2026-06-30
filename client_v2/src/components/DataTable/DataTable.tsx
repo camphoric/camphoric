@@ -5,8 +5,8 @@
  * full per-event dataset (small at this scale — DR-25).
  *
  * Rows are clickable for selection; the selected row is highlighted. Table state
- * (sort/page/filter) is component-local here; URL-addressable selection is the
- * caller's concern (it owns the `?…Id` search param).
+ * (sort/filter/page) is component-local by default, or fully controlled via
+ * `state`/`onStateChange` so a caller can hold it in URL search params (DR-2).
  */
 
 import { Box, Group, Pagination, Table, Text, TextInput } from '@mantine/core';
@@ -26,6 +26,15 @@ import { useMemo, useState } from 'react';
 /** A match-sorter key: an object path, or a function projecting searchable text. */
 type SearchKey<T> = string | ((item: T) => string | string[]);
 
+/** Controllable table state (sort / global filter / 0-based page). */
+export interface DataTableState {
+  sorting: SortingState;
+  globalFilter: string;
+  pageIndex: number;
+}
+
+const EMPTY_STATE: DataTableState = { sorting: [], globalFilter: '', pageIndex: 0 };
+
 interface DataTableProps<T> {
   data: T[];
   columns: ColumnDef<T, unknown>[];
@@ -36,6 +45,9 @@ interface DataTableProps<T> {
   pageSize?: number;
   emptyMessage?: string;
   searchPlaceholder?: string;
+  /** Controlled table state; omit for component-local state. */
+  state?: DataTableState;
+  onStateChange?: (next: DataTableState) => void;
 }
 
 export function DataTable<T>({
@@ -47,25 +59,46 @@ export function DataTable<T>({
   pageSize = 20,
   emptyMessage = 'No records.',
   searchPlaceholder = 'Search…',
+  state,
+  onStateChange,
 }: DataTableProps<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [internal, setInternal] = useState<DataTableState>(EMPTY_STATE);
+  const controlled = state !== undefined;
+  const current = controlled ? state : internal;
+
+  const update = (next: DataTableState) => {
+    if (controlled) onStateChange?.(next);
+    else setInternal(next);
+  };
 
   const filtered = useMemo(() => {
-    const query = globalFilter.trim();
+    const query = current.globalFilter.trim();
     if (!query || !searchKeys?.length) return data;
     return matchSorter(data, query, { keys: searchKeys });
-  }, [data, globalFilter, searchKeys]);
+  }, [data, current.globalFilter, searchKeys]);
 
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
-    onSortingChange: setSorting,
+    state: {
+      sorting: current.sorting,
+      pagination: { pageIndex: current.pageIndex, pageSize },
+    },
+    onSortingChange: (updater) => {
+      const sorting = typeof updater === 'function' ? updater(current.sorting) : updater;
+      // Re-sorting returns to the first page.
+      update({ ...current, sorting, pageIndex: 0 });
+    },
+    onPaginationChange: (updater) => {
+      const pagination =
+        typeof updater === 'function'
+          ? updater({ pageIndex: current.pageIndex, pageSize })
+          : updater;
+      update({ ...current, pageIndex: pagination.pageIndex });
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize } },
   });
 
   const pageCount = table.getPageCount();
@@ -76,8 +109,9 @@ export function DataTable<T>({
       <TextInput
         leftSection={<IconSearch size={16} />}
         placeholder={searchPlaceholder}
-        value={globalFilter}
-        onChange={(e) => setGlobalFilter(e.currentTarget.value)}
+        value={current.globalFilter}
+        // Filtering returns to the first page.
+        onChange={(e) => update({ ...current, globalFilter: e.currentTarget.value, pageIndex: 0 })}
         mb="sm"
         maw={360}
       />

@@ -15,6 +15,7 @@ import { useAugmentedRegistrations, useRegistrationTypeLookup } from 'hooks/useA
 import { useMemo } from 'react';
 import { eventHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
+import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
 import { RegistrationEdit } from './RegistrationEdit';
 
@@ -42,18 +43,24 @@ const STATUS_COLOR: Record<PaymentStatus, string> = {
 
 export function RegistrationsList() {
   const { organizationId, eventId } = useParams({ from: FROM });
-  const { registrationId } = useSearch({ from: FROM });
+  const search = useSearch({ from: FROM });
+  const registrationId = search.registrationId;
   const navigate = useNavigate();
   const registrations = useAugmentedRegistrations(eventId);
   const registrationTypes = useRegistrationTypeLookup(eventId);
   const { data: event } = eventHooks.useById(eventId);
 
-  const select = (id?: number) =>
+  const goToRegistrations = (patch: Record<string, string | undefined>) =>
     void navigate({
       to: '/admin/organization/$organizationId/event/$eventId/registrations',
       params: { organizationId, eventId },
-      search: (prev) => ({ ...prev, registrationId: id ? String(id) : undefined }),
+      search: (prev) => ({ ...prev, ...patch }),
     });
+
+  const select = (id?: number) =>
+    goToRegistrations({ registrationId: id ? String(id) : undefined });
+
+  const tableState = useMemo(() => tableStateFromSearch(search, 'reg'), [search]);
 
   const columns = useMemo<ColumnDef<AugmentedRegistration, unknown>[]>(
     () => [
@@ -103,6 +110,8 @@ export function RegistrationsList() {
         onRowClick={(r) => select(r.id)}
         isRowSelected={(r) => String(r.id) === registrationId}
         emptyMessage="No registrations yet."
+        state={tableState}
+        onStateChange={(next) => goToRegistrations(tableStateToSearch(next, 'reg'))}
       />
       {selected && (
         <RegistrationEdit

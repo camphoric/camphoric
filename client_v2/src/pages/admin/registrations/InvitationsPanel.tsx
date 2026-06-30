@@ -11,7 +11,7 @@
 import { Anchor, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiInvitation, ApiRegistrationType } from 'api-types';
 import { DataTable } from 'components/DataTable';
@@ -20,6 +20,7 @@ import { useRegistrationTypeLookup } from 'hooks/useAdminData';
 import { useMemo, useState } from 'react';
 import { invitationHooks, registrationTypeHooks } from 'store/entities';
 import { useSendInvitation } from 'store/invitations';
+import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
 import { InviteForm } from './InviteForm';
 import { RegistrationTypeForm } from './RegistrationTypeForm';
@@ -42,7 +43,16 @@ const STATUS_COLOR: Record<InvitationStatus, string> = {
 
 export function InvitationsPanel() {
   const { organizationId, eventId } = useParams({ from: FROM });
+  const search = useSearch({ from: FROM });
   const navigate = useNavigate();
+
+  const tableState = useMemo(() => tableStateFromSearch(search, 'inv'), [search]);
+  const applyTableState = (patch: Record<string, string | undefined>) =>
+    void navigate({
+      to: '/admin/organization/$organizationId/event/$eventId/registrations',
+      params: { organizationId, eventId },
+      search: (prev) => ({ ...prev, ...patch }),
+    });
   const { data: registrationTypes } = registrationTypeHooks.useList({ event: eventId });
   const registrationTypeLookup = useRegistrationTypeLookup(eventId);
   const { data: invitations } = invitationHooks.useList({ registration_type__event: eventId });
@@ -206,6 +216,8 @@ export function InvitationsPanel() {
         searchKeys={['recipient_name', 'recipient_email']}
         searchPlaceholder="Search invitations…"
         emptyMessage="No invitations yet."
+        state={tableState}
+        onStateChange={(next) => applyTableState(tableStateToSearch(next, 'inv'))}
       />
 
       <InviteForm
