@@ -2,10 +2,9 @@
  * Application routing (SPEC §4) using TanStack Router, code-first. Two top-level
  * branches — public registration and admin (behind the auth guard). Admin
  * selection state lives in typed, validated search params (DR-2). A trailing-
- * slash normalizer redirects any `…/` URL to the non-slash form.
- *
- * Phase 1: the route tree, guard, redirects, and search-param contract are real;
- * the feature screens are placeholders until their phases.
+ * slash normalizer redirects any `…/` URL to the non-slash form. Admin selection
+ * (registration/camper/report) and the registrations sub-tab are URL-addressable
+ * search params.
  */
 
 import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router';
@@ -16,10 +15,10 @@ import { EventAdminCampers } from 'pages/admin/campers';
 import { EventAdminHome } from 'pages/admin/EventAdminHome';
 import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
 import { EventChooser } from 'pages/admin/EventChooser';
+import { EventAdminLodging } from 'pages/admin/lodging';
 import { OrganizationChooser } from 'pages/admin/OrganizationChooser';
 import { EventAdminRegistrations } from 'pages/admin/registrations';
 import { EventAdminReports } from 'pages/admin/reports';
-import { Placeholder } from 'pages/Placeholder';
 import {
   ConfirmationStep,
   PaymentStep,
@@ -181,7 +180,7 @@ const campersRoute = createRoute({
 const lodgingRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'lodging',
-  component: () => <Placeholder title="Lodging" phase="Phase 7 (§8.6)" />,
+  component: EventAdminLodging,
 });
 const reportsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
