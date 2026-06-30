@@ -20,6 +20,8 @@ import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { camperHooks } from 'store/entities';
 
+import { CamperFees } from './CamperFees';
+
 interface CamperEditProps {
   event: ApiEvent;
   camper: ApiCamper;
@@ -101,6 +103,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
         }
         saving={adminUpdate.isPending}
       />
+      <CamperFees event={event} camper={camper} />
       <JsonViewer value={camper} />
     </Stack>
   );

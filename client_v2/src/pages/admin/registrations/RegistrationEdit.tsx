@@ -18,6 +18,9 @@ import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { registrationHooks } from 'store/entities';
 
+import { RegistrationCampers } from './RegistrationCampers';
+import { RegistrationPayments } from './RegistrationPayments';
+
 const NONE = 'none';
 
 interface RegistrationEditProps {
@@ -132,6 +135,8 @@ export function RegistrationEdit({
         }
         saving={adminUpdate.isPending}
       />
+      <RegistrationPayments event={event} registration={registration} />
+      <RegistrationCampers registration={registration} />
       <JsonViewer value={registration} />
     </Stack>
   );
