@@ -182,6 +182,17 @@ export interface ApiCustomChargeType extends TimeStamped {
   label: string;
 }
 
+/** A public event-list entry (GET /api/eventlist) for the splash (§4). */
+export interface ApiEventListItem {
+  name: string;
+  /** Front-end registration route, e.g. `/events/12/register`. */
+  url: string;
+  open: boolean;
+  /** Registration open/close dates (ISO `YYYY-MM-DD`), or null if unbounded. */
+  registration_start?: string | null;
+  registration_end?: string | null;
+}
+
 export type ReportOutputType = 'csv' | 'md' | 'txt' | 'hbs';
 
 export interface ApiReport extends TimeStamped {
