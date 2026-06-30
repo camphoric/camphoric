@@ -63,6 +63,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Unit tests live in src; the Playwright e2e suite (e2e/*.spec.ts) is run by
+    // Playwright, not Vitest.
+    include: ['src/**/*.test.{ts,tsx}'],
     // @rjsf/mantine (via @mantine/dates) imports dayjs plugins without a file
     // extension; inline these so Vite's resolver handles them in tests.
     server: {

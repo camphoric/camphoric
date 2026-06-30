@@ -11,6 +11,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report",
     "ladle": "LADLE=1 ladle serve",
     "ladle:build": "LADLE=1 ladle build --outDir ladle-dist"
   },
@@ -52,6 +55,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@ladle/react": "^5.1.1",
+    "@playwright/test": "^1.61.1",
     "@tanstack/eslint-plugin-query": "^5.62.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

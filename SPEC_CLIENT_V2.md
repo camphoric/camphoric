@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-30)
+- §15 — Decision Records (DR-1…DR-31)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -790,8 +790,9 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   updates both sides (§15, DR-14).
 - **Component (React Testing Library):** the form engine (custom fields/widgets/templates) and
   key admin screens.
-- **E2E (Playwright):** one pass over registration → payment (PayPal sandbox / pay-by-check) →
-  confirmation.
+- **E2E (Playwright):** component e2e drives the Ladle stories (the form engine, templating, the
+  data table, and admin widgets) against a static Ladle build, plus a registration-flow smoke
+  against the dev server; every test runs on desktop and two mobile devices (§15, DR-31).
 - **Gates:** type-check, lint, and tests pass in CI and in the pre-commit hook (§15, DR-15).
 
 ---
@@ -1462,6 +1463,27 @@ rejected for the registration bundle). A Mantine `TextInput` + `react-imask` US 
 but US-only, no country picker/validation — only worth it if phone is treated as US-only, which
 the spec's "international" intent rejects). Hand-rolling on `libphonenumber-js` (same weight as
 the rejected option, more code).
+
+### DR-31 — Playwright e2e: static-Ladle component suite + mobile projects
+
+**Decision:** The Playwright e2e suite has two parts. The **component e2e** drives the **Ladle
+stories** (the form engine, templating pipeline, data table, and admin widgets) served from a
+**static `ladle build`** (not the dev server). A **registration-flow smoke** drives the Vite dev
+server (which proxies to the Django backend) and skips gracefully when the registration config
+can't load, so it stays green without a backend and never submits (creates no data). Every test
+runs across three projects — **Desktop Chrome, Mobile Chrome (Pixel 5), Mobile Safari
+(iPhone 13)** — exercising layouts responsively (DR-17).
+**Context:** The Ladle stories already exercise the real components through their providers, so
+they're the natural e2e render targets (DR-7) — no backend, fast, deterministic. Driving Ladle's
+**dev** server proved flaky: Vite's on-demand per-story compile and dep-optimization reload made
+story loads race the assertions under parallel workers. Serving a **static build** removes
+compilation from the hot path entirely, so the suite is fast and stable in parallel. The
+registration smoke covers the one genuinely end-to-end public path (load → live pricing →
+interact) without the fragility (or data mutation) of a full submit against a shared backend.
+**Alternatives:** Driving the dev server for everything (flaky compile races; rejected). A full
+registration→payment→confirmation submit e2e (mutates the shared dev backend and needs PayPal
+sandbox wiring — deferred to a seeded test backend). Cypress (heavier, no first-class multi-device
+projects; the stack is already Playwright-friendly).
 
 ---
 
