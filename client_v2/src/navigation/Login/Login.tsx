@@ -6,6 +6,16 @@
 import { Alert, Button, Card, Center, PasswordInput, Stack, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useLogin } from 'hooks/auth';
+import { ApiError } from 'utils/fetch';
+
+/** A 401/400 means bad credentials; anything else (403 CSRF, network, 500) is a
+ * different failure and shouldn't be reported as "invalid credentials". */
+function loginErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && (error.status === 401 || error.status === 400)) {
+    return 'Invalid username or password.';
+  }
+  return 'Sign-in failed. Please try again.';
+}
 
 export function Login() {
   const login = useLogin();
@@ -27,7 +37,7 @@ export function Login() {
             <Title order={3}>Admin sign in</Title>
             {login.isError ? (
               <Alert color="red" variant="light">
-                Invalid username or password.
+                {loginErrorMessage(login.error)}
               </Alert>
             ) : null}
             <TextInput

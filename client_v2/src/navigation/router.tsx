@@ -12,6 +12,10 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@t
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { AuthGuard } from 'navigation/AuthGuard';
 import { EventAdminContainer } from 'navigation/EventAdminContainer';
+import { EventAdminHome } from 'pages/admin/EventAdminHome';
+import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
+import { EventChooser } from 'pages/admin/EventChooser';
+import { OrganizationChooser } from 'pages/admin/OrganizationChooser';
 import { Placeholder } from 'pages/Placeholder';
 import {
   ConfirmationStep,
@@ -119,19 +123,19 @@ const adminRoute = createRoute({
 const organizationChooserIndexRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/',
-  component: () => <Placeholder title="Choose an organization" phase="Org chooser — Phase 5" />,
+  component: OrganizationChooser,
 });
 
 const organizationChooserRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: 'organization',
-  component: () => <Placeholder title="Choose an organization" phase="Org chooser — Phase 5" />,
+  component: OrganizationChooser,
 });
 
 const eventChooserRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: 'organization/$organizationId/event',
-  component: () => <Placeholder title="Choose an event" phase="Event chooser — Phase 5" />,
+  component: EventChooser,
 });
 
 const eventAdminRoute = createRoute({
@@ -159,7 +163,7 @@ const eventAdminIndexRoute = createRoute({
 const homeRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'home',
-  component: () => <Placeholder title="Home / Event configuration" phase="Phase 4 (§8.3)" />,
+  component: EventAdminHome,
 });
 const registrationsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
@@ -184,7 +188,7 @@ const reportsRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'settings',
-  component: () => <Placeholder title="Settings" phase="Phase 4 (§8.8)" />,
+  component: EventAdminSettings,
 });
 
 const eventAdminCatchAllRoute = createRoute({
