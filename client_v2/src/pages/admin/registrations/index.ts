@@ -1,0 +1,1 @@
+export { EventAdminRegistrations } from './EventAdminRegistrations';

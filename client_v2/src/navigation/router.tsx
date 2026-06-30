@@ -16,6 +16,7 @@ import { EventAdminHome } from 'pages/admin/EventAdminHome';
 import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
 import { EventChooser } from 'pages/admin/EventChooser';
 import { OrganizationChooser } from 'pages/admin/OrganizationChooser';
+import { EventAdminRegistrations } from 'pages/admin/registrations';
 import { EventAdminReports } from 'pages/admin/reports';
 import { Placeholder } from 'pages/Placeholder';
 import {
@@ -169,7 +170,7 @@ const homeRoute = createRoute({
 const registrationsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'registrations',
-  component: () => <Placeholder title="Registrations" phase="Phase 6 (§8.4)" />,
+  component: EventAdminRegistrations,
 });
 const campersRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
