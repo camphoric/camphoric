@@ -5,23 +5,25 @@
  * alongside. Persists assignment via PATCH camper (`lodging`, `stay`);
  * unassigning sets both to null.
  *
- * The required capabilities are realized with forms here; a drag/resize timeline
- * is a recommended enhancement (§8.6, DR-6).
+ * Two views (toggle): the form-based "Hierarchy" (tree + node CRUD + per-leaf
+ * assign/unassign) and the drag/resize "Timeline" (§8.6, DR-6).
  */
 
-import { Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Grid, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import type { ApiCamper, ApiLodging, AugmentedLodging, Scalar } from 'api-types';
 import { FullScreenLoading } from 'components/Loading';
 import { useLodgingData } from 'hooks/useLodgingData';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { camperHooks, eventHooks, lodgingHooks } from 'store/entities';
 import { camperName } from 'utils/camper';
+import { eventDays } from 'utils/dates';
 
 import { AssignCamperModal } from './AssignCamperModal';
 import { LodgingNodeForm } from './LodgingNodeForm';
+import { LodgingTimeline } from './LodgingTimeline';
 import { LodgingTree } from './LodgingTree';
 import { UnassignedCampers } from './UnassignedCampers';
 
@@ -43,6 +45,13 @@ export function EventAdminLodging() {
 
   const [nodeForm, setNodeForm] = useState<NodeFormState>({ open: false });
   const [assigning, setAssigning] = useState<ApiCamper>();
+  const [view, setView] = useState<'hierarchy' | 'timeline'>('hierarchy');
+
+  const days = useMemo(() => (event ? eventDays(event.start, event.end) : []), [event]);
+  const branches = useMemo(
+    () => (data ? Object.values(data.lodgingLookup).filter((n) => !n.isLeaf) : []),
+    [data],
+  );
 
   const selectCamper = (camperId: number) =>
     void navigate({
@@ -72,8 +81,18 @@ export function EventAdminLodging() {
   return (
     <Stack>
       <Group justify="space-between">
-        <Title order={2}>Lodging</Title>
-        {!data.tree && (
+        <Group>
+          <Title order={2}>Lodging</Title>
+          <SegmentedControl
+            value={view}
+            onChange={(value) => setView(value as 'hierarchy' | 'timeline')}
+            data={[
+              { label: 'Hierarchy', value: 'hierarchy' },
+              { label: 'Timeline', value: 'timeline' },
+            ]}
+          />
+        </Group>
+        {view === 'hierarchy' && !data.tree && (
           <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => setNodeForm({ open: true, parentId: null })}
@@ -83,33 +102,48 @@ export function EventAdminLodging() {
         )}
       </Group>
 
-      <Grid>
-        <Grid.Col span={{ base: 12, md: 8 }}>
-          <Card withBorder>
-            {data.tree ? (
-              <LodgingTree
-                node={data.tree}
-                depth={0}
-                onAddChild={(parentId) => setNodeForm({ open: true, parentId })}
-                onEdit={(node) => setNodeForm({ open: true, node })}
-                onDelete={confirmDeleteNode}
-                onUnassign={unassign}
-                onSelectCamper={selectCamper}
-              />
-            ) : (
-              <Text c="dimmed">No lodging hierarchy yet. Add a root lodging to begin.</Text>
-            )}
-          </Card>
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <UnassignedCampers
-            campers={data.unassigned}
-            lodgingLookup={data.lodgingLookup}
-            onAssign={(c) => setAssigning(c)}
-            onSelect={selectCamper}
+      {view === 'hierarchy' ? (
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 8 }}>
+            <Card withBorder>
+              {data.tree ? (
+                <LodgingTree
+                  node={data.tree}
+                  depth={0}
+                  onAddChild={(parentId) => setNodeForm({ open: true, parentId })}
+                  onEdit={(node) => setNodeForm({ open: true, node })}
+                  onDelete={confirmDeleteNode}
+                  onUnassign={unassign}
+                  onSelectCamper={selectCamper}
+                />
+              ) : (
+                <Text c="dimmed">No lodging hierarchy yet. Add a root lodging to begin.</Text>
+              )}
+            </Card>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <UnassignedCampers
+              campers={data.unassigned}
+              lodgingLookup={data.lodgingLookup}
+              onAssign={(c) => setAssigning(c)}
+              onSelect={selectCamper}
+            />
+          </Grid.Col>
+        </Grid>
+      ) : (
+        <Card withBorder>
+          <LodgingTimeline
+            days={days}
+            leaves={data.leaves}
+            branches={branches}
+            unassigned={data.unassigned}
+            defaultStayLength={event.default_stay_length}
+            onAssign={(id, lodging, stay) => updateCamper.mutate({ id, lodging, stay })}
+            onUnassign={(id) => updateCamper.mutate({ id, lodging: null, stay: null })}
+            onSelectCamper={selectCamper}
           />
-        </Grid.Col>
-      </Grid>
+        </Card>
+      )}
 
       <LodgingNodeForm
         key={nodeForm.node?.id ?? `new-${String(nodeForm.parentId)}`}
