@@ -13,6 +13,12 @@ import { ErrorBoundary } from 'components/ErrorBoundary';
 import { AuthGuard } from 'navigation/AuthGuard';
 import { EventAdminContainer } from 'navigation/EventAdminContainer';
 import { Placeholder } from 'pages/Placeholder';
+import {
+  ConfirmationStep,
+  PaymentStep,
+  RegisterContainer,
+  RegistrationStep,
+} from 'pages/register';
 import { Splash } from 'pages/Splash';
 
 // --- Admin search-param contract (SPEC §4, §8.2) -------------------------------
@@ -55,11 +61,19 @@ const splashRoute = createRoute({
   component: Splash,
 });
 
+// The registration flow is a layout (the container loads config + gates) with
+// the three steps as children.
+const registerLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/events/$eventId/register',
+  component: RegisterContainer,
+});
+
 // Bare `…/register` redirects to step 1, preserving the query string (which may
 // carry an invitation code).
 const registerIndexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/events/$eventId/register',
+  getParentRoute: () => registerLayoutRoute,
+  path: '/',
   beforeLoad: ({ params, search }) => {
     // `throw redirect(...)` is the TanStack Router idiom; the thrown value is a
     // Redirect control object, not an Error.
@@ -73,21 +87,21 @@ const registerIndexRoute = createRoute({
 });
 
 const registrationStepRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/events/$eventId/register/registration',
-  component: () => <Placeholder title="Register" phase="Registration step — Phase 3" />,
+  getParentRoute: () => registerLayoutRoute,
+  path: 'registration',
+  component: RegistrationStep,
 });
 
 const paymentStepRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/events/$eventId/register/payment',
-  component: () => <Placeholder title="Payment" phase="Payment step — Phase 3" />,
+  getParentRoute: () => registerLayoutRoute,
+  path: 'payment',
+  component: PaymentStep,
 });
 
 const confirmationStepRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/events/$eventId/register/finished',
-  component: () => <Placeholder title="Confirmation" phase="Confirmation step — Phase 3" />,
+  getParentRoute: () => registerLayoutRoute,
+  path: 'finished',
+  component: ConfirmationStep,
 });
 
 // --- Admin (behind the auth guard) ---------------------------------------------
@@ -189,10 +203,12 @@ const eventAdminCatchAllRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   splashRoute,
-  registerIndexRoute,
-  registrationStepRoute,
-  paymentStepRoute,
-  confirmationStepRoute,
+  registerLayoutRoute.addChildren([
+    registerIndexRoute,
+    registrationStepRoute,
+    paymentStepRoute,
+    confirmationStepRoute,
+  ]),
   adminRoute.addChildren([
     organizationChooserIndexRoute,
     organizationChooserRoute,

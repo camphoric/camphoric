@@ -26,3 +26,28 @@ class ResizeObserverMock {
   disconnect() {}
 }
 window.ResizeObserver = ResizeObserverMock;
+
+// jsdom's localStorage is unavailable at the default about:blank origin; provide
+// a simple in-memory implementation for tests.
+class LocalStorageMock implements Storage {
+  private store = new Map<string, string>();
+  get length() {
+    return this.store.size;
+  }
+  clear() {
+    this.store.clear();
+  }
+  getItem(key: string) {
+    return this.store.get(key) ?? null;
+  }
+  setItem(key: string, value: string) {
+    this.store.set(key, String(value));
+  }
+  removeItem(key: string) {
+    this.store.delete(key);
+  }
+  key(index: number) {
+    return Array.from(this.store.keys())[index] ?? null;
+  }
+}
+Object.defineProperty(window, 'localStorage', { value: new LocalStorageMock() });

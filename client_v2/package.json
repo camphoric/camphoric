@@ -21,6 +21,7 @@
     "@mantine/hooks": "^8.3.18",
     "@mantine/modals": "^8.3.18",
     "@mantine/notifications": "^8.3.18",
+    "@paypal/react-paypal-js": "^10.1.1",
     "@rjsf/core": "^6.6.2",
     "@rjsf/mantine": "^6.6.2",
     "@rjsf/utils": "^6.6.2",

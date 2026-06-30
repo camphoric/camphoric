@@ -246,14 +246,35 @@ export interface RegistrationFormData {
   [field: string]: unknown;
 }
 
+/** A date as the register endpoint serializes it (a dict, not an ISO string). */
+export interface DateDict {
+  epoch: number;
+  year: number;
+  month: number;
+  day: number;
+}
+
+/**
+ * The `event` subset embedded in the register config (server
+ * `pricing.get_event_attributes`). Dates are dicts and `is_open` drives the
+ * registration-closed check — this is NOT the full {@link ApiEvent}.
+ */
+export interface RegisterConfigEvent {
+  is_open: boolean;
+  epayment_handling?: number;
+  registration_start?: DateDict;
+  registration_end?: DateDict;
+  start?: DateDict;
+  end?: DateDict;
+}
+
 /** The config bundle returned by GET /api/events/{id}/register. */
 export interface ApiRegister {
   dataSchema: JSONSchema7;
   uiSchema: Hash;
   preSubmitTemplate: string;
-  epayment_handling?: number;
   templateVars: Hash;
-  event: ApiEvent;
+  event: RegisterConfigEvent;
   pricingLogic: {
     registration: JsonLogicPricing;
     camper: JsonLogicPricing;

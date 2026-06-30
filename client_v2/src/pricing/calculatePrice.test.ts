@@ -1,4 +1,4 @@
-import type { ApiEvent, ApiRegister, RegistrationFormData } from 'api-types';
+import type { ApiRegister, RegisterConfigEvent, RegistrationFormData } from 'api-types';
 import { describe, expect, it } from 'vitest';
 
 import { calculatePrice } from './calculatePrice';
@@ -26,38 +26,11 @@ describe('calculatePrice — golden parity fixtures', () => {
 });
 
 describe('calculatePrice — mechanics', () => {
-  const baseEvent = (overrides: Partial<ApiEvent> = {}): ApiEvent =>
-    ({
-      id: 1,
-      name: 'E',
-      organization: 1,
-      start: '2026-07-01',
-      end: '2026-07-05',
-      registration_start: '2026-01-01T00:00:00Z',
-      registration_end: '2026-06-30T00:00:00Z',
-      default_stay_length: 4,
-      camper_schema: {},
-      camper_admin_schema: {},
-      registration_schema: {},
-      registration_ui_schema: {},
-      registration_admin_schema: {},
-      payment_schema: {},
-      deposit_schema: {},
-      pricing: {},
-      camper_pricing_logic: [],
-      registration_pricing_logic: [],
-      registration_template_vars: {},
-      confirmation_page_template: '',
-      confirmation_email_subject: '',
-      confirmation_email_template: '',
-      confirmation_email_from: '',
-      paypal_enabled: false,
-      paypal_client_id: '',
-      epayment_handling: 0,
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-      ...overrides,
-    });
+  const baseEvent = (overrides: Partial<RegisterConfigEvent> = {}): RegisterConfigEvent => ({
+    is_open: true,
+    epayment_handling: 0,
+    ...overrides,
+  });
 
   it('converts camper date props (YYYY-MM-DD) to {year, month, day} for logic', () => {
     const config: ApiRegister = {
@@ -97,7 +70,7 @@ describe('calculatePrice — mechanics', () => {
       uiSchema: {},
       preSubmitTemplate: '',
       templateVars: {},
-      event: baseEvent({ pricing: { base: 10 } }),
+      event: baseEvent(),
       pricing: { base: 10 },
       pricingLogic: {
         registration: [{ var: 'surcharge', exp: { var: 'pricing.base' } }],

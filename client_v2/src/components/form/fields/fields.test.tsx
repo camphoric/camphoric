@@ -65,10 +65,9 @@ describe('LodgingRequested field', () => {
     await user.click(screen.getByPlaceholderText('Area *'));
     await user.click(screen.getByText('Cabins'));
 
+    type LodgingForm = { lodging_requested?: { choices?: number[]; id?: number; name?: string } };
     // Choosing a non-leaf records the path but not a leaf id yet.
-    let last = onChange.mock.calls.at(-1)?.[0] as {
-      lodging_requested?: { choices?: number[]; id?: number };
-    };
+    let last = onChange.mock.calls.at(-1)?.[0] as LodgingForm;
     expect(last.lodging_requested?.choices).toEqual([2]);
     expect(last.lodging_requested?.id).toBeUndefined();
 
@@ -76,9 +75,7 @@ describe('LodgingRequested field', () => {
     await user.click(screen.getByPlaceholderText('Cabin *'));
     await user.click(screen.getByText('Cabin A'));
 
-    last = onChange.mock.calls.at(-1)?.[0] as {
-      lodging_requested?: { choices?: number[]; id?: number; name?: string };
-    };
+    last = onChange.mock.calls.at(-1)?.[0] as LodgingForm;
     expect(last.lodging_requested?.choices).toEqual([2, 3]);
     expect(last.lodging_requested?.id).toBe(3);
     expect(last.lodging_requested?.name).toBe('Cabin A');

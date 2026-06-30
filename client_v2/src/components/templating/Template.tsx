@@ -4,6 +4,8 @@
  * page (CONTRIBUTING: don't let template rendering take down the page).
  */
 
+import './markdown.css';
+
 import { templateToHtml } from './pipeline';
 
 interface TemplateProps {
