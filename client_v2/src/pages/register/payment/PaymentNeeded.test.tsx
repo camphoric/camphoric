@@ -1,27 +1,27 @@
-import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ApiRegister, ApiRegisterPaymentStep } from 'api-types';
+import type { ApiRegisterPaymentStep } from 'api-types';
 import { useRegistrationStore } from 'store/registration';
+import { makeRegisterConfig } from 'test/fixtures';
+import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PaymentNeeded } from './PaymentNeeded';
 
 const { navigate, submitMutate } = vi.hoisted(() => ({ navigate: vi.fn(), submitMutate: vi.fn() }));
 
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigate,
+  useParams: () => ({ eventId: '1' }),
+}));
 
 // An event whose electronic total includes a 3% handling fee; paying by check
 // recomputes without it.
-const config = {
+const config = makeRegisterConfig({
   dataSchema: { title: 'Camp', definitions: { camper: { type: 'object', properties: {} } } },
-  uiSchema: {},
-  preSubmitTemplate: '',
-  templateVars: {},
   event: { is_open: true, epayment_handling: 3 },
   pricing: { fee: 100 },
   pricingLogic: { registration: [{ var: 'total', exp: { var: 'pricing.fee' } }], camper: [] },
-} as unknown as ApiRegister;
+});
 
 vi.mock('store/registrationApi', () => ({
   useRegistrationConfig: () => ({ data: config }),
@@ -43,11 +43,7 @@ describe('PaymentNeeded', () => {
       serverPricingResults: { total: 103, handling: 3, campers: [] },
     };
 
-    render(
-      <MantineProvider>
-        <PaymentNeeded eventId="1" paymentStep={paymentStep} />
-      </MantineProvider>,
-    );
+    renderWithProviders(<PaymentNeeded eventId="1" paymentStep={paymentStep} />);
 
     // The displayed total is the electronic (with-fee) amount from the server.
     expect(screen.getByText('Total: $103.00')).toBeInTheDocument();

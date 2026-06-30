@@ -1,15 +1,9 @@
-import { MantineProvider } from '@mantine/core';
 import type { RJSFSchema } from '@rjsf/utils';
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import { renderWithProviders as renderInProvider, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonSchemaForm } from './JsonSchemaForm';
-
-function renderInProvider(ui: ReactNode) {
-  return render(<MantineProvider>{ui}</MantineProvider>);
-}
 
 describe('JsonSchemaForm', () => {
   it('renders a data-driven field from the schema', () => {

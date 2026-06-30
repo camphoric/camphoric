@@ -1,14 +1,8 @@
-import { MantineProvider } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { JsonSchemaForm } from 'components/form';
-import type { ReactNode } from 'react';
+import { renderWithProviders as renderForm, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
-
-function renderForm(node: ReactNode) {
-  return render(<MantineProvider>{node}</MantineProvider>);
-}
 
 describe('Campers field', () => {
   const schema: RJSFSchema = {

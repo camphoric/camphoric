@@ -8,16 +8,17 @@
 
 import { Alert, Container, Stack } from '@mantine/core';
 import { useDocumentTitle } from '@mantine/hooks';
-import { Outlet, useParams } from '@tanstack/react-router';
+import { Outlet } from '@tanstack/react-router';
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { FullScreenLoading } from 'components/Loading';
+import { useEventId } from 'hooks/useEventId';
 import { useRegistrationConfig } from 'store/registrationApi';
 
 import { InvitationInfo } from './InvitationInfo';
 import { RegistrationClosed } from './RegistrationClosed';
 
 export function RegisterContainer() {
-  const { eventId } = useParams({ strict: false });
+  const eventId = useEventId();
   const { data: config, isLoading, isError } = useRegistrationConfig(eventId);
 
   useDocumentTitle(config?.dataSchema.title ?? 'Register');

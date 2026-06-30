@@ -11,25 +11,21 @@
 import { DateInput } from '@mantine/dates';
 import type { WidgetProps } from '@rjsf/utils';
 
+import { widgetCommon } from './widgetProps';
+
 const DEFAULT_DISPLAY_FORMAT = 'MM/DD/YYYY';
 
-interface DateOptions {
-  emptyValue?: unknown;
-  displayFormat?: string;
-}
-
 export function DateWidget(props: WidgetProps) {
-  const { id, onChange, onBlur, onFocus, label, required, disabled, readonly, placeholder } = props;
-  const value = props.value as string | undefined;
-  const options = props.options as DateOptions;
-  const error = props.rawErrors && props.rawErrors.length > 0 ? props.rawErrors.join('\n') : undefined;
+  const { id, label, required, placeholder, disabled, error, value, options } =
+    widgetCommon<string>(props);
+  const { onChange, onBlur, onFocus } = props;
 
   return (
     <DateInput
       id={id}
-      label={label || undefined}
+      label={label}
       required={required}
-      disabled={disabled || readonly}
+      disabled={disabled}
       placeholder={placeholder}
       error={error}
       valueFormat={options.displayFormat ?? DEFAULT_DISPLAY_FORMAT}

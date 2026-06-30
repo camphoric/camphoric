@@ -1,14 +1,8 @@
-import { MantineProvider } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { JsonSchemaForm } from 'components/form';
-import type { ReactNode } from 'react';
+import { renderWithProviders as renderForm, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
-
-function renderForm(node: ReactNode) {
-  return render(<MantineProvider>{node}</MantineProvider>);
-}
 
 describe('custom widgets', () => {
   it('date widget displays MM/DD/YYYY while the data stays ISO', () => {
@@ -29,7 +23,7 @@ describe('custom widgets', () => {
       type: 'object',
       properties: { count: { type: 'integer', title: 'Count' } },
     };
-    const uiSchema: UiSchema = { count: { 'ui:widget': 'naturalNumber' } };
+    const uiSchema: UiSchema = { count: { 'ui:widget': 'NaturalNumberInput' } };
     renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
 
     await user.type(screen.getByLabelText('Count'), '7');
@@ -63,7 +57,7 @@ describe('custom widgets', () => {
       type: 'object',
       properties: { phone: { type: 'string', title: 'Phone' } },
     };
-    const uiSchema: UiSchema = { phone: { 'ui:widget': 'phone' } };
+    const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
     renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
 
     await user.type(screen.getByLabelText('Phone'), '2025551234');

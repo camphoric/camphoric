@@ -11,9 +11,11 @@
  *   - DateWidget        — overrides the base date widget to display MM/DD/YYYY
  *                         while storing ISO YYYY-MM-DD
  *
- * Widgets are keyed by the names event uiSchemas reference (the v4 names, e.g.
- * `ui:widget: 'PhoneInput'`); lowercase aliases are also provided. The base
- * theme already supplies SelectWidget / CheckboxesWidget / TextWidget.
+ * `PhoneInput` and `NaturalNumberInput` are keyed by the names event uiSchemas
+ * reference (the v4 names, e.g. `ui:widget: 'PhoneInput'`). `textarea` and
+ * `date` use rjsf's lowercase keys to OVERRIDE the base widgets of the same
+ * name. The base theme already supplies SelectWidget / CheckboxesWidget /
+ * TextWidget.
  */
 
 import type { RegistryWidgetsType } from '@rjsf/utils';
@@ -24,14 +26,9 @@ import { PhoneInput } from './PhoneInput';
 import { TextareaWidget } from './TextareaWidget';
 
 export const customWidgets: RegistryWidgetsType = {
-  // Names used by existing event uiSchemas.
   PhoneInput,
   NaturalNumberInput,
-  TextareaWidget,
-  DateWidget,
-  // Lowercase aliases.
-  phone: PhoneInput,
-  naturalNumber: NaturalNumberInput,
+  // Override the base lowercase widgets with the custom behavior.
   textarea: TextareaWidget,
   date: DateWidget,
 };

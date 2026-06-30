@@ -37,6 +37,7 @@ export default defineConfig({
       pages: fileURLToPath(new URL('./src/pages', import.meta.url)),
       pricing: fileURLToPath(new URL('./src/pricing', import.meta.url)),
       store: fileURLToPath(new URL('./src/store', import.meta.url)),
+      test: fileURLToPath(new URL('./src/test', import.meta.url)),
       utils: fileURLToPath(new URL('./src/utils', import.meta.url)),
     },
   },

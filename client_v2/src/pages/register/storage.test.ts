@@ -1,4 +1,4 @@
-import type { ApiRegister } from 'api-types';
+import { makeRegisterConfig } from 'test/fixtures';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -8,10 +8,10 @@ import {
   saveRegistrationFormData,
 } from './storage';
 
-const config = {
+const config = makeRegisterConfig({
   dataSchema: { title: 'Summer Camp' },
   event: { is_open: true, start: { epoch: 0, year: 2026, month: 7, day: 1 } },
-} as unknown as ApiRegister;
+});
 
 afterEach(() => {
   localStorage.clear();

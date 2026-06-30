@@ -21,13 +21,6 @@ export function dateStringToParts(value: string): DateParts {
   return { year: dt.year, month: dt.month, day: dt.day };
 }
 
-/** Format an ISO date/datetime string for display (e.g. "Jun 29, 2026"). */
-export function formatDate(value: string | null | undefined): string {
-  if (!value) return '';
-  const dt = DateTime.fromISO(value);
-  return dt.isValid ? dt.toFormat('LLL d, yyyy') : '';
-}
-
 /** The list of `YYYY-MM-DD` days spanning an event, inclusive of start and end. */
 export function eventDays(start: string, end: string): string[] {
   const startDt = DateTime.fromISO(start, { zone: 'utc' }).startOf('day');

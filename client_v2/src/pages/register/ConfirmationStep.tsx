@@ -5,14 +5,15 @@
  * (unless KEEP_REG_DATA is set), and resets the in-progress registration.
  * Redirects back to step 1 if there's no confirmation data (direct nav/refresh).
  *
- * The confirmation data is snapshotted on mount so resetting the store
+ * The confirmation data is snapshotted on first render so resetting the store
  * afterwards doesn't blank the page.
  */
 
 import { Stack, Title } from '@mantine/core';
-import { useNavigate, useParams } from '@tanstack/react-router';
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { Template } from 'components/templating';
+import { useEventId } from 'hooks/useEventId';
+import { useGoToStep } from 'hooks/useGoToStep';
 import { useEffect, useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import { useRegistrationConfig } from 'store/registrationApi';
@@ -24,44 +25,42 @@ interface ConfirmationSnapshot {
   templateVars: Record<string, unknown>;
 }
 
+function captureConfirmation(): ConfirmationSnapshot | null {
+  const { confirmationStep, paymentStep, paymentInfo, registration } =
+    useRegistrationStore.getState();
+  if (!confirmationStep || !paymentStep) return null;
+  return {
+    template: confirmationStep.confirmationPageTemplate,
+    templateVars: {
+      initialPayment: confirmationStep.initialPayment,
+      paymentInfo,
+      registration,
+      totals: paymentStep.serverPricingResults,
+      pricing_results: confirmationStep.serverPricingResults,
+    },
+  };
+}
+
 export function ConfirmationStep() {
-  const { eventId } = useParams({ strict: false });
-  const navigate = useNavigate();
+  const eventId = useEventId();
+  const goToStep = useGoToStep();
   const { data: config } = useRegistrationConfig(eventId);
 
-  const [snapshot, setSnapshot] = useState<ConfirmationSnapshot | null>(null);
-  const handled = useRef(false);
-  const cleared = useRef(false);
+  // Snapshot synchronously so the page survives the store reset below.
+  const [snapshot] = useState(captureConfirmation);
+  const finished = useRef(false);
 
-  // Capture the confirmation data once (or redirect if there's none), then
-  // reset the in-progress registration.
   useEffect(() => {
-    if (handled.current) return;
-    handled.current = true;
-    const state = useRegistrationStore.getState();
-    if (!state.confirmationStep || !state.paymentStep) {
-      void navigate({ to: '/events/$eventId/register/registration', params: { eventId } });
+    if (!snapshot) {
+      goToStep('registration');
       return;
     }
-    setSnapshot({
-      template: state.confirmationStep.confirmationPageTemplate,
-      templateVars: {
-        initialPayment: state.confirmationStep.initialPayment,
-        paymentInfo: state.paymentInfo,
-        registration: state.registration,
-        totals: state.paymentStep.serverPricingResults,
-        pricing_results: state.confirmationStep.serverPricingResults,
-      },
-    });
-    state.reset();
-  }, [navigate, eventId]);
-
-  // Clear the saved form data once the config (and so the storage key) is known.
-  useEffect(() => {
-    if (cleared.current || !config || !snapshot) return;
-    cleared.current = true;
+    // Clear saved data (needs the config-derived key) and reset, once.
+    if (finished.current || !config) return;
+    finished.current = true;
     clearRegistrationFormData(getRegistrationStorageKey(config));
-  }, [config, snapshot]);
+    useRegistrationStore.getState().reset();
+  }, [snapshot, config, goToStep]);
 
   if (!snapshot) return null;
 

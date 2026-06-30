@@ -7,22 +7,19 @@
 import { NumberInput } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 
-interface NaturalNumberOptions {
-  emptyValue?: unknown;
-}
+import { widgetCommon } from './widgetProps';
 
 export function NaturalNumberInput(props: WidgetProps) {
-  const { id, onChange, onBlur, onFocus, label, required, disabled, readonly, placeholder } = props;
-  const value = props.value as number | undefined;
-  const options = props.options as NaturalNumberOptions;
-  const error = props.rawErrors && props.rawErrors.length > 0 ? props.rawErrors.join('\n') : undefined;
+  const { id, label, required, placeholder, disabled, error, value, options } =
+    widgetCommon<number>(props);
+  const { onChange, onBlur, onFocus } = props;
 
   return (
     <NumberInput
       id={id}
-      label={label || undefined}
+      label={label}
       required={required}
-      disabled={disabled || readonly}
+      disabled={disabled}
       placeholder={placeholder}
       error={error}
       value={typeof value === 'number' ? value : ''}

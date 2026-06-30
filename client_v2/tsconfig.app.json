@@ -32,6 +32,7 @@
       "pricing": ["./src/pricing/index.ts"],
       "pricing/*": ["./src/pricing/*"],
       "store/*": ["./src/store/*"],
+      "test/*": ["./src/test/*"],
       "utils/*": ["./src/utils/*"]
     },
 

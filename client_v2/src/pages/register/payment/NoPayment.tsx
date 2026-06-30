@@ -5,8 +5,8 @@
  */
 
 import { Button, Stack, Title } from '@mantine/core';
-import { useNavigate } from '@tanstack/react-router';
 import type { InitialPaymentBody } from 'api-types';
+import { useGoToStep } from 'hooks/useGoToStep';
 import { useRegistrationStore } from 'store/registration';
 import { useSubmitPayment } from 'store/registrationApi';
 import { formatMoney } from 'utils/money';
@@ -17,7 +17,7 @@ interface NoPaymentProps {
 }
 
 export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
-  const navigate = useNavigate();
+  const goToStep = useGoToStep();
   const submit = useSubmitPayment(eventId);
   const setPaymentInfo = useRegistrationStore((state) => state.setPaymentInfo);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
@@ -32,7 +32,7 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
     submit.mutate(initialPayment, {
       onSuccess: (confirmation) => {
         setConfirmationStep(confirmation);
-        void navigate({ to: '/events/$eventId/register/finished', params: { eventId } });
+        goToStep('finished');
       },
     });
   };

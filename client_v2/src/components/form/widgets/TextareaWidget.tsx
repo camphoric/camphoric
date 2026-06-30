@@ -8,17 +8,12 @@ import { Textarea } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 import type { ChangeEvent } from 'react';
 
-interface TextareaOptions {
-  rows?: number;
-  emptyValue?: unknown;
-}
+import { widgetCommon } from './widgetProps';
 
 export function TextareaWidget(props: WidgetProps) {
-  const { id, onChange, onBlur, onFocus, label, required, disabled, readonly, placeholder, schema } =
-    props;
-  const value = props.value as string | undefined;
-  const options = props.options as TextareaOptions;
-  const error = props.rawErrors && props.rawErrors.length > 0 ? props.rawErrors.join('\n') : undefined;
+  const { id, label, required, placeholder, disabled, error, value, options } =
+    widgetCommon<string>(props);
+  const { onChange, onBlur, onFocus, schema } = props;
   const maxLength = typeof schema.maxLength === 'number' ? schema.maxLength : undefined;
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -32,9 +27,9 @@ export function TextareaWidget(props: WidgetProps) {
   return (
     <Textarea
       id={id}
-      label={label || undefined}
+      label={label}
       required={required}
-      disabled={disabled || readonly}
+      disabled={disabled}
       placeholder={placeholder}
       error={error}
       minRows={options.rows ?? 5}

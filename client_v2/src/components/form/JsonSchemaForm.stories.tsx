@@ -38,8 +38,8 @@ const schema: RJSFSchema = {
 };
 
 const uiSchema: UiSchema = {
-  phone: { 'ui:widget': 'phone' },
-  party_size: { 'ui:widget': 'naturalNumber' },
+  phone: { 'ui:widget': 'PhoneInput' },
+  party_size: { 'ui:widget': 'NaturalNumberInput' },
   meals: { 'ui:widget': 'checkboxes', 'ui:options': { inline: true } },
   notes: { 'ui:widget': 'textarea', 'ui:options': { rows: 3 } },
 };

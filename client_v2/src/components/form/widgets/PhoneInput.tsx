@@ -12,21 +12,16 @@ import { TextInput } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 import { CountrySelector, usePhoneInput } from 'react-international-phone';
 
-interface PhoneOptions {
-  emptyValue?: unknown;
-}
+import { widgetCommon } from './widgetProps';
 
 export function PhoneInput(props: WidgetProps) {
-  const { id, onChange, onBlur, onFocus, label, required, disabled, readonly } = props;
-  const value = props.value as string | undefined;
-  const options = props.options as PhoneOptions;
-  const error = props.rawErrors && props.rawErrors.length > 0 ? props.rawErrors.join('\n') : undefined;
-  const isDisabled = disabled || readonly;
+  const { id, label, required, disabled, error, value, options } = widgetCommon<string>(props);
+  const { onChange, onBlur, onFocus } = props;
 
   const { inputValue, country, setCountry, handlePhoneValueChange, inputRef } = usePhoneInput({
     defaultCountry: 'us',
     value: value ?? '',
-    onChange: ({ phone }) => onChange(phone ? phone : options.emptyValue),
+    onChange: ({ phone }) => onChange(phone || options.emptyValue),
   });
 
   return (
@@ -34,10 +29,10 @@ export function PhoneInput(props: WidgetProps) {
       id={id}
       ref={inputRef}
       type="tel"
-      label={label || undefined}
+      label={label}
       required={required}
       error={error}
-      disabled={isDisabled}
+      disabled={disabled}
       value={inputValue}
       onChange={handlePhoneValueChange}
       onBlur={() => onBlur(id, value)}
@@ -48,7 +43,7 @@ export function PhoneInput(props: WidgetProps) {
         <CountrySelector
           selectedCountry={country.iso2}
           onSelect={(selected) => setCountry(selected.iso2)}
-          disabled={isDisabled}
+          disabled={disabled}
           buttonStyle={{ border: 'none', background: 'transparent', height: '100%' }}
         />
       }

@@ -8,10 +8,11 @@
 
 import { Alert, Button, Stack } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
-import { useNavigate, useParams } from '@tanstack/react-router';
 import type { RegistrationFormData } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
 import { Template } from 'components/templating';
+import { useEventId } from 'hooks/useEventId';
+import { useGoToStep } from 'hooks/useGoToStep';
 import { calculatePrice } from 'pricing';
 import { useEffect, useRef } from 'react';
 import { useRegistrationStore } from 'store/registration';
@@ -39,8 +40,8 @@ function errorPropertyToId(property: string): string {
 }
 
 export function RegistrationStep() {
-  const { eventId } = useParams({ strict: false });
-  const navigate = useNavigate();
+  const eventId = useEventId();
+  const goToStep = useGoToStep();
   const { data: config } = useRegistrationConfig(eventId);
   const submit = useSubmitRegistration(eventId);
 
@@ -108,7 +109,7 @@ export function RegistrationStep() {
       {
         onSuccess: (paymentStep) => {
           setPaymentStep(paymentStep);
-          void navigate({ to: '/events/$eventId/register/payment', params: { eventId } });
+          goToStep('payment');
         },
       },
     );

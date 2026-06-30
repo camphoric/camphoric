@@ -17,9 +17,9 @@ import {
   type PayPalButtonOnApprove,
 } from '@paypal/paypal-js';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import { useNavigate } from '@tanstack/react-router';
 import type { ApiRegisterPaymentStep, InitialPaymentBody, PaymentType } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
+import { useGoToStep } from 'hooks/useGoToStep';
 import { calculatePrice } from 'pricing';
 import { useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
@@ -34,7 +34,7 @@ interface PaymentNeededProps {
 }
 
 export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
-  const navigate = useNavigate();
+  const goToStep = useGoToStep();
   const { data: config } = useRegistrationConfig(eventId);
   const submit = useSubmitPayment(eventId);
   const registration = useRegistrationStore((state) => state.registration);
@@ -64,7 +64,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     submit.mutate(initialPayment, {
       onSuccess: (confirmation) => {
         setConfirmationStep(confirmation);
-        void navigate({ to: '/events/$eventId/register/finished', params: { eventId } });
+        goToStep('finished');
       },
       onError: () => setLoading(false),
     });

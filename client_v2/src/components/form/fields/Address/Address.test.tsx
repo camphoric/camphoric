@@ -1,15 +1,10 @@
-import { MantineProvider } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { JsonSchemaForm } from 'components/form';
-import type { ReactNode } from 'react';
+import { renderWithProviders as renderForm, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
 // No VITE_GOOGLE_MAPS_API_KEY in tests -> the plain-input fallback is exercised.
-function renderForm(node: ReactNode) {
-  return render(<MantineProvider>{node}</MantineProvider>);
-}
 
 const schema: RJSFSchema = {
   type: 'object',

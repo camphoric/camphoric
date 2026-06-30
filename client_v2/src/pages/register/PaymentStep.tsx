@@ -5,7 +5,8 @@
  * redirects back to step 1.
  */
 
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useEventId } from 'hooks/useEventId';
+import { useGoToStep } from 'hooks/useGoToStep';
 import { useEffect } from 'react';
 import { useRegistrationStore } from 'store/registration';
 
@@ -13,15 +14,13 @@ import { NoPayment } from './payment/NoPayment';
 import { PaymentNeeded } from './payment/PaymentNeeded';
 
 export function PaymentStep() {
-  const { eventId } = useParams({ strict: false });
-  const navigate = useNavigate();
+  const eventId = useEventId();
+  const goToStep = useGoToStep();
   const paymentStep = useRegistrationStore((state) => state.paymentStep);
 
   useEffect(() => {
-    if (!paymentStep) {
-      void navigate({ to: '/events/$eventId/register/registration', params: { eventId } });
-    }
-  }, [paymentStep, navigate, eventId]);
+    if (!paymentStep) goToStep('registration');
+  }, [paymentStep, goToStep]);
 
   if (!paymentStep) return null;
 
