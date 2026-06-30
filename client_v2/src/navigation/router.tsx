@@ -7,25 +7,49 @@
  * search params.
  */
 
-import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router';
-import { ErrorBoundary } from 'components/ErrorBoundary';
-import { AuthGuard } from 'navigation/AuthGuard';
-import { EventAdminContainer } from 'navigation/EventAdminContainer';
-import { EventAdminCampers } from 'pages/admin/campers';
-import { EventAdminHome } from 'pages/admin/EventAdminHome';
-import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
-import { EventChooser } from 'pages/admin/EventChooser';
-import { EventAdminLodging } from 'pages/admin/lodging';
-import { OrganizationChooser } from 'pages/admin/OrganizationChooser';
-import { EventAdminRegistrations } from 'pages/admin/registrations';
-import { EventAdminReports } from 'pages/admin/reports';
 import {
-  ConfirmationStep,
-  PaymentStep,
-  RegisterContainer,
-  RegistrationStep,
-} from 'pages/register';
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Outlet,
+  redirect,
+} from '@tanstack/react-router';
+import { ErrorBoundary } from 'components/ErrorBoundary';
+import { FullScreenLoading } from 'components/Loading';
 import { Splash } from 'pages/Splash';
+
+// Feature screens are lazy-loaded so the registration entry bundle stays lean and
+// the whole admin surface (with its admin-only deps — Monaco, TanStack Table) is
+// code-split behind `/admin` (SPEC §11, DR-19, DR-8). The splash + bootstrap +
+// router shell are the only eager UI.
+const AdminShell = lazyRouteComponent(() => import('navigation/AdminShell'), 'AdminShell');
+const EventAdminContainer = lazyRouteComponent(
+  () => import('navigation/EventAdminContainer'),
+  'EventAdminContainer',
+);
+const OrganizationChooser = lazyRouteComponent(
+  () => import('pages/admin/OrganizationChooser'),
+  'OrganizationChooser',
+);
+const EventChooser = lazyRouteComponent(() => import('pages/admin/EventChooser'), 'EventChooser');
+const EventAdminHome = lazyRouteComponent(() => import('pages/admin/EventAdminHome'), 'EventAdminHome');
+const EventAdminSettings = lazyRouteComponent(
+  () => import('pages/admin/EventAdminSettings'),
+  'EventAdminSettings',
+);
+const EventAdminRegistrations = lazyRouteComponent(
+  () => import('pages/admin/registrations'),
+  'EventAdminRegistrations',
+);
+const EventAdminCampers = lazyRouteComponent(() => import('pages/admin/campers'), 'EventAdminCampers');
+const EventAdminLodging = lazyRouteComponent(() => import('pages/admin/lodging'), 'EventAdminLodging');
+const EventAdminReports = lazyRouteComponent(() => import('pages/admin/reports'), 'EventAdminReports');
+
+const RegisterContainer = lazyRouteComponent(() => import('pages/register'), 'RegisterContainer');
+const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'RegistrationStep');
+const PaymentStep = lazyRouteComponent(() => import('pages/register'), 'PaymentStep');
+const ConfirmationStep = lazyRouteComponent(() => import('pages/register'), 'ConfirmationStep');
 
 // --- Admin search-param contract (SPEC §4, §8.2) -------------------------------
 
@@ -115,11 +139,7 @@ const confirmationStepRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
-  component: () => (
-    <AuthGuard>
-      <Outlet />
-    </AuthGuard>
-  ),
+  component: AdminShell,
 });
 
 const organizationChooserIndexRoute = createRoute({
@@ -236,6 +256,9 @@ export const router = createRouter({
   routeTree,
   trailingSlash: 'never',
   defaultPreload: 'intent',
+  // Shown while a lazy route chunk loads (and `intent` preloading on hover keeps
+  // this brief in practice).
+  defaultPendingComponent: () => <FullScreenLoading />,
 });
 
 declare module '@tanstack/react-router' {
