@@ -340,3 +340,24 @@ export interface AugmentedLodging extends ApiLodging {
   fullPath: string;
   pathParts: string[];
 }
+
+// Lookups keyed by stringified id, derived alongside the augmented view models.
+export type RegistrationLookup = Record<string, AugmentedRegistration>;
+export type CamperLookup = Record<string, ApiCamper>;
+export type LodgingLookup = Record<string, AugmentedLodging>;
+export type RegistrationTypeLookup = Record<string, ApiRegistrationType>;
+
+/**
+ * The variable bundle handed to a report template — POSTed to the render
+ * endpoint for server-rendered formats and passed to the Handlebars engine for
+ * client-rendered ones (SPEC §8.7, §9.4).
+ */
+export interface ReportTemplateVars {
+  event: ApiEvent;
+  registrations: AugmentedRegistration[];
+  registrationLookup: RegistrationLookup;
+  campers: ApiCamper[];
+  camperLookup: CamperLookup;
+  lodgingLookup: LodgingLookup;
+  registrationTypeLookup: RegistrationTypeLookup;
+}

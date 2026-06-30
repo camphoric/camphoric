@@ -16,6 +16,7 @@ import { EventAdminHome } from 'pages/admin/EventAdminHome';
 import { EventAdminSettings } from 'pages/admin/EventAdminSettings';
 import { EventChooser } from 'pages/admin/EventChooser';
 import { OrganizationChooser } from 'pages/admin/OrganizationChooser';
+import { EventAdminReports } from 'pages/admin/reports';
 import { Placeholder } from 'pages/Placeholder';
 import {
   ConfirmationStep,
@@ -183,7 +184,7 @@ const lodgingRoute = createRoute({
 const reportsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'reports',
-  component: () => <Placeholder title="Reports" phase="Phase 5 (§8.7)" />,
+  component: EventAdminReports,
 });
 const settingsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
