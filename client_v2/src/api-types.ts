@@ -162,8 +162,10 @@ export interface ApiPayment extends TimeStamped {
   deposit?: Scalar | null;
   payment_type: PaymentType;
   paid_on?: string | null;
-  attributes: Hash;
-  amount: number;
+  attributes: Hash | null;
+  // DRF `DecimalField` serializes to a string on read (e.g. `"675.00"`); writes
+  // accept a number. Coerce with `Number(...)` / format with `formatMoney`.
+  amount: number | string;
   notes: string;
 }
 
@@ -171,7 +173,8 @@ export interface ApiCustomCharge extends TimeStamped {
   id: number;
   camper: Scalar;
   custom_charge_type: Scalar;
-  amount: number;
+  // See `ApiPayment.amount` — a string on read, number on write.
+  amount: number | string;
   notes: string;
 }
 

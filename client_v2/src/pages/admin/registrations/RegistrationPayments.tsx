@@ -20,8 +20,8 @@ const fieldTitle = (schema: JSONSchema7 | undefined, key: string): string => {
   return (typeof prop === 'object' && prop.title) || key;
 };
 
-const cellText = (attributes: Hash, key: string): string => {
-  const value = attributes[key];
+const cellText = (attributes: Hash | null, key: string): string => {
+  const value = attributes?.[key];
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 };
 
