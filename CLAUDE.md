@@ -54,5 +54,10 @@ Abide by all principles in the [CONTRIBUTING.md](./CONTRIBUTING.md) document.
 
 Do not automatically commit code to git. All changes shall be reviewed by the human coder and committed by hand.
 
-Always suggest that code be committed after a change and suggest a commit title and message. This commit title and message should conform to the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification, and always contain a scope. Breaking changes should use the "!" option, such as "fix!:", for the scope part of the commit title. If a commit contains multiple changes you should use the [Release Please multiple fix/feature convention](https://github.com/googleapis/release-please#what-if-my-pr-contains-multiple-fixes-or-features). The commit title and body should be in a single box so that it is easy to copy and paste.
+Always suggest that code be committed after a change, and suggest a commit title and message. Format the title and message following the commit convention documented in [RELEASE.md](./RELEASE.md) (the release automation derives versions from it). Present the combined title and body together in a single box so that it is easy to copy and paste, such as:
+```
+feat: implement my cool feature
+
+sample of a git commit description...
+```
 
