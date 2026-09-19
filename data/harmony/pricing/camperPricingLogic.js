@@ -23,6 +23,7 @@ const dayCount = ({
 
 const pricingToExclude = [
   'linen_rate',
+	'private_room_rate',
 ];
 
 const pricingKeys = Object.keys(pricingValues).filter(
@@ -63,6 +64,27 @@ const calculateCampership = {
   ],
 };
 
+const calculatePrivateRoom = (lodgingIds) => ({
+  'if': [
+    // list of lodging that gets $0 rate for private rooms - this is
+    // essentially ones that can't get a private room
+    'lodge',
+  ].reduce(
+    (acc, lodgingk) => {
+      return [
+        ...acc,
+        { 'in': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.choices'}] },
+        0,
+      ];
+    }, []
+  ).concat([
+    {'===' : [{ var: 'camper.lodging_private' }, true]},
+    { '*': [{ var: 'pricing.private_room_rate' }, dayCount] },
+    0
+  ]),
+});
+
+
 const calculateLinens = (lodgingIds) => ({
   'if': [
     // list of lodging that gets $0 rate for linens
@@ -77,7 +99,7 @@ const calculateLinens = (lodgingIds) => ({
       ];
     }, []
   ).concat([
-    {'===' : [{ var: 'camper.linens' }, 'Yes']},
+    {'===' : [{ var: 'camper.linens' }, true]},
     { var: 'pricing.linen_rate' },
     0
   ]),
@@ -94,27 +116,38 @@ const rate = (lodgingIds) => ({
 export default (lodgingIds) => [
   {
     var: 'rate',
+    label: 'Lodging Rate Per Day',
     exp: rate(lodgingIds),
   },
   {
-    var: 'tuition',
+    var: 'lodging_total',
+    label: 'Lodging Total',
     exp: { '*': [{ var: 'rate' }, dayCount] },
   },
   {
     var: 'campership',
+    label: 'Requested Campership',
     exp: calculateCampership,
   },
   {
-    var: 'linens',
+    var: 'linen_fee',
+    label: 'Linen Fee',
     exp: calculateLinens(lodgingIds),
   },
   {
+    var: 'private_room_fee',
+    label: 'Private Room Fee',
+    exp: calculatePrivateRoom(lodgingIds),
+  },
+  {
     var: 'total',
+    label: 'Total',
     exp: {
       '+': [
-        {var: 'tuition'},
+        {var: 'lodging_total'},
         { '*': [ {var: 'campership'}, -1 ] },
-        {var: 'linens'},
+        {var: 'linen_fee'},
+        {var: 'private_room_fee'},
       ]
     }
   }

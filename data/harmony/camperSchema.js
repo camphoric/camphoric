@@ -1,4 +1,5 @@
 import { dates } from './dates.js';
+import pricing from './pricing/pricing.js';
 
 export const days = [0, 1, 2, 3, 4]
   .map((i) => dates.start.plus({days: i}).toFormat('EEE MMM d'));
@@ -182,12 +183,10 @@ All campers should bring bedding (blankets, sleeping bag, pillow, etc). Camp
 Newman will provide linens (fitted and top sheet, pillowcase, pillow, blanket
 and towel) for an additional $25. Would you like to rent linens?
 `,
-      'type': 'string',
-      'enum': [
-        'Yes',
-        'No',
-      ],
-      'default': 'No',
+      'type': 'boolean',
+      'enum': [false, true],
+      'enumNames': ['No', 'Yes'],
+      'default': false,
     },
     'meal_exceptions': {
       'title': 'Dietary needs',
@@ -211,6 +210,15 @@ and towel) for an additional $25. Would you like to rent linens?
       'description': 'Camp Newman requires all campers to provide known allergies, health conditions that require treatment, restrictions, or other accommodations needed while at camp. If you have food allergies, please put them in the section above',
       'type': 'string',
       'maxLength': 200,
+    },
+    'lodging_private': {
+      'title': 'Private lodging',
+      'description': `You may request a single room, but you'll be required to pay an extra ${pricing.private_room_rate} per day`,
+      'type': 'boolean',
+      'enum': [false, true],
+      'enumNames': ['No', 'Yes'],
+      'default': false,
+      },
     },
     'campership_request': {
       'title': 'Campership request',

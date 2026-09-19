@@ -59,5 +59,6 @@ const transformPricing = () => {
 const pricing = transformPricing();
 
 pricing['linen_rate'] = 25;
+pricing['private_room_rate'] = 100;
 
 export default pricing;
