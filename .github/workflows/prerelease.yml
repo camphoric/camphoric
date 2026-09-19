@@ -1,0 +1,45 @@
+# Pre-releases from a feature branch. Push a SemVer pre-release tag (the `-<pre>`
+# suffix) from any branch and CI turns it into a GitHub pre-release with the
+# frontend asset attached. Stable releases go through release-please on main
+# instead. See RELEASE.md.
+#
+#   git tag v0.1.1-alpha.1 && git push origin v0.1.1-alpha.1
+name: Pre-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-prerelease:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Create the GitHub pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --prerelease flags it (not shown as "Latest"); idempotent if re-run.
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists; skipping create."
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --prerelease \
+              --verify-tag \
+              --generate-notes \
+              --title "${GITHUB_REF_NAME}"
+          fi
+
+  build-assets:
+    needs: create-prerelease
+    uses: ./.github/workflows/release-assets.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: write

@@ -1,0 +1,39 @@
+# Stable releases. On every push to main, release-please maintains a "release PR"
+# that bumps version.txt + client/package.json and updates CHANGELOG.md from the
+# Conventional Commits since the last release. Merging that PR creates the
+# vX.Y.Z tag + GitHub Release; the build-assets job then attaches the frontend.
+# See RELEASE.md.
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    # Manifest mode exposes outputs prefixed by the package path ("." = repo root).
+    outputs:
+      release_created: ${{ steps.release.outputs['.--release_created'] }}
+      tag_name: ${{ steps.release.outputs['.--tag_name'] }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Uses release-please-config.json + .release-please-manifest.json.
+
+  # Build + attach the frontend asset only when the release PR was just merged
+  # (i.e. a release was actually created this run).
+  build-assets:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/release-assets.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    permissions:
+      contents: write
