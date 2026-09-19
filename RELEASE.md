@@ -45,7 +45,8 @@ Conventional Commit prefixes:
 
 \* **Pre-1.0 caveat:** while `version.txt` is below `1.0.0`, release-please treats breaking
 changes as a **minor** bump (e.g. `0.3.0`), not a major, per SemVer's "anything may change before
-1.0.0" rule. Once you're at `1.0.0`, breaking changes bump the major.
+1.0.0" rule — this is enabled by `"bump-minor-pre-major": true` in `release-please-config.json`.
+Once you're at `1.0.0`, breaking changes bump the major.
 
 ### Choosing an exact version (override the computed bump)
 
