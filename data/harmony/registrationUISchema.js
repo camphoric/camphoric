@@ -40,6 +40,7 @@ export default {
         'license_plate',
         'mobile_phone',
         'lodging',
+				'lodging_private',
         'linens',
         'meal_type',
         'meal_exceptions',
