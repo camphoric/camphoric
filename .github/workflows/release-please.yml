@@ -16,10 +16,12 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    # Manifest mode exposes outputs prefixed by the package path ("." = repo root).
+    # The repo root is release-please's "root component", so it emits the
+    # unprefixed release_created / tag_name outputs. (Path-prefixed
+    # "<path>--..." outputs are only for non-root packages in a monorepo.)
     outputs:
-      release_created: ${{ steps.release.outputs['.--release_created'] }}
-      tag_name: ${{ steps.release.outputs['.--tag_name'] }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v4
