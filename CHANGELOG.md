@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0](https://github.com/camphoric/camphoric/compare/v0.2.0...v0.3.0) (2026-09-20)
+
+
+### Features
+
+* add the v2 frontend as a second release asset ([1ccde4d](https://github.com/camphoric/camphoric/commit/1ccde4d6e6d9f0c18f1e1a406500c80402182396))
+* Create the V2 client ([1b18385](https://github.com/camphoric/camphoric/commit/1b183859b5703bae3c72b0747b34a2792e7945e2))
+
+
+### Bug Fixes
+
+* Add updates for Camp Harmony ([1a6976e](https://github.com/camphoric/camphoric/commit/1a6976e7be3dbbb7985d821ba5592866ff32f4fe))
+* build release assets for root-component releases ([5cbe061](https://github.com/camphoric/camphoric/commit/5cbe061d7294b6b2cdd634141b29516d006a523a))
+* fix payment/charge amounts rendering as $0.00 ([2984be8](https://github.com/camphoric/camphoric/commit/2984be8e645b82269ac05567fbbee9766b0138a7))
+
 ## [0.2.0](https://github.com/camphoric/camphoric/compare/v0.1.0...v0.2.0) (2026-09-19)
 
 
