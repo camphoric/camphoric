@@ -1,5 +1,6 @@
-# Reusable workflow: build the client/ frontend at a given tag and attach it to
-# that tag's GitHub Release as `frontend-build.tar.gz`.
+# Reusable workflow: build the frontends at a given tag and attach them to that
+# tag's GitHub Release — `frontend-build.tar.gz` (client/, the v1 app) and
+# `frontend-build-v2.tar.gz` (client_v2/, the v2 rebuild, when present).
 #
 # Called directly (via `uses:`) by release-please.yml (stable releases) and
 # prerelease.yml (feature-branch pre-releases) rather than triggered by
@@ -41,19 +42,38 @@ jobs:
         with:
           node-version: 18.x
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          # Glob so older tags without client_v2/ (or its lockfile) still resolve.
+          cache-dependency-path: '**/package-lock.json'
 
-      - name: Install and build the frontend
+      - name: Build the v1 frontend (client/)
         working-directory: client
         run: |
           npm ci
           npm run build
 
-      - name: Package the frontend build
+      - name: Package the v1 frontend build
         # Contents of client/build (Vite outDir) at the archive root.
         run: tar -czf frontend-build.tar.gz -C client/build .
 
-      - name: Attach frontend-build.tar.gz to the release
+      # client_v2/ only exists on tags cut after the v2 rebuild landed on main;
+      # skip it (rather than fail) when building an older tag on demand.
+      - name: Build the v2 frontend (client_v2/)
+        if: hashFiles('client_v2/package.json') != ''
+        working-directory: client_v2
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package the v2 frontend build
+        if: hashFiles('client_v2/package.json') != ''
+        run: tar -czf frontend-build-v2.tar.gz -C client_v2/build .
+
+      - name: Attach the frontend assets to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.tag }}" frontend-build.tar.gz --clobber
+        run: |
+          assets=(frontend-build.tar.gz)
+          if [ -f frontend-build-v2.tar.gz ]; then
+            assets+=(frontend-build-v2.tar.gz)
+          fi
+          gh release upload "${{ inputs.tag }}" "${assets[@]}" --clobber

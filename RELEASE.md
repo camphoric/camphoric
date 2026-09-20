@@ -6,6 +6,8 @@ Camphoric is deployed by **version**. A release is a Git tag (`vX.Y.Z`) with a m
 - **Source archives** — `Source code (zip/tar.gz)`, attached automatically by GitHub (the repo at
   the tag).
 - **`frontend-build.tar.gz`** — the transpiled `client/` frontend (Vite build output).
+- **`frontend-build-v2.tar.gz`** — the transpiled `client_v2/` frontend (the v2 rebuild; present on
+  releases cut after it landed on `main`).
 
 The deployment playbook is pointed at a tag and pulls the server code at that tag plus this
 frontend asset, instead of tracking `main`.
@@ -86,11 +88,12 @@ a stable release. Deploy it exactly like a stable tag.
 ## Deploying a release
 
 Point the deployment playbook at the tag; it fetches the server code at that tag and downloads the
-frontend asset from the release. The frontend asset always has the same filename, so its URL
-varies only by tag:
+frontend asset(s) from the release. The assets always have the same filenames, so their URLs vary
+only by tag:
 
 ```
 https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build.tar.gz
+https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2.tar.gz
 ```
 
 ```bash
@@ -110,7 +113,7 @@ Leaving `camphoric_release` at its default (`HEAD`) still deploys the tip of `ma
 | ------------------------------------- | ------------------------------ | ---- |
 | `.github/workflows/release-please.yml`| push to `main`                 | maintains the release PR; on merge, tags + creates the GitHub Release, then builds assets |
 | `.github/workflows/prerelease.yml`    | push a `vX.Y.Z-*` tag          | creates the pre-release, then builds assets |
-| `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and attaches `frontend-build.tar.gz` to the tag |
+| `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and `client_v2/` and attaches `frontend-build.tar.gz` + `frontend-build-v2.tar.gz` to the tag |
 | `.github/workflows/react.yml`         | push/PR to `main`              | unchanged — the continuous `js-build-main` dev build |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`
