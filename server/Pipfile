@@ -15,7 +15,6 @@ djangorestframework = "*"
 django-environ = "*"
 psycopg2 = "*"
 json-logic-qubit = "*"
-gunicorn = "*"
 chevron = "*"
 psycopg2-binary = "*"
 importlib-resources = "*"
@@ -28,5 +27,7 @@ jsonschema = {extras = ["format"], version = "*"}
 jinja2 = "*"
 deepmerge = "*"
 pytz = "*"
+whitenoise = "*"
+gunicorn = "*"
 
 [requires]

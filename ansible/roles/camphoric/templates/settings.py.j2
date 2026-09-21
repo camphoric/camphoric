@@ -18,15 +18,8 @@ ALLOWED_HOSTS = [
     'localhost',
 ]
 
-# Backup
-# https://django-dbbackup.readthedocs.io/en/master/index.html
-DBBACKUP_STORAGE = env(  # noqa: F405
-    'DBBACKUP_STORAGE',
-    default='django.core.files.storage.FileSystemStorage'
-)
-DBBACKUP_STORAGE_OPTIONS = env.json(  # noqa: F405
-    'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': '{{ camphoric_folder }}/server/backup/'}
-)
+# Backups: configured via STORAGES['dbbackup'] in settings_default.py, driven by the
+# DBBACKUP_STORAGE_OPTIONS environment variable (written to server/.env by django.env.j2).
+# django-dbbackup rejects the legacy DBBACKUP_STORAGE* settings, so do not set them here.
 
 

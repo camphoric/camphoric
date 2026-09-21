@@ -91,6 +91,18 @@ Run the following to rebuild the django services with your new key:
 docker-compose up -d --force-recreate --no-deps --build django
 ```
 
+### Running the released image
+
+The development stack above bind-mounts your source into a `runserver` container. To run the
+*release* image instead — the same image CI builds and every release publishes to
+`ghcr.io/camphoric/camphoric` — use the separate compose file:
+
+    docker compose -f docker-compose.image.yml up --build --wait
+
+or `./run-docker`. It serves the app (with the v2 frontend) on http://localhost:8000 with an
+`admin`/`admin` superuser bootstrapped. See [CONTAINER.md](../CONTAINER.md) for every
+environment variable and mount point.
+
 ### Run the tests
 
 To test that the setup went correctly run:

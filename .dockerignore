@@ -1,0 +1,42 @@
+# Build context for the root Dockerfile: only server/ and client_v2/ (plus docker/) are
+# needed. Everything else is excluded — most importantly secrets and local environment
+# files, which must never end up in a published image.
+
+# VCS, tooling, docs, deploy tooling — not part of the image
+.git
+.github
+.vagrant
+.claude
+doc/
+ansible/
+data/
+logs/
+Vagrantfile
+*.md
+
+# Secrets and local environment — never in the image
+**/.env
+**/.env.*
+env/
+server/camphoric_server/settings_override.py
+
+# Python artefacts and local state
+**/__pycache__
+**/*.py[cod]
+server/backup/
+server/static/
+server/staticfiles/
+server/frontend_bootstrap/build/
+*.psql.bin
+*.sql
+*.log
+
+# Node artefacts (the frontend stage runs npm ci itself) and the v1 client
+**/node_modules
+client/
+client_v2/build/
+client_v2/dist/
+client_v2/ladle-dist/
+client_v2/test-results/
+client_v2/playwright-report/
+client_v2/*.tsbuildinfo
