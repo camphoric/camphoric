@@ -17,7 +17,7 @@ Meals: {{meal_type}}{{#meal_exceptions}}, {{.}}{{/meal_exceptions}}
 Registered for {{#attendance}}, {{.}}{{/attendance}}    
 (You must arrive after 2pm on your first day)    
 Housing: {{lodging_full}}    
-Linens rental: {{linens}}    
+Linens rental: {{#linens}}Yes{{/linens}}{{^linens}}No{{/linens}}    
 Campership: \${{pricing_result.campership}}    
 
 ------

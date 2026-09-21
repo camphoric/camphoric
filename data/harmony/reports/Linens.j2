@@ -38,13 +38,13 @@ dates.4.0~'v7': 0,
     {%- do camper.update({'ldg': val.pathParts if val else [] }) -%}
     {%- for dt in dates -%}
         {%- if dt[0] in (camper.stay or []) -%}
-            {%- if 'Village 1' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 5' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 6' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 2' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v2': totals[dt.0~'v2'] + 1}) -%}{%- endif -%}
-            {%- if 'Apartments' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v4': totals[dt.0~'v4'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 7' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
-            {%- if  'Wellness' in (val.pathParts) and camper.attributes.linens == 'Yes' -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 1' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 5' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 6' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 2' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v2': totals[dt.0~'v2'] + 1}) -%}{%- endif -%}
+            {%- if 'Apartments' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v4': totals[dt.0~'v4'] + 1}) -%}{%- endif -%}
+            {%- if 'Village 7' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
+            {%- if  'Wellness' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
         {%- endif -%}
     {%- endfor -%}
 {%- endfor -%}
@@ -76,11 +76,11 @@ totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + total
 | Last Name | First Name | Lodging | {% for dt in dates %}{{ dt[1] }} | {% endfor %}
 | --------- | ---------- | ------- | :---: | :---: | :---: | :---: | :---: |
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
-{%- if camper.attributes.linens == 'No' or not camper.lodging or not camper.stay -%}{%- continue -%}{%- endif -%}
+{%- if camper.attributes.linens not in (true, 'Yes') or not camper.lodging or not camper.stay -%}{%- continue -%}{%- endif -%}
 {%- set val = lodgingLookup[camper.lodging | string]-%}
 {%- set tot = tot + 1 -%}
 | {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{val.pathParts[0]}}: {{val.name}} | {%
      for dt in dates %}{{ ' X |' if dt[0] in camper.stay else ' &nbsp; |' }}{% endfor %}
 {% endfor %}
 
-Total: {{ campers | map(attribute='attributes.linens') | select('eq', 'Yes') | list | count  }}
+Total: {{ campers | map(attribute='attributes.linens') | select('in', (true, 'Yes')) | list | count  }}

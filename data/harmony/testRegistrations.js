@@ -79,7 +79,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     },
     attendance: days.slice(0, daycnt),
     campership_request: 0,
-    linens: 'No',
+    linens: false,
   };
 }
 
@@ -95,10 +95,18 @@ function makeRegistration(reg, lodgingMap) {
         )
       ),
       'registrant_email': reg.email,
+      // The registration schema requires an address; sample registrations share one.
+      'address': {
+        'street_address': '1234 Easy St',
+        'city': 'Berkeley',
+        'state_or_province': 'CA',
+        'zip_code': '94703',
+        'country': 'United States',
+      },
       'payment_type': 'Check',
       'membership_check': 'Yes, I am a current member',
       'comments': '',
-			'read_etiquette': true,
+      'read_etiquette': true,
     },
     'pricingResults': {
       'campers': reg.campers.map(() => ({

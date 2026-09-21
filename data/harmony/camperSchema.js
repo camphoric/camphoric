@@ -218,7 +218,6 @@ and towel) for an additional $25. Would you like to rent linens?
       'enum': [false, true],
       'enumNames': ['No', 'Yes'],
       'default': false,
-      },
     },
     'campership_request': {
       'title': 'Campership request',

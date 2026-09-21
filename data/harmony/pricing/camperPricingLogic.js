@@ -23,7 +23,7 @@ const dayCount = ({
 
 const pricingToExclude = [
   'linen_rate',
-	'private_room_rate',
+  'private_room_rate',
 ];
 
 const pricingKeys = Object.keys(pricingValues).filter(

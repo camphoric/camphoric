@@ -40,7 +40,7 @@ export default {
         'license_plate',
         'mobile_phone',
         'lodging',
-				'lodging_private',
+        'lodging_private',
         'linens',
         'meal_type',
         'meal_exceptions',
@@ -71,9 +71,9 @@ export default {
       'meal_exceptions': {
         'ui:widget': 'checkboxes'
       },
-			'driving': {
-				'ui:placeholder': 'Choose an option',
-			},
+      'driving': {
+        'ui:placeholder': 'Choose an option',
+      },
       'health_conditions': {
         'ui:widget': 'textarea',
         'ui:options': {
