@@ -59,6 +59,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves the collected static files (the built frontend) with DEBUG off, e.g. in the
+    # container. django.conf.urls.static.static() is a no-op when DEBUG=False.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -159,6 +162,31 @@ STATICFILES_DIRS = [
 # Absolute so collectstatic (and static serving) don't depend on the process CWD.
 STATIC_ROOT = env.str('STATIC_ROOT', default=os.path.join(BASE_DIR, 'static'))
 
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    # Vite already content-hashes filenames, so plain compressed storage (not the
+    # manifest variant) is enough for whitenoise to serve them cache-friendly.
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+    # django-dbbackup reads its storage from here (the legacy DBBACKUP_STORAGE /
+    # DBBACKUP_STORAGE_OPTIONS settings are rejected), still driven by those env vars.
+    # https://django-dbbackup.readthedocs.io/en/master/storage.html
+    # An empty value (e.g. `DBBACKUP_STORAGE=` in a .env file) counts as unset.
+    'dbbackup': {
+        'BACKEND': (
+            env.str('DBBACKUP_STORAGE', default='')
+            or 'django.core.files.storage.FileSystemStorage'
+        ),
+        'OPTIONS': (
+            env.json('DBBACKUP_STORAGE_OPTIONS', default={})
+            or {'location': os.path.join(BASE_DIR, 'backup')}
+        ),
+    },
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -180,16 +208,7 @@ if env.bool('USE_X_FORWARDED_PROTO', default=False):
 PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
 
-# Backup
-# https://django-dbbackup.readthedocs.io/en/master/index.html
-DBBACKUP_STORAGE = env(
-    'DBBACKUP_STORAGE',
-    default='django.core.files.storage.FileSystemStorage'
-)
-DBBACKUP_STORAGE_OPTIONS = env.json(
-    'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': os.path.join(BASE_DIR, 'backup')}
-)
+# Backups are configured under STORAGES['dbbackup'] above (env DBBACKUP_STORAGE_OPTIONS).
 
 # Hosts and origins are comma-separated environment variables. The defaults cover local
 # development: the Vite dev servers and the docker-compose "django" host.

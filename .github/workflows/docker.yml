@@ -1,0 +1,53 @@
+# Build the application image on every push/PR (never pushed) and prove it boots:
+# the release image + Postgres come up via docker-compose.image.yml, then the SPA,
+# a static asset (the DEBUG=off code path) and the API are smoke-tested.
+# Publishing to ghcr.io happens separately in release-image.yml. See CONTAINER.md.
+name: Docker image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: camphoric:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start the image with Postgres
+        run: docker compose -f docker-compose.image.yml up --wait --no-build
+
+      - name: Smoke test (SPA, static asset with DEBUG=off, API)
+        run: |
+          set -eux
+          html=$(curl -fsS http://localhost:8000/)
+          echo "$html" | grep -q 'id="root"'
+          asset=$(echo "$html" | grep -o '/static/[^"]*\.js' | head -1)
+          test -n "$asset"
+          curl -fsSI "http://localhost:8000$asset" | grep -qi 'content-type: .*javascript'
+          curl -fsS http://localhost:8000/api/set-csrf-cookie > /dev/null
+
+      - name: App logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.image.yml logs app
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.image.yml down -v

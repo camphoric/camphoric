@@ -1,0 +1,53 @@
+# Run the *release image* (the root Dockerfile) against a local Postgres — the
+# same thing CI does and what `docker pull ghcr.io/camphoric/camphoric` gives you.
+# Self-contained: no gitignored env files, safe local defaults. See CONTAINER.md.
+#
+#   docker compose -f docker-compose.image.yml up --build --wait      # build locally
+#   CAMPHORIC_IMAGE=ghcr.io/camphoric/camphoric:v0.3.0 \
+#     docker compose -f docker-compose.image.yml up --wait            # run a published image
+#
+# The regular docker-compose.yml is the *development* stack (bind-mounted source,
+# runserver) and is unchanged.
+name: camphoric-image
+
+volumes:
+  image_db:
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: camphoric
+      POSTGRES_PASSWORD: camphoric
+      POSTGRES_DB: camphoric
+    volumes:
+      - image_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camphoric"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    image: ${CAMPHORIC_IMAGE:-camphoric:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-local-only-not-a-secret}
+      DATABASE_URL: postgres://camphoric:camphoric@postgres/camphoric
+      PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      PAYPAL_SECRET: ${PAYPAL_SECRET:-unused}
+      DEBUG: ${DEBUG:-off}
+      ALLOWED_HOSTS: localhost,127.0.0.1,app
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+      # Plain http on localhost: the session cookie must not be Secure-only.
+      SESSION_COOKIE_SECURE: "false"
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+    ports:
+      - "${CAMPHORIC_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy

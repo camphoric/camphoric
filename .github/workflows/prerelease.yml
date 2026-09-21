@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   create-prerelease:
@@ -43,3 +44,12 @@ jobs:
       tag: ${{ github.ref_name }}
     permissions:
       contents: write
+
+  build-image:
+    needs: create-prerelease
+    uses: ./.github/workflows/release-image.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      packages: write

@@ -1,8 +1,8 @@
 # Stable releases. On every push to main, release-please maintains a "release PR"
 # that bumps version.txt + client/package.json and updates CHANGELOG.md from the
 # Conventional Commits since the last release. Merging that PR creates the
-# vX.Y.Z tag + GitHub Release; the build-assets job then attaches the frontend.
-# See RELEASE.md.
+# vX.Y.Z tag + GitHub Release; build-assets then attaches the frontend tarballs and
+# build-image publishes the container image to ghcr.io. See RELEASE.md / CONTAINER.md.
 name: Release Please
 
 on:
@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: write
 
 jobs:
   release-please:
@@ -39,3 +40,14 @@ jobs:
       tag: ${{ needs.release-please.outputs.tag_name }}
     permissions:
       contents: write
+
+  # Build + push the container image for the same release (ghcr.io).
+  build-image:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/release-image.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    permissions:
+      contents: read
+      packages: write

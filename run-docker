@@ -1,10 +1,17 @@
 #!/bin/bash
+# Run the release image (the root Dockerfile) with a local Postgres via
+# docker-compose.image.yml, in the foreground (Ctrl-C to stop). See CONTAINER.md.
+#
+#   ./run-docker                                                   # build locally, then run
+#   CAMPHORIC_IMAGE=ghcr.io/camphoric/camphoric:v0.3.0 ./run-docker   # run a published image
+#
+# The app is served on http://localhost:8000 (override with CAMPHORIC_PORT) with an
+# admin/admin superuser bootstrapped.
+set -e
+cd "$(dirname "$0")"
 
-# docker build --tag camphoric:latest  .
-
-docker run -it --rm --name standalone-camphoric -p=9000:9000 \
-  --env-file env/local/shared.env \
-  --env-file env/local/django.env \
-  --env-file env/local/container.env \
-  -v ./logs:/app/logs \
-  camphoric:latest
+if [ -n "${CAMPHORIC_IMAGE:-}" ]; then
+  exec docker compose -f docker-compose.image.yml up "$@"
+else
+  exec docker compose -f docker-compose.image.yml up --build "$@"
+fi
