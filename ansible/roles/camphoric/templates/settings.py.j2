@@ -17,16 +17,6 @@ ALLOWED_HOSTS = [
     '{{ lookup('dig', ansible_host) }}',
     'localhost',
 ]
-CORS_ORIGIN_WHITELIST = [
-    'https://{{ camphoric_domain_name }}',
-    'http://{{ lookup('dig', ansible_host) }}:8000',
-    'http://{{ lookup('dig', ansible_host) }}:3000',
-    'http://localhost:8000',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003',
-]
 
 # Backup
 # https://django-dbbackup.readthedocs.io/en/master/index.html

@@ -19,16 +19,17 @@ mimetypes.add_type("application/x-javascript", ".js", True)
 mimetypes.add_type("image/jpeg", ".jpg", True)
 mimetypes.add_type("image/jpeg", ".jpeg", True)
 
-# read .env file
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 env = environ.Env(
     DEBUG=(bool, False)
 )
 
-environ.Env.read_env(env.str('ENV_PATH', '.env/local/django'))
-
-
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Read an optional .env file (server/.env by default; a missing file is skipped), so the
+# same file works under any runner rather than relying on pipenv's auto-loading. Real
+# environment variables take precedence over values from the file.
+environ.Env.read_env(env.str('ENV_PATH', os.path.join(BASE_DIR, '.env')))
 
 
 # Quick-start development settings - unsuitable for production
@@ -39,8 +40,6 @@ SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
-
-ALLOWED_HOSTS = []
 
 # Application definition
 INSTALLED_APPS = [
@@ -157,7 +156,8 @@ MEDIA_URL = 'user_media/'
 STATICFILES_DIRS = [
     REACT_STATIC_DIR,
 ]
-STATIC_ROOT = 'static/'
+# Absolute so collectstatic (and static serving) don't depend on the process CWD.
+STATIC_ROOT = env.str('STATIC_ROOT', default=os.path.join(BASE_DIR, 'static'))
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -169,7 +169,13 @@ REST_FRAMEWORK = {
     ],
 }
 
-SESSION_COOKIE_SECURE = True
+# The session cookie is Secure by default (production sits behind TLS; browsers exempt
+# localhost). Set SESSION_COOKIE_SECURE=false for plain http on any other host. Behind a
+# proxy that terminates TLS, set USE_X_FORWARDED_PROTO=true so Django sees requests as https.
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=True)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=False)
+if env.bool('USE_X_FORWARDED_PROTO', default=False):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
@@ -182,25 +188,24 @@ DBBACKUP_STORAGE = env(
 )
 DBBACKUP_STORAGE_OPTIONS = env.json(
     'DBBACKUP_STORAGE_OPTIONS',
-    default={'location': '.'}
+    default={'location': os.path.join(BASE_DIR, 'backup')}
 )
 
-CSRF_TRUSTED_ORIGINS = [
+# Hosts and origins are comma-separated environment variables. The defaults cover local
+# development: the Vite dev servers and the docker-compose "django" host.
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'django'])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+    'https://localhost',
     'http://localhost:8000',
     'http://localhost:3000',
     'http://localhost:3001',
-    'http://django:8000/',
-]
-ALLOWED_HOSTS = [
-    'localhost',
-    'django',
-]
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:8000',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://django:8000/',
-]
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'http://django:8000',
+])
+# Unused: django-cors-headers is not installed, so this setting has no effect. It is kept
+# (env-driven) only because existing settings_override.py files assign it.
+CORS_ORIGIN_WHITELIST = env.list('CORS_ORIGIN_WHITELIST', default=CSRF_TRUSTED_ORIGINS)
 
 # Allow PayPal Popup
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
@@ -233,9 +238,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        # Unfiltered so requests are still logged when DEBUG is off (e.g. in a
+        # container, where logs go to stdout). Verbose in development by default.
         'console': {
-            'level': 'DEBUG',
-            'filters': ['require_debug_true'],
+            'level': env.str('DJANGO_LOG_LEVEL', default='DEBUG' if DEBUG else 'INFO'),
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
