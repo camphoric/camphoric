@@ -1,0 +1,4 @@
+Name,Emergency Contact,Phone
+{% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
+"{{camper.attributes.last_name}}, {{camper.attributes.first_name}}","{{camper.attributes.emergency_contact.name}}","{{camper.attributes.emergency_contact.phone}}"
+{% endfor -%}
