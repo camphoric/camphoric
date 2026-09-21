@@ -1,4 +1,4 @@
-import { apiFetch, mockAttributes } from '../test-utils';
+import { apiFetch, mockAttributes } from '../test-utils.js';
 import { eventName } from '../lark/index.js';
 
 describe(`Lark Camp`, () => {

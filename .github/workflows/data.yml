@@ -1,0 +1,40 @@
+# Fast, server-free validation of the event data under data/ on every push/PR:
+# every event module must load, satisfy eventImportObjectSchema and carry
+# well-formed JSON Schemas (data/__tests__/offline). The live import against the
+# built image runs in docker.yml.
+name: Data import validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+
+      - run: npm ci
+
+      - name: Offline import validation
+        run: npm test
+
+      # Advisory until the pre-existing lint issues in data/ are cleaned up; flip
+      # to blocking (remove continue-on-error) after an `eslint --fix` pass.
+      - name: Lint (advisory)
+        run: npm run lint
+        continue-on-error: true
