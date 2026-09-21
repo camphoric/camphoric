@@ -111,6 +111,20 @@ To test that the setup went correctly run:
 docker-compose exec django python manage.py test
 ```
 
+### Validating the event data
+
+The event definitions under `data/` have their own checks (`data/__tests__`):
+
+    cd data
+    npm test              # offline: every event module loads, matches the import schema,
+                          # and carries well-formed JSON Schemas — no server needed
+    npm run test:live     # post-import snapshot tests against a running server (CAMPHORIC_URL)
+
+A syntax error or a bad schema in any single event fails only that event's block. CI runs the
+offline suite on every pull request (`.github/workflows/data.yml`) and imports every event into
+the freshly built release image (`.github/workflows/docker.yml`); a rejected sample registration
+fails that import.
+
 ### Create the Django superuser
 
 This user is the one that you'll use to log in with on the front end.  Run the

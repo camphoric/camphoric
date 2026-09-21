@@ -1,6 +1,7 @@
-# Build the application image on every push/PR (never pushed) and prove it boots:
-# the release image + Postgres come up via docker-compose.image.yml, then the SPA,
-# a static asset (the DEBUG=off code path) and the API are smoke-tested.
+# Build the application image on every push/PR (never pushed) and prove it works:
+# the release image + Postgres come up via docker-compose.image.yml, the SPA, a
+# static asset (the DEBUG=off code path) and the API are smoke-tested, and then
+# every event under data/ is imported into it (the live import test).
 # Publishing to ghcr.io happens separately in release-image.yml. See CONTAINER.md.
 name: Docker image
 
@@ -43,6 +44,36 @@ jobs:
           test -n "$asset"
           curl -fsSI "http://localhost:8000$asset" | grep -qi 'content-type: .*javascript'
           curl -fsS http://localhost:8000/api/set-csrf-cookie > /dev/null
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+
+      # The importer is a REST client, so it runs on the runner against the
+      # published port. A non-zero exit (any event failing to import, including a
+      # rejected sample registration) fails the job.
+      - name: Live import of every event under data/
+        working-directory: data
+        env:
+          CAMPHORIC_URL: http://localhost:8000
+          DJANGO_SUPERUSER_USERNAME: admin
+          DJANGO_SUPERUSER_PASSWORD: admin
+        run: |
+          npm ci
+          node loadAllData.js
+
+      # Advisory: the stored snapshots may lag behind data edits; the import's
+      # exit code above is the blocking check.
+      - name: Post-import snapshot tests (advisory)
+        working-directory: data
+        env:
+          CAMPHORIC_URL: http://localhost:8000
+          DJANGO_SUPERUSER_USERNAME: admin
+          DJANGO_SUPERUSER_PASSWORD: admin
+        run: npm run test:live
+        continue-on-error: true
 
       - name: App logs on failure
         if: failure()

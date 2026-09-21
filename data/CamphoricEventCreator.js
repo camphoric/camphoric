@@ -154,11 +154,7 @@ export default class CamphoricEventCreator extends Fetcher {
     );
 
     // delete existing lodgings associated with this event, so we start clean
-    try {
-      await this.deleteAll('/api/lodgings/');
-    } catch (e) {
-      // nothing, we don't care
-    }
+    await this.deleteAll('/api/lodgings/');
 
     if (!this.data.lodgings) {
       return;
@@ -238,7 +234,7 @@ export default class CamphoricEventCreator extends Fetcher {
     await Promise.all(
       custom_charge_types.map(
         async (customChargeType) => {
-          const exists = existing.find(r => r.name === ctype.name);
+          const exists = existing.find(r => r.name === customChargeType.name);
 
           if (exists) {
             customChargeType.id = exists.id;
@@ -310,16 +306,23 @@ export default class CamphoricEventCreator extends Fetcher {
 
       const text = await res.text();
 
+      // A rejected test registration is a real import failure (a broken schema or
+      // pricing logic), so fail loudly instead of logging and exiting 0.
       let json;
       try {
         json = JSON.parse(text);
       } catch (e) {
-        console.error(' [reg step] failed to add test reg, see Django logs');
+        throw this.error(
+          `[reg step] test registration returned non-JSON (${res.status}), see Django logs`,
+          { status: res.status, body: text },
+        );
       }
 
       if (!res.ok) {
-        console.error(' [reg step] failed to add test reg, see Django logs');
-        if (json) console.log(json);
+        throw this.error(
+          `[reg step] test registration rejected (${res.status})`,
+          { type: 'testRegistration', response: json, sent: testData.formData },
+        );
       }
 
       return {
@@ -369,12 +372,17 @@ export default class CamphoricEventCreator extends Fetcher {
       try {
         json = JSON.parse(text);
       } catch (e) {
-        console.error(' [pay step] failed to add test reg, see Django logs');
+        throw this.error(
+          `[pay step] test payment returned non-JSON (${res.status}), see Django logs`,
+          { status: res.status, body: text },
+        );
       }
 
       if (!res.ok) {
-        console.error(' [pay step] failed to add test reg, see Django logs');
-        if (json) console.log(json);
+        throw this.error(
+          `[pay step] test payment rejected (${res.status})`,
+          { type: 'testPayment', response: json, sent: body },
+        );
       }
 
       return {
@@ -435,7 +443,9 @@ export default class CamphoricEventCreator extends Fetcher {
       await imp(`override[${i}]`, fn(this.fetch.bind(this), this.results, this.log.bind(this)));
     }
 
-    if (this.sampleRegGenerator) {
+    // SKIP_TEST_REGS=1 skips the sample registrations (e.g. where a sample would
+    // need a live PayPal sandbox); everything else still imports.
+    if (this.sampleRegGenerator && process.env.SKIP_TEST_REGS !== '1') {
       await imp('test registrations', this.loadTestRegs());
     }
 
