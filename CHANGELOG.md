@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/camphoric/camphoric/compare/v0.4.0...v0.4.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* village 7 should be visible for campers ([09b8a04](https://github.com/camphoric/camphoric/commit/09b8a041d4e68a53e0d4511690f98c17b93cf3a4))
+
 ## [0.4.0](https://github.com/camphoric/camphoric/compare/v0.3.0...v0.4.0) (2026-09-23)
 
 

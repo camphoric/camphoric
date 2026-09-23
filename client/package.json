@@ -1,6 +1,6 @@
 {
   "name": "camphoric",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "proxy": "http://django:8000/",
   "dependencies": {
