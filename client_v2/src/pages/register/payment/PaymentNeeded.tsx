@@ -12,10 +12,7 @@
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
-import {
-  type PayPalButtonCreateOrder,
-  type PayPalButtonOnApprove,
-} from '@paypal/paypal-js';
+import { type PayPalButtonCreateOrder, type PayPalButtonOnApprove } from '@paypal/paypal-js';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import type { ApiRegisterPaymentStep, InitialPaymentBody, PaymentType } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
@@ -27,6 +24,11 @@ import { useRegistrationConfig, useSubmitPayment } from 'store/registrationApi';
 import { formatMoney } from 'utils/money';
 
 import { applyDeposit, parseDeposit } from './deposits';
+
+/** PayPal caps its buttons at 750px wide; every payment button shares that cap. */
+const PAYMENT_BUTTON_WIDTH = 750;
+/** PayPal's button height (25–55); 50 matches Mantine's `lg` button. */
+const PAYMENT_BUTTON_HEIGHT = 50;
 
 interface PaymentNeededProps {
   eventId: string;
@@ -78,9 +80,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
 
   const payByCheck = () => {
     // Recompute without the handling fee (Check is fee-free) — SPEC §7.2, §12.
-    const checkTotals = config
-      ? calculatePrice(config, registration, 'Check')
-      : totals;
+    const checkTotals = config ? calculatePrice(config, registration, 'Check') : totals;
     const deposit = parseDeposit(depositValue);
     const finalTotal = hasDeposits ? applyDeposit(deposit, checkTotals) : (checkTotals.total ?? 0);
     processResult({
@@ -152,7 +152,15 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
           </JsonSchemaForm>
         ) : null}
 
-        <Button onClick={payByCheck} loading={submit.isPending}>
+        {/* Sized and capped like the PayPal buttons below so the options read as one set. */}
+        <Button
+          size="lg"
+          w="100%"
+          maw={PAYMENT_BUTTON_WIDTH}
+          mx="auto"
+          onClick={payByCheck}
+          loading={submit.isPending}
+        >
           Pay by check
         </Button>
 
@@ -171,10 +179,10 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
               caps the buttons at 750px, so the wrapper is capped and centred
               to match.
             */}
-            <Box style={{ colorScheme: 'light' }} w="100%" maw={750} mx="auto">
+            <Box style={{ colorScheme: 'light' }} w="100%" maw={PAYMENT_BUTTON_WIDTH} mx="auto">
               <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
                 <PayPalButtons
-                  style={{ tagline: false }}
+                  style={{ tagline: false, height: PAYMENT_BUTTON_HEIGHT }}
                   createOrder={createOrder}
                   onApprove={onApprove}
                 />
