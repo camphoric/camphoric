@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/camphoric/camphoric/compare/v0.3.0...v0.4.0) (2026-09-23)
+
+
+### Features
+
+* **data:** refresh Camp Harmony reports and regenerate their dates on import ([fd8dd4b](https://github.com/camphoric/camphoric/commit/fd8dd4bfeeeaaec5023c54903d5fd448e88b94c2))
+* publish a container image with the v2 frontend on every release ([2f9dccc](https://github.com/camphoric/camphoric/commit/2f9dcccd0444eac8cdbff6c41d37d8b310622af3))
+* validate every event in data/ offline and on import in CI ([f152d27](https://github.com/camphoric/camphoric/commit/f152d273b4168508faa186be667e156410e6bcb9))
+
+
+### Bug Fixes
+
+* add harmony lodging for 2026 ([cc8325e](https://github.com/camphoric/camphoric/commit/cc8325e469ec4af6acf3eb38d3203babe25050f7)), closes [#630](https://github.com/camphoric/camphoric/issues/630)
+* repair the Camp Harmony event data ([db4c769](https://github.com/camphoric/camphoric/commit/db4c76980276a3581b96ba61441fbd59ea42db30))
+* update Harmony campership limits ([3bbec59](https://github.com/camphoric/camphoric/commit/3bbec59394c8c670fe0ef75d305cec8596279abd)), closes [#634](https://github.com/camphoric/camphoric/issues/634)
+* update harmony pricing for 2026 ([6b051ff](https://github.com/camphoric/camphoric/commit/6b051fffb854481705b94e3af62a127c8b9a3803)), closes [#629](https://github.com/camphoric/camphoric/issues/629)
+
 ## [0.3.0](https://github.com/camphoric/camphoric/compare/v0.2.0...v0.3.0) (2026-09-20)
 
 
