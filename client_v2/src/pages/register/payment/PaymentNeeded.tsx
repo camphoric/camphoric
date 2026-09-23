@@ -161,9 +161,25 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
             <Text size="sm" c="dimmed">
               To pay by credit card, choose PayPal, then “Pay with debit or credit card”.
             </Text>
-            <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
-              <PayPalButtons createOrder={createOrder} onApprove={onApprove} />
-            </PayPalScriptProvider>
+            {/*
+              The PayPal buttons live in a cross-origin iframe whose document is
+              light-scheme. Browsers paint an iframe opaque white when its color
+              scheme differs from the embedding element's, so under Mantine's
+              dark scheme the whole button block turns white. Matching the
+              wrapper to the iframe keeps it transparent. The tagline is dropped
+              because its grey text is unreadable on a dark background. PayPal
+              caps the buttons at 750px, so the wrapper is capped and centred
+              to match.
+            */}
+            <Box style={{ colorScheme: 'light' }} w="100%" maw={750} mx="auto">
+              <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
+                <PayPalButtons
+                  style={{ tagline: false }}
+                  createOrder={createOrder}
+                  onApprove={onApprove}
+                />
+              </PayPalScriptProvider>
+            </Box>
           </Stack>
         ) : (
           <Alert color="gray" variant="light">
