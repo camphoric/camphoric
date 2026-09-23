@@ -6,8 +6,8 @@ const registrations = [
     phone: '+15553985678',
     email: 'bobross123456@dontsend.com',
     campers: [
-      ['adult', 'BobCO', 'Ross', '5', 'motel', []],
-      ['adult', 'JaneCO', 'Ross', '5', 'motel', []],
+      ['adult', 'BobCO', 'Ross', '5', 'vil7', []],
+      ['adult', 'JaneCO', 'Ross', '5', 'vil7', []],
     ],
   },
   {
