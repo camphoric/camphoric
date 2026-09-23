@@ -127,7 +127,7 @@ export default {
       ].reduce(cabinFactory('vil6l2', '4 bunkbeds',), {}),
 
   // SEMI PRIVATE
-  vil7: { parentKey: 'root', name: 'Village 7', visible: false },
+  vil7: { parentKey: 'root', name: 'Village 7', visible: true },
     vil7l0: { parentKey: 'vil7', name: 'V7 Level G', visible: false },
       c701: { parentKey: 'vil7l0', notes: '1 bunk, 1 single - ADA', name: 'Cabin 701', capacity: 2, visible: false },
       c705: { parentKey: 'vil7l0', notes: '1 bunk, 1 single - ADA', name: 'Cabin 705', capacity: 2, visible: false },
