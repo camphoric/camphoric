@@ -51,7 +51,6 @@ const getRates = (lodgingIds, early) => ({
   }, []).concat([0]),
 });
 
-// $60 per day or $300, whichever is less
 const calculateCampership = {
   min: [
     {
@@ -60,7 +59,8 @@ const calculateCampership = {
         0,
       ],
     },
-    { '*': [dayCount, 60] },
+    // $60 per day max
+    { '*': [dayCount, { var: 'pricing.max_campership_perday' }] },
   ],
 };
 
