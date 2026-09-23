@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-07-01
+**Last updated:** 2026-09-23
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -386,7 +386,20 @@ Before any step renders, the app loads the registration config (`GET …/registe
 
 ### 7.2 Step 2 — Payment
 
-Reads the payment-step payload's `serverPricingResults.total`:
+**Review registration.** Before the payment options, the step presents a read-only rundown of
+everything entered in step 1 (§15, DR-33): the registration's own fields, then one section per
+camper. Values are shown in human-readable form derived from the form schema and uiSchema —
+field titles as labels, `enumNames`/`oneOf` titles instead of raw enum values, booleans as
+Yes/No, multi-choice arrays joined, nested objects (address, emergency contact, lodging) as
+indented groups, a requested lodging by its name — following `ui:order`, skipping hidden widgets
+and empty values, and resolving conditional fields (`$ref`, `dependencies`, `if/then`) against
+the entered data so the review lists exactly the fields the form showed. Each section ends with
+its share of `serverPricingResults`: the registration section lists the registration-level
+pricing components (plus the e-payment handling fee when present) and the grand total; each
+camper section lists that camper's components and its total. Labels come from the pricing
+logic's `label`s (§11).
+
+Then reads the payment-step payload's `serverPricingResults.total`:
 
 - **No payment needed** (total ≤ 0): complete the flow without collecting payment.
 - **Payment needed** (total > 0): the registrant chooses how to pay; the surface must support:
@@ -1501,6 +1514,21 @@ invitation-tracking view. Settings is the natural canonical home now that it hol
 event configuration.
 **Alternatives:** Keep them with invitations (DR-11 — mixes config with workflow). Expose in both
 places (the original app's mistake — two homes, one a stub; rejected in DR-11 and still rejected).
+
+### DR-33 — Registration review on the payment step is schema-driven
+
+**Decision:** The payment step's "Review registration" (§7.2) is generated from the form's
+`dataSchema`/`uiSchema` and the entered data, using rjsf's own schema resolution
+(`retrieveSchema`) to expand `$ref`s, `dependencies` and `if/then` against the data. Per-section
+pricing summaries come straight from `serverPricingResults`, labeled from the pricing logic.
+**Context:** Events define arbitrary registration and camper fields, so the review can't be a
+fixed layout. The same schema that rendered the form already carries titles, `enumNames` and
+conditional structure; reusing it (and the same resolver the form engine uses) keeps the review
+in lockstep with the form for every event with no per-event configuration. A per-event review
+template would be a second thing to author and would drift from the schema.
+**Alternatives:** A per-event Handlebars/Jinja "review template" (extra authoring, drifts).
+Dumping the raw form data (unreadable enum codes and keys). Re-rendering the form read-only
+(rjsf's `readonly` mode keeps widget chrome and empty fields, and is far noisier than a rundown).
 
 ---
 

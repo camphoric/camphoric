@@ -8,11 +8,11 @@ import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, ApiCustomCharge, ApiEvent } from 'api-types';
+import { FeeBreakdown } from 'components/FeeBreakdown';
 import { useState } from 'react';
 import { customChargeHooks, customChargeTypeHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
-import { FeeBreakdown } from '../FeeBreakdown';
 import { AddCustomChargeModal } from './AddCustomChargeModal';
 
 export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamper }) {

@@ -7,12 +7,12 @@
 
 import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import type { ApiEvent, AugmentedRegistration, Hash } from 'api-types';
+import { FeeBreakdown } from 'components/FeeBreakdown';
 import type { JSONSchema7 } from 'json-schema';
 import { useState } from 'react';
 import { paymentHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
-import { FeeBreakdown } from '../FeeBreakdown';
 import { AddPaymentModal } from './AddPaymentModal';
 
 const fieldTitle = (schema: JSONSchema7 | undefined, key: string): string => {
