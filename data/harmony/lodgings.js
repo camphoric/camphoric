@@ -1,5 +1,18 @@
 /* eslint-disable indent */
 
+const cabinFactory = (parentKey, notes, capacity = 4, visible = false) => (acc, cbn) => {
+  return {
+    ...acc,
+    [`c${cbn}`]: {
+      name: `Cabin ${cbn}`,
+      parentKey,
+      notes,
+      capacity,
+      visible,
+    },
+  };
+}
+
 export default {
   root: {
     name: 'Lodging',
@@ -10,85 +23,146 @@ export default {
   // ECONOMY
   cabin: { parentKey: 'root', name: 'Cabin', visible: true },
     vil1: { parentKey: 'cabin', name: 'Village 1', visible: false },
-      vil1l0: { parentKey: 'vil1', name: 'V1 Level G', visible: false },
-        c102A: { parentKey: 'vil1l0', notes: '4 bunkbeds - ground level/front', name: 'Cabin 102A', capacity: 4, visible: false },
-        c102B: { parentKey: 'vil1l0', notes: '4 bunkbeds - ground level/front', name: 'Cabin 102B', capacity: 4, visible: false },
-        c104A: { parentKey: 'vil1l0', notes: '4 bunkbeds - ground level/front', name: 'Cabin 104A', capacity: 4, visible: false },
-        c104B: { parentKey: 'vil1l0', notes: '4 bunkbeds - ground level/front', name: 'Cabin 104B', capacity: 4, visible: false },
-        c106A: { parentKey: 'vil1l0', notes: '4 bunkbeds', name: 'Cabin 106A', capacity: 4, visible: false },
-        c106B: { parentKey: 'vil1l0', notes: '4 bunkbeds', name: 'Cabin 106B', capacity: 4, visible: false },
-        c108A: { parentKey: 'vil1l0', notes: '4 bunkbeds', name: 'Cabin 108A', capacity: 4, visible: false },
-        c108B: { parentKey: 'vil1l0', notes: '4 bunkbeds', name: 'Cabin 108B', capacity: 4, visible: false },
+      vil1l1: { parentKey: 'vil1', name: 'V1 Level G', visible: false },
+      ...[
+        '102A',
+        '102B',
+        '105A',
+        '105B',
+        '107A',
+        '107B',
+        '109A',
+        '109B',
+      ].reduce(cabinFactory('vil1l1', '4 bunkbeds',), {}),
+
       vil1l2: { parentKey: 'vil1', name: 'V1 Level 2', visible: false },
-        c101A: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 101A', capacity: 4, visible: false },
-        c101B: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 101B', capacity: 4, visible: false },
-        c103A: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 103A', capacity: 4, visible: false },
-        c103B: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 103B', capacity: 4, visible: false },
-        c105A: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 105A', capacity: 4, visible: false },
-        c105B: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 105B', capacity: 4, visible: false },
-        c107A: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 107A', capacity: 4, visible: false },
-        c107B: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 107B', capacity: 4, visible: false },
-        c109A: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 109A', capacity: 4, visible: false },
-        c109B: { parentKey: 'vil1l2', notes: '4 bunkbeds', name: 'Cabin 109B', capacity: 4, visible: false },
+      ...[
+        '101A',
+        '101B',
+        '103A',
+        '103B',
+        '104A',
+        '104B',
+        '106A',
+        '106B',
+        '108A',
+        '108B',
+      ].reduce(cabinFactory('vil1l2', '4 bunkbeds',), {}),
 
     vil5: { parentKey: 'cabin', name: 'Village 5', visible: false },
       vil5l0: { parentKey: 'vil5', name: 'V5 Level G', visible: false },
-        c501A: { parentKey: 'vil5l0', notes: '4 bunkbeds', name: 'Cabin 501A', capacity: 4, visible: false },
-        c501B: { parentKey: 'vil5l0', notes: '4 bunkbeds', name: 'Cabin 501B', capacity: 4, visible: false },
-        c502A: { parentKey: 'vil5l0', notes: '4 bunkbeds', name: 'Cabin 502A', capacity: 4, visible: false },
-        c502B: { parentKey: 'vil5l0', notes: '4 bunkbeds', name: 'Cabin 502B', capacity: 4, visible: false },
-        c505A: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 505A', capacity: 4, visible: false },
-        c505B: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 505B', capacity: 4, visible: false },
-        c506A: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 506A', capacity: 4, visible: false },
-        c506B: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 506B', capacity: 4, visible: false },
-        c509A: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 509A', capacity: 5, visible: false },
-        c509B: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 509B', capacity: 5, visible: false },
-        c510A: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 510A', capacity: 5, visible: false },
-        c510B: { parentKey: 'vil5l0', notes: '5 bunkbeds', name: 'Cabin 510B', capacity: 5, visible: false },
+      ...[
+        '501A',
+        '501B',
+        '502A',
+        '502B',
+        '505A',
+        '505B',
+        '506A',
+        '506B',
+        '509A',
+        '509B',
+        '510A',
+        '510B',
+      ].reduce(cabinFactory('vil5l0', '4 bunkbeds',), {}),
+      ...[
+        '501A',
+        '501B',
+        '502A',
+        '502B',
+        '505A',
+        '505B',
+        '506A',
+        '506B',
+        '509A',
+        '509B',
+        '510A',
+        '510B',
+      ].reduce(cabinFactory('vil5l0', '5 bunkbeds',), {}),
 
       vil5l2: { parentKey: 'vil5', name: 'V5 Level 2', visible: false },
-        c503A: { parentKey: 'vil5l2', notes: '4 bunkbeds', name: 'Cabin 503A', capacity: 4, visible: false },
-        c503B: { parentKey: 'vil5l2', notes: '4 bunkbeds', name: 'Cabin 503B', capacity: 4, visible: false },
-        c504A: { parentKey: 'vil5l2', notes: '4 bunkbeds', name: 'Cabin 504A', capacity: 4, visible: false },
-        c504B: { parentKey: 'vil5l2', notes: '4 bunkbeds', name: 'Cabin 504B', capacity: 4, visible: false },
-        c507A: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 507A', capacity: 4, visible: false },
-        c507B: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 507B', capacity: 4, visible: false },
-        c508A: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 508A', capacity: 4, visible: false },
-        c508B: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 508B', capacity: 4, visible: false },
-        c511A: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 511A', capacity: 5, visible: false },
-        c511B: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 511B', capacity: 5, visible: false },
-        c512A: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 512A', capacity: 5, visible: false },
-        c512B: { parentKey: 'vil5l2', notes: '5 bunkbeds', name: 'Cabin 512B', capacity: 5, visible: false },
+      ...[
+        '503A',
+        '503B',
+        '504A',
+        '504B',
+        '507A',
+        '507B',
+        '508A',
+        '508B',
+        '511A',
+        '511B',
+        '512A',
+        '512B',
+      ].reduce(cabinFactory('vil5l2', '4 bunkbeds',), {}),
+      ...[
+        '503A',
+        '503B',
+        '504A',
+        '504B',
+        '507A',
+        '507B',
+        '508A',
+        '508B',
+        '511A',
+        '511B',
+        '512A',
+        '512B',
+      ].reduce(cabinFactory('vil5l2', '5 bunkbeds',), {}),
 
     vil6: { parentKey: 'cabin', name: 'Village 6', visible: false },
       vil6l0: { parentKey: 'vil6', name: 'V6 Level G', visible: false },
-        c601A: { parentKey: 'vil6l0', notes: '4 bunkbeds', name: 'Cabin 601A', capacity: 4, visible: false },
-        c601B: { parentKey: 'vil6l0', notes: '4 bunkbeds', name: 'Cabin 601B', capacity: 4, visible: false },
-        c602A: { parentKey: 'vil6l0', notes: '4 bunkbeds', name: 'Cabin 602A', capacity: 4, visible: false },
-        c602B: { parentKey: 'vil6l0', notes: '4 bunkbeds', name: 'Cabin 602B', capacity: 4, visible: false },
+      ...[
+        '601A',
+        '601B',
+        '602A',
+        '602B',
+      ].reduce(cabinFactory('vil6l0', '4 bunkbeds',), {}),
       vil6l2: { parentKey: 'vil6', name: 'V6 Level 2', visible: false },
-        c603A: { parentKey: 'vil6l2', notes: '4 bunkbeds', name: 'Cabin 603A', capacity: 4, visible: false },
-        c603B: { parentKey: 'vil6l2', notes: '4 bunkbeds', name: 'Cabin 603B', capacity: 4, visible: false },
-        c604A: { parentKey: 'vil6l2', notes: '4 bunkbeds', name: 'Cabin 604A', capacity: 4, visible: false },
-        c604B: { parentKey: 'vil6l2', notes: '4 bunkbeds', name: 'Cabin 604B', capacity: 4, visible: false },
+      ...[
+        '603A',
+        '603B',
+        '604A',
+        '604B',
+      ].reduce(cabinFactory('vil6l2', '4 bunkbeds',), {}),
 
   // SEMI PRIVATE
   motel: { parentKey: 'root', name: 'Motel', visible: false },
     vil7: { parentKey: 'motel', name: 'Village 7', visible: false },
       vil7l0: { parentKey: 'vil7', name: 'V7 Level G', visible: false },
-        c701: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 701', capacity: 2, visible: false },
-        c702: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 702', capacity: 2, visible: false },
-        c703: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 703', capacity: 2, visible: false },
-        c704: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 704', capacity: 2, visible: false },
-        c705: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 705', capacity: 2, visible: false },
-        c706: { parentKey: 'vil7l0', notes: '2 bunkbeds', name: 'Cabin 706', capacity: 2, visible: false },
+        c701: { parentKey: 'vil7l0', notes: '1 bunk, 1 single - ADA', name: 'Cabin 701', capacity: 2, visible: false },
+        c705: { parentKey: 'vil7l0', notes: '1 bunk, 1 single - ADA', name: 'Cabin 705', capacity: 2, visible: false },
+
+        ...[ // old building
+          '702',
+          '703',
+          '704',
+        ].reduce(cabinFactory('vil7l0', '1 bunk, 1 single', 2), {}),
+        ...[ // new building
+          '711',
+          '712',
+          '713',
+          '714',
+          '715',
+          '716',
+        ].reduce(cabinFactory('vil7l0', '2 bunks', 2), {}),
+      
       vil7l2: { parentKey: 'vil7', name: 'V7 Level 2', visible: false },
-        c707: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 707', capacity: 2, visible: false },
-        c708: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 708', capacity: 2, visible: false },
-        c709: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 709', capacity: 2, visible: false },
-        c710: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 710', capacity: 2, visible: false },
-        c711: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 711', capacity: 2, visible: false },
-        c712: { parentKey: 'vil7l2', notes: '2 singles', name: 'Cabin 712', capacity: 2, visible: false },
+        ...[ // old building
+          '706',
+          '707',
+          '708',
+          '709',
+          '710',
+        ].reduce(cabinFactory('vil7l2', '1 bunk, 1 single', 2), {}),
+        ...[ // new building
+          '717',
+          '718',
+          '719',
+          '720',
+          '721',
+          '722',
+        ].reduce(cabinFactory('vil7l2', '2 bunks', 2), {}),
 
     well: { parentKey: 'motel', name: 'Wellness', visible: false },
       w01: { parentKey: 'well', notes: '2 singles', name: 'Wellness 01', capacity: 2, visible: false },
@@ -96,42 +170,50 @@ export default {
       w03: { parentKey: 'well', notes: '2 singles', name: 'Wellness 03', capacity: 2, visible: false },
       w04: { parentKey: 'well', notes: '2 singles', name: 'Wellness 04', capacity: 2, visible: false },
       w05: { parentKey: 'well', notes: '2 singles', name: 'Wellness 05', capacity: 2, visible: false },
-      w06: { parentKey: 'well', notes: '1 singles', name: 'Wellness Night Nurse', capacity: 1, visible: false },
 
 	// APARTMENTS
   lodge: { parentKey: 'root', name: 'Lodge', visible: true },
     vil2: { parentKey: 'lodge', name: 'Village 2', visible: false },
       vil2l1: { parentKey: 'vil2', name: 'V2 Level G', visible: false },
-        c201: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 201', capacity: 2, visible: false },
-        c202: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 202', capacity: 2, visible: false },
-        c203: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 203', capacity: 2, visible: false },
-        c204: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 204', capacity: 2, visible: false },
-        c205: { parentKey: 'vil2l1', notes: '1 queen', name: 'Cabin 205 ADA', capacity: 1, visible: false },
-        c206: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 206', capacity: 2, visible: false },
-        c207: { parentKey: 'vil2l1', notes: '1 queen', name: 'Cabin 207 ADA', capacity: 1, visible: false },
-        c208: { parentKey: 'vil2l1', notes: '1 queen', name: 'Cabin 208 ADA', capacity: 1, visible: false },
-        c209: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 209', capacity: 2, visible: false },
-        c210: { parentKey: 'vil2l1', notes: '1 queen', name: 'Cabin 210 ADA', capacity: 1, visible: false },
-        c211: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 211', capacity: 2, visible: false },
-        c212: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 212', capacity: 2, visible: false },
-        c213: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 213', capacity: 2, visible: false },
-        c214: { parentKey: 'vil2l1', notes: '2 queen', name: 'Cabin 214', capacity: 2, visible: false },
+        ...[
+          '201',
+          '202',
+          '203',
+          '204',
+          '206',
+          '209',
+          '211',
+          '212',
+          '213',
+          '214',
+        ].reduce(cabinFactory('vil2l1', '2 queen', 2), {}),
+        ...[
+          '205',
+          '207',
+          '208',
+          '210',
+        ].reduce(cabinFactory('vil2l1', '1 queen - ADA', 2), {}),
       vil2l2: { parentKey: 'vil2', name: 'V2 Level 2', visible: false },
-        c215: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 215', capacity: 2, visible: false },
-        c216: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 216', capacity: 2, visible: false },
-        c217: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 217', capacity: 2, visible: false },
-        c218: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 218', capacity: 2, visible: false },
-        c219: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 219', capacity: 2, visible: false },
-        c220: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 220', capacity: 2, visible: false },
-        c221: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 221', capacity: 2, visible: false },
-        c222: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 222', capacity: 2, visible: false },
-        c223: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 223', capacity: 2, visible: false },
-        c224: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 224', capacity: 2, visible: false },
-        c225: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 225', capacity: 2, visible: false },
-        c226: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 226', capacity: 2, visible: false },
-        c227: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 227', capacity: 2, visible: false },
-        c228: { parentKey: 'vil2l2', notes: '2 queen', name: 'Cabin 228', capacity: 2, visible: false },
+        ...[
+          '215',
+          '216',
+          '217',
+          '218',
+          '219',
+          '220',
+          '221',
+          '222',
+          '223',
+          '224',
+          '225',
+          '226',
+          '227',
+          '228',
+        ].reduce(cabinFactory('vil2l2', '2 queen', 2), {}),
+        // ...[
+        // ].reduce(cabinFactory('vil2l2', '1 queen - ADA', 2), {}),
 
+  /*
   // APARTMENTS
   apt: { parentKey: 'root', name: 'Apartments', visible: false },
     c406: { parentKey: 'apt', name: 'Cabin 406', visible: false },
@@ -144,11 +226,13 @@ export default {
       c408r1: { parentKey: 'c408', name: 'C408 Room 1 (queen)', capacity: 1, visible: false },
       c408r2: { parentKey: 'c408', name: 'C408 Room 2 (bunk)', capacity: 1, visible: false },
 
+*/
+
 	// RV
 	rv: { parentKey: 'root', name: 'RV Camping', visible: true },
     rvsm: {parentKey: 'rv', name:'RV under 15\' long', visible:true },
     ...Array.apply(null, Array(10)).map(function () {}).reduce(
-      (acc, v, i) => {
+      (acc, _v, i) => {
         return {
           ...acc,
           [`rvsm_${i}`]: {
@@ -164,7 +248,7 @@ export default {
       
     rvmd: {parentKey: 'rv', name:'RV 15\'-20\' long',visible:true },
     ...Array.apply(null, Array(10)).map(function () {}).reduce(
-      (acc, v, i) => {
+      (acc, _v, i) => {
         return {
           ...acc,
           [`rvmd_${i}`]: {
@@ -180,7 +264,7 @@ export default {
 
     rvlg: {parentKey: 'rv', name:'RV 21+\' long', visible:true },
     ...Array.apply(null, Array(10)).map(function () {}).reduce(
-      (acc, v, i) => {
+      (acc, _v, i) => {
         return {
           ...acc,
           [`rvlg_${i}`]: {
@@ -195,5 +279,19 @@ export default {
     ),
 
 	// TENT
-	tent: { parentKey: 'root', name: 'Tent Camping', visible: true, capacity: 20 },
+	tent: { parentKey: 'root', name: 'Tent Camping', visible: true },
+    ...Array.apply(null, Array(20)).map(function () {}).reduce(
+      (acc, _v, i) => {
+        return {
+          ...acc,
+          [`tent_${i}`]: {
+            parentKey: 'tent',
+            name: `Tent ${i}`,
+            visible: false,
+            capacity: 1,
+          },
+        };
+      },
+      {},
+    ),
 };
