@@ -8,9 +8,11 @@
  * `ui:field` cleared (to avoid recursion) and custom array templates injected.
  * In rjsf v6 the per-item chrome lives in ArrayFieldItemTemplate (the ordinal
  * heading + remove button) and the container/add-button in ArrayFieldTemplate.
+ * Each camper is boxed in a bordered, tinted panel so the boundaries between
+ * campers read at a glance.
  */
 
-import { Box, Button, Divider, Group, Title } from '@mantine/core';
+import { Box, Button, Divider, Group, Paper, Title } from '@mantine/core';
 import {
   type ArrayFieldItemTemplateProps,
   type ArrayFieldTemplateProps,
@@ -26,14 +28,21 @@ function CampersItemTemplate(props: ArrayFieldItemTemplateProps) {
   // Reuse the theme's remove/move buttons rather than reaching into buttonsProps.
   const ItemButtons = getTemplate('ArrayFieldItemButtonsTemplate', registry, getUiOptions(uiSchema));
   return (
-    <Box className="camphoric-camper" mb="lg">
+    <Paper
+      className="camphoric-camper"
+      withBorder
+      radius="md"
+      p="md"
+      mb="lg"
+      bg="var(--mantine-color-gray-light)"
+    >
       <Group justify="space-between" align="flex-end" mb="xs">
         <Title order={5}>{ordinal(index + 1)} Camper</Title>
         {hasToolbar && <ItemButtons {...buttonsProps} />}
       </Group>
       <Divider mb="sm" />
       {children}
-    </Box>
+    </Paper>
   );
 }
 
