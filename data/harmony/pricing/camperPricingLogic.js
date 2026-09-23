@@ -24,6 +24,7 @@ const dayCount = ({
 const pricingToExclude = [
   'linen_rate',
   'private_room_rate',
+  'max_campership_perday',
 ];
 
 const pricingKeys = Object.keys(pricingValues).filter(
@@ -33,6 +34,14 @@ const pricingKeys = Object.keys(pricingValues).filter(
 const getRates = (lodgingIds, early) => ({
   'if': pricingKeys.reduce((acc, key) => {
     const [agek, lodgingk, , fullcampk] = key.split('_');
+    let lodgingId;
+
+    try {
+      lodgingId = lodgingIds[lodgingk].id;
+    } catch (e) {
+      console.error(`tried looking up lodging ${lodgingk}, failed`, key);
+      throw e;
+    }
 
     return [
       ...acc,
@@ -44,7 +53,7 @@ const getRates = (lodgingIds, early) => ({
           )) },
 
           // lodging
-          { 'in': [lodgingIds[lodgingk].id, {var: 'camper.lodging.lodging_requested.choices'}] },
+          { 'in': [lodgingId, {var: 'camper.lodging.lodging_requested.choices'}] },
         ]
       }, {var: `pricing.${[agek, lodgingk, early, fullcampk].join('_')}`},
     ];
@@ -59,7 +68,6 @@ const calculateCampership = {
         0,
       ],
     },
-    // $60 per day max
     { '*': [dayCount, { var: 'pricing.max_campership_perday' }] },
   ],
 };
@@ -89,7 +97,7 @@ const calculateLinens = (lodgingIds) => ({
   'if': [
     // list of lodging that gets $0 rate for linens
     'lodge',
-    'apt',
+    // 'apt',
   ].reduce(
     (acc, lodgingk) => {
       return [

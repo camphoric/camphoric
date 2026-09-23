@@ -163,14 +163,7 @@ export default {
         '722',
       ].reduce(cabinFactory('vil7l2', '2 bunks', 2), {}),
 
-  well: { parentKey: 'root', name: 'Wellness', visible: false },
-    w01: { parentKey: 'well', notes: '2 singles', name: 'Wellness 01', capacity: 2, visible: false },
-    w02: { parentKey: 'well', notes: '2 singles', name: 'Wellness 02', capacity: 2, visible: false },
-    w03: { parentKey: 'well', notes: '2 singles', name: 'Wellness 03', capacity: 2, visible: false },
-    w04: { parentKey: 'well', notes: '2 singles', name: 'Wellness 04', capacity: 2, visible: false },
-    w05: { parentKey: 'well', notes: '2 singles', name: 'Wellness 05', capacity: 2, visible: false },
-
-	// APARTMENTS
+	// LODGE
   lodge: { parentKey: 'root', name: 'Lodge', visible: true },
     vil2: { parentKey: 'lodge', name: 'Village 2', visible: false },
       vil2l1: { parentKey: 'vil2', name: 'V2 Level G', visible: false },
@@ -213,6 +206,13 @@ export default {
         // ].reduce(cabinFactory('vil2l2', '1 queen - ADA', 2), {}),
 
   /*
+  well: { parentKey: 'root', name: 'Wellness', visible: false },
+    w01: { parentKey: 'well', notes: '2 singles', name: 'Wellness 01', capacity: 2, visible: false },
+    w02: { parentKey: 'well', notes: '2 singles', name: 'Wellness 02', capacity: 2, visible: false },
+    w03: { parentKey: 'well', notes: '2 singles', name: 'Wellness 03', capacity: 2, visible: false },
+    w04: { parentKey: 'well', notes: '2 singles', name: 'Wellness 04', capacity: 2, visible: false },
+    w05: { parentKey: 'well', notes: '2 singles', name: 'Wellness 05', capacity: 2, visible: false },
+
   // APARTMENTS
   apt: { parentKey: 'root', name: 'Apartments', visible: false },
     c406: { parentKey: 'apt', name: 'Cabin 406', visible: false },
