@@ -313,6 +313,10 @@ class RegisterGetTests(APITestCase):
                         'ui:description': 'stuff about a camper',
                         'lodging': {
                             'ui:description': 'stuff about lodging',
+                            # an event may add to a lodging field the server configures
+                            'lodging_comments': {
+                                'ui:description': 'stuff about lodging comments',
+                            },
                         },
                     },
                 },
@@ -342,6 +346,16 @@ class RegisterGetTests(APITestCase):
 
         self.maxDiff = None
         self.assertEqual(campers_ui['ui:description'], 'stuff about campers')
+        self.assertEqual(campers_ui['items']['lodging']['ui:description'], 'stuff about lodging')
+        # The event's per-field additions merge with the server's widget settings.
+        self.assertEqual(
+            campers_ui['items']['lodging']['lodging_comments'],
+            {
+                'ui:widget': 'textarea',
+                'ui:options': {'rows': 3, 'maxLength': 300},
+                'ui:description': 'stuff about lodging comments',
+            },
+        )
         self.assertEqual(
             campers_ui['items']['lodging']['lodging_requested']['lodging_nodes'],
             [

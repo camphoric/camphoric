@@ -532,19 +532,30 @@ class RegisterView(APIView):
             },
         }
 
+        # The server supplies the lodging field's uiSchema (the cascading
+        # selector, disabled full nodes, the comments textarea); merge it
+        # per field so an event can still add to a field (e.g. a
+        # `ui:description` on `lodging_comments`) without losing the
+        # server's widget settings.
+        event_lodging_ui = (event.registration_ui_schema
+                            .get('campers', {})
+                            .get('items', {})
+                            .get('lodging', {}))
+        lodging_ui = {**event_lodging_ui}
+        for key, value in (lodging_ui_schema or {}).items():
+            existing = lodging_ui.get(key)
+            if isinstance(value, dict) and isinstance(existing, dict):
+                lodging_ui[key] = {**value, **existing}
+            else:
+                lodging_ui[key] = value
+
         ui_schema = {
             **event.registration_ui_schema,
             'campers': {
                 **event.registration_ui_schema.get('campers', {}),
                 'items': {
                     **event.registration_ui_schema.get('campers', {}).get('items', {}),
-                    'lodging': {
-                        **(event.registration_ui_schema
-                           .get('campers', {})
-                           .get('items', {})
-                           .get('lodging', {})),
-                        **(lodging_ui_schema or {}),
-                    }
+                    'lodging': lodging_ui,
                 },
             },
         }
