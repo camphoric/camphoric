@@ -16,12 +16,27 @@ const schema: RJSFSchema = {
   description: 'Registration for **{{eventName}}**',
   required: ['full_name', 'email'],
   properties: {
-    full_name: { type: 'string', title: 'Full name' },
+    full_name: { type: 'string', title: 'Full name', description: 'As it appears on your ID.' },
     email: { type: 'string', title: 'Email', format: 'email' },
-    phone: { type: 'string', title: 'Phone' },
-    party_size: { type: 'integer', title: 'Party size' },
-    birthdate: { type: 'string', format: 'date', title: 'Birth date' },
-    t_shirt: { type: 'string', title: 'T-shirt size', enum: ['S', 'M', 'L', 'XL'] },
+    phone: {
+      type: 'string',
+      title: 'Phone',
+      description: 'Mobile preferred — we text arrival updates.',
+    },
+    party_size: { type: 'integer', title: 'Party size', description: 'Including yourself.' },
+    birthdate: {
+      type: 'string',
+      format: 'date',
+      title: 'Birth date',
+      description: 'Used to work out the age group.',
+    },
+    t_shirt: {
+      type: 'string',
+      title: 'T-shirt size',
+      description: 'Sizes run **large** — when in doubt, size down.',
+      enum: ['S', 'M', 'L', 'XL'],
+    },
+    membership: { type: 'boolean', title: 'Membership' },
     meals: {
       type: 'array',
       title: 'Meals',
@@ -40,6 +55,11 @@ const schema: RJSFSchema = {
 const uiSchema: UiSchema = {
   phone: { 'ui:widget': 'PhoneInput' },
   party_size: { 'ui:widget': 'NaturalNumberInput' },
+  t_shirt: { 'ui:enumNames': { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra large' } },
+  membership: {
+    'ui:placeholder': 'Choose an option',
+    'ui:enumNames': { false: 'No, I am not yet a member', true: 'Yes, I am a current member' },
+  },
   meals: { 'ui:widget': 'checkboxes', 'ui:options': { inline: true } },
   notes: { 'ui:widget': 'textarea', 'ui:options': { rows: 3 } },
 };

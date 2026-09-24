@@ -2,16 +2,18 @@
  * Textarea with hard maxLength truncation (SPEC §9.1). The @rjsf/mantine base
  * Textarea doesn't enforce a maximum, so this clamps input to the schema's
  * `maxLength` — guarding against pasted or pre-filled values that overflow.
+ * WidgetFrame supplies the label and description.
  */
 
 import { Textarea } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 import type { ChangeEvent } from 'react';
 
+import { WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
 export function TextareaWidget(props: WidgetProps) {
-  const { id, label, required, placeholder, disabled, error, value, options } =
+  const { id, required, placeholder, disabled, error, value, options } =
     widgetCommon<string>(props);
   const { onChange, onBlur, onFocus, schema } = props;
   const maxLength = typeof schema.maxLength === 'number' ? schema.maxLength : undefined;
@@ -25,20 +27,21 @@ export function TextareaWidget(props: WidgetProps) {
   };
 
   return (
-    <Textarea
-      id={id}
-      label={label}
-      required={required}
-      disabled={disabled}
-      placeholder={placeholder}
-      error={error}
-      minRows={options.rows ?? 5}
-      autosize
-      maxLength={maxLength}
-      value={typeof value === 'string' ? value : ''}
-      onChange={handleChange}
-      onBlur={(event) => onBlur(id, event.currentTarget.value)}
-      onFocus={(event) => onFocus(id, event.currentTarget.value)}
-    />
+    <WidgetFrame {...props}>
+      <Textarea
+        id={id}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder}
+        error={error}
+        minRows={options.rows ?? 5}
+        autosize
+        maxLength={maxLength}
+        value={typeof value === 'string' ? value : ''}
+        onChange={handleChange}
+        onBlur={(event) => onBlur(id, event.currentTarget.value)}
+        onFocus={(event) => onFocus(id, event.currentTarget.value)}
+      />
+    </WidgetFrame>
   );
 }
