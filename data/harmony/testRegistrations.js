@@ -104,7 +104,7 @@ function makeRegistration(reg, lodgingMap) {
         'country': 'United States',
       },
       'payment_type': 'Check',
-      'membership_check': 'Yes, I am a current member',
+      'membership_check': true,
       'comments': '',
       'read_etiquette': true,
     },

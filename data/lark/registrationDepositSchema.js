@@ -42,7 +42,6 @@ full. If you choose the deposit option, the balance will be due by June 20.
 The 50% deposit only applies to tuition and meals. All other charges must be
 paid in full up front.
 `,
-  enum: options.map(o => JSON.stringify(o)),
-  enumNames: options.map(o => o.name),
-  default: JSON.stringify(options[0]), 
+  oneOf: options.map(o => ({ const: JSON.stringify(o), title: o.name })),
+  default: JSON.stringify(options[0]),
 };

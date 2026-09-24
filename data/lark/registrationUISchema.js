@@ -85,6 +85,12 @@ export default {
         'ui:description': lodgingDescription,
       },
       'good_samaritan': {
+        'volunteer': {
+          'ui:enumNames': {
+            false: 'No',
+            true: 'Yes',
+          },
+        },
         'skills': { 'ui:widget': 'checkboxes' },
       },
       'name_badge': {
@@ -94,6 +100,12 @@ export default {
             'name',
             'pronouns',
           ],
+        },
+        'purchase': {
+          'ui:enumNames': {
+            false: 'No',
+            true: 'Yes',
+          },
         },
       },
       'parking_passes': {

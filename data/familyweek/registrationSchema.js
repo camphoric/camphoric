@@ -52,10 +52,6 @@ export default {
     'ride_share': {
       'type': 'string',
       'enum': ['offer', 'request'],
-      'enumNames': [
-        'I can offer a ride to camp',
-        'I need a ride to camp',
-      ],
       'title': 'Ride Sharing',
     },
     'ride_seats_offered': {

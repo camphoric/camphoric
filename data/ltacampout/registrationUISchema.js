@@ -36,6 +36,12 @@ export default {
       },
       'chore': {
         'ui:placeholder': 'Choose an option',
+        'ui:enumNames': {
+          'Cleanup': 'Cleanup',
+          'Office Hours': 'Office Hours',
+          'Setup': 'Setup (must be able to arrive at 10am on Friday)',
+          'Teardown': 'Teardown (must be able to stay until noon on Monday)',
+        },
       },
       'phone': {
         'ui:widget': 'PhoneInput'
