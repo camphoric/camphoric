@@ -75,8 +75,12 @@ const calculateCampership = {
 const calculatePrivateRoom = (lodgingIds) => ({
   'if': [
     // list of lodging that gets $0 rate for private rooms - this is
-    // essentially ones that can't get a private room
+    // essentially ones that can't get a private room - which according to
+    // the spec is all but vil7 (https://github.com/camphoric/camphoric/issues/643)
     'lodge',
+    'cabin',
+    'rv',
+    'tent',
   ].reduce(
     (acc, lodgingk) => {
       return [

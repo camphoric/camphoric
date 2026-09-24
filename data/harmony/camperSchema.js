@@ -213,7 +213,7 @@ and towel) for an additional $${pricing.linen_rate}. Would you like to rent line
     },
     'lodging_private': {
       'title': 'Private lodging',
-      'description': `You may request a single room, but you'll be required to pay an extra ${pricing.private_room_rate} per day. Would you like to request a private room?`,
+      'description': `A limited number of single rooms are available this year in Village 7. There is a $${pricing.private_room_rate} per day single supplement charged for single rooms. Please choose Village 7 as your lodging if you are requesting a single room. If you do not choose Village 7, this will be ignored`,
       'type': 'boolean',
       'default': false,
     },
