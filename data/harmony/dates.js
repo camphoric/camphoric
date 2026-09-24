@@ -3,18 +3,19 @@ import { DateTime } from 'luxon';
 export const lengthInDays = 5;
 
 const today = DateTime.now();
-export let year = today.year;
+export const year = today.year;
 
-let startDate = DateTime.fromISO(`${year}-12-30T14:00:00.000-07:00`);
+const startDate = DateTime.fromISO(`${year}-12-30T14:00:00.000-07:00`);
+const regEndDate = DateTime.fromISO(`${year}-12-13T14:00:00.000-07:00`);
 
 const dateHash = {
   registration_start: today,
-  registration_end: startDate.set({ day: 15, hour: 7 }),
+  registration_end: regEndDate,
   start: startDate,
   end: startDate.plus({ day: lengthInDays }),
 };
 
-export const earlybirdCutoff = DateTime.fromISO(`${year}-11-15T00:00:00.000-07:00`);
+export const earlybirdCutoff = DateTime.fromISO(`${year}-11-15T23:59:00.000-07:00`);
 
 export const yearDisplay = `${
   startDate.year
