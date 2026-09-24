@@ -233,6 +233,7 @@ curl -fsS http://localhost:8000/ | grep -q 'id="root"' && echo SPA ok
 docker compose -f docker-compose.image.yml down -v
 ```
 
-CI runs the same checks on every pull request (`.github/workflows/docker.yml`); releases publish
+CI runs the same checks on every pull request that touches the image's inputs
+(`.github/workflows/docker.yml`); releases publish
 the image via `.github/workflows/release-image.yml`, which can also be run by hand:
 `gh workflow run release-image.yml -f tag=vX.Y.Z`.

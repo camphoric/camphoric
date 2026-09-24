@@ -1,4 +1,5 @@
-# Build the application image on every push/PR (never pushed) and prove it works:
+# Build the application image (never pushed) on every push/PR that touches its
+# inputs (server/, client_v2/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
 # every event under data/ is imported into it (the live import test).
@@ -8,8 +9,32 @@ name: Docker image
 on:
   push:
     branches: [main]
+    paths:
+      - 'server/**'
+      - 'client_v2/**'
+      - 'data/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.image.yml'
+      - '.github/workflows/docker.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'server/**'
+      - 'client_v2/**'
+      - 'data/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.image.yml'
+      - '.github/workflows/docker.yml'
+
+# One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
+# main are left to finish so every merged commit keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
