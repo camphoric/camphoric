@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-23
+**Last updated:** 2026-09-24
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-31)
+- §15 — Decision Records (DR-1…DR-34)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -258,7 +258,9 @@ Non-CRUD admin endpoints:
 
 - `GET /api/events/{eventId}/register{?invitation/query}` → `ApiRegister` config bundle
   (schemas, ui schema, pricing logic, pricing vars, template vars, event subset, optional
-  invitation/registration-type info, PayPal options, pre-submit template).
+  invitation/registration-type info, PayPal options, pre-submit template, and
+  `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
+  §7.1).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, invitation? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, deposit }`).
@@ -288,7 +290,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `registration_schema`, `registration_ui_schema`, `registration_admin_schema`,
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
   `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists);
-  `registration_template_vars`; confirmation page + email templates/subject/from;
+  `registration_template_vars`; `registration_error_messages` (custom validation messages,
+  `{ field path: { validation keyword: Handlebars message } }`, §7.1); confirmation page +
+  email templates/subject/from;
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
@@ -373,10 +377,31 @@ Before any step renders, the app loads the registration config (`GET …/registe
   schema title and the event start date. On mount the step rehydrates from localStorage (if
   present) and recomputes the price. After successful submission/confirmation the stored data
   is cleared (unless a `KEEP_REG_DATA` localStorage flag is set, used for debugging).
-- **Validation:** uses custom error transformation (e.g. friendlier messages) and switches to
-  live validation after the first failed submit. On error it surfaces the validation problems
-  prominently and brings the first problem field into focus (phone-number fields need a focus
-  workaround).
+- **Validation:** switches to live validation after the first failed submit. On error it
+  surfaces the validation problems prominently — in a list at the top of the form and under
+  each affected field — and brings the first problem field into focus (phone-number fields need
+  a focus workaround).
+- **Validation messages:** every validation error is shown in plain language, using the event's
+  own message where it has one (`registrationErrorMessages`, edited in Settings, §8.8; §15,
+  DR-34):
+  - **Contract.** The messages are a map of *field path* → *validation keyword* → *message*.
+    The path is the error's location with array positions written as `*`
+    (`campers.*.lodging.lodging_requested.id`); the path `*` holds event-wide defaults per
+    keyword. Keywords are ajv's (`required`, `pattern`, `format`, `enum`, `minLength`, …);
+    `dependencies` errors count as `required`.
+  - **Lookup order:** the field's own message → the event's `*` default for that keyword → the
+    app's built-in message (e.g. "This field is required") → the validator's own message.
+  - **Messages are Handlebars templates** rendered as plain text, with `{{camper}}` (e.g.
+    "2nd camper (Child Miles)"), `{{camperNumber}}` (1-based), `{{field}}` (the field's label)
+    and `{{params.*}}` (the error's parameters, such as `limit` or `pattern`). A message that
+    fails to render falls back to the built-in one; it never breaks the form.
+  - **Placement.** The message appears under the field; the list at the top adds the camper
+    and field ("2nd camper (Child Miles) – Lodging: …") unless the message already names them.
+    Custom fields show their errors too — the lodging picker marks an unfinished choice (e.g.
+    "RV Camping" without an RV length) under its last dropdown.
+  - **Noise.** When a conditional branch fails, the validator also reports summary errors
+    ("must match exactly one schema") beside the real one; those are hidden, and exact
+    duplicates are shown once. Hidden errors still block submission.
 - **Pre-submit content:** before the registrant proceeds, optionally show an electronic-payment
   handling-charge notice (computed from `epayment_handling`) and the server-provided
   `preSubmitTemplate` (rendered through the template engine). An action advances the registrant
@@ -596,6 +621,22 @@ Registration types are also managed here: create/edit a type's machine `name`, `
 invitation email subject/template (used to invite special registrations, §8.4). Each persists via
 POST (new) / PATCH (edit) on `registrationtypes` (see §15, DR-32).
 
+**Validation messages** (the event's `registration_error_messages`, §7.1; §15, DR-34) are also
+managed here. Admins can:
+- list the event's messages, each shown as its field (by title, with the path), its error type
+  (in plain language) and its message;
+- add, edit and remove messages — choosing the field from every field the registration form can
+  have (as registrants receive it, so conditional and server-built fields such as lodging are
+  included) or typing a path directly; choosing the error type from those that can occur on
+  that field; and seeing a live preview of the message with sample values;
+- see the built-in messages that apply when no custom message matches;
+- edit the whole map as JSON.
+
+A second message for the same field and error type, an empty message, or a template that fails
+to compile can't be saved; a path the form doesn't currently have is allowed with a warning (the
+field may be added later). Changes are saved together, via PATCH of
+`registration_error_messages` on the event.
+
 ---
 
 ## 9. Shared Systems
@@ -606,9 +647,16 @@ A wrapper around React JSON Schema Form (rjsf v6) with the `@rjsf/mantine` theme
 backbone of both surfaces. The schema/uiSchema is the single source of truth. (Rationale and
 the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 
-- Accept `schema`, `uiSchema`, `formData`, `onChange`, `onSubmit`, `onError`,
-  `transformErrors`, and a custom `templateData` object exposed to descendants via React
-  context (so description fields can render templated help text).
+- Accept `schema`, `uiSchema`, `formData`, `onChange`, `onSubmit`, `onError`, a custom
+  `templateData` object exposed to descendants via React context (so description fields can
+  render templated help text), `errorMessages` (the event's validation messages, plus — for a
+  form that renders part of the registration — a path prefix such as `campers.*` and the camper
+  being edited), and `liveValidate` (validate on every change from the start).
+- Apply validation messages (§7.1) to every validation pass, against the form's current data,
+  rewriting both the inline message and the error-list text (§15, DR-34).
+- Admin forms that render the registration (the camper and registration edit forms, §8.4,
+  §8.5) use the event's messages too, validate live, and never block saving on validation
+  errors — admins may need to save partial or legacy data.
 - Wait for Google Maps to be injected before rendering **if** a Google API key is configured
   (spinner meanwhile); otherwise render immediately.
 - Register the custom fields, widgets, and templates below.
@@ -621,7 +669,8 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   (Places API New) that, on selection, populates all sub-fields; suppresses Enter-to-submit while
   the autocomplete list is open.
 - **LodgingRequested** — cascading select that walks the lodging tree level by level; only a
-  leaf may be the final choice; tracks the chosen path.
+  leaf may be the final choice; tracks the chosen path; shows its validation errors (including
+  those for its `id`/`choices`) under the last dropdown.
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
 
@@ -638,7 +687,8 @@ genuinely additive widgets are layered on (§15, DR-29):
 uiSchema options cover content-wrapper classes and array add/remove labels — so no custom Field/
 Object/Array templates are needed (§15, DR-29). The one custom template is the **Description**
 renderer (`DescriptionFieldTemplate`) noted above, which renders schema/uiSchema descriptions as
-templated markdown via the Template engine and the form's `templateData`.
+templated markdown via the Template engine and the form's `templateData`, plus an
+`ErrorListTemplate` that omits errors hidden as noise (§7.1).
 
 ### 9.2 Pricing engine (`calculatePrice`)
 
@@ -761,7 +811,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Debug aids:** a `debug()` logger that prints only when a `DEBUG` localStorage flag is set
   (in any environment, so a deployed site can be traced from the browser console); the
   registration step logs each form change with its recomputed totals, validation errors and the
-  submit result through it. Raw JSON views on admin detail screens; in dev, the registration
+  submit result through it. Every form also traces each validation pass: per error, the raw
+  validator error, the context the messages were resolved with (path prefix, camper, form data,
+  rule count), the lookup path, and which message key matched (and from where) — or that none
+  did — plus any error hidden as noise or template that failed to render (§7.1). Raw JSON views on admin detail screens; in dev, the registration
   `onChange` is exposed on `window` for autofill, and a `KEEP_REG_DATA` flag preserves
   localStorage across confirmation.
 
@@ -1533,6 +1586,33 @@ template would be a second thing to author and would drift from the schema.
 Dumping the raw form data (unreadable enum codes and keys). Re-rendering the form read-only
 (rjsf's `readonly` mode keeps widget chrome and empty fields, and is far noisier than a rundown).
 
+### DR-34 — Per-event validation messages as a path-keyed lookup
+
+**Decision:** Each event stores its validation messages as a separate JSON field,
+`registration_error_messages`, keyed by field path (array positions as `*`) and then by ajv
+keyword, with Handlebars message templates and an event-wide `*` default (§7.1). The form
+applies them inside its validator — wrapping `@rjsf/validator-ajv8` so each validation pass's
+errors are resolved against the data being validated — and rewrites both the inline `message`
+and the error list's `stack`. Summary errors from failed conditional branches, and duplicates,
+are blanked rather than removed. The Settings editor (§8.8) offers fields from the registration
+form's full schema as served to registrants.
+**Context:** A registrant who picked a non-final lodging option ("RV Camping" without a length)
+saw only "must have required property 'id'": the error list showed ajv's raw text (a transformer
+had only rewritten `message`, which the list doesn't display), and the lodging picker showed no
+error at all. Events needed their own wording for such cases. The lodging schema is built by
+the server rather than stored with the event, so messages can't live inside the event's JSON
+Schema; a path-keyed table covers server-built and conditional fields alike, and keeps all of an
+event's wording in one editable place. rjsf validates before the parent receives `onChange`, so a
+`transformErrors` prop closing over `formData` would see the previous keystroke; the validator
+receives the current data. Errors must stay in the list for rjsf to block submission, so noise is
+hidden by blanking its text. The stored `registration_schema`/`camper_schema` lack the
+server-built lodging fields, so the editor reads the served form schema instead.
+**Alternatives:** An `errorMessage` keyword inside the JSON Schema (ajv-errors) — can't reach
+server-built fields, and scatters wording across schemas. A per-field `ui:errorMessages` in the
+uiSchema — rjsf has no such option, and a table is easier to review and edit as a whole.
+Hard-coded client messages — no per-event wording. Registration-type (invitation) overrides of
+the messages — deferred; they can later be merged like the schema overrides.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -1550,7 +1630,11 @@ must be coordinated with the backend. Grouped by status.
   (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field
   shapes in §5 must stay in sync with the serializers and the client's API types (§5, DR-27).
 - **Registration/payment:** `GET`/`POST /api/events/{id}/register` — the `ApiRegister` config
-  bundle and the `step: 'registration' | 'payment'` posts (§5, §7).
+  bundle (including `registrationErrorMessages`) and the `step: 'registration' | 'payment'`
+  posts (§5, §7).
+- **Validation messages:** the Event's `registration_error_messages` field, validated by the
+  events serializer as `{ path: { keyword: message } }` with non-empty strings (§7.1, §8.8,
+  DR-34).
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
   (§8.4), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}` (§5).
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
