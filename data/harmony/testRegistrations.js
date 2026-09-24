@@ -101,7 +101,6 @@ function makeRegistration(reg, lodgingMap) {
         'city': 'Berkeley',
         'state_or_province': 'CA',
         'zip_code': '94703',
-        'country': 'United States',
       },
       'payment_type': 'Check',
       'is_member': true,

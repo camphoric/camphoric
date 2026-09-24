@@ -1,6 +1,5 @@
 import { DateTime } from 'luxon';
 import { dates, yearDisplay } from './dates.js';
-import countries from '../countries.js';
 
 // luxon DATE_HUGE = Friday, October 14, 1983
 const start = dates.start.toLocaleString(DateTime.DATE_HUGE);
@@ -52,14 +51,8 @@ Fields marked with an asterisk (*) are required
           'maxLength': 10,
           'title': 'ZIP code or Postal Code'
         },
-        'country': {
-          'type': 'string',
-          'title': 'Country',
-          'enum': countries,
-          'default': 'United States',
-        },
       },
-      'required': ['street_address', 'city', 'state_or_province', 'zip_code', 'country']
+      'required': ['street_address', 'city', 'state_or_province', 'zip_code']
     },
   },
   'required': [
