@@ -758,9 +758,12 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
   invalidate-and-refetch (§15, DR-16).
-- **Debug aids:** a debug logger gated to dev; raw JSON views on admin detail screens; in dev,
-  the registration `onChange` is exposed on `window` for autofill, and a `KEEP_REG_DATA` flag
-  preserves localStorage across confirmation.
+- **Debug aids:** a `debug()` logger that prints only when a `DEBUG` localStorage flag is set
+  (in any environment, so a deployed site can be traced from the browser console); the
+  registration step logs each form change with its recomputed totals, validation errors and the
+  submit result through it. Raw JSON views on admin detail screens; in dev, the registration
+  `onChange` is exposed on `window` for autofill, and a `KEEP_REG_DATA` flag preserves
+  localStorage across confirmation.
 
 ---
 

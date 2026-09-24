@@ -27,6 +27,9 @@ SSH into the vagrant machine
 Watch the django log files
   vagrant ssh -c "journalctl -f -u camphoric"
 
+Restart the camphoric service
+  vagrant ssh default -c 'sudo systemctl restart camphoric'
+
 Run the frontend development server at localhost:3000
 (NOTE: it is recommended that you run this locally, not in a VM.
 This is because vite's watch-rebuild functionality won't work)

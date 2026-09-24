@@ -17,6 +17,7 @@ import { calculatePrice } from 'pricing';
 import { useEffect, useRef } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import { useRegistrationConfig, useSubmitRegistration } from 'store/registrationApi';
+import { debug } from 'utils/debug';
 import { formatMoney } from 'utils/money';
 
 import { PriceTicker } from './PriceTicker';
@@ -81,14 +82,17 @@ export function RegistrationStep() {
 
   const handleChange = (formData: unknown) => {
     const data = formData as RegistrationFormData;
+    const nextTotals = calculatePrice(config, data);
+    debug('RegistrationStep onChange', { formData: data, totals: nextTotals });
     setUpdating(true);
     setRegistration(data);
-    setTotals(calculatePrice(config, data));
+    setTotals(nextTotals);
     setUpdating(false);
     debouncedSave(data);
   };
 
   const handleError = (errors: unknown[]) => {
+    debug('RegistrationStep onError', errors);
     // Scroll to the error summary and focus the first problem field (the phone
     // widget in particular needs an explicit focus — SPEC §7.1, §11).
     window.scrollTo(0, 0);
@@ -108,6 +112,7 @@ export function RegistrationStep() {
       },
       {
         onSuccess: (paymentStep) => {
+          debug('RegistrationStep submit result', paymentStep);
           setPaymentStep(paymentStep);
           goToStep('payment');
         },
