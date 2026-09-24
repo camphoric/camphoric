@@ -94,13 +94,11 @@ export default {
         'skills': { 'ui:widget': 'checkboxes' },
       },
       'name_badge': {
-        'properties': {
-          'ui:order': [
-            'purchase',
-            'name',
-            'pronouns',
-          ],
-        },
+        'ui:order': [
+          'purchase',
+          'name',
+          'pronouns',
+        ],
         'purchase': {
           'ui:enumNames': {
             false: 'No',
