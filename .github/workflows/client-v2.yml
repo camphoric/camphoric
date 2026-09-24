@@ -1,0 +1,51 @@
+# Check the v2 client (client_v2/) on every push/PR that touches it: types,
+# lint, and the vitest unit suite. (The production build itself runs inside the
+# image build in docker.yml; the v1 client, client/, is covered by react.yml.)
+name: Client v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client_v2/**'
+      - '.github/workflows/client-v2.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client_v2/**'
+      - '.github/workflows/client-v2.yml'
+
+# One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
+# main are left to finish so every merged commit keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client_v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client_v2/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npx tsc -b --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
