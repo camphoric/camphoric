@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/camphoric/camphoric/compare/v0.4.1...v0.5.0) (2026-09-24)
+
+
+### Features
+
+* **client_v2:** box each camper in the registration form ([55f1075](https://github.com/camphoric/camphoric/commit/55f1075f7f82997cbddec9c50ca6132cef755860))
+* **client_v2:** opt-in debug logging of registration form changes ([256353e](https://github.com/camphoric/camphoric/commit/256353e21a49d93b38ea5b78054d6a9a35e1c5cf))
+* **client_v2:** review the registration on the payment step ([dbd7c10](https://github.com/camphoric/camphoric/commit/dbd7c100460ac389d4f6774fb4871fc0497bf90d))
+
+
+### Bug Fixes
+
+* **client_v2:** show labeled booleans as dropdowns and describe every widget ([725cf03](https://github.com/camphoric/camphoric/commit/725cf03f540ea04eb820746b20dda539edf1d355)), closes [#645](https://github.com/camphoric/camphoric/issues/645)
+* **client_v2:** size the pay-by-check button like the PayPal buttons ([a38d0f3](https://github.com/camphoric/camphoric/commit/a38d0f36f85cfe34adbe9d3cf9ead81f48495b3e))
+* **client_v2:** update ui for PayPal buttons ([959d1c5](https://github.com/camphoric/camphoric/commit/959d1c53e5d141bb96b034a60608238619f1b284))
+* **data:** put uiSchema entries at their field paths ([95845ff](https://github.com/camphoric/camphoric/commit/95845ff98ebd4cdc276eff3703ef55dd87963889)), closes [#642](https://github.com/camphoric/camphoric/issues/642)
+* fix harmony early bird and reg close dates ([490424e](https://github.com/camphoric/camphoric/commit/490424ed62db233308b6b647ab1d5620635c7bb0)), closes [#647](https://github.com/camphoric/camphoric/issues/647)
+* **server:** let events extend the lodging field's uiSchema per field ([7b06815](https://github.com/camphoric/camphoric/commit/7b068158cf28ecc56e3856eb424b02951a473cfd))
+* update campership request description ([4182e12](https://github.com/camphoric/camphoric/commit/4182e124bb450a6332fa02808aff66a74b321c2c)), closes [#644](https://github.com/camphoric/camphoric/issues/644)
+* update harmony covid policy ([5709fc2](https://github.com/camphoric/camphoric/commit/5709fc2cb60d81a34b2fc90a0d9df57342c731af)), closes [#638](https://github.com/camphoric/camphoric/issues/638)
+* update link to camp harmony rates ([4246321](https://github.com/camphoric/camphoric/commit/42463211dec6d416b2e7fd1c6205d7dab2b3781f)), closes [#639](https://github.com/camphoric/camphoric/issues/639)
+* Update text and logic for harmony single rooms ([a6a3a15](https://github.com/camphoric/camphoric/commit/a6a3a15def091a1ec8d756d20f079ab1d9f0ebe7)), closes [#643](https://github.com/camphoric/camphoric/issues/643)
+
 ## [0.4.1](https://github.com/camphoric/camphoric/compare/v0.4.0...v0.4.1) (2026-09-23)
 
 
