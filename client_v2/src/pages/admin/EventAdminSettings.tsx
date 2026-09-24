@@ -4,7 +4,8 @@
  *   - Schemas: camper, registration, registration UI, deposit, payment.
  *   - Pricing logic: camper, registration.
  *   - Admin attribute schemas: registration, camper.
- * Registration types are also managed here (§8.4, §15 DR-32).
+ * Registration types are also managed here (§8.4, §15 DR-32), as are the
+ * registration form's custom validation messages (§15 DR-34).
  */
 
 import { Alert, Button, Container, Group, Stack, Tabs, Title } from '@mantine/core';
@@ -16,9 +17,11 @@ import { FullScreenLoading } from 'components/Loading';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 
+import { ErrorMessagesSettings } from './ErrorMessagesSettings';
 import { RegistrationTypesSettings } from './RegistrationTypesSettings';
 
 const REGISTRATION_TYPES = 'registration_types';
+const VALIDATION_MESSAGES = 'validation_messages';
 
 type EditableField = keyof Pick<
   ApiEvent,
@@ -97,6 +100,7 @@ export function EventAdminSettings() {
         <Tabs defaultValue={REGISTRATION_TYPES} orientation="vertical">
           <Tabs.List>
             <Tabs.Tab value={REGISTRATION_TYPES}>Registration types</Tabs.Tab>
+            <Tabs.Tab value={VALIDATION_MESSAGES}>Validation messages</Tabs.Tab>
             {EDITABLE_FIELDS.map(({ field, title }) => (
               <Tabs.Tab key={field} value={field}>
                 {title}
@@ -105,6 +109,9 @@ export function EventAdminSettings() {
           </Tabs.List>
           <Tabs.Panel value={REGISTRATION_TYPES} pl="md">
             <RegistrationTypesSettings eventId={eventId} />
+          </Tabs.Panel>
+          <Tabs.Panel value={VALIDATION_MESSAGES} pl="md">
+            <ErrorMessagesSettings key={event.id} event={event} />
           </Tabs.Panel>
           {EDITABLE_FIELDS.map(({ field }) => (
             <Tabs.Panel key={field} value={field} pl="md">
