@@ -6,7 +6,7 @@
  * grand total; each camper's components and that camper's total).
  *
  * Values are made human-readable from the form schema and uiSchema: field
- * titles label the rows, enumNames/oneOf titles replace raw enum values,
+ * titles label the rows, `ui:enumNames`/`oneOf` titles replace raw enum values,
  * booleans read Yes/No, arrays of choices are joined, nested objects (address,
  * emergency contact, lodging) become indented groups, a requested lodging shows
  * its name, hidden widgets and empty values are skipped, and rows follow
@@ -73,14 +73,26 @@ function orderKeys(keys: string[], order: unknown): string[] {
   return [...keys].sort((a, b) => rank(a) - rank(b) || keys.indexOf(a) - keys.indexOf(b));
 }
 
-/** The display name of an enum/const value, from enumNames or oneOf titles. */
-function enumLabel(schema: JSONSchema7, value: unknown): string | undefined {
-  const names = (schema as { enumNames?: unknown }).enumNames;
-  if (schema.enum && Array.isArray(names)) {
-    const index = schema.enum.findIndex((option) => option === value);
-    const name: unknown = index >= 0 ? names[index] : undefined;
+/**
+ * The display name of an enum/const value: `ui:enumNames` (an array matched
+ * by index, or a map matched by value) or a `oneOf`/`anyOf` title.
+ */
+function enumLabel(schema: JSONSchema7, uiSchema: UiSchema, value: unknown): string | undefined {
+  const byIndex = (names: unknown[]) => {
+    const index = schema.enum ? schema.enum.findIndex((option) => option === value) : -1;
+    const name = index >= 0 ? names[index] : undefined;
+    return typeof name === 'string' ? name : undefined;
+  };
+
+  const uiNames: unknown = getUiOptions(uiSchema).enumNames;
+  if (Array.isArray(uiNames)) {
+    const name = byIndex(uiNames as unknown[]);
+    if (name !== undefined) return name;
+  } else if (isPlainObject(uiNames)) {
+    const name = uiNames[String(value)];
     if (typeof name === 'string') return name;
   }
+
   for (const alternative of schema.oneOf ?? schema.anyOf ?? []) {
     if (typeof alternative !== 'boolean' && alternative.const === value && alternative.title) {
       return alternative.title;
@@ -89,8 +101,8 @@ function enumLabel(schema: JSONSchema7, value: unknown): string | undefined {
   return undefined;
 }
 
-function scalarText(schema: JSONSchema7, value: unknown): string {
-  const label = enumLabel(schema, value);
+function scalarText(schema: JSONSchema7, uiSchema: UiSchema, value: unknown): string {
+  const label = enumLabel(schema, uiSchema, value);
   if (label !== undefined) return label;
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return typeof value === 'string' || typeof value === 'number'
@@ -109,7 +121,10 @@ function reviewItem(
     const itemSchema = Array.isArray(schema.items) ? undefined : schema.items;
     if (!value.some(isPlainObject)) {
       const resolved = resolve(itemSchema, root, undefined);
-      return { label, text: value.map((entry) => scalarText(resolved, entry)).join(', ') };
+      return {
+        label,
+        text: value.map((entry) => scalarText(resolved, uiSchema, entry)).join(', '),
+      };
     }
     const itemUi = (uiSchema.items ?? {}) as UiSchema;
     const children = value.flatMap((entry, index) => {
@@ -133,7 +148,7 @@ function reviewItem(
     return children.length ? { label, children } : null;
   }
 
-  return { label, text: scalarText(schema, value) };
+  return { label, text: scalarText(schema, uiSchema, value) };
 }
 
 /**

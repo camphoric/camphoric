@@ -1,0 +1,12 @@
+/*
+ * A widget's description sits between its label and the control, styled like
+ * Mantine's own input descriptions. It is templated markdown, whose paragraphs
+ * carry their own vertical margins; collapse the outer ones so it sits snugly.
+ */
+.widget-description .md-template > :first-child {
+  margin-top: 0;
+}
+
+.widget-description .md-template > :last-child {
+  margin-bottom: 0;
+}

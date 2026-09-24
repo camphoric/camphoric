@@ -21,15 +21,14 @@ const dataSchema: JSONSchema7 = {
       properties: {
         first_name: { type: 'string', title: 'First name' },
         last_name: { type: 'string', title: 'Last name' },
-        age: { type: 'string', title: 'Age', enum: ['a', 'c'], enumNames: ['Adult', 'Child'] },
+        age: { type: 'string', title: 'Age', enum: ['a', 'c'] },
         linens: { type: 'boolean', title: 'Linens rental' },
-        first_time: {
-          type: 'boolean',
-          title: 'First time?',
-          enum: [true, false],
-          enumNames: ['Yes, first time', 'No, returning'],
+        first_time: { type: 'boolean', title: 'First time?' },
+        meals: {
+          type: 'array',
+          title: 'Dietary needs',
+          items: { type: 'string', enum: ['gf', 'df'] },
         },
-        meals: { type: 'array', title: 'Dietary needs', items: { type: 'string', enum: ['gf', 'df'], enumNames: ['Gluten free', 'Dairy free'] } },
         driving: { type: 'string', title: 'Driving?', enum: ['Driver', 'Passenger'] },
         lodging: {
           type: 'object',
@@ -37,6 +36,8 @@ const dataSchema: JSONSchema7 = {
           properties: { lodging_requested: { type: 'object', title: 'Requested lodging' } },
         },
         secret: { type: 'string', title: 'Secret' },
+        private_room: { type: 'boolean', title: 'Private room' },
+        shirt: { type: 'string', title: 'Shirt', enum: ['s', 'l'] },
         payment_plan: {
           type: 'string',
           title: 'Payment plan',
@@ -74,6 +75,13 @@ const uiSchema: UiSchema = {
     items: {
       'ui:order': ['first_name', 'last_name', 'age', 'driving', 'license_plate', '*'],
       secret: { 'ui:widget': 'hidden' },
+      age: { 'ui:enumNames': { a: 'Adult', c: 'Child' } },
+      first_time: { 'ui:enumNames': { true: 'Yes, first time', false: 'No, returning' } },
+      meals: { 'ui:enumNames': ['Gluten free', 'Dairy free'] },
+      private_room: {
+        'ui:enumNames': { false: 'No, shared is fine', true: 'Yes, a private room' },
+      },
+      shirt: { 'ui:enumNames': ['Small', 'Large'] },
       lodging: { lodging_requested: { 'ui:field': 'LodgingRequested' } },
     },
   },
@@ -112,6 +120,8 @@ const registration = {
       lodging: { lodging_requested: { choices: [1, 4], id: 4, name: 'Cabin A' } },
       secret: 'hide me',
       payment_plan: 'split',
+      private_room: true,
+      shirt: 'l',
     },
     { first_name: 'Sam', age: 'c', driving: 'Passenger', meals: [] },
   ],
@@ -143,6 +153,8 @@ describe('reviewItems', () => {
       ['First time?', 'No, returning'],
       ['Dietary needs', 'Gluten free, Dairy free'],
       ['Lodging', undefined],
+      ['Private room', 'Yes, a private room'],
+      ['Shirt', 'Large'],
       ['Payment plan', 'Two installments'],
     ]);
     // The lodging group shows the requested lodging's name; the hidden widget is skipped.

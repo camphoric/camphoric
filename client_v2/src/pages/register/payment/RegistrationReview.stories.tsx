@@ -7,7 +7,6 @@
 import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
 import type { ApiRegister } from 'api-types';
-import type { JSONSchema7 } from 'json-schema';
 
 import { RegistrationReview } from './RegistrationReview';
 
@@ -31,7 +30,6 @@ const config: ApiRegister = {
             type: 'string',
             title: 'Age (at the beginning of camp)',
             enum: ['0-2', '3-12', '13-17', '18+'],
-            enumNames: ['0–2 years old', '3–12 years old', '13–17 years old', 'Adult'],
           },
           email: { type: 'string', title: 'Camper email', format: 'email' },
           emergency_contact: {
@@ -49,12 +47,7 @@ const config: ApiRegister = {
           },
           meal_type: { type: 'string', title: 'Meals', enum: ['Omnivore', 'Vegetarian', 'Vegan'] },
           linens: { type: 'boolean', title: 'Linens rental' },
-          first_time: {
-            type: 'boolean',
-            title: 'Is this your first time?',
-            enum: [true, false],
-            enumNames: ['Yes', 'No'],
-          },
+          first_time: { type: 'boolean', title: 'Is this your first time?' },
           driving: { type: 'string', title: 'Driving?', enum: ['Driver', 'Passenger'] },
           lodging: {
             type: 'object',
@@ -83,22 +76,45 @@ const config: ApiRegister = {
     properties: {
       registrant_email: { type: 'string', title: 'Registrant email' },
       address: { title: 'Main address', $ref: '#/definitions/address' },
-      membership: {
-        type: 'string',
-        title: 'Membership',
-        enum: ['member', 'non'],
-        enumNames: ['Current member', 'Not a member'],
-      },
+      membership: { type: 'string', title: 'Membership', enum: ['member', 'non'] },
       campership_donation: { type: 'integer', title: 'Campership donation' },
       comments: { type: 'string', title: 'Comments' },
       campers: { type: 'array', items: { $ref: '#/definitions/camper' } },
     },
-  } as JSONSchema7,
+  },
   uiSchema: {
-    'ui:order': ['registrant_email', 'address', 'campers', 'membership', 'campership_donation', 'comments'],
+    'ui:order': [
+      'registrant_email',
+      'address',
+      'campers',
+      'membership',
+      'campership_donation',
+      'comments',
+    ],
+    membership: { 'ui:enumNames': { member: 'Current member', non: 'Not a member' } },
     campers: {
       items: {
-        'ui:order': ['first_name', 'last_name', 'age', 'email', 'emergency_contact', 'attendance', 'driving', 'license_plate', 'lodging', '*'],
+        first_time: { 'ui:enumNames': { true: 'Yes', false: 'No' } },
+        age: {
+          'ui:enumNames': {
+            '0-2': '0–2 years old',
+            '3-12': '3–12 years old',
+            '13-17': '13–17 years old',
+            '18+': 'Adult',
+          },
+        },
+        'ui:order': [
+          'first_name',
+          'last_name',
+          'age',
+          'email',
+          'emergency_contact',
+          'attendance',
+          'driving',
+          'license_plate',
+          'lodging',
+          '*',
+        ],
         lodging: { lodging_requested: { 'ui:field': 'LodgingRequested' } },
       },
     },
