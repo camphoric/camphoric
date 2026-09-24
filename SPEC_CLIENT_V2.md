@@ -867,8 +867,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   key admin screens.
 - **E2E (Playwright):** component e2e drives the Ladle stories (the form engine, templating, the
   data table, and admin widgets) against a static Ladle build, plus a registration-flow smoke
-  against the dev server; every test runs on desktop and two mobile devices (§15, DR-31).
-- **Gates:** type-check, lint, and tests pass in CI and in the pre-commit hook (§15, DR-15).
+  against the dev server; every test runs on desktop and two mobile devices (§15, DR-31). The
+  registration smoke skips when no backend is reachable (as in CI).
+- **Gates:** type-check, lint, unit tests and the e2e suite pass in CI (the *Client v2* workflow,
+  on every push/PR that touches `client_v2/`) and in the pre-commit hook (§15, DR-15).
 
 ---
 

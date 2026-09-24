@@ -46,10 +46,20 @@ test.describe('Templating', () => {
 });
 
 test.describe('Admin attributes', () => {
-  test('renders the combined admin schema and round-trips a save', async ({ page }) => {
+  // AdminAttributesForm is a controlled input (the camper/registration editors
+  // own the value and save it), so check it renders the combined schema with
+  // the current value and reports each edit back to its parent.
+  test('renders the combined admin schema and reports edits to its parent', async ({ page }) => {
     await page.goto(story('admin-attributes-form--populated'));
-    await expect(page.getByRole('heading', { name: 'Admin attributes' })).toBeVisible();
-    await page.getByRole('button', { name: /save admin attributes/i }).click();
-    await expect(page.getByText(/vip_notes/)).toBeVisible();
+    const notes = page.getByLabel('VIP notes');
+    await expect(notes).toHaveValue('Major sponsor');
+
+    // The story shows the parent's copy of the value under "Current value".
+    const current = page.locator('pre').last();
+    await notes.fill('Board member');
+    await expect(current).toContainText('"vip_notes": "Board member"');
+
+    await page.getByLabel('Needs review').check();
+    await expect(current).toContainText('"needs_review": true');
   });
 });

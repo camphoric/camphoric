@@ -1,5 +1,6 @@
 # Check the v2 client (client_v2/) on every push/PR that touches it: types,
-# lint, and the vitest unit suite. (The production build itself runs inside the
+# lint and the vitest unit suite, plus the Playwright end-to-end suite on
+# desktop and mobile browsers. (The production build itself runs inside the
 # image build in docker.yml; the v1 client, client/, is covered by react.yml.)
 name: Client v2
 
@@ -49,3 +50,37 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  # The component tests drive a static Ladle build of the stories; the
+  # registration smoke test needs the Django API, so it skips here (no backend).
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client_v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client_v2/package-lock.json
+
+      - run: npm ci
+
+      # Chromium for Desktop/Mobile Chrome, WebKit for Mobile Safari.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: End-to-end tests
+        run: npx playwright test
+
+      # Traces are recorded on the first retry of a failing test.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: client_v2/test-results/
+          retention-days: 7
