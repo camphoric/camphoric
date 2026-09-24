@@ -15,7 +15,7 @@ Please note that registrations are accepted in the order they are received and y
 
 **COVID AND CANCELLATION POLICIES**    
 
-Please read [Camp Harmony's Covid and Cancellation policies](https://docs.google.com/document/d/134EIqyOK5xXswp5EEbNRw0gBrr-TvUsh/edit?usp=sharing&ouid=112175546889387017762&rtpof=true&sd=true).
+Please read [Camp Harmony's Covid and Cancellation policies](https://docs.google.com/document/d/1UF2jpUABv2akG4FuNsoWhrIa4OSBNvtb/edit).
 All Campers will need to test before arriving at Camp.
 
 Fields marked with an asterisk (*) are required
