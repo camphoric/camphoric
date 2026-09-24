@@ -121,9 +121,9 @@ The event definitions under `data/` have their own checks (`data/__tests__`):
     npm run test:live     # post-import snapshot tests against a running server (CAMPHORIC_URL)
 
 A syntax error or a bad schema in any single event fails only that event's block. CI runs the
-offline suite on every pull request (`.github/workflows/data.yml`) and imports every event into
-the freshly built release image (`.github/workflows/docker.yml`); a rejected sample registration
-fails that import.
+offline suite on every pull request that touches `data/` (`.github/workflows/data.yml`) and
+imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
+rejected sample registration fails that import.
 
 ### Create the Django superuser
 
