@@ -31,6 +31,22 @@ export default {
         registration_template_vars: obj('Data for templates used during registration'),
         registration_schema: obj('JSON schema for registration'),
         registration_ui_schema: obj('JSON schema for registration UI'),
+        registration_error_messages: obj(
+          'Custom validation messages for the registration form: '
+          + '{ field path: { validation keyword: Handlebars message } }. '
+          + 'Array indexes in the path are written as "*" (e.g. '
+          + '"campers.*.lodging.lodging_requested.id"), and the path "*" holds '
+          + 'event-wide defaults per keyword.',
+          {},
+          {
+            propertyNames: { minLength: 1 },
+            additionalProperties: {
+              type: 'object',
+              propertyNames: { minLength: 1 },
+              additionalProperties: { type: 'string', minLength: 1 },
+            },
+          },
+        ),
         registration_admin_schema: obj('JSON schema for special admin fields'),
         deposit_schema: obj('JSON schema for extra event deposit attributes'),
         pricing: obj('variables to use in pricing logic'),
