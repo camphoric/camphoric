@@ -15,7 +15,7 @@ export default {
     'payment_type',
     'paypal_email',
     'campers',
-    'membership_check',
+    'is_member',
     'campership_donation',
     'comments',
   ],
@@ -128,7 +128,7 @@ export default {
   'campership_donation': {
     'ui:options': { 'prefix': '$' },
   },
-  'membership_check': {
+  'is_member': {
     'ui:placeholder': 'Choose an option',
     'ui:enumNames': {
       false: 'No, I am not yet a member',
