@@ -34,7 +34,7 @@ export function WidgetFrame({ children, ...props }: WidgetProps & { children: Re
         </Input.Label>
       )}
       {!hideLabel && description && (
-        <Box className="widget-description" fz="xs" lh={1.2} c="dimmed" mb={5}>
+        <Box className="widget-description" fz="xs" lh={1.2} mb={5}>
           <DescriptionFieldTemplate
             id={descriptionId(id)}
             description={description}

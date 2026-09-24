@@ -1,0 +1,27 @@
+/*
+ * App-wide style additions to the Mantine theme (theme.ts). Import after the
+ * Mantine stylesheets so these win.
+ */
+
+/*
+ * Field descriptions (the help text between a field's label and its control)
+ * use their own colour: Mantine's "dimmed" grey fades into the background.
+ * Both schemes have the same contrast with the page background (about
+ * 5.5:1): #9b9a9a on the dark background (#242424), #696969 on the light one
+ * (#ffffff) — readable, while staying visibly secondary to body text.
+ */
+:root {
+  --camphoric-description-color: #696969;
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  --camphoric-description-color: #9b9a9a;
+}
+
+.mantine-InputWrapper-description,
+.mantine-Checkbox-description,
+.mantine-Radio-description,
+.mantine-Switch-description,
+.widget-description {
+  color: var(--camphoric-description-color);
+}

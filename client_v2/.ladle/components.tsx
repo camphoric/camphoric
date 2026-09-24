@@ -1,6 +1,7 @@
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
+import '../src/theme.css';
 
 import { MantineProvider } from '@mantine/core';
 import type { GlobalProvider } from '@ladle/react';
