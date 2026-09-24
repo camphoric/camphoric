@@ -5,9 +5,7 @@
  * ({{camper}}, {{field}}, …).
  */
 export default {
-  // "RV Camping" isn't a final lodging choice — its RV length has to be picked
-  // in the second dropdown, or the lodging has no id.
   'campers.*.lodging.lodging_requested.id': {
-    required: '{{camper}}: please finish choosing your lodging — if you picked RV Camping, also choose your RV length',
+    required: '{{camper}}: please finish choosing your lodging',
   },
 };
