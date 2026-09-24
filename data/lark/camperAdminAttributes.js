@@ -69,19 +69,16 @@ export default {
     }
   },
   "checked_in": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Registration: Checked-In",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "guardian_name": {
@@ -100,51 +97,42 @@ export default {
     }
   },
   "food_trade_only": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Food trade only",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "precamp_meals_comp": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Comped pre-camp meals",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "instructor_meal_rate": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Instructor meal rate",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "meal_assignment_dinner": {
@@ -162,51 +150,42 @@ export default {
     }
   },
   "registration_volunteer": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Registration volunteer",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "guardian_forms_received": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Guardian forms received",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "guardian_forms_required": {
-    "ui": {},
+    "ui": {
+      "ui:enumNames": {
+        "false": "No",
+        "true": "Yes"
+      }
+    },
     "data": {
-      "enum": [
-        false,
-        true
-      ],
       "type": "boolean",
       "title": "Guardian forms required",
-      "default": false,
-      "enumNames": [
-        "No",
-        "Yes"
-      ]
+      "default": false
     }
   },
   "meal_assignment_breakfast": {

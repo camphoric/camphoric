@@ -32,7 +32,6 @@ export default {
         'meal_type': {
           'type': 'string',
           'title': 'Meal Type',
-          'enumNames': ['Omnivore', 'Vegetarian'],
           'enum': ['omnivore', 'vegetarian'],
           'default': 'omnivore',
         },

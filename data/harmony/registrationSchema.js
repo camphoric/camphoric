@@ -97,11 +97,8 @@ Ellen Eagan at [membership@sffmc.org](mailto:membership@sffmc.org) for
 assistance.  If you are new to the Folk Club, join us by clicking “become a
 member” under the “Join Us!” tab.
 `,
-      'type': 'string',
-      'enum': [
-        'No, I am not yet a member',
-        'Yes, I am a current member',
-      ]
+      'type': 'boolean',
+      'default': false,
     },
   }
 };

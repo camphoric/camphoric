@@ -142,8 +142,6 @@ can see a [sample of the design here](https://www.larkcamp.org/wp-content/upload
         'purchase': {
           'type': 'boolean',
           'title': `I would like to purchase a name badge for $${pricing.name_badge}`,
-          'enum': [false, true],
-          'enumNames': ['No', 'Yes'],
           'default': false,
         },
       },
@@ -202,8 +200,6 @@ help.
         'volunteer': {
           'type': 'boolean',
           'title': 'Willing to help',
-          'enum': [false, true],
-          'enumNames': ['No', 'Yes'],
           'default': false,
         },
       },
@@ -211,8 +207,6 @@ help.
     'address_different_than_payer': {
       'type': 'boolean',
       'title': 'This camper\'s address is different than the billing address',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'parking_passes': {

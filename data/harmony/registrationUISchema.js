@@ -37,6 +37,7 @@ export default {
         'emergency_contact',
         'attendance',
         'driving',
+        'disabled_parking',
         'license_plate',
         'mobile_phone',
         'lodging',
@@ -52,6 +53,12 @@ export default {
       ],
       'phone': {
         'ui:widget': 'PhoneInput'
+      },
+      'disabled_parking': {
+        'ui:enumNames': {
+          false: 'No, I will not be parking with a State disabled parking placard, or I do not need disabled parking',
+          true: 'Yes, I will be parking with a State disabled parking placard, and would like disabled parking',
+        },
       },
       'emergency_contact': {
         'ui:order': [
@@ -80,6 +87,12 @@ export default {
           'rows': 3
         }
       },
+      'first_time': {
+        'ui:enumNames': {
+          false: 'No',
+          true: 'Yes',
+        },
+      },
       'meal_exceptions_other': {
         'ui:widget': 'textarea',
         'ui:options': {
@@ -88,6 +101,18 @@ export default {
       },
       'lodging': {
         'ui:description': lodgingDescription,
+      },
+      'lodging_private': {
+        'ui:enumNames': {
+          false: 'No, I do not want a private room',
+          true: 'Yes, I would like a private room',
+        },
+      },
+      'linens': {
+        'ui:enumNames': {
+          false: 'No, I do not need to rent linens',
+          true: 'Yes, I would like to rent linens',
+        },
       },
       'campership_request': {
         'ui:options': { 'prefix': '$' },
@@ -99,6 +124,10 @@ export default {
   },
   'membership_check': {
     'ui:placeholder': 'Choose an option',
+    'ui:enumNames': {
+      false: 'No, I am not yet a member',
+      true: 'Yes, I am a current member',
+    },
   },
   'comments': {
     'ui:widget': 'textarea',

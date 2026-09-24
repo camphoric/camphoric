@@ -20,7 +20,6 @@ export default {
   title: 'Full Payment or Deposit Only',
   type: 'string',
   description: 'Please choose a payment option. If you choose to pay a deposit, the full balance will be due by June 1st.',
-  enum: options.map(o => JSON.stringify(o)),
-  enumNames: options.map(o => o.name),
-  default: JSON.stringify(options[0]), 
+  oneOf: options.map(o => ({ const: JSON.stringify(o), title: o.name })),
+  default: JSON.stringify(options[0]),
 };

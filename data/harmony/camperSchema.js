@@ -57,7 +57,14 @@ export default {
             'properties': { 'driving': { 'const': 'Driver' } }
           },
           'then': {
+            'required': ['license_plate', 'mobile_phone'],
             'properties': {
+              'disabled_parking': {
+                'title': 'Disabled Parking',
+                'description': 'Camp Newman has very limited ADA parking, and campers are not allowed to drive around Camp, but you may request privilaged parking. We cannot guarantee your request, and you may still need to park a distance from your cabin and take our shuttle.',
+                'type': 'boolean',
+                'default': false,
+              },
               'license_plate': {
                 'type': 'string',
                 'maxLength': 10,
@@ -69,7 +76,7 @@ export default {
                 'maxLength': 20,
                 'pattern': '^\\+[0-9]+$',
                 'title': 'Mobile Phone Number',
-                'description': 'If we need to reach you during camp',
+                'description': 'If we need to reach you during camp about where you parked',
               },
             },
           },
@@ -115,8 +122,6 @@ export default {
     'address_different_than_payer': {
       'type': 'boolean',
       'title': 'This camper\'s address is different than the main address',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'emergency_contact': {
@@ -139,8 +144,6 @@ export default {
     'first_time': {
       'title': 'This is my first time attending Camp Harmony',
       'type': 'boolean',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'attendance': {
@@ -164,7 +167,6 @@ export default {
         'Not sure yet',
       ],
     },
-
     'meal_type': {
       'title': 'Meals',
       'description': 'Camp includes 3 delicious meals a day, and camp staff can make accommodations for most dietary needs.',
@@ -181,11 +183,9 @@ export default {
       'description': `
 All campers should bring bedding (blankets, sleeping bag, pillow, etc). Camp
 Newman will provide linens (fitted and top sheet, pillowcase, pillow, blanket
-and towel) for an additional $25. Would you like to rent linens?
+and towel) for an additional $${pricing.linen_rate}. Would you like to rent linens?
 `,
       'type': 'boolean',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'meal_exceptions': {
@@ -213,10 +213,8 @@ and towel) for an additional $25. Would you like to rent linens?
     },
     'lodging_private': {
       'title': 'Private lodging',
-      'description': `You may request a single room, but you'll be required to pay an extra ${pricing.private_room_rate} per day`,
+      'description': `You may request a single room, but you'll be required to pay an extra ${pricing.private_room_rate} per day. Would you like to request a private room?`,
       'type': 'boolean',
-      'enum': [false, true],
-      'enumNames': ['No', 'Yes'],
       'default': false,
     },
     'campership_request': {

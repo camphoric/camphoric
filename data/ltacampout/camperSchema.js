@@ -68,12 +68,6 @@ export default {
         'Setup',
         'Teardown',
       ],
-      'enumNames': [
-        'Cleanup',
-        'Office Hours',
-        'Setup (must be able to arrive at 10am on Friday)',
-        'Teardown (must be able to stay until noon on Monday)',
-      ],
     }},
   },
 };

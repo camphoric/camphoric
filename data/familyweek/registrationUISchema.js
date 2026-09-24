@@ -86,6 +86,10 @@ export default {
   },
   'ride_share': {
     'ui:widget': 'radio',
+    'ui:enumNames': {
+      offer: 'I can offer a ride to camp',
+      request: 'I need a ride to camp',
+    },
   },
   'payment_option': {
     'ui:widget': 'radio',
@@ -123,6 +127,12 @@ export default {
           'dairy_free',
           'food_allergies',
         ],
+        'meal_type': {
+          'ui:enumNames': {
+            omnivore: 'Omnivore',
+            vegetarian: 'Vegetarian',
+          },
+        },
       },
     },
   },
