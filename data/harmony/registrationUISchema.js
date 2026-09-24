@@ -1,5 +1,5 @@
 const lodgingDescription = `
-[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1yZ_e924wB-26Znmz4pzBYgkW6Zt8erobgKvM6H90oo0/edit?gid=417741577) for lodging (all prices include meals)
+[Click here to see the current rates](https://docs.google.com/spreadsheets/d/1Z-GSxRMS7SnyC32F9v7MVNaE3UxjcmdXBSswUjp6HPc/edit?usp=sharing) for lodging (all prices include meals)
 
 For Lodge: Linens included. Preference given to campers staying for full camp.
 `;
