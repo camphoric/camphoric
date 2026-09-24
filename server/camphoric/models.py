@@ -144,6 +144,14 @@ class Event(TimeStampedModel):
     registration_ui_schema = CustomJSONField(
         default=dict,
         help_text="react-jsonschema-form uiSchema for registration form")
+    registration_error_messages = CustomJSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Custom validation messages for the registration form: "
+            "{ field path: { validation keyword: Handlebars message } }, where "
+            "array indexes in the path are written as '*' and the path '*' "
+            "holds event-wide defaults per keyword"))
     registration_admin_schema = CustomJSONField(
         default=dict,
         help_text="JSON schema for Registration.admin_attributes")
