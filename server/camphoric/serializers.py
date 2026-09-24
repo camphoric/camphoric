@@ -38,6 +38,9 @@ class EventSerializer(ModelSerializer):
     def validate_lodging_schema(self, schema):
         return validate_schema(schema)
 
+    def validate_registration_error_messages(self, messages):
+        return validate_error_messages(messages)
+
 
 class RegistrationSerializer(ModelSerializer):
     class Meta:
@@ -146,6 +149,35 @@ def validate_schema(schema):
     except jsonschema.exceptions.SchemaError as e:
         raise ValidationError(e.message)
     return schema
+
+
+def validate_error_messages(messages):
+    '''
+    Check the shape of Event.registration_error_messages:
+    { field path: { validation keyword: message } }, all non-empty strings.
+    The messages are Handlebars templates; their syntax is checked by the
+    client, which falls back to a built-in message if one fails to render.
+    '''
+    if messages is None:
+        return {}
+    if not isinstance(messages, dict):
+        raise ValidationError(
+            'must be an object mapping field paths to '
+            '{ validation keyword: message } objects')
+    for path, rules in messages.items():
+        if not isinstance(path, str) or not path.strip():
+            raise ValidationError('field paths must be non-empty strings')
+        if not isinstance(rules, dict):
+            raise ValidationError(
+                f"'{path}' must map validation keywords to messages")
+        for keyword, message in rules.items():
+            if not isinstance(keyword, str) or not keyword.strip():
+                raise ValidationError(
+                    f"'{path}': validation keywords must be non-empty strings")
+            if not isinstance(message, str) or not message.strip():
+                raise ValidationError(
+                    f"'{path}' / '{keyword}': the message must be a non-empty string")
+    return messages
 
 
 def validate_attributes(data, schema):

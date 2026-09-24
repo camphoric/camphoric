@@ -220,6 +220,30 @@ class RegisterGetTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['event']['is_open'], False)
 
+    def test_registration_error_messages(self):
+        messages = {
+            'campers.*.lodging.lodging_requested.id': {
+                'required': '{{camper}}: please finish choosing your lodging',
+            },
+            '*': {'required': '{{field}} is required'},
+        }
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test Error Messages Event',
+            registration_error_messages=messages,
+        )
+        response = self.client.get(f'/api/events/{event.id}/register')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['registrationErrorMessages'], messages)
+
+    def test_registration_error_messages_default_empty(self):
+        event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test No Error Messages Event',
+        )
+        response = self.client.get(f'/api/events/{event.id}/register')
+        self.assertEqual(response.data['registrationErrorMessages'], {})
+
     def test_dataSchema(self):
         event = models.Event.objects.create(
             organization=self.organization,
@@ -1669,3 +1693,49 @@ def create_standard_test_event(
         'billing_name': 'Testi McTesterton',
         'billing_address': '1234 Average Street',
     }
+
+
+class EventErrorMessagesValidationTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.client.force_authenticate(user=self.admin_user)
+        self.organization = models.Organization.objects.create(name='Test Organization')
+        self.event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test Event',
+        )
+
+    def patch(self, value):
+        return self.client.patch(
+            f'/api/events/{self.event.id}/',
+            {'registration_error_messages': value},
+            format='json',
+        )
+
+    def test_accepts_path_keyword_message_map(self):
+        value = {
+            'campers.*.phone': {'pattern': '{{camper}}: enter a phone number'},
+            '*': {'required': '{{field}} is required'},
+        }
+        response = self.patch(value)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.registration_error_messages, value)
+
+    def test_accepts_empty(self):
+        response = self.patch({})
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_rejects_malformed(self):
+        for value in [
+            ['not', 'an', 'object'],
+            {'campers.*.phone': 'not an object'},
+            {'campers.*.phone': {'pattern': 42}},
+            {'campers.*.phone': {'pattern': '   '}},
+            {'   ': {'required': 'blank path'}},
+            {'campers.*.phone': {'': 'blank keyword'}},
+        ]:
+            with self.subTest(value=value):
+                response = self.patch(value)
+                self.assertEqual(response.status_code, 400, response.data)
+                self.assertIn('registration_error_messages', response.data)
