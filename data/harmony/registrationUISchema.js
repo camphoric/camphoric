@@ -4,6 +4,9 @@ const lodgingDescription = `
 For Lodge: Linens included. Preference given to campers staying for full camp.
 `;
 
+const lodgingCommentsDescription= `
+Do you have mobility issues? Can you climb stairs?
+`;
 
 export default {
   'ui:order': [
@@ -101,6 +104,9 @@ export default {
       },
       'lodging': {
         'ui:description': lodgingDescription,
+        'lodging_comments': {
+          'ui:description': lodgingCommentsDescription,
+        },
       },
       'lodging_private': {
         'ui:enumNames': {
