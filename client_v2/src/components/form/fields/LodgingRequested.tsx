@@ -36,7 +36,10 @@ interface LodgingRequestedValue {
 /** The field's own errors plus those rjsf files under its `id` and `choices`. */
 function lodgingErrors(props: FieldProps): string[] {
   if (props.hideError) return [];
-  const children = (props.errorSchema ?? {}) as Record<string, { __errors?: unknown[] } | undefined>;
+  const children = (props.errorSchema ?? {}) as Record<
+    string,
+    { __errors?: unknown[] } | undefined
+  >;
   const all = [
     ...(props.rawErrors ?? []),
     ...(children.id?.__errors ?? []),
@@ -55,8 +58,8 @@ export function LodgingRequested(props: FieldProps) {
   const isLeaf = (id: number | undefined) => !nodes.some((node) => node.parent === id);
 
   const handleSelect = (selectedId: number | undefined, level: number) => {
-    const nextChoices = [...choices.slice(0, level), selectedId].filter(
-      (id): id is number => Boolean(id),
+    const nextChoices = [...choices.slice(0, level), selectedId].filter((id): id is number =>
+      Boolean(id),
     );
     const node = nodes.find((n) => n.id === selectedId);
     // v6 requires the field's own path so the value lands at this property.
@@ -83,7 +86,8 @@ export function LodgingRequested(props: FieldProps) {
   });
 
   return (
-    <Stack id="field-lodging-requested" className="field-lodging-requested" gap="sm">
+    // The field's rjsf id lets a failed submit focus the picker (focusFirstError).
+    <Stack id={props.fieldPathId.$id} className="field-lodging-requested" gap="sm">
       {parents.map((parent, level) => {
         const optionNodes = nodes
           .filter((node) => node.parent === parent.id)

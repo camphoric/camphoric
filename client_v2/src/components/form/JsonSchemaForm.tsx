@@ -7,6 +7,7 @@
  *   - a `templateData` context so descriptions render templated help text;
  *   - live validation that switches on after the first failed submit (or from
  *     the start, with `liveValidate`);
+ *   - on a failed submit, focus on the first field (in page order) with an error;
  *   - the custom templated Description renderer.
  *
  * Custom fields/widgets (Campers, Address, LodgingRequested, phone/number/etc.)
@@ -26,6 +27,7 @@ import type { RegistrationErrorMessages } from 'api-types';
 import { type TemplateData, TemplateDataProvider } from 'components/form/context';
 import type { ErrorMessageContext } from 'components/form/errorMessages';
 import { customFields } from 'components/form/fields';
+import { focusFirstError } from 'components/form/focusFirstError';
 import { createMessagingValidator } from 'components/form/messagingValidator';
 import { DescriptionFieldTemplate } from 'components/form/templates/DescriptionFieldTemplate';
 import { ErrorListTemplate } from 'components/form/templates/ErrorListTemplate';
@@ -90,30 +92,34 @@ export function JsonSchemaForm({
     messageContext.current = { ...errorMessages, schema, uiSchema };
   });
   const validator = useMemo(() => createMessagingValidator(() => messageContext.current), []);
+  const container = useRef<HTMLDivElement>(null);
 
   return (
     <TemplateDataProvider value={templateData}>
-      <Form
-        schema={schema}
-        uiSchema={uiSchema}
-        formData={formData}
-        validator={validator}
-        templates={baseTemplates}
-        // Caller-supplied fields/widgets win over the custom defaults.
-        fields={{ ...customFields, ...fields }}
-        widgets={{ ...customWidgets, ...widgets }}
-        liveValidate={liveValidate}
-        showErrorList="top"
-        disabled={disabled}
-        onChange={({ formData: next }, id) => onChange?.(next, id)}
-        onSubmit={({ formData: next }) => onSubmit?.(next)}
-        onError={(errors) => {
-          setLiveValidate(true);
-          onError?.(errors);
-        }}
-      >
-        {children}
-      </Form>
+      <div ref={container}>
+        <Form
+          schema={schema}
+          uiSchema={uiSchema}
+          formData={formData}
+          validator={validator}
+          templates={baseTemplates}
+          // Caller-supplied fields/widgets win over the custom defaults.
+          fields={{ ...customFields, ...fields }}
+          widgets={{ ...customWidgets, ...widgets }}
+          liveValidate={liveValidate}
+          showErrorList="top"
+          disabled={disabled}
+          onChange={({ formData: next }, id) => onChange?.(next, id)}
+          onSubmit={({ formData: next }) => onSubmit?.(next)}
+          onError={(errors) => {
+            setLiveValidate(true);
+            focusFirstError(container.current, errors);
+            onError?.(errors);
+          }}
+        >
+          {children}
+        </Form>
+      </div>
     </TemplateDataProvider>
   );
 }
