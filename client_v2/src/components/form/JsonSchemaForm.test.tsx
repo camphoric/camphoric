@@ -171,4 +171,78 @@ describe('JsonSchemaForm', () => {
       ).toBeInTheDocument();
     });
   });
+  describe('focusing the first error', () => {
+    it('focuses the first field on the page with an error, not the first in schema order', async () => {
+      const user = userEvent.setup();
+      // Schema rules (not HTML "required", which the browser checks first).
+      const schema: RJSFSchema = {
+        type: 'object',
+        properties: {
+          email: { type: 'string', title: 'Email', minLength: 5 },
+          name: { type: 'string', title: 'Name', minLength: 5 },
+        },
+      };
+      // ui:order puts Name first on the page.
+      renderInProvider(
+        <JsonSchemaForm
+          schema={schema}
+          uiSchema={{ 'ui:order': ['name', 'email'] }}
+          formData={{ email: 'a', name: 'b' }}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+      expect(screen.getByLabelText('Name')).toHaveFocus();
+    });
+
+    it('focuses the unfinished dropdown of the lodging picker', async () => {
+      const user = userEvent.setup();
+      const nodes = [
+        {
+          id: 1,
+          parent: null,
+          name: 'Lodging',
+          children_title: 'Select your lodging',
+          remaining_unreserved_capacity: 9,
+        },
+        {
+          id: 2,
+          parent: 1,
+          name: 'RV Camping',
+          children_title: 'RV length',
+          remaining_unreserved_capacity: 9,
+        },
+        {
+          id: 4,
+          parent: 2,
+          name: "RV under 15' long",
+          children_title: '',
+          remaining_unreserved_capacity: 9,
+        },
+      ];
+      const schema: RJSFSchema = {
+        type: 'object',
+        properties: {
+          lodging_requested: {
+            type: 'object',
+            title: 'Lodging',
+            required: ['id', 'choices'],
+            properties: { id: { type: 'number' }, choices: { type: 'array' } },
+          },
+        },
+      };
+      renderInProvider(
+        <JsonSchemaForm
+          schema={schema}
+          uiSchema={{ lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: nodes } }}
+          formData={{ lodging_requested: { choices: [2] } }}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+      expect(screen.getByPlaceholderText('RV length *')).toHaveFocus();
+    });
+  });
 });

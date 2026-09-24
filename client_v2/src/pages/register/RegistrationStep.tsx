@@ -27,19 +27,6 @@ import {
   saveRegistrationFormData,
 } from './storage';
 
-interface RjsfError {
-  property?: string;
-}
-
-/** Map an rjsf error property path (".campers.0.phone") to its field id. */
-function errorPropertyToId(property: string): string {
-  const parts = property
-    .replace(/\[(\d+)\]/g, '.$1')
-    .split('.')
-    .filter(Boolean);
-  return ['root', ...parts].join('_');
-}
-
 export function RegistrationStep() {
   const eventId = useEventId();
   const goToStep = useGoToStep();
@@ -91,17 +78,8 @@ export function RegistrationStep() {
     debouncedSave(data);
   };
 
-  const handleError = (errors: unknown[]) => {
-    debug('RegistrationStep onError', errors);
-    // Scroll to the error summary and focus the first problem field (the phone
-    // widget in particular needs an explicit focus — SPEC §7.1, §11).
-    window.scrollTo(0, 0);
-    (errors as RjsfError[]).forEach((error) => {
-      if (error.property?.includes('phone')) {
-        document.getElementById(errorPropertyToId(error.property))?.focus();
-      }
-    });
-  };
+  // The form itself focuses the first field with an error (SPEC §7.1).
+  const handleError = (errors: unknown[]) => debug('RegistrationStep onError', errors);
 
   const handleSubmit = () => {
     submit.mutate(

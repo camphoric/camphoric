@@ -379,8 +379,10 @@ Before any step renders, the app loads the registration config (`GET …/registe
   is cleared (unless a `KEEP_REG_DATA` localStorage flag is set, used for debugging).
 - **Validation:** switches to live validation after the first failed submit. On error it
   surfaces the validation problems prominently — in a list at the top of the form and under
-  each affected field — and brings the first problem field into focus (phone-number fields need
-  a focus workaround).
+  each affected field — and takes the registrant to the first problem: the first field *on the
+  page* with a visible error is focused and scrolled into view (for a composite field such as
+  the lodging picker, its control marked invalid). The browser's own required-field check runs
+  first and behaves the same way for empty required inputs.
 - **Validation messages:** every validation error is shown in plain language, using the event's
   own message where it has one (`registrationErrorMessages`, edited in Settings, §8.8; §15,
   DR-34):
@@ -654,6 +656,9 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   being edited), and `liveValidate` (validate on every change from the start).
 - Apply validation messages (§7.1) to every validation pass, against the form's current data,
   rewriting both the inline message and the error-list text (§15, DR-34).
+- On a failed submit, focus the first field (in page order) with a visible error, mapping each
+  error to its field by rjsf's id scheme and walking up the path when the exact field has no
+  control of its own (§7.1).
 - Admin forms that render the registration (the camper and registration edit forms, §8.4,
   §8.5) use the event's messages too, validate live, and never block saving on validation
   errors — admins may need to save partial or legacy data.
