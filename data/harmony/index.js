@@ -7,6 +7,7 @@ import camper_pricing_logic_fn from './pricing/camperPricingLogic.js';
 import registration_schema from './registrationSchema.js';
 import registration_types from './registrationTypes.js';
 import registration_ui_schema from './registrationUISchema.js';
+import registration_error_messages from './registrationErrorMessages.js';
 import lodgings from './lodgings.js';
 import reports from './reports.js';
 import makeRegistrations from './testRegistrations.js';
@@ -33,6 +34,7 @@ const data = {
     // payment_schema,
     registration_schema,
     registration_ui_schema,
+    registration_error_messages,
     // registration_admin_schema,
     // deposit_schema,
     // deposit_schema,

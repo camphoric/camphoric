@@ -20,7 +20,10 @@
  * ---------
  *
  * data: an object which conforms to the JSON schema in
- * ./eventImportObjectSchema.js
+ * ./eventImportObjectSchema.js. Every field of `data.event` is sent to the
+ * events API as-is, including optional ones such as
+ * `registration_error_messages` (custom validation messages for the
+ * registration form).
  *
  * sampleRegistrationGenerator: an async function with the following signature
  *   - results: the data generated so far of the event creation

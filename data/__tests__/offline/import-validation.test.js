@@ -101,3 +101,36 @@ describe.each(EVENTS)('data/%s', (name) => {
     if (sampleRegGenerator) expect(typeof sampleRegGenerator).toBe('function');
   });
 });
+
+// registration_error_messages is optional, but when present it must be
+// { path: { keyword: message } } with non-empty strings — a malformed table
+// fails the import before any request is made.
+describe('eventImportObjectSchema: registration_error_messages', () => {
+  const withMessages = (registration_error_messages) => ({
+    organization: 'Test',
+    event: { name: 'Test', registration_error_messages },
+    reports: [],
+    registration_types: [],
+  });
+
+  test('accepts a path → keyword → message table', () => {
+    const ajv = importAjv();
+    ajv.validate(eventImportObjectSchema, withMessages({
+      'campers.*.phone': { pattern: '{{camper}}: enter a phone number' },
+      '*': { required: '{{field}} is required' },
+    }));
+    expect(ajv.errors ?? []).toEqual([]);
+  });
+
+  test.each([
+    ['a list', ['nope']],
+    ['a path mapped to a string', { 'campers.*.phone': 'nope' }],
+    ['a non-string message', { 'campers.*.phone': { pattern: 42 } }],
+    ['an empty message', { 'campers.*.phone': { pattern: '' } }],
+    ['an empty path', { '': { required: 'x' } }],
+    ['an empty keyword', { 'campers.*.phone': { '': 'x' } }],
+  ])('rejects %s', (_label, value) => {
+    const ajv = importAjv();
+    expect(ajv.validate(eventImportObjectSchema, withMessages(value))).toBe(false);
+  });
+});
