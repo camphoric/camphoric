@@ -98,6 +98,14 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
                 uiSchema={uiSchema}
                 formData={attributes}
                 templateData={{ pricing: event.pricing, formData: camper.attributes }}
+                // Validation messages show as the admin edits, but never block
+                // saving (admins may need to save partial or legacy data).
+                liveValidate
+                errorMessages={{
+                  rules: event.registration_error_messages,
+                  pathPrefix: 'campers.*',
+                  camper: { label: name },
+                }}
                 onChange={(formData) => setAttributes(formData as Hash)}
               >
                 <></>

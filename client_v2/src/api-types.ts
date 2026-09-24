@@ -44,6 +44,13 @@ export interface ApiOrganization extends TimeStamped {
   name: string;
 }
 
+/**
+ * Per-event validation messages for the registration form (SPEC §7.1, DR-34):
+ * field path (array indexes written as `*`, `*` alone = every field) →
+ * validation keyword (e.g. `required`, `pattern`) → Handlebars message.
+ */
+export type RegistrationErrorMessages = Record<string, Record<string, string>>;
+
 export interface ApiEvent extends TimeStamped {
   id: number;
   name: string;
@@ -62,6 +69,7 @@ export interface ApiEvent extends TimeStamped {
   registration_schema: JSONSchema7;
   registration_ui_schema: Hash;
   registration_admin_schema: Hash;
+  registration_error_messages: RegistrationErrorMessages;
   payment_schema: JSONSchema7;
   deposit_schema: JSONSchema7;
 
@@ -288,6 +296,8 @@ export interface ApiRegister {
   uiSchema: Hash;
   preSubmitTemplate: string;
   templateVars: Hash;
+  /** The event's custom validation messages; absent from older servers. */
+  registrationErrorMessages?: RegistrationErrorMessages;
   event: RegisterConfigEvent;
   pricingLogic: {
     registration: JsonLogicPricing;

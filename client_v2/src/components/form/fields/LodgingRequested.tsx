@@ -10,6 +10,10 @@
  * provided on the field's uiSchema as `lodging_nodes`. Nodes with no remaining
  * capacity are labelled "(full)" and disabled. Referenced from an event's
  * uiSchema as `ui:field: 'LodgingRequested'`.
+ *
+ * Validation errors — the field's own, and those on its `id` / `choices`
+ * (e.g. a non-leaf choice such as "RV Camping" with no length picked yet) —
+ * show under the last dropdown, so the unfinished choice is marked.
  */
 
 import { Select, Stack } from '@mantine/core';
@@ -27,6 +31,18 @@ interface LodgingRequestedValue {
   choices?: number[];
   id?: number;
   name?: string;
+}
+
+/** The field's own errors plus those rjsf files under its `id` and `choices`. */
+function lodgingErrors(props: FieldProps): string[] {
+  if (props.hideError) return [];
+  const children = (props.errorSchema ?? {}) as Record<string, { __errors?: unknown[] } | undefined>;
+  const all = [
+    ...(props.rawErrors ?? []),
+    ...(children.id?.__errors ?? []),
+    ...(children.choices?.__errors ?? []),
+  ].filter((error): error is string => typeof error === 'string' && error !== '');
+  return [...new Set(all)];
 }
 
 export function LodgingRequested(props: FieldProps) {
@@ -56,6 +72,8 @@ export function LodgingRequested(props: FieldProps) {
 
   if (!root) return null;
 
+  const errors = lodgingErrors(props);
+
   // Build the chain of selects: the root, then one per chosen non-leaf node
   // (a chosen node with children opens the next level).
   const parents: LodgingNode[] = [root];
@@ -83,6 +101,7 @@ export function LodgingRequested(props: FieldProps) {
             value={choices[level] !== undefined ? String(choices[level]) : null}
             onChange={(next) => handleSelect(next ? Number(next) : undefined, level)}
             disabled={props.disabled || props.readonly}
+            error={level === parents.length - 1 && errors.length ? errors.join('\n') : undefined}
           />
         );
       })}
