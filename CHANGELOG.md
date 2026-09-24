@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/camphoric/camphoric/compare/v0.5.0...v0.6.0) (2026-09-24)
+
+
+### Features
+
+* **client_v2:** larger text and higher-contrast descriptions ([8114304](https://github.com/camphoric/camphoric/commit/8114304d7208b0f12419a89a655285446987febe)), closes [#656](https://github.com/camphoric/camphoric/issues/656)
+* **client_v2:** manage validation messages in Settings ([8b0c74c](https://github.com/camphoric/camphoric/commit/8b0c74cfd1b42b071f1505b763971367b7010c29))
+* **client_v2:** readable, per-event validation messages ([04ef03a](https://github.com/camphoric/camphoric/commit/04ef03a94363e4ab346ff7b76abef7afbd73ead9))
+* **data:** import per-event validation messages ([832ecb5](https://github.com/camphoric/camphoric/commit/832ecb567037c959b4d50f8246048a9a2751092c))
+* **server:** store per-event validation messages ([464f594](https://github.com/camphoric/camphoric/commit/464f59446176b07529025024991677293d6fb5e3))
+
+
+### Bug Fixes
+
+* **client_v2:** focus the first field with an error after a failed submit ([323a46a](https://github.com/camphoric/camphoric/commit/323a46acac83fcb783a4ab37e8c505b600c60384))
+* **harmony:** fix harmony membership text ([c069018](https://github.com/camphoric/camphoric/commit/c069018df1ab4d3677dbc53dadc1485ece2ee1b8)), closes [#655](https://github.com/camphoric/camphoric/issues/655)
+* **harmony:** make lodging error messages more generic ([b1583c1](https://github.com/camphoric/camphoric/commit/b1583c11feb4faa0984d33d13c6eba4f7de36858))
+* **harmony:** remove country from address ([37e9585](https://github.com/camphoric/camphoric/commit/37e9585bea81fcfcb07e7d2ed71d88b307768bb8)), closes [#657](https://github.com/camphoric/camphoric/issues/657)
+
 ## [0.5.0](https://github.com/camphoric/camphoric/compare/v0.4.1...v0.5.0) (2026-09-24)
 
 
