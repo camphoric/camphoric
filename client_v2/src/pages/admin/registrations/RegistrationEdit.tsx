@@ -131,6 +131,10 @@ export function RegistrationEdit({
                     formData: registration.attributes,
                     totals: registration.server_pricing_results,
                   }}
+                  // Validation messages show as the admin edits, but never
+                  // block saving (admins may need to save partial or legacy data).
+                  liveValidate
+                  errorMessages={{ rules: event.registration_error_messages }}
                   onChange={(formData) => setAttributes(formData as Hash)}
                 >
                   <></>

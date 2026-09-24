@@ -133,6 +133,7 @@ export function RegistrationStep() {
         uiSchema={config.uiSchema}
         formData={registration}
         templateData={templateData}
+        errorMessages={{ rules: config.registrationErrorMessages }}
         onChange={handleChange}
         onSubmit={handleSubmit}
         onError={handleError}

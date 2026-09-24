@@ -21,14 +21,27 @@ import { apiFetch } from 'utils/fetch';
 const registerUrl = (eventId: string, search = '') =>
   `/api/events/${eventId}/register${search}`;
 
-export function useRegistrationConfig(eventId: string) {
+export function useRegistrationConfig(eventId: string, search = window.location.search) {
   // The query string may carry an invitation code, so it's part of the key.
-  const search = window.location.search;
   return useQuery({
     queryKey: ['RegisterConfig', eventId, search],
     queryFn: ({ signal }) => apiFetch<ApiRegister>(registerUrl(eventId, search), { signal }),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * The registration form's full schema as registrants receive it (including the
+ * server-built lodging fields), for admin tools such as the validation-message
+ * editor (§8.8). Unlike `useRegistrationConfig` it ignores the page's query
+ * string (no invitation overrides) and refetches normally, so schema edits made
+ * elsewhere in Settings show up.
+ */
+export function useRegistrationFormSchema(eventId: string) {
+  return useQuery({
+    queryKey: ['RegisterConfigAdmin', eventId],
+    queryFn: ({ signal }) => apiFetch<ApiRegister>(registerUrl(eventId), { signal }),
   });
 }
 

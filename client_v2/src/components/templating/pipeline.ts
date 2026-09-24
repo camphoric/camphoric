@@ -50,6 +50,39 @@ export function processHandlebarsTemplate(template: string, vars: object = {}): 
   return handlebars.compile(template)(vars);
 }
 
+// Plain-text templates (validation messages) are rendered on every validation
+// pass, so their compiled form is cached.
+const plainTextTemplates = new Map<string, HandlebarsTemplateDelegate>();
+
+/**
+ * Substitute Handlebars variables without HTML-escaping, for short plain-text
+ * strings such as validation messages. The result must only ever be rendered
+ * as React text (which escapes it), never as HTML.
+ */
+export function renderPlainTextTemplate(template: string, vars: object = {}): string {
+  let compiled = plainTextTemplates.get(template);
+  if (!compiled) {
+    compiled = handlebars.compile(template, { noEscape: true });
+    plainTextTemplates.set(template, compiled);
+  }
+  return compiled(vars);
+}
+
+const knownHelpers = Object.fromEntries(Object.keys(templateHelpers).map((name) => [name, true]));
+
+/**
+ * Check a template up front (compilation is otherwise lazy): returns the syntax
+ * or unknown-helper error message, or null when the template is valid.
+ */
+export function checkTemplate(template: string): string | null {
+  try {
+    handlebars.precompile(template, { knownHelpers, knownHelpersOnly: true });
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 /** Render markdown to sanitized HTML. */
 export function markdownToHtml(markdown: string): string {
   return String(markdownProcessor.processSync(markdown));
