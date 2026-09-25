@@ -88,3 +88,16 @@ test.describe('Template editor', () => {
     await expect(suggestions).toContainText('linens');
   });
 });
+
+test.describe('Template help', () => {
+  test('searches the variables and inserts one', async ({ page }) => {
+    await page.goto(story('template-help-panel--with-insert'));
+    await page.getByLabel('Search help').fill('nights');
+    await expect(page.getByRole('heading', { name: 'attributes:camper' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Insert nights' }).click();
+    await expect(page.getByText('Inserted:')).toContainText('.nights');
+
+    await page.getByRole('tab', { name: 'Guides' }).click();
+    await expect(page.getByRole('heading', { name: 'Jinja basics' })).toBeVisible();
+  });
+});

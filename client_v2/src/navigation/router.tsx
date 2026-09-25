@@ -45,6 +45,10 @@ const EventAdminRegistrations = lazyRouteComponent(
 const EventAdminCampers = lazyRouteComponent(() => import('pages/admin/campers'), 'EventAdminCampers');
 const EventAdminLodging = lazyRouteComponent(() => import('pages/admin/lodging'), 'EventAdminLodging');
 const EventAdminReports = lazyRouteComponent(() => import('pages/admin/reports'), 'EventAdminReports');
+const EventAdminTemplateHelp = lazyRouteComponent(
+  () => import('pages/admin/templateHelp'),
+  'EventAdminTemplateHelp',
+);
 
 const RegisterContainer = lazyRouteComponent(() => import('pages/register'), 'RegisterContainer');
 const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'RegistrationStep');
@@ -58,6 +62,11 @@ export interface AdminSearch {
   camperId?: string;
   reportId?: string;
   registrationsTab?: string;
+  // Template Help (SPEC §4, §9.3).
+  context?: string;
+  helpTab?: string;
+  topic?: string;
+  q?: string;
   // Per-table state (sort/filter/page) is namespaced by a table prefix, e.g.
   // `regq`, `regsort`, `regpage` (DR-2, DR-19) — carried through as strings.
   [tableParam: string]: string | undefined;
@@ -211,6 +220,11 @@ const reportsRoute = createRoute({
   path: 'reports',
   component: EventAdminReports,
 });
+const templateHelpRoute = createRoute({
+  getParentRoute: () => eventAdminRoute,
+  path: 'template-help',
+  component: EventAdminTemplateHelp,
+});
 const settingsRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'settings',
@@ -250,6 +264,7 @@ const routeTree = rootRoute.addChildren([
       campersRoute,
       lodgingRoute,
       reportsRoute,
+      templateHelpRoute,
       settingsRoute,
       eventAdminCatchAllRoute,
     ]),

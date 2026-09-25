@@ -29,6 +29,7 @@ export function EventAdminReports() {
   const [mode, setMode] = useState<Mode>('view');
 
   const selected = reports?.find((r) => String(r.id) === reportId);
+  const helpHref = `/admin/organization/${organizationId}/event/${eventId}/template-help?context=report`;
 
   // Stay on the reports route and only update the URL-addressable selection;
   // navigating with just `search` would resolve to the parent layout, which
@@ -91,13 +92,18 @@ export function EventAdminReports() {
         <Grid.Col span={{ base: 12, sm: 8, md: 9 }}>
           {mode === 'create' && (
             <Card withBorder>
-              <ReportEditForm eventId={eventId} onDone={(id) => select(id)} />
+              <ReportEditForm eventId={eventId} helpHref={helpHref} onDone={(id) => select(id)} />
             </Card>
           )}
 
           {mode === 'edit' && selected && (
             <Card withBorder>
-              <ReportEditForm eventId={eventId} report={selected} onDone={() => setMode('view')} />
+              <ReportEditForm
+                eventId={eventId}
+                report={selected}
+                helpHref={helpHref}
+                onDone={() => setMode('view')}
+              />
             </Card>
           )}
 

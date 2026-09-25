@@ -45,10 +45,12 @@ interface ReportEditFormProps {
   eventId: string;
   /** Omitted when creating a new report. */
   report?: ApiReport;
+  /** The Template Help page, linked from the editor's help. */
+  helpHref?: string;
   onDone: (reportId?: number) => void;
 }
 
-export function ReportEditForm({ eventId, report, onDone }: ReportEditFormProps) {
+export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEditFormProps) {
   const create = reportHooks.useCreate();
   const update = reportHooks.useUpdate();
 
@@ -156,6 +158,7 @@ export function ReportEditForm({ eventId, report, onDone }: ReportEditFormProps)
             eventId={eventId}
             context="report"
             output={output === 'hbs' ? 'md' : output}
+            helpHref={helpHref}
           />
         ) : (
           <JsonEditor

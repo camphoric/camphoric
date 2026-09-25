@@ -172,7 +172,8 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?registrationsTab`) is typed and centrally defined. (Rationale: §15, DR-2.)
+`?registrationsTab`, and Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
+centrally defined. (Rationale: §15, DR-2.)
 
 The router defines two top-level branches. A trailing-slash normalizer redirects any URL
 ending in `/` to the non-slash form.
@@ -195,6 +196,12 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
+- `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
+  Search params: `?context` — the kind of template (`report`, `confirmation_email`,
+  `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
+  default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags) or
+  `guide`; `?topic` — the guide topic id; `?q` — the search text. Defaults are left out of the
+  URL.
 
 All admin routes are wrapped by a guard that fetches the current user and renders a login
 form if the user is not authenticated; otherwise it renders the requested route. Heavy route
@@ -507,7 +514,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 The event-admin area provides navigation among the event's admin functions, indicating the
 current one and showing the event/organization identity. The functions (each addressable at
 `…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `campers`,
-`lodging`, `reports`, `settings`; an unknown subpath falls back to `home`. (The routes are a
+`lodging`, `reports`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
 contract; the navigation's visual form is not.)
 
 Within each function the admin typically **finds/selects a record and views or edits its
@@ -808,9 +815,8 @@ are caught and shown (in a `<pre>`) rather than crashing.
 **Custom Handlebars helpers** (must be preserved): lookups (`getLodgingValue`,
 `getRegistrationValue`, `getCamperValue`), array ops (`count`, `filter` with comparison
 operators, `eachsort`, `eachrsort`, `eachLookupSort`), comparisons (`compare`, `lt`, `gt`),
-math (`sum`, `subtract`, `abs`), and `or`. An in-app **Template Help** reference documents the
-available helpers and variables (with a downloadable view of the current variables) — useful
-when authoring email/report templates.
+math (`sum`, `subtract`, `abs`), and `or`. Template Help (below) documents them, each with an
+example and its result.
 
 **Server-rendered Jinja.** Reports with Camphoric variables (§8.7) render on the server, in
 Jinja, against a model of the event that the server builds (§15, DR-35):
@@ -835,7 +841,35 @@ Jinja, against a model of the event that the server builds (§15, DR-35):
 - **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
   sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
-  such as `camper.frist_name`) renders blank and is reported as a warning.
+  such as `camper.frist_name`) renders blank and is reported as a warning. The read-only
+  refusal's message points authors to the *Computed values* guide, so that topic keeps its
+  title.
+
+**Template Help.** Template authors get in-app help in two places: beside the template editor
+(§9.6), and on a standalone page (`…/template-help`, §4) reachable from the admin navigation
+and linked from the editor's help. Both offer, for one kind of template:
+
+- **Variables** — the context's variables, then every type reachable from them (nearest first),
+  each field with its type, description, example, allowed values and whether it may be empty.
+  Types link to their own entry; the event's own types (its form questions and pricing) are
+  marked as such. Generated entirely from the variable spec (§5; §15, DR-36).
+- **Filters, tests and tags** — each with its signature, description and example; Camphoric's
+  own filters are listed first.
+- **Search** across both, by name, title, type or description; a type whose name matches is
+  shown whole.
+- **Guides** — short topics: Jinja basics; loops, sorting and grouping; computed values (own
+  lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; common errors;
+  moving from legacy reports (a mapping from the bundle's lookups to the linked variables);
+  moving emails from Mustache (a mapping of each email's variables); and the Handlebars helpers
+  (from the helpers' own help text).
+
+Beside the editor, choosing a variable, field, filter, test or tag inserts it at the cursor
+(`name`, `.field` or `['key']`, `| filter`, `is test`, or a tag snippet). The standalone page
+lets the admin choose the kind of template, keeps its state in the URL (§4), and offers
+**Download sample variables**: the chosen context's variables rendered as JSON from the event's
+real data through the preview endpoint (§5), using the template
+`{{ dict(<root>=<root>, <list root>=<list root>[:3], …) | dump(2) }}` — lists cut to their first
+three items, Camphoric objects two levels deep with deeper links as `{"$ref": "type:id"}`.
 
 ### 9.4 Search
 
@@ -886,6 +920,8 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
     it was cut off.
   - **Problems** — the preview's diagnostics are listed (errors first) and underlined in the
     text at their line/column; choosing one moves the cursor to it.
+  - **Help** — Template Help for the editor's context (§9.3) can be opened alongside the editor
+    without blocking it, inserts entries at the cursor, and links to the standalone help page.
 
   Several template editors can be open at once, each with its own context.
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation

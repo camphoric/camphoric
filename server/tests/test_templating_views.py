@@ -126,6 +126,21 @@ class TemplatePreviewTests(APITestCase):
                             ).json()
         self.assertEqual(data['output'], 'lee@example.com Lee')
 
+    def test_sample_variables_template(self):
+        '''The client's "Download sample variables" template (TemplateHelp/reference.ts).'''
+        import json
+        data = self.preview(
+            context='report', output='txt',
+            template='{{ dict(event=event, campers=campers[:2], today=today) | dump(2) }}').json()
+        self.assertEqual(data['diagnostics'], [])
+        variables = json.loads(data['output'])
+        self.assertEqual(variables['event']['name'], 'Test Camp')
+        self.assertEqual(len(variables['campers']), 2)
+        # Two levels deep: a camper's registration is expanded, its campers are references.
+        registration = variables['campers'][0]['registration']
+        self.assertEqual(registration['registrant_email'], 'pat@example.com')
+        self.assertIn('$ref', registration['campers'][0])
+
     def test_bad_requests(self):
         self.assertEqual(self.preview(context='nope', template='').status_code, 400)
         self.assertEqual(
