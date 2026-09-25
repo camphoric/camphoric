@@ -27,6 +27,8 @@ jinja2 = "*"
 deepmerge = "*"
 whitenoise = "*"
 gunicorn = "*"
+django-tasks-db = "*"
+cryptography = "*"
 
 [requires]
 python_version = "3.12"

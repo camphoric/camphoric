@@ -1,15 +1,20 @@
 from decimal import Decimal
 import datetime
+import logging
 import random
 import uuid
 
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 from camphoric import (
+    crypto,
     pricing,
 )
+
+logger = logging.getLogger(__name__)
 
 # Useful docs:
 # - https://docs.djangoproject.com/en/4.1/ref/models/fields/
@@ -19,6 +24,29 @@ class CustomJSONField(models.JSONField):
     def __init__(self, *args, **kwargs):
         kwargs["encoder"] = DjangoJSONEncoder
         super().__init__(*args, **kwargs)
+
+
+class EncryptedTextField(models.TextField):
+    '''
+    Text stored encrypted (camphoric.crypto) and read back as plaintext. A value
+    that no configured key can decrypt reads back as None.
+    '''
+
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return value
+        try:
+            return crypto.decrypt(value)
+        except crypto.InvalidToken:
+            logger.error(f'{self.model.__name__}.{self.name} can\'t be decrypted with the '
+                         'configured CAMPHORIC_SECRET_KEY_EMAIL / SECRET_KEY')
+            return None
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value is None or crypto.is_encrypted(value):
+            return value
+        return crypto.encrypt(value)
 
 
 class PaymentType(models.TextChoices):
@@ -104,8 +132,25 @@ class EmailAccount(TimeStampedModel):
     )
     host = models.CharField(max_length=255)
     port = models.PositiveIntegerField()
-    username = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
+    security = models.CharField(
+        max_length=10,
+        choices=[
+            ('starttls', 'STARTTLS (usually port 587)'),
+            ('ssl', 'SSL/TLS (usually port 465)'),
+            ('none', 'None'),
+        ],
+        default='starttls',
+    )
+    timeout = models.PositiveIntegerField(default=30, help_text='Seconds to wait for the server')
+    username = models.CharField(max_length=255, blank=True)
+    password = EncryptedTextField(blank=True, help_text='Stored encrypted')
+    max_per_minute = models.PositiveIntegerField(
+        null=True, blank=True, help_text='Most messages to send in any minute (blank: no limit)')
+    max_per_day = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Most messages to send in any 24 hours (blank: no limit). '
+                  'Gmail allows about 500 for personal accounts and 2,000 for Workspace.')
+    default_reply_to = models.EmailField(blank=True)
 
     def __str__(self):
         return self.name
@@ -203,7 +248,7 @@ class Event(TimeStampedModel):
         help_text="How the confirmation email's subject and body are written")
     confirmation_email_from = models.EmailField(blank=True, default='')
 
-    email_account = models.ForeignKey(EmailAccount, null=True, on_delete=models.CASCADE)
+    email_account = models.ForeignKey(EmailAccount, null=True, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.name
@@ -588,3 +633,74 @@ class BulkEmailRecipient(TimeStampedModel):
                 name='task_email',
             ),
         ]
+
+
+class EmailMessageKind(models.TextChoices):
+    CONFIRMATION = 'confirmation', 'Registration confirmation'
+    CONFIRMATION_REPORT = 'confirmation_report', 'Confirmation email problem report'
+    PAGE_REPORT = 'page_report', 'Confirmation page problem report'
+    INVITATION = 'invitation', 'Invitation'
+    BULK = 'bulk', 'Bulk email'
+    TEST = 'test', 'Test email'
+
+
+class EmailMessageStatus(models.TextChoices):
+    QUEUED = 'queued', 'Queued'
+    SENDING = 'sending', 'Sending'
+    SENT = 'sent', 'Sent'
+    FAILED = 'failed', 'Failed'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+class EmailMessage(TimeStampedModel):
+    '''
+    One outgoing email: the outbox the worker delivers from, and the permanent
+    record of what was sent, to whom, from which account, and how it went
+    (camphoric.mail, SPEC DR-43). The content is rendered when the message is
+    queued, so the record shows exactly what was sent.
+    '''
+    event = models.ForeignKey(Event, related_name='email_messages', on_delete=models.CASCADE)
+    kind = models.CharField(max_length=30, choices=EmailMessageKind.choices)
+    registration = models.ForeignKey(
+        Registration, null=True, blank=True, on_delete=models.SET_NULL)
+    invitation = models.ForeignKey(
+        Invitation, null=True, blank=True, on_delete=models.SET_NULL)
+    # The sending account (null: the server's default mailer). An account with
+    # messages can't be deleted, so a queued message never changes servers.
+    account = models.ForeignKey(EmailAccount, null=True, blank=True, on_delete=models.PROTECT)
+    from_email = models.CharField(max_length=255)
+    to = models.CharField(max_length=255)
+    reply_to = models.CharField(max_length=255, blank=True)
+    subject = models.TextField()
+    text = models.TextField()
+    html = models.TextField(blank=True)
+
+    status = models.CharField(
+        max_length=10, choices=EmailMessageStatus.choices, default=EmailMessageStatus.QUEUED)
+    attempts = models.PositiveIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    lease_until = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    smtp_message_id = models.CharField(max_length=255, blank=True)
+    # At most one live (not cancelled) message per key, e.g. confirmation:<registration id>.
+    dedupe_key = models.CharField(max_length=255, null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['dedupe_key'],
+                condition=models.Q(dedupe_key__isnull=False) & ~models.Q(status='cancelled'),
+                name='email_message_dedupe_key',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['status', 'next_attempt_at'], name='email_message_due'),
+            models.Index(fields=['account', 'sent_at'], name='email_message_account_sent'),
+            models.Index(fields=['event', '-created_at'], name='email_message_event_recent'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_kind_display()} to {self.to} ({self.status})'

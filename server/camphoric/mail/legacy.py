@@ -1,5 +1,6 @@
 '''
-Email-related functions
+Task-based bulk email (SPEC §8.9, DR-39). It still sends directly rather than
+through the outbox (camphoric.mail.outbox) until email templates replace it.
 '''
 
 import logging
@@ -11,9 +12,9 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 import chevron
 import cmarkgfm
-import django.core.mail
 
 from camphoric import models
+from camphoric.mail.mailers import mailer_for
 from camphoric.templating.bulk import recipient_context
 from camphoric.templating.emails import RenderedEmail, render_jinja_email
 from camphoric.templating.graph import build_event_graph
@@ -23,23 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_email_connection_for_event(event):
-    '''
-    Instantiate the email backend for the given event (camphoric.models.Event)
-    to be passed as the `connection` argument of EmailMessage,
-    EmailMultiAlternatives, etc.
-    '''
-    account = event.email_account
-    if account is None:
-        return django.core.mail.get_connection()
-
-    return django.core.mail.get_connection(
-        backend=account.backend,
-        host=account.host,
-        port=account.port,
-        username=account.username,
-        password=account.password,
-        use_tls=True,
-    )
+    '''The email backend for sending as the event's account.'''
+    return mailer_for(event.email_account)
 
 
 def send_bulk_email(task):
