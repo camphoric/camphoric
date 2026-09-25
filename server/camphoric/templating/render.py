@@ -213,6 +213,25 @@ def _message(exc):
         else f'{type(exc).__name__}: {text}'
 
 
+def compile_expression(source, *, field):
+    '''
+    Compile a Jinja expression (a bulk-email filter or address, e.g.
+    `registration.balance > 0`) in the sandbox. Returns (callable, None), or
+    (None, Diagnostic) when it doesn't parse. Call the result with the
+    context's variables; guard the call with `expression_error`.
+    '''
+    try:
+        return TEXT_ENV.compile_expression(source), None
+    except TemplateSyntaxError as exc:
+        return None, Diagnostic(severity='error', kind='syntax',
+                                message=exc.message or str(exc), field=field, line=exc.lineno)
+
+
+def expression_error(exc):
+    '''A readable message for an exception raised while evaluating an expression.'''
+    return _message(exc)
+
+
 def syntax_error(source, *, field='template'):
     '''The template's syntax error as a Diagnostic, or None when it parses.'''
     try:

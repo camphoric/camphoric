@@ -1,9 +1,10 @@
-from rest_framework.serializers import ModelSerializer, ValidationError
+from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError
 from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
 from camphoric import (
     models,
 )
+from camphoric.templating.bulk import Criteria, expression_diagnostics
 from camphoric.templating.render import syntax_error
 
 
@@ -143,9 +144,66 @@ class PaymentSerializer(ModelSerializer):
 
 
 class BulkEmailTaskSerializer(ModelSerializer):
+    '''
+    A bulk email, with its derived `status` (draft | running | finished |
+    stopped | failed) and recipient counts. The run fields are set by sending,
+    never by clients.
+    '''
+    status = SerializerMethodField()
+    recipient_count = SerializerMethodField()
+    sent_count = SerializerMethodField()
+    error_count = SerializerMethodField()
+
     class Meta:
         model = models.BulkEmailTask
         fields = '__all__'
+        read_only_fields = ['running_pid', 'run_uuid', 'run_start_time', 'run_finish_time',
+                            'error']
+
+    def get_status(self, task):
+        if task.running_pid:
+            return 'running'
+        if task.error:
+            return 'failed'
+        if task.run_finish_time:
+            return 'finished'
+        if task.run_start_time:
+            return 'stopped'
+        return 'draft'
+
+    def _counts(self, task):
+        if not hasattr(task, '_recipient_counts'):
+            rows = list(task.recipients.values_list('sent_time', 'error'))
+            task._recipient_counts = (
+                len(rows),
+                sum(1 for sent, _ in rows if sent),
+                sum(1 for sent, error in rows if error and not sent),
+            )
+        return task._recipient_counts
+
+    def get_recipient_count(self, task):
+        return self._counts(task)[0]
+
+    def get_sent_count(self, task):
+        return self._counts(task)[1]
+
+    def get_error_count(self, task):
+        return self._counts(task)[2]
+
+    def validate(self, data):
+        errors = {}
+        try:
+            validate_jinja_email(self.instance, data, 'engine', 'subject', 'body_template')
+        except ValidationError as exc:
+            errors.update(exc.detail)
+        merged = {name: data.get(name, getattr(self.instance, name, None))
+                  for name in ('recipient_kind', 'recipient_list', 'recipient_filter',
+                               'address_expression', 'name_expression', 'include_incomplete')}
+        for problem in expression_diagnostics(Criteria.from_data(merged)):
+            errors[problem.field] = [problem.message]
+        if errors:
+            raise ValidationError(errors)
+        return data
 
 
 class BulkEmailRecipientSerializer(ModelSerializer):

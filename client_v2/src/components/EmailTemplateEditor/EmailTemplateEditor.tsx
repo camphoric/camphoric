@@ -14,7 +14,7 @@
 
 import { Anchor, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import type { TemplateEngine } from 'api-types';
+import type { TemplateContextName, TemplateEngine } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
 import { type PreviewSample, TemplateEditor } from 'components/TemplateEditor';
 import { useState } from 'react';
@@ -32,7 +32,7 @@ const ENGINE_OPTIONS: { value: TemplateEngine; label: string }[] = [
 
 interface EmailTemplateEditorProps {
   eventId: string | number;
-  context: 'confirmation_email' | 'invitation_email';
+  context: TemplateContextName;
   engine: TemplateEngine;
   onEngineChange: (engine: TemplateEngine) => void;
   subject: string;
