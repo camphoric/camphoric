@@ -177,6 +177,34 @@ localhost:3000 using the following command:
 `vagrant ssh -c "cd camphoric/client; npm start"`
 
 
+Rebuilding the VM
+-----------------
+
+The VM runs Ubuntu 24.04, which provides Python 3.12 and PostgreSQL 16. A VM
+built from an older base box (Ubuntu 22.04: Python 3.10, PostgreSQL 14) can't
+run current Camphoric and has to be rebuilt. Rebuilding deletes the VM's
+database, so dump it first if you want to keep what's in it:
+
+```
+# 1. Save the VM's database to vm-data.sql in the repo root (git-ignored)
+vagrant ssh -c "pg_dump camphoric -f /vagrant/vm-data.sql"
+
+# 2. Delete the old VM and build a new one
+vagrant destroy -f
+vagrant up
+
+# 3. Restore the saved data (or run it with no argument to load live-data.sql)
+./overwrite-with-live-data.sh vm-data.sql
+```
+
+A plain-SQL dump from an older PostgreSQL restores into a newer one without
+changes.
+
+If you set `CAMPHORIC_VAGRANT_BASE_IMAGE` to a local box, unset it or point it
+at an Ubuntu 24.04 box before `vagrant up`; otherwise the old base image is
+used again.
+
+
 Vault setup instructions
 ------------------------
 
