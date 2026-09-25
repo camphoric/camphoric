@@ -15,7 +15,8 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
   — GitHub Packages is **free for public repositories** (unlimited storage and transfer, no
   pull-rate limits), which `camphoric/camphoric` is.
 
-The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL server.
+The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL server (15 or newer,
+as Django 6.1 requires).
 
 ---
 

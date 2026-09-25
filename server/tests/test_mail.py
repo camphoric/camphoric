@@ -214,7 +214,7 @@ class BulkEmailTests(TestCase):
         send_calls = 0
 
         def send_spy(message, *args, **kwargs):
-            nonlocal send_calls, task_id
+            nonlocal send_calls
             send_calls += 1
             if send_calls == 2:
                 task = models.BulkEmailTask.objects.get(id=task_id)
