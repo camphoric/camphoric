@@ -2029,11 +2029,11 @@ defaults flip: new email templates (event confirmation, registration-type invita
 email) default to `jinja`, and new reports to `variables_source: 'server'`. Existing rows keep
 what they were saved with — only the defaults change. The importer sends the engine for its
 emails, and marks its reports `client` unless a report says otherwise, since the 62 `data/`
-reports are still written for the browser bundle. Each converted email was checked with
-`manage.py compare_email_templates`, which renders the saved Mustache and the candidate Jinja
-for every registration and invitation of the live-import events and diffs them after
-normalizing the differences the conversion is meant to make (HTML entities, dollar formatting,
-insignificant whitespace).
+reports are still written for the browser bundle. Each converted email was checked with a
+temporary comparison tool (since removed; it remains in the project history), which rendered the
+saved Mustache and the candidate Jinja for every registration and invitation of the live-import
+events and diffed them after normalizing the differences the conversion is meant to make (HTML
+entities, dollar formatting, insignificant whitespace).
 **Context:** DR-35 and DR-38 kept the legacy behavior as the default so existing events, the
 importer and the v1 client weren't affected until the `data/` emails were converted. With them
 converted and verified, new templates should get the model that has autocomplete, preview,
@@ -2062,8 +2062,8 @@ registration types, payments, registration dates), always inside a rolled-back t
 outputs match, except for listed fixes: crashes (sorting on missing values, missing lodging or
 answers), wrong totals, stale references whose intent was plain (fields that moved, renamed
 registration types, dates that meant the camp's first day). Unclear stale references are kept and
-marked `TODO` in the templates. The comparison tools are temporary, removed once the conversion
-is accepted.
+marked `TODO` in the templates. The comparison tools were temporary and were removed once the
+conversion was accepted (they remain in the project history).
 **Context:** The legacy reports needed the browser to build and upload the whole event (#653)
 and mutated the uploaded data to join it. New events are created from `data/`, so converting
 those files moves every future event onto the new model. Comparing against the legacy output,
