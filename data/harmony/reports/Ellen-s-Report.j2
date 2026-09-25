@@ -1,4 +1,3 @@
-{%- set dates = [ ['2025-12-30', 'Tue'],['2025-12-31', 'Wed' ],['2026-01-01', 'Thu' ],['2026-01-02', 'Fri' ],['2026-01-03', 'Sat' ] ] -%}
 {%- set earlybird_cutoff = '2025-11-15T07:00:00' -%}
 {%- set locations = [
   ['Lodge', ['Lodge']],
@@ -12,22 +11,17 @@
   ['Child', ['3-12 years old']],
   ['Baby', ['0-2 years old']],
 ] -%}
-{%- for camper in campers -%}
-  {%- set ldg = lodgingLookup[camper.lodging | string] -%}
-  {%- do camper.update({'ldg': ldg.pathParts if ldg else [] }) -%}
-	{%- do camper.update({'regdate': 
-    registrationLookup[camper.registration | string].created_at |
-      regex_replace('\.[0-9]+Z$', '') }) -%}
-{%- endfor -%}
 Reg, Category, Camper Nights
 {% for age in ages -%}
 {%- for early in [True, False] -%}
 {%- for loc in locations -%}
-{{ ('Early' if early else 'Regular') if (loop.first) else '' }}, {{ age[0] }} per day {{ loc[0] }}, {{
-  campers |
-    selectattr('attributes.age', 'in', age[1]) |
-    selectattr('lodging') | selectattr('ldg.0', 'in', loc[1]) |
-    selectattr('regdate', ('lt' if early else 'gt'), earlybird_cutoff) |
-		map(attribute='stay') | map('default', [], true) | map('length') | sum
-}}
+{%- set ns = namespace(nights=0) -%}
+{%- for camper in campers if camper.attributes.age in age[1] and camper.lodging and camper.lodging.path_names[0] in loc[1] -%}
+  {#- Registration times compare in UTC, as the cutoff is written. -#}
+  {%- set registered = camper.registration.created_at | datetime('%Y-%m-%dT%H:%M:%S', 'UTC') -%}
+  {%- if ((registered < earlybird_cutoff) if early else (registered > earlybird_cutoff)) -%}
+    {%- set ns.nights = ns.nights + (camper.stay or []) | length -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ ('Early' if early else 'Regular') if (loop.first) else '' }}, {{ age[0] }} per day {{ loc[0] }}, {{ ns.nights }}
 {% endfor %}{% endfor %}{% endfor %}

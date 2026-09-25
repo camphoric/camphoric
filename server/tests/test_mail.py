@@ -79,6 +79,8 @@ class BulkEmailTests(TestCase):
         EmailMultiAlternatives.attach_alternative = self.real_attach_alternative
 
     def create_task(self, recipients=None, **kwargs):
+        # The send machinery, with the lightest renderer: these tests time sends.
+        kwargs.setdefault('engine', models.TemplateEngine.MUSTACHE)
         task = models.BulkEmailTask.objects.create(
             event=self.event,
             from_email='registration@example.com',

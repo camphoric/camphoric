@@ -133,3 +133,6 @@ node_modules/
 # Claude Code local preview/launch config
 .claude/launch.json
 live-data.sql
+
+# Scratch output of data/compare-reports.sh (DR-41)
+server/tmp-reports/
