@@ -1,6 +1,5 @@
 import datetime
 from django.test import TestCase
-from django.utils import timezone
 from camphoric import models
 from freezegun import freeze_time
 
@@ -17,7 +16,7 @@ class OrganizationTests(TestCase):
         self.assertEqual(self.organization.name, "Test Organization")
         self.assertEqual(
             self.organization.created_at,
-            datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc)
+            datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=datetime.timezone.utc)
         )
 
     @freeze_time("2019-03-26 09:52:01")
@@ -28,7 +27,7 @@ class OrganizationTests(TestCase):
         self.assertEqual(self.organization.name, "New Test Organization")
         self.assertEqual(
             self.organization.updated_at,
-            datetime.datetime(2019, 3, 26, 9, 52, 1, tzinfo=timezone.utc)
+            datetime.datetime(2019, 3, 26, 9, 52, 1, tzinfo=datetime.timezone.utc)
         )
 
     @freeze_time("2019-08-26 09:52:01")
@@ -38,7 +37,7 @@ class OrganizationTests(TestCase):
         self.organization.refresh_from_db()
         self.assertEqual(
             self.organization.deleted_at,
-            datetime.datetime(2019, 8, 26, 9, 52, 1, tzinfo=timezone.utc)
+            datetime.datetime(2019, 8, 26, 9, 52, 1, tzinfo=datetime.timezone.utc)
         )
         self.organization.soft_undelete()
         self.organization.refresh_from_db()

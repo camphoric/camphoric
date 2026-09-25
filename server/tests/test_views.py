@@ -3,10 +3,9 @@ import datetime
 import json
 import os.path
 
-from django.conf import settings
+from django.test import override_settings
 from django.contrib.auth.models import User
 from django.core import mail
-from django.utils import timezone
 import jsonschema  # Using Draft-7
 from rest_framework.test import APITestCase, APIClient
 
@@ -418,7 +417,7 @@ class RegisterGetTests(APITestCase):
         event = models.Event.objects.create(
             organization=self.organization,
             name='Test Price Fields',
-            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=datetime.timezone.utc),
             pricing={
                 'adult': 790,
                 'teen': 680,
@@ -539,7 +538,7 @@ class RegisterGetTests(APITestCase):
                 registration_type=registration_type,
                 recipient_name='Campy McCampface',
                 recipient_email='camper@example.com',
-                expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+                expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
             )
 
         # good email/code
@@ -573,7 +572,7 @@ class RegisterGetTests(APITestCase):
             registration_type=registration_type,
             recipient_name='Campy McCampface',
             recipient_email='camper@example.com',
-            expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+            expiration_time=datetime.datetime(2100, 1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
         )
 
         # good email/code
@@ -634,7 +633,8 @@ class RegisterGetTests(APITestCase):
 
         # expired invitation
         invitation.registration = None
-        invitation.expiration_time = datetime.datetime(2010, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        invitation.expiration_time = datetime.datetime(
+            2010, 1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
         invitation.save()
         response = self.client.get(
             f'/api/events/{event.id}/register?email=camper@example.com&code='
@@ -650,15 +650,15 @@ class RegisterGetTests(APITestCase):
 class RegisterPostTests(APITestCase):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.paypal_server = MockServer()
         cls.paypal_server.start()
-        settings.PAYPAL_BASE_URL = f'http://{cls.paypal_server.host}:{cls.paypal_server.port}'
-        settings.PAYPAL_CLIENT_ID = 'test-client-id'
-        settings.PAYPAL_SECRET = 'test-secret'
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.paypal_server.stop()
+        cls.addClassCleanup(cls.paypal_server.stop)
+        cls.enterClassContext(override_settings(
+            PAYPAL_BASE_URL=f'http://{cls.paypal_server.host}:{cls.paypal_server.port}',
+            PAYPAL_CLIENT_ID='test-client-id',
+            PAYPAL_SECRET='test-secret',
+        ))
 
     def setUp(self):
         create_standard_test_event(self)
@@ -1321,15 +1321,15 @@ class UsersTests(APITestCase):
 class PriceAutoUpdateTests(APITestCase):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.paypal_server = MockServer()
         cls.paypal_server.start()
-        settings.PAYPAL_BASE_URL = f'http://{cls.paypal_server.host}:{cls.paypal_server.port}'
-        settings.PAYPAL_CLIENT_ID = 'test-client-id'
-        settings.PAYPAL_SECRET = 'test-secret'
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.paypal_server.stop()
+        cls.addClassCleanup(cls.paypal_server.stop)
+        cls.enterClassContext(override_settings(
+            PAYPAL_BASE_URL=f'http://{cls.paypal_server.host}:{cls.paypal_server.port}',
+            PAYPAL_CLIENT_ID='test-client-id',
+            PAYPAL_SECRET='test-secret',
+        ))
 
     def setUp(self):
         self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")

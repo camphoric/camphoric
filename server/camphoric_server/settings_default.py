@@ -104,12 +104,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = env('EMAIL_HOST', default=None)
-EMAIL_PORT = env('EMAIL_PORT', default=None)
+EMAIL_PORT = env.int('EMAIL_PORT', default=None)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default=None)
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default=None)
-EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True)
-EMAIL_USE_SSL = env('EMAIL_USE_SSL', default=False)
-EMAIL_TIMEOUT = env('EMAIL_TIMEOUT', default=30)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=30)
 
 
 # Password validation
@@ -140,8 +140,6 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-
-USE_L10N = True
 
 USE_TZ = True
 
