@@ -2,56 +2,57 @@ import { year } from './dates.js';
 
 const subject = 'Family Week registration confirmation';
 
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// `event` are the server's template variables. `{%-` swallows the tag's line,
+// as Mustache did for a tag alone on its line.
 const template = `
 
-Dear {{campers.0.first_name}} {{campers.0.last_name}},
+Dear {{ campers[0].attributes.first_name }} {{ campers[0].attributes.last_name }},
 
 Thank you for registering for BACDS Family Week ${year}.
 This email confirms the following:
 
-{{#registration.registration_type}}
-Staff registration type: {{label}}
-{{/registration.registration_type}}
-
+{% if registration.registration_type -%}
+Staff registration type: {{ registration.registration_type.label }}
+{% endif %}
 Registrant address:
-{{#registration.attributes.address}}
-{{street_address}}
-{{city}}, {{state_or_province}} {{zip_code}}
-{{/registration.attributes.address}}
+{%- with address = registration.attributes.address %}{% if address %}
+{{ address.street_address }}
+{{ address.city }}, {{ address.state_or_province }} {{ address.zip_code }}
+{%- endif %}{% endwith %}
 
-Primary phone: {{registration.attributes.primary_phone}}   
-{{#registration.attributes.secondary_phone}}
-Secondary phone: {{registration.attributes.secondary_phone}}
-{{/registration.attributes.secondary_phone}}
+Primary phone: {{ registration.attributes.primary_phone }}   
+{%- if registration.attributes.secondary_phone %}
+Secondary phone: {{ registration.attributes.secondary_phone }}
+{%- endif %}
 
 **Campers:**
 
-{{#campers}}
-Name: {{first_name}} {{last_name}}   
-{{#birthdate}}Age: {{pricing_result.age}}   {{/birthdate}}
-Email: {{email}}   
-Work trade: {{#work_trade}}Yes{{/work_trade}}{{^work_trade}}No{{/work_trade}}   
-Meals: {{#meal_preferences}}{{meal_type}}{{#gluten_free}}, gluten free{{/gluten_free}}{{#dairy_free}}, dairy free{{/dairy_free}}{{#food_allergies}}, food allergies{{/food_allergies}}{{/meal_preferences}}   
-{{#special_needs}}Special needs: {{special_needs}}   {{/special_needs}}
-{{#housing_preferences}}Housing preferences: {{housing_preferences}}   {{/housing_preferences}}
-**Total: \${{pricing_result.total}}**
+{% for camper in campers -%}
+{%- set a = camper.attributes -%}
+Name: {{ a.first_name }} {{ a.last_name }}   
+{% if a.birthdate %}Age: {{ camper.pricing.age }}   {% endif %}
+Email: {{ a.email }}   
+Work trade: {{ 'Yes' if a.work_trade else 'No' }}   
+Meals: {% if a.meal_preferences %}{{ a.meal_preferences.meal_type }}{{ ', gluten free' if a.meal_preferences.gluten_free }}{{ ', dairy free' if a.meal_preferences.dairy_free }}{{ ', food allergies' if a.meal_preferences.food_allergies }}{% endif %}   
+{% if a.special_needs %}Special needs: {{ a.special_needs }}   {% endif %}
+{% if a.housing_preferences %}Housing preferences: {{ a.housing_preferences }}   {% endif %}
+**Total: {{ camper.pricing.total | money }}**
 
-{{/campers}}
+{% endfor -%}
 
 ---
 
-{{#pricing_results.donation}}
-Family week donation: \${{pricing_results.donation}}
-{{/pricing_results.donation}}
-
+{% if pricing.donation -%}
+Family week donation: {{ pricing.donation | money }}
+{% endif %}
 TOTAL FOR THIS REGISTRATION:
 
-\${{pricing_results.total}}
+{{ pricing.total | money }}
 
-{{#pricing_results.pay_deposit}}
-You have elected to only pay a deposit of \${{pricing_results.deposit}} to hold your place at camp.
-{{/pricing_results.pay_deposit}}
-
+{% if pricing.pay_deposit -%}
+You have elected to only pay a deposit of {{ pricing.deposit | money }} to hold your place at camp.
+{% endif %}
 Please make all checks payable to "BACDS".
 
 Payment: Please mail your check for the above amount to the address below and include a copy of this email on which, for each person, you write what name they want on their name tag and their pronouns.
@@ -72,3 +73,4 @@ We look forward to seeing you on June 25th!
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
+export const confirmation_email_engine = 'jinja';

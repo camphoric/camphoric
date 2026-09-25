@@ -1,8 +1,13 @@
 import { year } from './dates.js';
 
 const subject = `Lark Camp ${year} Registration Confirmation`;
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// `event` are the server's template variables. `{%-` / `-%}` swallow a tag's
+// line, as Mustache did for a tag alone on its line; `-%}` is used after lines
+// ending in a markdown line break (trailing spaces), which `{%-` would eat.
 const template = `
-Dear {{registration.attributes.payment.payer_first_name}} {{registration.attributes.payment.payer_last_name}},
+{%- set payer = registration.attributes.payment or {} %}
+Dear {{ payer.payer_first_name }} {{ payer.payer_last_name }},
 
 We’ve received your online registration for Lark Camp ${year}. Please remember
 that lodging choices are first come – first served. We will do our best to
@@ -21,41 +26,40 @@ accommodate your choice.
 
 **YOU HAVE REGISTERED FOR:**
 
-{{#campers}}
-{{first_name}} {{last_name}} - {{session}}    
-{{lodging_full}}    
-{{meals.meal_plan}}, {{meals.meal_type}}: \${{pricing_result.meals}}    
-{{#name_badge.purchase}}
-Name badge (\${{pricing_result.name_badge}}): {{name_badge.name}} - {{name_badge.pronouns}}     
-{{/name_badge.purchase}}
-Parking Passes Total: \${{pricing_result.parking}}    
-{{#parking_passes}}
-- {{first_name}} {{last_name}}: {{vehicle_type}}    
-{{/parking_passes}}
-
-{{#pricing_result.tuition}}
-Tuition: \${{pricing_result.tuition}}    
-{{/pricing_result.tuition}}
-{{#pricing_result.enrollment_fee}}
-Enrollment Fee: \${{pricing_result.enrollment_fee}}    
-{{/pricing_result.enrollment_fee}}
+{% for camper in campers -%}
+{%- set meals = camper.attributes.meals or {} -%}
+{%- set badge = camper.attributes.name_badge or {} -%}
+{{ camper.attributes.first_name }} {{ camper.attributes.last_name }} - {{ camper.attributes.session }}    
+{{ camper.lodging.path_names | join(', ') if camper.lodging else 'none' }}    
+{{ meals.meal_plan }}, {{ meals.meal_type }}: {{ camper.pricing.meals | money }}    
+{% if badge.purchase -%}
+Name badge ({{ camper.pricing.name_badge | money }}): {{ badge.name }} - {{ badge.pronouns }}     
+{% endif -%}
+Parking Passes Total: {{ camper.pricing.parking | money }}    
+{% for pass in camper.attributes.parking_passes or [] -%}
+- {{ pass.first_name }} {{ pass.last_name }}: {{ pass.vehicle_type }}    
+{% endfor %}
+{% if camper.pricing.tuition -%}
+Tuition: {{ camper.pricing.tuition | money }}    
+{% endif -%}
+{% if camper.pricing.enrollment_fee -%}
+Enrollment Fee: {{ camper.pricing.enrollment_fee | money }}    
+{% endif -%}
 #########    
-{{/campers}}
+{% endfor %}
+Donation to Lark Traditional Arts: {{ pricing.donation | money }}    
 
-Donation to Lark Traditional Arts: \${{pricing_results.donation}}    
-
-{{^pricing_results.parking_pass_count}}    
+{% if not pricing.parking_pass_count -%}
 You have not purchased a parking pass, be warned that it will cost a lot more
 if you need to purchase one at camp.  If you meant to purchase a parking pass,
 please contact the registrar to have it added to your registration.
-{{/pricing_results.parking_pass_count}}    
-
+{% endif %}
 Payment info:
 
-- Initial Payment: {{initial_payment.type}}
-- **Amount you are paying now: \${{initial_payment.total}}**
-- Due by June 20th: \${{initial_payment.balance}}
-- Your total: \${{pricing_results.total}}
+- Initial Payment: {{ initial_payment.type }}
+- **Amount you are paying now: {{ initial_payment.total | money }}**
+- Due by June 20th: {{ initial_payment.balance | money }}
+- Your total: {{ pricing.total | money }}
 
 
 Registration Number: ${year}-{{ registration.id }}
@@ -63,3 +67,4 @@ Registration Number: ${year}-{{ registration.id }}
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
+export const confirmation_email_engine = 'jinja';

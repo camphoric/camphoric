@@ -75,18 +75,19 @@ def bulk_email_manual_context(graph, to):
     return {'event': graph.event, 'recipient': to}
 
 
-def example_invitation(graph, registration_type):
+def example_invitation(graph, registration_type, *, name='Alex Sample',
+                       email='alex@example.com', code='abcd2345'):
     '''A stand-in invitation, for previews and checks when none has been sent.'''
     url = graph.event['register_url']
     return InvitationVar(
         id=0,
-        recipient_name='Alex Sample',
-        recipient_email='alex@example.com',
-        code='abcd2345',
+        recipient_name=name,
+        recipient_email=email,
+        code=code,
         registration_type=registration_type,
         registration=None,
         sent_time=None,
         expiration_time=None,
-        register_url=url + ('&' if '?' in url else '?') + 'email=alex@example.com&code=abcd2345',
+        register_url=url + ('&' if '?' in url else '?') + f'email={email}&code={code}',
         redeemed=False,
     )

@@ -1,36 +1,39 @@
 import { yearDisplay } from './dates.js';
 
 const subject = `Camp Harmony ${yearDisplay} Registration Confirmation`;
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// `event` are the server's template variables. `{%-` swallows the tag's line,
+// as Mustache did for a tag alone on its line.
 const template = `
-Dear {{campers.0.first_name}} {{campers.0.last_name}},
+Dear {{ campers[0].attributes.first_name }} {{ campers[0].attributes.last_name }},
 
 Thank you for your online registration for Camp Harmony ${yearDisplay}! This email confirms the following:
 
 Registration Info
-{{#campers}}
+{%- for camper in campers %}
 
-**{{first_name}} {{last_name}}, {{age}}**
+**{{ camper.attributes.first_name }} {{ camper.attributes.last_name }}, {{ camper.attributes.age }}**
 
-{{phone}}    
-{{email}}    
-Meals: {{meal_type}}{{#meal_exceptions}}, {{.}}{{/meal_exceptions}}    
-Registered for {{#attendance}}, {{.}}{{/attendance}}    
+{{ camper.attributes.phone }}    
+{{ camper.attributes.email }}    
+Meals: {{ camper.attributes.meal_type }}{% for exception in camper.attributes.meal_exceptions or [] %}, {{ exception }}{% endfor %}    
+Registered for {{ (camper.attributes.attendance or []) | join(', ') }}    
 (You must arrive after 2pm on your first day)    
-Housing: {{lodging_full}}    
-Linens rental: {{#linens}}Yes{{/linens}}{{^linens}}No{{/linens}}    
-Campership: \${{pricing_result.campership}}    
+Housing: {{ camper.lodging.path_names | join(', ') if camper.lodging else 'none' }}    
+Linens rental: {{ 'Yes' if camper.attributes.linens else 'No' }}    
+Campership: {{ camper.pricing.campership | money }}    
 
 ------
-{{/campers}}
+{%- endfor %}
 
-Total fees: \${{pricing_results.tuition}}    
-Total campership donation: \${{pricing_results.campership_donation}}    
+Total fees: {{ pricing.tuition | money }}    
+Total campership donation: {{ pricing.campership_donation | money }}    
 
-TOTAL FOR THIS REGISTRATION: \${{pricing_results.total}}    
+TOTAL FOR THIS REGISTRATION: {{ pricing.total | money }}    
 
-You have elected to pay by {{registration.payment_type}}.
+You have elected to pay by {{ registration.payment_type }}.
 
-If you are paying by check, make your check for **\${{pricing_results.total}}**
+If you are paying by check, make your check for **{{ pricing.total | money }}**
 payable to SFFMC and mail to:
 
 SFFMC, c/o Ellen Eagan
@@ -52,3 +55,4 @@ Registration Number: ${yearDisplay}CH{{ registration.id }}
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
+export const confirmation_email_engine = 'jinja';
