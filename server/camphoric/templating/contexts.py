@@ -41,6 +41,11 @@ def confirmation_email_context(graph, registration):
     }
 
 
+def confirmation_page_context(graph, registration):
+    '''The confirmation page sees what the confirmation email does.'''
+    return confirmation_email_context(graph, registration)
+
+
 def invitation_email_context(graph, invitation):
     return {
         'event': graph.event,

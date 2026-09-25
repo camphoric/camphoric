@@ -58,6 +58,7 @@ class RegistryDriftTests(TestCase):
         built = {
             'report': contexts.report_context(self.graph),
             'confirmation_email': contexts.confirmation_email_context(self.graph, registration),
+            'confirmation_page': contexts.confirmation_page_context(self.graph, registration),
             'invitation_email': contexts.invitation_email_context(self.graph, invitation),
             'bulk_email_registration': contexts.bulk_email_registration_context(
                 self.graph, registration, to),

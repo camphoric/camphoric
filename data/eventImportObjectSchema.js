@@ -58,7 +58,7 @@ export default {
         paypal_client_id: str('paypal api client id', { maxLength: 200 }),
         epayment_handling: str('a handling charge added to all payments, but discounted if you pay by check', { maxLength: 6 }),
         pre_submit_template: str('Handlebars template, rendered right before registration submit button', { maxLength: undefined }),
-        confirmation_page_template: str('Handlebars template rendered after registration completed', { maxLength: undefined }),
+        confirmation_page_template: str('Jinja markdown template, rendered on the server when registration completes', { maxLength: undefined }),
         confirmation_email_subject: str(''),
         confirmation_email_template: str('', { maxLength: undefined }),
         confirmation_email_engine: enm('how the confirmation email subject and template are written (default jinja)', ENGINES),

@@ -209,3 +209,52 @@ class EmailCheckTests(APITestCase):
         self.assertEqual(invitation.label, 'Invitation email: Staff')
         [warning] = invitation.warnings
         self.assertIn("invitation has no field 'recipient_emial'", warning.message)
+
+
+class ConfirmationPageTests(APITestCase):
+    '''The confirmation page renders on the server (SPEC §7.3, DR-42).'''
+
+    setUp = JinjaConfirmationEmailTests.setUp
+    register = JinjaConfirmationEmailTests.register
+
+    def test_the_payment_step_returns_the_rendered_page(self):
+        self.event.confirmation_page_template = (
+            '# Thanks, {{ campers[0].attributes.first_name }}!\n'
+            'Paying now: {{ initial_payment.total | money }} by {{ registration.payment_type }}')
+        self.event.save()
+        response = self.register()
+        self.assertEqual(response.data['confirmationPage'],
+                         '# Thanks, Pat!\nPaying now: $100.00 by Check')
+        self.assertNotIn('confirmationPageTemplate', response.data)
+
+    def test_a_broken_page_shows_a_fallback_and_reports_it(self):
+        self.event.confirmation_page_template = 'Hi {{ registration.nope.deeper }}'
+        self.event.save()
+        response = self.register()
+        self.assertEqual(response.data['confirmationPage'],
+                         '# Thank you — your registration is complete!')
+        self.assertTrue(models.Registration.objects.get().completed)
+        reports = [m for m in mail.outbox if m.subject.startswith('Confirmation page not shown')]
+        [report] = reports
+        self.assertEqual(report.to, ['reg@camp.org'])
+        self.assertIn("registration has no field 'nope'", report.body)
+        # The confirmation email still goes out.
+        self.assertIn(['pat@example.com'], [m.to for m in mail.outbox])
+
+    def test_the_template_must_parse(self):
+        from django.contrib.auth.models import User
+        self.client.force_authenticate(
+            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        response = self.client.patch(f'/api/events/{self.event.id}/',
+                                     {'confirmation_page_template': '{{#if x}}'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.data['confirmation_page_template'][0].startswith('Line 1: '))
+
+    def test_preview_and_check(self):
+        from camphoric.templating.checks import check_event_templates
+        self.event.confirmation_page_template = '{{ registration.frist }}'
+        self.event.save()
+        self.register()
+        [result] = [r for r in check_event_templates(self.event) if r.kind == 'confirmation_page']
+        self.assertEqual(result.mode, 'rendered')
+        self.assertIn("registration has no field 'frist'", result.warnings[0].message)

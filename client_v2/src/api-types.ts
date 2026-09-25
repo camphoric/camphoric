@@ -255,6 +255,7 @@ export interface TemplateDiagnostic {
 export type TemplateContextName =
   | 'report'
   | 'confirmation_email'
+  | 'confirmation_page'
   | 'invitation_email'
   | 'bulk_email_registration'
   | 'bulk_email_camper'
@@ -466,7 +467,10 @@ export interface ApiRegisterPaymentStep {
 }
 
 export interface ApiRegisterConfirmationStep {
-  confirmationPageTemplate: string;
+  /** The event's confirmation page, rendered on the server (markdown; §7.3). */
+  confirmationPage: string;
+  /** Whether the confirmation email couldn't be sent. */
+  emailError?: boolean;
   serverPricingResults: PricingResults;
   initialPayment: Hash;
 }

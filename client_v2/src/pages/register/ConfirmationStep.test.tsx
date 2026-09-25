@@ -26,16 +26,19 @@ beforeEach(() => {
 });
 
 describe('ConfirmationStep', () => {
-  it('renders the confirmation template and clears saved data', () => {
+  it('shows the page the server rendered and clears saved data', () => {
     const store = useRegistrationStore.getState();
-    store.setPaymentStep({ registrationUUID: 'u', serverPricingResults: { total: 100, campers: [] } });
+    store.setPaymentStep({
+      registrationUUID: 'u',
+      serverPricingResults: { total: 100, campers: [] },
+    });
     store.setPaymentInfo({
       registrationUUID: 'u',
       paymentType: 'Check',
       paymentData: { type: 'none', total: 100 },
     });
     store.setConfirmationStep({
-      confirmationPageTemplate: 'Thanks **{{paymentInfo.paymentType}}**!',
+      confirmationPage: 'Thanks, **paid by Check**! <img src=x onerror="alert(1)">',
       serverPricingResults: { total: 100, campers: [] },
       initialPayment: {},
     });
@@ -43,8 +46,9 @@ describe('ConfirmationStep', () => {
 
     renderWithProviders(<ConfirmationStep />);
 
-    // Template renders with the variable bundle (paymentInfo.paymentType = Check).
-    expect(screen.getByText('Check')).toBeInTheDocument();
+    // The server's markdown is shown as sanitized HTML.
+    expect(screen.getByText('paid by Check').tagName).toBe('STRONG');
+    expect(document.querySelector('[onerror]')).toBeNull();
     // Saved form data is cleared.
     expect(localStorage.getItem('Camp, 2026-7-1')).toBeNull();
     expect(navigate).not.toHaveBeenCalled();

@@ -28,8 +28,8 @@ class TemplateDescribeTests(APITestCase):
         payload = self.client.get(self.url).json()
         self.assertEqual(
             set(payload['contexts']),
-            {'report', 'confirmation_email', 'invitation_email', 'bulk_email_registration',
-             'bulk_email_camper', 'bulk_email_manual'})
+            {'report', 'confirmation_email', 'confirmation_page', 'invitation_email',
+             'bulk_email_registration', 'bulk_email_camper', 'bulk_email_manual'})
         roots = {r['name']: r for r in payload['contexts']['report']['roots']}
         self.assertEqual(roots['campers']['type'], 'list<camper>')
         event = fields_of(payload, 'event')

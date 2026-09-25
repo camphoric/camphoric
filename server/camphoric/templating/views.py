@@ -87,12 +87,14 @@ def build_preview_context(graph, name, data):
     '''The context for `name` plus the sample record it was rendered for.'''
     if name == 'report':
         return contexts.report_context(graph), None
-    if name in ('confirmation_email', 'bulk_email_registration'):
+    if name in ('confirmation_email', 'confirmation_page', 'bulk_email_registration'):
         registration = _pick(graph, 'registration', data.get('registration_id'),
                              graph.registrations)
         sample = ('registration', registration)
         if name == 'confirmation_email':
             return contexts.confirmation_email_context(graph, registration), sample
+        if name == 'confirmation_page':
+            return contexts.confirmation_page_context(graph, registration), sample
         to = contexts.recipient(
             registration['registrant_email'] if registration else 'alex@example.com')
         return contexts.bulk_email_registration_context(graph, registration, to), sample

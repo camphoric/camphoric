@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-41)
+- §15 — Decision Records (DR-1…DR-42)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -200,7 +200,7 @@ queries derive it from `window.location` rather than props, through the routing 
   email is `?emailTaskId`.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
-  `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
+  `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
   default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags) or
   `guide`; `?topic` — the guide topic id; `?q` — the search text. Defaults are left out of the
   URL.
@@ -265,8 +265,8 @@ Non-CRUD admin endpoints:
 - **Server-rendered templates** (§9.3, §9.6; all admin-only):
   - `GET /api/events/{id}/templates/describe` → the **variable spec** (§15, DR-36):
     `{ contexts, types, filters, tests, tags, globals }`. `contexts` maps each kind of template
-    (`report`, `confirmation_email`, `invitation_email`, `bulk_email_registration`,
-    `bulk_email_camper`, `bulk_email_manual`) to `{ title, doc, roots, sample }`, where `roots`
+    (`report`, `confirmation_email`, `confirmation_page`, `invitation_email`,
+    `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`) to `{ title, doc, roots, sample }`, where `roots`
     are its variables and `sample` names the kind of record a preview renders for
     (`registration` | `camper` | `invitation` | null). `types` maps a type name to
     `{ doc, fields }`. A field (and a root or global) is `{ name, type, doc, example?,
@@ -332,7 +332,9 @@ Non-CRUD admin endpoints:
   (`{ registrationUUID, serverPricingResults, deposit }`).
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
   paymentType, paymentData, payPalResponse? }` → confirmation-step payload
-  (`{ confirmationPageTemplate, serverPricingResults, initialPayment }`).
+  (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where
+  `confirmationPage` is the event's confirmation page already rendered on the server, as
+  markdown (§7.3).
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter.
@@ -357,8 +359,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
   `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists);
   `registration_template_vars`; `registration_error_messages` (custom validation messages,
-  `{ field path: { validation keyword: Handlebars message } }`, §7.1); confirmation page
-  template; confirmation email `confirmation_email_from`, `confirmation_email_subject`,
+  `{ field path: { validation keyword: Handlebars message } }`, §7.1);
+  `confirmation_page_template` (a Jinja markdown template, §7.3; saving one that doesn't parse
+  is refused with a 400 `{ confirmation_page_template: ['Line N: message'] }`); confirmation
+  email `confirmation_email_from`, `confirmation_email_subject`,
   `confirmation_email_template` and `confirmation_email_engine` (`mustache` | `jinja`, §8.3);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
@@ -534,9 +538,15 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 
 ### 7.3 Step 3 — Confirmation
 
-- Renders `confirmationStep.confirmationPageTemplate` through the template engine, with
-  template variables: `initialPayment`, `paymentInfo`, `registration`, `totals`
-  (payment-step server pricing), and `pricing_results` (confirmation-step server pricing).
+- Shows the confirmation page the server rendered for this registration
+  (`confirmationStep.confirmationPage`, markdown), through the sanitizing markdown pipeline
+  (§9.3). The client does no templating here (§15, DR-42).
+- The page is the event's `confirmation_page_template`, a Jinja template rendered on the server
+  when the payment step completes, with the confirmation email's variables (the
+  `confirmation_page` context: `event`, `registration`, its `campers`, `pricing`,
+  `initial_payment`). If it can't be rendered, the registration still completes, the registrant
+  sees a short generic thank-you, and a report with each problem is emailed to the event's
+  `confirmation_email_from` address.
 - Clears the saved localStorage form data (unless the keep-data debug flag is set).
 - If there's no confirmation data (e.g. direct navigation/refresh), redirects to step 1.
 
@@ -577,7 +587,9 @@ the event:
 
 - Event basics: `name`, `start`, `end`, `default_stay_length`.
 - Registration window: `registration_start`, `registration_end`.
-- Confirmation page template.
+- **Confirmation page** — its message, a Jinja markdown template edited in the template editor
+  (§9.6) with the `confirmation_page` context and a live preview for a completed registration
+  (§7.3).
 - **Confirmation email** — `from`, and the email's engine, subject and body (edited as described
   below).
 - PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling`.
@@ -921,7 +933,7 @@ precision is ever needed).
 Two engines render templates: **Handlebars in the client** (below) and **Jinja on the server**
 (*Server-rendered Jinja*, at the end of this section).
 
-Client-side, a two-stage rendering is used for descriptions, pre-submit/confirmation content,
+Client-side, a two-stage rendering is used for descriptions, pre-submit content,
 and Handlebars reports:
 
 1. **Handlebars** compiles the template with the provided variables and custom helpers, then
@@ -947,8 +959,8 @@ example and its result.
   `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `lodging` (the
   root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`, `today` and
   `now`. `registrations`, `campers` and `payments` are those of completed registrations. A
-  confirmation email gets the one registration it's for (`registration`, its `campers`,
-  `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
+  confirmation email — and the confirmation page — gets the one registration it's for
+  (`registration`, its `campers`, `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
   `registration_type` and `event`; a bulk email's copy gets its recipient's registration or
   camper and `recipient` (§8.9).
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
@@ -2063,6 +2075,27 @@ registration types), hence the enrichment.
 permanent shim over the old, lookup-based shapes. Convert the reports without comparing — too
 easy to change a total silently. Convert the reports saved in live events too — out of scope for
 now; the same tools would do it, and are recoverable from history.
+
+### DR-42 — The confirmation page renders on the server
+
+**Decision:** The event's confirmation page is a Jinja markdown template rendered on the server
+when a registration completes, with the confirmation email's variables. The payment step returns
+the rendered markdown (`confirmationPage`) and the client only displays it, through its
+sanitizing markdown pipeline. This replaces the Handlebars template the client used to render
+with the variables it held (`paymentInfo`, `pricing_results`, …); it is a breaking change with
+no compatibility path: an existing event's Handlebars page must be rewritten in Jinja (until it
+is, registrants see the generic thank-you and the organizer is sent the problems). A page that
+doesn't parse can't be saved. The `data/` pages are converted (their output checked against the
+Handlebars version for the test registrations; amounts now print as `$1,234.50`).
+**Context:** The page said the same things as the confirmation email with a different engine
+and different variables, and could only use what the browser happened to hold. Rendering it on
+the server gives it the whole registration (campers, lodging, pricing, payments), the same
+autocomplete, help, preview and checks as the email, and one variable model for everything
+organizers write. A broken page shouldn't block a completed registration, so it falls back and
+reports, like the email.
+**Alternatives:** Keep Handlebars with an engine flag per event, as the emails did — not needed:
+the user chose a breaking change, and the few live events are re-imported each season. Send
+rendered HTML — the client already sanitizes and styles markdown for every other message.
 
 ---
 

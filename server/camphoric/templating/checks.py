@@ -19,7 +19,8 @@ from jinja2.exceptions import TemplateSyntaxError
 from camphoric import models
 
 from .contexts import (
-    confirmation_email_context, example_invitation, invitation_email_context, report_context)
+    confirmation_email_context, confirmation_page_context, example_invitation,
+    invitation_email_context, report_context)
 from .bulk import keeps_existing_recipients, recipient_context, resolve_task
 from .emails import render_jinja_email
 from .env import LEGACY_REPORT_ENV
@@ -29,7 +30,7 @@ from .render import EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template, sy
 
 @dataclass
 class CheckResult:
-    kind: str         # 'report' | 'confirmation_email' | 'invitation_email' | 'bulk_email'
+    kind: str  # report | confirmation_email | confirmation_page | invitation_email | bulk_email
     id: int
     label: str
     mode: str         # 'rendered' | 'parsed' | 'skipped'
@@ -80,6 +81,7 @@ def check_event_templates(event, *, request=None):
     if graph is None:
         graph = build_event_graph(event, request=request)
     results.append(_check_confirmation_email(event, graph))
+    results.append(_check_confirmation_page(event, graph))
     for registration_type in models.RegistrationType.objects.filter(
             event=event, deleted_at__isnull=True).order_by('id'):
         results.append(_check_invitation_email(registration_type, graph))
@@ -124,6 +126,15 @@ def _check_confirmation_email(event, graph):
     contexts_ = [confirmation_email_context(graph, r) for r in graph.registrations]
     return CheckResult('confirmation_email', event.id, label, 'rendered', _render_for_each(
         event.confirmation_email_subject, event.confirmation_email_template, contexts_))
+
+
+def _check_confirmation_page(event, graph):
+    label = 'Confirmation page'
+    if not graph.registrations:
+        return _parsed('confirmation_page', event.id, label, '', event.confirmation_page_template)
+    contexts_ = [confirmation_page_context(graph, r) for r in graph.registrations]
+    return CheckResult('confirmation_page', event.id, label, 'rendered', _render_for_each(
+        '', event.confirmation_page_template, contexts_))
 
 
 def _check_invitation_email(registration_type, graph):
