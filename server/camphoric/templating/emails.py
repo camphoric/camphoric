@@ -15,31 +15,12 @@ import cmarkgfm
 
 from camphoric import models
 
-from .contexts import confirmation_email_context, example_invitation, invitation_email_context
+from .contexts import confirmation_email_context, invitation_email_context
 from .graph import build_event_graph
 from .render import EMAIL_LIMITS, render_template
 from .urls import admin_registration_url, register_url
 
 MAX_SUBJECT = 255
-
-
-@dataclass(frozen=True)
-class EmailTemplate:
-    '''An email's engine, subject and body — as saved, or a candidate to compare.'''
-    engine: str
-    subject: str
-    body: str
-
-    @classmethod
-    def confirmation(cls, event):
-        return cls(event.confirmation_email_engine, event.confirmation_email_subject,
-                   event.confirmation_email_template)
-
-    @classmethod
-    def invitation(cls, registration_type):
-        return cls(registration_type.invitation_email_engine,
-                   registration_type.invitation_email_subject,
-                   registration_type.invitation_email_template)
 
 
 @dataclass
@@ -79,19 +60,14 @@ def _mustache_email(subject, template, variables):
     return RenderedEmail(subject=subject or '', text=text, html=markdown_to_html(text))
 
 
-def render_confirmation_email(registration, *, request=None, template=None, graph=None):
-    '''
-    The confirmation email for a completed registration: the event's saved
-    template, or `template` (an EmailTemplate) instead. `graph` reuses an
-    already built event graph.
-    '''
+def render_confirmation_email(registration, *, request=None):
+    '''The confirmation email for a completed registration.'''
     event = registration.event
-    template = template or EmailTemplate.confirmation(event)
-    if template.engine == models.TemplateEngine.JINJA:
-        if graph is None:
-            graph = build_event_graph(event, registration_ids=[registration.id], request=request)
+    if event.confirmation_email_engine == models.TemplateEngine.JINJA:
+        graph = build_event_graph(event, registration_ids=[registration.id], request=request)
         context = confirmation_email_context(graph, graph.get('registration', registration.id))
-        return render_jinja_email(template.subject, template.body, context)
+        return render_jinja_email(event.confirmation_email_subject,
+                                  event.confirmation_email_template, context)
 
     # Mustache: the variables Camphoric has always passed.
     pricing_results = registration.server_pricing_results
@@ -103,7 +79,7 @@ def render_confirmation_email(registration, *, request=None, template=None, grap
             'lodging': (camper.lodging.name if camper.lodging else 'none'),
             'lodging_full': (camper.lodging.name_path if camper.lodging else 'none'),
         })
-    return _mustache_email(template.subject, template.body, {
+    return _mustache_email(event.confirmation_email_subject, event.confirmation_email_template, {
         'registration': registration,
         'campers': campers,
         'pricing_results': pricing_results,
@@ -111,31 +87,19 @@ def render_confirmation_email(registration, *, request=None, template=None, grap
     })
 
 
-def render_invitation_email(invitation, *, request=None, template=None, graph=None):
-    '''
-    The email inviting someone to register with their registration type: the
-    type's saved template, or `template` instead. An unsaved invitation (a
-    stand-in for comparisons) renders as the example invitation, with its
-    recipient and code.
-    '''
+def render_invitation_email(invitation, *, request=None):
+    '''The email inviting someone to register with their registration type.'''
     registration_type = invitation.registration_type
     event = registration_type.event
-    template = template or EmailTemplate.invitation(registration_type)
-    if template.engine == models.TemplateEngine.JINJA:
-        if graph is None:
-            graph = build_event_graph(event, registration_ids=[], request=request)
-        invitation_var = graph.get('invitation', invitation.id) if invitation.id else None
-        if invitation_var is None:
-            invitation_var = example_invitation(
-                graph, graph.get('registration_type', registration_type.id),
-                name=invitation.recipient_name, email=invitation.recipient_email,
-                code=invitation.invitation_code)
-        context = invitation_email_context(graph, invitation_var)
-        return render_jinja_email(template.subject, template.body, context)
+    if registration_type.invitation_email_engine == models.TemplateEngine.JINJA:
+        graph = build_event_graph(event, registration_ids=[], request=request)
+        context = invitation_email_context(graph, graph.get('invitation', invitation.id))
+        return render_jinja_email(registration_type.invitation_email_subject,
+                                  registration_type.invitation_email_template, context)
 
     return _mustache_email(
-        template.subject,
-        template.body, {
+        registration_type.invitation_email_subject,
+        registration_type.invitation_email_template, {
             'recipient_name': invitation.recipient_name or invitation.recipient_email,
             'recipient_email': invitation.recipient_email,
             'invitation_code': invitation.invitation_code,
