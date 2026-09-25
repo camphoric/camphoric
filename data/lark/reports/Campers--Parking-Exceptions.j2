@@ -1,13 +1,15 @@
+{#- TODO: Lark registrations have no `parking_exception` admin field any more (parking passes are
+    now on each camper), so this report is always empty. -#}
 first, last, crew, lodging, park, email
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
-  {%- set registration = registrationLookup[camper.registration | string] -%}
+  {%- set registration = camper.registration -%}
   {%- if not registration.admin_attributes.parking_exception -%}
     {%- continue -%}
-  {%- endif -%}  
+  {%- endif -%}
   {{- camper.attributes.first_name }},
   {{- camper.attributes.last_name }},
-  {{- registrationTypeLookup[registration.registration_type | string].name if registrationTypeLookup[registration.registration_type | string] else 'camper' }},
-  {{- lodgingLookup[camper.lodging | string].fullPath }},
+  {{- registration.registration_type.name if registration.registration_type else 'camper' }},
+  {{- camper.lodging.full_name if camper.lodging }},
   {{- registration.admin_attributes.parking_exception or '-'}},
   {{- registration.registrant_email or '-'}},
 {% endfor -%}

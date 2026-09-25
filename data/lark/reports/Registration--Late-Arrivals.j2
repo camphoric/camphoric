@@ -21,27 +21,26 @@ you're lodged in to help get your bearings.
 {% for camper in campers | sort(attribute="attributes.last_name") if not camper.admin_attributes.checked_in -%}
 | {{ camper.attributes.last_name }} |
   {{- camper.attributes.first_name }} |
-	{%- set _ = camper.update({'lodging_type': '???' }) -%}
-  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
-  {%- set _ = camper.update({'camp': '???' }) -%}
-	{%- if camper.ldg -%}
-  	{%- set _ = camper.update({'lodging_type': 'Vehicle Camping' }) if 'RV' in camper.ldg.pathParts  -%}
-    {%- set _ = camper.update({'lodging_type': camper.ldg.pathParts | last }) if 'Cabin' in camper.ldg.pathParts -%}
-    {%- set _ = camper.update({'lodging_type': 'Tent ' + camper.ldg.pathParts[-2] }) if 'Tent' in camper.ldg.pathParts -%}
-    {%- set _ = camper.update({'camp': camper.ldg.pathParts[0] }) -%}
+	{%- set lodging_type = '???' -%}
+  {%- set ldg = camper.lodging -%}
+  {%- set camp = '???' -%}
+	{%- if ldg -%}
+  	{%- if 'RV' in ldg.path_names -%}{%- set lodging_type = 'Vehicle Camping' -%}{%- endif -%}
+    {%- if 'Cabin' in ldg.path_names -%}{%- set lodging_type = ldg.path_names | last -%}{%- endif -%}
+    {%- if 'Tent' in ldg.path_names -%}{%- set lodging_type = 'Tent ' + ldg.path_names[-2] -%}{%- endif -%}
+    {%- set camp = ldg.path_names[0] -%}
   {% endif -%}
-  {{- camper.camp }} |
-  {{- camper.lodging_type }} |
+  {{- camp }} |
+  {{- lodging_type }} |
   {{- camper.attributes.session | replace('Half camp - ', '') }} |
-	{%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
-  {%- set _ = camper.update({'parking_pass_qty': camper.attributes.parking_passes | length }) -%}
-  {%- set _ = camper.update({'parking': 'None'}) -%}
-  {%- if camper.parking_pass_qty > 0 -%}
-		{%- set _ = camper.update({'parking': '' }) -%}
+  {%- set parking_pass_qty = camper.attributes.parking_passes | length -%}
+  {%- set ns = namespace(parking='None') -%}
+  {%- if parking_pass_qty > 0 -%}
+		{%- set ns.parking = '' -%}
 		{%- for pass in camper.attributes.parking_passes -%}
-			{%- set _ = camper.update({'parking': camper.parking ~ loop.index ~ ': ' ~ pass.pass_type }) -%}
-			{%- set _ = camper.update({'parking': camper.parking ~ ', ' }) if not loop.last -%}
+			{%- set ns.parking = ns.parking ~ loop.index ~ ': ' ~ pass.pass_type -%}
+			{%- if not loop.last -%}{%- set ns.parking = ns.parking ~ ', ' -%}{%- endif -%}
 		{%- endfor -%}
   {%- endif -%}
-  {{- camper.parking }} |
+  {{- ns.parking }} |
 {% endfor -%}

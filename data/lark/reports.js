@@ -10,7 +10,8 @@ function readFile(filename) {
   return fs.readFileSync(fullPathFilename).toString();
 }
 
-export default [
+// Every report renders on the server from Camphoric's variables (DR-41).
+const reports = [
   {
     title: 'Campers, Parking Exceptions',
     output: 'csv',
@@ -232,3 +233,5 @@ export default [
     template: readFile('All-Campers.j2'),
   },
 ];
+
+export default reports.map((report) => ({ ...report, variables_source: 'server' }));

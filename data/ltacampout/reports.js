@@ -10,55 +10,58 @@ function readFile(filename) {
   return fs.readFileSync(fullPathFilename).toString();
 }
 
-export default [
+// Every report renders on the server from Camphoric's variables (DR-41).
+const reports = [
   {
     title: 'Lodging Report (Simple)',
-    output: 'hbs',
-    template: readFile('Lodging-Report--Simple-.hbs'),
+    output: 'md',
+    template: readFile('Lodging-Report--Simple-.j2'),
   },
   {
     title: 'Chore Report',
-    output: 'hbs',
-    template: readFile('Chore-Report.hbs'),
+    output: 'md',
+    template: readFile('Chore-Report.j2'),
   },
   {
     title: 'Payments',
-    output: 'hbs',
-    template: readFile('Payments.hbs'),
+    output: 'md',
+    template: readFile('Payments.j2'),
   },
   {
     title: 'Camper Email List For Mailing',
-    output: 'hbs',
-    template: readFile('Camper-Email-List-For-Mailing.hbs'),
+    output: 'md',
+    template: readFile('Camper-Email-List-For-Mailing.j2'),
   },
   {
     title: 'Vaccination Report',
-    output: 'hbs',
-    template: readFile('Vaccination-Report.hbs'),
+    output: 'md',
+    template: readFile('Vaccination-Report.j2'),
   },
   {
     title: 'All Campers by Reg Date',
-    output: 'hbs',
-    template: readFile('All-Campers-by-Reg-Date.hbs'),
+    output: 'md',
+    template: readFile('All-Campers-by-Reg-Date.j2'),
   },
   {
     title: 'All Campers Report',
-    output: 'hbs',
-    template: readFile('All-Campers-Report.hbs'),
+    output: 'md',
+    template: readFile('All-Campers-Report.j2'),
   },
   {
     title: 'Pricing Breakdown',
-    output: 'hbs',
-    template: readFile('Pricing-Breakdown.hbs'),
+    output: 'md',
+    template: readFile('Pricing-Breakdown.j2'),
   },
   {
     title: 'Liability Waiver List',
-    output: 'hbs',
-    template: readFile('Liability-Waiver-List.hbs'),
+    output: 'md',
+    template: readFile('Liability-Waiver-List.j2'),
   },
   {
     title: 'Donation Report',
-    output: 'hbs',
-    template: readFile('Donation-Report.hbs'),
+    output: 'md',
+    template: readFile('Donation-Report.j2'),
   },
 ];
+
+export default reports.map((report) => ({ ...report, variables_source: 'server' }));

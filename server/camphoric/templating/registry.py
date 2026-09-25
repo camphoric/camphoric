@@ -137,6 +137,9 @@ TYPES = (
         F('registrant_email', 'string', "The registrant's email address."),
         F('payment_type', 'string', 'How they chose to pay (Check, PayPal, Card …).',
           nullable=True),
+        F('paypal_response', 'dict', "PayPal's record of an online payment (PayPal or Card), "
+          'e.g. the payer: `payer.name.given_name`, `payer.email_address`.',
+          "{{ registration.paypal_response.payer.email_address }}", nullable=True),
         F('attributes', 'attributes:registration', 'Answers to the registration form.',
           '{{ registration.attributes.comments }}'),
         F('admin_attributes', 'admin_attributes:registration', 'Admin-only fields.'),

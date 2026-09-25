@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-40)
+- §15 — Decision Records (DR-1…DR-41)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -710,6 +710,9 @@ A report's **`variables_source`** says where its template's variables come from:
 - **`client` — the browser bundle (legacy).** The client assembles the template-variable bundle
   and posts it with each render. Existing reports keep this source until they're rewritten, and
   Handlebars (`hbs`) reports always use it.
+
+The reports the data importer creates for new events (`data/`) all use Camphoric variables (§15,
+DR-41); only reports saved in existing events before then still use the browser bundle.
 
 - **Editing a report** — its title; its variables source; output format (`csv` Jinja→CSV, `md`
   Jinja→Markdown, `txt` Jinja→Text, `html` Jinja→HTML, and — for the `client` source only — `hbs`
@@ -2032,6 +2035,34 @@ comma.
 templates with the weaker model. Change existing rows' engines in a migration — the saved text
 is Mustache and would break. Convert the reports too — out of scope (DR-35); they move one at a
 time. Byte-for-byte equivalent output — would mean reproducing the Mustache quirks in Jinja.
+
+### DR-41 — The data/ reports are converted to Camphoric variables, checked against the old output
+
+**Decision:** Every report under `data/` (Harmony, Lark, the Jughandle Campout and Family Week,
+74 in all, including the Handlebars ones) is rewritten as a Camphoric-variables Jinja report: plain
+Jinja over the server's objects, with no lookup tables, no changes to Camphoric objects (own lists,
+dicts and `namespace` instead), and camp dates from `event.nights`/`event.start` instead of
+hardcoded lists. Handlebars reports become markdown reports. Each conversion was rendered
+alongside the legacy report on the same data and compared: the legacy variables were built by the
+client's own code (`store/augmented.ts`) and Handlebars reports rendered by the client's own
+Handlebars helpers, and the test data was enriched (varied stays, answers, admin fields,
+registration types, payments, registration dates), always inside a rolled-back transaction. The
+outputs match, except for listed fixes: crashes (sorting on missing values, missing lodging or
+answers), wrong totals, stale references whose intent was plain (fields that moved, renamed
+registration types, dates that meant the camp's first day). Unclear stale references are kept and
+marked `TODO` in the templates. The comparison tools are temporary, removed once the conversion
+is accepted.
+**Context:** The legacy reports needed the browser to build and upload the whole event (#653)
+and mutated the uploaded data to join it. New events are created from `data/`, so converting
+those files moves every future event onto the new model. Comparing against the legacy output,
+rather than reviewing the rewrites by eye, is what makes 74 rewrites trustworthy; building the
+legacy variables with the client's own code avoids a second implementation that could agree with
+a mistake. The live-import test data leaves most branches unexercised (no stays, admin fields or
+registration types), hence the enrichment.
+**Alternatives:** Keep the legacy reports and a server-built copy of the legacy bundle — a
+permanent shim over the old, lookup-based shapes. Convert the reports without comparing — too
+easy to change a total silently. Convert the reports saved in live events too — out of scope for
+now; the same tools would do it, and are recoverable from history.
 
 ---
 

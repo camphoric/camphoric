@@ -1,9 +1,10 @@
-{%- set early_day = '2025-07-31' -%}
+{%- set early_day = event.start -%}
 {%- set session_display = {
 	"Full camp": "Full",
 	"Half camp - 1st half": "1st½",
 	"Half camp - 2nd half": "2nd½",
 } -%}
+{#- TODO: "community-care" was "security" (badge "Security"); check the badge title is still right. -#}
 {%- set type_display = {
   "office-camp-1": "Office, Camp 1",
   "office-camp-2": "Office, Camp 2",
@@ -19,24 +20,21 @@
   "management": "Camp Manager",
   "misc-staff": "",
   "late-registrant": "",
-  "security": "Security",
+  "community-care": "Security",
   "none": "",
 } -%}
 camper,badge_title,badge_name,badge_gender,camp,arrive_thurs,amt,reg_date
-{% for camper in campers | sort(attribute='created_at') if camper.attributes.name_badge.purchase -%}
-	{%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) -%}
-	{%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if camper.reg.registration_type else 'none' }) -%}
-  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
-  {%- set _ = camper.update({'fullLodgingPath': camper.ldg.fullPath }) if camper.lodging -%}
-  {%- set _ = camper.update({'camp': camper.ldg.pathParts[0] }) if camper.ldg -%}
+{% for camper in campers | sort(attribute='created_at') if (camper.attributes.name_badge or {}).purchase -%}
+	{%- set crew = camper.registration.registration_type.name if camper.registration.registration_type else 'none' -%}
+  {%- set camp = camper.lodging.path_names[0] if camper.lodging -%}
   {%- set badge_title = 'Reg Volunteer' if camper.admin_attributes.registration_volunteer else '' -%}
-	{%- set badge_title = (camper.admin_attributes.badge_role or type_display[camper.crew] or badge_title) -%}
-	{{- '"' +  camper.attributes.first_name }} {{ camper.attributes.last_name }}",
-	{{- '"' + badge_title + '"'}},
-  {{- '"' + camper.attributes.name_badge.name }}",
-  {{- '"' + (camper.attributes.name_badge.pronouns if camper.attributes.name_badge.pronouns else '') + '"' }},
-  {{- camper.camp }},
-  {{- "yes" if camper.stay[0] == early_day else "" }},
-  {{- camper.server_pricing_results.name_badge or 0 }},
-  {{- camper.created_at }}
+	{%- set badge_title = (camper.admin_attributes.badge_role or type_display[crew] or badge_title) -%}
+	{{- '"' ~ (camper.attributes.first_name or '') }} {{ camper.attributes.last_name }}",
+	{{- '"' ~ badge_title ~ '"'}},
+  {{- '"' ~ (camper.attributes.name_badge.name or '') }}",
+  {{- '"' ~ (camper.attributes.name_badge.pronouns if camper.attributes.name_badge.pronouns else '') ~ '"' }},
+  {{- camp }},
+  {{- "yes" if camper.stay and camper.stay[0] == early_day else "" }},
+  {{- camper.pricing.name_badge or 0 }},
+  {{- camper.created_at | datetime('%Y-%m-%dT%H:%M:%S.%fZ', 'UTC') | replace('.000000Z', 'Z') }}
 {% endfor -%}

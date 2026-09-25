@@ -233,6 +233,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             completed=row.completed,
             registrant_email=row.registrant_email,
             payment_type=row.payment_type,
+            paypal_response=freeze(row.paypal_response) if row.paypal_response else None,
             attributes=freeze(row.attributes or {}),
             admin_attributes=freeze(row.admin_attributes or {}),
             registration_type=registration_types.get(row.registration_type_id),

@@ -1,7 +1,0 @@
-| Name | Email | Donation  |
-| ----- | ----- | -------- |
-{{#eachrsort registrations "campers.0.attributes.last_name"}}
-{{#if server_pricing_results.donation}}
-| [{{campers.0.attributes.first_name}} {{campers.0.attributes.last_name}}](mailto:{{registrant_email}}) |  {{registrant_email}} | ${{server_pricing_results.donation}}  |
-{{/if}}
-{{/eachrsort}}
