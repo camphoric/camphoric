@@ -6,7 +6,7 @@ must match `registry.CONTEXTS` (a test checks).
 from django.utils import timezone
 
 from .graph import template_timezone
-from .values import ReadOnlyList, RecipientVar
+from .values import InvitationVar, ReadOnlyList, RecipientVar
 
 
 def _now():
@@ -73,3 +73,20 @@ def bulk_email_camper_context(graph, camper, to):
 
 def bulk_email_manual_context(graph, to):
     return {'event': graph.event, 'recipient': to}
+
+
+def example_invitation(graph, registration_type):
+    '''A stand-in invitation, for previews and checks when none has been sent.'''
+    url = graph.event['register_url']
+    return InvitationVar(
+        id=0,
+        recipient_name='Alex Sample',
+        recipient_email='alex@example.com',
+        code='abcd2345',
+        registration_type=registration_type,
+        registration=None,
+        sent_time=None,
+        expiration_time=None,
+        register_url=url + ('&' if '?' in url else '?') + 'email=alex@example.com&code=abcd2345',
+        redeemed=False,
+    )

@@ -16,7 +16,8 @@ Template mistakes are reported as diagnostics with a 200; a bad request (an
 unknown context, a sample that isn't in this event) is a 400.
 '''
 
-import cmarkgfm
+import time
+
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -27,9 +28,9 @@ from camphoric import models
 from . import contexts, registry
 from .checks import check_event_templates
 from .describe import describe
+from .emails import render_jinja_email
 from .graph import build_event_graph
 from .render import PREVIEW_LIMITS, render_template
-from .values import InvitationVar
 
 OUTPUTS = ('csv', 'md', 'txt', 'html', 'email')
 
@@ -82,24 +83,6 @@ def _pick(graph, kind, requested_id, pool):
     return pool[0] if pool else None
 
 
-def _example_invitation(graph, registration_type):
-    '''A stand-in invitation for previews when none has been sent yet.'''
-    return InvitationVar(
-        id=0,
-        recipient_name='Alex Sample',
-        recipient_email='alex@example.com',
-        code='abcd2345',
-        registration_type=registration_type,
-        registration=None,
-        sent_time=None,
-        expiration_time=None,
-        register_url=graph.event['register_url']
-        + ('&' if '?' in graph.event['register_url'] else '?')
-        + 'email=alex@example.com&code=abcd2345',
-        redeemed=False,
-    )
-
-
 def build_preview_context(graph, name, data):
     '''The context for `name` plus the sample record it was rendered for.'''
     if name == 'report':
@@ -134,7 +117,7 @@ def build_preview_context(graph, name, data):
                 if registration_type is None or i['registration_type'] == registration_type]
         invitation = _pick(graph, 'invitation', data.get('invitation_id'), pool)
         if invitation is None:
-            invitation = _example_invitation(
+            invitation = contexts.example_invitation(
                 graph, registration_type or (graph.registration_types[0]
                                              if graph.registration_types else None))
         return contexts.invitation_email_context(graph, invitation), ('invitation', invitation)
@@ -166,16 +149,24 @@ class TemplatePreviewView(APIView):
         except (BadSample, ValueError) as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        body = render_template(template, context, fmt='html' if output == 'html' else 'text',
-                               limits=PREVIEW_LIMITS)
-        response = body.as_dict()
         if output == 'email':
-            subject = render_template(data.get('subject') or '', context,
-                                      limits=PREVIEW_LIMITS, field='subject')
-            response['subject'] = ' '.join(subject.output.split())[:255]
-            response['diagnostics'] = [d.as_dict() for d in subject.diagnostics] \
-                + response['diagnostics']
-            response['html'] = cmarkgfm.github_flavored_markdown_to_html(body.output)
+            # Exactly as the email would be sent (SPEC §8.3, §8.4).
+            started = time.monotonic()
+            email = render_jinja_email(data.get('subject') or '', template, context,
+                                       limits=PREVIEW_LIMITS)
+            response = {
+                'output': email.text,
+                'subject': email.subject,
+                'html': email.html,
+                'diagnostics': [d.as_dict() for d in email.diagnostics],
+                'truncated': any(d.kind == 'output_limit' for d in email.diagnostics),
+                'duration_ms': int((time.monotonic() - started) * 1000),
+            }
+        else:
+            body = render_template(template, context,
+                                   fmt='html' if output == 'html' else 'text',
+                                   limits=PREVIEW_LIMITS)
+            response = body.as_dict()
         kind, obj = sample if sample else (None, None)
         response['sample'] = (
             {'kind': kind, 'id': obj['id'], 'label': _sample_label(kind, obj)}

@@ -213,6 +213,16 @@ def _message(exc):
         else f'{type(exc).__name__}: {text}'
 
 
+def syntax_error(source, *, field='template'):
+    '''The template's syntax error as a Diagnostic, or None when it parses.'''
+    try:
+        TEXT_ENV.parse(source or '')
+    except TemplateSyntaxError as exc:
+        return Diagnostic(severity='error', kind='syntax', message=exc.message or str(exc),
+                          field=field, line=exc.lineno)
+    return None
+
+
 def render_template(source, context, *, fmt='text', limits=REPORT_LIMITS, field='template'):
     '''
     Render `source` with `context`. `fmt` is 'text' (reports, emails) or 'html'

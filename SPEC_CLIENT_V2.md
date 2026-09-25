@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-37)
+- §15 — Decision Records (DR-1…DR-38)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -290,7 +290,10 @@ Non-CRUD admin endpoints:
     'security' | 'timeout' | 'output_limit' | 'runtime', message, field, line, column }` —
     `field` is the text the problem is in (`template`, `subject`); `line`/`column` are 1-based
     or null.
-- `POST /api/invitations/{id}/send` — send/resend an invitation email.
+- `POST /api/invitations/{id}/send` — send/resend an invitation email → `{ success: true }`. If
+  the registration type's invitation is written in Jinja and can't be rendered, nothing is sent,
+  `sent_time` is left alone, and the response is a 400 `{ detail, diagnostics }` (the
+  `TemplateDiagnostic`s below). A send failure is a 500 `{ detail }`.
 - `GET /api/customcharges/{camperId}` — custom charges for a camper.
 - `GET /api/eventlist` — public list of events for the splash page.
 
@@ -331,8 +334,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
   `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists);
   `registration_template_vars`; `registration_error_messages` (custom validation messages,
-  `{ field path: { validation keyword: Handlebars message } }`, §7.1); confirmation page +
-  email templates/subject/from;
+  `{ field path: { validation keyword: Handlebars message } }`, §7.1); confirmation page
+  template; confirmation email `confirmation_email_from`, `confirmation_email_subject`,
+  `confirmation_email_template` and `confirmation_email_engine` (`mustache` | `jinja`, §8.3);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
@@ -345,7 +349,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `template`, `variables_schema`, `variables_source` (`client` | `server`; the API defaults to
   `client`, and `hbs` requires `client`), timestamps.
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_email_subject`,
-  `invitation_email_template`.
+  `invitation_email_template`, `invitation_email_engine` (`mustache` | `jinja`, §8.4).
+- **Email template engines:** `mustache` (legacy) or `jinja`; the API defaults both engine fields
+  to `mustache`. Saving an event or registration type whose email is `jinja` is refused with a
+  400 when its subject or template doesn't parse — `{ <field>: ['Line N: message'] }`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`.
 - **Lodging:** `id`, `event`, `parent`, `name`, `children_title`, `capacity`, `reserved`,
@@ -536,13 +543,39 @@ the event:
 
 - Event basics: `name`, `start`, `end`, `default_stay_length`.
 - Registration window: `registration_start`, `registration_end`.
-- Confirmation page template; confirmation email `from`/`subject`/`body`.
+- Confirmation page template.
+- **Confirmation email** — `from`, and the email's engine, subject and body (edited as described
+  below).
 - PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling`.
 - `pricing` (a freely editable set of named integer values) and `registration_template_vars`
   (named string values).
 
 Datetime fields use explicit timezone handling. (Exposing the underlying JSON is a useful
 debugging aid.)
+
+**Email templates** (the confirmation email here, and invitation emails, §8.4) are written in
+one of two engines, stored per template (§15, DR-38):
+
+- **Jinja** — the subject and the markdown body are Jinja templates rendered on the server
+  against the event's variables (§9.3). The body is edited in the template editor (§9.6) with the
+  email's context (`confirmation_email`: `event`, `registration`, `campers`, `pricing`,
+  `initial_payment`; `invitation_email`: `event`, `invitation`, `registration_type`), and the
+  preview renders subject and body exactly as they'd be sent, for a sample the admin can choose
+  (any completed registration; any of the type's invitations, or an example invitation when
+  there are none). Subject problems are listed with the body's.
+- **Mustache** (legacy) — edited as plain text; only the body is a template, with the thin
+  variables Camphoric has always passed. Help's *From Mustache emails* guide maps them to Jinja.
+
+Changing the engine doesn't convert the text; when the subject or body has text, the admin
+confirms first. The engine is saved with the text (`confirmation_email_engine`,
+`invitation_email_engine`); a Jinja template that doesn't parse can't be saved (§5).
+
+**When a Jinja confirmation email can't be rendered** at the end of a registration, the
+registration still completes; the registrant is sent nothing, and a report is emailed to the
+event's `confirmation_email_from` address instead — the event, the registration's id and admin
+link, the registrant's email, and each problem with its line and the template text on that line.
+(With no `from` address, the problem is only logged.) The admin can then fix the template and
+send the confirmation by hand.
 
 ### 8.4 Registrations
 
@@ -573,7 +606,8 @@ status) and works with it. For the selected registration they can:
 
 - **Invite a special registration** — choose a registration type and enter recipient name and
   email; this creates the invitation and sends it (`/invitations/{id}/send`). (The registration
-  types themselves are created/edited in Settings, §8.8.)
+  types themselves are created/edited in Settings, §8.8.) If the type's Jinja invitation can't be
+  rendered, nothing is sent and the problem is shown (§5).
 - **Track invitations** — a sortable/filterable list of the event's invitations (default newest
   first) showing name, email, type, sent status, and linked registration (if redeemed), with
   per-row resend/delete. Status is derived: `redeemed` (has a registration), `unsent` (never
@@ -685,8 +719,10 @@ to the event via PATCH:
   of named `{ data, ui }` pairs).
 
 Registration types are also managed here: create/edit a type's machine `name`, `label`, and
-invitation email subject/template (used to invite special registrations, §8.4). Each persists via
-POST (new) / PATCH (edit) on `registrationtypes` (see §15, DR-32).
+invitation email — engine, subject and template, edited like the confirmation email (§8.3) with
+the `invitation_email` context and a preview for any of the type's invitations. New types are
+created in Jinja; existing ones keep their engine. Each persists via POST (new) / PATCH (edit)
+on `registrationtypes` (see §15, DR-32).
 
 **Validation messages** (the event's `registration_error_messages`, §7.1; §15, DR-34) are also
 managed here. Admins can:
@@ -818,13 +854,17 @@ operators, `eachsort`, `eachrsort`, `eachLookupSort`), comparisons (`compare`, `
 math (`sum`, `subtract`, `abs`), and `or`. Template Help (below) documents them, each with an
 example and its result.
 
-**Server-rendered Jinja.** Reports with Camphoric variables (§8.7) render on the server, in
-Jinja, against a model of the event that the server builds (§15, DR-35):
+**Server-rendered Jinja.** Reports with Camphoric variables (§8.7) and Jinja emails (§8.3,
+§8.4) render on the server, in Jinja, against a model of the event that the server builds
+(§15, DR-35):
 
 - **Variables** — each kind of template (a *context*) has its own root variables; a report gets
   `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `lodging` (the
   root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`, `today` and
-  `now`. `registrations`, `campers` and `payments` are those of completed registrations.
+  `now`. `registrations`, `campers` and `payments` are those of completed registrations. A
+  confirmation email gets the one registration it's for (`registration`, its `campers`,
+  `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
+  `registration_type` and `event`.
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
   `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
   two-place decimal; dates and datetimes are real dates (datetimes in the server's configured
@@ -1831,6 +1871,31 @@ rely on blank output for missing optional answers. A separate render process per
 stronger isolation but much slower. Leaving the legacy environment unsandboxed — keeps the hole
 open.
 
+### DR-38 — Emails move to Jinja, per template, with a report when one can't render
+
+**Decision:** The confirmation and invitation emails can be written in Jinja against the same
+server-built variables as reports (DR-35). Each template records its engine
+(`confirmation_email_engine`, `invitation_email_engine`: `mustache` | `jinja`), defaulting to
+`mustache` at the API so existing events, the importer and the v1 client are unaffected; the v2
+client creates new registration types in Jinja. Jinja emails render their subject too. A Jinja
+template that doesn't parse can't be saved. If a Jinja confirmation email can't be rendered when
+a registration completes, the registration still completes, the registrant is sent nothing, and
+a report with every problem is emailed to the event's `confirmation_email_from` address; a Jinja
+invitation that can't be rendered is refused with a 400 and not sent.
+**Context:** Emails used Mustache with thin, hand-built variables (camper attributes flattened,
+lodging as `'none'`), no subject templating, and no preview. A per-template flag lets each email
+move when it's rewritten, and lets the `data/` emails be converted and checked before the
+defaults change. A confirmation email with a hole in it (a blank name or total) is worse than
+none — the registrant can't tell what's missing — so the organizer is told instead, with enough
+detail to fix the template and follow up; failing the registration would lose a completed
+payment. Parse errors are caught at save time because they break every email; problems that
+depend on the data can only show when rendering, which is what the preview and
+`check_templates` cover.
+**Alternatives:** Convert every email at once with one switch — riskier, and events differ.
+Send the registrant whatever rendered — can send a misleading email. Fall back to the old
+Mustache template on error — there may not be one, and two templates drift. Block saving on any
+render problem for the sample — samples can't cover every registration.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -1854,7 +1919,11 @@ must be coordinated with the backend. Grouped by status.
   events serializer as `{ path: { keyword: message } }` with non-empty strings (§7.1, §8.8,
   DR-34).
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
-  (§8.4), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}` (§5).
+  (§8.4; its Jinja-render 400, §5), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}`
+  (§5).
+- **Email engines:** `Event.confirmation_email_engine` and `RegistrationType.invitation_email_engine`,
+  their save-time parse check, and the confirmation-failure report to `confirmation_email_from`
+  (§5, §8.3; DR-38).
 - **Server-rendered templates:** the Report's `variables_source` field, and
   `GET /api/events/{id}/templates/describe`, `POST …/templates/preview` and
   `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).

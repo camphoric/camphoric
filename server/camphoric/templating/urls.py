@@ -32,3 +32,26 @@ def register_url(event_id, invitation=None, request=None):
     url = re.sub(r':8000', ':3000', url, count=1)
     url = re.sub(r'/api/', '/', url, count=1)
     return url
+
+
+def admin_url(path, request=None):
+    '''
+    An absolute link into the admin client (`path` like `/admin/organization/…`),
+    for emails sent to organizers. Empty when there's neither a public URL nor
+    a request to derive one from.
+    '''
+    base = getattr(settings, 'CAMPHORIC_PUBLIC_URL', '')
+    if base:
+        return f'{base.rstrip("/")}{path}'
+    if request is None:
+        return ''
+    url = request.build_absolute_uri(path)
+    return re.sub(r':8000', ':3000', url, count=1)
+
+
+def admin_registration_url(registration, request=None):
+    '''The registration's page in the admin client.'''
+    event = registration.event
+    return admin_url(
+        f'/admin/organization/{event.organization_id}/event/{event.id}'
+        f'/registrations?registrationId={registration.id}', request)

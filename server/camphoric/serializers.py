@@ -4,6 +4,7 @@ import jsonschema  # Using Draft-7
 from camphoric import (
     models,
 )
+from camphoric.templating.render import syntax_error
 
 
 class OrganizationSerializer(ModelSerializer):
@@ -41,6 +42,11 @@ class EventSerializer(ModelSerializer):
     def validate_registration_error_messages(self, messages):
         return validate_error_messages(messages)
 
+    def validate(self, data):
+        return validate_jinja_email(
+            self.instance, data, 'confirmation_email_engine',
+            'confirmation_email_subject', 'confirmation_email_template')
+
 
 class RegistrationSerializer(ModelSerializer):
     class Meta:
@@ -58,6 +64,11 @@ class RegistrationTypeSerializer(ModelSerializer):
     class Meta:
         model = models.RegistrationType
         fields = '__all__'
+
+    def validate(self, data):
+        return validate_jinja_email(
+            self.instance, data, 'invitation_email_engine',
+            'invitation_email_subject', 'invitation_email_template')
 
 
 class CustomChargeTypeSerializer(ModelSerializer):
@@ -197,4 +208,25 @@ def validate_attributes(data, schema):
         jsonschema.validate(decoded_json, schema)
     except jsonschema.exceptions.ValidationError as e:
         raise ValidationError({'attributes': e.message})
+    return data
+
+
+def validate_jinja_email(instance, data, engine_field, subject_field, template_field):
+    '''
+    A Jinja email template must parse before it's saved (SPEC §8.3, §8.4), so a
+    typo can't stop emails going out; mistakes that only show when rendering
+    are the preview's job. Mustache templates aren't checked.
+    '''
+    def current(name):
+        return data[name] if name in data else getattr(instance, name, None)
+
+    if current(engine_field) != models.TemplateEngine.JINJA:
+        return data
+    errors = {}
+    for name, field in ((subject_field, 'subject'), (template_field, 'template')):
+        problem = syntax_error(current(name), field=field)
+        if problem:
+            errors[name] = [f'Line {problem.line}: {problem.message}']
+    if errors:
+        raise ValidationError(errors)
     return data

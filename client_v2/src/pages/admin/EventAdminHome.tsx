@@ -2,6 +2,8 @@
  * Home / event configuration (SPEC §8.3). View and edit the event's top-level
  * configuration; saving persists via PATCH to the event. (The schema-driven JSON
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
+ * The confirmation email is edited in its engine (Jinja or legacy Mustache),
+ * with a Jinja preview for any completed registration.
  */
 
 import {
@@ -21,15 +23,28 @@ import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent, Hash } from 'api-types';
+import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { JsonViewer } from 'components/JsonViewer';
 import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
-import { useEffect, useState } from 'react';
-import { eventHooks } from 'store/entities';
+import { useEffect, useMemo, useState } from 'react';
+import { eventHooks, registrationHooks } from 'store/entities';
 
 export function EventAdminHome() {
-  const { eventId } = useParams({ from: '/admin/organization/$organizationId/event/$eventId' });
+  const { organizationId, eventId } = useParams({
+    from: '/admin/organization/$organizationId/event/$eventId',
+  });
   const { data: event } = eventHooks.useById(eventId);
+  const { data: registrations } = registrationHooks.useList({ event: eventId, completed: 1 });
+  const samples = useMemo<EmailSample[]>(
+    () =>
+      (registrations ?? []).map((r) => ({
+        value: String(r.id),
+        label: `#${r.id} ${r.registrant_email}`,
+        sample: { registration_id: r.id },
+      })),
+    [registrations],
+  );
   const update = eventHooks.useUpdate();
   const [form, setForm] = useState<ApiEvent | null>(null);
   const [showRaw, { toggle: toggleRaw }] = useDisclosure(false);
@@ -57,6 +72,7 @@ export function EventAdminHome() {
         confirmation_email_from: form.confirmation_email_from,
         confirmation_email_subject: form.confirmation_email_subject,
         confirmation_email_template: form.confirmation_email_template,
+        confirmation_email_engine: form.confirmation_email_engine,
         paypal_enabled: form.paypal_enabled,
         paypal_client_id: form.paypal_client_id,
         epayment_handling: form.epayment_handling,
@@ -122,24 +138,23 @@ export function EventAdminHome() {
         />
 
         <Divider label="Confirmation email" />
-        <Group grow>
-          <TextInput
-            label="From"
-            value={form.confirmation_email_from}
-            onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
-          />
-          <TextInput
-            label="Subject"
-            value={form.confirmation_email_subject}
-            onChange={(e) => set('confirmation_email_subject', e.currentTarget.value)}
-          />
-        </Group>
-        <Textarea
-          label="Confirmation email body"
-          autosize
-          minRows={3}
-          value={form.confirmation_email_template}
-          onChange={(e) => set('confirmation_email_template', e.currentTarget.value)}
+        <TextInput
+          label="From"
+          description="Also where a report goes if a Jinja confirmation email can’t be rendered."
+          value={form.confirmation_email_from}
+          onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
+        />
+        <EmailTemplateEditor
+          eventId={eventId}
+          context="confirmation_email"
+          engine={form.confirmation_email_engine}
+          onEngineChange={(value) => set('confirmation_email_engine', value)}
+          subject={form.confirmation_email_subject}
+          onSubjectChange={(value) => set('confirmation_email_subject', value)}
+          body={form.confirmation_email_template}
+          onBodyChange={(value) => set('confirmation_email_template', value)}
+          samples={samples}
+          helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
         />
 
         <Divider label="Payments" />

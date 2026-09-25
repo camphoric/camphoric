@@ -17,6 +17,7 @@ import type {
   TemplateDescription,
   TemplateDiagnostic,
   TemplatePreviewOutput,
+  TemplatePreviewRequest,
   TemplatePreviewResponse,
 } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
@@ -115,7 +116,7 @@ export function TemplateEditorView({
 
   const jump = useCallback(
     (d: TemplateDiagnostic) => {
-      if (!mounted || !d.line) return;
+      if (!mounted || !d.line || d.field !== 'template') return;
       mounted.editor.revealLineInCenter(d.line);
       mounted.editor.setPosition({ lineNumber: d.line, column: d.column ?? 1 });
       mounted.editor.focus();
@@ -231,12 +232,21 @@ function requestErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Which record a preview renders for (the server picks one when omitted). */
+export type PreviewSample = Pick<
+  TemplatePreviewRequest,
+  'registration_id' | 'camper_id' | 'invitation_id' | 'registration_type_id'
+>;
+
 export interface TemplateEditorProps {
   value: string;
   onChange: (value: string) => void;
   eventId: string | number;
   context: TemplateContextName;
   output: TemplatePreviewOutput;
+  /** An email's subject template, previewed with the body. */
+  subject?: string;
+  sample?: PreviewSample;
   showPreview?: boolean;
   showHelp?: boolean;
   helpHref?: string;
@@ -249,15 +259,29 @@ export function TemplateEditor({
   eventId,
   context,
   output,
+  subject,
+  sample,
   showPreview = true,
   showHelp,
   helpHref,
   height,
 }: TemplateEditorProps) {
   const description = useTemplateDescription(eventId);
-  const request = useMemo(
-    () => (showPreview ? { context, template: value, output } : null),
-    [showPreview, context, value, output],
+  // Callers often pass a fresh `sample` object; key on its contents so the
+  // debounced preview request only changes when something real does.
+  const sampleKey = JSON.stringify(sample ?? {});
+  const request = useMemo<TemplatePreviewRequest | null>(
+    () =>
+      showPreview
+        ? {
+            context,
+            template: value,
+            output,
+            ...(subject !== undefined ? { subject } : {}),
+            ...(JSON.parse(sampleKey) as PreviewSample),
+          }
+        : null,
+    [showPreview, context, value, output, subject, sampleKey],
   );
   const preview = useTemplatePreview(eventId, request);
 

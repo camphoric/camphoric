@@ -1,3 +1,3 @@
 export { TemplateDiagnostics } from './TemplateDiagnostics';
-export { TemplateEditor, TemplateEditorView } from './TemplateEditor';
+export { type PreviewSample, TemplateEditor, TemplateEditorView } from './TemplateEditor';
 export { TemplatePreviewPanel } from './TemplatePreviewPanel';

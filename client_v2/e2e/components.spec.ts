@@ -101,3 +101,16 @@ test.describe('Template help', () => {
     await expect(page.getByRole('heading', { name: 'Jinja basics' })).toBeVisible();
   });
 });
+
+test.describe('Email template editor', () => {
+  // The story answers the preview itself, filling each {{ … }} with the sample's name.
+  test('previews the subject and body for the chosen sample', async ({ page }) => {
+    await page.goto(story('email-template-editor--jinja'));
+    const preview = page.getByRole('region', { name: 'Template preview' });
+    await expect(preview).toContainText('Your invitation to Lee');
+
+    await page.getByRole('textbox', { name: 'Preview for' }).click();
+    await page.getByRole('option', { name: 'Sam <sam@example.com>' }).click();
+    await expect(preview).toContainText('Your invitation to Sam');
+  });
+});
