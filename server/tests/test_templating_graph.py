@@ -70,6 +70,12 @@ class EventGraphTests(TestCase):
         self.assertNotIn('campers', pat['pricing'])
         self.assertEqual(self.camper(self.made.c1)['pricing']['tuition'], 400)
 
+    def test_pricing_numbers_print_as_they_did_in_json(self):
+        from camphoric.templating.graph import number
+        self.assertEqual(repr(number(825.0)), '825')
+        self.assertEqual(number(102.27), Decimal('102.27'))
+        self.assertEqual(number('x'), 'x')
+
     def test_dates(self):
         event = self.graph.event
         self.assertEqual(event['nights'][0], datetime.date(2026, 12, 30))

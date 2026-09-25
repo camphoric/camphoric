@@ -36,6 +36,7 @@ async function main() {
       output,
       template,
       variables_schema,
+      variables_source,
     } = r;
 
     try {
@@ -44,6 +45,8 @@ async function main() {
         output,
         template,
         variables_schema,
+        // Without it, a copied legacy report would default to server variables.
+        variables_source,
         event: toEventId,
       });
     } catch (e) {

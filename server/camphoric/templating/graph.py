@@ -62,9 +62,13 @@ def money(value):
 
 
 def number(value):
-    '''Pricing results: floats become exact Decimals, other values pass through.'''
+    '''
+    Pricing results: whole floats become ints (825.0 → 825, as the numbers
+    looked in the JSON reports used to get), other floats exact Decimals;
+    other values pass through.
+    '''
     if isinstance(value, float):
-        return Decimal(str(value))
+        return int(value) if value.is_integer() else Decimal(str(value))
     return value
 
 

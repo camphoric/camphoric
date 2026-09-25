@@ -1,12 +1,11 @@
-{%- set dates = [ ['2025-12-30', 'Tue'],['2025-12-31', 'Wed' ],['2026-01-01', 'Thu' ],['2026-01-02', 'Fri' ],['2026-01-03', 'Sat' ] ] -%}
-last name,first name,type,exceptions,notes,{% for dt in dates %}{{ dt[1] }},{% endfor %}
+last name,first name,type,exceptions,notes,{% for night in event.nights %}{{ night | date('%a') }},{% endfor %}
 {% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
     {%- if not camper.attributes.meal_exceptions_other -%}{%- continue -%}{%- endif -%}
     "{{
     camper.attributes.last_name}}","{{
     camper.attributes.first_name}}","{{
     camper.attributes.meal_type}}","{{
-    camper.attributes.meal_exceptions | join(', ')}}","{{
+    (camper.attributes.meal_exceptions or []) | join(', ')}}","{{
     camper.attributes.meal_exceptions_other}}",
-    {%- for dt in dates -%}{{ 'X,' if dt[0] in (camper.stay or []) else ',' }}{%- endfor %}
+    {%- for night in event.nights -%}{{ 'X,' if night in (camper.stay or []) else ',' }}{%- endfor %}
 {% endfor -%}

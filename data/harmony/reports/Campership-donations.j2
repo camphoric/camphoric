@@ -1,18 +1,14 @@
-{%- set regs = {} -%}
-{%- for reg in registrations -%}
-  {%- if reg.campers[0] is undefined -%}{%- continue -%}{%- endif -%}
-  {%- if reg.server_pricing_results.campership_donation == 0 -%}
-    {%- continue -%}
-  {%- endif -%}
-  {%- do regs.update({ reg.id: {
+{%- set rows = [] -%}
+{%- for reg in registrations if reg.campers and reg.pricing.campership_donation != 0 -%}
+  {%- do rows.append({
     'first_name': reg.campers[0].attributes.first_name,
     'last_name': reg.campers[0].attributes.last_name,
     'email': reg.registrant_email,
-    'donation': reg.server_pricing_results.campership_donation,
-  } }) -%}
+    'donation': reg.pricing.campership_donation,
+  }) -%}
 {%- endfor -%}
 Last,First,Email,Donation
-{% for reg in regs.values() | sort(attribute="last_name,first_name") -%}
-{{reg.last_name}},{{reg.first_name}},{{reg.email}},${{reg.donation}}
+{% for row in rows | sort(attribute="last_name,first_name") -%}
+{{row.last_name}},{{row.first_name}},{{row.email}},${{row.donation}}
 {% endfor -%}
-,,Total,${{regs.values() | map(attribute="donation", default=0) | sum}}
+,,Total,${{rows | map(attribute="donation", default=0) | sum}}

@@ -1,79 +1,36 @@
-{%- set dates = [ ['2025-12-30', 'Tue'],['2025-12-31', 'Wed' ],['2026-01-01', 'Thu' ],['2026-01-02', 'Fri' ],['2026-01-03', 'Sat' ] ] -%}
-{%- set totals = {
-dates.0.0~'v1': 0,
-dates.0.0~'v2': 0,
-dates.0.0~'v4': 0,
-dates.0.0~'v7': 0,
-
-dates.1.0~'v1': 0,
-dates.1.0~'v2': 0,
-dates.1.0~'v4': 0,
-dates.1.0~'v7': 0,
-
-dates.2.0~'v1': 0,
-dates.2.0~'v2': 0,
-dates.2.0~'v4': 0,
-dates.2.0~'v7': 0,
-
-dates.3.0~'v1': 0,
-dates.3.0~'v2': 0,
-dates.3.0~'v4': 0,
-dates.3.0~'v7': 0,
-
-dates.4.0~'v1': 0,
-dates.4.0~'v2': 0,
-dates.4.0~'v4': 0,
-dates.4.0~'v7': 0,
-}
--%}
-{%- for camper in campers if camper.lodging -%}
-    {%- set val = lodgingLookup[camper.lodging | string] -%}
-    {%- do camper.update({'ldg': val.pathParts if val else [] }) -%}
-    {%- for dt in dates -%}
-        {%- if dt[0] in (camper.stay or []) -%}
-            {%- if 'Village 1' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 5' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 6' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v1': totals[dt.0~'v1'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 2' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v2': totals[dt.0~'v2'] + 1}) -%}{%- endif -%}
-            {%- if 'Apartments' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v4': totals[dt.0~'v4'] + 1}) -%}{%- endif -%}
-            {%- if 'Village 7' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
-            {%- if  'Wellness' in (val.pathParts) and camper.attributes.linens in (true, 'Yes') -%}{%- do totals.update({dt.0 ~ 'v7': totals[dt.0~'v7'] + 1}) -%}{%- endif -%}
-        {%- endif -%}
+{#- Linens needed per night, by lodging group. -#}
+{%- set groups = [
+  ['v1', ['Village 1', 'Village 5', 'Village 6']],
+  ['v2', ['Village 2']],
+  ['v4', ['Apartments']],
+  ['v7', ['Village 7', 'Wellness']],
+] -%}
+{%- set totals = {} -%}
+{%- for camper in campers if camper.lodging and camper.attributes.linens in (true, 'Yes') -%}
+    {%- for night in event.nights if night in (camper.stay or []) -%}
+        {%- for key, places in groups -%}
+            {%- for place in places if place in camper.lodging.path_names -%}
+                {%- do totals.update({night ~ key: totals.get(night ~ key, 0) + 1}) -%}
+            {%- endfor -%}
+        {%- endfor -%}
     {%- endfor -%}
 {%- endfor -%}
 Day | Village 1, 5&6 | Village 2 | Village 4 | Village 7& Wellness lodge | Total
 --- | -------------- | --------- | --------- | ------------------------- | -----
-{% for dt in dates -%}
-    {{ dt[1] }} | {{ totals[dt.0 ~ 'v1'] }} | {{ totals[dt.0 ~ 'v2'] }} | {{ totals[dt.0 ~ 'v4'] }} | {{ totals[dt.0 ~ 'v7'] }} | {{ 
-totals[dt.0 ~ 'v1'] + totals[dt.0 ~ 'v2'] + totals[dt.0 ~ 'v4'] + totals[dt.0 ~ 'v7']
-}} |
+{% for night in event.nights -%}
+    {%- set ns = namespace(total=0) -%}
+    {{ night | date('%a') }} |{% for key, places in groups %} {{ totals.get(night ~ key, 0) }} |{% set ns.total = ns.total + totals.get(night ~ key, 0) %}{% endfor %} {{ ns.total }} |
 {% endfor -%}
-TOTALS | {{
-totals[dates.0.0~'v1'] + totals[dates.1.0~'v1'] + totals[dates.2.0~'v1'] + totals[dates.3.0~'v1'] + totals[dates.4.0~'v1']
-}} | {{
-totals[dates.0.0~'v2'] + totals[dates.1.0~'v2'] + totals[dates.2.0~'v2'] + totals[dates.3.0~'v2'] + totals[dates.4.0~'v2']
-}} | {{
-totals[dates.0.0~'v4'] + totals[dates.1.0~'v4'] + totals[dates.2.0~'v4'] + totals[dates.3.0~'v4'] + totals[dates.4.0~'v4']
-}} | {{
-totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + totals[dates.3.0~'v7'] + totals[dates.4.0~'v7']
-}} | {{
-totals[dates.0.0~'v1'] + totals[dates.1.0~'v1'] + totals[dates.2.0~'v1'] + totals[dates.3.0~'v1'] + totals[dates.4.0~'v1'] +
-totals[dates.0.0~'v2'] + totals[dates.1.0~'v2'] + totals[dates.2.0~'v2'] + totals[dates.3.0~'v2'] + totals[dates.4.0~'v2'] +
-totals[dates.0.0~'v4'] + totals[dates.1.0~'v4'] + totals[dates.2.0~'v4'] + totals[dates.3.0~'v4'] + totals[dates.4.0~'v4'] +
-totals[dates.0.0~'v7'] + totals[dates.1.0~'v7'] + totals[dates.2.0~'v7'] + totals[dates.3.0~'v7'] + totals[dates.4.0~'v7']
-}} |
+TOTALS |{% for key, places in groups %}{% set ns = namespace(total=0) %}{% for night in event.nights %}{% set ns.total = ns.total + totals.get(night ~ key, 0) %}{% endfor %} {{ ns.total }} |{% endfor %} {{ totals.values() | sum }} |
 
 ## Campers Who Requested
 
-{% set tot = 0 %}
-| Last Name | First Name | Lodging | {% for dt in dates %}{{ dt[1] }} | {% endfor %}
-| --------- | ---------- | ------- | :---: | :---: | :---: | :---: | :---: |
+| Last Name | First Name | Lodging | {% for night in event.nights %}{{ night | date('%a') }} | {% endfor %}
+| --------- | ---------- | ------- |{% for night in event.nights %} :---: |{% endfor %}
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
 {%- if camper.attributes.linens not in (true, 'Yes') or not camper.lodging or not camper.stay -%}{%- continue -%}{%- endif -%}
-{%- set val = lodgingLookup[camper.lodging | string]-%}
-{%- set tot = tot + 1 -%}
-| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{val.pathParts[0]}}: {{val.name}} | {%
-     for dt in dates %}{{ ' X |' if dt[0] in camper.stay else ' &nbsp; |' }}{% endfor %}
+| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{ camper.lodging.path_names[0] }}: {{ camper.lodging.name }} | {%
+     for night in event.nights %}{{ ' X |' if night in camper.stay else ' &nbsp; |' }}{% endfor %}
 {% endfor %}
 
 Total: {{ campers | map(attribute='attributes.linens') | select('in', (true, 'Yes')) | list | count  }}

@@ -1,12 +1,11 @@
-{%- set dates = [ ['2025-12-30', 'Tue'],['2025-12-31', 'Wed' ],['2026-01-01', 'Thu' ],['2026-01-02', 'Fri' ],['2026-01-03', 'Sat' ] ] -%}
 {%- macro fphone(phone) -%}
 [({{phone[2:5]}}) {{phone[5:8]}}-{{phone[8:12]}}](tel:{{phone}})
 {%- endmacro %}
 {%- for camper in campers | sort(attribute='attributes.last_name,attributes.first_name') -%}
-    {%- set lodging = lodgingLookup[camper.lodging | string] -%}
+    {%- set lodging = camper.lodging -%}
 **{{ camper.attributes.last_name | trim }}, {{ camper.attributes.first_name | trim }}**    
-{{ lodging.pathParts.0 if lodging else 'NotLodging' }}: {{ lodging.name if lodging else 'NotSet' }} - | {% for dt in dates -%}
-{{- dt[1] if dt[0] in (camper.stay or []) else 'xxx' }} | {% endfor %}    
+{{ lodging.path_names[0] if lodging else 'NotLodging' }}: {{ lodging.name if lodging else 'NotSet' }} - | {% for night in event.nights -%}
+{{- night | date('%a') if night in (camper.stay or []) else 'xxx' }} | {% endfor %}    
 Linens: {{ camper.attributes.linens }}&nbsp;&nbsp;&nbsp;Meals: {{
 camper.attributes.meal_type }}&nbsp;&nbsp;&nbsp;Mobile Phone: {{
   fphone(camper.attributes.mobile_phone) if camper.attributes.mobile_phone else '________________'
