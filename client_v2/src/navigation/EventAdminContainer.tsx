@@ -13,6 +13,7 @@ import { useDisclosure } from '@mantine/hooks';
 import {
   IconBed,
   IconFileText,
+  IconHelp,
   IconHome,
   IconReportAnalytics,
   IconSettings,
@@ -28,6 +29,7 @@ const SECTIONS = [
   { path: 'campers', label: 'Campers', icon: IconUsers },
   { path: 'lodging', label: 'Lodging', icon: IconBed },
   { path: 'reports', label: 'Reports', icon: IconReportAnalytics },
+  { path: 'template-help', label: 'Template help', icon: IconHelp },
   { path: 'settings', label: 'Settings', icon: IconSettings },
 ] as const;
 

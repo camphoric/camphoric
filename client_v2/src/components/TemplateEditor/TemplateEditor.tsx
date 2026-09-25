@@ -8,8 +8,10 @@
  * `TemplateEditorView` takes them as props (for stories and tests).
  */
 
-import { SimpleGrid, Stack } from '@mantine/core';
+import { Anchor, Button, Drawer, Group, SimpleGrid, Stack } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import type { OnMount } from '@monaco-editor/react';
+import { IconExternalLink, IconHelp } from '@tabler/icons-react';
 import type {
   TemplateContextName,
   TemplateDescription,
@@ -18,6 +20,7 @@ import type {
   TemplatePreviewResponse,
 } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
+import { type InsertHandler, TemplateHelpPanel } from 'components/TemplateHelp';
 import type { editor as MonacoEditor } from 'monaco-editor';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTemplateDescription, useTemplatePreview } from 'store/templates';
@@ -55,6 +58,10 @@ export interface TemplateEditorViewProps {
   rendering?: boolean;
   previewError?: string | null;
   showPreview?: boolean;
+  /** Offer Template Help beside the editor. */
+  showHelp?: boolean;
+  /** The standalone Template Help page, linked from the help panel. */
+  helpHref?: string;
   height?: number | string;
 }
 
@@ -73,8 +80,11 @@ export function TemplateEditorView({
   rendering,
   previewError,
   showPreview = true,
+  showHelp = true,
+  helpHref,
   height = 360,
 }: TemplateEditorViewProps) {
+  const [helpOpen, help] = useDisclosure(false);
   const id = useId().replace(/\W/g, '');
   const path = `camphoric-template/${context}/${id}.jinja`;
   const [mounted, setMounted] = useState<Mounted | null>(null);
@@ -113,6 +123,65 @@ export function TemplateEditorView({
     [mounted],
   );
 
+  // Insert at the cursor (replacing any selection); tag snippets expand.
+  const insert = useCallback<InsertHandler>(
+    (text, options) => {
+      if (!mounted) return;
+      const { editor } = mounted;
+      editor.focus();
+      if (options?.snippet) {
+        const snippets = editor.getContribution<
+          { insert(text: string): void } & MonacoEditor.IEditorContribution
+        >('snippetController2');
+        snippets?.insert(text);
+        return;
+      }
+      const selection = editor.getSelection();
+      if (selection)
+        editor.executeEdits('template-help', [{ range: selection, text, forceMoveMarkers: true }]);
+    },
+    [mounted],
+  );
+
+  const helpButton = showHelp && (
+    <Group justify="flex-end">
+      <Button
+        variant="subtle"
+        size="compact-sm"
+        leftSection={<IconHelp size={16} />}
+        onClick={help.toggle}
+      >
+        Template help
+      </Button>
+    </Group>
+  );
+
+  const helpDrawer = showHelp && (
+    <Drawer
+      opened={helpOpen}
+      onClose={help.close}
+      position="right"
+      size="lg"
+      title="Template help"
+      // Keep the editor usable while help is open, so entries can be inserted.
+      withOverlay={false}
+      lockScroll={false}
+      trapFocus={false}
+      closeOnClickOutside={false}
+    >
+      <Stack>
+        {helpHref && (
+          <Anchor href={helpHref} target="_blank" size="sm">
+            <Group gap={4}>
+              Open the full help page <IconExternalLink size={14} />
+            </Group>
+          </Anchor>
+        )}
+        <TemplateHelpPanel description={description} context={context} onInsert={insert} />
+      </Stack>
+    </Drawer>
+  );
+
   const editor = (
     <JsonEditor
       value={value}
@@ -126,19 +195,25 @@ export function TemplateEditorView({
     />
   );
 
-  if (!showPreview) return editor;
-
   return (
-    <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
-      <Stack gap={0}>{editor}</Stack>
-      <TemplatePreviewPanel
-        output={output}
-        preview={preview}
-        rendering={rendering}
-        error={previewError}
-        onJump={jump}
-      />
-    </SimpleGrid>
+    <Stack gap="xs">
+      {helpButton}
+      {showPreview ? (
+        <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
+          <Stack gap={0}>{editor}</Stack>
+          <TemplatePreviewPanel
+            output={output}
+            preview={preview}
+            rendering={rendering}
+            error={previewError}
+            onJump={jump}
+          />
+        </SimpleGrid>
+      ) : (
+        editor
+      )}
+      {helpDrawer}
+    </Stack>
   );
 }
 
@@ -163,6 +238,8 @@ export interface TemplateEditorProps {
   context: TemplateContextName;
   output: TemplatePreviewOutput;
   showPreview?: boolean;
+  showHelp?: boolean;
+  helpHref?: string;
   height?: number | string;
 }
 
@@ -173,6 +250,8 @@ export function TemplateEditor({
   context,
   output,
   showPreview = true,
+  showHelp,
+  helpHref,
   height,
 }: TemplateEditorProps) {
   const description = useTemplateDescription(eventId);
@@ -193,6 +272,8 @@ export function TemplateEditor({
       rendering={preview.isFetching}
       previewError={preview.error ? requestErrorMessage(preview.error) : null}
       showPreview={showPreview}
+      showHelp={showHelp}
+      helpHref={helpHref}
       height={height}
     />
   );

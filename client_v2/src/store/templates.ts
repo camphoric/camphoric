@@ -5,7 +5,7 @@
  */
 
 import { useDebouncedValue } from '@mantine/hooks';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import type {
   TemplateCheckResponse,
   TemplateDescription,
@@ -60,5 +60,19 @@ export function useTemplateCheck(eventId: string | number | undefined, enabled =
     queryKey: ['TemplateCheck', String(eventId)],
     queryFn: () => apiFetch<TemplateCheckResponse>(`/api/events/${eventId}/templates/check`),
     enabled: enabled && eventId !== undefined && eventId !== '',
+  });
+}
+
+/**
+ * Render a template once, on demand (not debounced or cached) — for actions
+ * such as downloading a context's sample variables.
+ */
+export function useRenderTemplateOnce(eventId: string | number | undefined) {
+  return useMutation({
+    mutationFn: (request: TemplatePreviewRequest) =>
+      apiFetch<TemplatePreviewResponse>(`/api/events/${eventId}/templates/preview`, {
+        method: 'POST',
+        body: request,
+      }),
   });
 }
