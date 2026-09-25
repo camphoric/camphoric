@@ -77,6 +77,17 @@ class ReportSerializer(ModelSerializer):
         model = models.Report
         fields = '__all__'
 
+    def validate(self, data):
+        output = data.get('output', getattr(self.instance, 'output', None))
+        source = data.get('variables_source', getattr(self.instance, 'variables_source', None))
+        if output == models.ReportOutputType.HANDLEBARS \
+                and source == models.ReportVariablesSource.SERVER:
+            raise ValidationError({
+                'variables_source': 'Handlebars reports render in the browser, so they can '
+                                    "only use the client's variables.",
+            })
+        return data
+
 
 class InvitationSerializer(ModelSerializer):
     class Meta:

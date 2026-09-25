@@ -1,5 +1,5 @@
 '''
-Sandboxed Jinja environments (SPEC §9.3, DR-39).
+Sandboxed Jinja environments (SPEC §9.3, DR-37).
 
 `TEXT_ENV` / `HTML_ENV` render the new Camphoric-variables templates: the
 Jinja sandbox (no `_private` attributes, no `__class__` tricks, capped

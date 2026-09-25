@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-34)
+- §15 — Decision Records (DR-1…DR-37)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -248,8 +248,41 @@ Non-CRUD admin endpoints:
 
 - `GET /api/user` — current user (whoami).
 - `POST /api/login` — `{ username, password }`, invalidates whoami.
-- `POST /api/reports/{id}/render` — render a report with supplied template variables →
-  `{ report: string, error: string | null }`.
+- `POST /api/reports/{id}/render` — render a Jinja report → `{ report: string, error: string |
+  null, diagnostics? }`. The body depends on the report's `variables_source` (§8.7): legacy
+  (`client`) reports post the template-variable bundle; `server` reports post `{}`, render from
+  the server's own variables, and add `diagnostics` (the `TemplateDiagnostic` list below);
+  `report` is empty when there's an error.
+- **Server-rendered templates** (§9.3, §9.6; all admin-only):
+  - `GET /api/events/{id}/templates/describe` → the **variable spec** (§15, DR-36):
+    `{ contexts, types, filters, tests, tags, globals }`. `contexts` maps each kind of template
+    (`report`, `confirmation_email`, `invitation_email`, `bulk_email_registration`,
+    `bulk_email_camper`, `bulk_email_manual`) to `{ title, doc, roots, sample }`, where `roots`
+    are its variables and `sample` names the kind of record a preview renders for
+    (`registration` | `camper` | `invitation` | null). `types` maps a type name to
+    `{ doc, fields }`. A field (and a root or global) is `{ name, type, doc, example?,
+    nullable?, callable?, signature?, title?, identifier?, enum?, format? }`. `type` is
+    `string`, `number`, `bool`, `money`, `date`, `datetime`, `dict`, `any`, `list<T>`, or a
+    type name — including event-specific types built from the event's own forms and pricing
+    (`attributes:camper`, `attributes:registration`, nested `attributes:camper.<key>`,
+    `admin_attributes:*`, `attributes:payment`, `pricing:registration|camper|event`).
+    `identifier: false` marks a key that must be written `['key']`; `callable` marks a method
+    or function. Filters are `{ name, signature, doc, example, builtin }`, tests
+    `{ name, doc, example }`, tags `{ name, doc, snippet }` (Monaco snippet syntax).
+  - `POST /api/events/{id}/templates/preview` — renders **unsaved** text. Request:
+    `{ context, template, output: 'csv' | 'md' | 'txt' | 'html' | 'email', subject?,
+    registration_id?, camper_id?, invitation_id?, registration_type_id? }`. Response:
+    `{ output, subject?, html?, diagnostics, truncated, duration_ms, sample: { kind, id, label }
+    | null }` (`html` is the `email` body rendered from markdown). Without a sample id, the first
+    completed registration/camper/invitation is used. An unknown context or output, or a sample
+    from another event, is a 400.
+  - `GET /api/events/{id}/templates/check` → `{ ok, results: [{ kind, id, label, mode:
+    'rendered' | 'parsed' | 'skipped', diagnostics }] }` — every saved template of the event,
+    rendered (server reports), parsed only (legacy Jinja reports) or skipped (Handlebars).
+  - **`TemplateDiagnostic`**: `{ severity: 'error' | 'warning', kind: 'syntax' | 'undefined' |
+    'security' | 'timeout' | 'output_limit' | 'runtime', message, field, line, column }` —
+    `field` is the text the problem is in (`template`, `subject`); `line`/`column` are 1-based
+    or null.
 - `POST /api/invitations/{id}/send` — send/resend an invitation email.
 - `GET /api/customcharges/{camperId}` — custom charges for a camper.
 - `GET /api/eventlist` — public list of events for the splash page.
@@ -301,6 +334,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `lodging_requested`, `lodging_shared`/`lodging_shared_with`/`lodging_comments`,
   `server_pricing_results`, `sequence` (order within a registration), `stay` (array of ISO
   date strings the camper is present), timestamps.
+- **Report:** `id`, `event`, `title`, `output` (`csv` | `md` | `txt` | `html` | `hbs`),
+  `template`, `variables_schema`, `variables_source` (`client` | `server`; the API defaults to
+  `client`, and `hbs` requires `client`), timestamps.
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_email_subject`,
   `invitation_email_template`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
@@ -591,23 +627,45 @@ selector).
 The admin can **browse/select the event's reports** (selection via `?reportId`), **view a
 report's rendered output**, and **create/edit/delete a report's definition**.
 
-- **Editing a report** — its title; output format (`csv` Jinja→CSV, `md` Jinja→Markdown, `txt`
-  Jinja→Text, `hbs` Handlebars→Markdown); the template body (edited in Monaco, language matching
-  the format); and the `variables_schema` (JSON, validated). Title must be non-empty and the
-  schema must parse — surface those errors. Deleting drops the `reportId` selection.
-- **Viewing a report** — for `csv`/`md`/`txt`, the client POSTs to
-  `/api/reports/{id}/render` with the full template-variable bundle and renders the returned
-  string:
+A report's **`variables_source`** says where its template's variables come from:
+
+- **`server` — Camphoric variables.** The server builds the event's data itself (the
+  relationship-resolved, read-only model of §9.3; §15, DR-35) and renders the template; the
+  client posts nothing. New reports created in the client use this source.
+- **`client` — the browser bundle (legacy).** The client assembles the template-variable bundle
+  and posts it with each render. Existing reports keep this source until they're rewritten, and
+  Handlebars (`hbs`) reports always use it.
+
+- **Editing a report** — its title; its variables source; output format (`csv` Jinja→CSV, `md`
+  Jinja→Markdown, `txt` Jinja→Text, `html` Jinja→HTML, and — for the `client` source only — `hbs`
+  Handlebars→Markdown); and the template body. Title must be non-empty — surface that error.
+  - **`server`** — the template is edited in the template editor (§9.6): autocomplete and hover
+    docs from the variable spec for the `report` context, problems marked in the text, and a
+    live preview in the chosen format. There is no variables schema.
+  - **`client`** — the template is edited in Monaco with the language matching the format, plus
+    the `variables_schema` (JSON, validated; it must parse before saving).
+  - Changing the source of a saved report with a template asks for confirmation (the two sources
+    have different variables, so the template needs rewriting); the text is left unchanged.
+    Switching to `server` moves an `hbs` report to `csv`.
+  - Saving writes `title`, `output`, `template`, `variables_schema` and `variables_source`.
+    Deleting drops the `reportId` selection.
+- **Viewing a report** — `csv`/`md`/`txt`/`html` render on the server via
+  `/api/reports/{id}/render` (§5): `server` reports post `{}`, and legacy reports post the
+  variable bundle, which is assembled only when a legacy (or Handlebars) report is shown. The
+  returned string is shown per format:
   - **CSV** → parsed (`d3-dsv`) and shown as a table with a row count; downloadable.
   - **Markdown** → run through the markdown→HTML pipeline; downloadable.
+  - **HTML** → shown in a sandboxed frame that runs no scripts; downloadable.
   - **Text** → shown as preformatted text; downloadable.
   - **Handlebars** (`hbs`) → rendered **client-side** through the template engine (Handlebars +
-    markdown pipeline) using the same variable bundle.
-  - Render errors are surfaced with the raw error text.
+    markdown pipeline) using the variable bundle.
+  - A `server` report's problems are listed with their template line and column (warnings, such
+    as a misspelled field, appear above a successful render). A legacy report's render error is
+    shown as its raw text.
 
-**Report template variables** (the bundle assembled client-side and passed to render/Template):
-`event`, `registrations` (augmented) + `registrationLookup`, `campers` + `camperLookup`,
-`lodgingLookup`, `registrationTypeLookup`.
+**Legacy report template variables** (the bundle assembled client-side and passed to
+render/Template): `event`, `registrations` (augmented) + `registrationLookup`, `campers` +
+`camperLookup`, `lodgingLookup`, `registrationTypeLookup`.
 
 ### 8.8 Settings
 
@@ -732,7 +790,10 @@ precision is ever needed).
 
 ### 9.3 Templating engine
 
-Two-stage rendering used for descriptions, pre-submit/confirmation content, emails (server),
+Two engines render templates: **Handlebars in the client** (below) and **Jinja on the server**
+(*Server-rendered Jinja*, at the end of this section).
+
+Client-side, a two-stage rendering is used for descriptions, pre-submit/confirmation content,
 and Handlebars reports:
 
 1. **Handlebars** compiles the template with the provided variables and custom helpers, then
@@ -750,6 +811,31 @@ operators, `eachsort`, `eachrsort`, `eachLookupSort`), comparisons (`compare`, `
 math (`sum`, `subtract`, `abs`), and `or`. An in-app **Template Help** reference documents the
 available helpers and variables (with a downloadable view of the current variables) — useful
 when authoring email/report templates.
+
+**Server-rendered Jinja.** Reports with Camphoric variables (§8.7) render on the server, in
+Jinja, against a model of the event that the server builds (§15, DR-35):
+
+- **Variables** — each kind of template (a *context*) has its own root variables; a report gets
+  `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `lodging` (the
+  root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`, `today` and
+  `now`. `registrations`, `campers` and `payments` are those of completed registrations.
+  Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
+  `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
+  two-place decimal; dates and datetimes are real dates (datetimes in the server's configured
+  template time zone).
+- **The variable spec** — the describe endpoint (§5) publishes every context's variables, every
+  type's fields (with docs and examples, including the event's own form questions and pricing),
+  and the filters, tests and tags. It is the single source for the editor's autocomplete and
+  hover (§9.6) and for help.
+- **Read-only** — templates can't change Camphoric objects (no `.update()`/`.append()` on them),
+  but can build their own lists and dicts (`{% set rows = [] %}`, `namespace`, `merge`).
+- **Sandboxed, with limits** — templates run in Jinja's sandbox (no Python internals, no model
+  methods), with a render time limit and an output-size cap (§15, DR-37). Legacy reports also
+  render sandboxed.
+- **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
+  sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
+  their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
+  such as `camper.frist_name`) renders blank and is reported as a warning.
 
 ### 9.4 Search
 
@@ -778,6 +864,30 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Code/JSON editor** — a single **Monaco**-based editor for all JSON/template/schema editing
   (report templates, raw event schemas, admin/plugin config), with JSON-schema validation where
   applicable. V2 standardizes on Monaco (drops `vanilla-jsoneditor`; see §15, DR-8).
+- **Template editor** — the Monaco editor specialised for server-rendered Jinja (§9.3), used
+  wherever such a template is written (server-source reports, §8.7). Given the event and the
+  template's context, it provides (§15, DR-36):
+  - **Jinja highlighting** — delimiters, comments, tags, filters, strings, numbers — with
+    `{{ }}`, `{% %}` and `{# #}` auto-closed.
+  - **Autocomplete from the variable spec** (§5) inside `{{ }}`/`{% %}`: the context's
+    variables and globals; after `.`, the fields of the expression's type — following chains
+    (`campers[0].registration.`), keys (`['key']`), loop and assignment variables
+    (`{% for %}` with `loop`, `{% set %}`, `{% with %}`, macro parameters), and list filters
+    (`| first`, `| sort`, `| selectattr`, `| map(attribute=…)`); after `|`, filters; after `is`,
+    tests; after `{%`, tag snippets. Each suggestion shows its type and its doc/example. Keys
+    that aren't identifiers are inserted as `['key']`; methods are inserted with parentheses.
+    The event's own form questions sort first.
+  - **Hover docs** — the type, doc and example of the variable, field, filter, test or tag
+    under the pointer.
+  - **Live preview** — the unsaved text is rendered by the preview endpoint (§5), debounced,
+    with the previous result kept on screen while the next renders. The output is shown in its
+    format (CSV table, sanitized markdown, sandboxed HTML, text, or an email's subject and
+    body), with the sample record it was rendered for and the render time, and a notice when
+    it was cut off.
+  - **Problems** — the preview's diagnostics are listed (errors first) and underlined in the
+    text at their line/column; choosing one moves the cursor to it.
+
+  Several template editors can be open at once, each with its own context.
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation
   context, report rendering); shows detail in dev, fails quietly in prod. (This one *is*
   architectural, not just visual.)
@@ -1620,6 +1730,71 @@ uiSchema — rjsf has no such option, and a table is easier to review and edit a
 Hard-coded client messages — no per-event wording. Registration-type (invitation) overrides of
 the messages — deferred; they can later be merged like the schema overrides.
 
+### DR-35 — Server-built, read-only template variables
+
+**Decision:** A new kind of report renders from variables the server builds itself
+(`variables_source: 'server'`, §8.7), alongside the legacy kind whose variables the client
+uploads. The server builds a relationship-resolved model of the event in a fixed number of
+queries: typed, plain-data objects (`event`, `registration`, `camper`, `lodging`, `payment`, …)
+linked to each other (`camper.registration`, `camper.lodging`, `lodging.all_campers`), with
+decimal money, real dates, and derived fields such as `event.nights` and `lodging.full_name`.
+The objects are read-only to templates. Legacy reports stay the API default and keep working;
+they move over one at a time.
+**Context:** To render a report, the client built the whole event (six queries plus
+augmentation) and posted it; Camp Harmony's bundle was about 10 MiB and hit request-size limits.
+Templates had to join data through string-keyed lookups (`lodgingLookup[camper.lodging|string]`)
+and mutate objects with `.update()`. The server already has the data, and one clean model can
+serve reports and emails alike. Read-only objects mean one template can't corrupt the data
+another part of the same render sees, while templates can still build their own lists and
+dicts. Keeping the legacy path avoids rewriting the 62 existing `data/` reports at once.
+**Alternatives:** Keep posting the bundle but compress or trim it — still slow, still
+lookup-based. Expose the legacy camelCase bundle shape from the server — keeps the awkward
+lookups. Pass Django model instances — lazy queries per access, and model methods (`delete`,
+`save`) reachable from templates. Convert every legacy report in one go — too much risk at once.
+
+### DR-36 — Editor language services driven by the server's variable spec
+
+**Decision:** The server publishes a machine-readable **variable spec** (the describe endpoint,
+§5), generated from one Python registry plus the event's own schemas and pricing, and the
+template editor's autocomplete and hover are computed from it on the client (§9.6). Jinja
+highlighting is a custom Monarch tokenizer (`camphoric-jinja`), adapted from Monaco's twig
+language without its HTML rules. Completion and hover providers are registered once per Monaco
+instance and look up each editor's spec and context by its model URI. The completion logic —
+working out what's being typed, the scope of loop/assignment variables, and the type of an
+expression through fields, subscripts and list filters — is plain functions, unit-tested apart
+from Monaco. Registry tests on the server keep the spec equal to what the renderer passes.
+**Context:** Template authors had no autocomplete, no help and no preview. The server knows
+exactly what each kind of template receives, including each event's own form questions, so
+publishing that is the only way suggestions can be both accurate and event-specific. One spec
+also feeds the help surfaces. Monaco has no Jinja language; twig's tokenizer assumes HTML
+templates, while Camphoric's are mostly CSV, markdown and text.
+**Alternatives:** A Jinja language server (e.g. via a worker) — heavy, and it still wouldn't
+know Camphoric's variables. Inferring variables from a sample render's output — no types or
+docs, and misses empty collections. Hand-maintained client-side type definitions — drift from
+the server. Monaco's twig or handlebars modes — wrong syntax details and HTML-oriented.
+
+### DR-37 — Sandboxed Jinja with limits and structured diagnostics
+
+**Decision:** All server-side Jinja — new reports, and legacy reports — renders in Jinja's
+sandboxed environment. The new environment also blocks mutating methods on Camphoric objects,
+renders `None` as blank, and removes `lipsum`; the legacy environment stays mutable (legacy
+templates rely on `.update()`), so it behaves as before apart from the sandbox. Renders have a
+time limit and an output-size cap (reports 20 s / 10 MB, previews 5 s / 2 MB, emails 3 s /
+512 KB). Every failure is returned as a structured diagnostic with its line (and column where
+it can be found); tracebacks are logged, never returned. Misspelled fields on Camphoric types
+render blank and are reported as warnings. `manage.py check_templates` renders or parses every
+saved template, and CI runs it after importing the live event data.
+**Context:** The report environment wasn't sandboxed, so a template could reach Python
+internals. Admins write templates, but they shouldn't be able to run code on the server, and a
+runaway loop shouldn't tie up a worker. An editor can only mark problems in the text if it
+knows their lines; a raw traceback is unreadable to a template author. Jinja renders undefined
+fields as blank, which hides typos; a warning keeps the lenient output but tells the author.
+Checking the imported templates in CI catches breakage from changes to the model or the sandbox.
+**Alternatives:** A strict undefined that fails on any missing value — breaks templates that
+rely on blank output for missing optional answers. A separate render process per template —
+stronger isolation but much slower. Leaving the legacy environment unsandboxed — keeps the hole
+open.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -1644,6 +1819,9 @@ must be coordinated with the backend. Grouped by status.
   DR-34).
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
   (§8.4), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}` (§5).
+- **Server-rendered templates:** the Report's `variables_source` field, and
+  `GET /api/events/{id}/templates/describe`, `POST …/templates/preview` and
+  `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
   which the client adopts (§5, §11).
 

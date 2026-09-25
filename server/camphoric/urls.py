@@ -55,6 +55,11 @@ urlpatterns = router.urls + [
         name='template-describe',
     ),
     path(
+        'events/<int:event_id>/templates/check',
+        template_views.TemplateCheckView.as_view(),
+        name='template-check',
+    ),
+    path(
         'events/<int:event_id>/templates/preview',
         template_views.TemplatePreviewView.as_view(),
         name='template-preview',

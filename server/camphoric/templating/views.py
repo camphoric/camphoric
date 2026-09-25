@@ -1,8 +1,9 @@
 '''
 Template endpoints for the admin (SPEC §5, §9.3):
 
-  GET  /api/events/<id>/templates/describe  what templates can use (DR-37)
+  GET  /api/events/<id>/templates/describe  what templates can use (DR-36)
   POST /api/events/<id>/templates/preview   render unsaved template text
+  GET  /api/events/<id>/templates/check     check every template of the event
 
 Preview request:
   {context, template, output: csv|md|txt|html|email, subject?,
@@ -24,6 +25,7 @@ from rest_framework.views import APIView
 from camphoric import models
 
 from . import contexts, registry
+from .checks import check_event_templates
 from .describe import describe
 from .graph import build_event_graph
 from .render import PREVIEW_LIMITS, render_template
@@ -38,6 +40,18 @@ class TemplateDescribeView(APIView):
     def get(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
         return Response(describe(event))
+
+
+class TemplateCheckView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        results = check_event_templates(event, request=request)
+        return Response({
+            'ok': not any(r.errors for r in results),
+            'results': [r.as_dict() for r in results],
+        })
 
 
 def _sample_label(kind, obj):

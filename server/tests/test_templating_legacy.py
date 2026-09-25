@@ -1,6 +1,6 @@
 '''
 The legacy reports under data/ still work in the sandboxed legacy environment
-(DR-39): every one parses, and each renders exactly as it did in the old,
+(DR-37): every one parses, and each renders exactly as it did in the old,
 unsandboxed environment against the same (small) set of posted variables.
 '''
 

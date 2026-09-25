@@ -1,5 +1,5 @@
 '''
-The describe payload (SPEC §9.3, DR-37): everything a template author can use
+The describe payload (SPEC §9.3, DR-36): everything a template author can use
 for one event — the registry's types, contexts, filters, tests and tags, plus
 types built from this event's own forms and pricing:
 

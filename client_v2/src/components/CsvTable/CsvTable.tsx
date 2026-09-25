@@ -1,5 +1,5 @@
 /**
- * Render a CSV string as a bordered table with a row count (SPEC §8.7). The
+ * Render a CSV string as a bordered table with a row count (SPEC §8.7, §9.6). The
  * first row is treated as the header; a leading ordinal column numbers the
  * data rows.
  */
