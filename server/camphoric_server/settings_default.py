@@ -14,6 +14,8 @@ import os
 import environ
 import mimetypes
 
+from django.core.exceptions import ImproperlyConfigured
+
 mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/x-javascript", ".js", True)
 mimetypes.add_type("image/jpeg", ".jpg", True)
@@ -55,6 +57,7 @@ INSTALLED_APPS = [
     'frontend_bootstrap',
     'dbbackup',  # django-dbbackup
     'django_filters',
+    'django_tasks_db',
 ]
 
 MIDDLEWARE = [
@@ -102,14 +105,49 @@ DATABASES = {
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
-EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = env('EMAIL_HOST', default=None)
-EMAIL_PORT = env.int('EMAIL_PORT', default=None)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER', default=None)
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default=None)
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
-EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=30)
+# The default mailer, for events without an email account and for Django's own mail.
+# Still configured by the EMAIL_* environment variables (CONTAINER.md).
+_email_backend = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+MAILERS = {
+    'default': {
+        'BACKEND': _email_backend,
+        'OPTIONS': {
+            'host': env('EMAIL_HOST', default='localhost'),
+            'port': env.int('EMAIL_PORT', default=25),
+            'username': env('EMAIL_HOST_USER', default=''),
+            'password': env('EMAIL_HOST_PASSWORD', default=''),
+            'use_tls': env.bool('EMAIL_USE_TLS', default=True),
+            'use_ssl': env.bool('EMAIL_USE_SSL', default=False),
+            'timeout': env.int('EMAIL_TIMEOUT', default=30),
+        } if _email_backend == 'django.core.mail.backends.smtp.EmailBackend' else {},
+    },
+}
+
+# Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
+# delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request
+# instead, for development without a worker.
+CAMPHORIC_EMAIL_QUEUE = env.str('CAMPHORIC_EMAIL_QUEUE', default='worker')
+if CAMPHORIC_EMAIL_QUEUE not in ('worker', 'immediate'):
+    raise ImproperlyConfigured("CAMPHORIC_EMAIL_QUEUE must be 'worker' or 'immediate'")
+TASKS = {
+    'default': {
+        'BACKEND': ('django_tasks_db.DatabaseBackend' if CAMPHORIC_EMAIL_QUEUE == 'worker'
+                    else 'django.tasks.backends.immediate.ImmediateBackend'),
+        'QUEUES': ['email', 'default'],
+    },
+}
+
+# Send every message through this backend instead of its account's server: for
+# example the console backend on a development machine that holds real accounts.
+CAMPHORIC_EMAIL_FORCE_BACKEND = env.str('CAMPHORIC_EMAIL_FORCE_BACKEND', default='')
+
+# Fernet key(s) encrypting stored SMTP passwords, comma-separated: the first encrypts,
+# all decrypt (for rotation). Derived from SECRET_KEY when unset, in which case
+# changing SECRET_KEY makes the stored passwords unreadable.
+CAMPHORIC_SECRET_KEY_EMAIL = env.str('CAMPHORIC_SECRET_KEY_EMAIL', default='')
+
+# Tests deliver email as it's queued and never reach a real server.
+TEST_RUNNER = 'camphoric.test.runner.CamphoricTestRunner'
 
 
 # Password validation
