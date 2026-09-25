@@ -42,8 +42,25 @@
         chdir: "{{camphoric_folder}}/data"
         cmd: "npm ci"
 
+    # Sample data only loads into an empty database: a fresh install, or right
+    # after the reset above. Loading over existing data isn't safe: the loader
+    # deletes and recreates each event's lodgings (which cascades to their
+    # campers) and posts its reports and test registrations again.
+    - name: Check whether the database already has events
+      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: >-
+          pipenv run python manage.py shell -c
+          "from camphoric.models import Event; print(Event.objects.exists())"
+        chdir: "{{camphoric_folder}}/server"
+      register: camphoric_has_events
+      changed_when: false
+
     - name: Load sample data
       tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      when: camphoric_has_events.stdout | trim == 'False'
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
