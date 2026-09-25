@@ -1,5 +1,5 @@
 '''
-Rendering with structured diagnostics and limits (SPEC §9.3, DR-39).
+Rendering with structured diagnostics and limits (SPEC §9.3, DR-37).
 
 `render_template` never raises for a template's own mistakes. It returns the
 output and a list of diagnostics — syntax errors, undefined values, sandbox

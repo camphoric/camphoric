@@ -36,6 +36,11 @@ class ReportOutputType(models.TextChoices):
     PLAINTEXT = 'txt', 'Jinja to Plain Text'
 
 
+class ReportVariablesSource(models.TextChoices):
+    CLIENT = 'client', 'Client bundle (legacy)'
+    SERVER = 'server', 'Camphoric variables'
+
+
 class TimeStampedModel(models.Model):
     '''
     - Base class for most models.
@@ -288,7 +293,10 @@ class Report(TimeStampedModel):
     Report for a given event.
     - Is owned by one Event
     - Has a title
-    - Has a handlebars template
+    - Has a template: Jinja (csv/md/txt/html) or Handlebars (hbs)
+    - Its Jinja variables come either from the server (`server`: the variable
+      graph, SPEC §9.3) or, for older reports, from the client (`client`: the
+      client posts them when rendering)
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
@@ -300,7 +308,12 @@ class Report(TimeStampedModel):
     variables_schema = CustomJSONField(
         default=dict,
         help_text="values schema for this reports variables")
-    template = models.TextField(blank=True, default='', help_text="Handlebars template")
+    template = models.TextField(blank=True, default='', help_text="Jinja or Handlebars template")
+    variables_source = models.CharField(
+        max_length=10,
+        choices=ReportVariablesSource.choices,
+        default=ReportVariablesSource.CLIENT,
+        help_text="Where the template's variables come from")
 
     def __str__(self):
         return "Report #{} ({})".format(self.id, self.event.name)

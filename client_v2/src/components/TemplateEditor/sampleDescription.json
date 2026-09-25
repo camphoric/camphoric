@@ -1,0 +1,2336 @@
+{
+ "contexts": {
+  "report": {
+   "title": "Reports",
+   "doc": "Reports see every completed registration of the event. Registrations that were started but not finished are in `incomplete_registrations`.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "registrations",
+     "type": "list<registration>",
+     "doc": "Completed registrations, oldest first.",
+     "example": "{% for registration in registrations %}…{% endfor %}"
+    },
+    {
+     "name": "incomplete_registrations",
+     "type": "list<registration>",
+     "doc": "Registrations that were started but not completed."
+    },
+    {
+     "name": "campers",
+     "type": "list<camper>",
+     "doc": "Campers of completed registrations.",
+     "example": "{% for camper in campers | sort(attribute='attributes.last_name') %}"
+    },
+    {
+     "name": "payments",
+     "type": "list<payment>",
+     "doc": "Payments on completed registrations."
+    },
+    {
+     "name": "lodging",
+     "type": "lodging",
+     "doc": "The root of the lodging tree.",
+     "nullable": true
+    },
+    {
+     "name": "lodgings",
+     "type": "list<lodging>",
+     "doc": "Every lodging node, parents first."
+    },
+    {
+     "name": "registration_types",
+     "type": "list<registration_type>",
+     "doc": "Registration types."
+    },
+    {
+     "name": "custom_charge_types",
+     "type": "list<custom_charge_type>",
+     "doc": "Custom charge types."
+    },
+    {
+     "name": "invitations",
+     "type": "list<invitation>",
+     "doc": "Invitations sent."
+    },
+    {
+     "name": "today",
+     "type": "date",
+     "doc": "Today's date (event time zone)."
+    },
+    {
+     "name": "now",
+     "type": "datetime",
+     "doc": "The current time (event time zone)."
+    }
+   ],
+   "sample": null
+  },
+  "confirmation_email": {
+   "title": "Confirmation email",
+   "doc": "Sent to the registrant when they finish registering.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The registration just completed.",
+     "nullable": true
+    },
+    {
+     "name": "campers",
+     "type": "list<camper>",
+     "doc": "Its campers.",
+     "example": "{% for camper in campers %}- {{ camper.attributes.first_name }}\n{% endfor %}"
+    },
+    {
+     "name": "pricing",
+     "type": "pricing:registration",
+     "doc": "Its pricing results.",
+     "example": "{{ pricing.total | money }}",
+     "nullable": true
+    },
+    {
+     "name": "initial_payment",
+     "type": "dict",
+     "doc": "The payment choice made when registering.",
+     "nullable": true
+    }
+   ],
+   "sample": "registration"
+  },
+  "invitation_email": {
+   "title": "Invitation email",
+   "doc": "Sent when an admin invites someone to register with a registration type.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "invitation",
+     "type": "invitation",
+     "doc": "The invitation being sent.",
+     "example": "[Register here]({{ invitation.register_url }})",
+     "nullable": true
+    },
+    {
+     "name": "registration_type",
+     "type": "registration_type",
+     "doc": "The type it grants.",
+     "nullable": true
+    }
+   ],
+   "sample": "invitation"
+  },
+  "bulk_email_registration": {
+   "title": "Bulk email (per registration)",
+   "doc": "Sent to each chosen registration.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The recipient registration.",
+     "nullable": true
+    },
+    {
+     "name": "campers",
+     "type": "list<camper>",
+     "doc": "Its campers."
+    },
+    {
+     "name": "recipient",
+     "type": "recipient",
+     "doc": "Who this copy is going to."
+    }
+   ],
+   "sample": "registration"
+  },
+  "bulk_email_camper": {
+   "title": "Bulk email (per camper)",
+   "doc": "Sent to each chosen camper.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "camper",
+     "type": "camper",
+     "doc": "The recipient camper.",
+     "nullable": true
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The camper's registration.",
+     "nullable": true
+    },
+    {
+     "name": "recipient",
+     "type": "recipient",
+     "doc": "Who this copy is going to."
+    }
+   ],
+   "sample": "camper"
+  },
+  "bulk_email_manual": {
+   "title": "Bulk email (listed addresses)",
+   "doc": "Sent to addresses listed by hand.",
+   "roots": [
+    {
+     "name": "event",
+     "type": "event",
+     "doc": "The event.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "recipient",
+     "type": "recipient",
+     "doc": "Who this copy is going to."
+    }
+   ],
+   "sample": null
+  }
+ },
+ "types": {
+  "event": {
+   "doc": "The event (camp) the template belongs to.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "The event's name.",
+     "example": "{{ event.name }}"
+    },
+    {
+     "name": "organization_name",
+     "type": "string",
+     "doc": "The organization running the event."
+    },
+    {
+     "name": "start",
+     "type": "date",
+     "doc": "First day of the event.",
+     "example": "{{ event.start | date('%B %-d') }}",
+     "nullable": true
+    },
+    {
+     "name": "end",
+     "type": "date",
+     "doc": "Last day of the event.",
+     "nullable": true
+    },
+    {
+     "name": "registration_start",
+     "type": "date",
+     "doc": "When registration opens.",
+     "nullable": true
+    },
+    {
+     "name": "registration_end",
+     "type": "date",
+     "doc": "When registration closes.",
+     "nullable": true
+    },
+    {
+     "name": "days",
+     "type": "list<date>",
+     "doc": "Every date from start to end, inclusive.",
+     "example": "{% for day in event.days %}{{ day | date('%a') }},{% endfor %}"
+    },
+    {
+     "name": "nights",
+     "type": "list<date>",
+     "doc": "Every night of camp: start up to (not including) end — the dates a stay can include.",
+     "example": "{% for night in event.nights %}{{ 'X' if night in camper.stay }},{% endfor %}"
+    },
+    {
+     "name": "default_stay_length",
+     "type": "number",
+     "doc": "Days a camper stays by default."
+    },
+    {
+     "name": "is_open",
+     "type": "bool",
+     "doc": "Whether registration is open today."
+    },
+    {
+     "name": "pricing",
+     "type": "pricing:event",
+     "doc": "The event's pricing variables.",
+     "example": "{{ event.pricing.adult_rate | money }}"
+    },
+    {
+     "name": "template_vars",
+     "type": "dict",
+     "doc": "The event's registration template variables."
+    },
+    {
+     "name": "register_url",
+     "type": "string",
+     "doc": "Link to the registration page."
+    },
+    {
+     "name": "confirmation_email_from",
+     "type": "string",
+     "doc": "Address confirmation emails are sent from."
+    },
+    {
+     "name": "registration_types",
+     "type": "list<registration_type>",
+     "doc": "Registration types (for invitations)."
+    },
+    {
+     "name": "custom_charge_types",
+     "type": "list<custom_charge_type>",
+     "doc": "Kinds of custom charge."
+    },
+    {
+     "name": "lodging",
+     "type": "lodging",
+     "doc": "The root of the lodging tree (the camp itself).",
+     "nullable": true
+    },
+    {
+     "name": "lodgings",
+     "type": "list<lodging>",
+     "doc": "Every lodging node, parents before children."
+    }
+   ]
+  },
+  "registration": {
+   "doc": "One registration: the registrant and their campers.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "uuid",
+     "type": "string",
+     "doc": "The registration's unique code."
+    },
+    {
+     "name": "created_at",
+     "type": "datetime",
+     "doc": "When the registration was started.",
+     "example": "{{ registration.created_at | datetime('%b %-d, %Y') }}"
+    },
+    {
+     "name": "updated_at",
+     "type": "datetime",
+     "doc": "When it was last changed."
+    },
+    {
+     "name": "completed",
+     "type": "bool",
+     "doc": "Whether the registrant finished registering."
+    },
+    {
+     "name": "registrant_email",
+     "type": "string",
+     "doc": "The registrant's email address."
+    },
+    {
+     "name": "payment_type",
+     "type": "string",
+     "doc": "How they chose to pay (Check, PayPal, Card …).",
+     "nullable": true
+    },
+    {
+     "name": "attributes",
+     "type": "attributes:registration",
+     "doc": "Answers to the registration form.",
+     "example": "{{ registration.attributes.comments }}"
+    },
+    {
+     "name": "admin_attributes",
+     "type": "admin_attributes:registration",
+     "doc": "Admin-only fields."
+    },
+    {
+     "name": "registration_type",
+     "type": "registration_type",
+     "doc": "The registration type, for invitations.",
+     "nullable": true
+    },
+    {
+     "name": "campers",
+     "type": "list<camper>",
+     "doc": "The campers on this registration, in form order.",
+     "example": "{% for camper in registration.campers %}…{% endfor %}"
+    },
+    {
+     "name": "payments",
+     "type": "list<payment>",
+     "doc": "Payments received, oldest first."
+    },
+    {
+     "name": "invitation",
+     "type": "invitation",
+     "doc": "The invitation used to register, if any.",
+     "nullable": true
+    },
+    {
+     "name": "pricing",
+     "type": "pricing:registration",
+     "doc": "Pricing results (totals by component).",
+     "example": "{{ registration.pricing.total | money }}"
+    },
+    {
+     "name": "total_owed",
+     "type": "money",
+     "doc": "Total charged.",
+     "example": "{{ registration.total_owed | money }}"
+    },
+    {
+     "name": "total_paid",
+     "type": "money",
+     "doc": "Total of the payments received."
+    },
+    {
+     "name": "balance",
+     "type": "money",
+     "doc": "Still owed: total_owed − total_paid.",
+     "example": "{% if registration.balance > 0 %}Owes {{ registration.balance | money }}{% endif %}"
+    },
+    {
+     "name": "initial_payment",
+     "type": "dict",
+     "doc": "The payment choice made when registering.",
+     "nullable": true
+    },
+    {
+     "name": "camper_count",
+     "type": "number",
+     "doc": "Number of campers."
+    }
+   ]
+  },
+  "camper": {
+   "doc": "One camper.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "index",
+     "type": "number",
+     "doc": "Position on the registration: 0 for the first camper."
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The registration this camper is on.",
+     "example": "{{ camper.registration.registrant_email }}"
+    },
+    {
+     "name": "attributes",
+     "type": "attributes:camper",
+     "doc": "Answers to the camper form.",
+     "example": "{{ camper.attributes.first_name }}"
+    },
+    {
+     "name": "admin_attributes",
+     "type": "admin_attributes:camper",
+     "doc": "Admin-only fields."
+    },
+    {
+     "name": "lodging",
+     "type": "lodging",
+     "doc": "Assigned lodging.",
+     "example": "{{ camper.lodging.full_name }}",
+     "nullable": true
+    },
+    {
+     "name": "lodging_requested",
+     "type": "lodging",
+     "doc": "Lodging the registrant asked for.",
+     "nullable": true
+    },
+    {
+     "name": "lodging_reserved",
+     "type": "bool",
+     "doc": "Whether the assignment uses a reserved spot."
+    },
+    {
+     "name": "lodging_shared",
+     "type": "bool",
+     "doc": "Whether they are sharing lodging."
+    },
+    {
+     "name": "lodging_shared_with",
+     "type": "string",
+     "doc": "Who they are sharing with."
+    },
+    {
+     "name": "lodging_comments",
+     "type": "string",
+     "doc": "Comments about lodging."
+    },
+    {
+     "name": "stay",
+     "type": "list<date>",
+     "doc": "The nights the camper is staying.",
+     "example": "{{ 'yes' if event.nights[0] in camper.stay }}"
+    },
+    {
+     "name": "first_day",
+     "type": "date",
+     "doc": "First night of their stay.",
+     "nullable": true
+    },
+    {
+     "name": "last_day",
+     "type": "date",
+     "doc": "Last night of their stay.",
+     "nullable": true
+    },
+    {
+     "name": "pricing",
+     "type": "pricing:camper",
+     "doc": "This camper's pricing results.",
+     "example": "{{ camper.pricing.tuition | money }}"
+    },
+    {
+     "name": "custom_charges",
+     "type": "list<custom_charge>",
+     "doc": "Custom charges added by admins."
+    },
+    {
+     "name": "created_at",
+     "type": "datetime",
+     "doc": "When the camper was added."
+    }
+   ]
+  },
+  "lodging": {
+   "doc": "A node in the lodging tree (the camp, an area, a cabin …).",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "The node's name.",
+     "example": "{{ camper.lodging.name }}"
+    },
+    {
+     "name": "notes",
+     "type": "string",
+     "doc": "Admin notes."
+    },
+    {
+     "name": "children_title",
+     "type": "string",
+     "doc": "Label for choosing among this node's children."
+    },
+    {
+     "name": "visible",
+     "type": "bool",
+     "doc": "Whether registrants can choose it."
+    },
+    {
+     "name": "capacity",
+     "type": "number",
+     "doc": "Capacity (the sum of its children when not set)."
+    },
+    {
+     "name": "reserved",
+     "type": "number",
+     "doc": "Reserved spots."
+    },
+    {
+     "name": "sharing_multiplier",
+     "type": "number",
+     "doc": "How much each camper counts toward capacity."
+    },
+    {
+     "name": "remaining_capacity",
+     "type": "number",
+     "doc": "Unreserved spots left, counting every registration (as on the registration form).",
+     "nullable": true
+    },
+    {
+     "name": "parent",
+     "type": "lodging",
+     "doc": "The node above this one.",
+     "nullable": true
+    },
+    {
+     "name": "children",
+     "type": "list<lodging>",
+     "doc": "The nodes directly below this one."
+    },
+    {
+     "name": "ancestors",
+     "type": "list<lodging>",
+     "doc": "Nodes from the root down to the parent."
+    },
+    {
+     "name": "path",
+     "type": "list<lodging>",
+     "doc": "Nodes below the root down to this one."
+    },
+    {
+     "name": "path_names",
+     "type": "list<string>",
+     "doc": "Names along the path.",
+     "example": "{{ lodging.path_names[0] }}"
+    },
+    {
+     "name": "full_name",
+     "type": "string",
+     "doc": "The path joined with →, e.g. \"Cabins→Cabin 4\".",
+     "example": "{{ camper.lodging.full_name }}"
+    },
+    {
+     "name": "depth",
+     "type": "number",
+     "doc": "Levels below the root (the root is 0)."
+    },
+    {
+     "name": "is_leaf",
+     "type": "bool",
+     "doc": "True for nodes with no children (where campers stay)."
+    },
+    {
+     "name": "is_root",
+     "type": "bool",
+     "doc": "True for the root (the camp)."
+    },
+    {
+     "name": "campers",
+     "type": "list<camper>",
+     "doc": "Campers assigned directly to this node."
+    },
+    {
+     "name": "all_campers",
+     "type": "list<camper>",
+     "doc": "Campers assigned here or anywhere below."
+    },
+    {
+     "name": "camper_count",
+     "type": "number",
+     "doc": "Number of campers here or below."
+    }
+   ]
+  },
+  "payment": {
+   "doc": "A payment received for a registration.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "doc": "Amount paid.",
+     "example": "{{ payment.amount | money }}"
+    },
+    {
+     "name": "paid_on",
+     "type": "date",
+     "doc": "Date paid.",
+     "nullable": true
+    },
+    {
+     "name": "payment_type",
+     "type": "string",
+     "doc": "Check, PayPal, Card, Voucher …"
+    },
+    {
+     "name": "notes",
+     "type": "string",
+     "doc": "Admin notes."
+    },
+    {
+     "name": "attributes",
+     "type": "attributes:payment",
+     "doc": "Extra payment details."
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The registration it pays for."
+    },
+    {
+     "name": "created_at",
+     "type": "datetime",
+     "doc": "When it was recorded."
+    }
+   ]
+  },
+  "registration_type": {
+   "doc": "A kind of invitation-based registration (e.g. Staff).",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "Machine name, as used in pricing logic."
+    },
+    {
+     "name": "label",
+     "type": "string",
+     "doc": "Human-readable name."
+    }
+   ]
+  },
+  "custom_charge": {
+   "doc": "A charge (or credit) an admin added to a camper.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "type",
+     "type": "custom_charge_type",
+     "doc": "The kind of charge.",
+     "nullable": true
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "The charge type's machine name."
+    },
+    {
+     "name": "label",
+     "type": "string",
+     "doc": "The charge type's label."
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "doc": "Amount."
+    },
+    {
+     "name": "notes",
+     "type": "string",
+     "doc": "Admin notes."
+    },
+    {
+     "name": "camper",
+     "type": "camper",
+     "doc": "The camper charged."
+    }
+   ]
+  },
+  "custom_charge_type": {
+   "doc": "A kind of custom charge.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "Machine name."
+    },
+    {
+     "name": "label",
+     "type": "string",
+     "doc": "Label."
+    }
+   ]
+  },
+  "invitation": {
+   "doc": "An invitation to register with a registration type.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "number",
+     "doc": "Database id."
+    },
+    {
+     "name": "recipient_name",
+     "type": "string",
+     "doc": "Who it was sent to."
+    },
+    {
+     "name": "recipient_email",
+     "type": "string",
+     "doc": "Their email address."
+    },
+    {
+     "name": "code",
+     "type": "string",
+     "doc": "The invitation code."
+    },
+    {
+     "name": "registration_type",
+     "type": "registration_type",
+     "doc": "The registration type it grants.",
+     "nullable": true
+    },
+    {
+     "name": "registration",
+     "type": "registration",
+     "doc": "The registration made with it, if any.",
+     "nullable": true
+    },
+    {
+     "name": "sent_time",
+     "type": "datetime",
+     "doc": "When it was last sent.",
+     "nullable": true
+    },
+    {
+     "name": "expiration_time",
+     "type": "datetime",
+     "doc": "When it expires.",
+     "nullable": true
+    },
+    {
+     "name": "register_url",
+     "type": "string",
+     "doc": "Link to register with this invitation.",
+     "example": "[Register]({{ invitation.register_url }})"
+    },
+    {
+     "name": "redeemed",
+     "type": "bool",
+     "doc": "Whether it has been used to register."
+    }
+   ]
+  },
+  "recipient": {
+   "doc": "Who a bulk email is going to.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "string",
+     "doc": "Same as the email address."
+    },
+    {
+     "name": "email",
+     "type": "string",
+     "doc": "Email address."
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "Name, when known."
+    }
+   ]
+  },
+  "loop": {
+   "doc": "The current loop, available inside `{% for %}`.",
+   "fields": [
+    {
+     "name": "index",
+     "type": "number",
+     "doc": "Iteration, counting from 1."
+    },
+    {
+     "name": "index0",
+     "type": "number",
+     "doc": "Iteration, counting from 0."
+    },
+    {
+     "name": "first",
+     "type": "bool",
+     "doc": "True on the first iteration."
+    },
+    {
+     "name": "last",
+     "type": "bool",
+     "doc": "True on the last iteration."
+    },
+    {
+     "name": "length",
+     "type": "number",
+     "doc": "Number of items."
+    },
+    {
+     "name": "revindex",
+     "type": "number",
+     "doc": "Iterations left, counting to 1."
+    },
+    {
+     "name": "previtem",
+     "type": "any",
+     "doc": "The previous item.",
+     "nullable": true
+    },
+    {
+     "name": "nextitem",
+     "type": "any",
+     "doc": "The next item.",
+     "nullable": true
+    },
+    {
+     "name": "cycle",
+     "type": "string",
+     "doc": "Cycle through values.",
+     "example": "{{ loop.cycle('odd', 'even') }}",
+     "callable": true,
+     "signature": "cycle(*values)"
+    }
+   ]
+  },
+  "date": {
+   "doc": "A calendar date.",
+   "fields": [
+    {
+     "name": "year",
+     "type": "number",
+     "doc": "Year."
+    },
+    {
+     "name": "month",
+     "type": "number",
+     "doc": "Month, 1–12."
+    },
+    {
+     "name": "day",
+     "type": "number",
+     "doc": "Day of the month."
+    },
+    {
+     "name": "strftime",
+     "type": "string",
+     "doc": "Format with strftime codes.",
+     "example": "{{ day.strftime('%a %b %-d') }}",
+     "callable": true,
+     "signature": "strftime(format)"
+    },
+    {
+     "name": "isoformat",
+     "type": "string",
+     "doc": "YYYY-MM-DD.",
+     "callable": true,
+     "signature": "isoformat()"
+    },
+    {
+     "name": "weekday",
+     "type": "number",
+     "doc": "Day of the week, Monday = 0.",
+     "callable": true,
+     "signature": "weekday()"
+    }
+   ]
+  },
+  "datetime": {
+   "doc": "A date and time, in the event time zone.",
+   "fields": [
+    {
+     "name": "year",
+     "type": "number",
+     "doc": "Year."
+    },
+    {
+     "name": "month",
+     "type": "number",
+     "doc": "Month, 1–12."
+    },
+    {
+     "name": "day",
+     "type": "number",
+     "doc": "Day of the month."
+    },
+    {
+     "name": "hour",
+     "type": "number",
+     "doc": "Hour, 0–23."
+    },
+    {
+     "name": "minute",
+     "type": "number",
+     "doc": "Minute."
+    },
+    {
+     "name": "strftime",
+     "type": "string",
+     "doc": "Format with strftime codes.",
+     "example": "{{ registration.created_at.strftime('%b %-d %H:%M') }}",
+     "callable": true,
+     "signature": "strftime(format)"
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "doc": "Just the date.",
+     "callable": true,
+     "signature": "date()"
+    },
+    {
+     "name": "isoformat",
+     "type": "string",
+     "doc": "ISO 8601 text.",
+     "callable": true,
+     "signature": "isoformat()"
+    }
+   ]
+  },
+  "attributes:registration.address": {
+   "doc": "Main Address",
+   "fields": [
+    {
+     "name": "city",
+     "type": "string",
+     "doc": "City",
+     "title": "City",
+     "identifier": true
+    },
+    {
+     "name": "zip_code",
+     "type": "string",
+     "doc": "ZIP code or Postal Code",
+     "title": "ZIP code or Postal Code",
+     "identifier": true
+    },
+    {
+     "name": "street_address",
+     "type": "string",
+     "doc": "Address",
+     "title": "Address",
+     "identifier": true
+    },
+    {
+     "name": "state_or_province",
+     "type": "string",
+     "doc": "State or Province",
+     "title": "State or Province",
+     "identifier": true
+    }
+   ]
+  },
+  "attributes:registration": {
+   "doc": "Answers to the registration form.",
+   "fields": [
+    {
+     "name": "address",
+     "type": "attributes:registration.address",
+     "doc": "Main Address",
+     "title": "Main Address",
+     "identifier": true
+    },
+    {
+     "name": "comments",
+     "type": "string",
+     "doc": "Comments",
+     "title": "Comments",
+     "identifier": true
+    },
+    {
+     "name": "is_member",
+     "type": "bool",
+     "doc": "Current San Francisco Folk Music Club membership is\nrequired to attend Camp Harmony.\nPlease [verify that you are a current member by clicking here](https://www.sffmc.org/log-in/?redirect_to=https%3A%2F%2Fwww.sffmc.org%2Fmembership-account%2F)\nto log into the site to check your expiration or auto-renew date. If you don't\nknow your password or haven't logged in before, click the \"Lost Password\" link\nto request a new password.  If you believe you are a member but are unable to\nlog in even after requesting a new password, contact SFFMC membership secretary\nEllen Eagan at [membership@sffmc.org](mailto:membership@sffmc.org) for\nassistance. If you are new to the Folk Club, [click here to join](https://www.sffmc.org/join-us/).\n",
+     "title": "SFFMC Membership",
+     "identifier": true
+    },
+    {
+     "name": "campership_donation",
+     "type": "number",
+     "doc": "If you would like to help fellow campers attend, please make a contribution to the Campership fund.",
+     "title": "Campership Donation",
+     "identifier": true
+    },
+    {
+     "name": "donation-note",
+     "type": "string",
+     "doc": "A note about the donation",
+     "title": "Donation note",
+     "identifier": false
+    }
+   ]
+  },
+  "attributes:camper.emergency_contact": {
+   "doc": "Emergency Contact",
+   "fields": [
+    {
+     "name": "name",
+     "type": "string",
+     "doc": "Full name",
+     "title": "Full name",
+     "identifier": true
+    },
+    {
+     "name": "phone",
+     "type": "string",
+     "doc": "Phone number",
+     "title": "Phone number",
+     "identifier": true
+    }
+   ]
+  },
+  "attributes:camper.address": {
+   "doc": "Address",
+   "fields": [
+    {
+     "name": "city",
+     "type": "string",
+     "doc": "City",
+     "title": "City",
+     "identifier": true
+    },
+    {
+     "name": "zip_code",
+     "type": "string",
+     "doc": "ZIP code or Postal Code",
+     "title": "ZIP code or Postal Code",
+     "identifier": true
+    },
+    {
+     "name": "street_address",
+     "type": "string",
+     "doc": "Address",
+     "title": "Address",
+     "identifier": true
+    },
+    {
+     "name": "state_or_province",
+     "type": "string",
+     "doc": "State or Province",
+     "title": "State or Province",
+     "identifier": true
+    }
+   ]
+  },
+  "attributes:camper": {
+   "doc": "Answers to the camper form.",
+   "fields": [
+    {
+     "name": "age",
+     "type": "string",
+     "doc": "Age (at the beginning of camp)",
+     "title": "Age (at the beginning of camp)",
+     "identifier": true,
+     "enum": [
+      "80+ years old",
+      "31-79 years old",
+      "18-30 years old",
+      "13-17 years old",
+      "3-12 years old",
+      "0-2 years old"
+     ]
+    },
+    {
+     "name": "linens",
+     "type": "bool",
+     "doc": "\nAll campers should bring bedding (blankets, sleeping bag, pillow, etc). Camp\nNewman will provide linens (fitted and top sheet, pillowcase, pillow, blanket\nand towel) for an additional $25. Would you like to rent linens?\n",
+     "title": "Linens rental",
+     "identifier": true
+    },
+    {
+     "name": "last_name",
+     "type": "string",
+     "doc": "Last name",
+     "title": "Last name",
+     "identifier": true
+    },
+    {
+     "name": "meal_type",
+     "type": "string",
+     "doc": "Camp includes 3 delicious meals a day, and camp staff can make accommodations for most dietary needs.",
+     "title": "Meals",
+     "identifier": true,
+     "enum": [
+      "Omnivore",
+      "Vegetarian",
+      "Vegan"
+     ]
+    },
+    {
+     "name": "attendance",
+     "type": "list<string>",
+     "doc": "Each camp day starts at 2pm and ends at 2pm the following day. Each camp day includes dinner on the day you arrive, and breakfast & lunch the following day.",
+     "title": "When will you attend?",
+     "identifier": true
+    },
+    {
+     "name": "first_name",
+     "type": "string",
+     "doc": "First name",
+     "title": "First name",
+     "identifier": true
+    },
+    {
+     "name": "emergency_contact",
+     "type": "attributes:camper.emergency_contact",
+     "doc": "Emergency Contact",
+     "title": "Emergency Contact",
+     "identifier": true
+    },
+    {
+     "name": "address",
+     "type": "attributes:camper.address",
+     "doc": "Address",
+     "title": "Address",
+     "identifier": true
+    }
+   ]
+  },
+  "admin_attributes:registration": {
+   "doc": "Admin-only fields for a registration.",
+   "fields": []
+  },
+  "admin_attributes:camper": {
+   "doc": "Admin-only fields for a camper.",
+   "fields": []
+  },
+  "attributes:payment": {
+   "doc": "Extra payment details.",
+   "fields": []
+  },
+  "pricing:camper": {
+   "doc": "A camper's pricing results.",
+   "fields": [
+    {
+     "name": "rate",
+     "type": "number",
+     "doc": "Camper pricing: Lodging Rate Per Day",
+     "title": "Lodging Rate Per Day",
+     "identifier": true
+    },
+    {
+     "name": "lodging_total",
+     "type": "number",
+     "doc": "Camper pricing: Lodging Total",
+     "title": "Lodging Total",
+     "identifier": true
+    },
+    {
+     "name": "campership",
+     "type": "number",
+     "doc": "Camper pricing: Requested Campership",
+     "title": "Requested Campership",
+     "identifier": true
+    },
+    {
+     "name": "linen_fee",
+     "type": "number",
+     "doc": "Camper pricing: Linen Fee",
+     "title": "Linen Fee",
+     "identifier": true
+    },
+    {
+     "name": "private_room_fee",
+     "type": "number",
+     "doc": "Camper pricing: Private Room Fee",
+     "title": "Private Room Fee",
+     "identifier": true
+    },
+    {
+     "name": "total",
+     "type": "number",
+     "doc": "Camper pricing: Total",
+     "title": "Total",
+     "identifier": true
+    }
+   ]
+  },
+  "pricing:registration": {
+   "doc": "A registration's pricing results.",
+   "fields": [
+    {
+     "name": "campership_donation",
+     "type": "number",
+     "doc": "Registration pricing: Campership Donation",
+     "title": "Campership Donation",
+     "identifier": true
+    },
+    {
+     "name": "total",
+     "type": "number",
+     "doc": "Registration pricing: Grand Total",
+     "title": "Grand Total",
+     "identifier": true
+    },
+    {
+     "name": "rate",
+     "type": "number",
+     "doc": "Camper pricing: Lodging Rate Per Day (all campers)",
+     "title": "Lodging Rate Per Day",
+     "identifier": true
+    },
+    {
+     "name": "lodging_total",
+     "type": "number",
+     "doc": "Camper pricing: Lodging Total (all campers)",
+     "title": "Lodging Total",
+     "identifier": true
+    },
+    {
+     "name": "campership",
+     "type": "number",
+     "doc": "Camper pricing: Requested Campership (all campers)",
+     "title": "Requested Campership",
+     "identifier": true
+    },
+    {
+     "name": "linen_fee",
+     "type": "number",
+     "doc": "Camper pricing: Linen Fee (all campers)",
+     "title": "Linen Fee",
+     "identifier": true
+    },
+    {
+     "name": "private_room_fee",
+     "type": "number",
+     "doc": "Camper pricing: Private Room Fee (all campers)",
+     "title": "Private Room Fee",
+     "identifier": true
+    },
+    {
+     "name": "handling",
+     "type": "number",
+     "doc": "Electronic payment handling charge (when paying electronically).",
+     "title": "Handling",
+     "identifier": true,
+     "nullable": true
+    }
+   ]
+  },
+  "pricing:event": {
+   "doc": "The event's pricing variables.",
+   "fields": [
+    {
+     "name": "linen_rate",
+     "type": "number",
+     "doc": "Pricing variable linen_rate",
+     "title": "Linen rate",
+     "identifier": true
+    },
+    {
+     "name": "private_room_rate",
+     "type": "number",
+     "doc": "Pricing variable private_room_rate",
+     "title": "Private room rate",
+     "identifier": true
+    },
+    {
+     "name": "baby_rv_early_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_rv_early_perday",
+     "title": "Baby rv early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_rv_early_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_rv_early_perday",
+     "title": "Adult rv early perday",
+     "identifier": true
+    },
+    {
+     "name": "child_rv_early_perday",
+     "type": "number",
+     "doc": "Pricing variable child_rv_early_perday",
+     "title": "Child rv early perday",
+     "identifier": true
+    },
+    {
+     "name": "max_campership_perday",
+     "type": "number",
+     "doc": "Pricing variable max_campership_perday",
+     "title": "Max campership perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_rv_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_rv_regular_perday",
+     "title": "Baby rv regular perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_tent_early_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_tent_early_perday",
+     "title": "Baby tent early perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_vil7_early_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_vil7_early_perday",
+     "title": "Baby vil7 early perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_rv_early_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_rv_early_perday",
+     "title": "Yadult rv early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_rv_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_rv_regular_perday",
+     "title": "Adult rv regular perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_tent_early_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_tent_early_perday",
+     "title": "Adult tent early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_vil7_early_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_vil7_early_perday",
+     "title": "Adult vil7 early perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_cabin_early_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_cabin_early_perday",
+     "title": "Baby cabin early perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_lodge_early_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_lodge_early_perday",
+     "title": "Baby lodge early perday",
+     "identifier": true
+    },
+    {
+     "name": "child_rv_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable child_rv_regular_perday",
+     "title": "Child rv regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_tent_early_perday",
+     "type": "number",
+     "doc": "Pricing variable child_tent_early_perday",
+     "title": "Child tent early perday",
+     "identifier": true
+    },
+    {
+     "name": "child_vil7_early_perday",
+     "type": "number",
+     "doc": "Pricing variable child_vil7_early_perday",
+     "title": "Child vil7 early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_cabin_early_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_cabin_early_perday",
+     "title": "Adult cabin early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_lodge_early_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_lodge_early_perday",
+     "title": "Adult lodge early perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_tent_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_tent_regular_perday",
+     "title": "Baby tent regular perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_vil7_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_vil7_regular_perday",
+     "title": "Baby vil7 regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_cabin_early_perday",
+     "type": "number",
+     "doc": "Pricing variable child_cabin_early_perday",
+     "title": "Child cabin early perday",
+     "identifier": true
+    },
+    {
+     "name": "child_lodge_early_perday",
+     "type": "number",
+     "doc": "Pricing variable child_lodge_early_perday",
+     "title": "Child lodge early perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_rv_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_rv_regular_perday",
+     "title": "Yadult rv regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_tent_early_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_tent_early_perday",
+     "title": "Yadult tent early perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_vil7_early_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_vil7_early_perday",
+     "title": "Yadult vil7 early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_tent_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_tent_regular_perday",
+     "title": "Adult tent regular perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_vil7_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_vil7_regular_perday",
+     "title": "Adult vil7 regular perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_cabin_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_cabin_regular_perday",
+     "title": "Baby cabin regular perday",
+     "identifier": true
+    },
+    {
+     "name": "baby_lodge_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable baby_lodge_regular_perday",
+     "title": "Baby lodge regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_tent_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable child_tent_regular_perday",
+     "title": "Child tent regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_vil7_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable child_vil7_regular_perday",
+     "title": "Child vil7 regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_cabin_early_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_cabin_early_perday",
+     "title": "Yadult cabin early perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_lodge_early_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_lodge_early_perday",
+     "title": "Yadult lodge early perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_cabin_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_cabin_regular_perday",
+     "title": "Adult cabin regular perday",
+     "identifier": true
+    },
+    {
+     "name": "adult_lodge_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable adult_lodge_regular_perday",
+     "title": "Adult lodge regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_cabin_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable child_cabin_regular_perday",
+     "title": "Child cabin regular perday",
+     "identifier": true
+    },
+    {
+     "name": "child_lodge_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable child_lodge_regular_perday",
+     "title": "Child lodge regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_tent_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_tent_regular_perday",
+     "title": "Yadult tent regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_vil7_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_vil7_regular_perday",
+     "title": "Yadult vil7 regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_cabin_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_cabin_regular_perday",
+     "title": "Yadult cabin regular perday",
+     "identifier": true
+    },
+    {
+     "name": "yadult_lodge_regular_perday",
+     "type": "number",
+     "doc": "Pricing variable yadult_lodge_regular_perday",
+     "title": "Yadult lodge regular perday",
+     "identifier": true
+    }
+   ]
+  }
+ },
+ "filters": [
+  {
+   "name": "money",
+   "signature": "money(symbol='$', places=2, commas=True)",
+   "doc": "Format an amount as money. Blank stays blank.",
+   "example": "{{ registration.balance | money }} → $1,234.50",
+   "builtin": false
+  },
+  {
+   "name": "date",
+   "signature": "date(format='%Y-%m-%d')",
+   "doc": "Format a date (or a datetime or \"YYYY-MM-DD\" text) with strftime codes: %a Tue, %A Tuesday, %b Dec, %B December, %-d 30, %Y 2026.",
+   "example": "{{ event.start | date('%A %B %-d') }} → Wednesday December 30",
+   "builtin": false
+  },
+  {
+   "name": "datetime",
+   "signature": "datetime(format='%Y-%m-%d %H:%M', tz=None)",
+   "doc": "Format a date and time, in the event time zone unless `tz` is given.",
+   "example": "{{ registration.created_at | datetime('%b %-d %-I:%M%p') }}",
+   "builtin": false
+  },
+  {
+   "name": "to_date",
+   "signature": "to_date",
+   "doc": "Turn \"YYYY-MM-DD\" text (e.g. a form answer) into a date you can compare.",
+   "example": "{% if camper.attributes.arrival | to_date > event.start %}",
+   "builtin": false
+  },
+  {
+   "name": "csv",
+   "signature": "csv",
+   "doc": "Quote a value for a CSV cell when it needs it (commas, quotes, line breaks).",
+   "example": "{{ camper.attributes.last_name | csv }}",
+   "builtin": false
+  },
+  {
+   "name": "csv_row",
+   "signature": "csv_row",
+   "doc": "A CSV line from a list of values.",
+   "example": "{{ [camper.attributes.first_name, camper.lodging.full_name] | csv_row }}",
+   "builtin": false
+  },
+  {
+   "name": "md_cell",
+   "signature": "md_cell",
+   "doc": "Escape text for a Markdown table cell.",
+   "example": "| {{ camper.attributes.comments | md_cell }} |",
+   "builtin": false
+  },
+  {
+   "name": "regex_replace",
+   "signature": "regex_replace(pattern, replacement)",
+   "doc": "Replace every match of a regular expression.",
+   "example": "{{ camper.attributes.phone | regex_replace('^\\\\+1', '') }}",
+   "builtin": false
+  },
+  {
+   "name": "merge",
+   "signature": "merge(other)",
+   "doc": "A new dict with the keys of both — for building your own rows.",
+   "example": "{% set row = {'name': name} | merge({'nights': 3}) %}",
+   "builtin": false
+  },
+  {
+   "name": "dump",
+   "signature": "dump(depth=2)",
+   "doc": "Show a value as JSON, to see what it contains while writing a template.",
+   "example": "<pre>{{ campers[0] | dump }}</pre>",
+   "builtin": false
+  },
+  {
+   "name": "money_fmt",
+   "signature": "money_fmt",
+   "doc": "Legacy: round to two decimal places. Prefer `money`.",
+   "example": "{{ 3.14159 | money_fmt }} → 3.14",
+   "builtin": false
+  },
+  {
+   "name": "tojson",
+   "signature": "tojson(indent=None)",
+   "doc": "JSON text of a value.",
+   "example": "{{ registration.attributes | tojson }}",
+   "builtin": true
+  },
+  {
+   "name": "pprint",
+   "signature": "pprint",
+   "doc": "Readable form of a value, for debugging.",
+   "example": "{{ camper.pricing | pprint }}",
+   "builtin": true
+  },
+  {
+   "name": "default",
+   "signature": "default(value, boolean=False)",
+   "doc": "A fallback when a value is missing (or, with `true`, empty).",
+   "example": "{{ camper.attributes.nickname | default('–') }}",
+   "builtin": true
+  },
+  {
+   "name": "join",
+   "signature": "join(separator='', attribute=None)",
+   "doc": "Join a list into text.",
+   "example": "{{ camper.lodging.path_names | join(' / ') }}",
+   "builtin": true
+  },
+  {
+   "name": "sort",
+   "signature": "sort(reverse=False, case_sensitive=False, attribute=None)",
+   "doc": "Sort a list; `attribute` may be a dotted path, or several separated by commas.",
+   "example": "{% for c in campers | sort(attribute='attributes.last_name,attributes.first_name') %}",
+   "builtin": true
+  },
+  {
+   "name": "selectattr",
+   "signature": "selectattr(attribute, test, value)",
+   "doc": "Keep items whose attribute passes a test.",
+   "example": "{{ campers | selectattr('attributes.linens') | list | length }}",
+   "builtin": true
+  },
+  {
+   "name": "rejectattr",
+   "signature": "rejectattr(attribute, test, value)",
+   "doc": "Drop items whose attribute passes a test.",
+   "example": "{{ campers | rejectattr('lodging') | list }}",
+   "builtin": true
+  },
+  {
+   "name": "map",
+   "signature": "map(attribute=…) | map('filter')",
+   "doc": "Pick one attribute from every item, or apply a filter to each.",
+   "example": "{{ campers | map(attribute='attributes.email') | join(', ') }}",
+   "builtin": true
+  },
+  {
+   "name": "groupby",
+   "signature": "groupby(attribute)",
+   "doc": "Group items by an attribute; gives (grouper, list) pairs.",
+   "example": "{% for lodging, group in campers | groupby('lodging.full_name') %}",
+   "builtin": true
+  },
+  {
+   "name": "length",
+   "signature": "length",
+   "doc": "Number of items (or characters).",
+   "example": "{{ campers | length }}",
+   "builtin": true
+  },
+  {
+   "name": "count",
+   "signature": "count",
+   "doc": "Same as length.",
+   "example": "{{ registrations | count }}",
+   "builtin": true
+  },
+  {
+   "name": "first",
+   "signature": "first",
+   "doc": "First item.",
+   "example": "{{ registration.campers | first }}",
+   "builtin": true
+  },
+  {
+   "name": "last",
+   "signature": "last",
+   "doc": "Last item.",
+   "example": "{{ camper.stay | last }}",
+   "builtin": true
+  },
+  {
+   "name": "sum",
+   "signature": "sum(attribute=None, start=0)",
+   "doc": "Add up numbers, or one attribute of every item.",
+   "example": "{{ registrations | sum(attribute='balance') | money }}",
+   "builtin": true
+  },
+  {
+   "name": "min",
+   "signature": "min(attribute=None)",
+   "doc": "Smallest item.",
+   "example": "{{ campers | map(attribute='first_day') | reject('none') | min }}",
+   "builtin": true
+  },
+  {
+   "name": "max",
+   "signature": "max(attribute=None)",
+   "doc": "Largest item.",
+   "example": "{{ payments | max(attribute='amount') }}",
+   "builtin": true
+  },
+  {
+   "name": "unique",
+   "signature": "unique(attribute=None)",
+   "doc": "Drop duplicates.",
+   "example": "{{ campers | map(attribute='registration.registrant_email') | unique | list }}",
+   "builtin": true
+  },
+  {
+   "name": "list",
+   "signature": "list",
+   "doc": "Turn a sequence into a list (e.g. after selectattr).",
+   "example": "{{ campers | selectattr('lodging') | list }}",
+   "builtin": true
+  },
+  {
+   "name": "batch",
+   "signature": "batch(size, fill_with=None)",
+   "doc": "Split a list into groups of `size`.",
+   "example": "{% for row in campers | batch(3) %}",
+   "builtin": true
+  },
+  {
+   "name": "dictsort",
+   "signature": "dictsort(by=\"key\")",
+   "doc": "Sort a dict into (key, value) pairs.",
+   "example": "{% for key, value in camper.attributes | dictsort %}",
+   "builtin": true
+  },
+  {
+   "name": "replace",
+   "signature": "replace(old, new, count=None)",
+   "doc": "Replace text.",
+   "example": "{{ camper.attributes.phone | replace('+1', '') }}",
+   "builtin": true
+  },
+  {
+   "name": "trim",
+   "signature": "trim",
+   "doc": "Remove surrounding whitespace.",
+   "example": "{{ text | trim }}",
+   "builtin": true
+  },
+  {
+   "name": "lower",
+   "signature": "lower",
+   "doc": "Lower case.",
+   "example": "{{ name | lower }}",
+   "builtin": true
+  },
+  {
+   "name": "upper",
+   "signature": "upper",
+   "doc": "Upper case.",
+   "example": "{{ name | upper }}",
+   "builtin": true
+  },
+  {
+   "name": "title",
+   "signature": "title",
+   "doc": "Title Case.",
+   "example": "{{ name | title }}",
+   "builtin": true
+  },
+  {
+   "name": "capitalize",
+   "signature": "capitalize",
+   "doc": "Capitalize the first letter.",
+   "example": "{{ text | capitalize }}",
+   "builtin": true
+  },
+  {
+   "name": "truncate",
+   "signature": "truncate(length=255, killwords=False, end=\"...\")",
+   "doc": "Shorten long text.",
+   "example": "{{ camper.attributes.comments | truncate(40) }}",
+   "builtin": true
+  },
+  {
+   "name": "round",
+   "signature": "round(precision=0, method='common')",
+   "doc": "Round a number.",
+   "example": "{{ 2.567 | round(1) }} → 2.6",
+   "builtin": true
+  },
+  {
+   "name": "int",
+   "signature": "int(default=0)",
+   "doc": "Convert to a whole number.",
+   "example": "{{ '3' | int }}",
+   "builtin": true
+  },
+  {
+   "name": "float",
+   "signature": "float(default=0.0)",
+   "doc": "Convert to a number.",
+   "example": "{{ '3.5' | float }}",
+   "builtin": true
+  },
+  {
+   "name": "abs",
+   "signature": "abs",
+   "doc": "Absolute value.",
+   "example": "{{ registration.balance | abs | money }}",
+   "builtin": true
+  },
+  {
+   "name": "string",
+   "signature": "string",
+   "doc": "Convert to text.",
+   "example": "{{ camper.id | string }}",
+   "builtin": true
+  },
+  {
+   "name": "select",
+   "signature": "select(test, …)",
+   "doc": "Keep items that pass a test.",
+   "example": "{{ numbers | select('odd') | list }}",
+   "builtin": true
+  },
+  {
+   "name": "reject",
+   "signature": "reject(test, …)",
+   "doc": "Drop items that pass a test.",
+   "example": "{{ values | reject('none') | list }}",
+   "builtin": true
+  },
+  {
+   "name": "reverse",
+   "signature": "reverse",
+   "doc": "Reverse a list or text.",
+   "example": "{{ campers | reverse | list }}",
+   "builtin": true
+  },
+  {
+   "name": "items",
+   "signature": "items",
+   "doc": "A dict's (key, value) pairs.",
+   "example": "{% for key, value in camper.attributes | items %}",
+   "builtin": true
+  },
+  {
+   "name": "attr",
+   "signature": "attr(name)",
+   "doc": "Get an attribute by name.",
+   "example": "{{ camper | attr('id') }}",
+   "builtin": true
+  },
+  {
+   "name": "wordcount",
+   "signature": "wordcount",
+   "doc": "Count words.",
+   "example": "{{ text | wordcount }}",
+   "builtin": true
+  },
+  {
+   "name": "indent",
+   "signature": "indent(width=4, first=False)",
+   "doc": "Indent every line.",
+   "example": "{{ text | indent(2) }}",
+   "builtin": true
+  },
+  {
+   "name": "center",
+   "signature": "center(width=80)",
+   "doc": "Center text in a width.",
+   "example": "{{ title | center(40) }}",
+   "builtin": true
+  },
+  {
+   "name": "format",
+   "signature": "format(*args)",
+   "doc": "printf-style formatting.",
+   "example": "{{ '%-20s|' | format(name) }}",
+   "builtin": true
+  },
+  {
+   "name": "filesizeformat",
+   "signature": "filesizeformat",
+   "doc": "A byte count as readable text.",
+   "example": "{{ 1500000 | filesizeformat }}",
+   "builtin": true
+  },
+  {
+   "name": "striptags",
+   "signature": "striptags",
+   "doc": "Remove HTML tags.",
+   "example": "{{ html | striptags }}",
+   "builtin": true
+  },
+  {
+   "name": "urlencode",
+   "signature": "urlencode",
+   "doc": "Encode text for a URL.",
+   "example": "{{ email | urlencode }}",
+   "builtin": true
+  },
+  {
+   "name": "urlize",
+   "signature": "urlize",
+   "doc": "Turn URLs in text into links.",
+   "example": "{{ text | urlize }}",
+   "builtin": true
+  },
+  {
+   "name": "xmlattr",
+   "signature": "xmlattr",
+   "doc": "HTML attributes from a dict.",
+   "example": "<td{{ {'class': 'x'} | xmlattr }}>",
+   "builtin": true
+  },
+  {
+   "name": "escape",
+   "signature": "escape",
+   "doc": "Escape HTML.",
+   "example": "{{ text | escape }}",
+   "builtin": true
+  },
+  {
+   "name": "e",
+   "signature": "e",
+   "doc": "Same as escape.",
+   "example": "{{ text | e }}",
+   "builtin": true
+  },
+  {
+   "name": "forceescape",
+   "signature": "forceescape",
+   "doc": "Escape HTML even if already safe.",
+   "example": "{{ text | forceescape }}",
+   "builtin": true
+  },
+  {
+   "name": "safe",
+   "signature": "safe",
+   "doc": "Mark text as safe HTML (HTML reports only).",
+   "example": "{{ html | safe }}",
+   "builtin": true
+  },
+  {
+   "name": "d",
+   "signature": "d(value)",
+   "doc": "Same as default.",
+   "example": "{{ value | d('–') }}",
+   "builtin": true
+  },
+  {
+   "name": "slice",
+   "signature": "slice(slices, fill_with=None)",
+   "doc": "Split a list into `slices` columns.",
+   "example": "{% for column in campers | slice(3) %}",
+   "builtin": true
+  },
+  {
+   "name": "wordwrap",
+   "signature": "wordwrap(width=79)",
+   "doc": "Wrap long text at a width.",
+   "example": "{{ text | wordwrap(60) }}",
+   "builtin": true
+  }
+ ],
+ "tests": [
+  {
+   "name": "defined",
+   "doc": "The value exists.",
+   "example": "{% if camper.attributes.email is defined %}"
+  },
+  {
+   "name": "undefined",
+   "doc": "The value is missing.",
+   "example": "{% if camper.lodging is undefined %}"
+  },
+  {
+   "name": "none",
+   "doc": "The value is empty (None).",
+   "example": "{% if camper.lodging is none %}"
+  },
+  {
+   "name": "number",
+   "doc": "The value is a number.",
+   "example": "{% if value is number %}"
+  },
+  {
+   "name": "string",
+   "doc": "The value is text.",
+   "example": "{% if value is string %}"
+  },
+  {
+   "name": "mapping",
+   "doc": "The value is a dict.",
+   "example": "{% if value is mapping %}"
+  },
+  {
+   "name": "sequence",
+   "doc": "The value is a list (or text).",
+   "example": "{% if value is sequence %}"
+  },
+  {
+   "name": "iterable",
+   "doc": "The value can be looped over.",
+   "example": "{% if value is iterable %}"
+  },
+  {
+   "name": "boolean",
+   "doc": "The value is true or false.",
+   "example": "{% if value is boolean %}"
+  },
+  {
+   "name": "true",
+   "doc": "The value is True.",
+   "example": "{% if camper.attributes.linens is true %}"
+  },
+  {
+   "name": "false",
+   "doc": "The value is False.",
+   "example": "{% if camper.lodging_shared is false %}"
+  },
+  {
+   "name": "integer",
+   "doc": "The value is a whole number.",
+   "example": "{% if value is integer %}"
+  },
+  {
+   "name": "float",
+   "doc": "The value is a decimal number.",
+   "example": "{% if value is float %}"
+  },
+  {
+   "name": "even",
+   "doc": "The number is even.",
+   "example": "{% if loop.index is even %}"
+  },
+  {
+   "name": "odd",
+   "doc": "The number is odd.",
+   "example": "{% if loop.index is odd %}"
+  },
+  {
+   "name": "divisibleby",
+   "doc": "The number divides evenly.",
+   "example": "{% if loop.index is divisibleby(3) %}"
+  },
+  {
+   "name": "in",
+   "doc": "The value is in a list.",
+   "example": "{% if camper.attributes.age is in ['0-2', '3-12'] %}"
+  },
+  {
+   "name": "eq",
+   "doc": "Equal (also ==).",
+   "example": "{{ campers | selectattr('attributes.age', 'eq', 'Adult') | list }}"
+  },
+  {
+   "name": "ne",
+   "doc": "Not equal (also !=).",
+   "example": "{{ registrations | selectattr('payment_type', 'ne', 'Check') | list }}"
+  },
+  {
+   "name": "lt",
+   "doc": "Less than (also <).",
+   "example": "{{ registrations | selectattr('balance', 'lt', 0) | list }}"
+  },
+  {
+   "name": "le",
+   "doc": "Less than or equal (also <=).",
+   "example": "selectattr('camper_count', 'le', 2)"
+  },
+  {
+   "name": "gt",
+   "doc": "Greater than (also >).",
+   "example": "{{ registrations | selectattr('balance', 'gt', 0) | list }}"
+  },
+  {
+   "name": "ge",
+   "doc": "Greater than or equal (also >=).",
+   "example": "selectattr('camper_count', 'ge', 2)"
+  },
+  {
+   "name": "sameas",
+   "doc": "The very same object.",
+   "example": "{% if a is sameas b %}"
+  },
+  {
+   "name": "lower",
+   "doc": "The text is lower case.",
+   "example": "{% if name is lower %}"
+  },
+  {
+   "name": "upper",
+   "doc": "The text is upper case.",
+   "example": "{% if name is upper %}"
+  },
+  {
+   "name": "callable",
+   "doc": "The value can be called.",
+   "example": "{% if value is callable %}"
+  },
+  {
+   "name": "escaped",
+   "doc": "The value is escaped HTML.",
+   "example": "{% if value is escaped %}"
+  },
+  {
+   "name": "filter",
+   "doc": "A filter with this name exists.",
+   "example": "{% if 'money' is filter %}"
+  },
+  {
+   "name": "test",
+   "doc": "A test with this name exists.",
+   "example": "{% if 'odd' is test %}"
+  }
+ ],
+ "tags": [
+  {
+   "name": "for",
+   "doc": "Repeat for each item. `loop` describes the current pass; add `{% else %}` for when the list is empty.",
+   "snippet": "{% for ${1:item} in ${2:items} %}\n\t$0\n{% endfor %}"
+  },
+  {
+   "name": "if",
+   "doc": "Output something only when a condition holds; `elif` / `else` add branches.",
+   "snippet": "{% if ${1:condition} %}\n\t$0\n{% endif %}"
+  },
+  {
+   "name": "set",
+   "doc": "Give a value a name.",
+   "snippet": "{% set ${1:name} = ${2:value} %}"
+  },
+  {
+   "name": "do",
+   "doc": "Run an expression without output — e.g. add to your own list.",
+   "snippet": "{% do ${1:rows}.append(${2:value}) %}"
+  },
+  {
+   "name": "macro",
+   "doc": "A reusable piece of template with parameters.",
+   "snippet": "{% macro ${1:name}(${2:args}) %}\n\t$0\n{% endmacro %}"
+  },
+  {
+   "name": "with",
+   "doc": "Names that only exist inside the block.",
+   "snippet": "{% with ${1:name} = ${2:value} %}\n\t$0\n{% endwith %}"
+  },
+  {
+   "name": "filter",
+   "doc": "Apply a filter to a whole block.",
+   "snippet": "{% filter ${1:upper} %}\n\t$0\n{% endfilter %}"
+  },
+  {
+   "name": "raw",
+   "doc": "Output template syntax literally.",
+   "snippet": "{% raw %}$0{% endraw %}"
+  },
+  {
+   "name": "break",
+   "doc": "Leave the current loop.",
+   "snippet": "{% break %}"
+  },
+  {
+   "name": "continue",
+   "doc": "Skip to the next pass of the loop.",
+   "snippet": "{% continue %}"
+  },
+  {
+   "name": "comment",
+   "doc": "A comment that never appears in the output.",
+   "snippet": "{# $0 #}"
+  }
+ ],
+ "globals": [
+  {
+   "name": "range",
+   "type": "list<number>",
+   "doc": "Numbers from start up to stop.",
+   "example": "{% for i in range(3) %}",
+   "callable": true,
+   "signature": "range([start,] stop[, step])"
+  },
+  {
+   "name": "namespace",
+   "type": "dict",
+   "doc": "A container whose attributes can change inside loops — for running totals.",
+   "example": "{% set ns = namespace(total=0) %}{% for r in registrations %}{% set ns.total = ns.total + r.balance %}{% endfor %}",
+   "callable": true,
+   "signature": "namespace(**values)"
+  },
+  {
+   "name": "dict",
+   "type": "dict",
+   "doc": "A new dict you can change.",
+   "example": "{% set row = dict(name='x') %}",
+   "callable": true,
+   "signature": "dict(**values)"
+  },
+  {
+   "name": "cycler",
+   "type": "dict",
+   "doc": "Cycles through values with `.next()`.",
+   "example": "{% set colors = cycler('odd', 'even') %}",
+   "callable": true,
+   "signature": "cycler(*values)"
+  },
+  {
+   "name": "joiner",
+   "type": "string",
+   "doc": "Outputs a separator every time but the first.",
+   "example": "{% set comma = joiner(', ') %}",
+   "callable": true,
+   "signature": "joiner(sep=', ')"
+  }
+ ]
+}

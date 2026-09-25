@@ -33,7 +33,10 @@ from camphoric import (
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import get_email_connection_for_event
 from camphoric.paypal import PayPalClient
+from camphoric.templating.contexts import report_context
 from camphoric.templating.env import LEGACY_REPORT_ENV
+from camphoric.templating.graph import build_event_graph
+from camphoric.templating.render import render_template
 from camphoric.templating.urls import register_url
 import camphoric.mail
 
@@ -763,29 +766,45 @@ class RenderReportView(APIView):
 
     def post(self, request, report_id=None):
         '''
-        Render a Jinja report with the variables the client posts. The
-        environment is sandboxed (DR-39) but lets templates change the posted
-        data, as these reports always have.
+        Render a Jinja report (hbs reports are returned as-is for the client).
+
+        Reports with `variables_source == 'server'` render against the event's
+        variable graph (SPEC §9.3) and ignore the request body; they also return
+        structured `diagnostics`. Older reports render with the variables the
+        client posts, in a sandboxed environment that lets them change the
+        posted data as they always have (DR-37).
         '''
         report = get_object_or_404(models.Report, id=report_id)
 
+        if report.output == models.ReportOutputType.HANDLEBARS:
+            return Response({'report': report.template, 'error': None})
+
+        if report.variables_source == models.ReportVariablesSource.SERVER:
+            graph = build_event_graph(report.event, request=request)
+            result = render_template(
+                report.template, report_context(graph),
+                fmt='html' if report.output == models.ReportOutputType.HTML else 'text')
+            return Response({
+                'report': result.output if result.ok else '',
+                'error': result.error,
+                'diagnostics': [d.as_dict() for d in result.diagnostics],
+            })
+
         output = report.template
         error = None
+        try:
+            output = LEGACY_REPORT_ENV \
+                .from_string(report.template) \
+                .render(**request.data)
+        except Exception as e:
+            tb = traceback.format_exc() or ''
+            start = tb.find('File "<template>"')
+            if start < 0:
+                start = tb.find('File "<unknown>"')
+            emessage = tb[start:]
 
-        if report.output != 'hbs':
-            try:
-                output = LEGACY_REPORT_ENV \
-                    .from_string(report.template) \
-                    .render(**request.data)
-            except Exception as e:
-                tb = traceback.format_exc() or ''
-                start = tb.find('File "<template>"')
-                if start < 0:
-                    start = tb.find('File "<unknown>"')
-                emessage = tb[start:]
-
-                error = str(e) + "\n" + emessage + str(start)
-                output = ''
+            error = str(e) + "\n" + emessage + str(start)
+            output = ''
 
         return Response({
             'report': output,

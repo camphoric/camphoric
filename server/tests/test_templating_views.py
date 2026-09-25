@@ -163,3 +163,98 @@ class LegacyReportRenderTests(APITestCase):
     def test_blocks_python_internals(self):
         data = self.render("{{ ''.__class__.__mro__ }}", {})
         self.assertIn('unsafe', data['error'])
+
+
+class ServerReportTests(APITestCase):
+    '''Reports that use the server's variables (variables_source = server).'''
+
+    def setUp(self):
+        self.made = create_template_event()
+        self.client.force_authenticate(
+            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+
+    def create(self, **fields):
+        return self.client.post('/api/reports/', {
+            'event': self.made.event.id, 'title': 'Campers', 'output': 'csv',
+            'variables_source': 'server', 'template': '', **fields,
+        }, format='json')
+
+    def render(self, report_id, body=None):
+        return self.client.post(f'/api/reports/{report_id}/render', body or {},
+                                format='json').json()
+
+    def test_renders_from_the_server_ignoring_the_body(self):
+        report = self.create(template="{% for c in campers | sort(attribute='attributes."
+                                      "first_name') %}{{ c.attributes.first_name }},"
+                                      "{% endfor %}").json()
+        data = self.render(report['id'], {'campers': [{'attributes': {'first_name': 'X'}}]})
+        self.assertEqual(data, {'report': 'Lee,Pat,Sam,', 'error': None, 'diagnostics': []})
+
+    def test_reports_diagnostics(self):
+        report = self.create(template='ok\n{{ campers[0].nope.deeper }}').json()
+        data = self.render(report['id'])
+        self.assertEqual(data['report'], '')
+        self.assertEqual(data['error'], "camper has no field 'nope'")
+        self.assertEqual(data['diagnostics'][0]['line'], 2)
+
+    def test_new_reports_default_to_client_variables(self):
+        report = self.client.post('/api/reports/', {
+            'event': self.made.event.id, 'title': 'Old', 'output': 'csv', 'template': ''},
+            format='json').json()
+        self.assertEqual(report['variables_source'], 'client')
+
+    def test_handlebars_reports_cannot_use_server_variables(self):
+        response = self.create(output='hbs')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('variables_source', response.json())
+        report = models.Report.objects.create(event=self.made.event, title='H', output='hbs')
+        response = self.client.patch(f'/api/reports/{report.id}/',
+                                     {'variables_source': 'server'}, format='json')
+        self.assertEqual(response.status_code, 400)
+
+
+class TemplateCheckTests(APITestCase):
+    def setUp(self):
+        self.made = create_template_event()
+        self.client.force_authenticate(
+            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        event = self.made.event
+        self.good = models.Report.objects.create(
+            event=event, title='Good', output='csv', variables_source='server',
+            template='{{ campers | length }}')
+        self.typo = models.Report.objects.create(
+            event=event, title='Typo', output='md', variables_source='server',
+            template='{{ campers[0].frist_name }}')
+        self.broken_legacy = models.Report.objects.create(
+            event=event, title='Legacy broken', output='csv', template='{% if %}')
+        self.handlebars = models.Report.objects.create(
+            event=event, title='Hbs', output='hbs', template='{{#each campers}}{{/each}}')
+
+    def test_endpoint(self):
+        data = self.client.get(f'/api/events/{self.made.event.id}/templates/check').json()
+        self.assertFalse(data['ok'])
+        by_title = {r['label']: r for r in data['results']}
+        self.assertEqual(by_title['Good']['mode'], 'rendered')
+        self.assertEqual(by_title['Good']['diagnostics'], [])
+        self.assertEqual(by_title['Typo']['diagnostics'][0]['severity'], 'warning')
+        self.assertEqual(by_title['Legacy broken']['mode'], 'parsed')
+        self.assertEqual(by_title['Legacy broken']['diagnostics'][0]['kind'], 'syntax')
+        self.assertEqual(by_title['Hbs']['mode'], 'skipped')
+
+    def test_command(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+
+        out = StringIO()
+        with self.assertRaises(CommandError):
+            call_command('check_templates', '--event', str(self.made.event.id), stdout=out)
+        self.assertIn('FAIL  report "Legacy broken" (parsed)', out.getvalue())
+        self.assertIn('ok    report "Typo" (rendered)', out.getvalue())
+
+        self.broken_legacy.delete()
+        out = StringIO()
+        call_command('check_templates', '--all', stdout=out)
+        self.assertIn('All templates OK.', out.getvalue())
+        with self.assertRaises(CommandError):
+            call_command('check_templates', '--all', '--strict', stdout=StringIO())

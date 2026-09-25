@@ -1,5 +1,5 @@
 '''
-The description of everything a template can use (SPEC §9.3, DR-37): the
+The description of everything a template can use (SPEC §9.3, DR-36): the
 object types and their fields, the variables each kind of template receives,
 and the filters, tests and tags. It is served by the describe endpoint and
 drives editor autocomplete, hover docs and both help surfaces, so every entry

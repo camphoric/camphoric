@@ -89,6 +89,11 @@ jobs:
           npm ci
           node loadAllData.js
 
+      # Every imported template must parse (legacy reports) or render
+      # (server-variable reports) against the imported data.
+      - name: Check the imported templates
+        run: docker compose -f docker-compose.image.yml exec -T app python manage.py check_templates --all
+
       # Advisory: the stored snapshots may lag behind data edits; the import's
       # exit code above is the blocking check.
       - name: Post-import snapshot tests (advisory)

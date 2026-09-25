@@ -2,9 +2,13 @@
  * Monaco-based JSON/code editor (SPEC §9.6, DR-8). Monaco is lazy-loaded so it
  * isn't in the registration entry bundle (§11) — it loads only when an editor
  * first opens (a schema editor in Settings, a report template, etc.).
+ *
+ * `path`, `beforeMount`, `onMount` and `options` pass through to Monaco, so
+ * richer editors (the template editor) can build on this one.
  */
 
 import { useComputedColorScheme } from '@mantine/core';
+import type { BeforeMount, EditorProps, OnMount } from '@monaco-editor/react';
 import { InlineLoading } from 'components/Loading';
 import { lazy, Suspense } from 'react';
 
@@ -16,9 +20,24 @@ interface JsonEditorProps {
   /** Editor language; defaults to JSON. */
   language?: string;
   height?: number | string;
+  /** The model's URI path; give each editor a unique one to keep models apart. */
+  path?: string;
+  beforeMount?: BeforeMount;
+  onMount?: OnMount;
+  /** Extra Monaco options, merged over the defaults. */
+  options?: EditorProps['options'];
 }
 
-export function JsonEditor({ value, onChange, language = 'json', height = 400 }: JsonEditorProps) {
+export function JsonEditor({
+  value,
+  onChange,
+  language = 'json',
+  height = 400,
+  path,
+  beforeMount,
+  onMount,
+  options,
+}: JsonEditorProps) {
   const colorScheme = useComputedColorScheme('light');
 
   return (
@@ -27,6 +46,9 @@ export function JsonEditor({ value, onChange, language = 'json', height = 400 }:
         height={height}
         language={language}
         value={value}
+        path={path}
+        beforeMount={beforeMount}
+        onMount={onMount}
         theme={colorScheme === 'dark' ? 'vs-dark' : 'light'}
         onChange={(next) => onChange(next ?? '')}
         options={{
@@ -34,6 +56,7 @@ export function JsonEditor({ value, onChange, language = 'json', height = 400 }:
           fontSize: 13,
           scrollBeyondLastLine: false,
           tabSize: 2,
+          ...options,
         }}
       />
     </Suspense>

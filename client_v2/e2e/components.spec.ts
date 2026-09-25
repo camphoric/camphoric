@@ -63,3 +63,28 @@ test.describe('Admin attributes', () => {
     await expect(current).toContainText('"needs_review": true');
   });
 });
+
+test.describe('Template editor', () => {
+  // The story uses a real variable spec and a stand-in preview that flags
+  // `frist_name` as a typo and an unclosed {% for %} as a syntax error.
+  test('suggests fields from the variable spec and marks problems', async ({ page }) => {
+    await page.goto(story('template-editor--with-problems'));
+    const editor = page.locator('.monaco-editor').first();
+    await expect(editor).toBeVisible();
+
+    // The preview's problems are listed and underlined in the text.
+    await expect(
+      page.getByRole('listitem').filter({ hasText: 'Unexpected end of template' }),
+    ).toBeVisible();
+    await expect(editor.locator('.squiggly-warning')).toHaveCount(1);
+    await expect(editor.locator('.squiggly-error')).toHaveCount(1);
+
+    // Clicking below the text puts the cursor at the end of the template.
+    const box = await editor.boundingBox();
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height - 20);
+    await page.keyboard.type('{{ camper.attributes.');
+    const suggestions = editor.locator('.suggest-widget');
+    await expect(suggestions).toContainText('first_name');
+    await expect(suggestions).toContainText('linens');
+  });
+});

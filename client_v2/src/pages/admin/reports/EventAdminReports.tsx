@@ -1,8 +1,8 @@
 /**
  * Reports (SPEC §8.7). Browse the event's reports (selection is URL-addressable
  * via `?reportId`), view a report's rendered output, and create / edit / delete
- * report definitions. The template-variable bundle is assembled once and shared
- * by whichever report is rendered.
+ * report definitions. Legacy reports assemble the browser's variable bundle when
+ * one is shown; reports with Camphoric variables don't need it.
  */
 
 import { Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
@@ -10,7 +10,6 @@ import { modals } from '@mantine/modals';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
-import { useReportTemplateVars } from 'hooks/useReportData';
 import { useState } from 'react';
 import { reportHooks } from 'store/entities';
 
@@ -26,7 +25,6 @@ export function EventAdminReports() {
   const { reportId } = useSearch({ from: FROM });
   const navigate = useNavigate();
   const { data: reports } = reportHooks.useList({ event: eventId });
-  const templateVars = useReportTemplateVars(eventId);
   const del = reportHooks.useDelete();
   const [mode, setMode] = useState<Mode>('view');
 
@@ -121,7 +119,7 @@ export function EventAdminReports() {
                   </Button>
                 </Group>
               </Group>
-              <RenderedReport report={selected} templateVars={templateVars} />
+              <RenderedReport report={selected} eventId={eventId} />
             </Stack>
           )}
 

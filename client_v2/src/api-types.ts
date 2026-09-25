@@ -204,7 +204,14 @@ export interface ApiEventListItem {
   registration_end?: string | null;
 }
 
-export type ReportOutputType = 'csv' | 'md' | 'txt' | 'hbs';
+export type ReportOutputType = 'csv' | 'md' | 'txt' | 'html' | 'hbs';
+
+/**
+ * Where a report's variables come from (§8.7): `client` posts the bundle the
+ * browser builds (legacy); `server` renders from the server's variable graph
+ * and posts nothing.
+ */
+export type ReportVariablesSource = 'client' | 'server';
 
 export interface ApiReport extends TimeStamped {
   id: number;
@@ -213,11 +220,140 @@ export interface ApiReport extends TimeStamped {
   output: ReportOutputType;
   template: string;
   variables_schema: Hash;
+  variables_source: ReportVariablesSource;
 }
 
 export interface ApiRenderedReport {
   report: string;
   error: string | null;
+  /** Server-source reports only: every problem, with template lines. */
+  diagnostics?: TemplateDiagnostic[];
+}
+
+// --- Server-rendered Jinja templates (§5, §9.6) ---------------------------
+
+/** A problem found rendering a template; `line`/`column` are 1-based. */
+export interface TemplateDiagnostic {
+  severity: 'error' | 'warning';
+  kind: 'syntax' | 'undefined' | 'security' | 'timeout' | 'output_limit' | 'runtime';
+  message: string;
+  /** Which text the problem is in: `template` or `subject`. */
+  field: string;
+  line: number | null;
+  column: number | null;
+}
+
+/** The kinds of template, each with its own root variables. */
+export type TemplateContextName =
+  | 'report'
+  | 'confirmation_email'
+  | 'invitation_email'
+  | 'bulk_email_registration'
+  | 'bulk_email_camper'
+  | 'bulk_email_manual';
+
+/**
+ * One variable or field. `type` is `string`, `number`, `bool`, `money`,
+ * `date`, `datetime`, `dict`, `any`, `list<T>`, or the name of a type in
+ * `TemplateDescription.types`.
+ */
+export interface TemplateFieldDescription {
+  name: string;
+  type: string;
+  doc: string;
+  example?: string;
+  nullable?: boolean;
+  /** A method or function: inserted with parentheses. */
+  callable?: boolean;
+  signature?: string;
+  /** Event form questions: the question's title. */
+  title?: string;
+  /** False when the key must be written `['key']`. Absent means true. */
+  identifier?: boolean;
+  enum?: unknown[];
+  format?: string;
+}
+
+export interface TemplateTypeDescription {
+  doc: string;
+  fields: TemplateFieldDescription[];
+}
+
+export interface TemplateContextDescription {
+  title: string;
+  doc: string;
+  roots: TemplateFieldDescription[];
+  /** The kind of record a preview renders for, if any. */
+  sample: 'registration' | 'camper' | 'invitation' | null;
+}
+
+export interface TemplateFilterDescription {
+  name: string;
+  signature: string;
+  doc: string;
+  example: string;
+  /** A standard Jinja filter rather than one Camphoric adds. */
+  builtin: boolean;
+}
+
+export interface TemplateTestDescription {
+  name: string;
+  doc: string;
+  example: string;
+}
+
+export interface TemplateTagDescription {
+  name: string;
+  doc: string;
+  /** Monaco snippet syntax, including the `{% %}`. */
+  snippet: string;
+}
+
+/** GET /api/events/<id>/templates/describe — the variable spec (DR-36). */
+export interface TemplateDescription {
+  contexts: Record<TemplateContextName, TemplateContextDescription>;
+  types: Record<string, TemplateTypeDescription>;
+  filters: TemplateFilterDescription[];
+  tests: TemplateTestDescription[];
+  tags: TemplateTagDescription[];
+  globals: TemplateFieldDescription[];
+}
+
+export type TemplatePreviewOutput = 'csv' | 'md' | 'txt' | 'html' | 'email';
+
+/** POST /api/events/<id>/templates/preview — renders unsaved text. */
+export interface TemplatePreviewRequest {
+  context: TemplateContextName;
+  template: string;
+  output: TemplatePreviewOutput;
+  subject?: string;
+  registration_id?: number;
+  camper_id?: number;
+  invitation_id?: number;
+  registration_type_id?: number;
+}
+
+export interface TemplatePreviewResponse {
+  output: string;
+  subject?: string;
+  /** `email` output: the body rendered from markdown to HTML. */
+  html?: string;
+  diagnostics: TemplateDiagnostic[];
+  truncated: boolean;
+  duration_ms: number;
+  sample: { kind: string; id: number; label: string } | null;
+}
+
+/** GET /api/events/<id>/templates/check — every saved template of an event. */
+export interface TemplateCheckResponse {
+  ok: boolean;
+  results: {
+    kind: string;
+    id: number;
+    label: string;
+    mode: 'rendered' | 'parsed' | 'skipped';
+    diagnostics: TemplateDiagnostic[];
+  }[];
 }
 
 export interface ApiUser {
