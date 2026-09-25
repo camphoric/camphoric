@@ -16,7 +16,7 @@ server {
       {% if camphoric_environment == 'development' %}
       proxy_pass http://localhost:8000;
       {% else %}
-      proxy_pass http://unix:/run/camphoric.socket;
+      proxy_pass http://unix:/run/camphoric.sock;
       {% endif %}
     }
 

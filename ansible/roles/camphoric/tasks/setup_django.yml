@@ -37,11 +37,6 @@
         chdir: "{{camphoric_folder}}/server"
         cmd: "pipenv run python manage.py migrate"
 
-    - name: Flush Django db
-      ansible.builtin.shell:
-        chdir: "{{camphoric_folder}}/server"
-        cmd: "pipenv run python manage.py flush --noinput"
-
     - ignore_errors: yes
       block:
         - name: Create Django superuser
