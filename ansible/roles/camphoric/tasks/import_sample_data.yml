@@ -2,7 +2,6 @@
 - name: Import sample data
   become: true
   become_user: "{{ camphoric_user }}"
-  tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
   environment:
     DJANGO_SUPERUSER_USERNAME: "{{ camphoric_django_superuser_username }}"
     DJANGO_SUPERUSER_PASSWORD: "{{ camphoric_django_superuser_password }}"
@@ -16,23 +15,35 @@
     PAYPAL_SECRET: "{{ camphoric_paypal_secret }}"
     CAMPHORIC_URL: "{{ camphoric_url }}:8000"
   block:
+    # Part of a reset: the "never" tag keeps it out of untagged and install runs,
+    # so it only runs when a reset tag is requested explicitly.
     - name: Reset data
+      tags: [never, camphoric_reset, camphoric_data_reset]
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
-        cmd: |
-          pipenv run python manage.py flush --noinput
-          pipenv run python manage.py createsuperuser --noinput
+        cmd: pipenv run python manage.py flush --noinput
+        chdir: "{{camphoric_folder}}/server"
+
+    # Fails harmlessly when the superuser already exists (no reset ran).
+    - name: Create Django superuser
+      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      ignore_errors: yes
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: pipenv run python manage.py createsuperuser --noinput
         chdir: "{{camphoric_folder}}/server"
 
     - name: Install npm modules
       when: camphoric_environment == 'development'
-      tags: [npm]
+      tags: [npm, camphoric_install, camphoric_reset, camphoric_data_reset]
       ansible.builtin.shell:
         chdir: "{{camphoric_folder}}/data"
         cmd: "npm ci"
 
     - name: Load sample data
+      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
