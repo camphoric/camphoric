@@ -10,24 +10,23 @@ freezegun = "*"
 flake8 = "*"
 
 [packages]
-django = "~=4.0"
-djangorestframework = "*"
+django = "~=6.1"
+djangorestframework = ">=3.18"
 django-environ = "*"
-psycopg2 = "*"
+psycopg2 = ">=2.9.9"
 json-logic-qubit = "*"
 chevron = "*"
-psycopg2-binary = "*"
-importlib-resources = "*"
+psycopg2-binary = ">=2.9.9"
 cmarkgfm = "*"
 requests = "*"
 django-dbbackup = "*"
 django-storages = {extras = ["boto3"], version = "*"}
-django-filter = "*"
+django-filter = ">=26.1"
 jsonschema = {extras = ["format"], version = "*"}
 jinja2 = "*"
 deepmerge = "*"
-pytz = "*"
 whitenoise = "*"
 gunicorn = "*"
 
 [requires]
+python_version = "3.12"

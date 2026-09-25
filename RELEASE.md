@@ -110,6 +110,22 @@ Alternatively run the container image for that tag — `ghcr.io/camphoric/campho
 
 Leaving `camphoric_release` at its default (`HEAD`) still deploys the tip of `main` as before.
 
+### Host requirements
+
+The server runs on Django 6.1, which needs **Python 3.12+** and **PostgreSQL 15+**. Ubuntu 22.04's
+packages (Python 3.10, PostgreSQL 14) are too old, so upgrade the host before deploying a release
+that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the Ansible role
+targets:
+
+1. Back up the database: `pg_dump camphoric > camphoric.sql`.
+2. Move the host to 24.04: a fresh host, or `do-release-upgrade` followed by a PostgreSQL cluster
+   upgrade.
+3. On a fresh host, restore the dump: `psql camphoric < camphoric.sql`.
+4. Deploy the release, which runs the migrations.
+
+The container image already meets the Python requirement; its `DATABASE_URL` must point at
+PostgreSQL 15 or newer.
+
 ---
 
 ## Workflows involved

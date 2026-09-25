@@ -26,9 +26,9 @@ RUN npm run build
 FROM python:${PYTHON_VERSION}-slim AS python-deps
 ENV PIP_NO_CACHE_DIR=1 \
     PIPENV_VENV_IN_PROJECT=1
-# Several locked packages (psycopg2, cffi, cmarkgfm, ...) predate Python 3.12 wheels and
-# build from source, so we need a full C toolchain with the libc headers (build-essential),
-# libpq-dev (psycopg2) and libffi-dev (cffi). They stay in this stage only.
+# psycopg2 ships no wheels and builds from source, so we need a full C toolchain with the
+# libc headers (build-essential) and libpq-dev; libffi-dev covers cffi on platforms without
+# a wheel. They stay in this stage only.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential libpq-dev libffi-dev \
  && rm -rf /var/lib/apt/lists/* \
