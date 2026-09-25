@@ -113,8 +113,12 @@ def calculate_price(registration, campers):
             }
         }
 
-        custom_charges = models.CustomCharge.objects.filter(camper=camper)
-        data["camper"]["custom_charges"] = list(custom_charges.values())
+        # A camper that isn't saved yet (pricing during registration) has no charges.
+        custom_charges = (
+            list(models.CustomCharge.objects.filter(camper=camper).values())
+            if camper.pk is not None else []
+        )
+        data["camper"]["custom_charges"] = custom_charges
 
         camper_results = {}
         for camper_component in event.camper_pricing_logic:

@@ -175,7 +175,7 @@ class TestCalculatePrice(unittest.TestCase):
         event = models.Event(
                 organization=self.organization,
                 name="Test Registration Event",
-                start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+                start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=datetime.timezone.utc),
                 camper_schema={
                     "type": "object",
                     "properties": {
@@ -234,7 +234,7 @@ class TestCalculatePrice(unittest.TestCase):
         event = models.Event(
             organization=self.organization,
             name="Test Registration Event",
-            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=timezone.utc),
+            start=datetime.datetime(2019, 2, 25, 17, 0, 5, tzinfo=datetime.timezone.utc),
             camper_schema={
                 "type": "object",
                 "properties": {

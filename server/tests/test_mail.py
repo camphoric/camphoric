@@ -244,6 +244,9 @@ class BulkEmailTests(TestCase):
 
         send_bulk_email(task)
 
+        # sent_time is stamped after each send and save, so it jitters with that
+        # work; the pacing guarantees the gaps are never shorter than 1/rate.
         (alex, bob, chris) = task.recipients.all()
-        self.assertAlmostEqual((bob.sent_time - alex.sent_time).total_seconds(), 0.1, delta=0.01)
-        self.assertAlmostEqual((chris.sent_time - bob.sent_time).total_seconds(), 0.1, delta=0.01)
+        for gap in (bob.sent_time - alex.sent_time, chris.sent_time - bob.sent_time):
+            self.assertGreaterEqual(gap.total_seconds(), 0.09)
+            self.assertLess(gap.total_seconds(), 0.2)
