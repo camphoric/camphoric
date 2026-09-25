@@ -9,13 +9,32 @@
 
 import { notifications } from '@mantine/notifications';
 import { MutationCache, QueryClient } from '@tanstack/react-query';
+import type { TemplateDiagnostic } from 'api-types';
 import { ApiError } from 'utils/fetch';
 
-function describeError(error: unknown): string {
+/**
+ * A mutation error as one line: the API's `detail` (plus the first template
+ * problem, when the API returns `diagnostics`), or its field errors
+ * (`field: message`), or the HTTP status.
+ */
+export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.body && typeof error.body === 'object') {
-      const detail = (error.body as Record<string, unknown>).detail;
-      if (typeof detail === 'string') return detail;
+    if (error.body && typeof error.body === 'object' && !Array.isArray(error.body)) {
+      const body = error.body as Record<string, unknown>;
+      if (typeof body.detail === 'string') {
+        const [first] = Array.isArray(body.diagnostics)
+          ? (body.diagnostics as TemplateDiagnostic[])
+          : [];
+        if (!first) return body.detail;
+        return `${body.detail} ${first.line ? `Line ${first.line}: ` : ''}${first.message}`;
+      }
+      const fields = Object.entries(body)
+        .map(([field, messages]) => {
+          const text = Array.isArray(messages) ? messages.join(' ') : String(messages);
+          return `${field.replace(/_/g, ' ')}: ${text}`;
+        })
+        .join('; ');
+      if (fields) return fields;
     }
     return `${error.status} ${error.statusText}`;
   }

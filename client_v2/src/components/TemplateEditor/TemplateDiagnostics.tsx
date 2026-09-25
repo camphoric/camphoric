@@ -1,7 +1,7 @@
 /**
  * The problems found rendering a template (SPEC §9.6): errors, then warnings,
- * each with its line. Given `onJump`, a problem with a line is a button that
- * moves the editor there.
+ * each with its line. Given `onJump`, a problem in the template body with a
+ * line is a button that moves the editor there.
  */
 
 import { Group, Stack, Text, UnstyledButton } from '@mantine/core';
@@ -45,7 +45,7 @@ export function TemplateDiagnostics({ diagnostics, onJump }: TemplateDiagnostics
         );
         return (
           <div role="listitem" key={`${d.line}-${d.column}-${i}`}>
-            {onJump && d.line ? (
+            {onJump && d.line && d.field === 'template' ? (
               <UnstyledButton onClick={() => onJump(d)} title="Go to this line">
                 {content}
               </UnstyledButton>

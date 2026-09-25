@@ -88,7 +88,9 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
 }
 
 export function EventAdminSettings() {
-  const { eventId } = useParams({ from: '/admin/organization/$organizationId/event/$eventId' });
+  const { organizationId, eventId } = useParams({
+    from: '/admin/organization/$organizationId/event/$eventId',
+  });
   const { data: event } = eventHooks.useById(eventId);
 
   if (!event) return <FullScreenLoading />;
@@ -108,7 +110,10 @@ export function EventAdminSettings() {
             ))}
           </Tabs.List>
           <Tabs.Panel value={REGISTRATION_TYPES} pl="md">
-            <RegistrationTypesSettings eventId={eventId} />
+            <RegistrationTypesSettings
+              eventId={eventId}
+              helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=invitation_email`}
+            />
           </Tabs.Panel>
           <Tabs.Panel value={VALIDATION_MESSAGES} pl="md">
             <ErrorMessagesSettings key={event.id} event={event} />

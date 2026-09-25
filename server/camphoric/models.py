@@ -41,6 +41,12 @@ class ReportVariablesSource(models.TextChoices):
     SERVER = 'server', 'Camphoric variables'
 
 
+class TemplateEngine(models.TextChoices):
+    '''How an email template is written (SPEC §9.3, DR-38).'''
+    MUSTACHE = 'mustache', 'Mustache (legacy)'
+    JINJA = 'jinja', 'Jinja (Camphoric variables)'
+
+
 class TimeStampedModel(models.Model):
     '''
     - Base class for most models.
@@ -187,7 +193,10 @@ class Event(TimeStampedModel):
 
     confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
     confirmation_email_template = models.TextField(
-        blank=True, default='', help_text="Handlebars template")
+        blank=True, default='', help_text="Mustache or Jinja template (see the engine)")
+    confirmation_email_engine = models.CharField(
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        help_text="How the confirmation email's subject and body are written")
     confirmation_email_from = models.EmailField(blank=True, default='')
 
     email_account = models.ForeignKey(EmailAccount, null=True, on_delete=models.CASCADE)
@@ -224,6 +233,9 @@ class RegistrationType(TimeStampedModel):
     label = models.CharField(max_length=255, help_text="Human readable name")
     invitation_email_subject = models.CharField(max_length=255)
     invitation_email_template = models.TextField(null=True, blank=True)
+    invitation_email_engine = models.CharField(
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        help_text="How the invitation email's subject and body are written")
     camper_schema_overrides = CustomJSONField(
             default=dict,
             help_text="JSON schema for overriding camper schema items")

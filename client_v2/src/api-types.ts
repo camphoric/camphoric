@@ -83,6 +83,7 @@ export interface ApiEvent extends TimeStamped {
   confirmation_page_template: string;
   confirmation_email_subject: string;
   confirmation_email_template: string;
+  confirmation_email_engine: TemplateEngine;
   confirmation_email_from: string;
 
   // Payments.
@@ -128,6 +129,7 @@ export interface ApiRegistrationType extends TimeStamped {
   label: string;
   invitation_email_subject: string;
   invitation_email_template: string;
+  invitation_email_engine: TemplateEngine;
 }
 
 export interface ApiInvitation extends TimeStamped {
@@ -231,6 +233,12 @@ export interface ApiRenderedReport {
 }
 
 // --- Server-rendered Jinja templates (§5, §9.6) ---------------------------
+
+/**
+ * How an email template is written (§8.3, §8.4): `mustache` (legacy, the API
+ * default) or `jinja` (Camphoric variables, rendered on the server).
+ */
+export type TemplateEngine = 'mustache' | 'jinja';
 
 /** A problem found rendering a template; `line`/`column` are 1-based. */
 export interface TemplateDiagnostic {

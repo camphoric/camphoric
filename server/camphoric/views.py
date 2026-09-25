@@ -3,8 +3,6 @@ import logging
 from smtplib import SMTPException
 import traceback
 
-import cmarkgfm
-import chevron
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from deepmerge import always_merger
@@ -34,10 +32,11 @@ from camphoric.lodging import get_lodging_schema
 from camphoric.mail import get_email_connection_for_event
 from camphoric.paypal import PayPalClient
 from camphoric.templating.contexts import report_context
+from camphoric.templating.emails import (
+    confirmation_failure_report, render_confirmation_email, render_invitation_email)
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import render_template
-from camphoric.templating.urls import register_url
 import camphoric.mail
 
 
@@ -421,54 +420,7 @@ class RegisterView(APIView):
                 logger.error(message)
 
         server_pricing_results = registration.server_pricing_results
-
-        # TODO: rather than doing these one-off transformations, we should
-        # probably be creating specific serializers for use in templates and
-        # reports, see https://github.com/camphoric/camphoric/issues/262
-
-        campers_template_value = []
-        for camper_index, camper in enumerate(registration.campers.all()):
-            campers_template_value.append({
-                **camper.attributes,
-                'pricing_result': server_pricing_results['campers'][camper_index],
-                'lodging': (camper.lodging.name if camper.lodging else 'none'),
-                'lodging_full': (camper.lodging.name_path if camper.lodging else 'none'),
-            })
-
-        confirmation_email_body_text = chevron.render(
-            event.confirmation_email_template,
-            {
-                'registration': registration,
-                'campers': campers_template_value,
-                'pricing_results': server_pricing_results,
-                'initial_payment': registration.initial_payment,
-            })
-
-        confirmation_email_body_html = cmarkgfm.github_flavored_markdown_to_html(
-                confirmation_email_body_text
-            )
-        email_error = None
-        sent = False
-        try:
-            if '@dontsend.com' in registration.registrant_email:
-                email_error = 'registration email contains @dontsend.com'
-                logger.error(confirmation_email_body_html)
-            else:
-                msg = EmailMultiAlternatives(
-                    event.confirmation_email_subject,
-                    confirmation_email_body_text,
-                    event.confirmation_email_from,
-                    [registration.registrant_email],
-                    connection=get_email_connection_for_event(event),
-                )
-                msg.attach_alternative(confirmation_email_body_html, "text/html")
-                sent = msg.send(fail_silently=False)
-
-            if not sent:
-                email_error = email_error or 'mail not sent'
-        except SMTPException as e:
-            email_error = str(e)
-
+        email_error = self.send_confirmation_email(request, registration)
         if email_error:
             logger.error(f'error sending confirmation email: {email_error}')
 
@@ -478,6 +430,48 @@ class RegisterView(APIView):
             'emailError': bool(email_error),
             'initialPayment': registration.initial_payment,
         })
+
+    @staticmethod
+    def send_confirmation_email(request, registration):
+        '''
+        Email the registrant their confirmation; returns an error message, or
+        None when it was sent. If a Jinja template can't be rendered, the
+        registrant is sent nothing and a report goes to the event's "from"
+        address instead (SPEC §8.3, DR-38).
+        '''
+        event = registration.event
+        rendered = render_confirmation_email(registration, request=request)
+        connection = get_email_connection_for_event(event)
+
+        if not rendered.ok:
+            subject, body = confirmation_failure_report(registration, rendered, request=request)
+            logger.error(f'{subject}\n{body}')
+            if event.confirmation_email_from:
+                try:
+                    EmailMultiAlternatives(
+                        subject, body, event.confirmation_email_from,
+                        [event.confirmation_email_from], connection=connection,
+                    ).send(fail_silently=False)
+                except SMTPException as e:
+                    logger.error(f'error sending the confirmation failure report: {e}')
+            return 'the confirmation email template could not be rendered'
+
+        if '@dontsend.com' in registration.registrant_email:
+            logger.error(rendered.html)
+            return 'registration email contains @dontsend.com'
+        try:
+            msg = EmailMultiAlternatives(
+                rendered.subject,
+                rendered.text,
+                event.confirmation_email_from,
+                [registration.registrant_email],
+                connection=connection,
+            )
+            msg.attach_alternative(rendered.html, "text/html")
+            sent = msg.send(fail_silently=False)
+        except SMTPException as e:
+            return str(e)
+        return None if sent else 'mail not sent'
 
     @classmethod
     def get_form_schema(cls, event):
@@ -713,34 +707,29 @@ class SendInvitationView(APIView):
         to_name = invitation.recipient_name
         to_email = invitation.recipient_email
         event = invitation.registration_type.event
-        invitation_body_text = chevron.render(
-            invitation.registration_type.invitation_email_template,
-            {
-                'recipient_name': to_name or to_email,
-                'recipient_email': to_email,
-                'invitation_code': invitation.invitation_code,
-                'register_link': register_page_url(request, event.id, invitation)
-            }
-        )
-        invitation_body_html = cmarkgfm.github_flavored_markdown_to_html(
-                invitation_body_text
-            )
+        rendered = render_invitation_email(invitation, request=request)
+        if not rendered.ok:
+            # A Jinja template that can't be rendered: nothing is sent.
+            return Response({
+                'detail': 'The invitation email template has problems; nothing was sent.',
+                'diagnostics': [d.as_dict() for d in rendered.diagnostics],
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         email_error = None
         sent = False
         try:
             if '@dontsend.com' in to_email:
                 email_error = 'invitation email contains @dontsend.com'
-                logger.error(invitation_body_html)
+                logger.error(rendered.html)
             else:
                 msg = EmailMultiAlternatives(
-                    invitation.registration_type.invitation_email_subject,
-                    invitation_body_text,
+                    rendered.subject,
+                    rendered.text,
                     event.confirmation_email_from,  # TODO: figure out what this should be
                     [f'"{to_name}" <{to_email}>' if to_name else to_email],
                     connection=get_email_connection_for_event(event),
                 )
-                msg.attach_alternative(invitation_body_html, "text/html")
+                msg.attach_alternative(rendered.html, "text/html")
                 sent = msg.send(fail_silently=False)
                 if not sent:
                     email_error = 'mail not sent'
@@ -858,7 +847,3 @@ class CancelBulkEmailView(APIView):
         camphoric.mail.cancel_bulk_email(task)
 
         return Response({'success': True})
-
-
-def register_page_url(request, event_id, invitation=None):
-    return register_url(event_id, invitation, request)

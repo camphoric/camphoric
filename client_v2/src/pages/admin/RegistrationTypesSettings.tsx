@@ -14,7 +14,14 @@ import { registrationTypeHooks } from 'store/entities';
 
 import { RegistrationTypeForm } from './registrations/RegistrationTypeForm';
 
-export function RegistrationTypesSettings({ eventId }: { eventId: string }) {
+export function RegistrationTypesSettings({
+  eventId,
+  helpHref,
+}: {
+  eventId: string;
+  /** The Template Help page for invitation emails. */
+  helpHref?: string;
+}) {
   const { data: registrationTypes } = registrationTypeHooks.useList({ event: eventId });
   const [typeForm, setTypeForm] = useState<{ open: boolean; regType?: ApiRegistrationType }>({
     open: false,
@@ -70,6 +77,7 @@ export function RegistrationTypesSettings({ eventId }: { eventId: string }) {
         regType={typeForm.regType}
         opened={typeForm.open}
         onClose={() => setTypeForm({ open: false })}
+        helpHref={helpHref}
       />
     </Stack>
   );
