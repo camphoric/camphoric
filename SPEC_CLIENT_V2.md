@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-38)
+- §15 — Decision Records (DR-1…DR-39)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -172,7 +172,7 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?registrationsTab`, and Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
+`?emailTaskId`, `?registrationsTab`, and Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
 
 The router defines two top-level branches. A trailing-slash normalizer redirects any URL
@@ -196,6 +196,8 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
+- `/admin/organization/:organizationId/event/:eventId/email` — bulk email (§8.9); the selected
+  email is `?emailTaskId`.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
   `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
@@ -249,7 +251,7 @@ derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must als
 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
-`Payment`, `CustomCharge`, `CustomChargeType`, `User`.
+`Payment`, `CustomCharge`, `CustomChargeType`, `BulkEmailTask`, `BulkEmailRecipient`, `User`.
 
 Non-CRUD admin endpoints:
 
@@ -295,6 +297,27 @@ Non-CRUD admin endpoints:
   `sent_time` is left alone, and the response is a 400 `{ detail, diagnostics }` (the
   `TemplateDiagnostic`s below). A send failure is a 500 `{ detail }`.
 - `GET /api/customcharges/{camperId}` — custom charges for a camper.
+- **Bulk email** (§8.9; all admin-only):
+  - `POST /api/events/{id}/bulkemail/recipients` — who a recipient list reaches, from criteria
+    that needn't be saved: `{ recipient_kind, recipient_list, recipient_filter,
+    address_expression, name_expression, include_incomplete }` → `{ recipients: [{ email, name,
+    label, registration, camper }], skipped: [{ label, reason: 'no_address' | 'invalid' |
+    'duplicate' | 'filter_error', detail, email, registration, camper }], diagnostics }`
+    (`diagnostics` are the expressions' syntax errors, with `field` naming the expression).
+  - `POST /api/bulkemailtasks/{id}/recipients/resolve` `{ dry_run? }` — the same, from the saved
+    task, plus `counts: { recipients, skipped, already_sent, kept_existing }`; unless `dry_run`,
+    saves the list (rows already sent stay; unsent rows are replaced). 409 while sending.
+  - `POST /api/bulkemailtasks/{id}/send` — rebuilds the list from the current data (except for a
+    task whose recipients were added directly: `manual` with an empty `recipient_list`), then
+    sends to every unsent recipient; returns the task when done. With `?background=1` it starts
+    the send in its own process and returns the task at once with a 202. A list that can't be
+    built is a 400 `{ detail, diagnostics }`.
+  - `POST /api/bulkemailtasks/{id}/cancel` — stop sending (resume by sending again).
+  - `POST /api/bulkemailtasks/{id}/test` `{ to?, recipient? }` — one copy, rendered for a
+    recipient (by id; else the first on the list, or the first the criteria reach), to `to`
+    (default: the signed-in admin's address), subject prefixed `[Test]` →
+    `{ sent_to, rendered_for, subject, diagnostics }`; 400 `{ detail, diagnostics }` when it
+    can't be rendered.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -362,6 +385,16 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount`, `notes`.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
+- **BulkEmailTask:** `id`, `event`, `from_email`, `subject`, `body_template`, `engine`
+  (`mustache` | `jinja`; the API default is `mustache`), `recipient_kind` (`manual` |
+  `registrations` | `campers`), `recipient_list`, `recipient_filter`, `address_expression`,
+  `name_expression`, `include_incomplete`, `messages_per_second` (decimal text or null);
+  read-only: `running_pid`, `run_start_time`, `run_finish_time`, `error`, and the derived
+  `status` (`draft` | `running` | `finished` | `stopped` | `failed`), `recipient_count`,
+  `sent_count`, `error_count`. Saving refuses a Jinja subject/body that doesn't parse, or an
+  expression that doesn't parse (400 keyed by field). List with `?event=`.
+- **BulkEmailRecipient:** `id`, `task`, `email`, `full_name`, `registration?`, `camper?`,
+  `sent_time?`, `error?`. List with `?task=`.
 - **User:** standard Django user fields (`username`, `email`, names, `is_staff`, etc.); an
   anonymous user has `username: ''` and `id: null`.
 
@@ -521,7 +554,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 The event-admin area provides navigation among the event's admin functions, indicating the
 current one and showing the event/organization identity. The functions (each addressable at
 `…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `campers`,
-`lodging`, `reports`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
+`lodging`, `reports`, `email`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
 contract; the navigation's visual form is not.)
 
 Within each function the admin typically **finds/selects a record and views or edits its
@@ -740,6 +773,54 @@ to compile can't be saved; a path the form doesn't currently have is allowed wit
 field may be added later). Changes are saved together, via PATCH of
 `registration_error_messages` on the event.
 
+### 8.9 Bulk email
+
+The admin can **compose an email to many people at once, see exactly who it will reach, test
+it, send it, and follow its progress** (§15, DR-39). The event's emails are listed newest first
+with their status; the selected one is URL-addressable (`?emailTaskId`, §4).
+
+**Composing** — from address (defaulting to the event's confirmation `from`), subject and
+markdown body, edited with the email template editor (§8.3) in Jinja (new emails) or Mustache
+(older ones, which see only `recipient`), an optional sending rate (messages per second), and
+**who it goes to**:
+
+- **Registrations** — the event's completed registrations (optionally also incomplete ones),
+  narrowed by a Jinja **filter expression** such as `registration.balance > 0` (blank: all).
+  Each copy's context is `bulk_email_registration`: `event`, `registration`, `campers`,
+  `recipient`.
+- **Campers** — those registrations' campers, likewise (`bulk_email_camper`: `event`, `camper`,
+  `registration`, `recipient`).
+- **Listed addresses** — typed one per line, as `email` or `Name <email>` (`bulk_email_manual`:
+  `event`, `recipient`).
+
+For registrations and campers, Jinja **address and name expressions** give each copy's recipient;
+left blank, they default to the registrant's email (registrations), or the camper's `email`
+answer falling back to the registrant's, with the camper's first and last name (campers). The
+defaults are shown to the admin.
+
+As the criteria change, the admin sees **who the list reaches** — each recipient with who they
+are (registration or camper), address and name — and **who it skips and why**: no address, not a
+valid address, the same address as an earlier recipient (compared case-insensitively; each
+address gets one copy), or an expression that failed for that one (with the error). An expression
+that doesn't parse is marked on its field. The preview can render the email for any of the
+recipients the list reaches.
+
+Saving stores the task (§5). The recipient list itself is built from the current data when the
+email is sent, so it reflects registrations made since it was composed.
+
+**Sending** — the admin first sees how many it will be sent to (and how many are skipped, and
+how many were already sent this email and won't get it again) and confirms; the send then runs
+in the background. While it runs, its status, a progress count (sent of total, and how many
+failed) and each recipient's state (sent with time, waiting, or failed with the reason) refresh
+every few seconds. Sending can be stopped and later resumed; resuming, or sending again after
+new people match, never sends anyone a second copy. A copy that can't be rendered for its
+recipient is recorded as failed with the template problem, and the others still go.
+
+**Testing** — the admin can send one copy, rendered for the first recipient, to any address
+(their own by default), with `[Test]` before the subject; nobody on the list is sent anything.
+
+An email can't be edited or deleted while it's sending.
+
 ---
 
 ## 9. Shared Systems
@@ -855,7 +936,7 @@ math (`sum`, `subtract`, `abs`), and `or`. Template Help (below) documents them,
 example and its result.
 
 **Server-rendered Jinja.** Reports with Camphoric variables (§8.7) and Jinja emails (§8.3,
-§8.4) render on the server, in Jinja, against a model of the event that the server builds
+§8.4, §8.9) render on the server, in Jinja, against a model of the event that the server builds
 (§15, DR-35):
 
 - **Variables** — each kind of template (a *context*) has its own root variables; a report gets
@@ -864,7 +945,8 @@ example and its result.
   `now`. `registrations`, `campers` and `payments` are those of completed registrations. A
   confirmation email gets the one registration it's for (`registration`, its `campers`,
   `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
-  `registration_type` and `event`.
+  `registration_type` and `event`; a bulk email's copy gets its recipient's registration or
+  camper and `recipient` (§8.9).
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
   `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
   two-place decimal; dates and datetimes are real dates (datetimes in the server's configured
@@ -1896,6 +1978,30 @@ Send the registrant whatever rendered — can send a misleading email. Fall back
 Mustache template on error — there may not be one, and two templates drift. Block saving on any
 render problem for the sample — samples can't cover every registration.
 
+### DR-39 — Bulk-email recipients chosen by expressions, sent by a background command
+
+**Decision:** A bulk email's recipients are built from the event's registrations or campers
+(or a typed list): a Jinja filter expression chooses them and Jinja expressions give each one's
+address and name, with defaults. Every candidate is either a recipient or skipped with a reason
+(no address, invalid, duplicate, expression failed), shown before sending. The list is rebuilt
+from the current data at each send, keeping rows already sent, so a resumed or repeated send
+never double-sends. Each copy renders against the event graph (DR-35), built once per run. The
+v2 client sends in the background: the send endpoint starts `manage.py send_bulk_email` in its
+own process and returns at once, and the client polls the task. Tasks whose recipients were
+added directly through the API keep working as before.
+**Context:** Bulk email had sending machinery but no way to choose recipients short of creating
+them one by one, and its Mustache body only knew the recipient's address (#654). Expressions
+reuse what template authors already write, so "everyone who owes money" is
+`registration.balance > 0` rather than a new filter language. Showing who's skipped and why
+catches missing or duplicate addresses before anything is sent. A long, rate-limited send in a
+web request would tie up (and could be killed with) the worker; a separate process outlives
+the request, and the existing run fields let the client follow and cancel it.
+**Alternatives:** A Jinja template that outputs the recipient list as CSV (the 2024 WIP) —
+flexible, but hard to validate per recipient or explain what was skipped. A structured filter
+builder — friendlier for simple cases, but a second language that can't express everything the
+variables allow. A task queue (Celery, RQ) — more infrastructure than one command needs.
+Freezing the list when the email is composed — misses people who register before it's sent.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -1921,6 +2027,9 @@ must be coordinated with the backend. Grouped by status.
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
   (§8.4; its Jinja-render 400, §5), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}`
   (§5).
+- **Bulk email:** the `BulkEmailTask`/`BulkEmailRecipient` fields, the recipients preview,
+  resolve, background send and test endpoints, and `manage.py send_bulk_email` being runnable by
+  the web process (§5, §8.9; DR-39).
 - **Email engines:** `Event.confirmation_email_engine` and `RegistrationType.invitation_email_engine`,
   their save-time parse check, and the confirmation-failure report to `confirmation_email_from`
   (§5, §8.3; DR-38).

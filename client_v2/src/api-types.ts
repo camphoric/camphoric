@@ -529,3 +529,100 @@ export interface ReportTemplateVars {
   lodgingLookup: LodgingLookup;
   registrationTypeLookup: RegistrationTypeLookup;
 }
+
+// --- Bulk email (§8.9) --------------------------------------------------------
+
+/** What a bulk email's recipient list is built from. */
+export type BulkRecipientKind = 'manual' | 'registrations' | 'campers';
+
+/** Derived by the server from the task's run fields. */
+export type BulkEmailStatus = 'draft' | 'running' | 'finished' | 'stopped' | 'failed';
+
+/** The fields a recipient list is built from (saved on the task, or unsaved). */
+export interface BulkRecipientCriteria {
+  recipient_kind: BulkRecipientKind;
+  /** `manual`: one address per line, `email` or `Name <email>`; `#` starts a comment. */
+  recipient_list: string;
+  /** Jinja expression choosing registrations/campers; blank chooses all. */
+  recipient_filter: string;
+  /** Jinja expressions for each recipient's address and name; blank uses the defaults. */
+  address_expression: string;
+  name_expression: string;
+  include_incomplete: boolean;
+}
+
+export interface ApiBulkEmailTask extends TimeStamped, BulkRecipientCriteria {
+  id: number;
+  event: Scalar;
+  from_email: string;
+  subject: string;
+  body_template: string;
+  engine: TemplateEngine;
+  /** Decimal as text, or null for no limit. */
+  messages_per_second: string | null;
+  // Set by the server (read-only):
+  running_pid?: number | null;
+  run_start_time?: string | null;
+  run_finish_time?: string | null;
+  error?: string | null;
+  status?: BulkEmailStatus;
+  recipient_count?: number;
+  sent_count?: number;
+  /** Recipients not sent because of an error (template or delivery). */
+  error_count?: number;
+}
+
+export interface ApiBulkEmailRecipient extends TimeStamped {
+  id: number;
+  task: number;
+  email: string;
+  full_name: string;
+  registration: number | null;
+  camper: number | null;
+  sent_time: string | null;
+  error: string | null;
+}
+
+export interface BulkRecipientCandidate {
+  email: string;
+  name: string;
+  /** Who it is, e.g. "Registration #12 (pat@example.com)" or "Pat Alpha (camper #31)". */
+  label: string;
+  registration: number | null;
+  camper: number | null;
+}
+
+export interface BulkRecipientSkipped {
+  label: string;
+  reason: 'no_address' | 'invalid' | 'duplicate' | 'filter_error';
+  detail: string;
+  email: string;
+  registration: number | null;
+  camper: number | null;
+}
+
+/**
+ * POST /api/events/<id>/bulkemail/recipients (criteria → who it reaches), and
+ * POST /api/bulkemailtasks/<id>/recipients/resolve (which adds `counts`).
+ */
+export interface BulkRecipientResolution {
+  recipients: BulkRecipientCandidate[];
+  skipped: BulkRecipientSkipped[];
+  /** Syntax errors in the criteria's expressions. */
+  diagnostics: TemplateDiagnostic[];
+  counts?: {
+    recipients: number;
+    skipped: number;
+    already_sent: number;
+    /** A task whose recipients were added directly keeps them as they are. */
+    kept_existing: boolean;
+  };
+}
+
+/** POST /api/bulkemailtasks/<id>/test */
+export interface BulkEmailTestResponse {
+  sent_to: string;
+  rendered_for: string;
+  subject: string;
+  diagnostics: TemplateDiagnostic[];
+}

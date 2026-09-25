@@ -8,6 +8,8 @@
  */
 
 import type {
+  ApiBulkEmailRecipient,
+  ApiBulkEmailTask,
   ApiCamper,
   ApiCustomCharge,
   ApiCustomChargeType,
@@ -31,6 +33,13 @@ export const registrationTypeHooks = createEntityHooks<ApiRegistrationType>({
   name: 'RegistrationType',
 });
 export const reportHooks = createEntityHooks<ApiReport>({ name: 'Report' });
+export const bulkEmailTaskHooks = createEntityHooks<ApiBulkEmailTask>({
+  name: 'BulkEmailTask',
+  alsoInvalidate: ['BulkEmailRecipient'],
+});
+export const bulkEmailRecipientHooks = createEntityHooks<ApiBulkEmailRecipient>({
+  name: 'BulkEmailRecipient',
+});
 export const invitationHooks = createEntityHooks<ApiInvitation>({ name: 'Invitation' });
 export const lodgingHooks = createEntityHooks<ApiLodging>({
   name: 'Lodging',

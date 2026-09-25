@@ -15,6 +15,7 @@ import {
   IconFileText,
   IconHelp,
   IconHome,
+  IconMail,
   IconReportAnalytics,
   IconSettings,
   IconUsers,
@@ -29,6 +30,7 @@ const SECTIONS = [
   { path: 'campers', label: 'Campers', icon: IconUsers },
   { path: 'lodging', label: 'Lodging', icon: IconBed },
   { path: 'reports', label: 'Reports', icon: IconReportAnalytics },
+  { path: 'email', label: 'Email', icon: IconMail },
   { path: 'template-help', label: 'Template help', icon: IconHelp },
   { path: 'settings', label: 'Settings', icon: IconSettings },
 ] as const;

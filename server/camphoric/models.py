@@ -518,12 +518,39 @@ class Payment(TimeStampedModel):
     notes = models.TextField(blank=True, default='')
 
 
+class BulkRecipientKind(models.TextChoices):
+    '''Who a bulk email goes to (SPEC §8.9, DR-39).'''
+    MANUAL = 'manual', 'Listed addresses'
+    REGISTRATIONS = 'registrations', 'Registrations'
+    CAMPERS = 'campers', 'Campers'
+
+
 class BulkEmailTask(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     from_email = models.EmailField()
-    subject = models.CharField(max_length=100)
+    subject = models.CharField(max_length=255)
     body_template = models.TextField(
-        blank=True, default='', help_text="Handlebars Markdown template")
+        blank=True, default='', help_text="Markdown template, in the task's engine")
+    engine = models.CharField(
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        help_text="How the subject and body are written; Mustache sees only `recipient`")
+    recipient_kind = models.CharField(
+        max_length=16, choices=BulkRecipientKind.choices, default=BulkRecipientKind.MANUAL,
+        help_text="What the recipient list is built from")
+    recipient_list = models.TextField(
+        blank=True, default='',
+        help_text="Listed addresses, one per line: `email` or `Name <email>`")
+    recipient_filter = models.TextField(
+        blank=True, default='',
+        help_text="Jinja expression choosing registrations/campers; blank chooses all")
+    address_expression = models.TextField(
+        blank=True, default='',
+        help_text="Jinja expression for each recipient's address; blank uses the default")
+    name_expression = models.TextField(
+        blank=True, default='',
+        help_text="Jinja expression for each recipient's name; blank uses the default")
+    include_incomplete = models.BooleanField(
+        default=False, help_text="Also choose from registrations that weren't completed")
     messages_per_second = models.DecimalField(
         max_digits=6, decimal_places=3,
         validators=[MinValueValidator(Decimal('0.001'))],
@@ -541,6 +568,12 @@ class BulkEmailRecipient(TimeStampedModel):
     task = models.ForeignKey(BulkEmailTask, related_name='recipients', on_delete=models.CASCADE)
     email = models.EmailField()
     full_name = models.CharField(max_length=255, blank=True, default='')
+    registration = models.ForeignKey(
+        Registration, null=True, blank=True, on_delete=models.SET_NULL,
+        help_text="The registration this copy is about (registration and camper lists)")
+    camper = models.ForeignKey(
+        Camper, null=True, blank=True, on_delete=models.SET_NULL,
+        help_text="The camper this copy is about (camper lists)")
     sent_time = models.DateTimeField(null=True)
     error = models.CharField(max_length=255, blank=True, null=True)
 
