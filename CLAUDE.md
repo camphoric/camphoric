@@ -64,7 +64,10 @@ Playwright e2e suite, so keep them current as components change.
 
 Do not automatically commit code to git. All changes shall be reviewed by the human coder and committed by hand.
 
-Always suggest that code be committed after a change, and suggest a commit title and message. Format the title and message following the commit convention documented in [RELEASE.md](./RELEASE.md) (the release automation derives versions from it). Present the combined title and body together in a single box so that it is easy to copy and paste, such as:
+Always suggest that code be committed after a change, and suggest a commit title and message.
+With every suggested commit, list the files that belong in it (as a `git add` command the human can
+run), and when the working tree holds changes for several commits, say which files go with which
+commit so none are left out or mixed in. Format the title and message following the commit convention documented in [RELEASE.md](./RELEASE.md) (the release automation derives versions from it). Present the combined title and body together in a single box so that it is easy to copy and paste, such as:
 ```
 feat: implement my cool feature
 
