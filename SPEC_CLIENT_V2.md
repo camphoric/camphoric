@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-43)
+- §15 — Decision Records (DR-1…DR-44)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -292,10 +292,12 @@ Non-CRUD admin endpoints:
     'security' | 'timeout' | 'output_limit' | 'runtime', message, field, line, column }` —
     `field` is the text the problem is in (`template`, `subject`); `line`/`column` are 1-based
     or null.
-- `POST /api/invitations/{id}/send` — send/resend an invitation email → `{ success: true }`. If
-  the registration type's invitation is written in Jinja and can't be rendered, nothing is sent,
-  `sent_time` is left alone, and the response is a 400 `{ detail, diagnostics }` (the
-  `TemplateDiagnostic`s below). A send failure is a 500 `{ detail }`.
+- `POST /api/invitations/{id}/send` — queue an invitation email (send or resend) →
+  `{ success: true, messageId, status }`. The server delivers queued email in the background
+  (§15, DR-44) and sets the invitation's `sent_time` once it has been sent. If the registration
+  type's invitation is written in Jinja and can't be rendered, nothing is queued and the response
+  is a 400 `{ detail, diagnostics }` (the `TemplateDiagnostic`s below); an address that can't be
+  emailed (invalid, or `@dontsend.com`) is a 400 `{ detail }`.
 - `GET /api/customcharges/{camperId}` — custom charges for a camper.
 - **Bulk email** (§8.9; all admin-only):
   - `POST /api/events/{id}/bulkemail/recipients` — who a recipient list reaches, from criteria
@@ -334,7 +336,10 @@ Non-CRUD admin endpoints:
   paymentType, paymentData, payPalResponse? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where
   `confirmationPage` is the event's confirmation page already rendered on the server, as
-  markdown (§7.3).
+  markdown (§7.3). The confirmation email is queued, not sent, before the response (§15, DR-44):
+  `emailError` is true only when it couldn't be queued (its template can't be rendered, or the
+  address can't be emailed). Repeating the payment step for a registration that's already
+  complete returns the same payload and records no second payment or email.
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter.
@@ -2112,6 +2117,27 @@ code they cover (the DR-28 intent) while separating them from it.
 **Alternatives:** Co-locate beside the code (the previous layout) — noisy folders. A single
 top-level `src/test/` tree mirroring `src/` — the tests drift away from the code and every move
 has to be made twice.
+
+### DR-44 — All email goes through one outbox, delivered by a task worker
+
+**Decision:** Every outgoing email (confirmations and their problem reports, invitations, and in
+time bulk email) is queued as a row in an email outbox, rendered when it's queued, and delivered
+in the background by a worker process. The row is the permanent record of what was sent, to
+whom, from which account, and how delivery went. Delivery retries temporary failures with
+backoff and keeps to each sending account's per-minute and per-day limits. Requests no longer
+wait on the mail server: the payment step and the invitation endpoint return once the email is
+queued. The worker runs on Django's Tasks API with a database-backed queue (`django-tasks-db`);
+the outbox row, not the task, decides what gets sent, so a task that runs twice or late can't
+send twice.
+**Context:** Email was sent inside web requests: a slow mail server delayed registration, a
+dropped connection turned a completed registration into an error, a retried payment request
+could send a second confirmation, nothing was retried, and nothing recorded what was sent. Bulk
+email ran in an unsupervised subprocess. Gmail-style daily sending caps make pacing a correctness
+issue, not only a nicety.
+**Alternatives:** A Postgres outbox with a hand-written worker loop — viable, but the Tasks API
+gives the same design a standard interface and a maintained worker. Celery or RQ with Redis — more
+moving parts than Camphoric's volume needs. Procrastinate — capable, but needs psycopg 3. Keep
+sending in the request and add retries there — still ties registration to the mail server.
 
 ---
 

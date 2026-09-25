@@ -12,7 +12,7 @@ from deepmerge import always_merger
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -32,7 +32,7 @@ from camphoric import (
     serializers,
 )
 from camphoric.lodging import get_lodging_schema
-from camphoric.mail import get_email_connection_for_event
+from camphoric.mail import outbox
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk
 from camphoric.templating.contexts import report_context
@@ -264,6 +264,26 @@ class EventList(APIView):
         return Response(response_data)
 
 
+def queue_report(registration, kind, subject, body):
+    '''
+    Queue a template problem report to the event's "from" address, at most once
+    per registration and kind.
+    '''
+    event = registration.event
+    if not event.confirmation_email_from:
+        return
+    outbox.enqueue(
+        event=event,
+        kind=kind,
+        registration=registration,
+        from_email=event.confirmation_email_from,
+        to=event.confirmation_email_from,
+        subject=subject,
+        text=body,
+        dedupe_key=f'{kind}:{registration.id}',
+    )
+
+
 class RegisterView(APIView):
     def get(self, request, event_id=None, format=None):
         '''
@@ -379,7 +399,6 @@ class RegisterView(APIView):
         registration_uuid = request.data.get('registrationUUID')
         if registration_uuid is None:
             raise ValidationError({'registrationUUID': 'This field is required.'})
-        registration = get_object_or_404(models.Registration, uuid=registration_uuid)
 
         payment_type = request.data.get('paymentType')
         if payment_type is None:
@@ -390,6 +409,17 @@ class RegisterView(APIView):
                                ', '.join(event.valid_payment_types)
             })
 
+        # The lock makes a repeated or concurrent POST (a retry, a double click)
+        # wait for the first; it then finds the registration completed and gets
+        # the same result, without a second payment or confirmation email.
+        with transaction.atomic():
+            registration = get_object_or_404(
+                models.Registration.objects.select_for_update(), uuid=registration_uuid)
+            if not registration.completed:
+                self.complete_registration(request, registration, payment_type)
+            return Response(self.payment_result(request, registration))
+
+    def complete_registration(self, request, registration, payment_type):
         # Do a save here because payment type could affect pricing
         registration.payment_type = payment_type
         registration.save()
@@ -425,19 +455,20 @@ class RegisterView(APIView):
                           f'{registration.id}: {e}'
                 logger.error(message)
 
-        server_pricing_results = registration.server_pricing_results
-        email_error = self.send_confirmation_email(request, registration)
+        email_error = self.queue_confirmation_email(request, registration)
         if email_error:
-            logger.error(f'error sending confirmation email: {email_error}')
-        confirmation_page = self.confirmation_page(request, registration)
+            logger.error(f'confirmation email not queued: {email_error}')
 
-        return Response({
+    def payment_result(self, request, registration):
+        return {
             # Rendered on the server (markdown); the client only displays it (SPEC §7.3).
-            'confirmationPage': confirmation_page,
-            'serverPricingResults': server_pricing_results,
-            'emailError': bool(email_error),
+            'confirmationPage': self.confirmation_page(request, registration),
+            'serverPricingResults': registration.server_pricing_results,
+            # The confirmation couldn't be queued. Delivery happens later, so a
+            # delivery failure shows in the email history, not here.
+            'emailError': self.confirmation_email_problem(registration),
             'initialPayment': registration.initial_payment,
-        })
+        }
 
     @staticmethod
     def confirmation_page(request, registration):
@@ -446,64 +477,52 @@ class RegisterView(APIView):
         registrant gets a short generic message and the organizer a report
         (SPEC §7.3, DR-42).
         '''
-        event = registration.event
         result = render_confirmation_page(registration, request=request)
         if result.ok:
             return result.output
         subject, body = page_failure_report(registration, result.diagnostics, request=request)
         logger.error(f'{subject}\n{body}')
-        if event.confirmation_email_from:
-            try:
-                EmailMultiAlternatives(
-                    subject, body, event.confirmation_email_from,
-                    [event.confirmation_email_from],
-                    connection=get_email_connection_for_event(event),
-                ).send(fail_silently=False)
-            except SMTPException as e:
-                logger.error(f'error sending the confirmation page failure report: {e}')
+        queue_report(registration, models.EmailMessageKind.PAGE_REPORT, subject, body)
         return FALLBACK_PAGE
 
     @staticmethod
-    def send_confirmation_email(request, registration):
+    def queue_confirmation_email(request, registration):
         '''
-        Email the registrant their confirmation; returns an error message, or
-        None when it was sent. If a Jinja template can't be rendered, the
-        registrant is sent nothing and a report goes to the event's "from"
-        address instead (SPEC §8.3, DR-38).
+        Queue the registrant's confirmation; returns why it couldn't be, or None.
+        If a Jinja template can't be rendered, the registrant is sent nothing and
+        a report goes to the event's "from" address instead (SPEC §8.3, DR-38).
         '''
         event = registration.event
         rendered = render_confirmation_email(registration, request=request)
-        connection = get_email_connection_for_event(event)
-
         if not rendered.ok:
             subject, body = confirmation_failure_report(registration, rendered, request=request)
             logger.error(f'{subject}\n{body}')
-            if event.confirmation_email_from:
-                try:
-                    EmailMultiAlternatives(
-                        subject, body, event.confirmation_email_from,
-                        [event.confirmation_email_from], connection=connection,
-                    ).send(fail_silently=False)
-                except SMTPException as e:
-                    logger.error(f'error sending the confirmation failure report: {e}')
+            queue_report(registration, models.EmailMessageKind.CONFIRMATION_REPORT, subject, body)
             return 'the confirmation email template could not be rendered'
 
-        if '@dontsend.com' in registration.registrant_email:
-            logger.error(rendered.html)
-            return 'registration email contains @dontsend.com'
-        try:
-            msg = EmailMultiAlternatives(
-                rendered.subject,
-                rendered.text,
-                event.confirmation_email_from,
-                [registration.registrant_email],
-                connection=connection,
-            )
-            msg.attach_alternative(rendered.html, "text/html")
-            sent = msg.send(fail_silently=False)
-        except SMTPException as e:
-            return str(e)
-        return None if sent else 'mail not sent'
+        message = outbox.enqueue(
+            event=event,
+            kind=models.EmailMessageKind.CONFIRMATION,
+            registration=registration,
+            from_email=event.confirmation_email_from,
+            to=registration.registrant_email,
+            subject=rendered.subject,
+            text=rendered.text,
+            html=rendered.html,
+            dedupe_key=f'confirmation:{registration.id}',
+        )
+        if message.status in (models.EmailMessageStatus.FAILED,
+                              models.EmailMessageStatus.CANCELLED):
+            return message.last_error
+        return None
+
+    @staticmethod
+    def confirmation_email_problem(registration):
+        '''Whether the registration's confirmation email couldn't be queued.'''
+        message = models.EmailMessage.objects.filter(
+            dedupe_key=f'confirmation:{registration.id}').first()
+        return message is None or message.status in (
+            models.EmailMessageStatus.FAILED, models.EmailMessageStatus.CANCELLED)
 
     @classmethod
     def get_form_schema(cls, event):
@@ -732,8 +751,7 @@ class SendInvitationView(APIView):
         '''
         - Takes an invitation
         - generates an email with a link to the registration form that will redeem that invitation
-        - sends the email
-        - sets the sent_time on the invitation
+        - queues the email; delivering it sets the sent_time on the invitation
         '''
         invitation = get_object_or_404(models.Invitation, id=invitation_id)
         to_name = invitation.recipient_name
@@ -747,38 +765,26 @@ class SendInvitationView(APIView):
                 'diagnostics': [d.as_dict() for d in rendered.diagnostics],
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        email_error = None
-        sent = False
-        try:
-            if '@dontsend.com' in to_email:
-                email_error = 'invitation email contains @dontsend.com'
-                logger.error(rendered.html)
-            else:
-                msg = EmailMultiAlternatives(
-                    rendered.subject,
-                    rendered.text,
-                    event.confirmation_email_from,  # TODO: figure out what this should be
-                    [f'"{to_name}" <{to_email}>' if to_name else to_email],
-                    connection=get_email_connection_for_event(event),
-                )
-                msg.attach_alternative(rendered.html, "text/html")
-                sent = msg.send(fail_silently=False)
-                if not sent:
-                    email_error = 'mail not sent'
-        except SMTPException as e:
-            email_error = str(e)
+        message = outbox.enqueue(
+            event=event,
+            kind=models.EmailMessageKind.INVITATION,
+            invitation=invitation,
+            from_email=event.confirmation_email_from,  # TODO: figure out what this should be
+            to=f'"{to_name}" <{to_email}>' if to_name else to_email,
+            subject=rendered.subject,
+            text=rendered.text,
+            html=rendered.html,
+            created_by=request.user,
+        )
+        if message.status in (models.EmailMessageStatus.FAILED,
+                              models.EmailMessageStatus.CANCELLED):
+            return Response({'detail': message.last_error}, status=status.HTTP_400_BAD_REQUEST)
 
-        if email_error:
-            return Response(
-                {"detail": email_error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        invitation.sent_time = timezone.now()
-        invitation.save()
-
+        # Queued: the worker sends it and sets the invitation's sent_time.
         return Response({
             'success': True,
+            'messageId': message.id,
+            'status': message.status,
         })
 
 
