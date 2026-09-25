@@ -42,7 +42,10 @@ class ReportVariablesSource(models.TextChoices):
 
 
 class TemplateEngine(models.TextChoices):
-    '''How an email template is written (SPEC §9.3, DR-38).'''
+    '''
+    How an email template is written (SPEC §9.3, DR-38). New templates default
+    to Jinja (DR-40); older rows keep the engine they were saved with.
+    '''
     MUSTACHE = 'mustache', 'Mustache (legacy)'
     JINJA = 'jinja', 'Jinja (Camphoric variables)'
 
@@ -195,7 +198,7 @@ class Event(TimeStampedModel):
     confirmation_email_template = models.TextField(
         blank=True, default='', help_text="Mustache or Jinja template (see the engine)")
     confirmation_email_engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
         help_text="How the confirmation email's subject and body are written")
     confirmation_email_from = models.EmailField(blank=True, default='')
 
@@ -234,7 +237,7 @@ class RegistrationType(TimeStampedModel):
     invitation_email_subject = models.CharField(max_length=255)
     invitation_email_template = models.TextField(null=True, blank=True)
     invitation_email_engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
         help_text="How the invitation email's subject and body are written")
     camper_schema_overrides = CustomJSONField(
             default=dict,
@@ -324,7 +327,7 @@ class Report(TimeStampedModel):
     variables_source = models.CharField(
         max_length=10,
         choices=ReportVariablesSource.choices,
-        default=ReportVariablesSource.CLIENT,
+        default=ReportVariablesSource.SERVER,
         help_text="Where the template's variables come from")
 
     def __str__(self):
@@ -532,7 +535,7 @@ class BulkEmailTask(TimeStampedModel):
     body_template = models.TextField(
         blank=True, default='', help_text="Markdown template, in the task's engine")
     engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.MUSTACHE,
+        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
         help_text="How the subject and body are written; Mustache sees only `recipient`")
     recipient_kind = models.CharField(
         max_length=16, choices=BulkRecipientKind.choices, default=BulkRecipientKind.MANUAL,

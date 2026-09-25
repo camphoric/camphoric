@@ -3,6 +3,7 @@ export default [
     name: 'late-registration',
     label: 'Late Registration',
     invitation_email_subject: 'Register for LTA Jughandle Campout',
-    invitation_email_template: '[Please click here to register!]({{register_link}})',
+    invitation_email_engine: 'jinja',
+    invitation_email_template: '[Please click here to register!]({{ invitation.register_url }})',
   }
 ];

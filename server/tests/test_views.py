@@ -1118,6 +1118,7 @@ Due now: $200
             camper_pricing_logic=[],
             registration_deposit_schema=self.event.registration_deposit_schema,
             confirmation_email_subject='Registration confirmation',
+            confirmation_email_engine='mustache',
             confirmation_email_template=''.join([
                 '- handling:{{ pricing_results.handling }}\n',
                 '- cabins: {{ pricing_results.cabins }}\n',
@@ -1208,6 +1209,7 @@ class SendInvitationPostTests(APITestCase):
             name='worktrade',
             label="Work-trade",
             invitation_email_subject="Invitation to register",
+            invitation_email_engine='mustache',
             invitation_email_template=(
                 'Hi {{recipient_name}}, here is your link: {{{register_link}}}'),
         )
@@ -1662,6 +1664,7 @@ def create_standard_test_event(
         },
         confirmation_page_template='{{client renders this}}',
         confirmation_email_subject='Registration confirmation',
+        confirmation_email_engine='mustache',
         confirmation_email_template=''.join([
             'Thanks for registering, {{registration.attributes.billing_name}}!\n',
             '\nCampers:\n',

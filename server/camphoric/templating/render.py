@@ -26,7 +26,7 @@ from jinja2.exceptions import SecurityError, TemplateSyntaxError, UndefinedError
 
 from . import registry
 from .env import make_env
-from .values import TemplateObject
+from .values import ReadOnlyDict, TemplateObject
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,10 @@ class TrackingUndefined(Undefined):
     def _undefined_message(self):
         if self._undefined_hint is None and isinstance(self._undefined_obj, TemplateObject):
             return f"{self._undefined_obj.type_name} has no field '{self._undefined_name}'"
+        if self._undefined_hint is None and isinstance(self._undefined_obj, ReadOnlyDict):
+            # A form answer (or other key) that isn't there, e.g. an unanswered question.
+            return (f"'{self._undefined_name}' is missing — check for it first "
+                    f"(`{{% if … %}}`), or use `or {{}}` / `| default`")
         return super()._undefined_message
 
     def __init__(self, hint=None, obj=None, name=None, exc=UndefinedError):

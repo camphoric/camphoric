@@ -2,11 +2,11 @@ import { yearDisplay } from './dates.js';
 
 const emails = {
   'late-registrant': () => `
-Dear {{recipient_name}},
+Dear {{ invitation.recipient_name or invitation.recipient_email }},
 
 You have been invited to register late to Camp Harmony ${yearDisplay}!
 
-[Please click here to register!]({{register_link}})
+[Please click here to register!]({{ invitation.register_url }})
 
 Questions? Email us at [campnewharmony@gmail.com](mailto:campnewharmony@gmail.com)
 (preferred) or call [415-987-0502](tel:415-987-0502). Be patient, we are volunteers.
@@ -19,6 +19,7 @@ The Camp Harmony Registrar
 
 const specialType = (regType) => ({
   ...regType,
+  invitation_email_engine: 'jinja',
   invitation_email_subject: `Register for ${regType.label}`,
   invitation_email_template:
     emails[regType.name]

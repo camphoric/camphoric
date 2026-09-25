@@ -1,18 +1,16 @@
 import * as priceLists from './pricing/pricingLists.js';
 import pricing from './pricing/pricing.js';
-// 'recipient_name': to_name or to_email,
-// 'recipient_email': to_email,
-// 'invitation_code': invitation.invitation_code,
-// 'register_link': register_page_url(request, event.id, invitation)
+// Invitation emails are Jinja (SPEC §8.4): `invitation` (recipient_name,
+// recipient_email, code, register_url), `registration_type` and `event`.
 
 const createCrewEmailTemplate = (regType) => `
-Dear {{recipient_name}},
+Dear {{ invitation.recipient_name or invitation.recipient_email }},
 
 You have been invited to join the following Lark Camp crew:
 
 ${regType.label}
 
-[Please click here to register!]({{register_link}})
+[Please click here to register!]({{ invitation.register_url }})
 ${priceLists.crewCamp.includes(regType.name) ? `
 
 You will be charged a non-refundable enrollment fee of $${pricing.crew_enrollment}.` : ''}
@@ -56,11 +54,11 @@ https://www.larktraditionalarts.org
 
 const crewEmailTemplateOverrides = {
   'kitchen-full': () => `
-Dear {{recipient_name}},
+Dear {{ invitation.recipient_name or invitation.recipient_email }},
 
 Below is your personalized link to register for Lark Camp 2024 as Full Trade Kitchen Crew (includes kitchens, coffeehouses, & bakery).
 
-[Please click here to register!]({{register_link}})
+[Please click here to register!]({{ invitation.register_url }})
 
 NEVER REGISTERED IN THIS SYSTEM?
 
@@ -92,11 +90,11 @@ https://www.larkcamp.org
 
 https://www.larktraditionalarts.org`,
   'kitchen-partial': () => `
-Dear {{recipient_name}},
+Dear {{ invitation.recipient_name or invitation.recipient_email }},
 
 Below is your personalized link to register  for Lark Camp 2024 as Partial Pay Kitchen Crew (includes kitchens, coffeehouses, & bakery).
 
-[Please click here to register!]({{register_link}})
+[Please click here to register!]({{ invitation.register_url }})
 
 NEVER REGISTERED IN THIS SYSTEM?
 
@@ -127,11 +125,11 @@ https://www.larkcamp.org
 
 https://www.larktraditionalarts.org`,
   'late-registrant': () => `
-Dear {{recipient_name}},
+Dear {{ invitation.recipient_name or invitation.recipient_email }},
 
 You have been invited to register late to Lark Camp!
 
-[Please click here to register!]({{register_link}})
+[Please click here to register!]({{ invitation.register_url }})
 
 If you have any other questions, please email us at
 [registration@larkcamp.org](mailto:registration@larkcamp.org) or call
@@ -148,6 +146,7 @@ https://www.larktraditionalarts.org`,
 
 const specialType = (regType) => ({
   ...regType,
+  invitation_email_engine: 'jinja',
   invitation_email_subject: `Register for Lark Camp ${regType.label}`,
   invitation_email_template:
     crewEmailTemplateOverrides[regType.name]

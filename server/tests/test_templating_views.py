@@ -164,7 +164,8 @@ class LegacyReportRenderTests(APITestCase):
 
     def render(self, template, data):
         report = models.Report.objects.create(
-            event=self.made.event, title='r', output='csv', template=template)
+            event=self.made.event, title='r', output='csv', template=template,
+            variables_source='client')
         return self.client.post(f'/api/reports/{report.id}/render', data, format='json').json()
 
     def test_renders_posted_variables_and_allows_updates(self):
@@ -212,17 +213,18 @@ class ServerReportTests(APITestCase):
         self.assertEqual(data['error'], "camper has no field 'nope'")
         self.assertEqual(data['diagnostics'][0]['line'], 2)
 
-    def test_new_reports_default_to_client_variables(self):
+    def test_new_reports_default_to_server_variables(self):
         report = self.client.post('/api/reports/', {
-            'event': self.made.event.id, 'title': 'Old', 'output': 'csv', 'template': ''},
+            'event': self.made.event.id, 'title': 'New', 'output': 'csv', 'template': ''},
             format='json').json()
-        self.assertEqual(report['variables_source'], 'client')
+        self.assertEqual(report['variables_source'], 'server')
 
     def test_handlebars_reports_cannot_use_server_variables(self):
         response = self.create(output='hbs')
         self.assertEqual(response.status_code, 400)
         self.assertIn('variables_source', response.json())
-        report = models.Report.objects.create(event=self.made.event, title='H', output='hbs')
+        report = models.Report.objects.create(event=self.made.event, title='H', output='hbs',
+                                              variables_source='client')
         response = self.client.patch(f'/api/reports/{report.id}/',
                                      {'variables_source': 'server'}, format='json')
         self.assertEqual(response.status_code, 400)
@@ -241,9 +243,11 @@ class TemplateCheckTests(APITestCase):
             event=event, title='Typo', output='md', variables_source='server',
             template='{{ campers[0].frist_name }}')
         self.broken_legacy = models.Report.objects.create(
-            event=event, title='Legacy broken', output='csv', template='{% if %}')
+            event=event, title='Legacy broken', output='csv', template='{% if %}',
+            variables_source='client')
         self.handlebars = models.Report.objects.create(
-            event=event, title='Hbs', output='hbs', template='{{#each campers}}{{/each}}')
+            event=event, title='Hbs', output='hbs', template='{{#each campers}}{{/each}}',
+            variables_source='client')
 
     def test_endpoint(self):
         data = self.client.get(f'/api/events/{self.made.event.id}/templates/check').json()

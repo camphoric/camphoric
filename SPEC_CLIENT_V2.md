@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-39)
+- §15 — Decision Records (DR-1…DR-40)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -370,11 +370,12 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   date strings the camper is present), timestamps.
 - **Report:** `id`, `event`, `title`, `output` (`csv` | `md` | `txt` | `html` | `hbs`),
   `template`, `variables_schema`, `variables_source` (`client` | `server`; the API defaults to
-  `client`, and `hbs` requires `client`), timestamps.
+  `server` (§15, DR-40), and `hbs` requires `client`), timestamps.
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_email_subject`,
   `invitation_email_template`, `invitation_email_engine` (`mustache` | `jinja`, §8.4).
 - **Email template engines:** `mustache` (legacy) or `jinja`; the API defaults both engine fields
-  to `mustache`. Saving an event or registration type whose email is `jinja` is refused with a
+  (and a bulk email's `engine`) to `jinja`, and existing rows keep the engine they were saved
+  with (§15, DR-40). Saving an event or registration type whose email is `jinja` is refused with a
   400 when its subject or template doesn't parse — `{ <field>: ['Line N: message'] }`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`.
@@ -386,7 +387,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
 - **BulkEmailTask:** `id`, `event`, `from_email`, `subject`, `body_template`, `engine`
-  (`mustache` | `jinja`; the API default is `mustache`), `recipient_kind` (`manual` |
+  (`mustache` | `jinja`; the API default is `jinja`), `recipient_kind` (`manual` |
   `registrations` | `campers`), `recipient_list`, `recipient_filter`, `address_expression`,
   `name_expression`, `include_incomplete`, `messages_per_second` (decimal text or null);
   read-only: `running_pid`, `run_start_time`, `run_finish_time`, `error`, and the derived
@@ -1890,6 +1891,8 @@ the messages — deferred; they can later be merged like the schema overrides.
 
 ### DR-35 — Server-built, read-only template variables
 
+*The API default this describes (legacy reports) changed in DR-40.*
+
 **Decision:** A new kind of report renders from variables the server builds itself
 (`variables_source: 'server'`, §8.7), alongside the legacy kind whose variables the client
 uploads. The server builds a relationship-resolved model of the event in a fixed number of
@@ -1955,6 +1958,8 @@ open.
 
 ### DR-38 — Emails move to Jinja, per template, with a report when one can't render
 
+*The API default this describes (Mustache) changed in DR-40.*
+
 **Decision:** The confirmation and invitation emails can be written in Jinja against the same
 server-built variables as reports (DR-35). Each template records its engine
 (`confirmation_email_engine`, `invitation_email_engine`: `mustache` | `jinja`), defaulting to
@@ -2001,6 +2006,32 @@ flexible, but hard to validate per recipient or explain what was skipped. A stru
 builder — friendlier for simple cases, but a second language that can't express everything the
 variables allow. A task queue (Celery, RQ) — more infrastructure than one command needs.
 Freezing the list when the email is composed — misses people who register before it's sent.
+
+### DR-40 — Jinja and server variables become the defaults
+
+**Decision:** The `data/` confirmation and invitation emails are converted to Jinja, and the API
+defaults flip: new email templates (event confirmation, registration-type invitation, bulk
+email) default to `jinja`, and new reports to `variables_source: 'server'`. Existing rows keep
+what they were saved with — only the defaults change. The importer sends the engine for its
+emails, and marks its reports `client` unless a report says otherwise, since the 62 `data/`
+reports are still written for the browser bundle. Each converted email was checked with
+`manage.py compare_email_templates`, which renders the saved Mustache and the candidate Jinja
+for every registration and invitation of the live-import events and diffs them after
+normalizing the differences the conversion is meant to make (HTML entities, dollar formatting,
+insignificant whitespace).
+**Context:** DR-35 and DR-38 kept the legacy behavior as the default so existing events, the
+importer and the v1 client weren't affected until the `data/` emails were converted. With them
+converted and verified, new templates should get the model that has autocomplete, preview,
+checks and a failure report; keeping Mustache as the default would leave any new API client on
+the thin, unchecked path. The deployed image serves only the v2 client, which always sends the
+engine and variables source. The conversion also fixes the emails' visible Mustache quirks:
+amounts print as `$1,234.50` rather than `$1234.5`, text emails no longer contain HTML entities,
+lodging reads `Cabins, Cabin 4` without the root's name, and lists no longer start with a stray
+comma.
+**Alternatives:** Keep the legacy defaults indefinitely — new API clients would keep creating
+templates with the weaker model. Change existing rows' engines in a migration — the saved text
+is Mustache and would break. Convert the reports too — out of scope (DR-35); they move one at a
+time. Byte-for-byte equivalent output — would mean reproducing the Mustache quirks in Jinja.
 
 ---
 

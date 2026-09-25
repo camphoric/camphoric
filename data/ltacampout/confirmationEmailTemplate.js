@@ -1,32 +1,33 @@
 import { year } from './dates.js'
 
 const subject = `Jughandle Campout ${year} Registration Confirmation`;
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// `event` are the server's template variables. `{%-` swallows the tag's line,
+// as Mustache did for a tag alone on its line.
 const template = `
-Dear {{campers.0.first_name}} {{campers.0.last_name}},
+Dear {{ campers[0].attributes.first_name }} {{ campers[0].attributes.last_name }},
 
 Your online registration for the Jughandle Campout ${year} has been received.
 
 You have registered the following campers:
 
-{{#campers}}
-- {{first_name}} {{last_name}}
-  - {{age}}
-  - Chore: {{chore}}
-  - Lodging: {{ lodging }}
-  - \${{pricing_result.total}}
-{{/campers}}
-
-{{#pricing_results.singledaycount}}    
+{% for camper in campers -%}
+- {{ camper.attributes.first_name }} {{ camper.attributes.last_name }}
+  - {{ camper.attributes.age }}
+  - Chore: {{ camper.attributes.chore }}
+  - Lodging: {{ camper.lodging.name if camper.lodging else 'none' }}
+  - {{ camper.pricing.total | money }}
+{% endfor %}
+{% if pricing.singledaycount -%}
 You chose *Lodging Off site - Single Day*.  You may attend on either Saturday or Sunday. When you arrive please check in at the registration table or with the on-call registration person and you will receive a single day wristband.
-{{/pricing_results.singledaycount}}    
+{% endif %}
+Donation to Lark Traditional Arts - {{ pricing.donation | money }}
 
-Donation to Lark Traditional Arts - \${{ pricing_results.donation }}
+TOTAL DUE: {{ pricing.total | money }}
 
-TOTAL DUE: \${{pricing_results.total}}
+You chose to pay by {{ registration.payment_type }}
 
-You chose to pay by {{registration.payment_type}}
-
-If you're paying by check, please make it for \${{pricing_results.total}} payable to "Lark Traditional Arts", and mail it to:
+If you're paying by check, please make it for {{ pricing.total | money }} payable to "Lark Traditional Arts", and mail it to:
 
 Lark Traditional Arts    
 PO Box 1724    
@@ -40,3 +41,4 @@ Registration Number: ${year}JC{{ registration.id }}
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
+export const confirmation_email_engine = 'jinja';

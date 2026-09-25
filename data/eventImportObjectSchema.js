@@ -61,7 +61,7 @@ export default {
         confirmation_page_template: str('Handlebars template rendered after registration completed', { maxLength: undefined }),
         confirmation_email_subject: str(''),
         confirmation_email_template: str('', { maxLength: undefined }),
-        confirmation_email_engine: enm('how the confirmation email subject and template are written (default mustache)', ENGINES),
+        confirmation_email_engine: enm('how the confirmation email subject and template are written (default jinja)', ENGINES),
         confirmation_email_from: eml(''),
       },
     },
@@ -100,7 +100,7 @@ export default {
           title: str('report title'),
           template: str('Template for report', { maxLength: undefined }),
           output: enm('output format (default csv)', ['csv', 'md', 'txt', 'html', 'hbs']),
-          variables_source: enm('where the template variables come from: client (legacy, default) or server', ['client', 'server']),
+          variables_source: enm('where the template variables come from: client (legacy; what the importer uses by default) or server', ['client', 'server']),
         },
       },
     },
@@ -133,7 +133,7 @@ export default {
           label: str('reg type label'),
           invitation_email_subject: str('subject of reg type invitation email'),
           invitation_email_template: str('Email template of reg type invitation email', { maxLength: undefined }),
-          invitation_email_engine: enm('how the invitation email subject and template are written (default mustache)', ENGINES),
+          invitation_email_engine: enm('how the invitation email subject and template are written (default jinja)', ENGINES),
         }
       }
     },

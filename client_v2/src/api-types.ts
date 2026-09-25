@@ -235,8 +235,8 @@ export interface ApiRenderedReport {
 // --- Server-rendered Jinja templates (§5, §9.6) ---------------------------
 
 /**
- * How an email template is written (§8.3, §8.4): `mustache` (legacy, the API
- * default) or `jinja` (Camphoric variables, rendered on the server).
+ * How an email template is written (§8.3, §8.4): `jinja` (Camphoric variables,
+ * rendered on the server; the API default) or `mustache` (legacy templates).
  */
 export type TemplateEngine = 'mustache' | 'jinja';
 

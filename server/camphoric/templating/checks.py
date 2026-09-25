@@ -24,7 +24,7 @@ from .bulk import keeps_existing_recipients, recipient_context, resolve_task
 from .emails import render_jinja_email
 from .env import LEGACY_REPORT_ENV
 from .graph import build_event_graph
-from .render import EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template
+from .render import EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template, syntax_error
 
 
 @dataclass
@@ -108,12 +108,20 @@ def _render_for_each(subject, body, contexts_):
     return diagnostics
 
 
+def _parsed(kind, id_, label, subject, body):
+    '''Nothing to render for (no registrations yet): check the syntax only.'''
+    problems = [syntax_error(subject, field='subject'), syntax_error(body)]
+    return CheckResult(kind, id_, label, 'parsed', [p for p in problems if p])
+
+
 def _check_confirmation_email(event, graph):
     label = 'Confirmation email'
     if event.confirmation_email_engine != models.TemplateEngine.JINJA:
         return CheckResult('confirmation_email', event.id, label, 'skipped')
-    contexts_ = [confirmation_email_context(graph, r) for r in graph.registrations] \
-        or [confirmation_email_context(graph, None)]
+    if not graph.registrations:
+        return _parsed('confirmation_email', event.id, label, event.confirmation_email_subject,
+                       event.confirmation_email_template)
+    contexts_ = [confirmation_email_context(graph, r) for r in graph.registrations]
     return CheckResult('confirmation_email', event.id, label, 'rendered', _render_for_each(
         event.confirmation_email_subject, event.confirmation_email_template, contexts_))
 
@@ -145,6 +153,6 @@ def _check_bulk_email(task, graph):
                 for c in resolution.recipients]
         diagnostics = resolution.diagnostics
     if not rows:
-        rows = [models.BulkEmailRecipient(task=task, email='alex@example.com')]
+        return _parsed('bulk_email', task.id, label, task.subject, task.body_template)
     return CheckResult('bulk_email', task.id, label, 'rendered', diagnostics + _render_for_each(
         task.subject, task.body_template, [recipient_context(graph, task, r) for r in rows]))

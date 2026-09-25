@@ -248,6 +248,8 @@ export default class CamphoricEventCreator {
     this.results.reports = await Promise.all(this.data.reports.map(
       report => this.fetch('POST', '/api/reports/', {
         event: event.id,
+        // data/ reports use the browser's variable bundle unless they say otherwise.
+        variables_source: 'client',
         ...report,
       })
     ));

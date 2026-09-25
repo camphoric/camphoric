@@ -144,7 +144,8 @@ class JinjaEmailValidationTests(APITestCase):
         self.client.force_authenticate(
             user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
         organization = models.Organization.objects.create(name='Camp Org')
-        self.event = models.Event.objects.create(organization=organization, name='Camp')
+        self.event = models.Event.objects.create(organization=organization, name='Camp',
+                                                 confirmation_email_engine='mustache')
 
     def patch_event(self, **fields):
         return self.client.patch(f'/api/events/{self.event.id}/', fields, format='json')
@@ -183,6 +184,8 @@ class EmailCheckTests(APITestCase):
         return [r for r in check_event_templates(self.event) if r.kind == kind]
 
     def test_mustache_emails_are_skipped(self):
+        self.event.confirmation_email_engine = models.TemplateEngine.MUSTACHE
+        self.event.save()
         [confirmation] = self.result('confirmation_email')
         self.assertEqual(confirmation.mode, 'skipped')
 
