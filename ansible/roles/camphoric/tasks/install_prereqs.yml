@@ -4,8 +4,10 @@
   apt:
     pkg:
       - python3
-      - awscli
-      - python3-pip
+      - python3-dev
+      - pipenv # required for django setup
+      - python3-psycopg2 # required for the community.postgresql modules
+      - libffi-dev
       - openssl
       - build-essential
       - musl-dev
@@ -26,13 +28,6 @@
   debug: 
     msg: "'{{node_version_res.stdout.split('.').0}}' is 'v{{nodejs_version.split('.').0}}'"
   failed_when: node_version_res.stdout.split('.').0 != ('v' + nodejs_version.split('.').0)
-
-- name: Install pip prerequisites
-  pip:
-    executable: pip3
-    name:
-      - pipenv # required for django setup
-      - psycopg2-binary # required for postgresql playbook
 
 - name: Setup postgresql
   include_tasks: setup_postgresql.yml

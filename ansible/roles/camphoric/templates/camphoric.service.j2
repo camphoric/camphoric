@@ -11,10 +11,10 @@ Group={{ camphoric_user }}
 WorkingDirectory={{ camphoric_folder }}/server
 
 {% if camphoric_environment == 'development' %}
-ExecStart=/usr/local/bin/pipenv run python \
+ExecStart={{ pipenv_bin }} run python \
           manage.py runserver 0.0.0.0:8000
 {% else %}
-ExecStart=/usr/local/bin/pipenv run gunicorn \
+ExecStart={{ pipenv_bin }} run gunicorn \
           --access-logfile - \
           --workers 3 \
           --bind unix:/run/camphoric.sock \

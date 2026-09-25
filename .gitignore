@@ -133,3 +133,4 @@ node_modules/
 # Claude Code local preview/launch config
 .claude/launch.json
 live-data.sql
+vm-data.sql

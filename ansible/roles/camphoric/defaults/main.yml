@@ -33,6 +33,9 @@ camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
 camphoric_paypal_client_id: this-should-be-in-vault
 camphoric_paypal_secret: this-should-be-in-vault
 
+# apt's pipenv (Ubuntu 24.04 refuses system-wide pip installs, PEP 668)
+pipenv_bin: /usr/bin/pipenv
+
 nodejs_version: 22.x
 nginx_ssl_on: True
 
