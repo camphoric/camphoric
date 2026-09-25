@@ -1,6 +1,5 @@
 import datetime
 import logging
-import re
 from smtplib import SMTPException
 import traceback
 
@@ -14,11 +13,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from jinja2 import Environment, BaseLoader
 
 import jsonschema
 from rest_framework import permissions, status
@@ -36,25 +33,12 @@ from camphoric import (
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import get_email_connection_for_event
 from camphoric.paypal import PayPalClient
+from camphoric.templating.env import LEGACY_REPORT_ENV
+from camphoric.templating.urls import register_url
 import camphoric.mail
 
 
 logger = logging.getLogger(__name__)
-
-jinja_env = Environment(
-    extensions=['jinja2.ext.do', 'jinja2.ext.loopcontrols'],
-    loader=BaseLoader(),
-)
-
-
-# Custom filter method
-def regex_replace(s, find, replace):
-    """A non-optimal implementation of a regex filter"""
-    return re.sub(find, replace, s)
-
-
-jinja_env.filters['regex_replace'] = regex_replace
-jinja_env.filters['money_fmt'] = pricing.money_fmt
 
 
 class SetCSRFCookieView(APIView):
@@ -779,7 +763,9 @@ class RenderReportView(APIView):
 
     def post(self, request, report_id=None):
         '''
-        This renders a jinja2 report
+        Render a Jinja report with the variables the client posts. The
+        environment is sandboxed (DR-39) but lets templates change the posted
+        data, as these reports always have.
         '''
         report = get_object_or_404(models.Report, id=report_id)
 
@@ -788,7 +774,7 @@ class RenderReportView(APIView):
 
         if report.output != 'hbs':
             try:
-                output = jinja_env \
+                output = LEGACY_REPORT_ENV \
                     .from_string(report.template) \
                     .render(**request.data)
             except Exception as e:
@@ -856,15 +842,4 @@ class CancelBulkEmailView(APIView):
 
 
 def register_page_url(request, event_id, invitation=None):
-    path = reverse('register', kwargs={'event_id': event_id})
-    if invitation:
-        query = f'?email={invitation.recipient_email}&code={invitation.invitation_code}'
-    else:
-        query = ''
-    url = request.build_absolute_uri(path + query)
-
-    # transform api url into frontend url
-    url = re.sub(r':8000', ':3000', url, count=1)
-    url = re.sub(r'/api/', '/', url, count=1)
-
-    return url
+    return register_url(event_id, invitation, request)

@@ -73,6 +73,13 @@ is unused). Values marked *required* have no default; the container will not boo
 | `STATIC_ROOT`           | `/app/static`                        | Where static files were collected at build time. Leave as is.                                                            |
 | `CORS_ORIGIN_WHITELIST` | `= CSRF_TRUSTED_ORIGINS`             | **Unused** (`django-cors-headers` is not installed); accepted only for compatibility with old override files.            |
 
+### Templates
+
+| Variable                      | Default               | Purpose                                                                                                          |
+| ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `CAMPHORIC_TEMPLATE_TIMEZONE` | `America/Los_Angeles` | Time zone that dates and times are shown in by server-rendered reports and emails.                               |
+| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration links in templates; when empty, links are derived from the current request (so bulk email and template checks have none). |
+
 ### Email
 
 | Variable              | Default                                        |

@@ -145,6 +145,12 @@ USE_L10N = True
 
 USE_TZ = True
 
+# Server-rendered templates (reports, emails): the time zone their dates and
+# times are shown in, and the public site's address for links such as the
+# registration page (used where there is no request, e.g. bulk email).
+CAMPHORIC_TEMPLATE_TIMEZONE = env.str('CAMPHORIC_TEMPLATE_TIMEZONE', default='America/Los_Angeles')
+CAMPHORIC_PUBLIC_URL = env.str('CAMPHORIC_PUBLIC_URL', default='')
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/

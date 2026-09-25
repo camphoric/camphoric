@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from camphoric import views
+from camphoric.templating import views as template_views
 
 router = DefaultRouter()
 
@@ -48,4 +49,14 @@ urlpatterns = router.urls + [
     path('bulkemailtasks/<int:task_id>/send', views.SendBulkEmailView.as_view()),
     path('bulkemailtasks/<int:task_id>/cancel', views.CancelBulkEmailView.as_view()),
     path('reports/<int:report_id>/render', views.RenderReportView.as_view()),
+    path(
+        'events/<int:event_id>/templates/describe',
+        template_views.TemplateDescribeView.as_view(),
+        name='template-describe',
+    ),
+    path(
+        'events/<int:event_id>/templates/preview',
+        template_views.TemplatePreviewView.as_view(),
+        name='template-preview',
+    ),
 ]
