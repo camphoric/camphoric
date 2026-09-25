@@ -1,0 +1,13 @@
+| Last Name | First Name | Age | Vaccination |
+| --------- | ---------- | --- | ----- |
+{#- The status is a list of doses: shown (and sorted) joined with commas. -#}
+{%- set rows = [] -%}
+{%- for camper in campers -%}
+  {%- set status = camper.attributes.vaccination_status -%}
+  {%- set status = status | join(',') if status is iterable and status is not string else (status or '') -%}
+  {%- do rows.append({'camper': camper, 'status': status}) -%}
+{%- endfor %}
+{% for row in rows | sort(attribute="status") | reverse -%}
+| {{ row.camper.attributes.last_name }} | {{ row.camper.attributes.first_name }} | {{ row.camper.attributes.age }} | {{ row.status }} |
+{% endfor %}
+Total Campers: {{ campers | length }}

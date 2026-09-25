@@ -1,0 +1,5 @@
+| Name | Email | Donation  |
+| ----- | ----- | -------- |
+{% for r in registrations | sort(attribute="campers.0.attributes.last_name") | reverse if r.pricing.donation -%}
+| [{{ r.campers[0].attributes.first_name }} {{ r.campers[0].attributes.last_name }}](mailto:{{ r.registrant_email }}) |  {{ r.registrant_email }} | ${{ r.pricing.donation }}  |
+{% endfor -%}

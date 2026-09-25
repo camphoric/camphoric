@@ -1,8 +1,7 @@
-{%- set lodging = lodgingLookup.values() | list -%}
-{%- set camp1 = lodging | selectattr("name", "==", "Camp 1") | first | default({}) -%}
-{%- set camp2 = lodging | selectattr("name", "==", "Camp 2") | first | default({}) -%}
-{%- set camp3 = lodging | selectattr("name", "==", "Camp 3") | first | default({}) -%}
-{%- set offsite = lodging | selectattr("name", "==", "Offsite") | first | default({}) -%}
+{%- set camp1 = lodgings | selectattr("name", "==", "Camp 1") | first | default({}) -%}
+{%- set camp2 = lodgings | selectattr("name", "==", "Camp 2") | first | default({}) -%}
+{%- set camp3 = lodgings | selectattr("name", "==", "Camp 3") | first | default({}) -%}
+{%- set offsite = lodgings | selectattr("name", "==", "Off Site") | first | default({}) -%}
 {%- set dates = (campers | selectattr("stay") | sum(attribute="stay", start=[])) | unique | sort -%}
 
 {%- for camp in [camp1, camp2, camp3, offsite] -%}
@@ -12,14 +11,14 @@
 ## {{ camp.name }}
 
 {% for camper in campers -%}
-{%- set clodge = lodgingLookup[camper.lodging | string] -%}
+{%- set clodge = camper.lodging -%}
 {%- if not camper.admin_attributes.checked_in -%}
 	{%- continue -%}
 {%- endif -%}
 {%- if not clodge -%}
 	{%- continue -%}
 {%- endif -%}
-{%- if not camp.name in clodge.pathParts -%}
+{%- if not camp.name in clodge.path_names -%}
   {%- continue -%}
 {%- endif -%}
 {%- if camper.attributes.age == '0-4 years old' -%}

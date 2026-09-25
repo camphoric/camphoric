@@ -9,6 +9,8 @@
 "Camp 3": "C3",
 "Park Anywhere": "PA",
 } -%}
+{#- TODO: crew leads' names and emails are hardcoded here; check they are current. There is no
+    'registration' registration type any more, so that entry matches no one. -#}
 {%- set crewLeadLookup = {
 'talent': {
 'Camp 1': { 'lead': 'Celia Ramsay', 'email': 'celiaramsay@gmail.com' },
@@ -20,7 +22,7 @@
 'Camp 2': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
 'Camp 3': { 'lead': 'Rachel Goodloomis', 'email': 'rachellikesmusic@gmail.com' },
 },
-'setup': {
+'setup-teardown': {
 'Camp 1': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
 'Camp 2': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
 'Camp 3': { 'lead': 'Sean Tergis', 'email': 'seantergis@yahoo.com' },
@@ -46,57 +48,56 @@
 'Camp 3': { 'lead': '', 'email': 'larkkitchen@gmail.com' },
 },
 } -%}
+{%- set rows = [] -%}
 {%- for camper in campers -%}
-    {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
-    {%- set _ = camper.update({'reg': registrationLookup[camper.registration | string]}) if camper.registration -%}
-    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.reg.registration_type | string].name if registrationTypeLookup[camper.reg.registration_type | string] }) -%}
-    {%- set _ = camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  -%}
-    {%- set _ = camper.update({'lodging_short': camper.fullLodgingPath or ''}) -%}
-    {%- for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] -%}
-        {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) -%}
-    {%- endfor -%} 
-    {%- set _ = camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') -%}
-    {%- set _ = camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') -%}
-    {%- set _ = camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin→', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long→Spot ', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV 15\'-20\' long→Spot ', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV→', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cooks Cabin', 'Cook')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('Cabin ', 'Cbn')}) -%}
-    {%- if camper.reg.attributes.parking_passes | length > 0 -%}
-        {%- set _ = camper.update({'parking': camper.reg.attributes.parking_exception or 'Long Term'}) -%}
-        {%- set _ = camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
-        {%- set _ = camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
-        {%- set _ = camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath -%}
+    {%- set crew = camper.registration.registration_type.name if camper.registration.registration_type -%}
+    {#- The cleanup crews (cleanup-camp-1/2/3) share the 'cleanup' leads. -#}
+    {%- set crew_key = 'cleanup' if crew and crew.startswith('cleanup') else crew -%}
+    {%- set full_path = camper.lodging.full_name if camper.lodging else '' -%}
+    {%- set camp = none -%}
+    {%- set camp = 'Camp 1' if full_path.startswith('Camp 1') else camp -%}
+    {%- set camp = 'Camp 2' if full_path.startswith('Camp 2') else camp -%}
+    {%- set camp = 'Camp 3' if full_path.startswith('Camp 3') else camp -%}
+    {%- set parking = none -%}
+    {%- if (camper.attributes.parking_passes or []) | length > 0 -%}
+        {%- set parking = camper.attributes.parking_passes[0].pass_type or 'Long Term' -%}
+        {%- set parking = 'Vehicle Camp 1' if 'Camp 1' in full_path and 'RV' in full_path else parking -%}
+        {%- set parking = 'Vehicle Camp 2' if 'Camp 2' in full_path and 'RV' in full_path else parking -%}
+        {%- set parking = 'Vehicle Camp 3' if 'Camp 3' in full_path and 'RV' in full_path else parking -%}
     {%- endif -%}
-    {%- if camper.stay[0] == '2023-07-27' -%}
-        {%- set _ = camper.update({'comp_reason': 'gift'}) if camper.admin_attributes.precamp_meals_comp -%}
-        {%- set _ = camper.update({'comp_reason': 'kitchen'}) if camper.crew == 'kitchen-full' -%}
-        {%- set _ = camper.update({'comp_reason': 'kitchen'}) if camper.crew == 'kitchen-partial' -%}
-        {%- set _ = camper.update({'comp_reason': 'cleanup'}) if camper.crew == 'cleanup' -%}
-        {%- set _ = camper.update({'comp_reason': 'setup'}) if camper.crew == 'setup' -%}
-        {%- set _ = camper.update({'comp_reason': 'reg'}) if camper.crew == 'registration' -%}
-        {%- set _ = camper.update({'comp_reason': 'manage'}) if camper.crew == 'management' -%}
-        {%- set _ = camper.update({'comp_reason': 'trade'}) if camper.admin_attributes.food_trade_only -%}
+    {%- set comp_reason = none -%}
+    {%- if camper.stay and camper.stay[0] == event.start -%}
+        {%- set comp_reason = 'gift' if camper.admin_attributes.precamp_meals_comp else comp_reason -%}
+        {%- set comp_reason = 'kitchen' if crew == 'kitchen-full' else comp_reason -%}
+        {%- set comp_reason = 'kitchen' if crew == 'kitchen-partial' else comp_reason -%}
+        {%- set comp_reason = 'cleanup' if crew and crew.startswith('cleanup') else comp_reason -%}
+        {%- set comp_reason = 'setup' if crew == 'setup-teardown' else comp_reason -%}
+        {#- TODO: there is no 'registration' registration type any more, so this never matches. -#}
+        {%- set comp_reason = 'reg' if crew == 'registration' else comp_reason -%}
+        {%- set comp_reason = 'manage' if crew == 'management' else comp_reason -%}
+        {%- set comp_reason = 'trade' if camper.admin_attributes.food_trade_only else comp_reason -%}
     {%- endif -%}
-{%- endfor -%} 
+    {%- do rows.append({'camper': camper, 'crew': crew, 'crew_key': crew_key, 'full_path': full_path,
+        'camp': camp, 'parking': parking, 'comp_reason': comp_reason}) -%}
+{%- endfor -%}
 last,first,lodging,registration_type,parking_type,stay,balance_due,meal_plan,meal_location,first_day,precamp_meal_comp,crew,crew_leader,crew_leader_email
-{% for camper in campers if camper.crew in crewLeadLookup.keys()| sort(attribute="fullLodgingPath") -%}
+{% for row in rows | sort(attribute="full_path") if row.crew_key in crewLeadLookup.keys() -%}
+    {%- set camper = row.camper -%}
+    {%- set lead = crewLeadLookup[row.crew_key][row.camp] if row.crew and row.camp -%}
     {{- camper.attributes.last_name }},
     {{- camper.attributes.first_name }},
-    {{- camper.fullLodgingPath}},
-    {{- camper.crew or 'none' }},
-    {{- parking_short[camper.parking] or '-'}},
+    {{- row.full_path}},
+    {{- row.crew or 'none' }},
+    {{- parking_short[row.parking] or '-'}},
     {{- camper.attributes.session}},
-    {{- '$' + (camper.reg.total_balance | string) or '0' }},
-    {{- camper.attributes.meals.meal_plan }},
-    {{- camper.admin_attributes.meal_assignment or camper.camp }},
+    {{- '$' ~ camper.registration.balance }},
+    {{- (camper.attributes.meals or {}).meal_plan }},
+    {#- TODO: `meal_assignment` isn't a Lark camper admin field (there are meal_assignment_breakfast
+        and meal_assignment_dinner), so this always shows the camp. -#}
+    {{- camper.admin_attributes.meal_assignment or row.camp }},
     {{- camper.stay[0]}},
-    {{- camper.comp_reason or '' }},
-    {{- camper.crew or '' }},
-    {{- crewLeadLookup[camper.crew][camper.camp].lead if camper.crew and camper.camp else '' }},
-    {{- crewLeadLookup[camper.crew][camper.camp].email if camper.crew and camper.camp else '' }}
+    {{- row.comp_reason or '' }},
+    {{- row.crew or '' }},
+    {{- lead.lead if lead else '' }},
+    {{- lead.email if lead else '' }}
 {% endfor %}

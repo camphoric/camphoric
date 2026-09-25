@@ -10,41 +10,39 @@
   "Camp 3": "C3",
   "Park Anywhere": "PA",
 } -%}
+{%- set rows = [] -%}
 {%- for camper in campers -%}
-    {% do camper.update({'fullLodgingPath': lodgingLookup[camper.lodging | string].fullPath if camper.lodging else '' })  %}
-    {% do camper.update({'camp': ''}) %}
-    {% do camper.update({'camp': 'Camp 1'}) if camper.fullLodgingPath.startswith('Camp 1') %}
-    {% do camper.update({'camp': 'Camp 2'}) if camper.fullLodgingPath.startswith('Camp 2') %}
-    {% do camper.update({'camp': 'Camp 3'}) if camper.fullLodgingPath.startswith('Camp 3') %}
-    {% do camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) %}
-    {% do camper.update({'registration': registrationLookup[camper.registration | string]}) %}
-    {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
-    {% do camper.update({'lodging_short': camper.fullLodgingPath or ''}) %}
-    {% for l in ['A','B','C','D','E','F','G','H','I','J','K','L','M'] %}
-        {% do camper.update({'lodging_short': camper.lodging_short | replace('Tent→Area ' + l + '→Spot ', 'Tnt')}) %}
-    {% endfor %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('Camp ', 'C')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cabin→', '')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long→Spot ', '')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV 15\'-20\' long→Spot ', '')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('RV→', '')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cooks Cabin', 'Cook')}) %}
-    {% do camper.update({'lodging_short': camper.lodging_short | replace('Cabin ', 'Cbn')}) %}
-    {% if camper.registration.attributes.parking_passes | length > 0 %}
-        {% do camper.update({'parking': camper.registration.attributes.parking_exception or 'Long Term'}) %}
-        {% do camper.update({'parking': 'Vehicle Camp 1'}) if 'Camp 1' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
-        {% do camper.update({'parking': 'Vehicle Camp 2'}) if 'Camp 2' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
-        {% do camper.update({'parking': 'Vehicle Camp 3'}) if 'Camp 3' in camper.fullLodgingPath and 'RV' in camper.fullLodgingPath %}
+    {% set full_path = camper.lodging.full_name if camper.lodging else '' %}
+    {% set camp = '' %}
+    {% set camp = 'Camp 1' if full_path.startswith('Camp 1') else camp %}
+    {% set camp = 'Camp 2' if full_path.startswith('Camp 2') else camp %}
+    {% set camp = 'Camp 3' if full_path.startswith('Camp 3') else camp %}
+    {%- set crew = camper.registration.registration_type.name if camper.registration.registration_type -%}
+    {% set lodging_short = full_path | regex_replace('Tent→Area [A-M]→Spot ', 'Tnt') %}
+    {% set lodging_short = lodging_short | replace('Camp ', 'C') %}
+    {% set lodging_short = lodging_short | replace('Cabin→', '') %}
+    {% set lodging_short = lodging_short | replace('RV under 15\' long→Spot ', '') %}
+    {% set lodging_short = lodging_short | replace('RV 15\'-20\' long→Spot ', '') %}
+    {% set lodging_short = lodging_short | replace('RV over 20\' long (call ahead)→Spot ', '') %}
+    {% set lodging_short = lodging_short | replace('RV→', '') %}
+    {% set lodging_short = lodging_short | replace('Cooks Cabin', 'Cook') %}
+    {% set lodging_short = lodging_short | replace('Cabin ', 'Cbn') %}
+    {% set parking = none %}
+    {% if (camper.attributes.parking_passes or []) | length > 0 %}
+        {% set parking = camper.attributes.parking_passes[0].pass_type or 'Long Term' %}
+        {% set parking = 'Vehicle Camp 1' if 'Camp 1' in full_path and 'RV' in full_path else parking %}
+        {% set parking = 'Vehicle Camp 2' if 'Camp 2' in full_path and 'RV' in full_path else parking %}
+        {% set parking = 'Vehicle Camp 3' if 'Camp 3' in full_path and 'RV' in full_path else parking %}
     {% endif %}
+    {% do rows.append({'camper': camper, 'camp': camp, 'crew': crew, 'lodging_short': lodging_short, 'parking': parking}) %}
 {%- endfor -%}
 first, last, crew, lodging, arrival_date, park, email
-{% for camper in campers | sort(attribute="camp") | sort(attribute="attributes.last_name") if camper.camp in camps -%}
-{{ camper.attributes.first_name }},
-{{- camper.attributes.last_name }},
-{{- camper.crew or 'none' }},
-{{- camper.lodging_short}},
-{{- camper.stay[0] }},
-{{- parking_short[camper.parking] or '-'}},
-{{- camper.registration.registrant_email  }}
+{% for row in rows | sort(attribute="camp") | sort(attribute="camper.attributes.last_name") if row.camp in camps -%}
+{{ row.camper.attributes.first_name }},
+{{- row.camper.attributes.last_name }},
+{{- row.crew or 'none' }},
+{{- row.lodging_short}},
+{{- row.camper.stay[0] }},
+{{- parking_short[row.parking] or '-'}},
+{{- row.camper.registration.registrant_email  }}
 {% endfor -%}

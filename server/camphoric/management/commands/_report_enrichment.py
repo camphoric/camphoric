@@ -145,7 +145,13 @@ def enrich_event(event):
 
     for index, registration in enumerate(registrations):
         created = start - datetime.timedelta(days=150 - 9 * index, minutes=-index)
+        paypal = {}
+        if index % 4 == 3:  # some registrations paid online
+            paypal = {'payment_type': 'PayPal', 'paypal_response': {'payer': {
+                'name': {'given_name': f'Payer{index}', 'surname': f'Online{index}'},
+                'email_address': f'payer{index}@example.com'}}}
         models.Registration.objects.filter(id=registration.id).update(
+            **paypal,
             created_at=created, updated_at=created,
             registration_type=(types[index % len(types)] if types and index % 3 else None),
             attributes=_fill(registration.attributes, event.registration_schema, index,

@@ -7,30 +7,27 @@
 "Half camp - 1st half": "1st½",
 "Half camp - 2nd half": "2nd½",
 } -%}
-{%- for camper in campers -%}
-  {%- set _ = camper.update({'registration': registrationLookup[camper.registration | string]}) -%}
-  {%- set _ = camper.update({'crew': registrationTypeLookup[camper.registration.registration_type | string].name if registrationTypeLookup[camper.registration.registration_type | string] }) -%}
-  {%- set _ = camper.update({'ldg': lodgingLookup[camper.lodging | string] }) -%}
-  {%- if camper.ldg -%}
-    {%- set _ = camper.update({'fullLodgingPath': camper.ldg.fullPath }) if camper.lodging -%}
-    {%- set _ = camper.update({'lodging_short': camper.fullLodgingPath or ''}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV under 15\' long', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV 15\'-20\' long', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV over 20\' long (call ahead)', '')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('RV→', 'Vehicle Camping')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short | replace('→Cabin→', '→')}) -%}
-    {%- set _ = camper.update({'lodging_short': camper.lodging_short[:camper.lodging_short.find('→Spot')] }) if '→Spot' in camper.lodging_short -%}
-  {%- endif -%}
-{%- endfor -%} 
 First, Last, Type, Session, Lodging, Meals, Arrived
 {% for camper in campers | sort(attribute="attributes.last_name") -%}
-{%- if 
-  not camper.crew == "kitchen-full" and 
-  not camper.crew == "kitchen-partial"
+{%- set crew = camper.registration.registration_type.name if camper.registration.registration_type -%}
+{%- if
+  not crew == "kitchen-full" and
+  not crew == "kitchen-partial"
   -%}{% continue %}{%- endif -%}
-  {{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{ camper.crew | replace('crew-kitchen-', '') }},
+{%- set ldg = camper.lodging -%}
+{%- if ldg -%}
+  {%- set lodging_short = ldg.full_name
+    | replace('RV under 15\' long', '')
+    | replace('RV 15\'-20\' long', '')
+    | replace('RV over 20\' long (call ahead)', '')
+    | replace('RV→', 'Vehicle Camping')
+    | replace('→Cabin→', '→') -%}
+  {%- set lodging_short = lodging_short[:lodging_short.find('→Spot')] if '→Spot' in lodging_short else lodging_short -%}
+{%- endif -%}
+{%- set meals = camper.attributes.meals or {} -%}
+  {{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{ crew | replace('crew-kitchen-', '') }},
   {{- session_short[camper.attributes.session] }},
-  {{- camper.lodging_short if camper.ldg else 'Not assigned' }},
-  {{- camper.attributes.meals.meal_plan }}: {{- camper.attributes.meals.meal_type }},
+  {{- lodging_short if ldg else 'Not assigned' }},
+  {{- meals.meal_plan }}: {{- meals.meal_type }},
   {{- camper.admin_attributes.checked_in }}
 {% endfor %}

@@ -1,0 +1,11 @@
+| Last Name | First Name | Age | Lodging | Sharing | Sharing with |
+| --------- | ---------- | --- | ------- | ----- | ----- |
+{%- set rows = [] -%}
+{%- for camper in campers -%}
+  {%- do rows.append({'camper': camper, 'lodging': camper.lodging.full_name if camper.lodging else ''}) -%}
+{%- endfor %}
+{% for row in rows | sort(attribute="lodging") -%}
+{%- set camper = row.camper -%}
+| {{ camper.attributes.last_name }} | {{ camper.attributes.first_name }} | {{ camper.attributes.age }} | {{ camper.lodging.name if camper.lodging }} | {{ 'true' if camper.lodging_shared else 'false' }} | {{ camper.lodging_shared_with }} |
+{% endfor %}
+Total Campers: {{ campers | length }}

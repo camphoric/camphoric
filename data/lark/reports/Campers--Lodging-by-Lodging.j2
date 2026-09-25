@@ -1,7 +1,10 @@
+{#- Campers without lodging sort first (the legacy report failed on them). -#}
+{%- set rows = [] -%}
 {%- for camper in campers -%}
-  {%- set _ = camper.update({'camperLodgingParts': lodgingLookup[camper.lodging | string]}) -%}
-{%- endfor -%} 
+  {%- do rows.append({'camper': camper, 'path_names': camper.lodging.path_names if camper.lodging else []}) -%}
+{%- endfor -%}
 Last Name, First Name, Age, Lodging, Sharing, Sharing with, Attendance
-{% for camper in campers | sort(attribute="camperLodgingParts.pathParts") -%}
-{{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{camper.attributes.age}}, {{- camper.camperLodgingParts.pathParts | join('→') if camper.camperLodgingParts else 'Not assigned' }}, {{camper.lodging_shared}}, {{camper.lodging_shared_with | replace(',', " and ")}}, {{ camper.attributes.session }}
+{% for row in rows | sort(attribute="path_names") -%}
+{%- set camper = row.camper -%}
+{{camper.attributes.first_name}}, {{camper.attributes.last_name}}, {{camper.attributes.age}}, {{- camper.lodging.path_names | join('→') if camper.lodging else 'Not assigned' }}, {{camper.lodging_shared}}, {{camper.lodging_shared_with | replace(',', " and ")}}, {{ camper.attributes.session }}
 {% endfor %}
