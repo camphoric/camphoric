@@ -38,6 +38,8 @@ from camphoric.templating import bulk
 from camphoric.templating.contexts import report_context
 from camphoric.templating.emails import (
     confirmation_failure_report, render_confirmation_email, render_invitation_email)
+from camphoric.templating.pages import (
+    FALLBACK_PAGE, page_failure_report, render_confirmation_page)
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import render_template
@@ -427,13 +429,39 @@ class RegisterView(APIView):
         email_error = self.send_confirmation_email(request, registration)
         if email_error:
             logger.error(f'error sending confirmation email: {email_error}')
+        confirmation_page = self.confirmation_page(request, registration)
 
         return Response({
-            'confirmationPageTemplate': event.confirmation_page_template,
+            # Rendered on the server (markdown); the client only displays it (SPEC §7.3).
+            'confirmationPage': confirmation_page,
             'serverPricingResults': server_pricing_results,
             'emailError': bool(email_error),
             'initialPayment': registration.initial_payment,
         })
+
+    @staticmethod
+    def confirmation_page(request, registration):
+        '''
+        The rendered confirmation page (markdown). If it can't be rendered, the
+        registrant gets a short generic message and the organizer a report
+        (SPEC §7.3, DR-42).
+        '''
+        event = registration.event
+        result = render_confirmation_page(registration, request=request)
+        if result.ok:
+            return result.output
+        subject, body = page_failure_report(registration, result.diagnostics, request=request)
+        logger.error(f'{subject}\n{body}')
+        if event.confirmation_email_from:
+            try:
+                EmailMultiAlternatives(
+                    subject, body, event.confirmation_email_from,
+                    [event.confirmation_email_from],
+                    connection=get_email_connection_for_event(event),
+                ).send(fail_silently=False)
+            except SMTPException as e:
+                logger.error(f'error sending the confirmation page failure report: {e}')
+        return FALLBACK_PAGE
 
     @staticmethod
     def send_confirmation_email(request, registration):

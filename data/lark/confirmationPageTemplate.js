@@ -1,23 +1,25 @@
 import { year } from './dates.js'
 
+// Jinja markdown, rendered on the server when registration completes (SPEC §7.3):
+// `registration`, `campers`, `pricing`, `initial_payment` and `event`.
+
 export default `
 # You're all set!
 
 ## See you at Lark Camp ${year}!
 
-{{#compare paymentInfo.paymentType '===' 'Check'}}
-Please make your check out for for **\${{paymentInfo.paymentData.total}}**
+{% if registration.payment_type == 'Check' -%}
+Please make your check out for for **{{ initial_payment.total | money }}**
 payable to "Lark Camp", and mail it to:
 
 Lark Camp  
 PO Box 1724  
 Mendocino, CA 95460  
 USA
-{{/compare}}
-{{#compare paymentInfo.paymentType '!==' 'Check'}}
+{% else -%}
 Thanks for paying electronically, please check your email for your receipt. If there was any
 problems with your payment, the registrar will be in touch.
-{{/compare}}
+{% endif %}
 
 
 Do you need approval for your vehicle or trailer, have questions about

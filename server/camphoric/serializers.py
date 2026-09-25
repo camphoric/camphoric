@@ -43,6 +43,13 @@ class EventSerializer(ModelSerializer):
     def validate_registration_error_messages(self, messages):
         return validate_error_messages(messages)
 
+    def validate_confirmation_page_template(self, template):
+        '''The confirmation page is Jinja, rendered on the server: it must parse (DR-42).'''
+        problem = syntax_error(template)
+        if problem:
+            raise ValidationError(f'Line {problem.line}: {problem.message}')
+        return template
+
     def validate(self, data):
         return validate_jinja_email(
             self.instance, data, 'confirmation_email_engine',

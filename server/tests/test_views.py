@@ -776,7 +776,7 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(response.data, {
-            'confirmationPageTemplate': '{{client renders this}}',
+            'confirmationPage': '# Thanks! You owe $300.00, paid by PayPal.',
             'initialPayment': {'balance': 0, 'total': 300, 'type': 'Full'},
             'emailError': False,
             'serverPricingResults': expected_pricing_results,
@@ -1662,7 +1662,9 @@ def create_standard_test_event(
                 '50% Deposit',
                 ],
         },
-        confirmation_page_template='{{client renders this}}',
+        confirmation_page_template=(
+            '# Thanks! You owe {{ pricing.total | money }}, '
+            'paid by {{ registration.payment_type }}.'),
         confirmation_email_subject='Registration confirmation',
         confirmation_email_engine='mustache',
         confirmation_email_template=''.join([

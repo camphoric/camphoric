@@ -1,5 +1,5 @@
 /**
- * Custom Handlebars helpers used in confirmation pages, emails, and Handlebars
+ * Custom Handlebars helpers used in descriptions, pre-submit content, and Handlebars
  * reports (SPEC §9.3). This set is a contract — preserve each helper's behavior.
  *
  * Each helper carries `help` text in a fixed shape so the in-app Template Help

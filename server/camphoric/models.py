@@ -192,7 +192,8 @@ class Event(TimeStampedModel):
         default='',
         help_text="Handlebars template, rendered right before registration submit button")
     confirmation_page_template = models.TextField(
-        blank=True, default='', help_text="Handlebars template")
+        blank=True, default='',
+        help_text="Jinja markdown template, rendered on the server when registration completes")
 
     confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
     confirmation_email_template = models.TextField(

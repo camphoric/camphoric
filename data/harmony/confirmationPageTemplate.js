@@ -1,11 +1,14 @@
 import { yearDisplay } from './dates.js';
 
+// Jinja markdown, rendered on the server when registration completes (SPEC §7.3):
+// `registration`, `campers`, `pricing`, `initial_payment` and `event`.
+
 export default `
 # Your registration is confirmed!
 
 ## See you at Camp Harmony ${yearDisplay}!
 
-If you are paying by check, make your check for **\${{pricing_results.total}}**
+If you are paying by check, make your check for **{{ pricing.total | money }}**
 payable to SFFMC and mail to:
 
 SFFMC, c/o Ellen Eagan

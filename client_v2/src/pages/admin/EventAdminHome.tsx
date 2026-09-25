@@ -14,7 +14,7 @@ import {
   NumberInput,
   Stack,
   Switch,
-  Textarea,
+  Text,
   TextInput,
   Title,
 } from '@mantine/core';
@@ -27,6 +27,7 @@ import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateE
 import { JsonViewer } from 'components/JsonViewer';
 import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
+import { TemplateEditor } from 'components/TemplateEditor';
 import { useEffect, useMemo, useState } from 'react';
 import { eventHooks, registrationHooks } from 'store/entities';
 
@@ -129,13 +130,24 @@ export function EventAdminHome() {
         />
 
         <Divider label="Confirmation page" />
-        <Textarea
-          label="Confirmation page message"
-          autosize
-          minRows={3}
-          value={form.confirmation_page_template}
-          onChange={(e) => set('confirmation_page_template', e.currentTarget.value)}
-        />
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>
+            Confirmation page message (markdown)
+          </Text>
+          <Text size="sm" c="dimmed">
+            Shown when a registration completes; rendered on the server with the registration’s
+            details, like the confirmation email.
+          </Text>
+          <TemplateEditor
+            value={form.confirmation_page_template}
+            onChange={(value) => set('confirmation_page_template', value)}
+            eventId={eventId}
+            context="confirmation_page"
+            output="md"
+            height={240}
+            helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_page`}
+          />
+        </Stack>
 
         <Divider label="Confirmation email" />
         <TextInput

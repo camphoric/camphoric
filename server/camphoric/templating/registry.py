@@ -340,6 +340,20 @@ CONTEXTS = (
                     F('initial_payment', 'dict', 'The payment choice made when registering.',
                       nullable=True),
                 ), sample='registration'),
+    ContextSpec('confirmation_page', 'Confirmation page', 'Shown to the registrant when they '
+                'finish registering (markdown).', (
+                    EVENT,
+                    F('registration', 'registration', 'The registration just completed.',
+                      nullable=True),
+                    F('campers', 'list<camper>', 'Its campers.',
+                      '{% for camper in campers %}- {{ camper.attributes.first_name }}\n'
+                      '{% endfor %}'),
+                    F('pricing', 'pricing:registration', 'Its pricing results.',
+                      '{{ pricing.total | money }}', nullable=True),
+                    F('initial_payment', 'dict', 'The payment choice made when registering: '
+                      '`type`, `total` (paid now) and `balance`.',
+                      '{{ initial_payment.total | money }}', nullable=True),
+                ), sample='registration'),
     ContextSpec('invitation_email', 'Invitation email', 'Sent when an admin invites someone to '
                 'register with a registration type.', (
                     EVENT,

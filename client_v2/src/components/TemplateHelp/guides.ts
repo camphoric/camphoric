@@ -299,7 +299,7 @@ function handlebarsHelpers(): string {
     return `### ${name}\n\n${description.join(' ').trim()}\n\n\`\`\`handlebars\n${example}\n\`\`\`\n\nGives: \`${result}\``;
   });
   return `
-Handlebars templates — event descriptions, the pre-submit and confirmation pages, and Handlebars
+Handlebars templates — event descriptions, the pre-submit message, and Handlebars
 (\`hbs\`) reports — render in the browser. Besides standard Handlebars (\`{{#each}}\`,
 \`{{#if}}\`), they can use these helpers.
 
