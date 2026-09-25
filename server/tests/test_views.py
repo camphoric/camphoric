@@ -843,6 +843,24 @@ Due now: $300
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi-test@mctesterson.com'])
 
+        # A repeated payment step (a retry, a double click) records no second
+        # payment and sends no second confirmation.
+        repeat = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'registrationUUID': registration.uuid,
+                'step': 'payment',
+                'paymentType': 'PayPal',
+                'paymentData': {'type': 'Full', 'total': 300},
+                'payPalResponse': paypal_response_from_client,
+            },
+            format='json'
+        )
+        self.assertEqual(repeat.status_code, 200)
+        self.assertEqual(repeat.data['confirmationPage'], response.data['confirmationPage'])
+        self.assertEqual(registration.payment_set.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_post_lodging(self):
         lodging_root = self.event.lodging_set.create(
             name='Lodging',
