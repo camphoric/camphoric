@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -20,11 +21,13 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 import jsonschema
 from rest_framework import permissions, status
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from camphoric import (
     models,
@@ -119,6 +122,100 @@ class EmailAccountViewSet(ModelViewSet):
     serializer_class = serializers.EmailAccountSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['organization']
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': 'This account is still used by an event or by sent email, so it '
+                           "can't be deleted. Choose another account for those events first."},
+                status=status.HTTP_409_CONFLICT)
+
+    @action(detail=True, methods=['post'])
+    def test(self, request, pk=None):
+        '''Queue a test message through this account to `to` (default: the admin).'''
+        account = self.get_object()
+        to = request.data.get('to') or request.user.email
+        if not to:
+            raise ValidationError({'to': 'This field is required.'})
+        message = outbox.enqueue(
+            event=None,
+            kind=models.EmailMessageKind.TEST,
+            account=account,
+            from_email=request.data.get('from_email') or account.username,
+            to=to,
+            subject=f'Test message from Camphoric ({account.name})',
+            text=f'This is a test of the email account "{account.name}". It arrived, so the '
+                 'account can send.',
+            created_by=request.user,
+        )
+        return Response(serializers.EmailMessageDetailSerializer(message).data,
+                        status=status.HTTP_202_ACCEPTED)
+
+
+class EmailMessagePagination(PageNumberPagination):
+    page_size = 50
+
+
+class EmailMessageViewSet(ReadOnlyModelViewSet):
+    '''
+    The email outbox and history (SPEC DR-43), newest first. Filter by event,
+    kind, status (`kind__in`/`status__in` take comma-separated lists) and more;
+    `q` searches the recipient and subject. The list leaves out the content.
+    '''
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = EmailMessagePagination
+    filterset_fields = {
+        'event': ['exact'],
+        'kind': ['exact', 'in'],
+        'status': ['exact', 'in'],
+        'registration': ['exact'],
+        'invitation': ['exact'],
+        'account': ['exact'],
+    }
+
+    def get_queryset(self):
+        messages = (models.EmailMessage.objects.select_related('account', 'created_by')
+                    .order_by('-created_at', '-id'))
+        search = self.request.query_params.get('q', '').strip()
+        if search:
+            messages = messages.filter(Q(to__icontains=search) | Q(subject__icontains=search))
+        return messages
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return serializers.EmailMessageSerializer
+        return serializers.EmailMessageDetailSerializer
+
+    def _change(self, operation):
+        message = self.get_object()
+        try:
+            operation(message)
+        except outbox.NotAllowed as error:
+            return Response({'detail': str(error)}, status=status.HTTP_409_CONFLICT)
+        message.refresh_from_db()
+        return Response(serializers.EmailMessageDetailSerializer(message).data)
+
+    @action(detail=True, methods=['post'])
+    def retry(self, request, pk=None):
+        return self._change(outbox.retry)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        return self._change(outbox.cancel)
+
+
+class EmailQueueView(APIView):
+    '''
+    GET: what the event's email is doing now: counts, the next attempt, whether
+    a worker is running, and the sending account's limits.
+    '''
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        return Response(outbox.queue_state(event))
 
 
 class EventViewSet(ModelViewSet):

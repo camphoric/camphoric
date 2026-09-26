@@ -44,7 +44,7 @@ class EncryptedTextField(models.TextField):
 
     def get_prep_value(self, value):
         value = super().get_prep_value(value)
-        if value is None or crypto.is_encrypted(value):
+        if not value or crypto.is_encrypted(value):
             return value
         return crypto.encrypt(value)
 
@@ -659,7 +659,9 @@ class EmailMessage(TimeStampedModel):
     (camphoric.mail, SPEC DR-43). The content is rendered when the message is
     queued, so the record shows exactly what was sent.
     '''
-    event = models.ForeignKey(Event, related_name='email_messages', on_delete=models.CASCADE)
+    # Null for a message that isn't about an event (an email account's test message).
+    event = models.ForeignKey(Event, null=True, blank=True, related_name='email_messages',
+                              on_delete=models.CASCADE)
     kind = models.CharField(max_length=30, choices=EmailMessageKind.choices)
     registration = models.ForeignKey(
         Registration, null=True, blank=True, on_delete=models.SET_NULL)

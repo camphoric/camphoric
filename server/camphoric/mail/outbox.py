@@ -22,6 +22,7 @@ import logging
 import smtplib
 import socket
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, make_msgid
 from django.core.validators import validate_email
@@ -29,7 +30,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Min, Q
 from django.utils import timezone
 
-from camphoric import models
+from camphoric import models, worker
 from camphoric.mail.mailers import AccountUnusable, mailer_for
 
 logger = logging.getLogger(__name__)
@@ -69,12 +70,13 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
     Queue one email and wake the worker, in the caller's transaction. Returns
     the new EmailMessage, or the live one already queued under `dedupe_key`.
 
-    `account` defaults to the event's account (None: the default mailer).
+    `account` defaults to the event's account (None: the default mailer); a
+    message without an event (an account's test) names its account.
     A message that can't be sent (a bad address, a @dontsend.com address) is
     recorded as failed or cancelled rather than queued.
     '''
     if account is _EVENT_ACCOUNT:
-        account = event.email_account
+        account = event.email_account if event else None
     if reply_to is None:
         reply_to = account.default_reply_to if account else ''
 
@@ -338,3 +340,66 @@ def recover(pending_ids=None):
             rewoken += 1
             wake(message)
     return requeued, rewoken
+
+
+class NotAllowed(Exception):
+    '''The message can't be retried or cancelled in its current state.'''
+
+
+def retry(message):
+    '''Queue a failed message to be tried again now.'''
+    if message.status != Status.FAILED:
+        raise NotAllowed(f'Only a failed message can be retried (this one is {message.status}).')
+    problem = _address_problem(message.to)
+    if problem:
+        raise NotAllowed(problem)
+    updated = (models.EmailMessage.objects.filter(id=message.id, status=Status.FAILED)
+               .update(status=Status.QUEUED, next_attempt_at=timezone.now(), lease_until=None,
+                       updated_at=timezone.now()))
+    if not updated:
+        raise NotAllowed('The message changed; reload it and try again.')
+    message.refresh_from_db()
+    wake(message)
+
+
+def cancel(message):
+    '''Stop a queued message from being sent.'''
+    updated = (models.EmailMessage.objects.filter(id=message.id, status=Status.QUEUED)
+               .update(status=Status.CANCELLED, last_error='Cancelled', updated_at=timezone.now()))
+    if not updated:
+        raise NotAllowed('Only a queued message can be cancelled (it may be sending already).')
+    message.refresh_from_db()
+
+
+def queue_state(event):
+    '''What the event's email is doing now, for the admin's email history.'''
+    now = timezone.now()
+    messages = models.EmailMessage.objects.filter(event=event)
+    queued = messages.filter(status=Status.QUEUED)
+    state = {
+        'queued': queued.count(),
+        'sending': messages.filter(status=Status.SENDING).count(),
+        'failed_last_day': messages.filter(status=Status.FAILED,
+                                           updated_at__gt=now - timedelta(days=1)).count(),
+        'next_attempt_at': queued.aggregate(next=Min('next_attempt_at'))['next'],
+        'worker': {
+            'required': settings.CAMPHORIC_EMAIL_QUEUE == 'worker',
+            'alive': worker.is_alive(),
+            'last_seen': worker.last_seen(),
+        },
+        'account': None,
+    }
+    account = event.email_account
+    if account:
+        sent = models.EmailMessage.objects.filter(account=account, status=Status.SENT)
+        state['account'] = {
+            'id': account.id,
+            'name': account.name,
+            'max_per_minute': account.max_per_minute,
+            'max_per_day': account.max_per_day,
+            'sent_last_minute': sent.filter(sent_at__gt=now - timedelta(minutes=1)).count(),
+            'sent_last_day': sent.filter(sent_at__gt=now - timedelta(days=1)).count(),
+            # When a limit is used up: the account's mail waits until then.
+            'paused_until': _throttled_until(account, now),
+        }
+    return state
