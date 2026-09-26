@@ -46,7 +46,7 @@ export function InviteForm({ registrationTypes, opened, onClose }: InviteFormPro
       onSuccess: (invitation) =>
         send.mutate(invitation.id, {
           onSuccess: () => {
-            notifications.show({ color: 'green', message: 'Invitation sent' });
+            notifications.show({ color: 'green', message: 'Invitation on its way' });
             reset();
             onClose();
           },

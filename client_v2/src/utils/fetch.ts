@@ -20,6 +20,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * What went wrong with a request, for showing the admin: the server's `detail`,
+ * or its first field error (`{ field: ['message'] }`), else the error's message.
+ */
+export function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.body && typeof error.body === 'object') {
+    const body = error.body as Record<string, unknown>;
+    if (typeof body.detail === 'string') return body.detail;
+    const [field, messages] = Object.entries(body)[0] ?? [];
+    const message: unknown = Array.isArray(messages) ? (messages[0] as unknown) : messages;
+    if (field && typeof message === 'string') return `${field}: ${message}`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export interface ApiRequestOptions {

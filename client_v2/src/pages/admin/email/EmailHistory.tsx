@@ -18,6 +18,7 @@ import {
   useEmailMessage,
   useRetryEmail,
 } from 'store/email';
+import { apiErrorMessage } from 'utils/fetch';
 
 import { EmailHistoryTable } from './EmailHistoryTable';
 import { MessageDetail } from './MessageDetail';
@@ -48,7 +49,7 @@ export function EmailHistory({
   const act = (mutation: typeof retry, done: string) => (target: ApiEmailMessage) =>
     mutation.mutate(target.id, {
       onSuccess: () => notifications.show({ color: 'green', message: done }),
-      onError: (error) => notifications.show({ color: 'red', message: error.message }),
+      onError: (error) => notifications.show({ color: 'red', message: apiErrorMessage(error) }),
     });
 
   return (
