@@ -288,75 +288,6 @@ class PaymentSerializer(ModelSerializer):
         return validate_attributes(data, data['registration'].event.payment_schema)
 
 
-class BulkEmailTaskSerializer(ModelSerializer):
-    '''
-    A bulk email, with its derived `status` (draft | running | finished |
-    stopped | failed) and recipient counts. The run fields are set by sending,
-    never by clients.
-    '''
-    status = SerializerMethodField()
-    recipient_count = SerializerMethodField()
-    sent_count = SerializerMethodField()
-    error_count = SerializerMethodField()
-
-    class Meta:
-        model = models.BulkEmailTask
-        fields = '__all__'
-        read_only_fields = ['running_pid', 'run_uuid', 'run_start_time', 'run_finish_time',
-                            'error']
-
-    def get_status(self, task):
-        if task.running_pid:
-            return 'running'
-        if task.error:
-            return 'failed'
-        if task.run_finish_time:
-            return 'finished'
-        if task.run_start_time:
-            return 'stopped'
-        return 'draft'
-
-    def _counts(self, task):
-        if not hasattr(task, '_recipient_counts'):
-            rows = list(task.recipients.values_list('sent_time', 'error'))
-            task._recipient_counts = (
-                len(rows),
-                sum(1 for sent, _ in rows if sent),
-                sum(1 for sent, error in rows if error and not sent),
-            )
-        return task._recipient_counts
-
-    def get_recipient_count(self, task):
-        return self._counts(task)[0]
-
-    def get_sent_count(self, task):
-        return self._counts(task)[1]
-
-    def get_error_count(self, task):
-        return self._counts(task)[2]
-
-    def validate(self, data):
-        errors = {}
-        try:
-            validate_jinja_email(self.instance, data, 'engine', 'subject', 'body_template')
-        except ValidationError as exc:
-            errors.update(exc.detail)
-        merged = {name: data.get(name, getattr(self.instance, name, None))
-                  for name in ('recipient_kind', 'recipient_list', 'recipient_filter',
-                               'address_expression', 'name_expression', 'include_incomplete')}
-        for problem in expression_diagnostics(Criteria.from_data(merged)):
-            errors[problem.field] = [problem.message]
-        if errors:
-            raise ValidationError(errors)
-        return data
-
-
-class BulkEmailRecipientSerializer(ModelSerializer):
-    class Meta:
-        model = models.BulkEmailRecipient
-        fields = '__all__'
-
-
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
@@ -411,25 +342,4 @@ def validate_attributes(data, schema):
         jsonschema.validate(decoded_json, schema)
     except jsonschema.exceptions.ValidationError as e:
         raise ValidationError({'attributes': e.message})
-    return data
-
-
-def validate_jinja_email(instance, data, engine_field, subject_field, template_field):
-    '''
-    A Jinja email template must parse before it's saved (SPEC §8.3, §8.4), so a
-    typo can't stop emails going out; mistakes that only show when rendering
-    are the preview's job. Mustache templates aren't checked.
-    '''
-    def current(name):
-        return data[name] if name in data else getattr(instance, name, None)
-
-    if current(engine_field) != models.TemplateEngine.JINJA:
-        return data
-    errors = {}
-    for name, field in ((subject_field, 'subject'), (template_field, 'template')):
-        problem = syntax_error(current(name), field=field)
-        if problem:
-            errors[name] = [f'Line {problem.line}: {problem.message}']
-    if errors:
-        raise ValidationError(errors)
     return data

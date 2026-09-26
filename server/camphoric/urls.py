@@ -19,9 +19,6 @@ router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
 router.register('customcharges', views.CustomChargeViewSet, basename='customcharge')
 router.register('customchargetypes', views.CustomChargeTypeViewSet, basename='customchargetype')
-router.register('bulkemailtasks', views.BulkEmailTaskViewSet, basename='bulkemailtask')
-router.register(
-    'bulkemailrecipients', views.BulkEmailRecipientViewSet, basename='bulkemailrecipient')
 router.register('emailtemplates', views.EmailTemplateViewSet, basename='emailtemplate')
 router.register('emailmessages', views.EmailMessageViewSet, basename='emailmessage')
 router.register('emailbatches', views.EmailBatchViewSet, basename='emailbatch')
@@ -49,13 +46,6 @@ urlpatterns = router.urls + [
         views.LodgingSchemaView.as_view(),
         name='lodgingschema',
     ),
-    path('bulkemailtasks/<int:task_id>/send', views.SendBulkEmailView.as_view()),
-    path('bulkemailtasks/<int:task_id>/test', views.TestBulkEmailView.as_view()),
-    path('bulkemailtasks/<int:task_id>/recipients/resolve',
-         views.ResolveBulkEmailRecipientsView.as_view()),
-    path('events/<int:event_id>/bulkemail/recipients',
-         views.BulkEmailRecipientsPreviewView.as_view()),
-    path('bulkemailtasks/<int:task_id>/cancel', views.CancelBulkEmailView.as_view()),
     path('reports/<int:report_id>/render', views.RenderReportView.as_view()),
     path('events/<int:event_id>/email/queue', views.EmailQueueView.as_view()),
     path('events/<int:event_id>/email/recipients', views.EmailRecipientsView.as_view()),

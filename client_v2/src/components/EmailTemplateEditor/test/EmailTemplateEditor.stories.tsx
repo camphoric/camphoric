@@ -9,7 +9,7 @@ import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { TemplateEngine, TemplatePreviewRequest, TemplatePreviewResponse } from 'api-types';
+import type { TemplatePreviewRequest, TemplatePreviewResponse } from 'api-types';
 import { sampleDescription } from 'components/TemplateEditor/sampleDescription';
 import { markdownToHtml } from 'components/templating';
 import { type ReactNode, useState } from 'react';
@@ -61,14 +61,7 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
-function Editor({
-  initialEngine,
-  initialBody,
-}: {
-  initialEngine: TemplateEngine;
-  initialBody: string;
-}) {
-  const [engine, setEngine] = useState(initialEngine);
+function Editor({ initialBody }: { initialBody: string }) {
   const [subject, setSubject] = useState('Your invitation to {{ event.name }}');
   const [body, setBody] = useState(initialBody);
   return (
@@ -77,8 +70,6 @@ function Editor({
         <EmailTemplateEditor
           eventId={4}
           context="invitation_email"
-          engine={engine}
-          onEngineChange={setEngine}
           subject={subject}
           onSubjectChange={setSubject}
           body={body}
@@ -96,18 +87,10 @@ function Editor({
 
 export const Jinja: Story = () => (
   <Editor
-    initialEngine="jinja"
     initialBody={
       '# Hi {{ invitation.recipient_name }}\n\nRegister here: {{ invitation.register_url }}'
     }
   />
 );
 
-export const Mustache: Story = () => (
-  <Editor
-    initialEngine="mustache"
-    initialBody={'Hi {{recipient_name}}, here is your link: {{{register_link}}}'}
-  />
-);
-
-export const Empty: Story = () => <Editor initialEngine="jinja" initialBody="" />;
+export const Empty: Story = () => <Editor initialBody="" />;

@@ -15,6 +15,7 @@ djangorestframework = ">=3.18"
 django-environ = "*"
 psycopg2 = ">=2.9.9"
 json-logic-qubit = "*"
+# Reads Mustache emails so migration 0065 can convert them to Jinja (templating/mustache.py).
 chevron = "*"
 psycopg2-binary = ">=2.9.9"
 cmarkgfm = "*"

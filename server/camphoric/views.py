@@ -1,10 +1,6 @@
 from dataclasses import asdict
 import datetime
 import logging
-from pathlib import Path
-from smtplib import SMTPException
-import subprocess
-import sys
 import traceback
 
 from dateutil.relativedelta import relativedelta
@@ -48,7 +44,6 @@ from camphoric.templating.pages import (
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import render_template
-import camphoric.mail
 
 
 logger = logging.getLogger(__name__)
@@ -433,20 +428,6 @@ class PaymentViewSet(ModelViewSet):
     serializer_class = serializers.PaymentSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration', 'registration__event']
-
-
-class BulkEmailTaskViewSet(ModelViewSet):
-    queryset = models.BulkEmailTask.objects.order_by('-created_at')
-    serializer_class = serializers.BulkEmailTaskSerializer
-    permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['event']
-
-
-class BulkEmailRecipientViewSet(ModelViewSet):
-    queryset = models.BulkEmailRecipient.objects.all()
-    serializer_class = serializers.BulkEmailRecipientSerializer
-    permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['task', 'task__event']
 
 
 class CustomChargeTypeViewSet(ModelViewSet):
@@ -1121,157 +1102,3 @@ class LodgingSchemaView(APIView):
             'lodging_schema': lodging_schema,
             'lodging_ui_schema': lodging_ui_schema,
         })
-
-
-class BulkEmailRecipientsPreviewView(APIView):
-    '''
-    POST /api/events/<id>/bulkemail/recipients — who a recipient list would
-    reach, from criteria that needn't be saved yet (SPEC §8.9):
-    `{recipient_kind, recipient_list, recipient_filter, address_expression,
-    name_expression, include_incomplete}` → `{recipients, skipped, diagnostics}`.
-    '''
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, event_id=None):
-        event = get_object_or_404(models.Event, id=event_id)
-        data = request.data if isinstance(request.data, dict) else {}
-        criteria = bulk.Criteria.from_data(data)
-        if criteria.kind not in models.BulkRecipientKind.values:
-            return Response({'detail': f'unknown recipient kind {criteria.kind!r}'},
-                            status=status.HTTP_400_BAD_REQUEST)
-        return Response(bulk.resolve_recipients(event, criteria, request=request).as_dict())
-
-
-class ResolveBulkEmailRecipientsView(APIView):
-    '''
-    POST /api/bulkemailtasks/<id>/recipients/resolve `{dry_run?}` — build the
-    task's recipient list from its saved criteria and (unless `dry_run`) save
-    it: sent rows stay, unsent rows are replaced. Adds `counts`.
-    '''
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, task_id=None):
-        task = get_object_or_404(models.BulkEmailTask, id=task_id)
-        dry_run = bool(request.data.get('dry_run')) if isinstance(request.data, dict) else False
-        if task.running_pid and not dry_run:
-            return Response({'detail': 'The task is sending; cancel it first.'},
-                            status=status.HTTP_409_CONFLICT)
-        resolution = bulk.resolve_task(task, request=request)
-        result = resolution.as_dict()
-        already_sent = {e.lower() for e in task.recipients.filter(
-            sent_time__isnull=False).values_list('email', flat=True)}
-        result['counts'] = {
-            'recipients': len(resolution.recipients),
-            'skipped': len(resolution.skipped),
-            'already_sent': sum(1 for c in resolution.recipients
-                                if c.email.lower() in already_sent),
-            'kept_existing': bulk.keeps_existing_recipients(task),
-        }
-        if not dry_run and resolution.ok:
-            bulk.materialize_recipients(task, resolution)
-        return Response(result)
-
-
-class SendBulkEmailView(APIView):
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, task_id=None):
-        '''
-        Run the given BulkEmailTask. Sending status can be checked via the
-        /api/bulkemailtasks/$id and /api/bulkemailrecipients/?task=$id
-        endpoints. See camphoric.mail.send_bulk_email for details.
-
-        A task built from registrations, campers or a typed list first
-        rebuilds its recipient list from the current data (never re-sending to
-        anyone already sent to). With `?background=1` the send runs in its own
-        process (`manage.py send_bulk_email`) and this returns 202 at once;
-        otherwise it returns when the task is finished or canceled.
-        '''
-        task = get_object_or_404(models.BulkEmailTask, id=task_id)
-        if not bulk.keeps_existing_recipients(task):
-            resolution = bulk.resolve_task(task, request=request)
-            if not resolution.ok:
-                return Response({
-                    'detail': "The recipient list couldn't be built.",
-                    'diagnostics': [d.as_dict() for d in resolution.diagnostics],
-                }, status=status.HTTP_400_BAD_REQUEST)
-            bulk.materialize_recipients(task, resolution)
-
-        if request.query_params.get('background') in ('1', 'true'):
-            task.run_start_time = timezone.now()
-            task.run_finish_time = None
-            task.error = None
-            task.save()
-            process = subprocess.Popen(
-                [sys.executable, str(Path(settings.BASE_DIR) / 'manage.py'),
-                 'send_bulk_email', str(task.id)],
-                cwd=settings.BASE_DIR, start_new_session=True)
-            # Show it as running straight away; the command records the same pid
-            # itself, and this never overwrites a send that has already finished.
-            models.BulkEmailTask.objects.filter(
-                id=task.id, running_pid__isnull=True, run_finish_time__isnull=True,
-            ).update(running_pid=process.pid)
-            task.refresh_from_db()
-            return Response(serializers.BulkEmailTaskSerializer(task).data,
-                            status=status.HTTP_202_ACCEPTED)
-
-        camphoric.mail.send_bulk_email(task)
-
-        return Response(serializers.BulkEmailTaskSerializer(task).data)
-
-
-class TestBulkEmailView(APIView):
-    '''
-    POST /api/bulkemailtasks/<id>/test `{to?, recipient?}` — send one copy,
-    rendered for a recipient (by id; else the first on the list, or the first
-    the criteria would reach), to `to` (default: the signed-in admin), with
-    "[Test]" before the subject. 400 when it can't be rendered.
-    '''
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, task_id=None):
-        task = get_object_or_404(models.BulkEmailTask, id=task_id)
-        data = request.data if isinstance(request.data, dict) else {}
-        to = (data.get('to') or request.user.email or '').strip()
-        if not to:
-            return Response({'detail': 'Give an address to send the test to.'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        if data.get('recipient'):
-            recipient = get_object_or_404(task.recipients, id=data['recipient'])
-        else:
-            recipient = task.recipients.order_by('email').first()
-        if recipient is None:
-            resolution = bulk.resolve_task(task, request=request)
-            if not resolution.recipients:
-                return Response({'detail': 'The recipient list is empty.'},
-                                status=status.HTTP_400_BAD_REQUEST)
-            first = resolution.recipients[0]
-            recipient = models.BulkEmailRecipient(
-                task=task, email=first.email, full_name=first.name,
-                registration_id=first.registration, camper_id=first.camper)
-
-        try:
-            rendered = camphoric.mail.send_bulk_email_test(task, to, recipient)
-        except SMTPException as e:
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        diagnostics = [d.as_dict() for d in rendered.diagnostics]
-        if not rendered.ok:
-            return Response({'detail': 'The email has problems; the test was not sent.',
-                             'diagnostics': diagnostics}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'sent_to': to, 'rendered_for': recipient.email,
-                         'subject': rendered.subject, 'diagnostics': diagnostics})
-
-
-class CancelBulkEmailView(APIView):
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request, task_id=None):
-        '''
-        Cancel the given BulkEmailTask. It can be resumed later via
-        SendBulkEmailView.post.
-        '''
-        task = get_object_or_404(models.BulkEmailTask, id=task_id)
-        camphoric.mail.cancel_bulk_email(task)
-
-        return Response({'success': True})

@@ -307,3 +307,20 @@ class TemplateTests(GroupEmailTestCase):
         self.assertEqual(response.data['name'], 'Packing list (copy)')
         self.assertEqual(response.data['recipient_source'], 'campers')
         self.assertNotEqual(response.data['id'], self.template.id)
+
+    def test_template_checks(self):
+        from camphoric.templating.checks import check_event_templates
+        self.template.body = '{{ camper.attributes.nope.deeper }}'
+        self.template.save()
+        models.EmailTemplate.objects.create(
+            event=self.event, purpose='group', name='Nobody yet', subject='Hi {{ event.name }}',
+            body='{% if %}', recipient_source='manual')
+        results = {r.label: r for r in check_event_templates(self.event)
+                   if r.kind == 'group_email'}
+        rendered = results['Group email: Packing list']
+        self.assertEqual(rendered.mode, 'rendered')
+        self.assertTrue(rendered.errors)
+        # No recipients to render for: the syntax is still checked.
+        parsed = results['Group email: Nobody yet']
+        self.assertEqual(parsed.mode, 'parsed')
+        self.assertEqual([d.field for d in parsed.errors], ['template'])
