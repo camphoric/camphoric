@@ -172,7 +172,8 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?emailTaskId`, `?registrationsTab`, and Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
+`?emailTaskId`, `?registrationsTab`, Email's `?emailTab`, `?messageId` and history filters, and
+Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
 
 The router defines two top-level branches. A trailing-slash normalizer redirects any URL
@@ -196,8 +197,11 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
-- `/admin/organization/:organizationId/event/:eventId/email` — bulk email (§8.9); the selected
-  email is `?emailTaskId`.
+- `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
+  `?emailTab` — `history`, or bulk email (the default, left out of the URL); `?emailTaskId` — the
+  selected bulk email; `?messageId` — the email open in the history; `?mstatus`, `?mkind`, `?mq`,
+  `?mpage` — the history's status and kind filters (comma-separated lists), search text and
+  page.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
   `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
@@ -824,11 +828,33 @@ to compile can't be saved; a path the form doesn't currently have is allowed wit
 field may be added later). Changes are saved together, via PATCH of
 `registration_error_messages` on the event.
 
-### 8.9 Bulk email
+### 8.9 Email
 
-The admin can **compose an email to many people at once, see exactly who it will reach, test
-it, send it, and follow its progress** (§15, DR-39). The event's emails are listed newest first
-with their status; the selected one is URL-addressable (`?emailTaskId`, §4).
+Every email the event sends is queued and delivered in the background (§15, DR-44). The Email
+section shows **what the event's email is doing now**, its **history**, and **bulk email**.
+
+**Now** — how many emails are waiting (and when the next is tried) and how many failed in the
+last day, refreshed every few seconds (every couple of seconds while email is waiting). Two things
+hold email back, and each is explained when it happens:
+- **No worker is running** — email is still queued and goes out once one runs again; the admin
+  sees when a worker last reported in.
+- **The sending account's limit is used up** — its email waits until a slot opens; the admin sees
+  which limit (e.g. 500 in 24 hours) and when sending resumes. The short waits of a normal send
+  kept to a per-minute limit aren't called out.
+
+**History** — every email the event has queued, newest first: confirmations, invitations, bulk
+email, the problem reports sent to the organizer, and tests. Each shows when, what kind, to whom,
+the subject and its status (waiting, sending, sent, failed, not sent — e.g. a `@dontsend.com`
+address), marking one that's waiting to be tried again after a failure. The admin can filter by
+status and kind, search by recipient or subject, and page through (on the server; §5). Opening an
+email (URL-addressable, `?messageId`, §4) shows who it went to and from, the account it was sent
+through, when it was queued (and by whom) and sent, the attempts and the last problem, and exactly
+what was sent (the HTML in a sandboxed frame, §9.6, and the plain text). A failed email can be
+**retried**; a waiting one can be **stopped** before it's sent.
+
+**Bulk email** — the admin can **compose an email to many people at once, see exactly who it will
+reach, test it, send it, and follow its progress** (§15, DR-39). The event's bulk emails are
+listed newest first with their status; the selected one is URL-addressable (`?emailTaskId`, §4).
 
 **Composing** — from address (defaulting to the event's confirmation `from`), subject and
 markdown body, edited with the email template editor (§8.3) in Jinja (new emails) or Mustache

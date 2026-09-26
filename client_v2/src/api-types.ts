@@ -85,6 +85,8 @@ export interface ApiEvent extends TimeStamped {
   confirmation_email_template: string;
   confirmation_email_engine: TemplateEngine;
   confirmation_email_from: string;
+  /** The event's sending account (null: the server's default mailer). */
+  email_account: number | null;
 
   // Payments.
   paypal_enabled: boolean;
@@ -141,6 +143,14 @@ export interface ApiInvitation extends TimeStamped {
   recipient_email: string;
   sent_time?: string | null;
   expiration_time?: string | null;
+  /** The latest invitation email's delivery (read-only; null: never sent). */
+  email?: {
+    id: number;
+    status: EmailMessageStatus;
+    error: string;
+    queued_at: string;
+    sent_at: string | null;
+  } | null;
 }
 
 export interface ApiLodging extends TimeStamped {
@@ -629,4 +639,83 @@ export interface BulkEmailTestResponse {
   rendered_for: string;
   subject: string;
   diagnostics: TemplateDiagnostic[];
+}
+
+// --- Email outbox and accounts (SPEC §5, §8.9; §15 DR-43) ----------------------
+
+export type EmailMessageKind =
+  'confirmation' | 'confirmation_report' | 'page_report' | 'invitation' | 'bulk' | 'test';
+
+export type EmailMessageStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
+
+/** A page of a DRF paginated list. */
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/** One queued or sent email; the list leaves out `text` and `html`. */
+export interface ApiEmailMessage extends TimeStamped {
+  id: number;
+  event: number | null;
+  kind: EmailMessageKind;
+  registration: number | null;
+  invitation: number | null;
+  account: number | null;
+  account_name: string | null;
+  from_email: string;
+  to: string;
+  reply_to: string;
+  subject: string;
+  text?: string;
+  html?: string;
+  status: EmailMessageStatus;
+  attempts: number;
+  next_attempt_at: string;
+  last_error: string;
+  sent_at: string | null;
+  smtp_message_id: string;
+  created_by: number | null;
+  created_by_name: string | null;
+}
+
+/** What an event's email is doing now (GET /api/events/{id}/email/queue). */
+export interface EmailQueueState {
+  queued: number;
+  sending: number;
+  failed_last_day: number;
+  next_attempt_at: string | null;
+  worker: { required: boolean; alive: boolean; last_seen: string | null };
+  account: {
+    id: number;
+    name: string;
+    max_per_minute: number | null;
+    max_per_day: number | null;
+    sent_last_minute: number;
+    sent_last_day: number;
+    /** Set while a sending limit is used up: the account's mail waits until then. */
+    paused_until: string | null;
+  } | null;
+}
+
+export type EmailAccountSecurity = 'starttls' | 'ssl' | 'none';
+
+export interface ApiEmailAccount extends TimeStamped {
+  id: number;
+  organization: number;
+  name: string;
+  backend: string;
+  host: string;
+  port: number;
+  security: EmailAccountSecurity;
+  timeout: number;
+  username: string;
+  /** Write-only: never returned; blank on an update keeps the stored one. */
+  password?: string;
+  password_status: 'set' | 'unset' | 'unreadable';
+  max_per_minute: number | null;
+  max_per_day: number | null;
+  default_reply_to: string;
 }

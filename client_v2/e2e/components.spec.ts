@@ -114,3 +114,22 @@ test.describe('Email template editor', () => {
     await expect(preview).toContainText('Your invitation to Sam');
   });
 });
+
+test.describe('Email history', () => {
+  // The story filters its sample messages the way the server does.
+  test('filters by status and searches, on any screen size', async ({ page }) => {
+    await page.goto(story('email-history-table--history'));
+    const rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(6);
+
+    const status = page.getByRole('radiogroup', { name: 'Status' });
+    await status.getByText('Failed', { exact: true }).click();
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('typo@exmaple.com');
+
+    await status.getByText('All', { exact: true }).click();
+    await page.getByPlaceholder('Search recipient or subject…').fill('lee@');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('Retrying (2 tried)');
+  });
+});
