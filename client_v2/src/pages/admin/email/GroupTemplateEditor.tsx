@@ -176,7 +176,7 @@ export function GroupTemplateEditor({
         />
         <TextInput
           label="Reply-To"
-          placeholder="The account’s default"
+          placeholder="The account’s default, else From"
           value={replyTo}
           onChange={(e) => setReplyTo(e.currentTarget.value)}
           error={errors.reply_to}

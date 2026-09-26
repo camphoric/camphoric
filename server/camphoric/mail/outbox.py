@@ -71,14 +71,15 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
     the new EmailMessage, or the live one already queued under `dedupe_key`.
 
     `account` defaults to the event's account (None: the default mailer); a
-    message without an event (an account's test) names its account.
+    message without an event (an account's test) names its account. A blank
+    `reply_to` gets the default (see default_reply_to).
     A message that can't be sent (a bad address, a @dontsend.com address) is
     recorded as failed or cancelled rather than queued.
     '''
     if account is _EVENT_ACCOUNT:
         account = event.email_account if event else None
-    if reply_to is None:
-        reply_to = account.default_reply_to if account else ''
+    if not reply_to:
+        reply_to = default_reply_to(account, from_email)
 
     if dedupe_key:
         existing = _live(dedupe_key)
@@ -110,6 +111,18 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
         raise
     wake(message)
     return message
+
+
+def default_reply_to(account, from_email):
+    '''
+    The Reply-To of an email that doesn't set one: the account's default
+    Reply-To, else the From address. Gmail's SMTP server rewrites From to the
+    signed-in account unless the address is a verified alias, so replies would
+    otherwise reach the account instead of the intended sender (SPEC DR-47).
+    '''
+    if account and account.default_reply_to:
+        return account.default_reply_to
+    return from_email or ''
 
 
 def _live(dedupe_key):

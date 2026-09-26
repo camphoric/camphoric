@@ -209,7 +209,7 @@ export function EmailAccountForm({
         </SimpleGrid>
         <TextInput
           label="Reply-To"
-          description="Where replies go, when not to the sending address"
+          description="Where replies go; blank sends them to each email’s From address"
           placeholder="office@camp.org"
           {...form.getInputProps('default_reply_to')}
         />
