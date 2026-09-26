@@ -27,6 +27,7 @@ import {
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { Box, Group, Paper, ScrollArea, Select, Stack, Text } from '@mantine/core';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
+import { usePermissions } from 'hooks/permissions';
 import { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
 import { camperName } from 'utils/camper';
@@ -75,12 +76,16 @@ export function LodgingTimeline({
   const [active, setActive] = useState<DragData | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // Only someone who may change lodging can drag (DR-51); others can still open campers.
+  const { canEdit } = usePermissions();
 
   const branch = branches.find((b) => String(b.id) === branchId);
   const visibleLeaves =
     branch == null
       ? leaves
-      : leaves.filter((l) => l.fullPath === branch.fullPath || l.fullPath.startsWith(`${branch.fullPath}→`));
+      : leaves.filter(
+          (l) => l.fullPath === branch.fullPath || l.fullPath.startsWith(`${branch.fullPath}→`),
+        );
 
   const onDragStart = (e: DragStartEvent) => setActive((e.active.data.current as DragData) ?? null);
 
@@ -104,7 +109,7 @@ export function LodgingTimeline({
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={canEdit ? sensors : []}
       collisionDetection={pointerWithin}
       modifiers={[restrictToWindowEdges]}
       onDragStart={onDragStart}
@@ -227,6 +232,7 @@ function CamperChip({
   camper: ApiCamper;
   onSelectCamper?: (camperId: number) => void;
 }) {
+  const { canEdit } = usePermissions();
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `camper:${camper.id}`,
     data: { camper, length: 1 } satisfies DragData,
@@ -239,7 +245,7 @@ function CamperChip({
       withBorder
       p={6}
       onClick={() => onSelectCamper?.(camper.id)}
-      style={{ cursor: 'grab', opacity: isDragging ? 0.4 : 1, fontSize: 13 }}
+      style={{ cursor: canEdit ? 'grab' : 'pointer', opacity: isDragging ? 0.4 : 1, fontSize: 13 }}
     >
       {camperName(camper)}
     </Paper>
@@ -261,7 +267,11 @@ function LeafRow({
   const over = leaf.count > leaf.capacity && leaf.capacity > 0;
 
   return (
-    <Group gap={0} wrap="nowrap" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+    <Group
+      gap={0}
+      wrap="nowrap"
+      style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+    >
       <Box w={LABEL_WIDTH} px="xs" py={4} style={{ flexShrink: 0 }}>
         <Text size="sm" fw={500} lineClamp={1}>
           {leaf.name}
@@ -330,6 +340,7 @@ function CamperBar({
   onSelectCamper?: (camperId: number) => void;
   onResize: (camperId: number, stay: string[]) => void;
 }) {
+  const { canEdit } = usePermissions();
   const span = staySpan(camper.stay, days);
   const baseLen = span ? span.end - span.start + 1 : 1;
   const resizing = useRef<{ startX: number; startLen: number } | null>(null);
@@ -357,7 +368,10 @@ function CamperBar({
       window.removeEventListener('pointerup', up);
       const deltaCols = Math.round((ev.clientX - (resizing.current?.startX ?? 0)) / DAY_WIDTH);
       const maxLen = days.length - span.start;
-      const finalLen = Math.min(Math.max(1, (resizing.current?.startLen ?? baseLen) + deltaCols), maxLen);
+      const finalLen = Math.min(
+        Math.max(1, (resizing.current?.startLen ?? baseLen) + deltaCols),
+        maxLen,
+      );
       resizing.current = null;
       setPreviewLen(null);
       if (finalLen !== baseLen) onResize(camper.id, days.slice(span.start, span.start + finalLen));
@@ -388,7 +402,7 @@ function CamperBar({
         alignItems: 'center',
         padding: '0 8px',
         fontSize: 12,
-        cursor: 'grab',
+        cursor: canEdit ? 'grab' : 'pointer',
         opacity: isDragging ? 0.4 : 1,
         userSelect: 'none',
       }}
@@ -397,20 +411,22 @@ function CamperBar({
         {camperName(camper)}
       </Text>
       {/* Right-edge resize handle (custom, per DR-6). */}
-      <Box
-        onPointerDown={onResizePointerDown}
-        style={{
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: 8,
-          cursor: 'ew-resize',
-          borderTopRightRadius: 4,
-          borderBottomRightRadius: 4,
-          background: 'rgba(255,255,255,0.35)',
-        }}
-      />
+      {canEdit && (
+        <Box
+          onPointerDown={onResizePointerDown}
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 8,
+            cursor: 'ew-resize',
+            borderTopRightRadius: 4,
+            borderBottomRightRadius: 4,
+            background: 'rgba(255,255,255,0.35)',
+          }}
+        />
+      )}
     </Box>
   );
 }

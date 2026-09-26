@@ -8,6 +8,7 @@ import { Alert, Badge, Button, Code, Group, Stack, Table, Tabs, Text, Title } fr
 import { IconPlayerStop, IconRefresh } from '@tabler/icons-react';
 import type { ApiEmailMessage } from 'api-types';
 import { HtmlFrame } from 'components/HtmlFrame';
+import { CanEdit } from 'hooks/permissions';
 import type { ReactNode } from 'react';
 
 import { formatTime, KIND_LABEL, STATUS_COLOR, STATUS_LABEL } from './emailLabels';
@@ -45,24 +46,26 @@ export function MessageDetail({ message, onRetry, onCancel, busy }: MessageDetai
             </Badge>
           </Group>
         </Stack>
-        <Group gap="xs">
-          {message.status === 'failed' && onRetry && (
-            <Button leftSection={<IconRefresh size={16} />} onClick={onRetry} loading={busy}>
-              Retry
-            </Button>
-          )}
-          {message.status === 'queued' && onCancel && (
-            <Button
-              variant="default"
-              color="red"
-              leftSection={<IconPlayerStop size={16} />}
-              onClick={onCancel}
-              loading={busy}
-            >
-              Don't send
-            </Button>
-          )}
-        </Group>
+        <CanEdit>
+          <Group gap="xs">
+            {message.status === 'failed' && onRetry && (
+              <Button leftSection={<IconRefresh size={16} />} onClick={onRetry} loading={busy}>
+                Retry
+              </Button>
+            )}
+            {message.status === 'queued' && onCancel && (
+              <Button
+                variant="default"
+                color="red"
+                leftSection={<IconPlayerStop size={16} />}
+                onClick={onCancel}
+                loading={busy}
+              >
+                Don't send
+              </Button>
+            )}
+          </Group>
+        </CanEdit>
       </Group>
 
       {message.last_error && (

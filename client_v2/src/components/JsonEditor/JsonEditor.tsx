@@ -5,11 +5,15 @@
  *
  * `path`, `beforeMount`, `onMount` and `options` pass through to Monaco, so
  * richer editors (the template editor) can build on this one.
+ *
+ * It's read-only for a user who can't change data (a Reporter; DR-51) unless
+ * `readOnly` says otherwise.
  */
 
 import { useComputedColorScheme } from '@mantine/core';
 import type { BeforeMount, EditorProps, OnMount } from '@monaco-editor/react';
 import { InlineLoading } from 'components/Loading';
+import { usePermissions } from 'hooks/permissions';
 import { lazy, Suspense } from 'react';
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
@@ -26,6 +30,8 @@ interface JsonEditorProps {
   onMount?: OnMount;
   /** Extra Monaco options, merged over the defaults. */
   options?: EditorProps['options'];
+  /** Default: read-only when the user can't change data. */
+  readOnly?: boolean;
 }
 
 export function JsonEditor({
@@ -37,8 +43,10 @@ export function JsonEditor({
   beforeMount,
   onMount,
   options,
+  readOnly,
 }: JsonEditorProps) {
   const colorScheme = useComputedColorScheme('light');
+  const { canEdit } = usePermissions();
 
   return (
     <Suspense fallback={<InlineLoading message="Loading editor…" />}>
@@ -57,6 +65,7 @@ export function JsonEditor({
           scrollBeyondLastLine: false,
           tabSize: 2,
           ...options,
+          readOnly: readOnly ?? !canEdit,
         }}
       />
     </Suspense>

@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import type { ApiEvent } from 'api-types';
+import { PermissionsProvider } from 'hooks/permissions';
 import { renderWithProviders, screen, within } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -72,5 +73,19 @@ describe('EmailSettings', () => {
     renderWithProviders(<EmailSettings event={EVENT} />);
     await userEvent.click(screen.getAllByRole('button', { name: 'Send test' })[1]);
     expect(testAccount).toHaveBeenCalledWith({ accountId: 4 }, expect.anything());
+  });
+
+  it('is read-only for a Reporter', () => {
+    renderWithProviders(
+      <PermissionsProvider userRole="reporter">
+        <EmailSettings event={EVENT} />
+      </PermissionsProvider>,
+    );
+    // The accounts are listed, but nothing can be changed or sent.
+    expect(screen.getAllByText('smtp.gmail.com:587, STARTTLS')).toHaveLength(2);
+    expect(screen.getByRole('textbox', { name: /sent through/ })).toBeDisabled();
+    for (const name of ['Add account', 'Edit', 'Send test', 'Delete']) {
+      expect(screen.queryAllByRole('button', { name })).toHaveLength(0);
+    }
   });
 });

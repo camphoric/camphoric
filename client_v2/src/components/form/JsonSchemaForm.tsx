@@ -34,6 +34,7 @@ import { ArrayFieldTemplate } from 'components/form/templates/ArrayFieldTemplate
 import { DescriptionFieldTemplate } from 'components/form/templates/DescriptionFieldTemplate';
 import { ErrorListTemplate } from 'components/form/templates/ErrorListTemplate';
 import { customWidgets } from 'components/form/widgets';
+import { usePermissions } from 'hooks/permissions';
 import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /** How this form looks up validation messages (§7.1, DR-34). */
@@ -110,6 +111,8 @@ export function JsonSchemaForm({
   });
   const validator = useMemo(() => createMessagingValidator(() => messageContext.current), []);
   const formUiSchema = useMemo(() => withFormDefaults(uiSchema), [uiSchema]);
+  // An admin who can't change data (a Reporter) sees every form read-only (DR-51).
+  const { canEdit } = usePermissions();
   const container = useRef<HTMLDivElement>(null);
 
   return (
@@ -126,7 +129,7 @@ export function JsonSchemaForm({
           widgets={{ ...customWidgets, ...widgets }}
           liveValidate={liveValidate}
           showErrorList="top"
-          disabled={disabled}
+          disabled={disabled || !canEdit}
           onChange={({ formData: next }, id) => onChange?.(next, id)}
           onSubmit={({ formData: next }) => onSubmit?.(next)}
           onError={(errors) => {

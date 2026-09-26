@@ -15,6 +15,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import type { ApiCamper, ApiLodging, AugmentedLodging, Scalar } from 'api-types';
 import { FullScreenLoading } from 'components/Loading';
+import { usePermissions } from 'hooks/permissions';
 import { useLodgingAssignment } from 'hooks/useLodgingAssignment';
 import { useLodgingData } from 'hooks/useLodgingData';
 import { useMemo, useState } from 'react';
@@ -42,6 +43,7 @@ export function EventAdminLodging() {
   const { data: event } = eventHooks.useById(eventId);
   const data = useLodgingData(eventId);
   const move = useLodgingAssignment();
+  const { canEdit } = usePermissions();
   const deleteNode = lodgingHooks.useDelete();
 
   const [nodeForm, setNodeForm] = useState<NodeFormState>({ open: false });
@@ -93,7 +95,7 @@ export function EventAdminLodging() {
             ]}
           />
         </Group>
-        {view === 'hierarchy' && !data.tree && (
+        {view === 'hierarchy' && !data.tree && canEdit && (
           <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => setNodeForm({ open: true, parentId: null })}

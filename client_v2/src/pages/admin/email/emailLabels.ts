@@ -9,6 +9,7 @@ export const KIND_LABEL: Record<EmailMessageKind, string> = {
   invitation: 'Invitation',
   bulk: 'Group email',
   test: 'Test',
+  account: 'Account (password link)',
 };
 
 export const STATUS_LABEL: Record<EmailMessageStatus, string> = {

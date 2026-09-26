@@ -24,6 +24,7 @@ import { Splash } from 'pages/Splash';
 // code-split behind `/admin` (SPEC §11, DR-19, DR-8). The splash + bootstrap +
 // router shell are the only eager UI.
 const AdminShell = lazyRouteComponent(() => import('navigation/AdminShell'), 'AdminShell');
+const AdminFrame = lazyRouteComponent(() => import('navigation/AdminFrame'), 'AdminFrame');
 const EventAdminContainer = lazyRouteComponent(
   () => import('navigation/EventAdminContainer'),
   'EventAdminContainer',
@@ -166,20 +167,27 @@ const adminRoute = createRoute({
   component: AdminShell,
 });
 
-const organizationChooserIndexRoute = createRoute({
+// The site-level pages (the choosers) share a frame with the user menu (SPEC §8.1).
+const adminFrameRoute = createRoute({
   getParentRoute: () => adminRoute,
+  id: 'frame',
+  component: AdminFrame,
+});
+
+const organizationChooserIndexRoute = createRoute({
+  getParentRoute: () => adminFrameRoute,
   path: '/',
   component: OrganizationChooser,
 });
 
 const organizationChooserRoute = createRoute({
-  getParentRoute: () => adminRoute,
+  getParentRoute: () => adminFrameRoute,
   path: 'organization',
   component: OrganizationChooser,
 });
 
 const eventChooserRoute = createRoute({
-  getParentRoute: () => adminRoute,
+  getParentRoute: () => adminFrameRoute,
   path: 'organization/$organizationId/event',
   component: EventChooser,
 });
@@ -270,9 +278,11 @@ const routeTree = rootRoute.addChildren([
     confirmationStepRoute,
   ]),
   adminRoute.addChildren([
-    organizationChooserIndexRoute,
-    organizationChooserRoute,
-    eventChooserRoute,
+    adminFrameRoute.addChildren([
+      organizationChooserIndexRoute,
+      organizationChooserRoute,
+      eventChooserRoute,
+    ]),
     eventAdminRoute.addChildren([
       eventAdminIndexRoute,
       homeRoute,

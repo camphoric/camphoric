@@ -5,6 +5,7 @@
 
 import { Anchor, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import type { ApiCamper, LodgingLookup } from 'api-types';
+import { CanEdit } from 'hooks/permissions';
 import { camperName } from 'utils/camper';
 
 interface UnassignedCampersProps {
@@ -42,9 +43,11 @@ export function UnassignedCampers({
                   <Anchor component="button" type="button" size="sm" onClick={() => onSelect(c.id)}>
                     {camperName(c)}
                   </Anchor>
-                  <Button size="compact-xs" variant="light" onClick={() => onAssign(c)}>
-                    Assign
-                  </Button>
+                  <CanEdit>
+                    <Button size="compact-xs" variant="light" onClick={() => onAssign(c)}>
+                      Assign
+                    </Button>
+                  </CanEdit>
                 </Group>
                 {requested && (
                   <Text size="xs" c="dimmed">

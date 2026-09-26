@@ -20,6 +20,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiInvitation } from 'api-types';
 import { DataTable } from 'components/DataTable';
 import { FullScreenLoading } from 'components/Loading';
+import { CanEdit } from 'hooks/permissions';
 import { useRegistrationTypeLookup } from 'hooks/useAdminData';
 import { useEffect, useMemo, useState } from 'react';
 import { invitationHooks, registrationTypeHooks } from 'store/entities';
@@ -168,6 +169,7 @@ export function InvitationsPanel() {
         cell: (info) => {
           const i = info.row.original;
           return (
+            <CanEdit>
             <Group gap="xs" wrap="nowrap">
               <Button
                 size="compact-sm"
@@ -188,6 +190,7 @@ export function InvitationsPanel() {
                 Delete
               </Button>
             </Group>
+            </CanEdit>
           );
         },
       },
@@ -203,13 +206,15 @@ export function InvitationsPanel() {
     <Stack>
       <Group justify="space-between">
         <Title order={3}>Invitations</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={() => setInviteOpen(true)}
-          disabled={registrationTypes.length === 0}
-        >
-          Invite
-        </Button>
+        <CanEdit>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => setInviteOpen(true)}
+            disabled={registrationTypes.length === 0}
+          >
+            Invite
+          </Button>
+        </CanEdit>
       </Group>
 
       {registrationTypes.length === 0 && (

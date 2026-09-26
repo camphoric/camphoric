@@ -8,6 +8,7 @@
 import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import type { ApiEvent, AugmentedRegistration, Hash } from 'api-types';
 import { FeeBreakdown } from 'components/FeeBreakdown';
+import { CanEdit } from 'hooks/permissions';
 import type { JSONSchema7 } from 'json-schema';
 import { useState } from 'react';
 import { paymentHooks } from 'store/entities';
@@ -97,11 +98,13 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
         </Text>
       )}
 
-      <Group>
-        <Button variant="light" onClick={() => setAddOpen(true)}>
-          Add payment
-        </Button>
-      </Group>
+      <CanEdit>
+        <Group>
+          <Button variant="light" onClick={() => setAddOpen(true)}>
+            Add payment
+          </Button>
+        </Group>
+      </CanEdit>
 
       <AddPaymentModal
         event={event}

@@ -8,6 +8,7 @@
 import type { Story } from '@ladle/react';
 import { Stack, Title } from '@mantine/core';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
+import { PermissionsProvider } from 'hooks/permissions';
 import { useState } from 'react';
 
 import { LodgingTimeline } from '../LodgingTimeline';
@@ -81,3 +82,10 @@ export const Assignment: Story = () => {
     </Stack>
   );
 };
+
+/** A Reporter sees the timeline but can't drag or resize (DR-51). */
+export const AsReporter: Story = () => (
+  <PermissionsProvider userRole="reporter">
+    <Assignment />
+  </PermissionsProvider>
+);

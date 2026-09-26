@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-49)
+- §15 — Decision Records (DR-1…DR-51)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -263,7 +263,14 @@ Entities (each with the standard CRUD set unless noted): `Organization`, `Event`
 
 Non-CRUD admin endpoints:
 
-- `GET /api/user` — current user (whoami).
+- `GET /api/user` — current user (whoami): the Django user fields, plus `role` (the user's
+  Camphoric permission group: `admin` | `registrar` | `reporter`, or `null` when signed out or
+  without one; a superuser is always `admin`) and `must_change_password` (§6; §15, DR-50).
+- **Roles on every admin endpoint (§6; §15, DR-50):** any role may read (including the POSTs that
+  only read: the recipients preview, report render and template preview); Registrars and Admins
+  may also write; organizations are written by Admins only. A signed-out caller gets 401, a
+  signed-in one without the needed role 403, and user management (`/api/users/`) answers 404 to
+  anyone who isn't an Admin.
 - `POST /api/login` — `{ username, password }`, invalidates whoami.
 - `POST /api/reports/{id}/render` — render a Jinja report → `{ report: string, error: string |
   null, diagnostics? }`. The body depends on the report's `variables_source` (§8.7): legacy
@@ -487,8 +494,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount`, `notes`.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
-- **User:** standard Django user fields (`username`, `email`, names, `is_staff`, etc.); an
-  anonymous user has `username: ''` and `id: null`.
+- **User** (whoami): `id`, `username`, `email`, `first_name`, `last_name`, `is_staff`,
+  `is_superuser`, `is_active`, `last_login`, `date_joined`, `role` and `must_change_password`; an
+  anonymous user has `username: ''`, `id: null` and `role: null`.
 
 The client also derives **augmented** view models that a V2 should reproduce (in selectors or
 hooks):
@@ -511,9 +519,22 @@ hooks):
   string grants access to otherwise-closed registration and pre-fills invitation context.
 - A **logout** action (`POST /api/logout`) clears the session. A global handler bounces a 401 on
   any admin endpoint back to the login form, preserving the attempted URL; a 401/403 on a
-  registration submit surfaces a friendly error. Per-object/org authorization is enforced by the
-  server — the UI renders what the API returns and handles 403s gracefully (see §15, DR-9,
-  DR-12).
+  registration submit surfaces a friendly error (see §15, DR-9).
+- **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
+  - **Admin** — everything, including users and organizations. A superuser is always an Admin.
+  - **Registrar** — everything except users and organizations.
+  - **Reporter** — read-only: they can open every section, render and download reports, and use
+    previews, Template Help and recipient previews, but can't create, edit, delete or send
+    anything (test emails, invitations, retries and cancels included).
+
+  The server enforces the roles (§5). A signed-in user without a group sees a **no-access**
+  screen (who they're signed in as, that an administrator must give them a group, and Sign out)
+  instead of the admin. For a Reporter the admin is **read-only** (§15, DR-51): controls that
+  create, change, delete or send are hidden, forms and editors are shown but can't be changed,
+  and dragging on the lodging timeline is off; records still open for reading, a template opens
+  to read, and previews, renders and recipient review work. The signed-in user's name and group
+  are always visible, with Sign out (§8.1, §8.2). A 403 the admin didn't prevent is reported as
+  "You don't have permission to do that." (§10).
 - **Proactive session monitoring (admin).** Rather than waiting for a request to fail, the admin
   surface checks session validity (against the lightweight whoami endpoint, `GET /api/user`) on
   window **focus**, on **user activity** (throttled), and on a **regular interval**, and treats
@@ -648,6 +669,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 - **Organization chooser:** lists organizations; selecting one navigates to its event chooser.
 - **Event chooser:** lists events for the org; selecting one navigates into the Event Admin
   container for that event.
+- Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
 
 ### 8.2 Event Admin container and navigation
 
@@ -655,7 +677,8 @@ The event-admin area provides navigation among the event's admin functions, indi
 current one and showing the event/organization identity. The functions (each addressable at
 `…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `campers`,
 `lodging`, `reports`, `email`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
-contract; the navigation's visual form is not.)
+contract; the navigation's visual form is not.) The container shows who's signed in, with their
+Camphoric permission group and Sign out, and marks the admin as read-only for a Reporter (§6).
 
 Within each function the admin typically **finds/selects a record and views or edits its
 details**. Two cross-cutting requirements (the presentation is the implementer's call):
@@ -1288,7 +1311,8 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   derived totals must invalidate `Registration`/`Camper` query keys as appropriate.
 - **Errors & notifications:** one strategy — Mantine `@mantine/notifications` toasts for mutation
   success/failure via a shared TanStack Query `MutationCache.onError` (opt-out per call), plus
-  inline field errors on forms (§15, DR-10).
+  inline field errors on forms (§15, DR-10). A 403 reads "You don't have permission to do that."
+  (§6).
 - **Data freshness & optimistic updates:** admin queries use a short `staleTime` and refetch on
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
@@ -1778,6 +1802,8 @@ alongside invitations, not in Settings.)
 invitations matches the actual workflow.
 
 ### DR-12 — Authorization granularity
+
+*Superseded by DR-50 and DR-51: roles are enforced by the server and reflected in the UI.*
 
 **Decision:** V2 keeps client auth simple — an authenticated-admin gate, with the **server**
 enforcing per-object/org permissions. The UI renders only what the API returns (org/event lists
@@ -2474,6 +2500,49 @@ labels; it doesn't.
 the add button would still be unlabelled. Change each event's uiSchema to turn ordering off —
 every event's data would need editing and reimporting, when no registration list is ordered.
 
+### DR-50 — Site-wide Camphoric permission groups, enforced by the server
+
+**Decision:** Every admin user has one site-wide role — Admin, Registrar or Reporter — kept as
+membership in a Django group of that name and called their **Camphoric permission group**. A
+superuser always counts as Admin. Django access (`is_staff`: may use Django's admin site;
+`is_superuser`: has every Django permission) is a separate setting that only superusers change,
+and the API never looks at `is_staff`. Every admin endpoint is closed by default (DRF's default
+permission is Camphoric's role check); public endpoints opt out explicitly, and a test walks the
+URL configuration to keep it that way. Any role may read, including POSTs that only read (a
+preview, a render); Registrars and Admins may write; organizations and users are Admin-only, and
+user management answers 404 to everyone else so it isn't even confirmed to exist. When roles
+arrived, superusers became Admins and other staff Registrars, so nobody lost access.
+**Context:** Every admin endpoint checked only `is_staff`, so every staff user could do
+everything — including editing any user and making them a superuser. Camps want some helpers to
+see registrations and run reports without being able to change them, and user management kept
+to a few. Each camp runs its own server, so one site-wide role per user is enough; groups need
+no new tables and show in Django's admin. Keeping Django access separate means most users never
+see Django's admin, and only superusers can grant it (otherwise an Admin could make themselves a
+superuser through a second account).
+**Alternatives:** Roles per organization — needed only if one server hosts several camps, and
+every query would have to filter by organization. A role field on a profile model — a second
+table for what a group already expresses. Tying Admin to `is_superuser` — would hand every Admin
+raw database access through Django's admin. Keeping `IsAdminUser` on each view and adding checks
+case by case — easy to miss one, where closed-by-default fails safe.
+
+### DR-51 — A read-only admin for Reporters, from one permissions context
+
+**Decision:** The admin shell provides the signed-in user's permissions (`canEdit`,
+`canManageUsers`, `canManageOrganizations`) through a context. Controls that change data are
+wrapped so they render only when the user can edit; form bodies are wrapped in a disabled
+fieldset; schema forms and the code editors turn read-only on their own when the user can't
+edit; the lodging timeline drops its drag sensors. The context's default is unrestricted, so the
+public registration pages, Ladle stories and tests that render components on their own are
+unaffected. A 403 that still happens gets a plain "You don't have permission to do that."
+**Context:** A Reporter's view should show everything they may read without offering buttons
+that would only fail. The server remains the authority (DR-50); the UI's job is not to invite a
+refusal. Defaulting the shared form and editor components from the context covers most screens
+without threading a prop through each.
+**Alternatives:** Disable the whole admin with one fieldset — would also disable navigation,
+tabs, filters and previews. Pass a `readOnly` prop down every screen — more churn, and easy to
+forget on a new one. Show everything and rely on 403s — every attempted change would fail after
+the fact.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2484,6 +2553,8 @@ must be coordinated with the backend. Grouped by status.
 
 ### A.1 — Exists today; frontend depends on it staying stable (contract)
 
+- **Roles:** `role` and `must_change_password` on `GET /api/user` and the login response, and the
+  role rules on every admin endpoint (§5, §6; DR-50).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
   `POST /api/logout` (§3, §6; DR-9, DR-26).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

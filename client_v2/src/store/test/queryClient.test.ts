@@ -26,6 +26,13 @@ describe('describeError', () => {
     ).toBe('body: Line 2: unexpected end of template');
   });
 
+  it('says a refusal is about permission', () => {
+    const refused = new ApiError(403, 'Forbidden', {
+      detail: 'You do not have permission to perform this action.',
+    });
+    expect(describeError(refused)).toBe("You don't have permission to do that.");
+  });
+
   it('falls back to the status', () => {
     expect(describeError(new ApiError(500, 'Server Error', null))).toBe('500 Server Error');
   });

@@ -8,6 +8,7 @@ import { ActionIcon, Anchor, Group, Stack, Text, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import type { ApiCamper, AugmentedRegistration } from 'api-types';
+import { CanEdit } from 'hooks/permissions';
 import { camperHooks } from 'store/entities';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
@@ -61,24 +62,26 @@ export function RegistrationCampers({ registration }: { registration: AugmentedR
             <Anchor component="button" type="button" onClick={() => openCamper(c.id)}>
               {i + 1}. {camperName(c)}
             </Anchor>
-            <Group gap={4} wrap="nowrap">
-              <ActionIcon
-                variant="default"
-                onClick={() => move(i, -1)}
-                disabled={i === 0 || update.isPending}
-                aria-label="Move up"
-              >
-                <IconChevronUp size={16} />
-              </ActionIcon>
-              <ActionIcon
-                variant="default"
-                onClick={() => move(i, 1)}
-                disabled={i === campers.length - 1 || update.isPending}
-                aria-label="Move down"
-              >
-                <IconChevronDown size={16} />
-              </ActionIcon>
-            </Group>
+            <CanEdit>
+              <Group gap={4} wrap="nowrap">
+                <ActionIcon
+                  variant="default"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0 || update.isPending}
+                  aria-label="Move up"
+                >
+                  <IconChevronUp size={16} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="default"
+                  onClick={() => move(i, 1)}
+                  disabled={i === campers.length - 1 || update.isPending}
+                  aria-label="Move down"
+                >
+                  <IconChevronDown size={16} />
+                </ActionIcon>
+              </Group>
+            </CanEdit>
           </Group>
         ))}
       </Stack>

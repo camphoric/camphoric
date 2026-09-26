@@ -28,6 +28,7 @@ import { JsonViewer } from 'components/JsonViewer';
 import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
+import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { useTemplateDraft } from 'store/emailTemplates';
 import { eventHooks, registrationHooks } from 'store/entities';
@@ -92,45 +93,49 @@ export function EventAdminHome() {
       <Stack>
         <Title order={2}>Event configuration</Title>
 
-        <TextInput
-          label="Name"
-          value={form.name}
-          onChange={(e) => set('name', e.currentTarget.value)}
-        />
-        <Group grow>
-          <DateInput
-            label="Event starts"
-            valueFormat="MM/DD/YYYY"
-            value={form.start || null}
-            onChange={(value) => set('start', value ?? '')}
-          />
-          <DateInput
-            label="Event ends"
-            valueFormat="MM/DD/YYYY"
-            value={form.end || null}
-            onChange={(value) => set('end', value ?? '')}
-          />
-        </Group>
-        <Group grow>
-          <DateTimePicker
-            label="Registration opens"
-            valueFormat="MM/DD/YYYY h:mm A"
-            value={form.registration_start || null}
-            onChange={(value) => set('registration_start', value ?? '')}
-          />
-          <DateTimePicker
-            label="Registration closes"
-            valueFormat="MM/DD/YYYY h:mm A"
-            value={form.registration_end || null}
-            onChange={(value) => set('registration_end', value ?? '')}
-          />
-        </Group>
-        <NumberInput
-          label="Default stay length (days)"
-          value={form.default_stay_length}
-          min={0}
-          onChange={(value) => set('default_stay_length', Number(value) || 0)}
-        />
+        <ReadOnlyFieldset>
+          <Stack>
+            <TextInput
+              label="Name"
+              value={form.name}
+              onChange={(e) => set('name', e.currentTarget.value)}
+            />
+            <Group grow>
+              <DateInput
+                label="Event starts"
+                valueFormat="MM/DD/YYYY"
+                value={form.start || null}
+                onChange={(value) => set('start', value ?? '')}
+              />
+              <DateInput
+                label="Event ends"
+                valueFormat="MM/DD/YYYY"
+                value={form.end || null}
+                onChange={(value) => set('end', value ?? '')}
+              />
+            </Group>
+            <Group grow>
+              <DateTimePicker
+                label="Registration opens"
+                valueFormat="MM/DD/YYYY h:mm A"
+                value={form.registration_start || null}
+                onChange={(value) => set('registration_start', value ?? '')}
+              />
+              <DateTimePicker
+                label="Registration closes"
+                valueFormat="MM/DD/YYYY h:mm A"
+                value={form.registration_end || null}
+                onChange={(value) => set('registration_end', value ?? '')}
+              />
+            </Group>
+            <NumberInput
+              label="Default stay length (days)"
+              value={form.default_stay_length}
+              min={0}
+              onChange={(value) => set('default_stay_length', Number(value) || 0)}
+            />
+          </Stack>
+        </ReadOnlyFieldset>
 
         <Divider label="Confirmation page" />
         <Stack gap={4}>
@@ -153,12 +158,14 @@ export function EventAdminHome() {
         </Stack>
 
         <Divider label="Confirmation email" />
-        <TextInput
-          label="From"
-          description="Also where a report goes if a Jinja confirmation email can’t be rendered."
-          value={form.confirmation_email_from}
-          onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
-        />
+        <ReadOnlyFieldset>
+          <TextInput
+            label="From"
+            description="Also where a report goes if a Jinja confirmation email can’t be rendered."
+            value={form.confirmation_email_from}
+            onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
+          />
+        </ReadOnlyFieldset>
         <EmailTemplateEditor
           eventId={eventId}
           context="confirmation_email"
@@ -170,44 +177,50 @@ export function EventAdminHome() {
           helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
         />
 
-        <Divider label="Payments" />
-        <Switch
-          label="PayPal enabled"
-          checked={form.paypal_enabled}
-          onChange={(e) => set('paypal_enabled', e.currentTarget.checked)}
-        />
-        <Group grow>
-          <TextInput
-            label="PayPal client ID"
-            value={form.paypal_client_id}
-            onChange={(e) => set('paypal_client_id', e.currentTarget.value)}
-          />
-          <NumberInput
-            label="E-payment handling (%)"
-            value={form.epayment_handling}
-            min={0}
-            onChange={(value) => set('epayment_handling', Number(value) || 0)}
-          />
-        </Group>
+        <ReadOnlyFieldset>
+          <Stack>
+            <Divider label="Payments" />
+            <Switch
+              label="PayPal enabled"
+              checked={form.paypal_enabled}
+              onChange={(e) => set('paypal_enabled', e.currentTarget.checked)}
+            />
+            <Group grow>
+              <TextInput
+                label="PayPal client ID"
+                value={form.paypal_client_id}
+                onChange={(e) => set('paypal_client_id', e.currentTarget.value)}
+              />
+              <NumberInput
+                label="E-payment handling (%)"
+                value={form.epayment_handling}
+                min={0}
+                onChange={(value) => set('epayment_handling', Number(value) || 0)}
+              />
+            </Group>
 
-        <Divider label="Pricing" />
-        <KeyValueEdit
-          value={form.pricing}
-          valueType="integer"
-          onChange={(value) => set('pricing', value as Hash<number>)}
-        />
+            <Divider label="Pricing" />
+            <KeyValueEdit
+              value={form.pricing}
+              valueType="integer"
+              onChange={(value) => set('pricing', value as Hash<number>)}
+            />
 
-        <Divider label="Registration template values" />
-        <KeyValueEdit
-          value={form.registration_template_vars}
-          valueType="string"
-          onChange={(value) => set('registration_template_vars', value as Hash<string>)}
-        />
+            <Divider label="Registration template values" />
+            <KeyValueEdit
+              value={form.registration_template_vars}
+              valueType="string"
+              onChange={(value) => set('registration_template_vars', value as Hash<string>)}
+            />
+          </Stack>
+        </ReadOnlyFieldset>
 
         <Group>
-          <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
-            Save
-          </Button>
+          <CanEdit>
+            <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
+              Save
+            </Button>
+          </CanEdit>
           <Button variant="subtle" onClick={toggleRaw}>
             {showRaw ? 'Hide' : 'Show'} raw JSON
           </Button>

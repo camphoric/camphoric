@@ -9,6 +9,7 @@ import { modals } from '@mantine/modals';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, ApiCustomCharge, ApiEvent } from 'api-types';
 import { FeeBreakdown } from 'components/FeeBreakdown';
+import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
 import { customChargeHooks, customChargeTypeHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
@@ -66,15 +67,17 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
                 <Table.Td>{formatMoney(cc.amount)}</Table.Td>
                 <Table.Td>{cc.notes}</Table.Td>
                 <Table.Td>
-                  <Button
-                    size="compact-sm"
-                    variant="light"
-                    color="red"
-                    leftSection={<IconTrash size={14} />}
-                    onClick={() => confirmDelete(cc)}
-                  >
-                    Delete
-                  </Button>
+                  <CanEdit>
+                    <Button
+                      size="compact-sm"
+                      variant="light"
+                      color="red"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => confirmDelete(cc)}
+                    >
+                      Delete
+                    </Button>
+                  </CanEdit>
                 </Table.Td>
               </Table.Tr>
             ))}
@@ -86,11 +89,13 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
         </Text>
       )}
 
-      <Group>
-        <Button variant="light" onClick={() => setAddOpen(true)}>
-          Add custom charge
-        </Button>
-      </Group>
+      <CanEdit>
+        <Group>
+          <Button variant="light" onClick={() => setAddOpen(true)}>
+            Add custom charge
+          </Button>
+        </Group>
+      </CanEdit>
 
       <AddCustomChargeModal
         eventId={event.id}

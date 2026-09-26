@@ -10,6 +10,7 @@ import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
+import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
 import type { CreateBody } from 'store/createEntityHooks';
 import { useTemplateDraft } from 'store/emailTemplates';
@@ -38,6 +39,7 @@ export function RegistrationTypeForm({
 
   const [name, setName] = useState(regType?.name ?? '');
   const [label, setLabel] = useState(regType?.label ?? '');
+  const { canEdit } = usePermissions();
   const invitationEmail = useTemplateDraft(regType?.invitation_template);
 
   const { data: invitations } = invitationHooks.useList(
@@ -81,22 +83,28 @@ export function RegistrationTypeForm({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={regType ? 'Edit registration type' : 'New registration type'}
+      title={
+        regType ? (canEdit ? 'Edit registration type' : regType.label) : 'New registration type'
+      }
       size="90%"
     >
       <Stack>
-        <TextInput
-          label="Machine name"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          required
-        />
-        <TextInput
-          label="Label"
-          value={label}
-          onChange={(e) => setLabel(e.currentTarget.value)}
-          required
-        />
+        <ReadOnlyFieldset>
+          <Stack>
+            <TextInput
+              label="Machine name"
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              required
+            />
+            <TextInput
+              label="Label"
+              value={label}
+              onChange={(e) => setLabel(e.currentTarget.value)}
+              required
+            />
+          </Stack>
+        </ReadOnlyFieldset>
         {regType ? (
           <EmailTemplateEditor
             eventId={eventId}
@@ -116,15 +124,17 @@ export function RegistrationTypeForm({
         )}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose}>
-            Cancel
+            {canEdit ? 'Cancel' : 'Close'}
           </Button>
-          <Button
-            onClick={() => void save()}
-            disabled={!valid}
-            loading={create.isPending || update.isPending || invitationEmail.saving}
-          >
-            Save
-          </Button>
+          <CanEdit>
+            <Button
+              onClick={() => void save()}
+              disabled={!valid}
+              loading={create.isPending || update.isPending || invitationEmail.saving}
+            >
+              Save
+            </Button>
+          </CanEdit>
         </Group>
       </Stack>
     </Modal>

@@ -15,6 +15,7 @@ import { useParams } from '@tanstack/react-router';
 import type { ApiEvent } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
+import { CanEdit } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 
@@ -81,11 +82,13 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
           {parseError}
         </Alert>
       ) : null}
-      <Group>
-        <Button onClick={save} disabled={!!parseError} loading={update.isPending}>
-          Save
-        </Button>
-      </Group>
+      <CanEdit>
+        <Group>
+          <Button onClick={save} disabled={!!parseError} loading={update.isPending}>
+            Save
+          </Button>
+        </Group>
+      </CanEdit>
     </Stack>
   );
 }

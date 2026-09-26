@@ -4,11 +4,11 @@
  * at …/event/:eventId/<section> so they're linkable; an unknown subpath falls
  * back to home (handled in the router).
  *
- * Phase 1 provides the navigation chrome + logout; the sections themselves are
- * placeholders until their phases (§8.3–§8.8).
+ * The header carries the user menu, and a "Read-only" badge for a user who can
+ * view but not change (a Reporter; DR-51).
  */
 
-import { AppShell, Burger, Button, Group, NavLink, ScrollArea, Title } from '@mantine/core';
+import { AppShell, Badge, Burger, Group, NavLink, ScrollArea, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconBed,
@@ -21,7 +21,8 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { Link, Outlet, useParams } from '@tanstack/react-router';
-import { useLogout } from 'hooks/auth';
+import { usePermissions } from 'hooks/permissions';
+import { UserMenu } from 'navigation/UserMenu';
 import type { ReactNode } from 'react';
 
 const SECTIONS = [
@@ -38,7 +39,7 @@ const SECTIONS = [
 export function EventAdminContainer() {
   const { organizationId, eventId } = useParams({ strict: false });
   const [opened, { toggle }] = useDisclosure();
-  const logout = useLogout();
+  const { canEdit } = usePermissions();
 
   const base = `/admin/organization/${organizationId}/event/${eventId}`;
 
@@ -50,13 +51,20 @@ export function EventAdminContainer() {
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Group>
+          <Group wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Title order={4}>Camphoric Admin</Title>
+            {!canEdit && (
+              <Badge
+                variant="light"
+                color="gray"
+                title="Your permission group can view but not change"
+              >
+                Read-only
+              </Badge>
+            )}
           </Group>
-          <Button variant="subtle" size="xs" onClick={() => logout.mutate()}>
-            Sign out
-          </Button>
+          <UserMenu />
         </Group>
       </AppShell.Header>
 
