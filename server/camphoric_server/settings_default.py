@@ -242,6 +242,11 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
+    # Closed unless a view says otherwise: any Camphoric permission group may
+    # read, Registrars and Admins may write (camphoric.permissions, SPEC DR-50).
+    'DEFAULT_PERMISSION_CLASSES': [
+        'camphoric.permissions.RolePermission',
+    ],
 }
 
 # The session cookie is Secure by default (production sits behind TLS; browsers exempt

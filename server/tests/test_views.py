@@ -1279,9 +1279,10 @@ class UsersTests(APITestCase):
         self.client.login(username='tom', password='password')
 
     def test_list_unauthorized(self):
+        # User management is hidden from anyone who isn't an Admin (SPEC DR-50).
         self.client.logout()
         response = self.client.get('/api/users/')
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 404)
 
     def test_list_authorized(self):
         response = self.client.get('/api/users/')

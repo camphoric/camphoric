@@ -182,3 +182,20 @@ def set_email(template, subject=None, body=None):
         template.body = body
     template.save()
     return template
+
+
+def make_user(role=None, username=None, *, django_access=None, **fields):
+    '''
+    A user with a Camphoric permission group (`roles.ADMIN`, `REGISTRAR`,
+    `REPORTER`, or None for none), password "password".
+    '''
+    from django.contrib.auth.models import User
+    from camphoric import roles
+
+    user = User.objects.create_user(
+        username or f'{role or "nobody"}-user', password='password',
+        email=fields.pop('email', f'{username or role or "nobody"}@example.com'), **fields)
+    roles.set_role(user, role)
+    if django_access:
+        roles.set_django_access(user, django_access)
+    return user
