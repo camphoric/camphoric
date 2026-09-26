@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-48)
+- §15 — Decision Records (DR-1…DR-49)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -543,7 +543,9 @@ Before any step renders, the app loads the registration config (`GET …/registe
 ### 7.1 Step 1 — Registration form
 
 - Renders a JSON Schema Form from `config.dataSchema` + `config.uiSchema` with the in-progress
-  `registration` as form data.
+  `registration` as form data. A field whose uiSchema gives it the class
+  `camphoric-hide-during-registration` (`"ui:classNames"`) is hidden here but shown in the admin's
+  forms — e.g. a parking pass's type, which the organizers assign.
 - **Live updating:** on every change it (a) marks `updating`, (b) saves form data to the
   store, (c) recomputes totals via `calculatePrice` (§9) and stores them, (d) persists form
   data to localStorage (debounced). The running price total is shown and updates live as the
@@ -1074,12 +1076,18 @@ genuinely additive widgets are layered on (§15, DR-29):
 - **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
   or pre-filled overflow).
 
-**Templates.** The base theme's templates render field layout, errors, help, arrays, and objects;
-uiSchema options cover content-wrapper classes and array add/remove labels — so no custom Field/
-Object/Array templates are needed (§15, DR-29). The one custom template is the **Description**
-renderer (`DescriptionFieldTemplate`) noted above, which renders schema/uiSchema descriptions as
-templated markdown via the Template engine and the form's `templateData`, plus an
-`ErrorListTemplate` that omits errors hidden as noise (§7.1).
+**Templates.** The base theme's templates render field layout, errors, help and objects (§15,
+DR-29). The custom templates are:
+- the **Description** renderer (`DescriptionFieldTemplate`) noted above, which renders
+  schema/uiSchema descriptions as templated markdown via the Template engine and the form's
+  `templateData`;
+- an `ErrorListTemplate` that omits errors hidden as noise (§7.1);
+- **lists** (`ArrayFieldTemplate`, `ArrayFieldItemTemplate`; §15, DR-49): an array field reads
+  like any other section — its title as a section heading, its description, then its items — and
+  each item is in its own bordered box with its remove (×) button in the box's top-right corner.
+  The add button after the items says what it adds: `ui:options.addButtonText`, else "Add"
+  and the item schema's title. Items can't be reordered unless the field's `ui:options` has
+  `orderable: true` (the form defaults `ui:globalOptions.orderable` to false).
 
 ### 9.2 Pricing engine (`calculatePrice`)
 
@@ -1982,6 +1990,9 @@ tests ship *with* the feature, not necessarily *before* it).
 
 ### DR-29 — Custom form widgets/templates scoped to what the v6 theme lacks
 
+*For array fields, superseded by DR-49: the theme's array template doesn't cover what it was
+assumed to.*
+
 **Decision:** Only re-implement the form widgets/templates whose behavior the official
 `@rjsf/mantine` v6 theme does **not** already provide. The custom widget layer is therefore just
 **PhoneInput**, **NaturalNumberInput**, and a **maxLength-truncating Textarea**; the one custom
@@ -2442,6 +2453,26 @@ on each request by hand. Organization-wide unsubscribes — one opt-out would si
 future event. An "essential" flag letting some group emails reach unsubscribed addresses —
 more to explain, and easy to overuse; an organizer can still email someone directly. A link that
 unsubscribes on GET — link scanners and previews would unsubscribe people who never clicked.
+
+### DR-49 — Lists read as sections, one box per item
+
+**Decision:** The form engine replaces the `@rjsf/mantine` array templates. An array field shows
+its title as a section heading, like an object's, then its description and items. Each item is a
+bordered box with its remove button in the top-right corner, and the add button is labelled from
+`ui:options.addButtonText` (or "Add <item title>"). Reordering is off unless a field opts in with
+`orderable: true`. The registration page also hides fields classed
+`camphoric-hide-during-registration`, as the v1 client did.
+**Context:** The theme draws an array as a filled, bordered `fieldset` with its heading on the
+border, so a list such as Lark's parking passes looked unlike every other section, its heading
+straddling two backgrounds. Its add button is an unlabelled "+" titled "Add Item", ignoring the
+`addButtonText` the events' uiSchemas set, and it offered move buttons for lists whose order means
+nothing. The v1 client had its own array template with a labelled add button and only a remove
+button per item. Its registration-page CSS hid `camphoric-hide-during-registration`; without it,
+registrants were shown the parking type organizers assign. DR-29 assumed the theme covered array
+labels; it doesn't.
+**Alternatives:** Restyle the theme's fieldset with CSS — its legend and fill are the problem, and
+the add button would still be unlabelled. Change each event's uiSchema to turn ordering off —
+every event's data would need editing and reimporting, when no registration list is ordered.
 
 ---
 
