@@ -202,8 +202,8 @@ queries derive it from `window.location` rather than props, through the routing 
   `?emailTab` — `history`, `bulk`, or templates (the default, left out of the URL);
   `?templateId` — the group email template being edited (`new` for a new one); `?emailTaskId` —
   the selected bulk email; `?messageId` — the email open in the history; `?mstatus`, `?mkind`,
-  `?mq`, `?mpage` — the history's status and kind filters (comma-separated lists), search text
-  and page.
+  `?mq`, `?mpage`, `?mbatch` — the history's status and kind filters (comma-separated lists),
+  search text, page, and the group email send whose copies it shows.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
   `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
@@ -926,6 +926,14 @@ through, when it was queued (and by whom) and sent, the attempts and the last pr
 what was sent (the HTML in a sandboxed frame, §9.6, and the plain text). A failed email can be
 **retried**; a waiting one can be **stopped** before it's sent.
 
+The history also lists the event's **group email sends**, newest first (the latest few, and all on
+request): the template's name, when it was sent (or when it's scheduled) and by whom, and its
+progress — sent, failed, not sent and still waiting, out of its copies, and how many were skipped
+when it was prepared — refreshed like the history. A send that hasn't finished can be
+**cancelled** (after confirming): a scheduled one sends nothing; one under way stops the copies
+still waiting. A send's failed copies can be **retried** together. Choosing a send shows only its
+copies in the history (URL-addressable, `?mbatch`, §4), until the admin shows all email again.
+
 **Templates** — every email the event sends is an email template in Jinja (§15, DR-45):
 
 - **Automatic emails** — the registration confirmation and each registration type's invitation,
@@ -987,6 +995,34 @@ recipients**, its **sender** and its **message**:
 
 Saving checks the subject and body, the expressions and the conditions on the server (§5), and
 shows any problem on its field.
+
+**Sending a group email** — the admin reviews exactly who gets it before it goes:
+
+- **The recipients** start as the template's default recipients, all chosen. Each shows who they
+  are, their address and name, and whether this template already reached them; the admin can
+  uncheck or check each one, search, and choose all or none of those a search shows.
+- **Choosing more** — for campers and registrations, an ad-hoc filter (conditions, the filter
+  expression and incomplete registrations, as in the editor; the source and the address and name
+  expressions stay the template's) finds recipients that are either **added** to the list (chosen)
+  or **replace** it. Listed addresses come only from the template.
+- **Left out** — those the recipients can't include (no address, not a valid address, a duplicate
+  address, an expression that failed), with why, on request.
+- **Already sent** — when any recipient already got this template, "only send to those who
+  haven't received it yet" is offered, on by default, with how many of the chosen it skips;
+  skipped ones are marked in the list.
+- **Sender** — the account, from and reply-to, starting as the template's (blank uses the
+  defaults, as in the editor).
+- **When** — now, or later at a chosen date and time, which must be in the future.
+- **Test** — sends one copy, rendered for the first chosen recipient (or the template's first
+  recipient), to the admin, with `[Test]` before the subject; nobody on the list is sent anything.
+
+Sending asks for confirmation, restating the template, how many it goes to, the from address and
+account, how many are skipped as already sent and how many were left out, and when it's sent. It
+then creates the send with the chosen recipients' keys (§5); the admin is taken to the history,
+showing that send's copies. Each copy is rendered when the send is prepared (at its time, for a
+later send), from the template's subject and body as they were when it was sent; a recipient
+who's no longer in the event's data is skipped, and a copy that can't be rendered is recorded as
+failed with the problem while the others still go.
 
 **Bulk email** — the admin can **compose an email to many people at once, see exactly who it will
 reach, test it, send it, and follow its progress** (§15, DR-39). The event's bulk emails are
@@ -2356,20 +2392,30 @@ remain, and Mustache with them. Convert by hand, as the `data/` emails were — 
 emails nobody here has seen, so a checked mechanical conversion is safer than asking every
 organizer to rewrite theirs.
 
-**Group email recipients (addition):** A group email's default recipients are chosen with
+**Group email recipients and sends (addition):** A group email's default recipients are chosen with
 conditions built field by field — a field from the event's catalog, an operator offered by the
 field's type, and a typed value — stored as rules JSON the server evaluates against the same
 variables a Jinja expression sees; a Jinja filter expression remains under Advanced, and both must
 pass. The automatic emails are listed with the group emails but stay edited where they're set up
-(the event, the registration type), which already offer previews for their own records.
+(the event, the registration type), which already offer previews for their own records. Each
+send is a batch that records the recipients the admin reviewed (by key) and a snapshot of the
+template; a task prepares it — at its time, for "send later" — rendering one copy per key through
+the outbox (DR-44), so its progress is its copies' statuses. An ad-hoc filter while sending can
+change who is chosen but not the source or the address and name expressions, which the batch
+takes from the template.
 **Context:** Most organizers don't write Jinja; the questions they ask ("who still owes money",
 "vegetarians in the cabins") are one field compared with one value, which a builder covers
 without code, while the expression keeps anything else possible. A catalog from the event's own
 schemas names the event's real questions and choices, so a condition can't misspell a field.
+Sending exactly the reviewed keys means what the admin confirmed is what goes out, even when data
+changes before a later send; the snapshot lets the template be edited or deleted without changing
+a send's record.
 **Alternatives:** Expressions only (the task-based bulk email) — needs Jinja for every list. A
 query language or nested groups — more than these lists need; any/all of flat rows plus an
 expression covers them. Editing the automatic emails in the Email section too — a second editor
-for the same text, without the confirmation's and invitations' own preview samples.
+for the same text, without the confirmation's and invitations' own preview samples. Resolving the
+recipients again when a send is prepared (the task-based bulk email) — the list could differ from
+what was reviewed.
 
 ---
 

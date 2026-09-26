@@ -1,6 +1,7 @@
 /** Sample email outbox data for the Email section's tests and stories. */
 
 import type {
+  ApiEmailBatch,
   ApiEmailMessage,
   ApiEmailTemplate,
   AudienceResolution,
@@ -113,6 +114,38 @@ export function sampleAudience(fields: Partial<AudienceResolution> = {}): Audien
       },
     ],
     diagnostics: [],
+    ...fields,
+  };
+}
+
+export function sampleBatch(fields: Partial<ApiEmailBatch> = {}): ApiEmailBatch {
+  return {
+    id: 31,
+    event: 7,
+    template: 5,
+    name: 'Balance reminder',
+    subject: 'Your balance for {{ event.name }}',
+    body: 'Hi {{ recipient.name }}',
+    recipient_source: 'campers',
+    recipient_keys: ['camper:3', 'camper:4', 'camper:5', 'camper:6'],
+    account: null,
+    from_email: '',
+    reply_to: '',
+    skip_already_sent: true,
+    send_at: null,
+    status: 'sending',
+    skipped: [],
+    error: '',
+    created_by: 1,
+    created_by_name: 'will',
+    total: 4,
+    sent: 2,
+    failed: 1,
+    cancelled: 0,
+    waiting: 1,
+    state: 'sending',
+    created_at: '2026-09-20T15:00:00Z',
+    updated_at: '2026-09-20T15:01:00Z',
     ...fields,
   };
 }

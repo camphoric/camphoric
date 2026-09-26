@@ -19,6 +19,8 @@ export interface EmailHistoryFilters {
   /** Comma-separated kinds (`kind__in`); empty: all. */
   kind?: string;
   q?: string;
+  /** A group email send's id: only its copies. */
+  batch?: string;
   /** 1-based. */
   page?: number;
 }
@@ -28,6 +30,7 @@ function historyQuery(eventId: string | number, filters: EmailHistoryFilters) {
   if (filters.status) params.set('status__in', filters.status);
   if (filters.kind) params.set('kind__in', filters.kind);
   if (filters.q?.trim()) params.set('q', filters.q.trim());
+  if (filters.batch) params.set('batch', filters.batch);
   if (filters.page && filters.page > 1) params.set('page', String(filters.page));
   return params.toString();
 }

@@ -5,6 +5,9 @@
  * a Jinja filter expression and the expressions for each one's address and
  * name. Shows how many recipients the audience reaches, and who it skips and
  * why, as it changes.
+ *
+ * With `narrowOnly` (choosing more recipients while sending), the source and
+ * the address and name expressions are the template's and aren't offered.
  */
 
 import {
@@ -67,6 +70,8 @@ interface AudienceEditorProps {
   error?: string | null;
   /** Problems by field (filter, filter_expression, …), e.g. from a save. */
   fieldErrors?: Record<string, string>;
+  /** Only the conditions, the filter expression and incomplete registrations. */
+  narrowOnly?: boolean;
   disabled?: boolean;
 }
 
@@ -78,6 +83,7 @@ export function AudienceEditor({
   checking,
   error,
   fieldErrors,
+  narrowOnly,
   disabled,
 }: AudienceEditorProps) {
   const source = audience.recipient_source;
@@ -92,26 +98,28 @@ export function AudienceEditor({
 
   return (
     <Stack gap="sm">
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Send to
-        </Text>
-        <SegmentedControl
-          aria-label="Send to"
-          data={SOURCE_OPTIONS}
-          value={source}
-          onChange={(value) =>
-            // Conditions name the source's fields, so they don't carry over.
-            onChange({
-              ...audience,
-              recipient_source: value as EmailRecipientSource,
-              filter: { combinator: 'and', rules: [] },
-            })
-          }
-          disabled={disabled}
-          w="fit-content"
-        />
-      </Stack>
+      {!narrowOnly && (
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>
+            Send to
+          </Text>
+          <SegmentedControl
+            aria-label="Send to"
+            data={SOURCE_OPTIONS}
+            value={source}
+            onChange={(value) =>
+              // Conditions name the source's fields, so they don't carry over.
+              onChange({
+                ...audience,
+                recipient_source: value as EmailRecipientSource,
+                filter: { combinator: 'and', rules: [] },
+              })
+            }
+            disabled={disabled}
+            w="fit-content"
+          />
+        </Stack>
+      )}
 
       {source === 'manual' ? (
         <Textarea
@@ -169,28 +177,30 @@ export function AudienceEditor({
                 error={errors.filter_expression}
                 disabled={disabled}
               />
-              <Group grow align="flex-start">
-                <TextInput
-                  label="Address (Jinja expression)"
-                  placeholder={defaults?.address}
-                  description="Blank uses the placeholder."
-                  styles={CODE_INPUT}
-                  value={audience.address_expression}
-                  onChange={(e) => set('address_expression', e.currentTarget.value)}
-                  error={errors.address_expression}
-                  disabled={disabled}
-                />
-                <TextInput
-                  label="Name (Jinja expression)"
-                  placeholder={defaults?.name || 'No name'}
-                  description="Blank uses the placeholder."
-                  styles={CODE_INPUT}
-                  value={audience.name_expression}
-                  onChange={(e) => set('name_expression', e.currentTarget.value)}
-                  error={errors.name_expression}
-                  disabled={disabled}
-                />
-              </Group>
+              {!narrowOnly && (
+                <Group grow align="flex-start">
+                  <TextInput
+                    label="Address (Jinja expression)"
+                    placeholder={defaults?.address}
+                    description="Blank uses the placeholder."
+                    styles={CODE_INPUT}
+                    value={audience.address_expression}
+                    onChange={(e) => set('address_expression', e.currentTarget.value)}
+                    error={errors.address_expression}
+                    disabled={disabled}
+                  />
+                  <TextInput
+                    label="Name (Jinja expression)"
+                    placeholder={defaults?.name || 'No name'}
+                    description="Blank uses the placeholder."
+                    styles={CODE_INPUT}
+                    value={audience.name_expression}
+                    onChange={(e) => set('name_expression', e.currentTarget.value)}
+                    error={errors.name_expression}
+                    disabled={disabled}
+                  />
+                </Group>
+              )}
             </Stack>
           </Collapse>
         </>

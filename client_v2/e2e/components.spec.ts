@@ -167,3 +167,32 @@ test.describe('Recipient filter builder', () => {
     await expect(json).not.toContainText('registration.balance');
   });
 });
+
+test.describe('Send a group email', () => {
+  // The story answers the API itself and prints what it posted.
+  test('replaces the recipients with a filter, then confirms the send', async ({ page }) => {
+    await page.goto(story('send-dialog--send'));
+    await expect(page.getByText('Recipients: 6 of 6 selected')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Choose more recipients' }).click();
+    await page.getByRole('button', { name: 'Add condition' }).click();
+    const row = page.getByRole('group', { name: 'Condition 1' });
+    await row.getByRole('textbox', { name: 'Field' }).click();
+    await page.getByRole('option', { name: 'Balance' }).click();
+    await row.getByRole('textbox', { name: 'Operator' }).click();
+    await page.getByRole('option', { name: '>', exact: true }).click();
+    await row.getByRole('textbox', { name: 'Value' }).fill('10');
+    await page.getByRole('button', { name: 'Replace the list with 2' }).click();
+    await expect(page.getByText('Recipients: 2 of 2 selected')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Send to 2 recipients' }).click();
+    const confirm = page.getByRole('dialog', { name: 'Send this email?' });
+    await expect(confirm).toContainText('goes to 2 recipients');
+    await confirm.getByRole('button', { name: 'Send', exact: true }).click();
+    const posted = page.getByTestId('posted');
+    await expect(posted).toContainText('/send/');
+    await expect(posted).toContainText('"camper:3"');
+    await expect(posted).toContainText('"camper:11"');
+    await expect(posted).not.toContainText('"camper:4"');
+  });
+});

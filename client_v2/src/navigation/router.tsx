@@ -73,6 +73,7 @@ export interface AdminSearch {
   mkind?: string;
   mq?: string;
   mpage?: string;
+  mbatch?: string;
   // Template Help (SPEC §4, §9.3).
   context?: string;
   helpTab?: string;
