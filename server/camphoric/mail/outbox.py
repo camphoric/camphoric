@@ -65,7 +65,7 @@ _EVENT_ACCOUNT = object()
 
 def enqueue(*, event, kind, to, subject, text, html='', from_email,
             account=_EVENT_ACCOUNT, reply_to=None, registration=None, invitation=None,
-            dedupe_key=None, created_by=None):
+            dedupe_key=None, created_by=None, batch=None, template=None, recipient_key=''):
     '''
     Queue one email and wake the worker, in the caller's transaction. Returns
     the new EmailMessage, or the live one already queued under `dedupe_key`.
@@ -89,7 +89,7 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
         event=event, kind=kind, registration=registration, invitation=invitation,
         account=account, from_email=from_email, to=to, reply_to=reply_to,
         subject=subject, text=text, html=html, dedupe_key=dedupe_key or None,
-        created_by=created_by,
+        created_by=created_by, batch=batch, template=template, recipient_key=recipient_key,
     )
     problem = _address_problem(to)
     if problem:

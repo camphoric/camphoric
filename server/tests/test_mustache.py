@@ -12,7 +12,6 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 
-from camphoric import models
 from camphoric.templating import mustache
 from camphoric.templating.contexts import confirmation_email_context, invitation_email_context
 from camphoric.templating.emails import render_jinja_email
@@ -176,8 +175,12 @@ class MigrationTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate(self.after)
+        # The models as they were after 0065 (later migrations add fields).
+        apps = executor.loader.project_state(self.after).apps
+        Event = apps.get_model('camphoric', 'Event')
+        RegistrationType = apps.get_model('camphoric', 'RegistrationType')
 
-        old, new = models.Event.objects.get(name='Old'), models.Event.objects.get(name='New')
+        old, new = Event.objects.get(name='Old'), Event.objects.get(name='New')
         self.assertEqual(old.confirmation_template.subject,
                          'Thanks, {{ campers[0].attributes.first_name }}')
         self.assertEqual(old.confirmation_template.body,
@@ -187,9 +190,9 @@ class MigrationTests(TransactionTestCase):
         self.assertEqual(old.confirmation_email_from, 'reg@camp.org')
         self.assertEqual((new.confirmation_template.subject, new.confirmation_template.body),
                          ('Hi', '{{ event.name }}'))
-        staff = models.RegistrationType.objects.get(name='staff').invitation_template
+        staff = RegistrationType.objects.get(name='staff').invitation_template
         self.assertEqual((staff.name, staff.body),
                          ('Invitation: Staff', '{{ invitation.register_url }}'))
-        crew = models.RegistrationType.objects.get(name='crew').invitation_template
+        crew = RegistrationType.objects.get(name='crew').invitation_template
         self.assertIn("Couldn't be converted from Mustache", crew.body)
         self.assertIn('{{> partial}}', crew.body)

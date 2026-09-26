@@ -7,6 +7,7 @@ from camphoric import (
     models,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
+from camphoric.templating.rules import compile_rules
 from camphoric.templating.render import syntax_error
 
 
@@ -117,6 +118,9 @@ class EmailTemplateSerializer(ModelSerializer):
                 problem = syntax_error(data[name], field=field)
                 if problem:
                     errors[name] = [f'Line {problem.line}: {problem.message}']
+        purpose = data.get('purpose', getattr(self.instance, 'purpose', None))
+        if purpose == models.EmailTemplatePurpose.GROUP:
+            errors.update(self.audience_errors(data))
         instance = self.instance
         if instance is None and data.get('purpose') != models.EmailTemplatePurpose.GROUP:
             # The confirmation and invitations come with their event and types.
@@ -128,6 +132,78 @@ class EmailTemplateSerializer(ModelSerializer):
         if errors:
             raise ValidationError(errors)
         return data
+
+    def audience_errors(self, data):
+        '''A group email's recipient rules and expressions must make sense before it's saved.'''
+        def current(name):
+            return data[name] if name in data else getattr(self.instance, name, None)
+
+        errors = {}
+        _, problems = compile_rules(current('filter'))
+        if problems:
+            errors['filter'] = [p.message for p in problems]
+        criteria = Criteria(
+            recipient_filter=current('filter_expression') or '',
+            address_expression=current('address_expression') or '',
+            name_expression=current('name_expression') or '')
+        for problem in expression_diagnostics(criteria):
+            name = {'recipient_filter': 'filter_expression'}.get(problem.field, problem.field)
+            errors[name] = [f'Line {problem.line}: {problem.message}' if problem.line
+                            else problem.message]
+        return errors
+
+
+COUNT_FILTERS = {
+    'total': {},
+    'sent': {'status': models.EmailMessageStatus.SENT},
+    'failed': {'status': models.EmailMessageStatus.FAILED},
+    'cancelled': {'status': models.EmailMessageStatus.CANCELLED},
+    'waiting': {'status__in': [models.EmailMessageStatus.QUEUED,
+                               models.EmailMessageStatus.SENDING]},
+}
+
+
+class EmailBatchSerializer(ModelSerializer):
+    '''One send of a group email, with its messages' counts.'''
+    total = SerializerMethodField()
+    sent = SerializerMethodField()
+    failed = SerializerMethodField()
+    cancelled = SerializerMethodField()
+    waiting = SerializerMethodField()
+    # scheduled | preparing | sending | done | cancelled (done: sending, nothing waiting).
+    state = SerializerMethodField()
+    created_by_name = CharField(source='created_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = models.EmailBatch
+        exclude = ['deleted_at']
+
+    @staticmethod
+    def _count(batch, name):
+        # Annotated by batches.with_counts in lists; counted for a single batch.
+        if hasattr(batch, name):
+            return getattr(batch, name)
+        return batch.messages.filter(**COUNT_FILTERS[name]).count()
+
+    def get_total(self, batch):
+        return self._count(batch, 'total')
+
+    def get_sent(self, batch):
+        return self._count(batch, 'sent')
+
+    def get_failed(self, batch):
+        return self._count(batch, 'failed')
+
+    def get_cancelled(self, batch):
+        return self._count(batch, 'cancelled')
+
+    def get_waiting(self, batch):
+        return self._count(batch, 'waiting')
+
+    def get_state(self, batch):
+        if batch.status == models.EmailBatchStatus.SENDING and not self.get_waiting(batch):
+            return 'done'
+        return {models.EmailBatchStatus.EXPANDING: 'preparing'}.get(batch.status, batch.status)
 
 
 class CustomChargeTypeSerializer(ModelSerializer):

@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import datetime
 import logging
 from pathlib import Path
@@ -16,6 +17,7 @@ from django.db import transaction
 from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
@@ -35,9 +37,9 @@ from camphoric import (
     serializers,
 )
 from camphoric.lodging import get_lodging_schema
-from camphoric.mail import outbox
+from camphoric.mail import batches, outbox
 from camphoric.paypal import PayPalClient
-from camphoric.templating import bulk
+from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
 from camphoric.templating.emails import (
     confirmation_failure_report, render_confirmation_email, render_invitation_email)
@@ -169,6 +171,140 @@ class EmailTemplateViewSet(ModelViewSet):
                 status=status.HTTP_409_CONFLICT)
         return super().destroy(request, *args, **kwargs)
 
+    def group_template(self):
+        template = self.get_object()
+        if template.purpose != models.EmailTemplatePurpose.GROUP:
+            raise ValidationError({'detail': 'Only group emails can be duplicated or sent.'})
+        return template
+
+    @action(detail=True, methods=['post'])
+    def duplicate(self, request, pk=None):
+        template = self.group_template()
+        template.pk = None
+        template.name = f'{template.name} (copy)'
+        template.save()
+        return Response(self.get_serializer(template).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def send(self, request, pk=None):
+        '''
+        Send to the reviewed recipients: `{recipient_keys, account?, from_email?,
+        reply_to?, skip_already_sent?, send_at?}` → 202 with the batch.
+        '''
+        template = self.group_template()
+        data = request.data
+        send_at = None
+        if data.get('send_at'):
+            send_at = parse_datetime(str(data['send_at']))
+            if send_at is None:
+                raise ValidationError({'send_at': 'Give a date and time (ISO 8601).'})
+        account = None
+        if data.get('account'):
+            account = get_object_or_404(models.EmailAccount, id=data['account'])
+        try:
+            batch = batches.create_batch(
+                template, recipient_keys=data.get('recipient_keys') or [], account=account,
+                from_email=data.get('from_email') or '', reply_to=data.get('reply_to') or '',
+                skip_already_sent=data.get('skip_already_sent', True) is not False,
+                send_at=send_at, created_by=request.user)
+        except batches.BatchError as error:
+            return Response({'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializers.EmailBatchSerializer(batch).data,
+                        status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['post'])
+    def test(self, request, pk=None):
+        '''
+        Queue one copy, marked [Test], rendered for a recipient (`recipient_key`,
+        else the first), to `to` (default: you). Unsaved `subject` / `body` and
+        audience fields may be given.
+        '''
+        template = self.group_template()
+        data = request.data
+        to = data.get('to') or request.user.email
+        if not to:
+            raise ValidationError({'to': 'This field is required.'})
+        audience = {name: data[name] for name in AUDIENCE_FIELDS if name in data}
+        criteria = bulk.Criteria.from_request({
+            **{name: getattr(template, name) for name in AUDIENCE_FIELDS}, **audience})
+        try:
+            message, rendered, chosen = batches.send_test(
+                template, to=to, recipient_key=data.get('recipient_key'),
+                subject=data.get('subject'), body=data.get('body'), created_by=request.user,
+                criteria=criteria)
+        except batches.BatchError as error:
+            return Response({'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        if message is None:
+            diagnostics = [d.as_dict() for d in (rendered.diagnostics if rendered else [])]
+            return Response({'detail': 'The email has problems; the test was not sent.',
+                             'diagnostics': diagnostics}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'message': serializers.EmailMessageDetailSerializer(message).data,
+            'rendered_for': asdict(chosen),
+            'diagnostics': [d.as_dict() for d in rendered.diagnostics],
+        }, status=status.HTTP_202_ACCEPTED)
+
+
+AUDIENCE_FIELDS = ('recipient_source', 'filter', 'filter_expression', 'address_expression',
+                   'name_expression', 'recipient_list', 'include_incomplete')
+
+
+class EmailRecipientsView(APIView):
+    '''
+    POST: who a group email's audience reaches, from its fields (saved or not):
+    `{recipient_source, filter, filter_expression, address_expression,
+    name_expression, recipient_list, include_incomplete, template?}` →
+    `{recipients: [{key, email, name, label, registration, camper,
+    already_sent}], skipped, diagnostics}`. `already_sent` is against `template`.
+    '''
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        criteria = bulk.Criteria.from_request(request.data)
+        resolution = bulk.resolve_recipients(event, criteria, request=request)
+        result = resolution.as_dict()
+        template_id = request.data.get('template')
+        sent = batches.sent_keys(template_id) if template_id else set()
+        for recipient in result['recipients']:
+            recipient['already_sent'] = recipient['key'] in sent
+        return Response(result)
+
+
+class EmailRecipientFieldsView(APIView):
+    '''GET ?source=registrations|campers: the fields recipients can be chosen by.'''
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        source = request.query_params.get('source') or models.EmailRecipientSource.REGISTRATIONS
+        return Response(rules.recipient_fields(event, source))
+
+
+class EmailBatchViewSet(ReadOnlyModelViewSet):
+    '''The event's group email sends, newest first, with their counts.'''
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = serializers.EmailBatchSerializer
+    filterset_fields = ['event', 'template', 'status']
+
+    def get_queryset(self):
+        return batches.with_counts(
+            models.EmailBatch.objects.select_related('created_by').order_by('-created_at', '-id'))
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        batch = self.get_object()
+        try:
+            batches.cancel(batch)
+        except batches.BatchError as error:
+            return Response({'detail': str(error)}, status=status.HTTP_409_CONFLICT)
+        return Response(self.get_serializer(self.get_object()).data)
+
+    @action(detail=True, methods=['post'], url_path='retry-failed')
+    def retry_failed(self, request, pk=None):
+        retried = batches.retry_failed(self.get_object())
+        return Response({'retried': retried, **self.get_serializer(self.get_object()).data})
+
 
 class EmailMessagePagination(PageNumberPagination):
     page_size = 50
@@ -184,6 +320,8 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
     pagination_class = EmailMessagePagination
     filterset_fields = {
         'event': ['exact'],
+        'batch': ['exact'],
+        'template': ['exact'],
         'kind': ['exact', 'in'],
         'status': ['exact', 'in'],
         'registration': ['exact'],

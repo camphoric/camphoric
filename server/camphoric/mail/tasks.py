@@ -11,3 +11,10 @@ def deliver_message(message_id):
     from camphoric.mail import outbox
 
     return outbox.deliver(message_id)
+
+
+@task(priority=10)
+def expand_batch(batch_id):
+    from camphoric.mail import batches
+
+    return batches.expand(batch_id)
