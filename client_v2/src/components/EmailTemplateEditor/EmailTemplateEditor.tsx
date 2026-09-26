@@ -8,6 +8,7 @@
 import { Select, Stack, Text, TextInput } from '@mantine/core';
 import type { TemplateContextName } from 'api-types';
 import { type PreviewSample, TemplateEditor } from 'components/TemplateEditor';
+import { usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 
 export interface EmailSample {
@@ -44,6 +45,8 @@ export function EmailTemplateEditor({
 }: EmailTemplateEditorProps) {
   const [sampleValue, setSampleValue] = useState<string | null>(null);
   const chosen = samples.find((s) => s.value === sampleValue) ?? samples[0];
+  // Read-only for a Reporter (DR-51); choosing the preview's sample still works.
+  const { canEdit } = usePermissions();
 
   return (
     <Stack gap="sm">
@@ -52,6 +55,7 @@ export function EmailTemplateEditor({
         description="A Jinja template too, e.g. Welcome to {{ event.name }}"
         value={subject}
         onChange={(e) => onSubjectChange(e.currentTarget.value)}
+        readOnly={!canEdit}
       />
       {samples.length > 1 && (
         <Select

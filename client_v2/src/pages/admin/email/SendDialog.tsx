@@ -34,6 +34,7 @@ import type {
   EmailAudience,
 } from 'api-types';
 import { completeFilter, EMPTY_FILTER } from 'components/RecipientFilterBuilder';
+import { CanEdit } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
 import { emailAccountHooks } from 'store/entities';
 import {
@@ -370,21 +371,25 @@ export function SendDialog({
       </Group>
 
       <Group justify="space-between" wrap="wrap">
-        <Button variant="default" onClick={sendTest} loading={test.isPending}>
-          Send a test to me
-        </Button>
+        <CanEdit>
+          <Button variant="default" onClick={sendTest} loading={test.isPending}>
+            Send a test to me
+          </Button>
+        </CanEdit>
         <Group>
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={confirmSend}
-            disabled={!toSend || !!laterProblem}
-            loading={send.isPending}
-          >
-            {later ? 'Schedule for' : 'Send to'} {toSend}{' '}
-            {toSend === 1 ? 'recipient' : 'recipients'}
-          </Button>
+          <CanEdit>
+            <Button
+              onClick={confirmSend}
+              disabled={!toSend || !!laterProblem}
+              loading={send.isPending}
+            >
+              {later ? 'Schedule for' : 'Send to'} {toSend}{' '}
+              {toSend === 1 ? 'recipient' : 'recipients'}
+            </Button>
+          </CanEdit>
         </Group>
       </Group>
     </Stack>

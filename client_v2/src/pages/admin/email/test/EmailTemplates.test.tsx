@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event';
-import type { ApiEvent } from 'api-types';
+import type { ApiEvent, Role } from 'api-types';
+import { PermissionsProvider } from 'hooks/permissions';
 import type { ReactNode } from 'react';
 import { renderWithProviders, screen, within } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,16 +65,18 @@ beforeEach(() => {
   groupEditor.mockClear();
 });
 
-function setup(templateId?: string) {
+function setup(templateId?: string, role: Role = 'admin') {
   const onEditTemplate = vi.fn();
   const onSent = vi.fn();
   renderWithProviders(
-    <EmailTemplates
-      event={event}
-      templateId={templateId}
-      onEditTemplate={onEditTemplate}
-      onSent={onSent}
-    />,
+    <PermissionsProvider userRole={role}>
+      <EmailTemplates
+        event={event}
+        templateId={templateId}
+        onEditTemplate={onEditTemplate}
+        onSent={onSent}
+      />
+    </PermissionsProvider>,
   );
   return { user: userEvent.setup(), onEditTemplate, onSent };
 }
@@ -130,6 +133,20 @@ describe('EmailTemplates', () => {
     );
     expect(onSent).toHaveBeenCalledWith({ id: 31 });
     expect(screen.queryByRole('button', { name: /Confirm sending/ })).not.toBeInTheDocument();
+  });
+
+  it('lets a Reporter read templates but not change or send them', async () => {
+    const { user, onEditTemplate } = setup(undefined, 'reporter');
+    expect(screen.queryByRole('button', { name: 'New template' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Send / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Balance reminder' }));
+    expect(onEditTemplate).toHaveBeenLastCalledWith('5');
+  });
+
+  it('opens no new template for a Reporter', () => {
+    setup('new', 'reporter');
+    expect(screen.queryByText('Editing a new template')).not.toBeInTheDocument();
   });
 
   it('asks before deleting a template', async () => {

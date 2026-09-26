@@ -10,6 +10,7 @@ import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconEdit, IconPlus, IconSend, IconTrash } from '@tabler/icons-react';
 import type { ApiEmailAccount, ApiEvent } from 'api-types';
+import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useTestEmailAccount } from 'store/email';
 import { emailAccountHooks, eventHooks } from 'store/entities';
@@ -61,6 +62,7 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
   const update = emailAccountHooks.useUpdate();
   const remove = emailAccountHooks.useDelete();
   const test = useTestEmailAccount();
+  const { canEdit } = usePermissions();
   // The account being edited, or 'new' while adding one.
   const [editing, setEditing] = useState<ApiEmailAccount | 'new' | null>(null);
 
@@ -124,14 +126,16 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
         onChange={chooseAccount}
         allowDeselect={false}
         maw={420}
-        disabled={updateEvent.isPending}
+        disabled={updateEvent.isPending || !canEdit}
       />
 
       <Group justify="space-between" mt="md">
         <Title order={3}>Email accounts</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing('new')}>
-          Add account
-        </Button>
+        <CanEdit>
+          <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing('new')}>
+            Add account
+          </Button>
+        </CanEdit>
       </Group>
       <Text size="sm" c="dimmed">
         The organization’s accounts; any of its events can send through one.
@@ -171,34 +175,36 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
                   <Table.Td>{describeServer(account)}</Table.Td>
                   <Table.Td>{describeLimits(account)}</Table.Td>
                   <Table.Td>
-                    <Group gap="xs" wrap="nowrap" justify="flex-end">
-                      <Button
-                        size="compact-sm"
-                        variant="light"
-                        leftSection={<IconEdit size={14} />}
-                        onClick={() => setEditing(account)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="compact-sm"
-                        variant="light"
-                        leftSection={<IconSend size={14} />}
-                        onClick={() => sendTest(account)}
-                        loading={test.isPending && test.variables?.accountId === account.id}
-                      >
-                        Send test
-                      </Button>
-                      <Button
-                        size="compact-sm"
-                        variant="light"
-                        color="red"
-                        leftSection={<IconTrash size={14} />}
-                        onClick={() => confirmDelete(account)}
-                      >
-                        Delete
-                      </Button>
-                    </Group>
+                    <CanEdit>
+                      <Group gap="xs" wrap="nowrap" justify="flex-end">
+                        <Button
+                          size="compact-sm"
+                          variant="light"
+                          leftSection={<IconEdit size={14} />}
+                          onClick={() => setEditing(account)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="compact-sm"
+                          variant="light"
+                          leftSection={<IconSend size={14} />}
+                          onClick={() => sendTest(account)}
+                          loading={test.isPending && test.variables?.accountId === account.id}
+                        >
+                          Send test
+                        </Button>
+                        <Button
+                          size="compact-sm"
+                          variant="light"
+                          color="red"
+                          leftSection={<IconTrash size={14} />}
+                          onClick={() => confirmDelete(account)}
+                        >
+                          Delete
+                        </Button>
+                      </Group>
+                    </CanEdit>
                   </Table.Td>
                 </Table.Tr>
               ))

@@ -8,6 +8,7 @@
 import { ActionIcon, Anchor, Badge, Button, Group, Stack, Text } from '@mantine/core';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
+import { CanEdit } from 'hooks/permissions';
 import { camperName } from 'utils/camper';
 
 interface LodgingTreeProps {
@@ -46,34 +47,48 @@ export function LodgingTree({
           )}
           {!node.visible && <Badge color="gray">hidden</Badge>}
         </Group>
-        <Group gap={2} wrap="nowrap">
-          <ActionIcon variant="subtle" onClick={() => onAddChild(node.id)} aria-label="Add child">
-            <IconPlus size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" onClick={() => onEdit(node)} aria-label="Edit">
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" onClick={() => onDelete(node)} aria-label="Delete">
-            <IconTrash size={16} />
-          </ActionIcon>
-        </Group>
+        <CanEdit>
+          <Group gap={2} wrap="nowrap">
+            <ActionIcon variant="subtle" onClick={() => onAddChild(node.id)} aria-label="Add child">
+              <IconPlus size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" onClick={() => onEdit(node)} aria-label="Edit">
+              <IconPencil size={16} />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              onClick={() => onDelete(node)}
+              aria-label="Delete"
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Group>
+        </CanEdit>
       </Group>
 
       {node.isLeaf && node.campers.length > 0 && (
         <Stack gap={2} pl={(depth + 1) * 20}>
           {node.campers.map((c) => (
             <Group key={c.id} justify="space-between" maw={420} wrap="nowrap">
-              <Anchor component="button" type="button" size="sm" onClick={() => onSelectCamper(c.id)}>
+              <Anchor
+                component="button"
+                type="button"
+                size="sm"
+                onClick={() => onSelectCamper(c.id)}
+              >
                 {camperName(c)}
               </Anchor>
-              <Button
-                size="compact-xs"
-                variant="subtle"
-                color="red"
-                onClick={() => onUnassign(c)}
-              >
-                Unassign
-              </Button>
+              <CanEdit>
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => onUnassign(c)}
+                >
+                  Unassign
+                </Button>
+              </CanEdit>
             </Group>
           ))}
         </Stack>

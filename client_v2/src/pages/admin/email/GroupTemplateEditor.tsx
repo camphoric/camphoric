@@ -11,6 +11,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiEmailTemplate, EmailAudience } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { completeFilter, unfinishedRules } from 'components/RecipientFilterBuilder';
+import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
 import { emailAccountHooks, emailTemplateHooks } from 'store/entities';
 import { useAudience, useRecipientFields } from 'store/groupEmail';
@@ -56,6 +57,7 @@ export function GroupTemplateEditor({
   helpBase,
   onDone,
 }: GroupTemplateEditorProps) {
+  const { canEdit } = usePermissions();
   const create = emailTemplateHooks.useCreate();
   const update = emailTemplateHooks.useUpdate();
   const { data: accounts } = emailAccountHooks.useList({ organization: organizationId });
@@ -133,14 +135,16 @@ export function GroupTemplateEditor({
 
   return (
     <Stack>
-      <TextInput
-        label="Name"
-        description="For finding it again; recipients don’t see it."
-        value={name}
-        onChange={(e) => setName(e.currentTarget.value)}
-        error={errors.name}
-        withAsterisk
-      />
+      <ReadOnlyFieldset>
+        <TextInput
+          label="Name"
+          description="For finding it again; recipients don’t see it."
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          error={errors.name}
+          withAsterisk
+        />
+      </ReadOnlyFieldset>
 
       <Title order={4}>Recipients</Title>
       <AudienceEditor
@@ -151,6 +155,7 @@ export function GroupTemplateEditor({
         checking={preview.isFetching}
         error={preview.error ? apiErrorMessage(preview.error) : null}
         fieldErrors={errors}
+        disabled={!canEdit}
       />
       <Text size="sm" c="dimmed">
         These are the default recipients. Before sending, you review exactly who gets it. Anyone who
@@ -159,31 +164,35 @@ export function GroupTemplateEditor({
       </Text>
 
       <Title order={4}>Sender</Title>
-      <Group grow align="flex-start">
-        <Select
-          label="Account"
-          data={accountOptions}
-          value={account === null ? EVENT_ACCOUNT : String(account)}
-          onChange={(value) => setAccount(!value || value === EVENT_ACCOUNT ? null : Number(value))}
-          allowDeselect={false}
-          error={errors.account}
-        />
-        <TextInput
-          label="From"
-          placeholder={defaultFrom || 'The event’s address'}
-          description="Blank uses the placeholder."
-          value={fromEmail}
-          onChange={(e) => setFromEmail(e.currentTarget.value)}
-          error={errors.from_email}
-        />
-        <TextInput
-          label="Reply-To"
-          placeholder="The account’s default, else From"
-          value={replyTo}
-          onChange={(e) => setReplyTo(e.currentTarget.value)}
-          error={errors.reply_to}
-        />
-      </Group>
+      <ReadOnlyFieldset>
+        <Group grow align="flex-start">
+          <Select
+            label="Account"
+            data={accountOptions}
+            value={account === null ? EVENT_ACCOUNT : String(account)}
+            onChange={(value) =>
+              setAccount(!value || value === EVENT_ACCOUNT ? null : Number(value))
+            }
+            allowDeselect={false}
+            error={errors.account}
+          />
+          <TextInput
+            label="From"
+            placeholder={defaultFrom || 'The event’s address'}
+            description="Blank uses the placeholder."
+            value={fromEmail}
+            onChange={(e) => setFromEmail(e.currentTarget.value)}
+            error={errors.from_email}
+          />
+          <TextInput
+            label="Reply-To"
+            placeholder="The account’s default, else From"
+            value={replyTo}
+            onChange={(e) => setReplyTo(e.currentTarget.value)}
+            error={errors.reply_to}
+          />
+        </Group>
+      </ReadOnlyFieldset>
 
       <Title order={4}>Message</Title>
       <EmailTemplateEditor
@@ -209,17 +218,19 @@ export function GroupTemplateEditor({
         </Alert>
       )}
 
-      {missing && (
+      {missing && canEdit && (
         <Text size="sm" c="dimmed">
           Add {missing} to save.
         </Text>
       )}
       <Group>
-        <Button onClick={save} disabled={!!missing || saving} loading={saving}>
-          Save
-        </Button>
+        <CanEdit>
+          <Button onClick={save} disabled={!!missing || saving} loading={saving}>
+            Save
+          </Button>
+        </CanEdit>
         <Button variant="default" onClick={() => onDone()}>
-          Cancel
+          {canEdit ? 'Cancel' : 'Close'}
         </Button>
       </Group>
     </Stack>

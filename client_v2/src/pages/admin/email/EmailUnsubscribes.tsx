@@ -12,6 +12,7 @@ import { notifications } from '@mantine/notifications';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiEmailUnsubscribe } from 'api-types';
 import { InlineLoading } from 'components/Loading';
+import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
 import { emailUnsubscribeHooks } from 'store/entities';
 import { useAddUnsubscribe } from 'store/groupEmail';
@@ -64,26 +65,28 @@ export function EmailUnsubscribes({ eventId }: { eventId: number }) {
         them.
       </Text>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <Group align="flex-start" gap="xs">
-          <TextInput
-            aria-label="Address to unsubscribe"
-            placeholder="someone@example.com"
-            value={address}
-            onChange={(e) => setAddress(e.currentTarget.value)}
-            error={add.error ? apiErrorMessage(add.error).replace(/^email: /, '') : undefined}
-            w={300}
-          />
-          <Button type="submit" disabled={!address.trim()} loading={add.isPending}>
-            Unsubscribe address
-          </Button>
-        </Group>
-      </form>
+      <CanEdit>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <Group align="flex-start" gap="xs">
+            <TextInput
+              aria-label="Address to unsubscribe"
+              placeholder="someone@example.com"
+              value={address}
+              onChange={(e) => setAddress(e.currentTarget.value)}
+              error={add.error ? apiErrorMessage(add.error).replace(/^email: /, '') : undefined}
+              w={300}
+            />
+            <Button type="submit" disabled={!address.trim()} loading={add.isPending}>
+              Unsubscribe address
+            </Button>
+          </Group>
+        </form>
+      </CanEdit>
 
       {!rows ? (
         <InlineLoading message="Loading…" />
@@ -105,16 +108,18 @@ export function EmailUnsubscribes({ eventId }: { eventId: number }) {
                   <Table.Td>{sourceLabel(row)}</Table.Td>
                   <Table.Td>{formatTime(row.created_at)}</Table.Td>
                   <Table.Td>
-                    <Tooltip label="Remove from the list">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={`Remove ${row.email}`}
-                        onClick={() => confirmRemove(row)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
+                    <CanEdit>
+                      <Tooltip label="Remove from the list">
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={`Remove ${row.email}`}
+                          onClick={() => confirmRemove(row)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </CanEdit>
                   </Table.Td>
                 </Table.Tr>
               ))}

@@ -222,3 +222,13 @@ test.describe('Form lists', () => {
     await expect(page.getByText('Parking Type')).toBeHidden();
   });
 });
+
+test.describe('Read-only for Reporters', () => {
+  // The story wraps the send dialog in a Reporter's permissions.
+  test('a Reporter can review recipients but not send', async ({ page }) => {
+    await page.goto(story('send-dialog--as-reporter'));
+    await expect(page.getByText(/Recipients: \d+ of \d+ selected/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Send to/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Send a test to me' })).toHaveCount(0);
+  });
+});

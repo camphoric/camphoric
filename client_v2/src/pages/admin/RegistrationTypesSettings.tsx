@@ -9,6 +9,7 @@ import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import type { ApiRegistrationType } from 'api-types';
 import { FullScreenLoading } from 'components/Loading';
+import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { registrationTypeHooks } from 'store/entities';
 
@@ -27,20 +28,23 @@ export function RegistrationTypesSettings({
     open: false,
   });
 
+  const { canEdit } = usePermissions();
   if (!registrationTypes) return <FullScreenLoading />;
 
   return (
     <Stack>
       <Group justify="space-between">
         <Title order={3}>Registration types</Title>
-        <Button
-          variant="light"
-          size="compact-sm"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => setTypeForm({ open: true, regType: undefined })}
-        >
-          Add type
-        </Button>
+        <CanEdit>
+          <Button
+            variant="light"
+            size="compact-sm"
+            leftSection={<IconPlus size={14} />}
+            onClick={() => setTypeForm({ open: true, regType: undefined })}
+          >
+            Add type
+          </Button>
+        </CanEdit>
       </Group>
 
       {registrationTypes.length === 0 ? (
@@ -63,7 +67,7 @@ export function RegistrationTypesSettings({
                   size="compact-sm"
                   onClick={() => setTypeForm({ open: true, regType: rt })}
                 >
-                  Edit
+                  {canEdit ? 'Edit' : 'View'}
                 </Button>
               </Group>
             ))}

@@ -10,6 +10,7 @@ import { Badge, Button, Card, Group, Progress, Stack, Text, Tooltip } from '@man
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { ApiEmailBatch, EmailBatchState } from 'api-types';
+import { usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useCancelBatch, useRetryBatch } from 'store/groupEmail';
 import { apiErrorMessage } from 'utils/fetch';
@@ -81,6 +82,7 @@ function BatchCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { canEdit } = usePermissions();
   const cancel = useCancelBatch();
   const retry = useRetryBatch();
   const { total, sent, failed, cancelled, waiting, state } = batch;
@@ -166,12 +168,12 @@ function BatchCard({
             <Button size="xs" variant={selected ? 'filled' : 'light'} onClick={onSelect}>
               {selected ? 'Showing its emails' : 'Show its emails'}
             </Button>
-            {failed > 0 && (
+            {failed > 0 && canEdit && (
               <Button size="xs" variant="light" onClick={retryFailed} loading={retry.isPending}>
                 Retry failed
               </Button>
             )}
-            {canCancel && (
+            {canCancel && canEdit && (
               <Tooltip label="Stop what hasn’t gone out yet">
                 <Button
                   size="xs"

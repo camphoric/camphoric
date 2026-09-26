@@ -13,11 +13,19 @@ import type { TemplateDiagnostic } from 'api-types';
 import { ApiError } from 'utils/fetch';
 
 /**
- * A mutation error as one line: the API's `detail` (plus the first template
- * problem, when the API returns `diagnostics`), or its field errors
- * (`field: message`), or the HTTP status.
+ * A mutation error as one line: for a 403, that the user lacks permission;
+ * otherwise the API's `detail` (plus the first template problem, when the API
+ * returns `diagnostics`), or its field errors (`field: message`), or the HTTP
+ * status.
  */
 export function describeError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 403) {
+    // A refusal the admin didn't hide (SPEC §10, DR-51), or a signed-out session.
+    const body = error.body as { code?: unknown } | null;
+    if (body?.code !== 'password_change_required') {
+      return "You don't have permission to do that.";
+    }
+  }
   if (error instanceof ApiError) {
     if (error.body && typeof error.body === 'object' && !Array.isArray(error.body)) {
       const body = error.body as Record<string, unknown>;

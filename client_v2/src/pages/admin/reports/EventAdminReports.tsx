@@ -10,6 +10,7 @@ import { modals } from '@mantine/modals';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
+import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
 import { reportHooks } from 'store/entities';
 
@@ -56,15 +57,17 @@ export function EventAdminReports() {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Reports</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={() => {
-            select(undefined);
-            setMode('create');
-          }}
-        >
-          New report
-        </Button>
+        <CanEdit>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => {
+              select(undefined);
+              setMode('create');
+            }}
+          >
+            New report
+          </Button>
+        </CanEdit>
       </Group>
 
       <Grid>
@@ -111,19 +114,21 @@ export function EventAdminReports() {
             <Stack>
               <Group justify="space-between">
                 <Title order={3}>{selected.title}</Title>
-                <Group gap="xs">
-                  <Button variant="default" onClick={() => setMode('edit')}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="light"
-                    color="red"
-                    leftSection={<IconTrash size={16} />}
-                    onClick={() => confirmDelete(selected)}
-                  >
-                    Delete
-                  </Button>
-                </Group>
+                <CanEdit>
+                  <Group gap="xs">
+                    <Button variant="default" onClick={() => setMode('edit')}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="light"
+                      color="red"
+                      leftSection={<IconTrash size={16} />}
+                      onClick={() => confirmDelete(selected)}
+                    >
+                      Delete
+                    </Button>
+                  </Group>
+                </CanEdit>
               </Group>
               <RenderedReport report={selected} eventId={eventId} />
             </Stack>

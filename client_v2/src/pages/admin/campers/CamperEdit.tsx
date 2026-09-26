@@ -18,6 +18,7 @@ import type { UiSchema } from '@rjsf/utils';
 import type { ApiCamper, ApiEvent, Hash } from 'api-types';
 import { deriveAdminUiSchema, injectDefinitions, JsonSchemaForm } from 'components/form';
 import { JsonViewer } from 'components/JsonViewer';
+import { CanEdit } from 'hooks/permissions';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { camperHooks } from 'store/entities';
@@ -34,8 +35,7 @@ interface CamperEditProps {
 /** The camper UI schema is the campers array's item UI schema (§9.1, §9.5). */
 function camperItemUiSchema(registrationUiSchema: Hash): UiSchema {
   const campers = registrationUiSchema.campers;
-  const items =
-    campers && typeof campers === 'object' ? (campers as Hash).items : undefined;
+  const items = campers && typeof campers === 'object' ? (campers as Hash).items : undefined;
   return (items && typeof items === 'object' ? items : {}) as UiSchema;
 }
 
@@ -129,18 +129,20 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
           </Box>
         </ScrollArea>
       </Tabs>
-      <Group
-        justify="space-between"
-        pt="sm"
-        style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-      >
-        <Button onClick={save} loading={update.isPending}>
-          Save
-        </Button>
-        <Button variant="light" color="red" onClick={confirmDelete} loading={del.isPending}>
-          Delete
-        </Button>
-      </Group>
+      <CanEdit>
+        <Group
+          justify="space-between"
+          pt="sm"
+          style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+        >
+          <Button onClick={save} loading={update.isPending}>
+            Save
+          </Button>
+          <Button variant="light" color="red" onClick={confirmDelete} loading={del.isPending}>
+            Delete
+          </Button>
+        </Group>
+      </CanEdit>
     </Box>
   );
 }

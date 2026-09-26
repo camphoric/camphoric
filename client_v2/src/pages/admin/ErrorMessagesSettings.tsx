@@ -28,6 +28,7 @@ import {
   validateRules,
 } from 'components/form';
 import { JsonEditor } from 'components/JsonEditor';
+import { CanEdit } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 import { useRegistrationFormSchema } from 'store/registrationApi';
@@ -122,36 +123,38 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
     <Stack>
       <Group justify="space-between">
         <Title order={3}>Validation messages</Title>
-        <Group gap="xs">
-          {json === undefined ? (
-            <>
-              <Button
-                variant="light"
-                size="compact-sm"
-                leftSection={<IconPlus size={14} />}
-                onClick={() => setForm({ open: true, rule: undefined })}
-              >
-                Add message
-              </Button>
+        <CanEdit>
+          <Group gap="xs">
+            {json === undefined ? (
+              <>
+                <Button
+                  variant="light"
+                  size="compact-sm"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => setForm({ open: true, rule: undefined })}
+                >
+                  Add message
+                </Button>
+                <Button
+                  variant="subtle"
+                  size="compact-sm"
+                  onClick={() => setJson(JSON.stringify(rules, null, 2))}
+                >
+                  Edit as JSON
+                </Button>
+              </>
+            ) : (
               <Button
                 variant="subtle"
                 size="compact-sm"
-                onClick={() => setJson(JSON.stringify(rules, null, 2))}
+                disabled={blocked}
+                onClick={() => setJson(undefined)}
               >
-                Edit as JSON
+                Back to list
               </Button>
-            </>
-          ) : (
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              disabled={blocked}
-              onClick={() => setJson(undefined)}
-            >
-              Back to list
-            </Button>
-          )}
-        </Group>
+            )}
+          </Group>
+        </CanEdit>
       </Group>
       <Text size="sm" c="dimmed">
         Your own wording for the registration form's validation errors — for example, telling
@@ -208,39 +211,43 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
                   </Text>
                   <Text size="sm">{rule.message}</Text>
                 </Stack>
-                <Group gap={4} wrap="nowrap">
-                  <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    onClick={() => setForm({ open: true, rule })}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="subtle"
-                    color="red"
-                    size="compact-sm"
-                    onClick={() => confirmDelete(rule)}
-                  >
-                    Delete
-                  </Button>
-                </Group>
+                <CanEdit>
+                  <Group gap={4} wrap="nowrap">
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
+                      onClick={() => setForm({ open: true, rule })}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="compact-sm"
+                      onClick={() => confirmDelete(rule)}
+                    >
+                      Delete
+                    </Button>
+                  </Group>
+                </CanEdit>
               </Group>
             ))}
           </Stack>
         </Card>
       )}
 
-      <Group>
-        <Button onClick={save} disabled={!dirty || blocked} loading={update.isPending}>
-          Save
-        </Button>
-        {dirty && (
-          <Badge color="yellow" variant="light">
-            Unsaved changes
-          </Badge>
-        )}
-      </Group>
+      <CanEdit>
+        <Group>
+          <Button onClick={save} disabled={!dirty || blocked} loading={update.isPending}>
+            Save
+          </Button>
+          {dirty && (
+            <Badge color="yellow" variant="light">
+              Unsaved changes
+            </Badge>
+          )}
+        </Group>
+      </CanEdit>
 
       <Accordion variant="contained">
         <Accordion.Item value="built-in">

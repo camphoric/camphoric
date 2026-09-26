@@ -28,6 +28,7 @@ import { IconCopy, IconPencil, IconPlus, IconSend, IconTrash } from '@tabler/ico
 import { Link } from '@tanstack/react-router';
 import type { ApiEmailBatch, ApiEmailTemplate, ApiEvent } from 'api-types';
 import { InlineLoading } from 'components/Loading';
+import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { emailTemplateHooks } from 'store/entities';
 import { useDuplicateTemplate } from 'store/groupEmail';
@@ -84,7 +85,9 @@ export function EmailTemplates({
   const automatic = (templates ?? []).filter((t) => t.purpose !== 'group');
   const group = (templates ?? []).filter((t) => t.purpose === 'group');
   const editing = templateId === 'new' ? undefined : group.find((t) => String(t.id) === templateId);
-  const editorOpen = templateId === 'new' || !!editing;
+  const { canEdit } = usePermissions();
+  // A Reporter can open a template to read it, but not start a new one.
+  const editorOpen = (templateId === 'new' && canEdit) || !!editing;
 
   const confirmDelete = (template: ApiEmailTemplate) =>
     modals.openConfirmModal({
@@ -119,9 +122,11 @@ export function EmailTemplates({
       <Stack gap="xs">
         <Group justify="space-between">
           <Title order={3}>Group emails</Title>
-          <Button leftSection={<IconPlus size={16} />} onClick={() => onEditTemplate('new')}>
-            New template
-          </Button>
+          <CanEdit>
+            <Button leftSection={<IconPlus size={16} />} onClick={() => onEditTemplate('new')}>
+              New template
+            </Button>
+          </CanEdit>
         </Group>
         {group.length ? (
           <Table.ScrollContainer minWidth={640}>
@@ -151,46 +156,48 @@ export function EmailTemplates({
                     <Table.Td>{audienceSummary(template)}</Table.Td>
                     <Table.Td>{formatTime(template.updated_at)}</Table.Td>
                     <Table.Td>
-                      <Group gap={4} wrap="nowrap" justify="flex-end">
-                        <Button
-                          size="xs"
-                          variant="light"
-                          leftSection={<IconSend size={14} />}
-                          aria-label={`Send ${template.name}`}
-                          onClick={() => setSending(template)}
-                        >
-                          Send
-                        </Button>
-                        <Tooltip label="Edit">
-                          <ActionIcon
-                            variant="subtle"
-                            aria-label={`Edit ${template.name}`}
-                            onClick={() => onEditTemplate(String(template.id))}
+                      <CanEdit>
+                        <Group gap={4} wrap="nowrap" justify="flex-end">
+                          <Button
+                            size="xs"
+                            variant="light"
+                            leftSection={<IconSend size={14} />}
+                            aria-label={`Send ${template.name}`}
+                            onClick={() => setSending(template)}
                           >
-                            <IconPencil size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Duplicate">
-                          <ActionIcon
-                            variant="subtle"
-                            aria-label={`Duplicate ${template.name}`}
-                            onClick={() => copy(template)}
-                            loading={duplicate.isPending && duplicate.variables === template.id}
-                          >
-                            <IconCopy size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Delete">
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            aria-label={`Delete ${template.name}`}
-                            onClick={() => confirmDelete(template)}
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
+                            Send
+                          </Button>
+                          <Tooltip label="Edit">
+                            <ActionIcon
+                              variant="subtle"
+                              aria-label={`Edit ${template.name}`}
+                              onClick={() => onEditTemplate(String(template.id))}
+                            >
+                              <IconPencil size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Duplicate">
+                            <ActionIcon
+                              variant="subtle"
+                              aria-label={`Duplicate ${template.name}`}
+                              onClick={() => copy(template)}
+                              loading={duplicate.isPending && duplicate.variables === template.id}
+                            >
+                              <IconCopy size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Delete">
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              aria-label={`Delete ${template.name}`}
+                              onClick={() => confirmDelete(template)}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </CanEdit>
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -276,7 +283,7 @@ export function EmailTemplates({
       <Modal
         opened={editorOpen}
         onClose={() => onEditTemplate(undefined)}
-        title={editing ? `Edit “${editing.name}”` : 'New group email'}
+        title={editing ? (canEdit ? `Edit “${editing.name}”` : editing.name) : 'New group email'}
         size="80rem"
         fullScreen={narrow}
         closeOnClickOutside={false}

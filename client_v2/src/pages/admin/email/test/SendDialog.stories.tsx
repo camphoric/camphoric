@@ -9,7 +9,8 @@ import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ApiEvent } from 'api-types';
+import type { ApiEvent, Role } from 'api-types';
+import { PermissionsProvider } from 'hooks/permissions';
 import { useState } from 'react';
 
 import { SendDialog } from '../SendDialog';
@@ -22,7 +23,7 @@ const event = {
   confirmation_email_from: 'registration@camp.org',
 } as ApiEvent;
 
-export const Send: Story = () => {
+function Harness({ userRole }: { userRole: Role }) {
   const [posted, setPosted] = useState<{ url: string; body: unknown } | null>(null);
   const [client] = useState(() => {
     stubEmailApi((url, body) => setPosted({ url, body }));
@@ -30,21 +31,28 @@ export const Send: Story = () => {
   });
   return (
     <QueryClientProvider client={client}>
-      <ModalsProvider>
-        <Stack p="md" maw={1100}>
-          <SendDialog
-            event={event}
-            template={sampleTemplate({ recipient_source: 'campers', filter: {} })}
-            onClose={() => {}}
-            onSent={() => {}}
-          />
-          {posted && (
-            <Code block data-testid="posted">
-              {`POST ${posted.url}\n${JSON.stringify(posted.body, null, 2)}`}
-            </Code>
-          )}
-        </Stack>
-      </ModalsProvider>
+      <PermissionsProvider userRole={userRole}>
+        <ModalsProvider>
+          <Stack p="md" maw={1100}>
+            <SendDialog
+              event={event}
+              template={sampleTemplate({ recipient_source: 'campers', filter: {} })}
+              onClose={() => {}}
+              onSent={() => {}}
+            />
+            {posted && (
+              <Code block data-testid="posted">
+                {`POST ${posted.url}\n${JSON.stringify(posted.body, null, 2)}`}
+              </Code>
+            )}
+          </Stack>
+        </ModalsProvider>
+      </PermissionsProvider>
     </QueryClientProvider>
   );
-};
+}
+
+export const Send: Story = () => <Harness userRole="admin" />;
+
+/** A Reporter can review the recipients but has no Send or test button (DR-51). */
+export const AsReporter: Story = () => <Harness userRole="reporter" />;

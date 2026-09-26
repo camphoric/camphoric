@@ -368,6 +368,9 @@ export interface TemplateCheckResponse {
   }[];
 }
 
+/** A Camphoric permission group (SPEC §6; §15 DR-50). A superuser is always `admin`. */
+export type Role = 'admin' | 'registrar' | 'reporter';
+
 export interface ApiUser {
   id: number | null;
   username: string;
@@ -377,6 +380,10 @@ export interface ApiUser {
   is_staff: boolean;
   is_superuser: boolean;
   is_active: boolean;
+  /** Null when signed out, or signed in without a Camphoric permission group. */
+  role: Role | null;
+  /** A superuser set this user's password; they must choose a new one first. */
+  must_change_password: boolean;
 }
 
 /** The anonymous (logged-out) user — username is empty and id is null. */
@@ -389,6 +396,8 @@ export const anonymousUser: ApiUser = {
   is_staff: false,
   is_superuser: false,
   is_active: false,
+  role: null,
+  must_change_password: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -540,7 +549,13 @@ export interface ReportTemplateVars {
 // --- Email outbox and accounts (SPEC §5, §8.9; §15 DR-44) ----------------------
 
 export type EmailMessageKind =
-  'confirmation' | 'confirmation_report' | 'page_report' | 'invitation' | 'bulk' | 'test';
+  | 'confirmation'
+  | 'confirmation_report'
+  | 'page_report'
+  | 'invitation'
+  | 'bulk'
+  | 'test'
+  | 'account';
 
 export type EmailMessageStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
 

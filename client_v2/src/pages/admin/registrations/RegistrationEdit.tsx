@@ -14,6 +14,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiEvent, AugmentedRegistration, Hash, RegistrationTypeLookup } from 'api-types';
 import { deriveAdminUiSchema, JsonSchemaForm } from 'components/form';
 import { JsonViewer } from 'components/JsonViewer';
+import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { registrationHooks } from 'store/entities';
@@ -108,20 +109,24 @@ export function RegistrationEdit({
           <Box py="md">
             <Tabs.Panel value="attributes">
               <Stack>
-                <Select
-                  label="Registration type"
-                  data={typeOptions}
-                  value={regType}
-                  onChange={(value) => setRegType(value ?? NONE)}
-                  allowDeselect={false}
-                  maw={320}
-                />
-                <TextInput
-                  label="Registrant email"
-                  value={email}
-                  onChange={(e) => setEmail(e.currentTarget.value)}
-                  maw={320}
-                />
+                <ReadOnlyFieldset>
+                  <Stack>
+                    <Select
+                      label="Registration type"
+                      data={typeOptions}
+                      value={regType}
+                      onChange={(value) => setRegType(value ?? NONE)}
+                      allowDeselect={false}
+                      maw={320}
+                    />
+                    <TextInput
+                      label="Registrant email"
+                      value={email}
+                      onChange={(e) => setEmail(e.currentTarget.value)}
+                      maw={320}
+                    />
+                  </Stack>
+                </ReadOnlyFieldset>
                 <JsonSchemaForm
                   schema={event.registration_schema}
                   uiSchema={adminUiSchema}
@@ -162,18 +167,20 @@ export function RegistrationEdit({
           </Box>
         </ScrollArea>
       </Tabs>
-      <Group
-        justify="space-between"
-        pt="sm"
-        style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-      >
-        <Button onClick={save} loading={update.isPending}>
-          Save
-        </Button>
-        <Button variant="light" color="red" onClick={confirmDelete} loading={del.isPending}>
-          Delete
-        </Button>
-      </Group>
+      <CanEdit>
+        <Group
+          justify="space-between"
+          pt="sm"
+          style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+        >
+          <Button onClick={save} loading={update.isPending}>
+            Save
+          </Button>
+          <Button variant="light" color="red" onClick={confirmDelete} loading={del.isPending}>
+            Delete
+          </Button>
+        </Group>
+      </CanEdit>
     </Box>
   );
 }

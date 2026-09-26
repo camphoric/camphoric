@@ -9,7 +9,7 @@ import { InlineLoading } from 'components/Loading';
 import { eventHooks } from 'store/entities';
 
 export function EventChooser() {
-  const { organizationId } = useParams({ from: '/admin/organization/$organizationId/event' });
+  const { organizationId } = useParams({ from: '/admin/frame/organization/$organizationId/event' });
   const { data: events, isLoading } = eventHooks.useList({ organization: organizationId });
 
   if (isLoading) return <InlineLoading />;
