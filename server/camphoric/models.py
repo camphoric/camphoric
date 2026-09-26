@@ -610,6 +610,8 @@ class EmailMessage(TimeStampedModel):
         'EmailTemplate', null=True, blank=True, related_name='messages',
         on_delete=models.SET_NULL)
     recipient_key = models.CharField(max_length=255, blank=True, default='')
+    # A group email's one-click unsubscribe link (SPEC DR-48), sent as List-Unsubscribe.
+    unsubscribe_url = models.CharField(max_length=1000, blank=True, default='')
     # The sending account (null: the server's default mailer). An account with
     # messages can't be deleted, so a queued message never changes servers.
     account = models.ForeignKey(EmailAccount, null=True, blank=True, on_delete=models.PROTECT)
@@ -774,9 +776,36 @@ class EmailBatch(TimeStampedModel):
         max_length=10, choices=EmailBatchStatus.choices, default=EmailBatchStatus.SCHEDULED)
     # Recipients left out when it was prepared (gone since, already sent), and why.
     skipped = CustomJSONField(default=list, blank=True)
+    # Where the site is reached from outside (for unsubscribe links), as it was when sent.
+    link_base = models.CharField(max_length=255, blank=True, default='')
     error = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return f'{self.name} ({self.created_at:%Y-%m-%d})'
+
+
+class EmailUnsubscribeSource(models.TextChoices):
+    LINK = 'link', 'Unsubscribe link'
+    ADMIN = 'admin', 'Added by an organizer'
+
+
+class EmailUnsubscribe(TimeStampedModel):
+    '''
+    An address that asked not to get an event's group email (SPEC §8.9, DR-48).
+    Group email skips it; confirmations and invitations still go to it.
+    '''
+    event = models.ForeignKey(Event, related_name='email_unsubscribes', on_delete=models.CASCADE)
+    email = models.EmailField(help_text='Lowercased')
+    source = models.CharField(max_length=10, choices=EmailUnsubscribeSource.choices)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['event', 'email'], name='email_unsubscribe_address'),
+        ]
+
+    def __str__(self):
+        return f'{self.email} ({self.event})'

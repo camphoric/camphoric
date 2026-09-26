@@ -175,7 +175,8 @@ class SendTests(GroupEmailTestCase):
         self.assertEqual(pat.template, self.template)
         self.assertEqual(pat.to, 'Pat Alpha <pat@example.com>')
         self.assertEqual(pat.subject, 'Packing for Test Camp')
-        self.assertEqual(pat.text, 'Hi Pat Alpha!')
+        self.assertTrue(pat.text.startswith('Hi Pat Alpha!\n\n--\n'), pat.text)
+        self.assertTrue(pat.unsubscribe_url.startswith('http://testserver/api/unsubscribe/'))
         self.assertEqual(len(mail.outbox), 2)
 
         data = self.client.get(f'/api/emailbatches/{batch.id}/').data

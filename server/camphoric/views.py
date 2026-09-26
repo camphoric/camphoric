@@ -11,11 +11,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import ProtectedError, Q
-from django.shortcuts import get_object_or_404
+from django.core import signing
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 
 import jsonschema
 from rest_framework import permissions, status
@@ -33,7 +35,7 @@ from camphoric import (
     serializers,
 )
 from camphoric.lodging import get_lodging_schema
-from camphoric.mail import batches, outbox
+from camphoric.mail import batches, outbox, unsubscribe
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
@@ -44,6 +46,7 @@ from camphoric.templating.pages import (
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import render_template
+from camphoric.templating.urls import public_base
 
 
 logger = logging.getLogger(__name__)
@@ -201,7 +204,7 @@ class EmailTemplateViewSet(ModelViewSet):
                 template, recipient_keys=data.get('recipient_keys') or [], account=account,
                 from_email=data.get('from_email') or '', reply_to=data.get('reply_to') or '',
                 skip_already_sent=data.get('skip_already_sent', True) is not False,
-                send_at=send_at, created_by=request.user)
+                send_at=send_at, created_by=request.user, link_base=public_base(request))
         except batches.BatchError as error:
             return Response({'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializers.EmailBatchSerializer(batch).data,
@@ -264,6 +267,64 @@ class EmailRecipientsView(APIView):
         for recipient in result['recipients']:
             recipient['already_sent'] = recipient['key'] in sent
         return Response(result)
+
+
+class EmailUnsubscribeViewSet(ModelViewSet):
+    '''
+    The addresses that unsubscribed from an event's group email (`?event=`);
+    an organizer can add one (someone who asked by reply) or remove one.
+    '''
+    queryset = models.EmailUnsubscribe.objects.select_related('created_by').order_by(
+        '-created_at', '-id')
+    serializer_class = serializers.EmailUnsubscribeSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event']
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
+    def perform_create(self, serializer):
+        serializer.save(source=models.EmailUnsubscribeSource.ADMIN, created_by=self.request.user)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UnsubscribeView(View):
+    '''
+    GET /api/unsubscribe/<token>/: a page asking to confirm (a link scanner's
+    GET changes nothing). POST — the page's button, or a mail provider's
+    one-click `List-Unsubscribe=One-Click` (RFC 8058) — unsubscribes the
+    token's address from the event's group email (SPEC DR-48). No login: the
+    signed token is the permission.
+    '''
+    template = 'camphoric/unsubscribe.html'
+
+    def target(self, request, token):
+        try:
+            event_id, address = unsubscribe.read_token(token)
+        except signing.BadSignature:
+            return None, None, render(request, self.template, {
+                'problem': 'The unsubscribe link is incomplete or has been changed. '
+                           'Try the link in the email again.'}, status=400)
+        event = models.Event.objects.filter(id=event_id).first()
+        if event is None:
+            return None, None, render(request, self.template, {
+                'problem': 'The event this email was about no longer exists, so it won’t '
+                           'send you anything more.'}, status=404)
+        return event, address, None
+
+    def get(self, request, token):
+        event, address, problem = self.target(request, token)
+        if problem:
+            return problem
+        done = address in unsubscribe.unsubscribed(event)
+        return render(request, self.template,
+                      {'event_name': event.name, 'address': address, 'done': done})
+
+    def post(self, request, token):
+        event, address, problem = self.target(request, token)
+        if problem:
+            return problem
+        unsubscribe.unsubscribe(event, address, source=models.EmailUnsubscribeSource.LINK)
+        return render(request, self.template,
+                      {'event_name': event.name, 'address': address, 'done': True})
 
 
 class EmailRecipientFieldsView(APIView):

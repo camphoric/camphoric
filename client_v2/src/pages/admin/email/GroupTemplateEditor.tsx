@@ -153,7 +153,9 @@ export function GroupTemplateEditor({
         fieldErrors={errors}
       />
       <Text size="sm" c="dimmed">
-        These are the default recipients. Before sending, you review exactly who gets it.
+        These are the default recipients. Before sending, you review exactly who gets it. Anyone who
+        unsubscribed from this event’s group email is left out, and each copy ends with an
+        unsubscribe link.
       </Text>
 
       <Title order={4}>Sender</Title>

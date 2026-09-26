@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-47)
+- §15 — Decision Records (DR-1…DR-48)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -199,7 +199,8 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
-  `?emailTab` — `history`, or templates (the default, left out of the URL); `?templateId` —
+  `?emailTab` — `history`, `unsubscribed`, or templates (the default, left out of the URL);
+  `?templateId` —
   the group email template being edited (`new` for a new one); `?messageId` — the email open in
   the history; `?mstatus`, `?mkind`,
   `?mq`, `?mpage`, `?mbatch` — the history's status and kind filters (comma-separated lists),
@@ -257,7 +258,8 @@ derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must als
 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
-`Payment`, `CustomCharge`, `CustomChargeType`, `EmailAccount`, `EmailTemplate`, `User`.
+`Payment`, `CustomCharge`, `CustomChargeType`, `EmailAccount`, `EmailTemplate`,
+`EmailUnsubscribe` (no update), `User`.
 
 Non-CRUD admin endpoints:
 
@@ -341,15 +343,18 @@ Non-CRUD admin endpoints:
     diagnostics }`. A recipient's `key` is `registration:<id>`, `camper:<id>` or
     `address:<email>`; `already_sent` is whether `template` has been sent to it. `skipped`
     reasons are `no_address`, `invalid`, `duplicate` (the same address, case-insensitively, as an
-    earlier recipient) and `filter_error` (an expression failed for it); a bad rule or expression is a diagnostic on its field
-    (`filter`, `filter_expression`, …).
+    earlier recipient), `filter_error` (an expression failed for it) and `unsubscribed` (the
+    address unsubscribed from the event's group email); a bad rule or expression is a diagnostic
+    on its field (`filter`, `filter_expression`, …).
   - `POST /api/emailtemplates/{id}/send/` `{ recipient_keys, account?, from_email?, reply_to?,
     skip_already_sent? (default true), send_at? }` — send a `group` template to the reviewed
     recipients, now or at `send_at` (ISO 8601; later needs the email worker) → 202 with the
     `EmailBatch`. A 400 `{ detail }` when no recipients are given or the template isn't a group
     email. The copies are rendered when the batch is prepared: a recipient no longer in the data
-    is skipped as `gone`, one the template already reached as `already_sent` (unless
-    `skip_already_sent` is false), and a copy that can't be rendered is a `failed` message.
+    is skipped as `gone`, one that has unsubscribed since as `unsubscribed`, one the template
+    already reached as `already_sent` (unless `skip_already_sent` is false), and a copy that
+    can't be rendered is a `failed` message. The send records where the site is reached from
+    outside (`CAMPHORIC_PUBLIC_URL`, else the request's host) for the copies' unsubscribe links.
   - `POST /api/emailtemplates/{id}/test/` `{ to?, recipient_key?, subject?, body?, …audience }`
     — queue one copy, `[Test]` before the subject, rendered for `recipient_key` (else the first
     recipient), to `to` (default: the signed-in admin); unsaved `subject` / `body` / audience
@@ -361,6 +366,15 @@ Non-CRUD admin endpoints:
     `EmailBatch`. `POST /api/emailbatches/{id}/cancel/` stops one — before it's prepared, or its
     copies still waiting (409 when already cancelled); `POST /api/emailbatches/{id}/retry-failed/`
     queues its failed copies again → the batch with `retried`.
+  - `GET /api/emailunsubscribes/?event=` — the event's unsubscribed addresses, newest first;
+    `POST` `{ event, email }` adds one as an organizer (the address is lowercased; 400 on `email`
+    when it's already there); `DELETE /api/emailunsubscribes/{id}/` removes one.
+- **Unsubscribe** (public, no login; §15, DR-48): `GET /api/unsubscribe/{token}/` is a page,
+  rendered by the server, that asks to confirm unsubscribing the token's address from the
+  token's event's group email (a GET changes nothing); `POST` to the same URL — the page's
+  button, or a mail provider's one-click `List-Unsubscribe=One-Click` (RFC 8058) — records it
+  and says so. The token is signed; a tampered one is a 400 page, an event that no longer exists
+  a 404 page.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -448,7 +462,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `cancelled`), `skipped` (`[{ key, label, reason }]`, from preparing it), `error`,
   `created_by`, `created_by_name`, timestamps, and read-only counts `total`, `sent`, `failed`,
   `cancelled`, `waiting`, and `state` (`scheduled` | `preparing` | `sending` | `done` |
-  `cancelled`; `done` is sending with nothing waiting).
+  `cancelled`; `done` is sending with nothing waiting); `link_base` is where the site was reached
+  from when it was sent, for the unsubscribe links.
+- **EmailUnsubscribe** (`/api/emailunsubscribes/`, filter `event`; §15, DR-48): `id`, `event`,
+  `email` (lowercased), read-only `source` (`link` | `admin`), `created_by`, `created_by_name`
+  and `created_at`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
   the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`.
@@ -873,8 +891,8 @@ shown).
 ### 8.9 Email
 
 Every email the event sends is queued and delivered in the background (§15, DR-44). The Email
-section shows **what the event's email is doing now**, the event's **email templates**, and its
-**history**.
+section shows **what the event's email is doing now**, the event's **email templates**, its
+**history**, and who has **unsubscribed** from its group email.
 
 **Now** — how many emails are waiting (and when the next is tried) and how many failed in the
 last day, refreshed every few seconds (every couple of seconds while email is waiting). Two things
@@ -953,7 +971,8 @@ recipients**, its **sender** and its **message**:
   skips**, and on request the lists: each recipient (who they are, address and name, and whether
   this template was already sent to them) and each skipped one with why — no address, not a
   valid address, the same address as an earlier recipient (compared case-insensitively; each
-  address gets one copy), or an expression that failed for that one. The count uses only the
+  address gets one copy), an expression that failed for that one, or an address that
+  unsubscribed from the event's group email. The count uses only the
   finished conditions; a condition still missing its field or value keeps the template from
   being saved. A problem in an expression or a condition is marked on its field. These are the
   *default* recipients: each send reviews exactly who gets it.
@@ -976,7 +995,7 @@ shows any problem on its field.
   expressions stay the template's) finds recipients that are either **added** to the list (chosen)
   or **replace** it. Listed addresses come only from the template.
 - **Left out** — those the recipients can't include (no address, not a valid address, a duplicate
-  address, an expression that failed), with why, on request.
+  address, an expression that failed, unsubscribed), with why, on request.
 - **Already sent** — when any recipient already got this template, "only send to those who
   haven't received it yet" is offered, on by default, with how many of the chosen it skips;
   skipped ones are marked in the list.
@@ -991,8 +1010,20 @@ account, how many are skipped as already sent and how many were left out, and wh
 then creates the send with the chosen recipients' keys (§5); the admin is taken to the history,
 showing that send's copies. Each copy is rendered when the send is prepared (at its time, for a
 later send), from the template's subject and body as they were when it was sent; a recipient
-who's no longer in the event's data is skipped, and a copy that can't be rendered is recorded as
-failed with the problem while the others still go.
+who's no longer in the event's data, or who has unsubscribed since, is skipped, and a copy that
+can't be rendered is recorded as failed with the problem while the others still go.
+
+Each copy ends with a short footer saying which event it's about, with a link to **unsubscribe**
+from the event's group email, and carries the same link as a one-click `List-Unsubscribe` header
+(§15, DR-48). Following the link opens a page that asks to confirm; confirming — or a mail
+provider's one-click unsubscribe — adds the address to the event's unsubscribed list. Tests and
+the editor's preview don't have the footer.
+
+**Unsubscribed** — the addresses that don't get the event's group email, newest first: each
+address, how it got there (an email's unsubscribe link, or added by an organizer, named) and
+when. Every group email leaves them out (as "Unsubscribed"); confirmations and invitations still
+reach them. The admin can add an address (e.g. someone who asked by replying) and remove one
+(after confirming), which lets group email reach it again.
 
 ---
 
@@ -2387,6 +2418,31 @@ inbox. A Reply-To equal to an unchanged From is harmless.
 can't suit every event sharing the account. Fall back to the event's confirmation address — wrong
 for a group email sent from a different address.
 
+### DR-48 — Group email can be unsubscribed from, per event, with one click
+
+**Decision:** Each copy of a group email carries a link, in a footer and as a `List-Unsubscribe`
+header with `List-Unsubscribe-Post` (RFC 8058 one-click), to unsubscribe its address from that
+event's group email. The link holds a token signed with Django's signing (the event and the
+address), so it needs no login and can't be made for another address. A GET shows a page asking
+to confirm and changes nothing; a POST — the page's button, or the provider's one-click request —
+records the address. The page is rendered by the server, so it works from any mail client without
+the app. Group email skips unsubscribed addresses when the recipients are worked out and again
+when a send is prepared; confirmations, invitations and tests aren't affected. Organizers see
+the list and can add or remove addresses. Links point at `CAMPHORIC_PUBLIC_URL`, else the host the
+send was made from, recorded on the send because copies are prepared by the worker, outside any
+request.
+**Context:** Gmail and Yahoo expect bulk mail to offer one-click unsubscribe and treat mail
+without it as more likely spam; an event's announcements reach hundreds of people, and without a
+way out, people mark them as spam instead, hurting delivery of every email the account sends,
+confirmations included. Scoping it to the event keeps a camper who opts out of one event's
+reminders reachable for next year's event, and keeps registration-related notices — which are
+the event's business — out of the question.
+**Alternatives:** A `mailto:` unsubscribe header only — nothing is recorded, and someone has to act
+on each request by hand. Organization-wide unsubscribes — one opt-out would silence every
+future event. An "essential" flag letting some group emails reach unsubscribed addresses —
+more to explain, and easy to overuse; an organizer can still email someone directly. A link that
+unsubscribes on GET — link scanners and previews would unsubscribe people who never clicked.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2414,10 +2470,10 @@ must be coordinated with the backend. Grouped by status.
   (§5).
 - **Email:** the email templates (`EmailTemplate`; the event's `confirmation_template` and each
   registration type's `invitation_template`) and their save-time checks, the confirmation-failure
-  report to `confirmation_email_from`, the group email endpoints (recipient fields, recipients,
-  send, test, duplicate, batches with cancel and retry), the outbox (`emailmessages`, the queue,
-  retry and cancel) and email accounts, with the shapes in §5 (§8.3, §8.8, §8.9; DR-44, DR-45,
-  DR-46).
+  report to `confirmation_email_from`, the unsubscribe page and list, the group email endpoints
+  (recipient fields, recipients, send, test, duplicate, batches with cancel and retry), the
+  outbox (`emailmessages`, the queue, retry and cancel) and email accounts, with the shapes in §5
+  (§8.3, §8.8, §8.9; DR-44 to DR-48).
 - **Server-rendered templates:** the Report's `variables_source` field, and
   `GET /api/events/{id}/templates/describe`, `POST …/templates/preview` and
   `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).

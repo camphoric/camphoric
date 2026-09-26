@@ -16,7 +16,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from camphoric import models
-from camphoric.mail import outbox
+from camphoric.mail import outbox, unsubscribe
 from camphoric.templating.bulk import Criteria, candidate_context, resolve_recipients
 from camphoric.templating.emails import render_jinja_email
 from camphoric.templating.graph import build_event_graph
@@ -30,8 +30,12 @@ class BatchError(Exception):
 
 
 def create_batch(template, *, recipient_keys, account=None, from_email='', reply_to='',
-                 skip_already_sent=True, send_at=None, created_by=None):
-    '''Record a send of `template` to the reviewed recipients and schedule it.'''
+                 skip_already_sent=True, send_at=None, created_by=None, link_base=''):
+    '''
+    Record a send of `template` to the reviewed recipients and schedule it.
+    `link_base` is where the site is reached from outside (templating.urls.
+    public_base), for each copy's unsubscribe link.
+    '''
     from camphoric.mail.tasks import expand_batch
 
     if template.purpose != models.EmailTemplatePurpose.GROUP:
@@ -53,7 +57,7 @@ def create_batch(template, *, recipient_keys, account=None, from_email='', reply
         recipient_keys=keys, account=account or template.account or event.email_account,
         from_email=from_email or template.sender, reply_to=reply_to or template.reply_to,
         skip_already_sent=skip_already_sent, send_at=send_at if later else None,
-        created_by=created_by)
+        created_by=created_by, link_base=link_base)
     task.enqueue(batch.id)
     batch.refresh_from_db()
     return batch
@@ -85,8 +89,7 @@ def expand(batch_id):
     resolution = resolve_recipients(event, criteria, graph=graph,
                                     only_keys=batch.recipient_keys)
     skipped = [{'key': key, 'label': key, 'reason': 'gone'} for key in resolution.missing]
-    skipped += [{**asdict(s), 'key': s.camper and f'camper:{s.camper}'
-                 or f'registration:{s.registration}'} for s in resolution.skipped]
+    skipped += [{**asdict(s), 'key': _skipped_key(s)} for s in resolution.skipped]
     already = (sent_keys(batch.template_id, exclude_batch=batch)
                if batch.skip_already_sent and batch.template_id else set())
 
@@ -102,10 +105,15 @@ def expand(batch_id):
                 candidate_context(graph, batch.recipient_source, candidate))
             to = formataddr((candidate.name, candidate.email)) if candidate.name \
                 else candidate.email
+            text, html = rendered.text, rendered.html
+            link = unsubscribe.unsubscribe_url(batch.link_base, event.id, candidate.email)
+            if link:
+                text_footer, html_footer = unsubscribe.footer(event.name, link)
+                text, html = text + text_footer, (html + html_footer if html else '')
             fields = dict(
                 event=event, kind=models.EmailMessageKind.BULK, to=to,
-                subject=rendered.subject or batch.subject, text=rendered.text,
-                html=rendered.html, from_email=batch.from_email, account=batch.account,
+                subject=rendered.subject or batch.subject, text=text, html=html,
+                unsubscribe_url=link, from_email=batch.from_email, account=batch.account,
                 reply_to=batch.reply_to or None, registration_id=candidate.registration,
                 batch=batch, template_id=batch.template_id, recipient_key=candidate.key,
                 created_by=batch.created_by, dedupe_key=f'batch:{batch.id}:{candidate.key}')
@@ -129,6 +137,14 @@ def expand(batch_id):
                 status=Status.CANCELLED, last_error='Cancelled', updated_at=timezone.now())
             return 'cancelled'
     return f'queued {sum(1 for m in created if m.status == Status.QUEUED)}'
+
+
+def _skipped_key(skipped):
+    if skipped.camper:
+        return f'camper:{skipped.camper}'
+    if skipped.registration:
+        return f'registration:{skipped.registration}'
+    return f'address:{unsubscribe.normalize(skipped.email)}'
 
 
 def _message_fields(fields):

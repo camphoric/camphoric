@@ -2,7 +2,9 @@
  * Group email (SPEC §8.9; §15 DR-45): the fields recipients can be chosen by,
  * who an audience reaches (live, from unsaved fields), and the template
  * actions — duplicate, send (a batch), send a test — plus the event's batches
- * with cancel and retry. Template CRUD is `emailTemplateHooks`.
+ * with cancel and retry, and adding an unsubscribed address (§15 DR-48).
+ * Template CRUD is `emailTemplateHooks`; the unsubscribed list is
+ * `emailUnsubscribeHooks`.
  */
 
 import { useDebouncedValue } from '@mantine/hooks';
@@ -10,6 +12,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type {
   ApiEmailBatch,
   ApiEmailTemplate,
+  ApiEmailUnsubscribe,
   AudienceResolution,
   EmailAudience,
   EmailRecipientField,
@@ -142,3 +145,19 @@ export const useCancelBatch = () => useBatchAction<ApiEmailBatch>('cancel');
 /** Queue a batch's failed copies again. */
 export const useRetryBatch = () =>
   useBatchAction<ApiEmailBatch & { retried: number }>('retry-failed');
+
+/** Unsubscribe an address from the event's group email, as an organizer. */
+export function useAddUnsubscribe() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, email }: { eventId: number; email: string }) =>
+      apiFetch<ApiEmailUnsubscribe>('/api/emailunsubscribes/', {
+        method: 'POST',
+        body: { event: eventId, email },
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['EmailUnsubscribe'] });
+      void client.invalidateQueries({ queryKey: ['EmailAudience'] });
+    },
+  });
+}

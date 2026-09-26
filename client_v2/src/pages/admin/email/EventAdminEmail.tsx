@@ -6,6 +6,7 @@
  * - History: every email the event has sent or queued (`?messageId` opens one;
  *   the filters are `?mstatus`, `?mkind`, `?mq`, `?mpage`, and `?mbatch` for
  *   one group email send).
+ * - Unsubscribed: the addresses that don't get the event's group email.
  */
 
 import { Stack, Tabs, Title } from '@mantine/core';
@@ -18,6 +19,7 @@ import { eventHooks } from 'store/entities';
 import { EmailHistory } from './EmailHistory';
 import { formatTime } from './emailLabels';
 import { EmailTemplates } from './EmailTemplates';
+import { EmailUnsubscribes } from './EmailUnsubscribes';
 import { QueueStatus } from './QueueStatus';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
@@ -63,11 +65,16 @@ export function EventAdminEmail() {
 
       <Tabs
         value={emailTab}
-        onChange={(tab) => setSearch({ emailTab: tab === 'history' ? tab : undefined })}
+        onChange={(tab) =>
+          setSearch({
+            emailTab: tab === 'history' || tab === 'unsubscribed' ? tab : undefined,
+          })
+        }
       >
         <Tabs.List>
           <Tabs.Tab value="templates">Templates</Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
+          <Tabs.Tab value="unsubscribed">Unsubscribed</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="templates" pt="md">
@@ -101,6 +108,10 @@ export function EventAdminEmail() {
             messageId={messageId ? Number(messageId) : undefined}
             onOpenMessage={(id) => setSearch({ messageId: id ? String(id) : undefined })}
           />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="unsubscribed" pt="md">
+          <EmailUnsubscribes eventId={Number(eventId)} />
         </Tabs.Panel>
       </Tabs>
     </Stack>

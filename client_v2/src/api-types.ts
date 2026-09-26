@@ -713,11 +713,24 @@ export interface AudienceRecipient {
 
 export interface AudienceSkipped {
   label: string;
-  reason: 'no_address' | 'invalid' | 'duplicate' | 'filter_error';
+  reason: 'no_address' | 'invalid' | 'duplicate' | 'filter_error' | 'unsubscribed';
   detail: string;
   email: string;
   registration: number | null;
   camper: number | null;
+}
+
+/** An address unsubscribed from an event's group email (SPEC §5; §15 DR-48). */
+export interface ApiEmailUnsubscribe {
+  id: number;
+  event: number;
+  /** Lowercased. */
+  email: string;
+  /** `link`: the recipient followed an email's unsubscribe link; `admin`: an organizer added it. */
+  source: 'link' | 'admin';
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
 }
 
 export interface AudienceResolution {
