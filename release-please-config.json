@@ -3,14 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "bump-minor-pre-major": true,
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "client/package.json",
-          "jsonpath": "$.version"
-        }
-      ]
+      "bump-minor-pre-major": true
     }
   }
 }
