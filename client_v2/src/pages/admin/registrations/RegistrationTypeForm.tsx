@@ -1,16 +1,20 @@
 /**
  * Create or edit a registration type (SPEC §8.4): machine `name`, `label`, and
- * the invitation email — its engine, subject and template. New types are
- * written in Jinja, previewed for one of the type's invitations (or an example
- * one). Persists via POST (new) or PATCH (edit).
+ * — once it exists — its invitation email, the type's email template (§15
+ * DR-45), edited in Jinja and previewed for one of the type's invitations (or an
+ * example one). A new type starts with a standard invitation. Persists via POST
+ * (new) or PATCH (edit), and the template via its own PATCH.
  */
 
-import { Button, Group, Modal, Stack, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import type { ApiRegistrationType, TemplateEngine } from 'api-types';
+import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { useMemo, useState } from 'react';
+import type { CreateBody } from 'store/createEntityHooks';
+import { useTemplateDraft } from 'store/emailTemplates';
 import { invitationHooks, registrationTypeHooks } from 'store/entities';
+import { apiErrorMessage } from 'utils/fetch';
 
 interface RegistrationTypeFormProps {
   eventId: string;
@@ -34,9 +38,7 @@ export function RegistrationTypeForm({
 
   const [name, setName] = useState(regType?.name ?? '');
   const [label, setLabel] = useState(regType?.label ?? '');
-  const [subject, setSubject] = useState(regType?.invitation_email_subject ?? '');
-  const [template, setTemplate] = useState(regType?.invitation_email_template ?? '');
-  const [engine, setEngine] = useState<TemplateEngine>(regType?.invitation_email_engine ?? 'jinja');
+  const invitationEmail = useTemplateDraft(regType?.invitation_template);
 
   const { data: invitations } = invitationHooks.useList(
     { registration_type__event: eventId },
@@ -56,25 +58,22 @@ export function RegistrationTypeForm({
     [invitations, regType],
   );
 
-  const valid = name.trim() && label.trim() && subject.trim() && template.trim();
+  const valid = name.trim() && label.trim();
 
-  const save = () => {
+  const save = async () => {
     if (!valid) return;
-    const fields = {
-      name,
-      label,
-      invitation_email_subject: subject,
-      invitation_email_template: template,
-      invitation_email_engine: engine,
-    };
-    const onSuccess = () => {
+    try {
+      if (regType) {
+        await update.mutateAsync({ id: regType.id, name, label });
+        await invitationEmail.save();
+      } else {
+        const body = { event: eventId, name, label } as unknown as CreateBody<ApiRegistrationType>;
+        await create.mutateAsync(body);
+      }
       notifications.show({ color: 'green', message: 'Registration type saved' });
       onClose();
-    };
-    if (regType) {
-      update.mutate({ id: regType.id, ...fields }, { onSuccess });
-    } else {
-      create.mutate({ event: eventId, ...fields }, { onSuccess });
+    } catch (error) {
+      notifications.show({ color: 'red', message: apiErrorMessage(error) });
     }
   };
 
@@ -98,24 +97,32 @@ export function RegistrationTypeForm({
           onChange={(e) => setLabel(e.currentTarget.value)}
           required
         />
-        <EmailTemplateEditor
-          eventId={eventId}
-          context="invitation_email"
-          engine={engine}
-          onEngineChange={setEngine}
-          subject={subject}
-          onSubjectChange={setSubject}
-          body={template}
-          onBodyChange={setTemplate}
-          samples={samples}
-          baseSample={regType ? { registration_type_id: regType.id } : undefined}
-          helpHref={helpHref}
-        />
+        {regType ? (
+          <EmailTemplateEditor
+            eventId={eventId}
+            context="invitation_email"
+            subject={invitationEmail.subject}
+            onSubjectChange={invitationEmail.setSubject}
+            body={invitationEmail.body}
+            onBodyChange={invitationEmail.setBody}
+            samples={samples}
+            baseSample={{ registration_type_id: regType.id }}
+            helpHref={helpHref}
+          />
+        ) : (
+          <Text size="sm" c="dimmed">
+            A new type starts with a standard invitation email; edit the type to change it.
+          </Text>
+        )}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={!valid} loading={create.isPending || update.isPending}>
+          <Button
+            onClick={() => void save()}
+            disabled={!valid}
+            loading={create.isPending || update.isPending || invitationEmail.saving}
+          >
             Save
           </Button>
         </Group>

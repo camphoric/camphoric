@@ -67,4 +67,3 @@ Registration Number: ${year}-{{ registration.id }}
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
-export const confirmation_email_engine = 'jinja';

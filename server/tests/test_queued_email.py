@@ -1,6 +1,6 @@
 '''
 The confirmation email, its problem reports and invitations go through the
-outbox (camphoric.mail.outbox, SPEC DR-43).
+outbox (camphoric.mail.outbox, SPEC DR-44).
 '''
 
 from django.contrib.auth.models import User
@@ -9,6 +9,7 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from camphoric import models
+from tests.factories import set_email
 
 Kind = models.EmailMessageKind
 Status = models.EmailMessageStatus
@@ -27,11 +28,10 @@ class ConfirmationTests(APITestCase):
             pricing={'adult': 100},
             registration_pricing_logic=[],
             camper_pricing_logic=[{'label': 'Total', 'var': 'total', 'exp': 100}],
-            confirmation_email_engine=models.TemplateEngine.JINJA,
-            confirmation_email_subject='Welcome',
-            confirmation_email_template='Thanks, {{ campers[0].attributes.first_name }}!',
             confirmation_email_from='reg@camp.org',
         )
+        set_email(self.event.confirmation_template, 'Welcome',
+                  'Thanks, {{ campers[0].attributes.first_name }}!')
 
     def start(self, email='pat@example.com'):
         response = self.client.post(f'/api/events/{self.event.id}/register', {
@@ -91,7 +91,7 @@ class ConfirmationTests(APITestCase):
         self.assertEqual(mail.outbox, [])
 
     def test_problem_reports_are_queued_once(self):
-        self.event.confirmation_email_template = '{{ registration.nope.deeper }}'
+        set_email(self.event.confirmation_template, body='{{ registration.nope.deeper }}')
         self.event.confirmation_page_template = '{{ registration.nope.deeper }}'
         self.event.save()
         uuid = self.start()
@@ -112,10 +112,9 @@ class InvitationTests(APITestCase):
         self.event = models.Event.objects.create(
             organization=organization, name='Camp', confirmation_email_from='reg@camp.org')
         registration_type = models.RegistrationType.objects.create(
-            event=self.event, name='staff', label='Staff',
-            invitation_email_engine=models.TemplateEngine.JINJA,
-            invitation_email_subject='Join us',
-            invitation_email_template='{{ invitation.register_url }}')
+            event=self.event, name='staff', label='Staff')
+        set_email(registration_type.invitation_template, 'Join us',
+                  '{{ invitation.register_url }}')
         self.invitation = models.Invitation.objects.create(
             registration_type=registration_type, recipient_name='Lee',
             recipient_email='lee@example.com')

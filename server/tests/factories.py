@@ -102,11 +102,12 @@ def create_template_event():
     )
 
     made.staff = models.RegistrationType.objects.create(
-        event=event, name='staff', label='Staff', invitation_email_subject='Join us',
+        event=event, name='staff', label='Staff',
         registration_schema_overrides={
             'properties': {'staff_role': {'type': 'string', 'title': 'Staff role'}},
         },
     )
+    set_email(made.staff.invitation_template, subject='Join us')
     made.linens = models.CustomChargeType.objects.create(
         event=event, name='linens', label='Linens')
 
@@ -171,3 +172,13 @@ def create_template_event():
         registration.refresh_from_db()
 
     return made
+
+
+def set_email(template, subject=None, body=None):
+    '''Set an email template's subject and/or body (the confirmation, an invitation).'''
+    if subject is not None:
+        template.subject = subject
+    if body is not None:
+        template.body = body
+    template.save()
+    return template

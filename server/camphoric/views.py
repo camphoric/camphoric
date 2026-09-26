@@ -154,13 +154,29 @@ class EmailAccountViewSet(ModelViewSet):
                         status=status.HTTP_202_ACCEPTED)
 
 
+class EmailTemplateViewSet(ModelViewSet):
+    '''The event's email templates: its confirmation, its invitations, its group emails.'''
+    queryset = models.EmailTemplate.objects.order_by('purpose', 'name', 'id')
+    serializer_class = serializers.EmailTemplateSerializer
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['event', 'purpose']
+
+    def destroy(self, request, *args, **kwargs):
+        if self.get_object().purpose != models.EmailTemplatePurpose.GROUP:
+            return Response(
+                {'detail': 'The confirmation and invitation emails can\'t be deleted; '
+                           'edit them instead.'},
+                status=status.HTTP_409_CONFLICT)
+        return super().destroy(request, *args, **kwargs)
+
+
 class EmailMessagePagination(PageNumberPagination):
     page_size = 50
 
 
 class EmailMessageViewSet(ReadOnlyModelViewSet):
     '''
-    The email outbox and history (SPEC DR-43), newest first. Filter by event,
+    The email outbox and history (SPEC DR-44), newest first. Filter by event,
     kind, status (`kind__in`/`status__in` take comma-separated lists) and more;
     `q` searches the recipient and subject. The list leaves out the content.
     '''
@@ -359,6 +375,21 @@ class EventList(APIView):
             }
         response_data = list(map(map_event, events))
         return Response(response_data)
+
+
+def template_sender(template, event):
+    '''
+    Who an email template's email comes from: its own sender, reply-to and
+    account where set, else the event's address and account.
+    '''
+    sender = {'from_email': event.confirmation_email_from}
+    if template:
+        sender['from_email'] = template.sender
+        if template.reply_to:
+            sender['reply_to'] = template.reply_to
+        if template.account_id:
+            sender['account'] = template.account
+    return sender
 
 
 def queue_report(registration, kind, subject, body):
@@ -601,7 +632,7 @@ class RegisterView(APIView):
             event=event,
             kind=models.EmailMessageKind.CONFIRMATION,
             registration=registration,
-            from_email=event.confirmation_email_from,
+            **template_sender(event.confirmation_template, event),
             to=registration.registrant_email,
             subject=rendered.subject,
             text=rendered.text,
@@ -866,7 +897,7 @@ class SendInvitationView(APIView):
             event=event,
             kind=models.EmailMessageKind.INVITATION,
             invitation=invitation,
-            from_email=event.confirmation_email_from,  # TODO: figure out what this should be
+            **template_sender(invitation.registration_type.invitation_template, event),
             to=f'"{to_name}" <{to_email}>' if to_name else to_email,
             subject=rendered.subject,
             text=rendered.text,

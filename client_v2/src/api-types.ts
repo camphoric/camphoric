@@ -81,9 +81,9 @@ export interface ApiEvent extends TimeStamped {
 
   // Confirmation page + email.
   confirmation_page_template: string;
-  confirmation_email_subject: string;
-  confirmation_email_template: string;
-  confirmation_email_engine: TemplateEngine;
+  /** The confirmation email's template (created with the event; read-only here). */
+  confirmation_template: number | null;
+  /** The event's sending address (the confirmation's, and its email's default). */
   confirmation_email_from: string;
   /** The event's sending account (null: the server's default mailer). */
   email_account: number | null;
@@ -129,9 +129,8 @@ export interface ApiRegistrationType extends TimeStamped {
   event: Scalar;
   name: string;
   label: string;
-  invitation_email_subject: string;
-  invitation_email_template: string;
-  invitation_email_engine: TemplateEngine;
+  /** The invitation email's template (created with the type; read-only here). */
+  invitation_template: number | null;
 }
 
 export interface ApiInvitation extends TimeStamped {
@@ -641,7 +640,7 @@ export interface BulkEmailTestResponse {
   diagnostics: TemplateDiagnostic[];
 }
 
-// --- Email outbox and accounts (SPEC §5, §8.9; §15 DR-43) ----------------------
+// --- Email outbox and accounts (SPEC §5, §8.9; §15 DR-44) ----------------------
 
 export type EmailMessageKind =
   'confirmation' | 'confirmation_report' | 'page_report' | 'invitation' | 'bulk' | 'test';
@@ -718,4 +717,22 @@ export interface ApiEmailAccount extends TimeStamped {
   max_per_minute: number | null;
   max_per_day: number | null;
   default_reply_to: string;
+}
+
+export type EmailTemplatePurpose = 'confirmation' | 'invitation' | 'group';
+
+/** An email the event sends, in Jinja markdown (SPEC §5; §15 DR-45). */
+export interface ApiEmailTemplate extends TimeStamped {
+  id: number;
+  event: number;
+  purpose: EmailTemplatePurpose;
+  name: string;
+  subject: string;
+  body: string;
+  /** Blank: the event's confirmation_email_from. */
+  from_email: string;
+  /** Blank: the sending account's default. */
+  reply_to: string;
+  /** Null: the event's account. */
+  account: number | null;
 }

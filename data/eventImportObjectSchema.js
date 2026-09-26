@@ -1,4 +1,3 @@
-const ENGINES = ['mustache', 'jinja'];
 
 export default {
   type: 'object',
@@ -61,7 +60,6 @@ export default {
         confirmation_page_template: str('Jinja markdown template, rendered on the server when registration completes', { maxLength: undefined }),
         confirmation_email_subject: str(''),
         confirmation_email_template: str('', { maxLength: undefined }),
-        confirmation_email_engine: enm('how the confirmation email subject and template are written (default jinja)', ENGINES),
         confirmation_email_from: eml(''),
       },
     },
@@ -133,7 +131,6 @@ export default {
           label: str('reg type label'),
           invitation_email_subject: str('subject of reg type invitation email'),
           invitation_email_template: str('Email template of reg type invitation email', { maxLength: undefined }),
-          invitation_email_engine: enm('how the invitation email subject and template are written (default jinja)', ENGINES),
         }
       }
     },

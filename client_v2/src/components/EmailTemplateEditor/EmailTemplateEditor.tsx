@@ -1,15 +1,12 @@
 /**
- * Edit an email template — subject and markdown body — in either engine
- * (SPEC §8.3, §8.4; DR-38):
+ * Edit an email template — subject and markdown body — in Jinja (SPEC §8.3,
+ * §8.4; DR-45): the template editor (§9.6) with autocomplete and help for the
+ * email's variables, and a live preview of the subject and body rendered for a
+ * chosen registration or invitation.
  *
- * - **Jinja**: the template editor (§9.6) with autocomplete and help for the
- *   email's variables, and a live preview of the subject and body rendered for
- *   a chosen registration or invitation.
- * - **Mustache** (legacy): a plain editor; the help's "From Mustache emails"
- *   guide maps its variables to Jinja.
- *
- * Switching engines doesn't convert the text; when there is text, it asks
- * first.
+ * Given an `engine`, it also offers the legacy Mustache engine (a plain editor)
+ * — only the task-based bulk email still has one. Switching engines doesn't
+ * convert the text; when there is text, it asks first.
  */
 
 import { Anchor, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
@@ -33,8 +30,9 @@ const ENGINE_OPTIONS: { value: TemplateEngine; label: string }[] = [
 interface EmailTemplateEditorProps {
   eventId: string | number;
   context: TemplateContextName;
-  engine: TemplateEngine;
-  onEngineChange: (engine: TemplateEngine) => void;
+  /** Only for an email that may still be Mustache; omit for Jinja only. */
+  engine?: TemplateEngine;
+  onEngineChange?: (engine: TemplateEngine) => void;
   subject: string;
   onSubjectChange: (subject: string) => void;
   body: string;
@@ -62,10 +60,10 @@ export function EmailTemplateEditor({
 }: EmailTemplateEditorProps) {
   const [sampleValue, setSampleValue] = useState<string | null>(null);
   const chosen = samples.find((s) => s.value === sampleValue) ?? samples[0];
-  const isJinja = engine === 'jinja';
+  const isJinja = (engine ?? 'jinja') === 'jinja';
 
   const changeEngine = (next: TemplateEngine) => {
-    if (next === engine) return;
+    if (next === engine || !onEngineChange) return;
     if (!body.trim() && !subject.trim()) {
       onEngineChange(next);
       return;
@@ -89,18 +87,20 @@ export function EmailTemplateEditor({
 
   return (
     <Stack gap="sm">
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Template language
-        </Text>
-        <SegmentedControl
-          data={ENGINE_OPTIONS}
-          value={engine}
-          onChange={(value) => changeEngine(value as TemplateEngine)}
-          aria-label="Template language"
-          w="fit-content"
-        />
-      </Stack>
+      {engine !== undefined && (
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>
+            Template language
+          </Text>
+          <SegmentedControl
+            data={ENGINE_OPTIONS}
+            value={engine}
+            onChange={(value) => changeEngine(value as TemplateEngine)}
+            aria-label="Template language"
+            w="fit-content"
+          />
+        </Stack>
+      )}
       <TextInput
         label="Subject"
         description={isJinja ? 'A Jinja template too, e.g. Welcome to {{ event.name }}' : undefined}

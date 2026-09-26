@@ -1,5 +1,5 @@
 '''
-The email outbox (SPEC DR-43).
+The email outbox (SPEC DR-44).
 
 Every outgoing email is an EmailMessage row, written when the email is queued
 and kept as the record of what was sent. A `deliver_message` task (see tasks.py)

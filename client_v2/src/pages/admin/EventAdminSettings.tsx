@@ -6,7 +6,7 @@
  *   - Admin attribute schemas: registration, camper.
  * Registration types are also managed here (§8.4, §15 DR-32), as are the
  * registration form's custom validation messages (§15 DR-34) and the event's
- * email account (§15 DR-43).
+ * email account (§15 DR-44).
  */
 
 import { Alert, Button, Container, Group, Stack, Tabs, Title } from '@mantine/core';

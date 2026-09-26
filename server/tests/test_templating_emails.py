@@ -1,6 +1,6 @@
 '''
-Confirmation and invitation emails written in Jinja (SPEC §8.3, §8.4, DR-38).
-The Mustache paths are covered, unchanged, by test_views.
+Confirmation and invitation emails: email templates in Jinja (SPEC §8.3, §8.4,
+DR-45). Mustache emails were converted by migration 0065 (test_mustache).
 '''
 
 from django.contrib.auth.models import User
@@ -9,8 +9,7 @@ from rest_framework.test import APITestCase
 
 from camphoric import models
 from camphoric.templating.checks import check_event_templates
-
-JINJA = models.TemplateEngine.JINJA
+from tests.factories import set_email
 
 
 class JinjaConfirmationEmailTests(APITestCase):
@@ -25,15 +24,14 @@ class JinjaConfirmationEmailTests(APITestCase):
                 {'label': 'Tuition', 'var': 'tuition', 'exp': {'var': 'pricing.adult'}},
                 {'label': 'Total', 'var': 'total', 'exp': {'var': 'tuition'}},
             ],
-            confirmation_email_engine=JINJA,
-            confirmation_email_subject='Welcome, {{ campers[0].attributes.first_name }}',
-            confirmation_email_template=(
-                '# Thanks!\n'
-                '{% for camper in campers %}* {{ camper.attributes.first_name }}: '
-                '{{ camper.pricing.total | money }}\n{% endfor %}'
-                'Paying now: {{ initial_payment.total | money }}'),
             confirmation_email_from='reg@camp.org',
         )
+        set_email(self.event.confirmation_template,
+                  'Welcome, {{ campers[0].attributes.first_name }}', (
+                      '# Thanks!\n'
+                      '{% for camper in campers %}* {{ camper.attributes.first_name }}: '
+                      '{{ camper.pricing.total | money }}\n{% endfor %}'
+                      'Paying now: {{ initial_payment.total | money }}'))
 
     def register(self, email='pat@example.com', campers=({'first_name': 'Pat'},)):
         response = self.client.post(f'/api/events/{self.event.id}/register', {
@@ -66,8 +64,7 @@ class JinjaConfirmationEmailTests(APITestCase):
         self.assertIn('<h1>Thanks!</h1>', message.alternatives[0][0])
 
     def test_a_broken_template_reports_to_the_from_address(self):
-        self.event.confirmation_email_template = 'Hello\n{{ registration.nope.deeper }}'
-        self.event.save()
+        set_email(self.event.confirmation_template, body='Hello\n{{ registration.nope.deeper }}')
 
         response = self.register()
 
@@ -86,7 +83,7 @@ class JinjaConfirmationEmailTests(APITestCase):
         self.assertIn(f'registrations?registrationId={registration.id}', report.body)
 
     def test_without_a_from_address_nothing_is_sent(self):
-        self.event.confirmation_email_subject = '{{ campers[0].nope.deeper }}'
+        set_email(self.event.confirmation_template, subject='{{ campers[0].nope.deeper }}')
         self.event.confirmation_email_from = ''
         self.event.save()
         self.register()
@@ -102,13 +99,11 @@ class JinjaInvitationEmailTests(APITestCase):
         self.event = models.Event.objects.create(
             organization=organization, name='Jinja Camp', confirmation_email_from='reg@camp.org')
         self.registration_type = models.RegistrationType.objects.create(
-            event=self.event, name='staff', label='Staff',
-            invitation_email_engine=JINJA,
-            invitation_email_subject=(
-                '{{ registration_type.label }} registration for {{ event.name }}'),
-            invitation_email_template=(
-                'Hi {{ invitation.recipient_name or invitation.recipient_email }}: '
-                '{{ invitation.register_url }}'))
+            event=self.event, name='staff', label='Staff')
+        set_email(self.registration_type.invitation_template,
+                  '{{ registration_type.label }} registration for {{ event.name }}', (
+                      'Hi {{ invitation.recipient_name or invitation.recipient_email }}: '
+                      '{{ invitation.register_url }}'))
         self.invitation = models.Invitation.objects.create(
             registration_type=self.registration_type, recipient_name='Lee',
             recipient_email='lee@example.com', invitation_code='abcd2345')
@@ -128,8 +123,7 @@ class JinjaInvitationEmailTests(APITestCase):
         self.assertIsNotNone(self.invitation.sent_time)
 
     def test_a_broken_template_is_a_400_and_sends_nothing(self):
-        self.registration_type.invitation_email_template = '{{ invitation.nope.deeper }}'
-        self.registration_type.save()
+        set_email(self.registration_type.invitation_template, body='{{ invitation.nope.deeper }}')
         response = self.send()
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['diagnostics'][0]['message'],
@@ -139,39 +133,63 @@ class JinjaInvitationEmailTests(APITestCase):
         self.assertIsNone(self.invitation.sent_time)
 
 
-class JinjaEmailValidationTests(APITestCase):
+class EmailTemplateApiTests(APITestCase):
+    '''Every email is a template (DR-45): created with its event or type, checked on save.'''
     def setUp(self):
         self.client.force_authenticate(
             user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
         organization = models.Organization.objects.create(name='Camp Org')
-        self.event = models.Event.objects.create(organization=organization, name='Camp',
-                                                 confirmation_email_engine='mustache')
+        self.event = models.Event.objects.create(organization=organization, name='Camp')
+        self.template = self.event.confirmation_template
 
-    def patch_event(self, **fields):
-        return self.client.patch(f'/api/events/{self.event.id}/', fields, format='json')
+    def patch(self, **fields):
+        return self.client.patch(f'/api/emailtemplates/{self.template.id}/', fields,
+                                 format='json')
 
-    def test_jinja_templates_must_parse(self):
-        response = self.patch_event(confirmation_email_engine='jinja',
-                                    confirmation_email_template='ok\n{% if %}')
-        self.assertEqual(response.status_code, 400)
-        self.assertTrue(response.data['confirmation_email_template'][0].startswith('Line 2: '))
-
-        # Switching an existing broken template to Jinja is checked too.
-        self.assertEqual(self.patch_event(confirmation_email_subject='{{ }').status_code, 200)
-        response = self.patch_event(confirmation_email_engine='jinja')
-        self.assertIn('confirmation_email_subject', response.data)
-
-    def test_mustache_templates_are_not_checked(self):
-        self.assertEqual(self.patch_event(confirmation_email_template='{% if %}').status_code, 200)
-
-    def test_registration_types(self):
+    def test_new_events_and_types_get_their_templates(self):
+        self.assertEqual(self.template.purpose, models.EmailTemplatePurpose.CONFIRMATION)
+        self.assertEqual(self.template.event, self.event)
+        self.assertIn('{{ event.name }}', self.template.subject)
         response = self.client.post('/api/registrationtypes/', {
-            'event': self.event.id, 'name': 'staff', 'label': 'Staff',
-            'invitation_email_subject': 'Hi', 'invitation_email_engine': 'jinja',
-            'invitation_email_template': '{% for x in y %}',
-        }, format='json')
+            'event': self.event.id, 'name': 'staff', 'label': 'Staff'}, format='json')
+        self.assertEqual(response.status_code, 201)
+        invitation = models.EmailTemplate.objects.get(id=response.data['invitation_template'])
+        self.assertEqual(invitation.purpose, models.EmailTemplatePurpose.INVITATION)
+        self.assertEqual(invitation.name, 'Invitation: Staff')
+        self.assertIn('{{ invitation.register_url }}', invitation.body)
+
+    def test_templates_must_parse(self):
+        response = self.patch(body='ok\n{% if %}')
         self.assertEqual(response.status_code, 400)
-        self.assertIn('invitation_email_template', response.data)
+        self.assertTrue(response.data['body'][0].startswith('Line 2: '))
+        self.assertIn('subject', self.patch(subject='{{ }').data)
+        self.assertEqual(self.patch(subject='Hi {{ event.name }}').status_code, 200)
+
+    def test_purpose_and_event_are_fixed(self):
+        self.assertIn('purpose', self.patch(purpose='group').data)
+        response = self.client.post('/api/emailtemplates/', {
+            'event': self.event.id, 'purpose': 'confirmation', 'name': 'Another'},
+            format='json')
+        self.assertEqual(response.status_code, 400)
+        response = self.client.post('/api/emailtemplates/', {
+            'event': self.event.id, 'purpose': 'group', 'name': 'Newsletter'}, format='json')
+        self.assertEqual(response.status_code, 201)
+
+    def test_automatic_templates_cannot_be_deleted(self):
+        response = self.client.delete(f'/api/emailtemplates/{self.template.id}/')
+        self.assertEqual(response.status_code, 409)
+
+    def test_the_event_link_is_read_only(self):
+        other = models.EmailTemplate.objects.create(event=self.event, purpose='group', name='x')
+        self.client.patch(f'/api/events/{self.event.id}/', {'confirmation_template': other.id},
+                          format='json')
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.confirmation_template, self.template)
+
+    def test_listed_by_event_and_purpose(self):
+        response = self.client.get(
+            f'/api/emailtemplates/?event={self.event.id}&purpose=confirmation')
+        self.assertEqual([t['id'] for t in response.data], [self.template.id])
 
 
 class EmailCheckTests(APITestCase):
@@ -183,17 +201,9 @@ class EmailCheckTests(APITestCase):
     def result(self, kind):
         return [r for r in check_event_templates(self.event) if r.kind == kind]
 
-    def test_mustache_emails_are_skipped(self):
-        self.event.confirmation_email_engine = models.TemplateEngine.MUSTACHE
-        self.event.save()
-        [confirmation] = self.result('confirmation_email')
-        self.assertEqual(confirmation.mode, 'skipped')
-
     def test_confirmation_renders_for_every_registration(self):
-        self.event.confirmation_email_engine = JINJA
         # Only Pat's registration has a second camper.
-        self.event.confirmation_email_template = '{{ campers[1].attributes.first_name }}'
-        self.event.save()
+        set_email(self.event.confirmation_template, body='{{ campers[1].attributes.first_name }}')
         [confirmation] = self.result('confirmation_email')
         self.assertEqual(confirmation.mode, 'rendered')
         [error] = confirmation.errors
@@ -201,9 +211,7 @@ class EmailCheckTests(APITestCase):
 
     def test_invitations_render_with_each_invitation(self):
         registration_type = models.RegistrationType.objects.get(event=self.event, name='staff')
-        registration_type.invitation_email_engine = JINJA
-        registration_type.invitation_email_template = '{{ invitation.recipient_emial }}'
-        registration_type.save()
+        set_email(registration_type.invitation_template, body='{{ invitation.recipient_emial }}')
         [invitation] = self.result('invitation_email')
         self.assertEqual(invitation.mode, 'rendered')
         self.assertEqual(invitation.label, 'Invitation email: Staff')

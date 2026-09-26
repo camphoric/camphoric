@@ -21,8 +21,6 @@ class TestGetLodgingSchema(TestCase):
             registration_pricing_logic={},
             camper_pricing_logic={},
             confirmation_page_template='',
-            confirmation_email_subject='',
-            confirmation_email_template='',
             confirmation_email_from='foo@example.com'
         )
 

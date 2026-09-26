@@ -22,6 +22,7 @@ router.register('customchargetypes', views.CustomChargeTypeViewSet, basename='cu
 router.register('bulkemailtasks', views.BulkEmailTaskViewSet, basename='bulkemailtask')
 router.register(
     'bulkemailrecipients', views.BulkEmailRecipientViewSet, basename='bulkemailrecipient')
+router.register('emailtemplates', views.EmailTemplateViewSet, basename='emailtemplate')
 router.register('emailmessages', views.EmailMessageViewSet, basename='emailmessage')
 router.register('users', views.UserViewSet, basename='user')
 

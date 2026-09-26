@@ -1,6 +1,6 @@
 '''
 The email history, queue and account API behind the admin's Email pages
-(SPEC DR-43).
+(SPEC DR-44).
 '''
 
 import datetime

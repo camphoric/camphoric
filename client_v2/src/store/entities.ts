@@ -15,6 +15,7 @@ import type {
   ApiCustomChargeType,
   ApiDeposit,
   ApiEmailAccount,
+  ApiEmailTemplate,
   ApiEvent,
   ApiInvitation,
   ApiLodging,
@@ -29,6 +30,10 @@ import { createEntityHooks } from './createEntityHooks';
 
 export const organizationHooks = createEntityHooks<ApiOrganization>({ name: 'Organization' });
 export const eventHooks = createEntityHooks<ApiEvent>({ name: 'Event' });
+export const emailTemplateHooks = createEntityHooks<ApiEmailTemplate>({
+  name: 'EmailTemplate',
+  path: 'emailtemplates',
+});
 export const emailAccountHooks = createEntityHooks<ApiEmailAccount>({
   name: 'EmailAccount',
   path: 'emailaccounts',

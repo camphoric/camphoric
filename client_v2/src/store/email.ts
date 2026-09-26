@@ -1,5 +1,5 @@
 /**
- * The email outbox (SPEC §8.9; §15 DR-43): the event's email history (paged
+ * The email outbox (SPEC §8.9; §15 DR-44): the event's email history (paged
  * and filtered on the server), one message with its content, what the queue is
  * doing now, and retrying or cancelling a message. Everything re-reads every
  * few seconds, faster while mail is waiting to go out.
