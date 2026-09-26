@@ -196,3 +196,29 @@ test.describe('Send a group email', () => {
     await expect(posted).not.toContainText('"camper:4"');
   });
 });
+
+test.describe('Form lists', () => {
+  // The story prints the form data under the form.
+  test('boxes each item with its own remove button and a labelled add button', async ({ page }) => {
+    await page.goto(story('json-schema-form--lists'));
+    const data = page.getByTestId('list-data');
+    await expect(page.getByRole('heading', { name: 'Parking Passes' })).toBeVisible();
+    await expect(page.locator('fieldset')).toHaveCount(0);
+    // Outside registration, the registration-only field shows.
+    await expect(page.getByText('Parking Type')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add A Parking Pass' }).click();
+    await expect(page.locator('.rjsf-field-array').first().getByTitle('Remove')).toHaveCount(2);
+    await page.locator('.rjsf-field-array').first().getByTitle('Remove').first().click();
+    await expect(page.locator('.rjsf-field-array').first().getByTitle('Remove')).toHaveCount(1);
+    await expect(data).toContainText('"parking_passes"');
+    // Only the list that opts in can be reordered.
+    await expect(page.getByTitle('Move down').first()).toBeVisible();
+  });
+
+  test('hides registration-only fields during registration', async ({ page }) => {
+    await page.goto(story('json-schema-form--lists-during-registration'));
+    await expect(page.getByText('Vehicle Type')).toBeVisible();
+    await expect(page.getByText('Parking Type')).toBeHidden();
+  });
+});

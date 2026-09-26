@@ -105,7 +105,8 @@ export function RegistrationStep() {
   }
 
   return (
-    <Stack>
+    // The class lets an event's uiSchema hide fields during registration only (SPEC §7.1).
+    <Stack className="camphoric-registration">
       <JsonSchemaForm
         schema={config.dataSchema}
         uiSchema={config.uiSchema}

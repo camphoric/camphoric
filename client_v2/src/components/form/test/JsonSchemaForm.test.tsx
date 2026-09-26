@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders as renderInProvider, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import { JsonSchemaForm } from '../JsonSchemaForm';
+import { JsonSchemaForm, withFormDefaults } from '../JsonSchemaForm';
+import { addButtonText } from '../templates/ArrayFieldTemplate';
 
 describe('JsonSchemaForm', () => {
   it('renders a data-driven field from the schema', () => {
@@ -244,5 +245,72 @@ describe('JsonSchemaForm', () => {
 
       expect(screen.getByPlaceholderText('RV length *')).toHaveFocus();
     });
+  });
+});
+
+describe('lists', () => {
+  const schema: RJSFSchema = {
+    type: 'object',
+    properties: {
+      passes: {
+        type: 'array',
+        title: 'Parking Passes',
+        items: {
+          type: 'object',
+          title: 'parking pass',
+          properties: { vehicle: { type: 'string', title: 'Vehicle' } },
+        },
+      },
+    },
+  };
+
+  it('is a section with a labelled add button, and each item has its own remove button', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderInProvider(
+      <JsonSchemaForm
+        schema={schema}
+        uiSchema={{ passes: { 'ui:options': { addButtonText: 'Add A Parking Pass' } } }}
+        formData={{ passes: [{ vehicle: 'car' }, { vehicle: 'van' }] }}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Parking Passes' })).toBeInTheDocument();
+    expect(document.querySelector('fieldset')).toBeNull();
+    // Only remove: a registration's list has no order.
+    expect(screen.getAllByTitle('Remove')).toHaveLength(2);
+    expect(screen.queryByTitle('Move up')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Add A Parking Pass' }));
+    expect(onChange.mock.lastCall?.[0]).toMatchObject({ passes: [{}, {}, {}] });
+    await user.click(screen.getAllByTitle('Remove')[0]);
+    expect((onChange.mock.lastCall?.[0] as { passes: unknown[] }).passes).toHaveLength(2);
+  });
+
+  it('can still opt into reordering', () => {
+    renderInProvider(
+      <JsonSchemaForm
+        schema={schema}
+        uiSchema={{ passes: { 'ui:options': { orderable: true } } }}
+        formData={{ passes: [{}, {}] }}
+      />,
+    );
+    expect(screen.getAllByTitle('Move down').length).toBeGreaterThan(0);
+  });
+
+  it('names the add button after the item without addButtonText', () => {
+    expect(addButtonText({ schema: schema.properties!.passes as RJSFSchema, uiSchema: {} })).toBe(
+      'Add parking pass',
+    );
+    expect(addButtonText({ schema: { type: 'array', items: { type: 'string' } } })).toBe(
+      'Add item',
+    );
+  });
+
+  it('keeps the uiSchema’s own global options', () => {
+    expect(withFormDefaults({ 'ui:globalOptions': { orderable: true, label: false } })).toEqual({
+      'ui:globalOptions': { orderable: true, label: false },
+    });
+    expect(withFormDefaults(undefined)).toEqual({ 'ui:globalOptions': { orderable: false } });
   });
 });

@@ -101,3 +101,83 @@ export const Disabled: Story = () => (
     />
   </Stack>
 );
+
+const listSchema: RJSFSchema = {
+  type: 'object',
+  properties: {
+    parking_passes: {
+      type: 'array',
+      title: 'Parking Passes',
+      description: '**ALL vehicles** need a parking pass.',
+      maxItems: 4,
+      items: {
+        type: 'object',
+        title: 'parking pass',
+        properties: {
+          vehicle_type: {
+            type: 'string',
+            title: 'Vehicle Type',
+            enum: ['Regular car', "RV under 15' long"],
+            default: 'Regular car',
+          },
+          pass_type: {
+            type: 'string',
+            title: 'Parking Type',
+            enum: ['Long Term', 'Short Term'],
+            default: 'Long Term',
+          },
+        },
+      },
+    },
+    helpers: {
+      type: 'array',
+      title: 'Helpers, in order of preference',
+      items: { type: 'string', title: 'helper' },
+    },
+  },
+};
+
+const listUiSchema: UiSchema = {
+  parking_passes: {
+    'ui:options': { addButtonText: 'Add A Parking Pass' },
+    items: { pass_type: { 'ui:classNames': 'camphoric-hide-during-registration' } },
+  },
+  helpers: { 'ui:options': { orderable: true } },
+};
+
+/**
+ * Lists (SPEC §9.1; DR-49): a section heading, each item in its own box with
+ * its × in the corner, and a labelled add button. Parking Type has the
+ * registration-only hide class, so it shows here (outside registration) but
+ * not on the registration page; the helpers list opts into reordering.
+ */
+export const Lists: Story = () => {
+  const [formData, setFormData] = useState<unknown>({
+    parking_passes: [{ vehicle_type: 'Regular car', pass_type: 'Long Term' }],
+    helpers: ['Pat', 'Sam'],
+  });
+  return (
+    <Stack maw={640} p="md">
+      <JsonSchemaForm
+        schema={listSchema}
+        uiSchema={listUiSchema}
+        formData={formData}
+        onChange={setFormData}
+      />
+      <Code block data-testid="list-data">
+        {JSON.stringify(formData, null, 2)}
+      </Code>
+    </Stack>
+  );
+};
+
+/** The same lists on the registration page, where Parking Type is hidden. */
+export const ListsDuringRegistration: Story = () => (
+  <Stack maw={640} p="md" className="camphoric-registration">
+    <JsonSchemaForm
+      schema={listSchema}
+      uiSchema={listUiSchema}
+      formData={{ parking_passes: [{}], helpers: [] }}
+    />
+  </Stack>
+);

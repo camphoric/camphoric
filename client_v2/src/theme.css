@@ -25,3 +25,12 @@
 .widget-description {
   color: var(--camphoric-description-color);
 }
+
+/*
+ * An event's uiSchema can hide a field from registrants while keeping it in
+ * the admin's forms: `"ui:classNames": "camphoric-hide-during-registration"`
+ * (SPEC §7.1), e.g. the parking pass type the organizers assign.
+ */
+.camphoric-registration .camphoric-hide-during-registration {
+  display: none;
+}

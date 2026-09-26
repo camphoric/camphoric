@@ -29,6 +29,8 @@ import type { ErrorMessageContext } from 'components/form/errorMessages';
 import { customFields } from 'components/form/fields';
 import { focusFirstError } from 'components/form/focusFirstError';
 import { createMessagingValidator } from 'components/form/messagingValidator';
+import { ArrayFieldItemTemplate } from 'components/form/templates/ArrayFieldItemTemplate';
+import { ArrayFieldTemplate } from 'components/form/templates/ArrayFieldTemplate';
 import { DescriptionFieldTemplate } from 'components/form/templates/DescriptionFieldTemplate';
 import { ErrorListTemplate } from 'components/form/templates/ErrorListTemplate';
 import { customWidgets } from 'components/form/widgets';
@@ -64,7 +66,22 @@ export interface JsonSchemaFormProps {
   liveValidate?: boolean;
 }
 
-const baseTemplates: Partial<TemplatesType> = { DescriptionFieldTemplate, ErrorListTemplate };
+/**
+ * Array items can't be reordered unless a field's `ui:options` says
+ * `orderable: true`: registrations' lists (parking passes, say) have no order,
+ * so the move buttons would only clutter each item (§15, DR-49).
+ */
+export function withFormDefaults(uiSchema: UiSchema | undefined): UiSchema {
+  const globalOptions = (uiSchema?.['ui:globalOptions'] ?? {}) as Record<string, unknown>;
+  return { ...uiSchema, 'ui:globalOptions': { orderable: false, ...globalOptions } };
+}
+
+const baseTemplates: Partial<TemplatesType> = {
+  ArrayFieldItemTemplate,
+  ArrayFieldTemplate,
+  DescriptionFieldTemplate,
+  ErrorListTemplate,
+};
 
 export function JsonSchemaForm({
   schema,
@@ -92,6 +109,7 @@ export function JsonSchemaForm({
     messageContext.current = { ...errorMessages, schema, uiSchema };
   });
   const validator = useMemo(() => createMessagingValidator(() => messageContext.current), []);
+  const formUiSchema = useMemo(() => withFormDefaults(uiSchema), [uiSchema]);
   const container = useRef<HTMLDivElement>(null);
 
   return (
@@ -99,7 +117,7 @@ export function JsonSchemaForm({
       <div ref={container}>
         <Form
           schema={schema}
-          uiSchema={uiSchema}
+          uiSchema={formUiSchema}
           formData={formData}
           validator={validator}
           templates={baseTemplates}
