@@ -92,3 +92,16 @@ export const useRetryEmail = () => useMessageAction('retry');
 
 /** Stop a queued message from being sent. */
 export const useCancelEmail = () => useMessageAction('cancel');
+
+/** Queue a test message through an email account, to `to` (default: you). */
+export function useTestEmailAccount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, to }: { accountId: number; to?: string }) =>
+      apiFetch<ApiEmailMessage>(`/api/emailaccounts/${accountId}/test/`, {
+        method: 'POST',
+        body: to ? { to } : {},
+      }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['EmailMessage'] }),
+  });
+}

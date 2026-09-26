@@ -4,21 +4,24 @@
  * themselves are managed in Settings — §8.8, §15 DR-32.)
  *
  * The invitations table (newest first) shows name, email, type, derived status
- * (redeemed → has a registration; sent → has a sent time; else unsent), and a
- * link to the linked registration when redeemed, with per-row resend/delete.
+ * (redeemed → has a registration; otherwise how its latest email is doing:
+ * sending, sent, failed or not sent — §15 DR-43; else unsent), and a link to
+ * the linked registration when redeemed, with per-row resend/delete. While an
+ * invitation's email is on its way, the list refreshes every couple of seconds.
  * Rendered as the "Invitations" tab of the section.
  */
 
-import { Anchor, Badge, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Badge, Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiInvitation } from 'api-types';
 import { DataTable } from 'components/DataTable';
 import { FullScreenLoading } from 'components/Loading';
 import { useRegistrationTypeLookup } from 'hooks/useAdminData';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { invitationHooks, registrationTypeHooks } from 'store/entities';
 import { useSendInvitation } from 'store/invitations';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
@@ -27,19 +30,37 @@ import { InviteForm } from './InviteForm';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
-type InvitationStatus = 'Redeemed' | 'Sent' | 'Unsent';
+export type InvitationStatus = 'Redeemed' | 'Sending' | 'Sent' | 'Failed' | 'Not sent' | 'Unsent';
 
-function invitationStatus(i: ApiInvitation): InvitationStatus {
+export function invitationStatus(i: ApiInvitation): InvitationStatus {
   if (i.registration != null) return 'Redeemed';
+  switch (i.email?.status) {
+    case 'queued':
+    case 'sending':
+      return 'Sending';
+    case 'sent':
+      return 'Sent';
+    case 'failed':
+      return 'Failed';
+    case 'cancelled':
+      return 'Not sent';
+  }
+  // Sent before email was queued (no message on record).
   if (i.sent_time) return 'Sent';
   return 'Unsent';
 }
 
 const STATUS_COLOR: Record<InvitationStatus, string> = {
   Redeemed: 'green',
+  Sending: 'blue',
   Sent: 'blue',
+  Failed: 'red',
+  'Not sent': 'gray',
   Unsent: 'gray',
 };
+
+/** How often the list refreshes while an invitation's email is on its way. */
+const SENDING_POLL_MS = 2000;
 
 export function InvitationsPanel() {
   const { organizationId, eventId } = useParams({ from: FROM });
@@ -58,6 +79,18 @@ export function InvitationsPanel() {
   const { data: invitations } = invitationHooks.useList({ registration_type__event: eventId });
   const send = useSendInvitation();
   const del = invitationHooks.useDelete();
+  const client = useQueryClient();
+
+  // Follow an invitation email until it's sent (or fails).
+  const sending = (invitations ?? []).some((i) => invitationStatus(i) === 'Sending');
+  useEffect(() => {
+    if (!sending) return;
+    const timer = setInterval(
+      () => void client.invalidateQueries({ queryKey: ['Invitation'] }),
+      SENDING_POLL_MS,
+    );
+    return () => clearInterval(timer);
+  }, [sending, client]);
 
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -104,7 +137,15 @@ export function InvitationsPanel() {
         accessorFn: invitationStatus,
         cell: (info) => {
           const status = info.getValue<InvitationStatus>();
-          return <Badge color={STATUS_COLOR[status]}>{status}</Badge>;
+          const badge = <Badge color={STATUS_COLOR[status]}>{status}</Badge>;
+          const error = info.row.original.email?.error;
+          return (status === 'Failed' || status === 'Not sent') && error ? (
+            <Tooltip label={error} multiline maw={360}>
+              {badge}
+            </Tooltip>
+          ) : (
+            badge
+          );
         },
       },
       {

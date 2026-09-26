@@ -14,6 +14,7 @@ import type {
   ApiCustomCharge,
   ApiCustomChargeType,
   ApiDeposit,
+  ApiEmailAccount,
   ApiEvent,
   ApiInvitation,
   ApiLodging,
@@ -28,6 +29,12 @@ import { createEntityHooks } from './createEntityHooks';
 
 export const organizationHooks = createEntityHooks<ApiOrganization>({ name: 'Organization' });
 export const eventHooks = createEntityHooks<ApiEvent>({ name: 'Event' });
+export const emailAccountHooks = createEntityHooks<ApiEmailAccount>({
+  name: 'EmailAccount',
+  path: 'emailaccounts',
+  // The queue status names the event's account and its limits.
+  alsoInvalidate: ['EmailQueue'],
+});
 export const registrationHooks = createEntityHooks<ApiRegistration>({ name: 'Registration' });
 export const registrationTypeHooks = createEntityHooks<ApiRegistrationType>({
   name: 'RegistrationType',

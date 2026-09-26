@@ -695,8 +695,12 @@ status) and works with it. For the selected registration they can:
   rendered, nothing is sent and the problem is shown (§5).
 - **Track invitations** — a sortable/filterable list of the event's invitations (default newest
   first) showing name, email, type, sent status, and linked registration (if redeemed), with
-  per-row resend/delete. Status is derived: `redeemed` (has a registration), `unsent` (never
-  sent), or `sent`. A redeemed invitation links through to its registration.
+  per-row resend/delete. Status is derived: `redeemed` (has a registration); otherwise from its
+  latest invitation email (§15, DR-44) — `sending` (queued or being sent), `sent`, `failed` or
+  `not sent` (e.g. a `@dontsend.com` address), with the reason for the last two; otherwise `sent`
+  if it has a sent time (sent before email was queued), else `unsent`. While an invitation's email
+  is on its way, the list refreshes every few seconds. A redeemed invitation links through to its
+  registration.
 
 ### 8.5 Campers
 
@@ -827,6 +831,18 @@ A second message for the same field and error type, an empty message, or a templ
 to compile can't be saved; a path the form doesn't currently have is allowed with a warning (the
 field may be added later). Changes are saved together, via PATCH of
 `registration_error_messages` on the event.
+
+**Email** — the admin chooses the **account the event sends through** (confirmations,
+invitations and bulk email alike; or none, for the server's default mailer), and manages the
+organization's **email accounts** (§5): add and edit an account — its name, whether it sends
+through a mail server (SMTP) or only to the server's log (for testing), the server, port and
+security (STARTTLS, SSL/TLS or none; changing the security moves a standard port along), the
+timeout, username and password, its sending limits (most messages a minute and a day; blank is no
+limit), and a default Reply-To. The password is never shown: when editing, a blank password
+keeps the stored one, and one the server can no longer read (its encryption key changed) is
+flagged and must be entered again. The admin can send a test message through an account (to
+themselves; it appears in the Email history, §8.9) and delete an account no event or sent email
+uses (otherwise the server refuses, and the reason is shown).
 
 ### 8.9 Email
 
