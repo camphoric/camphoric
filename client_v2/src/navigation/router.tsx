@@ -64,6 +64,13 @@ export interface AdminSearch {
   reportId?: string;
   registrationsTab?: string;
   emailTaskId?: string;
+  // Email (SPEC §8.9): the tab, the open message, and the history's filters.
+  emailTab?: string;
+  messageId?: string;
+  mstatus?: string;
+  mkind?: string;
+  mq?: string;
+  mpage?: string;
   // Template Help (SPEC §4, §9.3).
   context?: string;
   helpTab?: string;

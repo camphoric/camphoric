@@ -1,20 +1,27 @@
 /**
- * Email (SPEC §8.9): the event's bulk emails, newest first, with their status
- * — select one (URL-addressable via `?emailTaskId`) to see its progress and
- * send it, or compose a new one.
+ * Email (SPEC §8.9): what the event's email is doing now (the queue, and a
+ * warning when nothing is sending it), then two tabs (`?emailTab`):
+ * - Bulk email: the event's bulk emails, newest first, with their status —
+ *   select one (`?emailTaskId`) to see its progress and send it, or compose a
+ *   new one.
+ * - History: every email the event has sent or queued (`?messageId` opens one;
+ *   the filters are `?mstatus`, `?mkind`, `?mq`, `?mpage`).
  */
 
-import { Badge, Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
+import { Badge, Button, Card, Grid, Group, Stack, Tabs, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InlineLoading } from 'components/Loading';
 import { useState } from 'react';
 import { useBulkEmailTask } from 'store/bulkEmail';
+import { type EmailHistoryFilters, useEmailQueue } from 'store/email';
 import { bulkEmailTaskHooks, eventHooks } from 'store/entities';
 
 import { BulkEmailComposer } from './BulkEmailComposer';
 import { BulkEmailTaskView, STATUS_COLOR, STATUS_LABEL } from './BulkEmailTaskView';
+import { EmailHistory } from './EmailHistory';
+import { QueueStatus } from './QueueStatus';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -22,8 +29,10 @@ type Mode = 'view' | 'edit' | 'create';
 
 export function EventAdminEmail() {
   const { organizationId, eventId } = useParams({ from: FROM });
-  const { emailTaskId } = useSearch({ from: FROM });
+  const search = useSearch({ from: FROM });
+  const { emailTaskId, emailTab = 'bulk', messageId } = search;
   const navigate = useNavigate();
+  const { data: queue } = useEmailQueue(eventId);
   const { data: event } = eventHooks.useById(eventId);
   const { data: tasks } = bulkEmailTaskHooks.useList({ event: eventId });
   const selectedId = emailTaskId ? Number(emailTaskId) : undefined;
@@ -33,14 +42,31 @@ export function EventAdminEmail() {
 
   const helpBase = `/admin/organization/${organizationId}/event/${eventId}/template-help`;
 
-  const select = (id?: number) => {
-    setMode('view');
+  const setSearch = (patch: Record<string, string | undefined>) =>
     void navigate({
       to: '/admin/organization/$organizationId/event/$eventId/email',
       params: { organizationId, eventId },
-      search: (prev) => ({ ...prev, emailTaskId: id ? String(id) : undefined }),
+      search: (prev) => ({ ...prev, ...patch }),
     });
+
+  const select = (id?: number) => {
+    setMode('view');
+    setSearch({ emailTaskId: id ? String(id) : undefined });
   };
+
+  const historyFilters: EmailHistoryFilters = {
+    status: search.mstatus,
+    kind: search.mkind,
+    q: search.mq,
+    page: search.mpage ? Number(search.mpage) : undefined,
+  };
+  const setHistoryFilters = (filters: EmailHistoryFilters) =>
+    setSearch({
+      mstatus: filters.status || undefined,
+      mkind: filters.kind || undefined,
+      mq: filters.q || undefined,
+      mpage: filters.page && filters.page > 1 ? String(filters.page) : undefined,
+    });
 
   const confirmDelete = () => {
     if (!selected) return;
@@ -57,86 +83,117 @@ export function EventAdminEmail() {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>Email</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={() => {
-            select(undefined);
-            setMode('create');
-          }}
-        >
-          New email
-        </Button>
+        {emailTab === 'bulk' && (
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => {
+              select(undefined);
+              setMode('create');
+            }}
+          >
+            New email
+          </Button>
+        )}
       </Group>
 
-      <Grid>
-        <Grid.Col span={{ base: 12, sm: 4, md: 3 }}>
-          <Stack gap="xs">
-            {tasks?.length ? (
-              tasks.map((task) => (
-                <Button
-                  key={task.id}
-                  variant={selectedId === task.id && mode !== 'create' ? 'light' : 'subtle'}
-                  justify="space-between"
-                  rightSection={
-                    <Badge size="xs" variant="light" color={STATUS_COLOR[task.status ?? 'draft']}>
-                      {STATUS_LABEL[task.status ?? 'draft']}
-                    </Badge>
-                  }
-                  onClick={() => select(task.id)}
-                  styles={{ label: { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                >
-                  {task.subject}
-                </Button>
-              ))
-            ) : (
-              <Text c="dimmed" size="sm">
-                No emails yet.
-              </Text>
-            )}
-          </Stack>
-        </Grid.Col>
+      {queue && <QueueStatus state={queue} />}
 
-        <Grid.Col span={{ base: 12, sm: 8, md: 9 }}>
-          {mode === 'create' && event && (
-            <Card withBorder>
-              <BulkEmailComposer
-                eventId={eventId}
-                defaultFrom={event.confirmation_email_from}
-                helpBase={helpBase}
-                onDone={(id) => select(id)}
-              />
-            </Card>
-          )}
+      <Tabs
+        value={emailTab}
+        onChange={(tab) => setSearch({ emailTab: tab === 'history' ? 'history' : undefined })}
+      >
+        <Tabs.List>
+          <Tabs.Tab value="bulk">Bulk email</Tabs.Tab>
+          <Tabs.Tab value="history">History</Tabs.Tab>
+        </Tabs.List>
 
-          {mode === 'edit' && selected && event && (
-            <Card withBorder>
-              <BulkEmailComposer
-                eventId={eventId}
-                defaultFrom={event.confirmation_email_from}
-                task={selected}
-                helpBase={helpBase}
-                onDone={() => setMode('view')}
-              />
-            </Card>
-          )}
+        <Tabs.Panel value="history" pt="md">
+          <EmailHistory
+            eventId={eventId}
+            queue={queue}
+            filters={historyFilters}
+            onFiltersChange={setHistoryFilters}
+            messageId={messageId ? Number(messageId) : undefined}
+            onOpenMessage={(id) => setSearch({ messageId: id ? String(id) : undefined })}
+          />
+        </Tabs.Panel>
 
-          {mode === 'view' && selectedId !== undefined && !selected && (
-            <InlineLoading message="Loading email…" />
-          )}
+        <Tabs.Panel value="bulk" pt="md">
+          <Grid>
+            <Grid.Col span={{ base: 12, sm: 4, md: 3 }}>
+              <Stack gap="xs">
+                {tasks?.length ? (
+                  tasks.map((task) => (
+                    <Button
+                      key={task.id}
+                      variant={selectedId === task.id && mode !== 'create' ? 'light' : 'subtle'}
+                      justify="space-between"
+                      rightSection={
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color={STATUS_COLOR[task.status ?? 'draft']}
+                        >
+                          {STATUS_LABEL[task.status ?? 'draft']}
+                        </Badge>
+                      }
+                      onClick={() => select(task.id)}
+                      styles={{ label: { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                    >
+                      {task.subject}
+                    </Button>
+                  ))
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    No emails yet.
+                  </Text>
+                )}
+              </Stack>
+            </Grid.Col>
 
-          {mode === 'view' && selected && (
-            <BulkEmailTaskView
-              task={selected}
-              onEdit={() => setMode('edit')}
-              onDelete={confirmDelete}
-            />
-          )}
+            <Grid.Col span={{ base: 12, sm: 8, md: 9 }}>
+              {mode === 'create' && event && (
+                <Card withBorder>
+                  <BulkEmailComposer
+                    eventId={eventId}
+                    defaultFrom={event.confirmation_email_from}
+                    helpBase={helpBase}
+                    onDone={(id) => select(id)}
+                  />
+                </Card>
+              )}
 
-          {mode === 'view' && selectedId === undefined && (
-            <Text c="dimmed">Select an email, or compose a new one.</Text>
-          )}
-        </Grid.Col>
-      </Grid>
+              {mode === 'edit' && selected && event && (
+                <Card withBorder>
+                  <BulkEmailComposer
+                    eventId={eventId}
+                    defaultFrom={event.confirmation_email_from}
+                    task={selected}
+                    helpBase={helpBase}
+                    onDone={() => setMode('view')}
+                  />
+                </Card>
+              )}
+
+              {mode === 'view' && selectedId !== undefined && !selected && (
+                <InlineLoading message="Loading email…" />
+              )}
+
+              {mode === 'view' && selected && (
+                <BulkEmailTaskView
+                  task={selected}
+                  onEdit={() => setMode('edit')}
+                  onDelete={confirmDelete}
+                />
+              )}
+
+              {mode === 'view' && selectedId === undefined && (
+                <Text c="dimmed">Select an email, or compose a new one.</Text>
+              )}
+            </Grid.Col>
+          </Grid>
+        </Tabs.Panel>
+      </Tabs>
     </Stack>
   );
 }
