@@ -68,6 +68,15 @@ class EnqueueTests(OutboxTestCase):
         self.assertEqual(sent.extra_headers['Message-ID'], message.smtp_message_id)
         self.assertTrue(message.smtp_message_id.endswith('@example.com>'))
 
+    def test_reply_to_defaults(self):
+        # Replies go to the From address unless the account or the caller says otherwise.
+        self.assertEqual(self.enqueue().reply_to, 'camp@example.com')
+        self.assertEqual(self.enqueue(reply_to='team@example.com').reply_to, 'team@example.com')
+        self.account.default_reply_to = 'office@example.com'
+        self.account.save()
+        self.assertEqual(self.enqueue(reply_to='').reply_to, 'office@example.com')
+        self.assertEqual(self.enqueue(account=None, from_email='').reply_to, '')
+
     def test_dedupe_key(self):
         first = self.enqueue(dedupe_key='confirmation:1')
         second = self.enqueue(dedupe_key='confirmation:1')

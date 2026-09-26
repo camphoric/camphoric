@@ -133,8 +133,8 @@ def expand(batch_id):
 
 def _message_fields(fields):
     fields = dict(fields)
-    fields['reply_to'] = fields['reply_to'] or (
-        fields['account'].default_reply_to if fields['account'] else '')
+    fields['reply_to'] = fields['reply_to'] or outbox.default_reply_to(
+        fields['account'], fields['from_email'])
     return fields
 
 

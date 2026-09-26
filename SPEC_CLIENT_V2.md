@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-46)
+- §15 — Decision Records (DR-1…DR-47)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -863,11 +863,12 @@ organization's **email accounts** (§5): add and edit an account — its name, w
 through a mail server (SMTP) or only to the server's log (for testing), the server, port and
 security (STARTTLS, SSL/TLS or none; changing the security moves a standard port along), the
 timeout, username and password, its sending limits (most messages a minute and a day; blank is no
-limit), and a default Reply-To. The password is never shown: when editing, a blank password
-keeps the stored one, and one the server can no longer read (its encryption key changed) is
-flagged and must be entered again (§15, DR-46). The admin can send a test message through an
-account (to themselves; it appears in the Email history, §8.9) and delete an account no event or
-sent email uses (otherwise the server refuses, and the reason is shown).
+limit), and a default Reply-To (blank: each email's From address; §15, DR-47). The password is
+never shown: when editing, a blank password keeps the stored one, and one the server can no longer
+read (its encryption key changed) is flagged and must be entered again (§15, DR-46). The admin can
+send a test message through an account (to themselves; it appears in the Email history, §8.9) and
+delete an account no event or sent email uses (otherwise the server refuses, and the reason is
+shown).
 
 ### 8.9 Email
 
@@ -957,7 +958,8 @@ recipients**, its **sender** and its **message**:
   being saved. A problem in an expression or a condition is marked on its field. These are the
   *default* recipients: each send reviews exactly who gets it.
 - **Sender** — the email account (default: the event's), the from address (default: the event's
-  confirmation `from`) and the reply-to (default: the account's).
+  confirmation `from`) and the reply-to (default: the account's, else the from address; §15,
+  DR-47).
 - **Message** — subject and markdown body, edited with the email template editor (§8.3) in the
   source's context, previewed for any of the recipients the audience reaches.
 
@@ -2362,6 +2364,19 @@ limits exact with more than one worker. Deleting an account used to delete the e
 organization. Encrypting with Django's secret key alone — rotating it would make every password
 unreadable at once. Limits in the task queue — it has none, and limits kept per worker aren't
 global.
+
+### DR-47 — Replies go to the sender when no Reply-To is set
+
+**Decision:** Every email has a Reply-To: the one its template (or the send) gives, else the sending
+account's default Reply-To, else the email's own From address. The outbox fills it in when the
+email is queued, so the history shows where replies go.
+**Context:** Gmail's SMTP server rewrites an email's From to the account it signs in as unless the
+From address is a verified "Send mail as" alias. A camp sending through a shared Gmail account
+with From set to its registration address would otherwise get replies in the Gmail account's
+inbox. A Reply-To equal to an unchanged From is harmless.
+**Alternatives:** Require every account to set a default Reply-To — easy to miss, and one address
+can't suit every event sharing the account. Fall back to the event's confirmation address — wrong
+for a group email sent from a different address.
 
 ---
 
