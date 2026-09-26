@@ -16,7 +16,7 @@ frontend asset, instead of tracking `main`.
 
 Versions follow [Semantic Versioning](https://semver.org/) and the release automation is
 [release-please](https://github.com/googleapis/release-please). The current version lives in
-[`version.txt`](./version.txt) (kept in sync with `client/package.json`).
+[`version.txt`](./version.txt).
 
 ---
 
@@ -26,7 +26,7 @@ Releases are **PR-gated** — nothing is released just by pushing to `main`:
 
 1. **Every push to `main`** runs the *Release Please* workflow. It does **not** cut a release; it
    opens or updates a single standing **release PR** (e.g. *"chore(main): release 0.2.0"*) that
-   accumulates the next version bump (`version.txt`, `client/package.json`) and `CHANGELOG.md`
+   accumulates the next version bump (`version.txt`) and `CHANGELOG.md`
    entries from the [Conventional Commits](https://www.conventionalcommits.org/) merged since the
    last release. More merges just keep updating that same PR.
 2. **Merge the release PR** when you're ready to ship. That creates the `vX.Y.Z` tag and the
