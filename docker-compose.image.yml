@@ -26,7 +26,7 @@ x-camphoric-env: &camphoric-env
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: camphoric
       POSTGRES_PASSWORD: camphoric

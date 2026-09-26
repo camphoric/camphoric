@@ -91,6 +91,23 @@ Run the following to rebuild the django services with your new key:
 docker-compose up -d --force-recreate --no-deps --build django
 ```
 
+### Upgrading the local database to PostgreSQL 16
+
+The `postgres` service runs PostgreSQL 16. A `db` volume created by an older version (15) can't
+be opened by 16, and the service fails to start ("database files are incompatible with
+server"). Either start over with fresh sample data:
+
+```
+docker-compose down -v
+docker-compose up --build -d
+./reset-db
+```
+
+or keep your data by dumping it with the old version first: before pulling this change, run
+`docker-compose exec postgres pg_dump -U camphoric camphoric > local.sql`; then, after
+`docker-compose down -v` and `docker-compose up -d`, restore it with
+`docker-compose exec -T postgres psql -U camphoric camphoric < local.sql`.
+
 ### Running the released image
 
 The development stack above bind-mounts your source into a `runserver` container. To run the
