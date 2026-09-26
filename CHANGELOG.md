@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.7.0](https://github.com/camphoric/camphoric/compare/v0.6.0...v0.7.0) (2026-09-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **email:** the /api/bulkemailtasks/, /api/bulkemailrecipients/ and /api/events/<id>/bulkemail/recipients endpoints and the send_bulk_email command are removed, and existing bulk email tasks are deleted by migration 0067. Use email templates with purpose "group" and /api/emailtemplates/<id>/send/ instead.
+* **email:** events and registration types no longer have confirmation_email_subject/template/engine or invitation_email_subject/template/engine; edit their email templates instead (confirmation_template / invitation_template). Mustache emails are converted to Jinja by the migration.
+* an existing docker-compose database volume made by PostgreSQL 15 won't open in 16. Recreate it (docker-compose down -v, then ./reset-db) or dump it first and restore it; see doc/development.md.
+* the server requires Python 3.12+ and PostgreSQL 15+. Hosts on Ubuntu 22.04's packages (Python 3.10, PostgreSQL 14) must be upgraded before deploying this release.
+* confirmation pages are Jinja, not Handlebars, and the payment step returns confirmationPage (rendered markdown) instead of confirmationPageTemplate. Existing events' pages must be rewritten in Jinja; until then registrants see a generic thank-you and the organizer is sent the problems.
+* API clients that create reports, registration types, events or bulk emails without variables_source/engine now get 'server' variables and Jinja templates. Send 'client'/'mustache' explicitly to keep the legacy behavior.
+
+### Features
+
+* bulk email to registrations or campers from the v2 admin ([2f260e4](https://github.com/camphoric/camphoric/commit/2f260e45a2c1556481641a9d014aee4f5b671b4c)), closes [#654](https://github.com/camphoric/camphoric/issues/654) [#653](https://github.com/camphoric/camphoric/issues/653)
+* **data:** convert Harmony reports to server variables ([d923ed8](https://github.com/camphoric/camphoric/commit/d923ed8a7103b8397a444bb837061f551ac58502))
+* **data:** convert Lark, Jughandle and Family Week reports to server variables ([419d8e4](https://github.com/camphoric/camphoric/commit/419d8e45e16a64ff8fb62a86fccf0b9d2888215c))
+* **email:** add group email templates with a recipient rule builder ([9660fc8](https://github.com/camphoric/camphoric/commit/9660fc8b2ef1659210f8875381c478f498662e89))
+* **email:** add the email history, queue and account API ([25f8fed](https://github.com/camphoric/camphoric/commit/25f8fed83405e8bf79f0435c5bc39c3909f40a8d))
+* **email:** add the email outbox with retries and per-account limits ([ac18f7f](https://github.com/camphoric/camphoric/commit/ac18f7fb27f42382baee84ce3bc3c6d398a58dad))
+* **email:** default Reply-To to the sender ([d4d2bb1](https://github.com/camphoric/camphoric/commit/d4d2bb1f98f5c4e4ec3081ac9d474a2f616e5611))
+* **email:** make every email a Jinja email template ([34e5a0c](https://github.com/camphoric/camphoric/commit/34e5a0ccfd07a515a9424d29843570c4ae7d066f))
+* **email:** manage email accounts and show invitation delivery ([74f8a12](https://github.com/camphoric/camphoric/commit/74f8a12d248616c679be7412eba9bc9ae40fb3fb))
+* **email:** one-click unsubscribe from an event's group email ([3cfa778](https://github.com/camphoric/camphoric/commit/3cfa77836295a5c3db2998c182b9e2c092ab5fe3))
+* **email:** queue confirmations, problem reports and invitations ([ed7fa84](https://github.com/camphoric/camphoric/commit/ed7fa84cb7bc236b6528f148eedcd4c3099764cb))
+* **email:** remove task-based bulk email in favor of group email ([4d042fd](https://github.com/camphoric/camphoric/commit/4d042fd8da098fcc0f713b9b8acfb8ba2ddaf6d3))
+* **email:** review, send and follow group emails ([b575bbe](https://github.com/camphoric/camphoric/commit/b575bbee61b959f9fd1c6eac8b113abab7886b4b))
+* **email:** run the task worker that delivers queued email ([4722eed](https://github.com/camphoric/camphoric/commit/4722eed5eefb55bf2a0022e15a80fe85d32d63b0))
+* **email:** send group emails from templates in batches ([0d9a9d9](https://github.com/camphoric/camphoric/commit/0d9a9d969a18dc9fcc28a251fe84bb76d25ef93f))
+* **email:** show the email history and queue in the admin ([571c02c](https://github.com/camphoric/camphoric/commit/571c02ca1a55b36394f1e256d655659c47ce93dc))
+* Jinja confirmation and invitation emails with per-template engines ([8017677](https://github.com/camphoric/camphoric/commit/8017677bebbbe48d788ae97dc4a2a175eb2c82c8))
+* Jinja emails and server-variable reports by default ([1064a5a](https://github.com/camphoric/camphoric/commit/1064a5ad4ed016b84ed55660badbdb3487e5033a))
+* render the confirmation page on the server ([1e91364](https://github.com/camphoric/camphoric/commit/1e91364842f9dc52145801f900bdb2e0de573174))
+* server-rendered report type with a Jinja template editor ([f332c80](https://github.com/camphoric/camphoric/commit/f332c8057e53780aee10d72cd384dea95fe7134a))
+* **server:** server-side Jinja templating core ([3c0d527](https://github.com/camphoric/camphoric/commit/3c0d527524f9a1bba714080a386e5594e8e93993))
+* Template Help for server-rendered Jinja templates ([462f713](https://github.com/camphoric/camphoric/commit/462f7132aa9b11f33bd43adc8e8d8660042f83e4))
+
+
+### Bug Fixes
+
+* **ansible:** flush the database only on reset tags ([256a13e](https://github.com/camphoric/camphoric/commit/256a13e810035d19ca883b6888a8a2f84f11e964))
+* **ansible:** load sample data only into an empty database ([5346287](https://github.com/camphoric/camphoric/commit/5346287070fbdde7db3b702700cbe3665e6d5f64))
+* **ansible:** reload sample data after a reset on Django 6 ([10072db](https://github.com/camphoric/camphoric/commit/10072db53a56afe965fae38bdc8be17f863d4ac7))
+
+
+### Performance Improvements
+
+* **email:** send an account's due email over one connection ([900ae72](https://github.com/camphoric/camphoric/commit/900ae727eec399269b7dc7e2328d5529ab73d6e3))
+
+
+### Build System
+
+* make PostgreSQL 16 the tested and assumed version ([3ee9d0a](https://github.com/camphoric/camphoric/commit/3ee9d0a7e4d5518eacea3735192c74e7eeffb92e))
+* upgrade to Django 6.1 ([4f887f1](https://github.com/camphoric/camphoric/commit/4f887f1b240d8f32cb314aa6344d5c9455963b07))
+
 ## [0.6.0](https://github.com/camphoric/camphoric/compare/v0.5.0...v0.6.0) (2026-09-24)
 
 
