@@ -704,3 +704,19 @@ class EmailMessage(TimeStampedModel):
 
     def __str__(self):
         return f'{self.get_kind_display()} to {self.to} ({self.status})'
+
+
+class WorkerHeartbeat(models.Model):
+    '''
+    A task worker's latest sign of life (camphoric.worker). The admin warns
+    when no worker has reported in recently, and a worker exits (to be
+    restarted) when its own heartbeat goes stale.
+    '''
+    worker_id = models.CharField(max_length=64, unique=True)
+    hostname = models.CharField(max_length=255)
+    pid = models.PositiveIntegerField()
+    started_at = models.DateTimeField()
+    seen_at = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return f'{self.hostname}:{self.pid} ({self.worker_id})'

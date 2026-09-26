@@ -1,6 +1,7 @@
 #!/bin/sh
 # Container entrypoint: run migrations (with a retry while the database comes up),
-# optionally bootstrap a superuser, then exec the CMD (gunicorn). See CONTAINER.md.
+# optionally bootstrap a superuser, then exec the CMD (gunicorn, or the task worker
+# with CAMPHORIC_SKIP_MIGRATE=1). See CONTAINER.md.
 set -eu
 cd /app
 

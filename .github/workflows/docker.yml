@@ -89,6 +89,33 @@ jobs:
           npm ci
           node loadAllData.js
 
+      # Queue one message and require the worker service to deliver it (to its
+      # log: the compose file forces the console backend). No message from the
+      # import may have failed either.
+      - name: The worker delivers queued email
+        run: |
+          shell() {
+            docker compose -f docker-compose.image.yml exec -T app \
+              python manage.py shell --no-imports -c "$1"
+          }
+          id=$(shell "from camphoric import models; from camphoric.mail import outbox; \
+            print(outbox.enqueue(event=models.Event.objects.first(), kind='test', \
+              to='ci@example.com', from_email='ci@example.com', \
+              subject='CI worker check', text='Delivered by the worker.').id)")
+          for i in $(seq 1 30); do
+            status=$(shell "from camphoric.models import EmailMessage; \
+              print(EmailMessage.objects.get(id=$id).status)")
+            [ "$status" = sent ] && break
+            echo "message $id: $status"; sleep 2
+          done
+          failed=$(shell "from camphoric.models import EmailMessage; \
+            print(EmailMessage.objects.filter(status='failed').count())")
+          echo "message $id: $status; failed messages: $failed"
+          test "$status" = sent && test "$failed" = 0
+          # (Not piped into grep -q: its early exit fails the pipe under pipefail.)
+          docker compose -f docker-compose.image.yml logs worker > worker.log
+          grep 'Subject: CI worker check' worker.log
+
       # Every imported template must parse (legacy reports) or render
       # (server-variable reports) against the imported data.
       - name: Check the imported templates
@@ -107,7 +134,7 @@ jobs:
 
       - name: App logs on failure
         if: failure()
-        run: docker compose -f docker-compose.image.yml logs app
+        run: docker compose -f docker-compose.image.yml logs app worker
 
       - name: Tear down
         if: always()

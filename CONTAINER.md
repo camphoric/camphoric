@@ -28,6 +28,7 @@ docker compose -f docker-compose.image.yml up --build --wait
 # ...or run a published release the same way:
 CAMPHORIC_IMAGE=ghcr.io/camphoric/camphoric:v0.3.0 docker compose -f docker-compose.image.yml up --wait
 # App: http://localhost:8000     Admin: http://localhost:8000/django-admin/
+# This also starts the task worker, with email going to its logs (see Email below).
 # If something else already listens on 8000 (e.g. the Vagrant VM forwards its Django there),
 # pick another host port:  CAMPHORIC_PORT=8010 docker compose -f docker-compose.image.yml up --wait
 ```
@@ -91,7 +92,47 @@ is unused). Values marked *required* have no default; the container will not boo
 | `EMAIL_USE_SSL`       | `false`                                        |
 | `EMAIL_TIMEOUT`       | `30`                                           |
 
-Per-event sending accounts can also be configured in the admin (Email accounts).
+These configure the **default mailer**: Django's own mail, and events without an email
+account. An event normally sends through its own **email account** (an SMTP server with its
+credentials and sending limits), stored in the database and set up by the event data importer or
+the `/api/emailaccounts/` API. Account passwords are stored encrypted.
+
+Outgoing email is **queued** and delivered by the **task worker** (below): the web request only
+records the message.
+
+| Variable                        | Default   | Purpose |
+| ------------------------------- | --------- | ------- |
+| `CAMPHORIC_EMAIL_QUEUE`         | `worker`  | `worker`: a worker process delivers queued email. `immediate`: deliver during the request, with no worker and no retries (development only). |
+| `CAMPHORIC_EMAIL_FORCE_BACKEND` | unset     | Send **every** message through this backend instead of its account's server, e.g. `django.core.mail.backends.console.EmailBackend` to keep a test machine from emailing anyone. `docker-compose.image.yml` sets this by default. |
+| `CAMPHORIC_SECRET_KEY_EMAIL`    | unset     | Fernet key(s) encrypting stored account passwords, comma-separated (the first encrypts; all decrypt, for rotation). Generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **When unset, the key is derived from `SECRET_KEY`, so changing `SECRET_KEY` makes stored passwords unreadable** (re-enter them). |
+| `ADMINS`                        | unset     | Comma-separated addresses emailed about server errors (sent directly through the default mailer, not the queue, so they arrive even when the worker is down). |
+| `SERVER_EMAIL`                  | `root@localhost` | The "from" address of those error emails. |
+
+### The task worker
+
+Run a second container from the same image as the worker; it delivers queued email, retries
+temporary failures, keeps to each account's sending limits, and recovers messages from a worker
+that died mid-send. `docker-compose.image.yml` includes it as the `worker` service.
+
+```bash
+docker run -d --restart unless-stopped \
+  -e SECRET_KEY=... -e DATABASE_URL=... -e PAYPAL_BASE_URL=... -e PAYPAL_SECRET=... \
+  -e CAMPHORIC_SKIP_MIGRATE=1 \
+  --health-cmd "python manage.py camphoric_worker --check" --health-interval 30s \
+  --stop-timeout 60 \
+  ghcr.io/camphoric/camphoric:latest \
+  python manage.py camphoric_worker --queue-name '*' --no-reload --max-tasks 1000
+```
+
+- Give it the same environment as the web container, plus `CAMPHORIC_SKIP_MIGRATE=1` (the web
+  container migrates). One worker is enough; more can run side by side safely.
+- **Keep it running:** use a restart policy. It exits on its own after `--max-tasks` tasks (a
+  fresh process for the next ones), and if a task hangs for 10 minutes (`--watchdog`), so that
+  the restart policy replaces it.
+- **Health check:** `python manage.py camphoric_worker --check` fails when no worker has reported
+  in for 2 minutes. (The image's own health check calls the web server, so override it for the
+  worker, as above.) The admin warns when no worker is running.
+- **Stopping:** SIGTERM lets the task in progress (an SMTP send) finish first; allow up to 60s.
 
 ### Backups (django-dbbackup)
 
@@ -198,7 +239,8 @@ simpler and matches the existing convention.
 
 ## Ports, healthcheck, startup
 
-- **Port `8000`** — gunicorn (3 workers by default; tune with `GUNICORN_CMD_ARGS`).
+- **Port `8000`** — gunicorn (3 workers by default; tune with `GUNICORN_CMD_ARGS`). The task
+  worker (see *Email*) listens on no port.
 - **Healthcheck** — `GET http://127.0.0.1:8000/api/set-csrf-cookie` (unauthenticated) every 30s,
   40s start period. Hence `127.0.0.1` in `ALLOWED_HOSTS`.
 - **Startup** (`docker/entrypoint.sh`): `manage.py migrate` (retried up to 10× while the database
@@ -224,6 +266,7 @@ Proxy `/` to the container's port 8000; the image serves the SPA and `/static/*`
 ```bash
 docker exec -it <container> python manage.py createsuperuser
 docker exec <container> python manage.py dbbackup
+docker exec <worker-container> python manage.py camphoric_worker --check
 docker exec <container> python manage.py diffsettings --output unified
 ```
 

@@ -40,6 +40,21 @@ services:
 #     timeout: 5s
 #     retries: 3
 
+  # Delivers queued email; restarts itself when the code changes.
+  worker:
+    env_file:
+      - ./env/local/shared.env
+      - ./env/local/django.env
+    build: server/
+    volumes:
+      - ./server:/app
+    command: ./manage.py camphoric_worker --queue-name '*' --reload
+    # Retries while the django service is still migrating.
+    restart: unless-stopped
+    depends_on:
+      django:
+        condition: service_started
+
   react:
     env_file:
       - ./env/local/shared.env

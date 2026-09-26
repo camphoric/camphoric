@@ -21,6 +21,10 @@ camphoric_email_host_user: registration@example.com
 camphoric_email_host_password: abc123
 camphoric_email_use_tls: on
 camphoric_email_timeout: 30
+# e.g. django.core.mail.backends.console.EmailBackend to keep a machine from sending
+camphoric_email_force_backend: ''
+# comma-separated addresses emailed about server errors
+camphoric_admins: ''
 
 camphoric_django_superuser_username: admin
 camphoric_django_superuser_email: registration@example.com
