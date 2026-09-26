@@ -288,3 +288,53 @@ def describe_error(error):
 
 def _decode(reply):
     return reply.decode(errors='replace') if isinstance(reply, bytes) else str(reply)
+
+
+# A queued message this far past due has lost its wake-up (a task that was
+# never run or was cleaned up), unless a task for it is still waiting.
+OVERDUE = timedelta(minutes=2)
+
+
+def recover(pending_ids=None):
+    '''
+    Put the outbox right after a worker dies or a wake-up is lost; the
+    reconciler runs this every minute. Returns (requeued, rewoken).
+
+    - A message whose lease ran out was being sent when its worker stopped. It
+      may or may not have gone out; it's tried again (at least once delivery),
+      and the stopped attempt counts, so a message that kills its worker
+      eventually fails instead of looping.
+    - A due message that's overdue and has no waiting task (`pending_ids`, the
+      message ids that do) is woken again.
+    '''
+    now = timezone.now()
+    requeued = 0
+    for message in models.EmailMessage.objects.filter(status=Status.SENDING,
+                                                      lease_until__lt=now):
+        message.attempts += 1
+        message.lease_until = None
+        message.last_error = 'The worker stopped while sending this message'
+        if message.attempts >= MAX_ATTEMPTS:
+            message.status = Status.FAILED
+        else:
+            message.status = Status.QUEUED
+            message.next_attempt_at = now
+        updated = (models.EmailMessage.objects
+                   .filter(id=message.id, status=Status.SENDING, lease_until__lt=now)
+                   .update(attempts=message.attempts, lease_until=None, status=message.status,
+                           next_attempt_at=message.next_attempt_at,
+                           last_error=message.last_error, updated_at=now))
+        if updated and message.status == Status.QUEUED:
+            requeued += 1
+            wake(message)
+
+    rewoken = 0
+    pending_ids = set(pending_ids or ())
+    overdue = (models.EmailMessage.objects
+               .filter(status=Status.QUEUED, next_attempt_at__lt=now - OVERDUE)
+               .order_by('next_attempt_at'))
+    for message in overdue[:1000]:
+        if message.id not in pending_ids:
+            rewoken += 1
+            wake(message)
+    return requeued, rewoken

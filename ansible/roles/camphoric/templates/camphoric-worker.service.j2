@@ -1,0 +1,33 @@
+[Unit]
+Description=camphoric background task worker (email delivery)
+After=network.target postgresql.service
+# Keep restarting however often it fails (e.g. while the database is down).
+StartLimitIntervalSec=0
+
+[Service]
+User={{ camphoric_user }}
+Group={{ camphoric_user }}
+WorkingDirectory={{ camphoric_folder }}/server
+
+# The worker tells systemd it's ready and pets the watchdog while its
+# heartbeat is fresh; systemd restarts it if it goes quiet (a frozen process).
+# NotifyAccess=all: with --reload the notifications come from a child process.
+Type=notify
+NotifyAccess=all
+WatchdogSec=15min
+
+{% if camphoric_environment == 'development' %}
+ExecStart={{ pipenv_bin }} run python manage.py camphoric_worker --queue-name * --reload
+{% else %}
+ExecStart={{ pipenv_bin }} run python manage.py camphoric_worker --queue-name * --no-reload --max-tasks 1000
+{% endif %}
+
+# Restart on any exit, including a clean one after --max-tasks.
+Restart=always
+RestartSec=5
+# SIGTERM lets the current task (an SMTP send) finish first.
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

@@ -123,6 +123,11 @@ MAILERS = {
     },
 }
 
+# Server errors are emailed to these addresses (comma-separated) through the default
+# mailer, not the outbox, so they still arrive when the task worker is down.
+ADMINS = env.list('ADMINS', default=[])
+SERVER_EMAIL = env.str('SERVER_EMAIL', default='root@localhost')
+
 # Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
 # delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request
 # instead, for development without a worker.

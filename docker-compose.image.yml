@@ -13,6 +13,17 @@ name: camphoric-image
 volumes:
   image_db:
 
+# Settings the web app and the task worker share.
+x-camphoric-env: &camphoric-env
+  SECRET_KEY: ${SECRET_KEY:-local-only-not-a-secret}
+  DATABASE_URL: postgres://camphoric:camphoric@postgres/camphoric
+  PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+  PAYPAL_SECRET: ${PAYPAL_SECRET:-unused}
+  DEBUG: ${DEBUG:-off}
+  # Local-only default: email goes to the logs, even for events whose email
+  # account is a real SMTP server. Set it empty to send for real.
+  CAMPHORIC_EMAIL_FORCE_BACKEND: ${CAMPHORIC_EMAIL_FORCE_BACKEND-django.core.mail.backends.console.EmailBackend}
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -34,11 +45,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      SECRET_KEY: ${SECRET_KEY:-local-only-not-a-secret}
-      DATABASE_URL: postgres://camphoric:camphoric@postgres/camphoric
-      PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
-      PAYPAL_SECRET: ${PAYPAL_SECRET:-unused}
-      DEBUG: ${DEBUG:-off}
+      <<: *camphoric-env
       ALLOWED_HOSTS: localhost,127.0.0.1,app
       CSRF_TRUSTED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
       # Plain http on localhost: the session cookie must not be Secure-only.
@@ -50,4 +57,28 @@ services:
       - "${CAMPHORIC_PORT:-8000}:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+
+  # Delivers queued email (and any other background task); see CONTAINER.md.
+  worker:
+    image: ${CAMPHORIC_IMAGE:-camphoric:local}
+    command: ["python", "manage.py", "camphoric_worker", "--queue-name", "*",
+              "--no-reload", "--max-tasks", "1000"]
+    environment:
+      <<: *camphoric-env
+      # The app service migrates; the worker waits for it instead.
+      CAMPHORIC_SKIP_MIGRATE: "1"
+    restart: unless-stopped
+    # Time for a send in progress to finish.
+    stop_grace_period: 60s
+    # Replaces the image's web health check.
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "camphoric_worker", "--check"]
+      interval: 30s
+      timeout: 20s
+      start_period: 30s
+      start_interval: 2s
+      retries: 3
+    depends_on:
+      app:
         condition: service_healthy

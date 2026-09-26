@@ -23,3 +23,17 @@
     name: camphoric
     state: started
     enabled: yes
+
+- name: Create camphoric worker service file
+  template:
+    src: camphoric-worker.service.j2
+    dest: /etc/systemd/system/camphoric-worker.service
+
+# Restarted so a changed unit or new code takes effect; SIGTERM lets the
+# current task finish first.
+- name: Start camphoric worker
+  ansible.builtin.systemd:
+    name: camphoric-worker
+    state: restarted
+    enabled: yes
+    daemon_reload: yes

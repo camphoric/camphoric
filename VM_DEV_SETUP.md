@@ -177,6 +177,26 @@ localhost:3000 using the following command:
 `vagrant ssh -c "cd camphoric/client; npm start"`
 
 
+Email and the task worker
+-------------------------
+
+Email is queued and delivered by a background worker, which runs on the VM as the
+`camphoric-worker` service (it restarts itself when the code changes). Its log shows each
+delivery:
+
+```
+vagrant ssh -c "journalctl -u camphoric-worker -f"
+```
+
+The events' email accounts send through real mail servers (the Gmail account in your vault).
+To keep the VM from emailing anyone, and print each message in the worker's log instead,
+set this in `ansible/host_vars/default.yml` and run `vagrant provision`:
+
+```yaml
+camphoric_email_force_backend: django.core.mail.backends.console.EmailBackend
+```
+
+
 Rebuilding the VM
 -----------------
 
