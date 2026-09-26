@@ -62,6 +62,7 @@ PRIORITY = {
     Kind.CONFIRMATION: 50,
     Kind.INVITATION: 50,
     Kind.TEST: 50,
+    Kind.ACCOUNT: 50,
     Kind.CONFIRMATION_REPORT: 40,
     Kind.PAGE_REPORT: 40,
     Kind.BULK: 0,

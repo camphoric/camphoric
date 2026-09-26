@@ -37,6 +37,11 @@ def role_of(user):
     '''The user's role, or None (anonymous, inactive, or in no role group).'''
     if user is None or not user.is_authenticated or not user.is_active:
         return None
+    return assigned_role(user)
+
+
+def assigned_role(user):
+    '''The role the user is given, whether or not their account is active.'''
     if user.is_superuser:
         return ADMIN
     # Cached on the user object: a request checks it more than once.

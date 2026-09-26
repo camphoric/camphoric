@@ -9,11 +9,11 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from django.urls import URLPattern, URLResolver, get_resolver
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APITestCase
 
 from camphoric import models, roles, views
-from camphoric.permissions import AdminWrites, IsAdmin, RolePermission
+from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser, RolePermission
 from tests.factories import create_template_event, make_user
 
 
@@ -90,8 +90,11 @@ class MigrationTests(TransactionTestCase):
 PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
     views.EventList, views.RegisterView, ObtainAuthToken,
+    views.PasswordResetRequestView, views.PasswordResetView,
 }
-PROTECTING = (RolePermission, AdminWrites, IsAdmin)
+# Any signed-in user, for their own account.
+SELF_SERVICE = {views.ChangePasswordView}
+PROTECTING = (RolePermission, AdminWrites, IsAdmin, IsSuperuser)
 
 
 def _drf_views(patterns):
@@ -111,6 +114,8 @@ class PermissionAuditTests(TestCase):
             with self.subTest(route=route, view=cls.__name__):
                 if cls in PUBLIC_VIEWS:
                     self.assertTrue(not permissions or AllowAny in permissions)
+                elif cls in SELF_SERVICE:
+                    self.assertEqual(list(permissions), [IsAuthenticated])
                 else:
                     self.assertTrue(permissions)
                     self.assertTrue(all(issubclass(p, PROTECTING) for p in permissions))

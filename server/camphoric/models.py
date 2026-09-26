@@ -578,6 +578,8 @@ class EmailMessageKind(models.TextChoices):
     INVITATION = 'invitation', 'Invitation'
     BULK = 'bulk', 'Group email'
     TEST = 'test', 'Test email'
+    # Set-password and password-reset links (SPEC DR-52).
+    ACCOUNT = 'account', 'Account email'
 
 
 class EmailMessageStatus(models.TextChoices):
@@ -809,3 +811,17 @@ class EmailUnsubscribe(TimeStampedModel):
 
     def __str__(self):
         return f'{self.email} ({self.event})'
+
+
+class UserAccount(models.Model):
+    '''
+    What Camphoric keeps about a user beside Django's User (SPEC DR-52):
+    whether a password a superuser set must be changed at the next sign-in.
+    Created only when needed.
+    '''
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, related_name='camphoric_account', on_delete=models.CASCADE)
+    must_change_password = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'{self.user} account'

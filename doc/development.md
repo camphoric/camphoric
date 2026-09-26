@@ -144,12 +144,17 @@ rejected sample registration fails that import.
 
 ### Create the Django superuser
 
-This user is the one that you'll use to log in with on the front end.  Run the
-following and follow onscreen instructions in the shell:
+This user is the one that you'll use to log in with on the front end (a superuser is always a
+Camphoric Admin).  Run the following and follow onscreen instructions in the shell:
 
 ```
 docker-compose exec django bash -c "./manage.py createsuperuser"
 ```
+
+Other users are added on the admin's Users screen, each with a Camphoric permission group
+(Admin, Registrar or Reporter). With the console mail backend, their set-password link is in the
+worker's log; or print one with `./manage.py camphoric_password_link <username> --base-url
+http://localhost:3000`.
 
 ### Load the sample data
 
