@@ -1,6 +1,11 @@
 /** Sample email outbox data for the Email section's tests and stories. */
 
-import type { ApiEmailMessage, EmailQueueState } from 'api-types';
+import type {
+  ApiEmailMessage,
+  ApiEmailTemplate,
+  AudienceResolution,
+  EmailQueueState,
+} from 'api-types';
 
 export function sampleMessage(fields: Partial<ApiEmailMessage> = {}): ApiEmailMessage {
   return {
@@ -47,6 +52,67 @@ export function sampleQueue(fields: Partial<EmailQueueState> = {}): EmailQueueSt
       sent_last_day: 12,
       paused_until: null,
     },
+    ...fields,
+  };
+}
+
+export function sampleTemplate(fields: Partial<ApiEmailTemplate> = {}): ApiEmailTemplate {
+  return {
+    id: 5,
+    event: 7,
+    purpose: 'group',
+    name: 'Balance reminder',
+    subject: 'Your balance for {{ event.name }}',
+    body: 'Hi {{ recipient.name }}, you owe {{ registration.balance | money }}.',
+    from_email: '',
+    reply_to: '',
+    account: null,
+    recipient_source: 'registrations',
+    filter: { combinator: 'and', rules: [{ field: 'registration.balance', op: 'gt', value: 0 }] },
+    filter_expression: '',
+    address_expression: '',
+    name_expression: '',
+    recipient_list: '',
+    include_incomplete: false,
+    created_at: '2026-09-01T12:00:00Z',
+    updated_at: '2026-09-02T12:00:00Z',
+    ...fields,
+  };
+}
+
+export function sampleAudience(fields: Partial<AudienceResolution> = {}): AudienceResolution {
+  return {
+    recipients: [
+      {
+        key: 'camper:3',
+        email: 'lee@example.com',
+        name: 'Lee Park',
+        label: 'Lee Park (camper #3)',
+        registration: 2,
+        camper: 3,
+        already_sent: false,
+      },
+      {
+        key: 'camper:4',
+        email: 'sam@example.com',
+        name: 'Sam Park',
+        label: 'Sam Park (camper #4)',
+        registration: 2,
+        camper: 4,
+        already_sent: true,
+      },
+    ],
+    skipped: [
+      {
+        label: 'Kit Doe (camper #9)',
+        reason: 'no_address',
+        detail: '',
+        email: '',
+        registration: 5,
+        camper: 9,
+      },
+    ],
+    diagnostics: [],
     ...fields,
   };
 }

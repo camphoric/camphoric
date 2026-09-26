@@ -735,4 +735,148 @@ export interface ApiEmailTemplate extends TimeStamped {
   reply_to: string;
   /** Null: the event's account. */
   account: number | null;
+  // A group email's default audience (§8.9).
+  recipient_source: EmailRecipientSource;
+  filter: EmailFilter;
+  filter_expression: string;
+  address_expression: string;
+  name_expression: string;
+  recipient_list: string;
+  include_incomplete: boolean;
+}
+
+// --- Group email (SPEC §5, §8.9; §15 DR-45) -----------------------------------
+
+export type EmailRecipientSource = 'registrations' | 'campers' | 'manual';
+
+export type EmailFieldType = 'string' | 'number' | 'boolean' | 'enum' | 'date' | 'list';
+
+export type EmailRuleOp =
+  | 'contains'
+  | 'not_contains'
+  | 'is'
+  | 'is_not'
+  | 'is_set'
+  | 'is_not_set'
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'lt'
+  | 'gte'
+  | 'lte'
+  | 'is_true'
+  | 'is_false'
+  | 'any_of'
+  | 'before'
+  | 'after'
+  | 'on';
+
+export type EmailRuleValue = string | number | string[] | null;
+
+export interface EmailRule {
+  field: string;
+  op: EmailRuleOp;
+  value?: EmailRuleValue;
+}
+
+export interface EmailFilter {
+  combinator?: 'and' | 'or';
+  rules?: EmailRule[];
+}
+
+/** A field recipients can be chosen by (GET …/email/recipient-fields). */
+export interface EmailRecipientField {
+  key: string;
+  label: string;
+  group: string;
+  type: EmailFieldType;
+  options?: { value: string | number; label: string }[];
+}
+
+/** The audience fields a recipients preview or test send takes. */
+export interface EmailAudience {
+  recipient_source: EmailRecipientSource;
+  filter: EmailFilter;
+  filter_expression: string;
+  address_expression: string;
+  name_expression: string;
+  recipient_list: string;
+  include_incomplete: boolean;
+}
+
+export interface AudienceRecipient {
+  key: string;
+  email: string;
+  name: string;
+  label: string;
+  registration: number | null;
+  camper: number | null;
+  already_sent: boolean;
+}
+
+export interface AudienceSkipped {
+  label: string;
+  reason: 'no_address' | 'invalid' | 'duplicate' | 'filter_error';
+  detail: string;
+  email: string;
+  registration: number | null;
+  camper: number | null;
+}
+
+export interface AudienceResolution {
+  recipients: AudienceRecipient[];
+  skipped: AudienceSkipped[];
+  diagnostics: TemplateDiagnostic[];
+}
+
+export type EmailBatchState = 'scheduled' | 'preparing' | 'sending' | 'done' | 'cancelled';
+
+/** One send of a group email (SPEC §5). */
+export interface ApiEmailBatch extends TimeStamped {
+  id: number;
+  event: number;
+  template: number | null;
+  name: string;
+  subject: string;
+  body: string;
+  recipient_source: EmailRecipientSource;
+  recipient_keys: string[];
+  account: number | null;
+  from_email: string;
+  reply_to: string;
+  skip_already_sent: boolean;
+  send_at: string | null;
+  status: 'scheduled' | 'expanding' | 'sending' | 'cancelled';
+  skipped: { key: string; label: string; reason: string }[];
+  error: string;
+  created_by: number | null;
+  created_by_name: string | null;
+  total: number;
+  sent: number;
+  failed: number;
+  cancelled: number;
+  waiting: number;
+  state: EmailBatchState;
+}
+
+export interface EmailSendRequest {
+  recipient_keys: string[];
+  account?: number | null;
+  from_email?: string;
+  reply_to?: string;
+  skip_already_sent?: boolean;
+  send_at?: string | null;
+}
+
+export interface EmailTemplateTestRequest extends Partial<EmailAudience> {
+  to?: string;
+  recipient_key?: string;
+  subject?: string;
+  body?: string;
+}
+
+export interface EmailTemplateTestResponse {
+  message: ApiEmailMessage;
+  rendered_for: AudienceRecipient;
+  diagnostics: TemplateDiagnostic[];
 }

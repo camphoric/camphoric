@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -172,7 +172,8 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?emailTaskId`, `?registrationsTab`, Email's `?emailTab`, `?messageId` and history filters, and
+`?emailTaskId`, `?registrationsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
+filters, and
 Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
 
@@ -198,10 +199,11 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
-  `?emailTab` — `history`, or bulk email (the default, left out of the URL); `?emailTaskId` — the
-  selected bulk email; `?messageId` — the email open in the history; `?mstatus`, `?mkind`, `?mq`,
-  `?mpage` — the history's status and kind filters (comma-separated lists), search text and
-  page.
+  `?emailTab` — `history`, `bulk`, or templates (the default, left out of the URL);
+  `?templateId` — the group email template being edited (`new` for a new one); `?emailTaskId` —
+  the selected bulk email; `?messageId` — the email open in the history; `?mstatus`, `?mkind`,
+  `?mq`, `?mpage` — the history's status and kind filters (comma-separated lists), search text
+  and page.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
   `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
@@ -902,7 +904,8 @@ uses (otherwise the server refuses, and the reason is shown).
 ### 8.9 Email
 
 Every email the event sends is queued and delivered in the background (§15, DR-44). The Email
-section shows **what the event's email is doing now**, its **history**, and **bulk email**.
+section shows **what the event's email is doing now**, the event's **email templates**, its
+**history**, and **bulk email**.
 
 **Now** — how many emails are waiting (and when the next is tried) and how many failed in the
 last day, refreshed every few seconds (every couple of seconds while email is waiting). Two things
@@ -913,7 +916,7 @@ hold email back, and each is explained when it happens:
   which limit (e.g. 500 in 24 hours) and when sending resumes. The short waits of a normal send
   kept to a per-minute limit aren't called out.
 
-**History** — every email the event has queued, newest first: confirmations, invitations, bulk
+**History** — every email the event has queued, newest first: confirmations, invitations, group
 email, the problem reports sent to the organizer, and tests. Each shows when, what kind, to whom,
 the subject and its status (waiting, sending, sent, failed, not sent — e.g. a `@dontsend.com`
 address), marking one that's waiting to be tried again after a failure. The admin can filter by
@@ -922,6 +925,68 @@ email (URL-addressable, `?messageId`, §4) shows who it went to and from, the ac
 through, when it was queued (and by whom) and sent, the attempts and the last problem, and exactly
 what was sent (the HTML in a sandboxed frame, §9.6, and the plain text). A failed email can be
 **retried**; a waiting one can be **stopped** before it's sent.
+
+**Templates** — every email the event sends is an email template in Jinja (§15, DR-45):
+
+- **Automatic emails** — the registration confirmation and each registration type's invitation,
+  sent on their own when someone registers or is invited. They're listed with their subjects and
+  lead to where they're edited: the confirmation with the event (§8.3), each invitation with its
+  registration type (§8.8). They can't be deleted.
+- **Group emails** — templates the admin sends to a group when they choose. Each is listed with
+  its name, subject, default recipients (e.g. "Campers, 2 conditions") and when it was last
+  changed. The admin can create one, edit it (URL-addressable, `?templateId`, §4), duplicate it
+  (the copy opens for editing) or delete it (after confirming; emails already sent from it stay
+  in the history).
+
+**Editing a group email** — its **name** (for the admin; recipients don't see it), its **default
+recipients**, its **sender** and its **message**:
+
+- **Recipients** come from one of three sources, each with its own template context:
+  - **Campers** — the event's completed registrations' campers (`bulk_email_camper`: `event`,
+    `camper`, `registration`, `recipient`).
+  - **Registrations** — the event's completed registrations (`bulk_email_registration`: `event`,
+    `registration`, `campers`, `recipient`).
+  - **Listed addresses** — typed one per line, as `email` or `Name <email>` (`bulk_email_manual`:
+    `event`, `recipient`).
+
+  For campers and registrations, the admin narrows the list with **conditions**, built without
+  code: all or any of a list of *field → operator → value* rows. The fields come from the event
+  (§5, `recipient-fields`), grouped (the registration, its answers, admin fields and pricing; for
+  campers, also the camper's own), each with a type that decides its operators and its value:
+
+  | Type | Operators | Value |
+  |---|---|---|
+  | text | contains, doesn't contain, is, is not, is set, isn't set | text |
+  | number | = ≠ > < ≥ ≤, is set, isn't set | a number |
+  | true/false | is true, is false | — |
+  | choice | is, is not, is any of, is set, isn't set | one or several of the field's choices |
+  | date | is before, is after, is on, is set, isn't set | a date |
+  | list (several answers) | includes, includes any of, is set, isn't set | one or several values |
+
+  No conditions means every camper or registration. Changing the source clears the conditions
+  (they name the source's fields). A condition on a field the event no longer has stays visible
+  and is marked. Under **Advanced**, a Jinja **filter expression** must also be true (e.g.
+  `registration.balance > 0`), and Jinja **address and name expressions** give each copy's
+  recipient; left blank, they default to the registrant's email (registrations), or the camper's
+  `email` answer falling back to the registrant's, with the camper's first and last name
+  (campers). The defaults are shown. The admin can also include registrations that weren't
+  completed.
+
+  As the recipients change, the admin sees **how many the audience reaches and how many it
+  skips**, and on request the lists: each recipient (who they are, address and name, and whether
+  this template was already sent to them) and each skipped one with why — no address, not a
+  valid address, the same address as an earlier recipient (compared case-insensitively; each
+  address gets one copy), or an expression that failed for that one. The count uses only the
+  finished conditions; a condition still missing its field or value keeps the template from
+  being saved. A problem in an expression or a condition is marked on its field. These are the
+  *default* recipients: each send reviews exactly who gets it.
+- **Sender** — the email account (default: the event's), the from address (default: the event's
+  confirmation `from`) and the reply-to (default: the account's).
+- **Message** — subject and markdown body, edited with the email template editor (§8.3) in the
+  source's context, previewed for any of the recipients the audience reaches.
+
+Saving checks the subject and body, the expressions and the conditions on the server (§5), and
+shows any problem on its field.
 
 **Bulk email** — the admin can **compose an email to many people at once, see exactly who it will
 reach, test it, send it, and follow its progress** (§15, DR-39). The event's bulk emails are
@@ -2290,6 +2355,21 @@ email, and removing Mustache removes a second variable model that had to be expl
 remain, and Mustache with them. Convert by hand, as the `data/` emails were — live events hold
 emails nobody here has seen, so a checked mechanical conversion is safer than asking every
 organizer to rewrite theirs.
+
+**Group email recipients (addition):** A group email's default recipients are chosen with
+conditions built field by field — a field from the event's catalog, an operator offered by the
+field's type, and a typed value — stored as rules JSON the server evaluates against the same
+variables a Jinja expression sees; a Jinja filter expression remains under Advanced, and both must
+pass. The automatic emails are listed with the group emails but stay edited where they're set up
+(the event, the registration type), which already offer previews for their own records.
+**Context:** Most organizers don't write Jinja; the questions they ask ("who still owes money",
+"vegetarians in the cabins") are one field compared with one value, which a builder covers
+without code, while the expression keeps anything else possible. A catalog from the event's own
+schemas names the event's real questions and choices, so a condition can't misspell a field.
+**Alternatives:** Expressions only (the task-based bulk email) — needs Jinja for every list. A
+query language or nested groups — more than these lists need; any/all of flat rows plus an
+expression covers them. Editing the automatic emails in the Email section too — a second editor
+for the same text, without the confirmation's and invitations' own preview samples.
 
 ---
 

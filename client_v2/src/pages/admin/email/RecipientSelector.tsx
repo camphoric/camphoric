@@ -19,12 +19,9 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import type {
-  BulkRecipientCriteria,
-  BulkRecipientKind,
-  BulkRecipientResolution,
-  BulkRecipientSkipped,
-} from 'api-types';
+import type { BulkRecipientCriteria, BulkRecipientKind, BulkRecipientResolution } from 'api-types';
+
+import { DEFAULT_EXPRESSIONS, SKIP_REASONS } from './audience';
 
 /** Expressions are code: monospace in the box, ordinary label and description. */
 const CODE_INPUT = { input: { fontFamily: 'var(--mantine-font-family-monospace)' } };
@@ -35,28 +32,9 @@ const KIND_OPTIONS: { value: BulkRecipientKind; label: string }[] = [
   { value: 'manual', label: 'Listed addresses' },
 ];
 
-/** The server's defaults when an expression is left blank (bulk.py). */
-export const DEFAULT_EXPRESSIONS: Record<
-  'registrations' | 'campers',
-  { address: string; name: string }
-> = {
-  registrations: { address: 'registration.registrant_email', name: '' },
-  campers: {
-    address: 'camper.attributes.email or registration.registrant_email',
-    name: "[camper.attributes.first_name, camper.attributes.last_name] | select | join(' ')",
-  },
-};
-
 const FILTER_EXAMPLES: Record<'registrations' | 'campers', string> = {
   registrations: 'registration.balance > 0',
   campers: "camper.lodging and camper.lodging.full_name.startswith('Cabins')",
-};
-
-export const SKIP_REASONS: Record<BulkRecipientSkipped['reason'], string> = {
-  no_address: 'No address',
-  invalid: 'Not a valid address',
-  duplicate: 'Duplicate address',
-  filter_error: 'Expression failed',
 };
 
 /** Blank criteria for a new task. */
