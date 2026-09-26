@@ -66,7 +66,9 @@ class RecoverTests(WorkerTestCase):
         lost = self.message(next_attempt_at=long_ago)
         waiting = self.message(next_attempt_at=long_ago)
         recent = self.message(next_attempt_at=timezone.now())
-        self.assertEqual(outbox.recover(pending_ids={waiting.id}), (0, 1))
+        # One message per delivery, so only the woken one is sent.
+        with mock.patch.object(outbox, 'CHUNK_SIZE', 1):
+            self.assertEqual(outbox.recover(pending_ids={waiting.id}), (0, 1))
         for message, status in [(lost, Status.SENT), (waiting, Status.QUEUED),
                                 (recent, Status.QUEUED)]:
             message.refresh_from_db()

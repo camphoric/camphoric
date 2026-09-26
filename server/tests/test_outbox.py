@@ -17,14 +17,25 @@ START = datetime.datetime(2026, 9, 1, 12, 0, tzinfo=datetime.timezone.utc)
 
 
 class FlakyMailer:
-    '''Raises the given errors on successive sends, then delivers to the outbox.'''
+    '''
+    Raises the given errors on successive sends (None: that send works), then
+    delivers to the outbox. Counts the connections opened.
+    '''
 
     def __init__(self, *errors):
         self.errors = list(errors)
+        self.opened = 0
+
+    def open(self):
+        self.opened += 1
+
+    def close(self):
+        pass
 
     def send_messages(self, messages):
-        if self.errors:
-            raise self.errors.pop(0)
+        error = self.errors.pop(0) if self.errors else None
+        if error:
+            raise error
         mail.outbox.extend(messages)
         return len(messages)
 
@@ -47,6 +58,18 @@ class OutboxTestCase(TestCase):
 
     def flaky(self, *errors):
         return mock.patch('camphoric.mail.outbox.mailer_for', return_value=FlakyMailer(*errors))
+
+    def waiting(self, to, kind=models.EmailMessageKind.BULK, **fields):
+        '''A queued, due message whose wake-up hasn't run.'''
+        return models.EmailMessage.objects.create(**{
+            'event': self.event, 'kind': kind, 'to': to, 'subject': 'Hello', 'text': 'Hi',
+            'from_email': 'camp@x.org', 'account': self.account,
+            'next_attempt_at': timezone.now(), **fields})
+
+    def statuses(self, *messages):
+        for message in messages:
+            message.refresh_from_db()
+        return [message.status for message in messages]
 
 
 class EnqueueTests(OutboxTestCase):
@@ -200,6 +223,66 @@ class DeliverTests(OutboxTestCase):
         message.refresh_from_db()
         self.assertEqual(message.status, Status.QUEUED)
         self.assertIn('451 Greylisted', message.last_error)
+
+
+class ChunkTests(OutboxTestCase):
+    '''A delivery sends the account's other due messages over its connection.'''
+
+    def test_one_connection_for_the_account(self):
+        first, second, third = [self.waiting(f'{n}@example.com') for n in 'abc']
+        other_account = models.EmailAccount.objects.create(
+            organization=self.organization, name='other', host='smtp.example.com', port=587)
+        elsewhere = self.waiting('d@example.com', account=other_account)
+        mailer = FlakyMailer()
+        with mock.patch('camphoric.mail.outbox.mailer_for', return_value=mailer):
+            self.assertEqual(outbox.deliver(first.id), 'sent')
+            # The others' own wake-ups find them sent.
+            self.assertEqual(outbox.deliver(second.id), 'skipped')
+        self.assertEqual(mailer.opened, 1)
+        self.assertEqual(self.statuses(first, second, third, elsewhere),
+                         [Status.SENT, Status.SENT, Status.SENT, Status.QUEUED])
+
+    def test_most_urgent_first(self):
+        first = self.waiting('a@example.com')
+        self.waiting('b@example.com')
+        self.waiting('c@example.com', kind=models.EmailMessageKind.CONFIRMATION)
+        with self.flaky():
+            outbox.deliver(first.id)
+        self.assertEqual([m.to for m in mail.outbox],
+                         [['a@example.com'], ['c@example.com'], ['b@example.com']])
+
+    def test_stops_at_a_limit(self):
+        self.account.max_per_minute = 2
+        self.account.save()
+        messages = [self.waiting(f'{n}@example.com') for n in 'abcd']
+        with self.flaky():
+            outbox.deliver(messages[0].id)
+        self.assertEqual(self.statuses(*messages),
+                         [Status.SENT, Status.SENT, Status.QUEUED, Status.QUEUED])
+        # The one that hit the limit waits for a slot; the rest keep their wake-ups.
+        self.assertGreater(messages[2].next_attempt_at, timezone.now())
+        self.assertLessEqual(messages[3].next_attempt_at, timezone.now())
+
+    def test_stops_after_a_failure(self):
+        messages = [self.waiting(f'{n}@example.com') for n in 'abc']
+        with self.flaky(None, smtplib.SMTPServerDisconnected('gone')):
+            outbox.deliver(messages[0].id)
+        self.assertEqual(self.statuses(*messages), [Status.SENT, Status.QUEUED, Status.QUEUED])
+        self.assertEqual(messages[1].attempts, 1)
+        self.assertIn('gone', messages[1].last_error)
+        self.assertEqual(messages[2].attempts, 0)
+
+    def test_chunk_size(self):
+        messages = [self.waiting(f'{n}@example.com') for n in 'abc']
+        with self.flaky(), mock.patch.object(outbox, 'CHUNK_SIZE', 2):
+            outbox.deliver(messages[0].id)
+        self.assertEqual(self.statuses(*messages), [Status.SENT, Status.SENT, Status.QUEUED])
+
+    def test_keeps_the_worker_alive(self):
+        messages = [self.waiting(f'{n}@example.com') for n in 'abc']
+        with self.flaky(), mock.patch('camphoric.worker.still_working') as still_working:
+            outbox.deliver(messages[0].id)
+        self.assertEqual(still_working.call_count, 3)
 
 
 class ThrottleTests(OutboxTestCase):
