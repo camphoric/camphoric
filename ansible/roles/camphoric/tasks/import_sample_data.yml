@@ -51,8 +51,9 @@
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
+        # --no-imports: Django 6's shell otherwise prints what it auto-imported first.
         cmd: >-
-          pipenv run python manage.py shell -c
+          pipenv run python manage.py shell --no-imports -c
           "from camphoric.models import Event; print(Event.objects.exists())"
         chdir: "{{camphoric_folder}}/server"
       register: camphoric_has_events
@@ -60,7 +61,7 @@
 
     - name: Load sample data
       tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
-      when: camphoric_has_events.stdout | trim == 'False'
+      when: (camphoric_has_events.stdout_lines | last | default('')) == 'False'
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
