@@ -1,11 +1,13 @@
 /**
  * Email (SPEC §8.9): what the event's email is doing now (the queue, and a
- * warning when nothing is sending it), then two tabs (`?emailTab`):
- * - Bulk email: the event's bulk emails, newest first, with their status —
- *   select one (`?emailTaskId`) to see its progress and send it, or compose a
- *   new one.
+ * warning when nothing is sending it), then tabs (`?emailTab`):
+ * - Templates: the event's group emails (`?templateId` edits one) and its
+ *   automatic emails.
  * - History: every email the event has sent or queued (`?messageId` opens one;
  *   the filters are `?mstatus`, `?mkind`, `?mq`, `?mpage`).
+ * - Bulk email (old): the task-based bulk emails, newest first, with their
+ *   status — select one (`?emailTaskId`) to see its progress and send it, or
+ *   compose a new one.
  */
 
 import { Badge, Button, Card, Grid, Group, Stack, Tabs, Text, Title } from '@mantine/core';
@@ -21,6 +23,7 @@ import { bulkEmailTaskHooks, eventHooks } from 'store/entities';
 import { BulkEmailComposer } from './BulkEmailComposer';
 import { BulkEmailTaskView, STATUS_COLOR, STATUS_LABEL } from './BulkEmailTaskView';
 import { EmailHistory } from './EmailHistory';
+import { EmailTemplates } from './EmailTemplates';
 import { QueueStatus } from './QueueStatus';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
@@ -30,7 +33,7 @@ type Mode = 'view' | 'edit' | 'create';
 export function EventAdminEmail() {
   const { organizationId, eventId } = useParams({ from: FROM });
   const search = useSearch({ from: FROM });
-  const { emailTaskId, emailTab = 'bulk', messageId } = search;
+  const { emailTaskId, emailTab = 'templates', messageId, templateId } = search;
   const navigate = useNavigate();
   const { data: queue } = useEmailQueue(eventId);
   const { data: event } = eventHooks.useById(eventId);
@@ -91,7 +94,7 @@ export function EventAdminEmail() {
               setMode('create');
             }}
           >
-            New email
+            New bulk email
           </Button>
         )}
       </Group>
@@ -100,12 +103,28 @@ export function EventAdminEmail() {
 
       <Tabs
         value={emailTab}
-        onChange={(tab) => setSearch({ emailTab: tab === 'history' ? 'history' : undefined })}
+        onChange={(tab) =>
+          setSearch({ emailTab: tab === 'history' || tab === 'bulk' ? tab : undefined })
+        }
       >
         <Tabs.List>
-          <Tabs.Tab value="bulk">Bulk email</Tabs.Tab>
+          <Tabs.Tab value="templates">Templates</Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
+          <Tabs.Tab value="bulk">Bulk email (old)</Tabs.Tab>
         </Tabs.List>
+
+        <Tabs.Panel value="templates" pt="md">
+          {event ? (
+            <EmailTemplates
+              event={event}
+              templateId={templateId}
+              onEditTemplate={(id) => setSearch({ templateId: id })}
+              helpBase={helpBase}
+            />
+          ) : (
+            <InlineLoading message="Loading…" />
+          )}
+        </Tabs.Panel>
 
         <Tabs.Panel value="history" pt="md">
           <EmailHistory

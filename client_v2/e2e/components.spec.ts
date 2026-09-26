@@ -133,3 +133,37 @@ test.describe('Email history', () => {
     await expect(rows.first()).toContainText('Retrying (2 tried)');
   });
 });
+
+test.describe('Recipient filter builder', () => {
+  // The story prints the filter JSON the builder produces under it.
+  test('builds conditions with operators and values by field type', async ({ page }) => {
+    await page.goto(story('recipient-filter-builder--empty'));
+    const json = page.getByTestId('filter-json');
+    await expect(page.getByText('No conditions: every camper is included.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add condition' }).click();
+    const row = page.getByRole('group', { name: 'Condition 1' });
+    await row.getByRole('textbox', { name: 'Field' }).click();
+    await page.getByRole('option', { name: 'Balance' }).click();
+    await row.getByRole('textbox', { name: 'Operator' }).click();
+    await page.getByRole('option', { name: '>', exact: true }).click();
+    await row.getByRole('textbox', { name: 'Value' }).fill('25');
+    await expect(json).toContainText('"op": "gt"');
+    await expect(json).toContainText('"value": 25');
+
+    await page.getByRole('button', { name: 'Add condition' }).click();
+    const second = page.getByRole('group', { name: 'Condition 2' });
+    await second.getByRole('textbox', { name: 'Field' }).click();
+    await page.getByRole('option', { name: 'Meals' }).click();
+    await second.getByRole('textbox', { name: 'Operator' }).click();
+    await page.getByRole('option', { name: 'is any of' }).click();
+    await second.getByRole('textbox', { name: 'Value' }).click();
+    await page.getByRole('option', { name: 'Vegan' }).click();
+    await expect(json).toContainText('"Vegan"');
+
+    await page.getByRole('radiogroup', { name: 'Match' }).getByText('any').click();
+    await expect(json).toContainText('"combinator": "or"');
+    await page.getByRole('button', { name: 'Remove condition 1' }).click();
+    await expect(json).not.toContainText('registration.balance');
+  });
+});

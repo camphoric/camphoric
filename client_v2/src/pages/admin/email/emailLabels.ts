@@ -7,7 +7,7 @@ export const KIND_LABEL: Record<EmailMessageKind, string> = {
   confirmation_report: 'Problem report (confirmation email)',
   page_report: 'Problem report (confirmation page)',
   invitation: 'Invitation',
-  bulk: 'Bulk email',
+  bulk: 'Group email',
   test: 'Test',
 };
 
@@ -32,7 +32,7 @@ export const KIND_FILTERS: { value: string; label: string }[] = [
   { value: '', label: 'All kinds' },
   { value: 'confirmation', label: 'Confirmations' },
   { value: 'invitation', label: 'Invitations' },
-  { value: 'bulk', label: 'Bulk email' },
+  { value: 'bulk', label: 'Group emails' },
   { value: 'confirmation_report,page_report', label: 'Problem reports' },
   { value: 'test', label: 'Tests' },
 ];
