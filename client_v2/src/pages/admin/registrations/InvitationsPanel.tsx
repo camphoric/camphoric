@@ -5,7 +5,7 @@
  *
  * The invitations table (newest first) shows name, email, type, derived status
  * (redeemed → has a registration; otherwise how its latest email is doing:
- * sending, sent, failed or not sent — §15 DR-43; else unsent), and a link to
+ * sending, sent, failed or not sent — §15 DR-44; else unsent), and a link to
  * the linked registration when redeemed, with per-row resend/delete. While an
  * invitation's email is on its way, the list refreshes every couple of seconds.
  * Rendered as the "Invitations" tab of the section.

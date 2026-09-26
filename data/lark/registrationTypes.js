@@ -146,7 +146,6 @@ https://www.larktraditionalarts.org`,
 
 const specialType = (regType) => ({
   ...regType,
-  invitation_email_engine: 'jinja',
   invitation_email_subject: `Register for Lark Camp ${regType.label}`,
   invitation_email_template:
     crewEmailTemplateOverrides[regType.name]

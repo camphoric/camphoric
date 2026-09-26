@@ -240,18 +240,25 @@ class Event(TimeStampedModel):
         blank=True, default='',
         help_text="Jinja markdown template, rendered on the server when registration completes")
 
-    confirmation_email_subject = models.CharField(blank=True, default='', max_length=100)
-    confirmation_email_template = models.TextField(
-        blank=True, default='', help_text="Mustache or Jinja template (see the engine)")
-    confirmation_email_engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
-        help_text="How the confirmation email's subject and body are written")
+    # The registration confirmation email (an EmailTemplate, created with the event).
+    confirmation_template = models.OneToOneField(
+        'EmailTemplate', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    # The event's sending address: the confirmation's, and the default for its other email.
     confirmation_email_from = models.EmailField(blank=True, default='')
 
     email_account = models.ForeignKey(EmailAccount, null=True, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.name
+
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        if self.confirmation_template_id is None:
+            self.confirmation_template = EmailTemplate.objects.create(
+                event=self, purpose=EmailTemplatePurpose.CONFIRMATION,
+                name='Registration confirmation', subject=DEFAULT_CONFIRMATION_SUBJECT,
+                body=DEFAULT_CONFIRMATION_BODY)
+            super().save(update_fields=['confirmation_template'])
 
     def is_open(self):
         open = False
@@ -280,11 +287,9 @@ class RegistrationType(TimeStampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, help_text="value exposed to JsonLogic")
     label = models.CharField(max_length=255, help_text="Human readable name")
-    invitation_email_subject = models.CharField(max_length=255)
-    invitation_email_template = models.TextField(null=True, blank=True)
-    invitation_email_engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
-        help_text="How the invitation email's subject and body are written")
+    # The email inviting someone to register as this type (created with the type).
+    invitation_template = models.OneToOneField(
+        'EmailTemplate', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     camper_schema_overrides = CustomJSONField(
             default=dict,
             help_text="JSON schema for overriding camper schema items")
@@ -294,6 +299,15 @@ class RegistrationType(TimeStampedModel):
     ui_schema_overrides = CustomJSONField(
             default=dict,
             help_text="JSON schema for overriding camper schema items")
+
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        if self.invitation_template_id is None:
+            self.invitation_template = EmailTemplate.objects.create(
+                event_id=self.event_id, purpose=EmailTemplatePurpose.INVITATION,
+                name=f'Invitation: {self.label}', subject=DEFAULT_INVITATION_SUBJECT,
+                body=DEFAULT_INVITATION_BODY)
+            super().save(update_fields=['invitation_template'])
 
 
 class Registration(TimeStampedModel):
@@ -656,7 +670,7 @@ class EmailMessage(TimeStampedModel):
     '''
     One outgoing email: the outbox the worker delivers from, and the permanent
     record of what was sent, to whom, from which account, and how it went
-    (camphoric.mail, SPEC DR-43). The content is rendered when the message is
+    (camphoric.mail, SPEC DR-44). The content is rendered when the message is
     queued, so the record shows exactly what was sent.
     '''
     # Null for a message that isn't about an event (an email account's test message).
@@ -722,3 +736,51 @@ class WorkerHeartbeat(models.Model):
 
     def __str__(self):
         return f'{self.hostname}:{self.pid} ({self.worker_id})'
+
+
+class EmailTemplatePurpose(models.TextChoices):
+    CONFIRMATION = 'confirmation', 'Registration confirmation'
+    INVITATION = 'invitation', 'Invitation'
+    GROUP = 'group', 'Group email'
+
+
+DEFAULT_CONFIRMATION_SUBJECT = 'Your registration for {{ event.name }}'
+DEFAULT_CONFIRMATION_BODY = (
+    'Thanks for registering for {{ event.name }}!\n\n'
+    '{% for camper in campers %}- {{ camper.attributes.first_name }} '
+    '{{ camper.attributes.last_name }}\n{% endfor %}\n'
+    'Total: {{ pricing.total | money }}\n')
+DEFAULT_INVITATION_SUBJECT = 'Register for {{ event.name }}'
+DEFAULT_INVITATION_BODY = (
+    'Dear {{ invitation.recipient_name or invitation.recipient_email }},\n\n'
+    "You're invited to register for {{ event.name }} as {{ registration_type.label }}.\n\n"
+    '[Register here]({{ invitation.register_url }})\n')
+
+
+class EmailTemplate(TimeStampedModel):
+    '''
+    An email the event sends, written in Jinja markdown (SPEC DR-45): its
+    registration confirmation, each registration type's invitation, and the
+    emails it sends to groups.
+    '''
+    event = models.ForeignKey(Event, related_name='email_templates', on_delete=models.CASCADE)
+    purpose = models.CharField(max_length=20, choices=EmailTemplatePurpose.choices)
+    name = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255, blank=True, default='')
+    body = models.TextField(blank=True, default='', help_text='Jinja markdown')
+    from_email = models.CharField(
+        max_length=255, blank=True, default='',
+        help_text="The sender; blank: the event's confirmation_email_from")
+    reply_to = models.CharField(
+        max_length=255, blank=True, default='',
+        help_text="Where replies go; blank: the sending account's default")
+    account = models.ForeignKey(
+        EmailAccount, null=True, blank=True, on_delete=models.SET_NULL,
+        help_text="The sending account; blank: the event's")
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def sender(self):
+        return self.from_email or self.event.confirmation_email_from

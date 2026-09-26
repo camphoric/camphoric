@@ -73,4 +73,3 @@ We look forward to seeing you on June 25th!
 
 export const confirmation_email_template = template;
 export const confirmation_email_subject = subject;
-export const confirmation_email_engine = 'jinja';

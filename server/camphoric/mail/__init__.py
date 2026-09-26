@@ -2,7 +2,7 @@
 Outgoing email.
 
 - outbox: every email is queued as an EmailMessage row and delivered by the
-  task worker (DR-43).
+  task worker (DR-44).
 - mailers: the email backend for sending as an event's account.
 - legacy: task-based bulk email, until email templates replace it.
 '''

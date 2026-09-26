@@ -116,16 +116,18 @@ def _parsed(kind, id_, label, subject, body):
     return CheckResult(kind, id_, label, 'parsed', [p for p in problems if p])
 
 
+def _texts(template):
+    return (template.subject, template.body) if template else ('', '')
+
+
 def _check_confirmation_email(event, graph):
     label = 'Confirmation email'
-    if event.confirmation_email_engine != models.TemplateEngine.JINJA:
-        return CheckResult('confirmation_email', event.id, label, 'skipped')
+    subject, body = _texts(event.confirmation_template)
     if not graph.registrations:
-        return _parsed('confirmation_email', event.id, label, event.confirmation_email_subject,
-                       event.confirmation_email_template)
+        return _parsed('confirmation_email', event.id, label, subject, body)
     contexts_ = [confirmation_email_context(graph, r) for r in graph.registrations]
-    return CheckResult('confirmation_email', event.id, label, 'rendered', _render_for_each(
-        event.confirmation_email_subject, event.confirmation_email_template, contexts_))
+    return CheckResult('confirmation_email', event.id, label, 'rendered',
+                       _render_for_each(subject, body, contexts_))
 
 
 def _check_confirmation_page(event, graph):
@@ -139,14 +141,12 @@ def _check_confirmation_page(event, graph):
 
 def _check_invitation_email(registration_type, graph):
     label = f'Invitation email: {registration_type.label}'
-    if registration_type.invitation_email_engine != models.TemplateEngine.JINJA:
-        return CheckResult('invitation_email', registration_type.id, label, 'skipped')
+    subject, body = _texts(registration_type.invitation_template)
     type_var = graph.get('registration_type', registration_type.id)
     invitations = [i for i in graph.invitations if i['registration_type'] is type_var] \
         or [example_invitation(graph, type_var)]
     return CheckResult('invitation_email', registration_type.id, label, 'rendered',
-                       _render_for_each(registration_type.invitation_email_subject,
-                                        registration_type.invitation_email_template,
+                       _render_for_each(subject, body,
                                         [invitation_email_context(graph, i) for i in invitations]))
 
 

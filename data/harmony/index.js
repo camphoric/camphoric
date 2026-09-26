@@ -16,7 +16,6 @@ import { dates, lengthInDays, yearDisplay } from './dates.js';
 import {
   confirmation_email_template,
   confirmation_email_subject,
-  confirmation_email_engine,
 } from './confirmationEmailTemplate.js';
 
 export const eventName = `Camp Harmony ${yearDisplay}`;
@@ -47,7 +46,6 @@ const data = {
     confirmation_page_template,
     confirmation_email_template,
     confirmation_email_subject,
-    confirmation_email_engine,
     // confirmation_email_from,
 
   },

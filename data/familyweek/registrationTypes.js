@@ -12,14 +12,12 @@ export default [
   {
     name: 'talent',
     label: 'Talent Staff',
-    invitation_email_engine: 'jinja',
     invitation_email_subject,
     invitation_email_template: createEmailTemplate('Talent Staff'),
   },
   {
     name: 'management',
     label: 'Management Staff',
-    invitation_email_engine: 'jinja',
     invitation_email_subject,
     invitation_email_template: createEmailTemplate('Management Staff'),
   },

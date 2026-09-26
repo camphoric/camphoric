@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase, APIClient
 from camphoric import models
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
+from tests.factories import set_email
 
 
 class LoginTests(APITestCase):
@@ -810,8 +811,7 @@ Campers:
 Total: $300
 
 
-Due now: $300
-""".lstrip())
+Due now: $300""".lstrip())
         self.assertEqual(len(message.alternatives), 1)
         self.assertIsInstance(message.alternatives[0], tuple)
         self.assertEqual(message.alternatives[0][1], "text/html")
@@ -1071,8 +1071,7 @@ Campers:
 Total: $300
 
 
-Due now: $200
-""".lstrip())
+Due now: $200""".lstrip())
         self.assertEqual(len(message.alternatives), 1)
         self.assertIsInstance(message.alternatives[0], tuple)
         self.assertEqual(message.alternatives[0][1], "text/html")
@@ -1135,21 +1134,19 @@ Due now: $200
                 ],
             camper_pricing_logic=[],
             registration_deposit_schema=self.event.registration_deposit_schema,
-            confirmation_email_subject='Registration confirmation',
-            confirmation_email_engine='mustache',
-            confirmation_email_template=''.join([
-                '- handling:{{ pricing_results.handling }}\n',
-                '- cabins: {{ pricing_results.cabins }}\n',
-                '- total: {{ pricing_results.total }}\n',
-                '- Initial Payment: {{initial_payment.type}}\n',
-                '- **Amount you are paying now: {{initial_payment.total}}**\n',
-                '- Due by June 20th: {{initial_payment.balance}}\n',
-                '- Your total: {{pricing_results.total}}',
-            ]),
             confirmation_email_from='reg@camp.org',
         )
-        self.maxDiff = None
         event.save()
+        set_email(event.confirmation_template, 'Registration confirmation', ''.join([
+            '- handling:{{ pricing.handling }}\n',
+            '- cabins: {{ pricing.cabins }}\n',
+            '- total: {{ pricing.total }}\n',
+            '- Initial Payment: {{ initial_payment.type }}\n',
+            '- **Amount you are paying now: {{ initial_payment.total }}**\n',
+            '- Due by June 20th: {{ initial_payment.balance }}\n',
+            '- Your total: {{ pricing.total }}',
+        ]))
+        self.maxDiff = None
         expected_pricing_results = {
             "campers": [{}],
             "handling": 2.56,
@@ -1226,11 +1223,10 @@ class SendInvitationPostTests(APITestCase):
             event=self.event,
             name='worktrade',
             label="Work-trade",
-            invitation_email_subject="Invitation to register",
-            invitation_email_engine='mustache',
-            invitation_email_template=(
-                'Hi {{recipient_name}}, here is your link: {{{register_link}}}'),
         )
+        set_email(registration_type.invitation_template, 'Invitation to register', (
+            'Hi {{ invitation.recipient_name or invitation.recipient_email }}, '
+            'here is your link: {{ invitation.register_url }}'))
         invitation = models.Invitation.objects.create(
             registration_type=registration_type,
             recipient_name='Campy McCampface',
@@ -1683,21 +1679,20 @@ def create_standard_test_event(
         confirmation_page_template=(
             '# Thanks! You owe {{ pricing.total | money }}, '
             'paid by {{ registration.payment_type }}.'),
-        confirmation_email_subject='Registration confirmation',
-        confirmation_email_engine='mustache',
-        confirmation_email_template=''.join([
-            'Thanks for registering, {{registration.attributes.billing_name}}!\n',
-            '\nCampers:\n',
-            '| Name | Total |\n',
-            '| ---- | ----- |\n',
-            '{{#campers}}',
-            '| {{name}} | {{pricing_result.total}} |\n',
-            '{{/campers}}',
-            '\n\nTotal: ${{pricing_results.total}}\n',
-            '\n\nDue now: ${{initial_payment.total}}\n',
-        ]),
         confirmation_email_from='reg@camp.org',
     )
+    set_email(self.event.confirmation_template, 'Registration confirmation', ''.join([
+        'Thanks for registering, {{ registration.attributes.billing_name }}!\n',
+        '\nCampers:\n',
+        '| Name | Total |\n',
+        '| ---- | ----- |\n',
+        '{% for camper in campers %}',
+        '| {{ camper.attributes.name }} | {{ camper.pricing.total }} |\n',
+        # Mustache dropped the line its {{/campers}} stood alone on.
+        '{% endfor %}',
+        '\nTotal: ${{ pricing.total }}\n',
+        '\n\nDue now: ${{ initial_payment.total }}\n',
+    ]))
     self.registration_type = models.RegistrationType.objects.create(
         event=self.event,
         name='worktrade',

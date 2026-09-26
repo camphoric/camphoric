@@ -19,7 +19,6 @@ The Camp Harmony Registrar
 
 const specialType = (regType) => ({
   ...regType,
-  invitation_email_engine: 'jinja',
   invitation_email_subject: `Register for ${regType.label}`,
   invitation_email_template:
     emails[regType.name]

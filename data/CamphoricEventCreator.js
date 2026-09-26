@@ -115,9 +115,15 @@ export default class CamphoricEventCreator extends Fetcher {
     const emailAccounts = await this.fetch('GET', '/api/emailaccounts/');
     const email = emailAccounts.find(e => e.organization === org.id);
 
+    // The confirmation email is the event's email template, updated below.
+    const {
+      confirmation_email_subject: subject,
+      confirmation_email_template: body,
+      ...eventData
+    } = this.data.event;
     const event = {
       organization: org.id,
-      ...this.data.event,
+      ...eventData,
       ...['registration_start', 'registration_end', 'start', 'end'].reduce(
         (acc, k) => ({
           ...acc,
@@ -142,8 +148,20 @@ export default class CamphoricEventCreator extends Fetcher {
       event,
     );
 
+    await this.loadEmailTemplate(eventResponse.confirmation_template, subject, body);
+
     this.results.event = eventResponse;
     return eventResponse;
+  }
+
+  // An event's confirmation and a registration type's invitation are email
+  // templates, created with them (SPEC DR-45); set the text the data gives.
+  async loadEmailTemplate(templateId, subject, body) {
+    if (!templateId || (subject === undefined && body === undefined)) return;
+    await this.fetch('PATCH', `/api/emailtemplates/${templateId}/`, {
+      ...(subject !== undefined ? { subject } : {}),
+      ...(body !== undefined ? { body } : {}),
+    });
   }
 
   async loadLodgings() {
@@ -273,13 +291,20 @@ export default class CamphoricEventCreator extends Fetcher {
             regType.id = exists.id;
           }
 
-          regType.event = event.id;
+          const {
+            invitation_email_subject: subject,
+            invitation_email_template: body,
+            ...typeData
+          } = regType;
+          typeData.event = event.id;
 
-          return this.fetch(
-            exists ? 'PUT' : 'POST', 
+          const saved = await this.fetch(
+            exists ? 'PUT' : 'POST',
             `/api/registrationtypes${exists ? `/${regType.id}` : ''}/`,
-            regType,
+            typeData,
           );
+          await this.loadEmailTemplate(saved.invitation_template, subject, body);
+          return saved;
         }
       )
     );

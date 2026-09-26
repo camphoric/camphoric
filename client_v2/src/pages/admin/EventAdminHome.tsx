@@ -2,8 +2,8 @@
  * Home / event configuration (SPEC §8.3). View and edit the event's top-level
  * configuration; saving persists via PATCH to the event. (The schema-driven JSON
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
- * The confirmation email is edited in its engine (Jinja or legacy Mustache),
- * with a Jinja preview for any completed registration.
+ * The confirmation email is the event's email template (§15 DR-45), edited in
+ * Jinja with a preview for any completed registration, and saved with the rest.
  */
 
 import {
@@ -29,7 +29,9 @@ import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
 import { useEffect, useMemo, useState } from 'react';
+import { useTemplateDraft } from 'store/emailTemplates';
 import { eventHooks, registrationHooks } from 'store/entities';
+import { apiErrorMessage } from 'utils/fetch';
 
 export function EventAdminHome() {
   const { organizationId, eventId } = useParams({
@@ -47,6 +49,7 @@ export function EventAdminHome() {
     [registrations],
   );
   const update = eventHooks.useUpdate();
+  const confirmation = useTemplateDraft(event?.confirmation_template);
   const [form, setForm] = useState<ApiEvent | null>(null);
   const [showRaw, { toggle: toggleRaw }] = useDisclosure(false);
 
@@ -54,14 +57,14 @@ export function EventAdminHome() {
     if (event && !form) setForm(event);
   }, [event, form]);
 
-  if (!event || !form) return <FullScreenLoading />;
+  if (!event || !form || !confirmation.loaded) return <FullScreenLoading />;
 
   const set = <K extends keyof ApiEvent>(field: K, value: ApiEvent[K]) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
 
-  const save = () => {
-    update.mutate(
-      {
+  const save = async () => {
+    try {
+      await update.mutateAsync({
         id: event.id,
         name: form.name,
         start: form.start,
@@ -71,17 +74,17 @@ export function EventAdminHome() {
         default_stay_length: form.default_stay_length,
         confirmation_page_template: form.confirmation_page_template,
         confirmation_email_from: form.confirmation_email_from,
-        confirmation_email_subject: form.confirmation_email_subject,
-        confirmation_email_template: form.confirmation_email_template,
-        confirmation_email_engine: form.confirmation_email_engine,
         paypal_enabled: form.paypal_enabled,
         paypal_client_id: form.paypal_client_id,
         epayment_handling: form.epayment_handling,
         pricing: form.pricing,
         registration_template_vars: form.registration_template_vars,
-      },
-      { onSuccess: () => notifications.show({ color: 'green', message: 'Event saved' }) },
-    );
+      });
+      await confirmation.save();
+      notifications.show({ color: 'green', message: 'Event saved' });
+    } catch (error) {
+      notifications.show({ color: 'red', message: apiErrorMessage(error) });
+    }
   };
 
   return (
@@ -159,12 +162,10 @@ export function EventAdminHome() {
         <EmailTemplateEditor
           eventId={eventId}
           context="confirmation_email"
-          engine={form.confirmation_email_engine}
-          onEngineChange={(value) => set('confirmation_email_engine', value)}
-          subject={form.confirmation_email_subject}
-          onSubjectChange={(value) => set('confirmation_email_subject', value)}
-          body={form.confirmation_email_template}
-          onBodyChange={(value) => set('confirmation_email_template', value)}
+          subject={confirmation.subject}
+          onSubjectChange={confirmation.setSubject}
+          body={confirmation.body}
+          onBodyChange={confirmation.setBody}
           samples={samples}
           helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
         />
@@ -204,7 +205,7 @@ export function EventAdminHome() {
         />
 
         <Group>
-          <Button onClick={save} loading={update.isPending}>
+          <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
             Save
           </Button>
           <Button variant="subtle" onClick={toggleRaw}>

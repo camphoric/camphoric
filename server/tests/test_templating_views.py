@@ -113,7 +113,7 @@ class TemplatePreviewTests(APITestCase):
 
     def test_invitation_preview_uses_an_example_when_none_sent(self):
         other = models.RegistrationType.objects.create(
-            event=self.made.event, name='band', label='Band', invitation_email_subject='x')
+            event=self.made.event, name='band', label='Band')
         data = self.preview(context='invitation_email', output='email',
                             registration_type_id=other.id,
                             template='{{ invitation.recipient_name }} / '

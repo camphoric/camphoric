@@ -59,6 +59,8 @@ class EventSerializer(ModelSerializer):
     class Meta:
         model = models.Event
         fields = '__all__'
+        # Created with the event; edited as an email template.
+        read_only_fields = ['confirmation_template']
 
     def validate_camper_schema(self, schema):
         return validate_schema(schema)
@@ -82,11 +84,6 @@ class EventSerializer(ModelSerializer):
             raise ValidationError(f'Line {problem.line}: {problem.message}')
         return template
 
-    def validate(self, data):
-        return validate_jinja_email(
-            self.instance, data, 'confirmation_email_engine',
-            'confirmation_email_subject', 'confirmation_email_template')
-
 
 class RegistrationSerializer(ModelSerializer):
     class Meta:
@@ -104,11 +101,33 @@ class RegistrationTypeSerializer(ModelSerializer):
     class Meta:
         model = models.RegistrationType
         fields = '__all__'
+        # Created with the type; edited as an email template.
+        read_only_fields = ['invitation_template']
+
+
+class EmailTemplateSerializer(ModelSerializer):
+    class Meta:
+        model = models.EmailTemplate
+        fields = '__all__'
 
     def validate(self, data):
-        return validate_jinja_email(
-            self.instance, data, 'invitation_email_engine',
-            'invitation_email_subject', 'invitation_email_template')
+        errors = {}
+        for name, field in (('subject', 'subject'), ('body', 'template')):
+            if name in data:
+                problem = syntax_error(data[name], field=field)
+                if problem:
+                    errors[name] = [f'Line {problem.line}: {problem.message}']
+        instance = self.instance
+        if instance is None and data.get('purpose') != models.EmailTemplatePurpose.GROUP:
+            # The confirmation and invitations come with their event and types.
+            errors['purpose'] = ['Only group email templates can be created.']
+        if instance is not None:
+            for name in ('purpose', 'event'):
+                if name in data and data[name] != getattr(instance, name):
+                    errors[name] = ["A template's purpose and event can't be changed."]
+        if errors:
+            raise ValidationError(errors)
+        return data
 
 
 class CustomChargeTypeSerializer(ModelSerializer):

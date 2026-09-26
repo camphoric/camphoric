@@ -1,5 +1,5 @@
 /**
- * The Email section's history (SPEC §8.9; §15 DR-43): every email the event has
+ * The Email section's history (SPEC §8.9; §15 DR-44): every email the event has
  * queued — confirmations, invitations, bulk email, problem reports and tests —
  * with the queue's state, refreshing every few seconds (faster while mail is
  * waiting). The filters and the open message are held by the caller (in the

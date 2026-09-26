@@ -20,10 +20,10 @@ describe('describeError', () => {
     expect(
       describeError(
         new ApiError(400, 'Bad Request', {
-          confirmation_email_template: ['Line 2: unexpected end of template'],
+          body: ['Line 2: unexpected end of template'],
         }),
       ),
-    ).toBe('confirmation email template: Line 2: unexpected end of template');
+    ).toBe('body: Line 2: unexpected end of template');
   });
 
   it('falls back to the status', () => {

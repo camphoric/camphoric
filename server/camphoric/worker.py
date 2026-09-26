@@ -1,5 +1,5 @@
 '''
-What keeps the background task worker healthy (SPEC DR-43). `manage.py
+What keeps the background task worker healthy (SPEC DR-44). `manage.py
 camphoric_worker` wires these into django-tasks-db's worker.
 
 - The reconciler, a task that runs every minute by re-enqueueing itself. It
