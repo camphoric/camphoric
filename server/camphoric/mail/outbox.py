@@ -75,7 +75,8 @@ _EVENT_ACCOUNT = object()
 
 def enqueue(*, event, kind, to, subject, text, html='', from_email,
             account=_EVENT_ACCOUNT, reply_to=None, registration=None, invitation=None,
-            dedupe_key=None, created_by=None, batch=None, template=None, recipient_key=''):
+            dedupe_key=None, created_by=None, batch=None, template=None, recipient_key='',
+            unsubscribe_url=''):
     '''
     Queue one email and wake the worker, in the caller's transaction. Returns
     the new EmailMessage, or the live one already queued under `dedupe_key`.
@@ -101,6 +102,7 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
         account=account, from_email=from_email, to=to, reply_to=reply_to,
         subject=subject, text=text, html=html, dedupe_key=dedupe_key or None,
         created_by=created_by, batch=batch, template=template, recipient_key=recipient_key,
+        unsubscribe_url=unsubscribe_url,
     )
     problem = _address_problem(to)
     if problem:
@@ -313,11 +315,20 @@ def _build(message):
         message.from_email,
         [message.to],
         reply_to=[message.reply_to] if message.reply_to else None,
-        headers={'Message-ID': make_msgid(domain=_msgid_domain(message.from_email))},
+        headers=_headers(message),
     )
     if message.html:
         email.attach_alternative(message.html, 'text/html')
     return email
+
+
+def _headers(message):
+    headers = {'Message-ID': make_msgid(domain=_msgid_domain(message.from_email))}
+    if message.unsubscribe_url:
+        # One-click unsubscribe (RFC 8058): providers POST to the link (SPEC DR-48).
+        headers['List-Unsubscribe'] = f'<{message.unsubscribe_url}>'
+        headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+    return headers
 
 
 def _msgid_domain(from_email):

@@ -55,6 +55,7 @@ export const SKIP_REASONS: Record<AudienceSkipped['reason'], string> = {
   invalid: 'Not a valid address',
   duplicate: 'Duplicate address',
   filter_error: 'Expression failed',
+  unsubscribed: 'Unsubscribed',
 };
 
 export const EMPTY_AUDIENCE: EmailAudience = {

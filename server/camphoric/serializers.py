@@ -47,13 +47,14 @@ class EmailMessageSerializer(ModelSerializer):
 
     class Meta:
         model = models.EmailMessage
-        exclude = ['text', 'html', 'dedupe_key', 'lease_until', 'deleted_at']
+        exclude = ['text', 'html', 'dedupe_key', 'lease_until', 'unsubscribe_url',
+                   'deleted_at']
 
 
 class EmailMessageDetailSerializer(EmailMessageSerializer):
     '''A message with the content that was sent.'''
     class Meta(EmailMessageSerializer.Meta):
-        exclude = ['dedupe_key', 'lease_until', 'deleted_at']
+        exclude = ['dedupe_key', 'lease_until', 'unsubscribe_url', 'deleted_at']
 
 
 class EventSerializer(ModelSerializer):
@@ -161,6 +162,26 @@ COUNT_FILTERS = {
     'waiting': {'status__in': [models.EmailMessageStatus.QUEUED,
                                models.EmailMessageStatus.SENDING]},
 }
+
+
+class EmailUnsubscribeSerializer(ModelSerializer):
+    '''An address unsubscribed from an event's group email (SPEC DR-48).'''
+    created_by_name = CharField(source='created_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = models.EmailUnsubscribe
+        fields = ['id', 'event', 'email', 'source', 'created_by', 'created_by_name',
+                  'created_at']
+        read_only_fields = ['source', 'created_by', 'created_at']
+        # The duplicate check is in validate, on the normalized address.
+        validators = []
+
+    def validate(self, data):
+        data['email'] = data['email'].strip().lower()
+        if models.EmailUnsubscribe.objects.filter(event=data['event'],
+                                                  email=data['email']).exists():
+            raise ValidationError({'email': ['This address is already unsubscribed.']})
+        return data
 
 
 class EmailBatchSerializer(ModelSerializer):

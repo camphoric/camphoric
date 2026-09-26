@@ -14,6 +14,7 @@ import type {
   ApiDeposit,
   ApiEmailAccount,
   ApiEmailTemplate,
+  ApiEmailUnsubscribe,
   ApiEvent,
   ApiInvitation,
   ApiLodging,
@@ -31,6 +32,12 @@ export const eventHooks = createEntityHooks<ApiEvent>({ name: 'Event' });
 export const emailTemplateHooks = createEntityHooks<ApiEmailTemplate>({
   name: 'EmailTemplate',
   path: 'emailtemplates',
+});
+export const emailUnsubscribeHooks = createEntityHooks<ApiEmailUnsubscribe>({
+  name: 'EmailUnsubscribe',
+  path: 'emailunsubscribes',
+  // Who a group email reaches changes with the list.
+  alsoInvalidate: ['EmailAudience'],
 });
 export const emailAccountHooks = createEntityHooks<ApiEmailAccount>({
   name: 'EmailAccount',

@@ -34,6 +34,20 @@ def register_url(event_id, invitation=None, request=None):
     return url
 
 
+def public_base(request=None):
+    '''
+    Where the site (and its /api) is reached from outside, without a trailing
+    slash: CAMPHORIC_PUBLIC_URL, else the current request's host; '' with
+    neither. A group email records it when it's sent, for its unsubscribe links.
+    '''
+    base = getattr(settings, 'CAMPHORIC_PUBLIC_URL', '')
+    if base:
+        return base.rstrip('/')
+    if request is None:
+        return ''
+    return request.build_absolute_uri('/').rstrip('/')
+
+
 def admin_url(path, request=None):
     '''
     An absolute link into the admin client (`path` like `/admin/organization/…`),

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% if done %}Unsubscribed{% elif problem %}Unsubscribe link problem{% else %}Unsubscribe{% endif %}</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f7f7f8; --card: #fff; --text: #1f2328; --muted: #57606a; --accent: #1c7ed6; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1a1b1e; --card: #25262b; --text: #e9ecef; --muted: #a6a7ab; --accent: #4dabf7; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 32rem; margin: 10vh auto; padding: 0 16px; }
+    .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    h1 { font-size: 1.4rem; margin: 0 0 12px; }
+    p { margin: 0 0 12px; color: var(--muted); }
+    strong { color: var(--text); }
+    button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font: inherit; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      {% if problem %}
+        <h1>This link doesn’t work</h1>
+        <p>{{ problem }}</p>
+      {% elif done %}
+        <h1>You’re unsubscribed</h1>
+        <p><strong>{{ address }}</strong> won’t get any more group emails about <strong>{{ event_name }}</strong>.</p>
+        <p>You’ll still get emails about your own registration, such as its confirmation.</p>
+      {% else %}
+        <h1>Unsubscribe?</h1>
+        <p>Stop sending group emails about <strong>{{ event_name }}</strong> to <strong>{{ address }}</strong>?</p>
+        <p>You’ll still get emails about your own registration, such as its confirmation.</p>
+        <form method="post">
+          <button type="submit">Unsubscribe</button>
+        </form>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

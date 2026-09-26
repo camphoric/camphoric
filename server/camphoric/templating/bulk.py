@@ -12,8 +12,9 @@ A group email's recipients are built from one of three sources:
 For registrations and campers, Jinja expressions give each recipient's address
 and name (with sensible defaults). Every candidate ends up either as a
 recipient or as skipped with a reason — `no_address`, `invalid`, `duplicate`
-(the same address, case-insensitively, as an earlier recipient) or
-`filter_error` (an expression failed for it) — so the admin sees exactly who
+(the same address, case-insensitively, as an earlier recipient),
+`filter_error` (an expression failed for it) or `unsubscribed` (the address
+unsubscribed from the event's group email) — so the admin sees exactly who
 will and won't get the email before sending. Each recipient has a key
 (`registration:<id>`, `camper:<id>`, `address:<email>`) that a send records.
 '''
@@ -67,7 +68,7 @@ class Candidate:
 @dataclass
 class Skipped:
     label: str
-    reason: str   # no_address | invalid | duplicate | filter_error
+    reason: str   # no_address | invalid | duplicate | filter_error | unsubscribed
     detail: str = ''
     email: str = ''
     registration: int | None = None
@@ -160,9 +161,11 @@ def _valid(address):
 
 
 class _Collector:
-    def __init__(self):
+    def __init__(self, unsubscribed=()):
         self.result = Resolution()
         self.seen = {}
+        # Lowercased addresses that unsubscribed from the event's group email.
+        self.unsubscribed = set(unsubscribed)
 
     def add(self, email, name, label, key='', **links):
         email = (email or '').strip()
@@ -170,6 +173,8 @@ class _Collector:
             self.result.skipped.append(Skipped(label, 'no_address', **links))
         elif not _valid(email):
             self.result.skipped.append(Skipped(label, 'invalid', email=email, **links))
+        elif parseaddr(email)[1].lower() in self.unsubscribed:
+            self.result.skipped.append(Skipped(label, 'unsubscribed', email=email, **links))
         elif email.lower() in self.seen:
             self.result.skipped.append(Skipped(
                 label, 'duplicate', f'Same address as {self.seen[email.lower()]}',
@@ -213,7 +218,8 @@ def resolve_recipients(event, criteria, *, graph=None, request=None, only_keys=N
     applied when they were chosen — and `missing` lists any that are gone.
     '''
     only_keys = set(only_keys) if only_keys is not None else None
-    collector = _Collector()
+    collector = _Collector(models.EmailUnsubscribe.objects.filter(event=event)
+                           .values_list('email', flat=True))
     if criteria.kind == Kind.MANUAL:
         _manual(criteria, collector, only_keys)
         return _missing(collector.result, only_keys)

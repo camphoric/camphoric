@@ -22,6 +22,8 @@ router.register('customchargetypes', views.CustomChargeTypeViewSet, basename='cu
 router.register('emailtemplates', views.EmailTemplateViewSet, basename='emailtemplate')
 router.register('emailmessages', views.EmailMessageViewSet, basename='emailmessage')
 router.register('emailbatches', views.EmailBatchViewSet, basename='emailbatch')
+router.register(
+    'emailunsubscribes', views.EmailUnsubscribeViewSet, basename='emailunsubscribe')
 router.register('users', views.UserViewSet, basename='user')
 
 
@@ -48,6 +50,7 @@ urlpatterns = router.urls + [
     ),
     path('reports/<int:report_id>/render', views.RenderReportView.as_view()),
     path('events/<int:event_id>/email/queue', views.EmailQueueView.as_view()),
+    path('unsubscribe/<str:token>/', views.UnsubscribeView.as_view(), name='unsubscribe'),
     path('events/<int:event_id>/email/recipients', views.EmailRecipientsView.as_view()),
     path('events/<int:event_id>/email/recipient-fields',
          views.EmailRecipientFieldsView.as_view()),
