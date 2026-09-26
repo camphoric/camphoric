@@ -3,7 +3,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     env_file:
       - ./env/local/shared.env
       - ./env/local/postgres.env

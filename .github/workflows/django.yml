@@ -41,8 +41,8 @@ jobs:
 
     services:
       db_service:
-        # The oldest PostgreSQL Django 6.1 supports, as in docker-compose.
-        image: postgres:15
+        # The PostgreSQL Camphoric assumes (Django 6.1 needs 15+), as in docker-compose.
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres

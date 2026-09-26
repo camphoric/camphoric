@@ -112,7 +112,8 @@ Leaving `camphoric_release` at its default (`HEAD`) still deploys the tip of `ma
 
 ### Host requirements
 
-The server runs on Django 6.1, which needs **Python 3.12+** and **PostgreSQL 15+**. Ubuntu 22.04's
+The server runs on Django 6.1 with **Python 3.12+** and **PostgreSQL 16+** (the version it's
+tested against; Django 6.1 itself needs 15 or newer). Ubuntu 22.04's
 packages (Python 3.10, PostgreSQL 14) are too old, so upgrade the host before deploying a release
 that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the Ansible role
 targets:
@@ -124,7 +125,7 @@ targets:
 4. Deploy the release, which runs the migrations.
 
 The container image already meets the Python requirement; its `DATABASE_URL` must point at
-PostgreSQL 15 or newer.
+PostgreSQL 16 or newer.
 
 ---
 

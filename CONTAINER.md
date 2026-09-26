@@ -15,8 +15,12 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
   — GitHub Packages is **free for public repositories** (unlimited storage and transfer, no
   pull-rate limits), which `camphoric/camphoric` is.
 
-The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL server (15 or newer,
-as Django 6.1 requires).
+The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL 16 (or newer) server.
+That's the version Camphoric is tested against; Django 6.1 itself needs 15 or newer.
+
+`docker-compose.image.yml` runs PostgreSQL 16. Its `image_db` volume from before, made by
+PostgreSQL 15, won't open in 16; it's throwaway local data, so remove it with
+`docker compose -f docker-compose.image.yml down -v`.
 
 ---
 

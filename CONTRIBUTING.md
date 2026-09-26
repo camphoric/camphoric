@@ -134,7 +134,7 @@ registrant sees a different total than they are charged.
 
 # Backend Guidance (`server/`)
 
-Django 6.1 + Django REST Framework, Python 3.12, PostgreSQL 15+. The Django project package is
+Django 6.1 + Django REST Framework, Python 3.12, PostgreSQL 16+. The Django project package is
 `camphoric_server/`; the main app is `camphoric/`; a small `frontend_bootstrap/` app serves the
 built client. Match the patterns already in the codebase rather than introducing new ones.
 
