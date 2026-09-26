@@ -6,7 +6,6 @@ import uuid
 
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
-from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 from camphoric import (
@@ -67,15 +66,6 @@ class ReportOutputType(models.TextChoices):
 class ReportVariablesSource(models.TextChoices):
     CLIENT = 'client', 'Client bundle (legacy)'
     SERVER = 'server', 'Camphoric variables'
-
-
-class TemplateEngine(models.TextChoices):
-    '''
-    How an email template is written (SPEC §9.3, DR-38). New templates default
-    to Jinja (DR-40); older rows keep the engine they were saved with.
-    '''
-    MUSTACHE = 'mustache', 'Mustache (legacy)'
-    JINJA = 'jinja', 'Jinja (Camphoric variables)'
 
 
 class TimeStampedModel(models.Model):
@@ -581,80 +571,12 @@ class Payment(TimeStampedModel):
     notes = models.TextField(blank=True, default='')
 
 
-class BulkRecipientKind(models.TextChoices):
-    '''Who a bulk email goes to (SPEC §8.9, DR-39).'''
-    MANUAL = 'manual', 'Listed addresses'
-    REGISTRATIONS = 'registrations', 'Registrations'
-    CAMPERS = 'campers', 'Campers'
-
-
-class BulkEmailTask(TimeStampedModel):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    from_email = models.EmailField()
-    subject = models.CharField(max_length=255)
-    body_template = models.TextField(
-        blank=True, default='', help_text="Markdown template, in the task's engine")
-    engine = models.CharField(
-        max_length=10, choices=TemplateEngine.choices, default=TemplateEngine.JINJA,
-        help_text="How the subject and body are written; Mustache sees only `recipient`")
-    recipient_kind = models.CharField(
-        max_length=16, choices=BulkRecipientKind.choices, default=BulkRecipientKind.MANUAL,
-        help_text="What the recipient list is built from")
-    recipient_list = models.TextField(
-        blank=True, default='',
-        help_text="Listed addresses, one per line: `email` or `Name <email>`")
-    recipient_filter = models.TextField(
-        blank=True, default='',
-        help_text="Jinja expression choosing registrations/campers; blank chooses all")
-    address_expression = models.TextField(
-        blank=True, default='',
-        help_text="Jinja expression for each recipient's address; blank uses the default")
-    name_expression = models.TextField(
-        blank=True, default='',
-        help_text="Jinja expression for each recipient's name; blank uses the default")
-    include_incomplete = models.BooleanField(
-        default=False, help_text="Also choose from registrations that weren't completed")
-    messages_per_second = models.DecimalField(
-        max_digits=6, decimal_places=3,
-        validators=[MinValueValidator(Decimal('0.001'))],
-        null=True,
-        help_text="Max number of messages to send per second")
-    running_pid = models.IntegerField(
-        null=True, help_text="PID of process running the task, None if not running")
-    run_uuid = models.UUIDField(null=True, help_text="unique ID for most recent run")
-    run_start_time = models.DateTimeField(null=True, help_text="start time of most recent run")
-    run_finish_time = models.DateTimeField(null=True, help_text="finish time of most recent run")
-    error = models.CharField(max_length=255, blank=True, null=True)
-
-
-class BulkEmailRecipient(TimeStampedModel):
-    task = models.ForeignKey(BulkEmailTask, related_name='recipients', on_delete=models.CASCADE)
-    email = models.EmailField()
-    full_name = models.CharField(max_length=255, blank=True, default='')
-    registration = models.ForeignKey(
-        Registration, null=True, blank=True, on_delete=models.SET_NULL,
-        help_text="The registration this copy is about (registration and camper lists)")
-    camper = models.ForeignKey(
-        Camper, null=True, blank=True, on_delete=models.SET_NULL,
-        help_text="The camper this copy is about (camper lists)")
-    sent_time = models.DateTimeField(null=True)
-    error = models.CharField(max_length=255, blank=True, null=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['task', 'email'],
-                name='task_email',
-            ),
-        ]
-
-
 class EmailMessageKind(models.TextChoices):
     CONFIRMATION = 'confirmation', 'Registration confirmation'
     CONFIRMATION_REPORT = 'confirmation_report', 'Confirmation email problem report'
     PAGE_REPORT = 'page_report', 'Confirmation page problem report'
     INVITATION = 'invitation', 'Invitation'
-    BULK = 'bulk', 'Bulk email'
+    BULK = 'bulk', 'Group email'
     TEST = 'test', 'Test email'
 
 

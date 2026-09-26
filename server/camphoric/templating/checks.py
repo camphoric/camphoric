@@ -2,11 +2,10 @@
 Check every template of an event (SPEC §9.3): server-variable reports are
 rendered against the event's data; older client-variable reports can only be
 parsed here (their variables come from the browser); Handlebars reports render
-in the browser and are skipped. Jinja confirmation emails are rendered for
-every completed registration, and Jinja invitation emails for each of their
-registration type's invitations (or an example one); Mustache emails are
-skipped. Jinja bulk emails that haven't finished sending are rendered for each
-of their recipients.
+in the browser and are skipped. The confirmation email is rendered for every
+completed registration, each invitation email for its registration type's
+invitations (or an example one), and each group email for the recipients its
+default audience reaches.
 
 Used by `manage.py check_templates` (CI runs it after importing data/) and by
 GET /api/events/<id>/templates/check.
@@ -21,7 +20,7 @@ from camphoric import models
 from .contexts import (
     confirmation_email_context, confirmation_page_context, example_invitation,
     invitation_email_context, report_context)
-from .bulk import keeps_existing_recipients, recipient_context, resolve_task
+from .bulk import Criteria, candidate_context, resolve_recipients
 from .emails import render_jinja_email
 from .env import LEGACY_REPORT_ENV
 from .graph import build_event_graph
@@ -30,7 +29,7 @@ from .render import EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template, sy
 
 @dataclass
 class CheckResult:
-    kind: str  # report | confirmation_email | confirmation_page | invitation_email | bulk_email
+    kind: str  # report | confirmation_email | confirmation_page | invitation_email | group_email
     id: int
     label: str
     mode: str         # 'rendered' | 'parsed' | 'skipped'
@@ -85,9 +84,9 @@ def check_event_templates(event, *, request=None):
     for registration_type in models.RegistrationType.objects.filter(
             event=event, deleted_at__isnull=True).order_by('id'):
         results.append(_check_invitation_email(registration_type, graph))
-    for task in models.BulkEmailTask.objects.filter(
-            event=event, deleted_at__isnull=True, run_finish_time__isnull=True).order_by('id'):
-        results.append(_check_bulk_email(task, graph))
+    for template in models.EmailTemplate.objects.filter(
+            event=event, purpose=models.EmailTemplatePurpose.GROUP).order_by('name', 'id'):
+        results.append(_check_group_email(template, event, graph))
     return results
 
 
@@ -150,20 +149,16 @@ def _check_invitation_email(registration_type, graph):
                                         [invitation_email_context(graph, i) for i in invitations]))
 
 
-def _check_bulk_email(task, graph):
-    label = f'Bulk email: {task.subject}'
-    if task.engine != models.TemplateEngine.JINJA:
-        return CheckResult('bulk_email', task.id, label, 'skipped')
-    if keeps_existing_recipients(task):
-        rows = list(task.recipients.filter(sent_time__isnull=True))
-        diagnostics = []
-    else:
-        resolution = resolve_task(task, graph=graph)
-        rows = [models.BulkEmailRecipient(task=task, email=c.email, full_name=c.name,
-                                          registration_id=c.registration, camper_id=c.camper)
-                for c in resolution.recipients]
-        diagnostics = resolution.diagnostics
-    if not rows:
-        return _parsed('bulk_email', task.id, label, task.subject, task.body_template)
-    return CheckResult('bulk_email', task.id, label, 'rendered', diagnostics + _render_for_each(
-        task.subject, task.body_template, [recipient_context(graph, task, r) for r in rows]))
+def _check_group_email(template, event, graph):
+    label = f'Group email: {template.name}'
+    criteria = Criteria.of_template(template)
+    resolution = resolve_recipients(event, criteria, graph=graph)
+    if not resolution.recipients:
+        result = _parsed('group_email', template.id, label, template.subject, template.body)
+        result.diagnostics = resolution.diagnostics + result.diagnostics
+        return result
+    return CheckResult('group_email', template.id, label, 'rendered',
+                       resolution.diagnostics + _render_for_each(
+                           template.subject, template.body,
+                           [candidate_context(graph, criteria.kind, c)
+                            for c in resolution.recipients]))

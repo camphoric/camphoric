@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-45)
+- §15 — Decision Records (DR-1…DR-46)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -172,7 +172,7 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?emailTaskId`, `?registrationsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
+`?registrationsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
 filters, and
 Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
@@ -199,9 +199,9 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
-  `?emailTab` — `history`, `bulk`, or templates (the default, left out of the URL);
-  `?templateId` — the group email template being edited (`new` for a new one); `?emailTaskId` —
-  the selected bulk email; `?messageId` — the email open in the history; `?mstatus`, `?mkind`,
+  `?emailTab` — `history`, or templates (the default, left out of the URL); `?templateId` —
+  the group email template being edited (`new` for a new one); `?messageId` — the email open in
+  the history; `?mstatus`, `?mkind`,
   `?mq`, `?mpage`, `?mbatch` — the history's status and kind filters (comma-separated lists),
   search text, page, and the group email send whose copies it shows.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
@@ -257,7 +257,7 @@ derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must als
 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
-`Payment`, `CustomCharge`, `CustomChargeType`, `BulkEmailTask`, `BulkEmailRecipient`, `User`.
+`Payment`, `CustomCharge`, `CustomChargeType`, `EmailAccount`, `EmailTemplate`, `User`.
 
 Non-CRUD admin endpoints:
 
@@ -305,27 +305,6 @@ Non-CRUD admin endpoints:
   is a 400 `{ detail, diagnostics }` (the `TemplateDiagnostic`s below); an address that can't be
   emailed (invalid, or `@dontsend.com`) is a 400 `{ detail }`.
 - `GET /api/customcharges/{camperId}` — custom charges for a camper.
-- **Bulk email** (§8.9; all admin-only):
-  - `POST /api/events/{id}/bulkemail/recipients` — who a recipient list reaches, from criteria
-    that needn't be saved: `{ recipient_kind, recipient_list, recipient_filter,
-    address_expression, name_expression, include_incomplete }` → `{ recipients: [{ email, name,
-    label, registration, camper }], skipped: [{ label, reason: 'no_address' | 'invalid' |
-    'duplicate' | 'filter_error', detail, email, registration, camper }], diagnostics }`
-    (`diagnostics` are the expressions' syntax errors, with `field` naming the expression).
-  - `POST /api/bulkemailtasks/{id}/recipients/resolve` `{ dry_run? }` — the same, from the saved
-    task, plus `counts: { recipients, skipped, already_sent, kept_existing }`; unless `dry_run`,
-    saves the list (rows already sent stay; unsent rows are replaced). 409 while sending.
-  - `POST /api/bulkemailtasks/{id}/send` — rebuilds the list from the current data (except for a
-    task whose recipients were added directly: `manual` with an empty `recipient_list`), then
-    sends to every unsent recipient; returns the task when done. With `?background=1` it starts
-    the send in its own process and returns the task at once with a 202. A list that can't be
-    built is a 400 `{ detail, diagnostics }`.
-  - `POST /api/bulkemailtasks/{id}/cancel` — stop sending (resume by sending again).
-  - `POST /api/bulkemailtasks/{id}/test` `{ to?, recipient? }` — one copy, rendered for a
-    recipient (by id; else the first on the list, or the first the criteria reach), to `to`
-    (default: the signed-in admin's address), subject prefixed `[Test]` →
-    `{ sent_to, rendered_for, subject, diagnostics }`; 400 `{ detail, diagnostics }` when it
-    can't be rendered.
 - **Email history and accounts** (all admin-only; the outbox, §15, DR-44):
   - `GET /api/emailmessages/` — queued and sent email, newest first, 50 per page
     (`{ count, next, previous, results }`). Filters: `event`, `kind` / `kind__in`, `status` /
@@ -361,7 +340,8 @@ Non-CRUD admin endpoints:
     already_sent }], skipped: [{ label, reason, detail, email, registration, camper }],
     diagnostics }`. A recipient's `key` is `registration:<id>`, `camper:<id>` or
     `address:<email>`; `already_sent` is whether `template` has been sent to it. `skipped`
-    reasons are those of bulk email; a bad rule or expression is a diagnostic on its field
+    reasons are `no_address`, `invalid`, `duplicate` (the same address, case-insensitively, as an
+    earlier recipient) and `filter_error` (an expression failed for it); a bad rule or expression is a diagnostic on its field
     (`filter`, `filter_expression`, …).
   - `POST /api/emailtemplates/{id}/send/` `{ recipient_keys, account?, from_email?, reply_to?,
     skip_already_sent? (default true), send_at? }` — send a `group` template to the reviewed
@@ -469,8 +449,6 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `created_by`, `created_by_name`, timestamps, and read-only counts `total`, `sent`, `failed`,
   `cancelled`, `waiting`, and `state` (`scheduled` | `preparing` | `sending` | `done` |
   `cancelled`; `done` is sending with nothing waiting).
-- **Email template engines** (task-based bulk email only, until it's retired): a
-  `BulkEmailTask`'s `engine` is `mustache` (legacy) or `jinja` (the API default).
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
   the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`.
@@ -491,16 +469,6 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount`, `notes`.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
-- **BulkEmailTask:** `id`, `event`, `from_email`, `subject`, `body_template`, `engine`
-  (`mustache` | `jinja`; the API default is `jinja`), `recipient_kind` (`manual` |
-  `registrations` | `campers`), `recipient_list`, `recipient_filter`, `address_expression`,
-  `name_expression`, `include_incomplete`, `messages_per_second` (decimal text or null);
-  read-only: `running_pid`, `run_start_time`, `run_finish_time`, `error`, and the derived
-  `status` (`draft` | `running` | `finished` | `stopped` | `failed`), `recipient_count`,
-  `sent_count`, `error_count`. Saving refuses a Jinja subject/body that doesn't parse, or an
-  expression that doesn't parse (400 keyed by field). List with `?event=`.
-- **BulkEmailRecipient:** `id`, `task`, `email`, `full_name`, `registration?`, `camper?`,
-  `sent_time?`, `error?`. List with `?task=`.
 - **User:** standard Django user fields (`username`, `email`, names, `is_staff`, etc.); an
   anonymous user has `username: ''` and `id: null`.
 
@@ -890,22 +858,22 @@ field may be added later). Changes are saved together, via PATCH of
 `registration_error_messages` on the event.
 
 **Email** — the admin chooses the **account the event sends through** (confirmations,
-invitations and bulk email alike; or none, for the server's default mailer), and manages the
+invitations and group email alike; or none, for the server's default mailer), and manages the
 organization's **email accounts** (§5): add and edit an account — its name, whether it sends
 through a mail server (SMTP) or only to the server's log (for testing), the server, port and
 security (STARTTLS, SSL/TLS or none; changing the security moves a standard port along), the
 timeout, username and password, its sending limits (most messages a minute and a day; blank is no
 limit), and a default Reply-To. The password is never shown: when editing, a blank password
 keeps the stored one, and one the server can no longer read (its encryption key changed) is
-flagged and must be entered again. The admin can send a test message through an account (to
-themselves; it appears in the Email history, §8.9) and delete an account no event or sent email
-uses (otherwise the server refuses, and the reason is shown).
+flagged and must be entered again (§15, DR-46). The admin can send a test message through an
+account (to themselves; it appears in the Email history, §8.9) and delete an account no event or
+sent email uses (otherwise the server refuses, and the reason is shown).
 
 ### 8.9 Email
 
 Every email the event sends is queued and delivered in the background (§15, DR-44). The Email
-section shows **what the event's email is doing now**, the event's **email templates**, its
-**history**, and **bulk email**.
+section shows **what the event's email is doing now**, the event's **email templates**, and its
+**history**.
 
 **Now** — how many emails are waiting (and when the next is tried) and how many failed in the
 last day, refreshed every few seconds (every couple of seconds while email is waiting). Two things
@@ -1023,52 +991,6 @@ showing that send's copies. Each copy is rendered when the send is prepared (at 
 later send), from the template's subject and body as they were when it was sent; a recipient
 who's no longer in the event's data is skipped, and a copy that can't be rendered is recorded as
 failed with the problem while the others still go.
-
-**Bulk email** — the admin can **compose an email to many people at once, see exactly who it will
-reach, test it, send it, and follow its progress** (§15, DR-39). The event's bulk emails are
-listed newest first with their status; the selected one is URL-addressable (`?emailTaskId`, §4).
-
-**Composing** — from address (defaulting to the event's confirmation `from`), subject and
-markdown body, edited with the email template editor (§8.3) in Jinja (new emails) or Mustache
-(older ones, which see only `recipient`), an optional sending rate (messages per second), and
-**who it goes to**:
-
-- **Registrations** — the event's completed registrations (optionally also incomplete ones),
-  narrowed by a Jinja **filter expression** such as `registration.balance > 0` (blank: all).
-  Each copy's context is `bulk_email_registration`: `event`, `registration`, `campers`,
-  `recipient`.
-- **Campers** — those registrations' campers, likewise (`bulk_email_camper`: `event`, `camper`,
-  `registration`, `recipient`).
-- **Listed addresses** — typed one per line, as `email` or `Name <email>` (`bulk_email_manual`:
-  `event`, `recipient`).
-
-For registrations and campers, Jinja **address and name expressions** give each copy's recipient;
-left blank, they default to the registrant's email (registrations), or the camper's `email`
-answer falling back to the registrant's, with the camper's first and last name (campers). The
-defaults are shown to the admin.
-
-As the criteria change, the admin sees **who the list reaches** — each recipient with who they
-are (registration or camper), address and name — and **who it skips and why**: no address, not a
-valid address, the same address as an earlier recipient (compared case-insensitively; each
-address gets one copy), or an expression that failed for that one (with the error). An expression
-that doesn't parse is marked on its field. The preview can render the email for any of the
-recipients the list reaches.
-
-Saving stores the task (§5). The recipient list itself is built from the current data when the
-email is sent, so it reflects registrations made since it was composed.
-
-**Sending** — the admin first sees how many it will be sent to (and how many are skipped, and
-how many were already sent this email and won't get it again) and confirms; the send then runs
-in the background. While it runs, its status, a progress count (sent of total, and how many
-failed) and each recipient's state (sent with time, waiting, or failed with the reason) refresh
-every few seconds. Sending can be stopped and later resumed; resuming, or sending again after
-new people match, never sends anyone a second copy. A copy that can't be rendered for its
-recipient is recorded as failed with the template problem, and the others still go.
-
-**Testing** — the admin can send one copy, rendered for the first recipient, to any address
-(their own by default), with `[Test]` before the subject; nobody on the list is sent anything.
-
-An email can't be edited or deleted while it's sending.
 
 ---
 
@@ -1194,7 +1116,7 @@ example and its result.
   `now`. `registrations`, `campers` and `payments` are those of completed registrations. A
   confirmation email — and the confirmation page — gets the one registration it's for
   (`registration`, its `campers`, `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
-  `registration_type` and `event`; a bulk email's copy gets its recipient's registration or
+  `registration_type` and `event`; a group email's copy gets its recipient's registration or
   camper and `recipient` (§8.9).
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
   `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
@@ -2237,6 +2159,10 @@ render problem for the sample — samples can't cover every registration.
 
 ### DR-39 — Bulk-email recipients chosen by expressions, sent by a background command
 
+*Superseded by DR-44 and DR-45: group email templates, with recipients chosen by conditions (and
+an optional expression), are sent in batches through the outbox; the task-based bulk email and
+its background command are removed.*
+
 **Decision:** A bulk email's recipients are built from the event's registrations or campers
 (or a typed list): a Jinja filter expression chooses them and Jinja expressions give each one's
 address and name, with defaults. Every candidate is either a recipient or skipped with a reason
@@ -2351,8 +2277,8 @@ has to be made twice.
 
 ### DR-44 — All email goes through one outbox, delivered by a task worker
 
-**Decision:** Every outgoing email (confirmations and their problem reports, invitations, and in
-time bulk email) is queued as a row in an email outbox, rendered when it's queued, and delivered
+**Decision:** Every outgoing email (confirmations and their problem reports, invitations, group
+email and tests) is queued as a row in an email outbox, rendered when it's queued, and delivered
 in the background by a worker process. The row is the permanent record of what was sent, to
 whom, from which account, and how delivery went. Delivery retries temporary failures with
 backoff and keeps to each sending account's per-minute and per-day limits. Requests no longer
@@ -2417,6 +2343,26 @@ for the same text, without the confirmation's and invitations' own preview sampl
 recipients again when a send is prepared (the task-based bulk email) — the list could differ from
 what was reviewed.
 
+### DR-46 — SMTP passwords are encrypted; each account paces its own sending
+
+**Decision:** An email account's password is stored encrypted (Fernet, under a `fernet:` prefix)
+with a key from `CAMPHORIC_SECRET_KEY_EMAIL` (several comma-separated keys rotate: the first
+encrypts, any decrypts; without one, a key is derived from Django's secret key). The API never
+returns the password — only whether it's set, unset or unreadable (the key changed) — and a blank
+password on an update keeps the stored one. Each account has a security mode (STARTTLS, SSL/TLS
+or none), a timeout, and optional per-minute and per-day sending limits. Before sending, the
+outbox worker counts the account's recent sends under a row lock on the account; over a limit,
+the message waits — without counting as an attempt — until a slot opens, and the queue status
+says why. An account an event or a sent email uses can't be deleted.
+**Context:** Passwords were stored as plain text, in the database and every backup of it.
+Gmail-style daily caps fail every message past the cap, so a large group email could use up a
+shared account for the day; pacing per account turns that into a wait, and the lock keeps the
+limits exact with more than one worker. Deleting an account used to delete the events using it.
+**Alternatives:** Gmail OAuth — no stored password, but an OAuth app and token refresh per
+organization. Encrypting with Django's secret key alone — rotating it would make every password
+unreadable at once. Limits in the task queue — it has none, and limits kept per worker aren't
+global.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2442,12 +2388,12 @@ must be coordinated with the backend. Grouped by status.
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
   (§8.4; its Jinja-render 400, §5), `GET /api/eventlist` (§4), `GET /api/customcharges/{camperId}`
   (§5).
-- **Bulk email:** the `BulkEmailTask`/`BulkEmailRecipient` fields, the recipients preview,
-  resolve, background send and test endpoints, and `manage.py send_bulk_email` being runnable by
-  the web process (§5, §8.9; DR-39).
-- **Email engines:** `Event.confirmation_email_engine` and `RegistrationType.invitation_email_engine`,
-  their save-time parse check, and the confirmation-failure report to `confirmation_email_from`
-  (§5, §8.3; DR-38).
+- **Email:** the email templates (`EmailTemplate`; the event's `confirmation_template` and each
+  registration type's `invitation_template`) and their save-time checks, the confirmation-failure
+  report to `confirmation_email_from`, the group email endpoints (recipient fields, recipients,
+  send, test, duplicate, batches with cancel and retry), the outbox (`emailmessages`, the queue,
+  retry and cancel) and email accounts, with the shapes in §5 (§8.3, §8.8, §8.9; DR-44, DR-45,
+  DR-46).
 - **Server-rendered templates:** the Report's `variables_source` field, and
   `GET /api/events/{id}/templates/describe`, `POST …/templates/preview` and
   `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).

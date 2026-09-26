@@ -84,7 +84,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | Variable                      | Default               | Purpose                                                                                                          |
 | ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `CAMPHORIC_TEMPLATE_TIMEZONE` | `America/Los_Angeles` | Time zone that dates and times are shown in by server-rendered reports and emails.                               |
-| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration links in templates; when empty, links are derived from the current request (so bulk email and template checks have none). |
+| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration links in templates; when empty, links are derived from the current request (so group email and template checks have none). |
 
 ### Email
 

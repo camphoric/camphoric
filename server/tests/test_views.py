@@ -1544,54 +1544,6 @@ class LodgingSchemaTests(APITestCase):
         self.assertIsInstance(response.data['lodging_ui_schema'], dict)
 
 
-class BulkEmailTests(APITestCase):
-    # see also BulkEmailTests in test_mail.py
-
-    def setUp(self):
-        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
-        self.organization = models.Organization.objects.create(name='Test Organization')
-        self.event = models.Event.objects.create(
-            organization=self.organization,
-            name='bulk email test event',
-        )
-        self.task = models.BulkEmailTask.objects.create(
-            event=self.event,
-            from_email='registration@example.com',
-            subject='Hi, everyone!',
-            body_template='Hi {{recipient.email}}',
-        )
-        self.task.recipients.create(email='alice@example.com')
-        self.task.recipients.create(email='bob@example.com')
-
-    def test_send(self):
-        #  Test unauthenticated request
-        response = self.client.post(f'/api/bulkemailtasks/{self.task.id}/send')
-        self.assertEqual(response.status_code, 401)
-
-        self.client.force_authenticate(user=self.admin_user)
-        response = self.client.post(f'/api/bulkemailtasks/{self.task.id}/send')
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['id'], self.task.id)
-        self.assertIsNotNone(response.data['run_finish_time'])
-        self.assertEqual([m.to[0] for m in mail.outbox], ['alice@example.com', 'bob@example.com'])
-
-    def test_cancel(self):
-        #  Test unauthenticated request
-        response = self.client.post(f'/api/bulkemailtasks/{self.task.id}/cancel')
-        self.assertEqual(response.status_code, 401)
-
-        self.task.running_pid = 1234
-        self.task.save()
-
-        self.client.force_authenticate(user=self.admin_user)
-        response = self.client.post(f'/api/bulkemailtasks/{self.task.id}/cancel')
-
-        self.assertEqual(response.status_code, 200)
-        self.task.refresh_from_db()
-        self.assertIsNone(self.task.running_pid)
-
-
 # TODO: it probably makes sense to subclass APITestCase and add this as a
 # method so that some of these fixures can be easily created and accessible
 def create_standard_test_event(
