@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-42)
+- §15 — Decision Records (DR-1…DR-43)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1141,7 +1141,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Tests ship with the code that they cover.** Every feature lands with its tests in the same
   change — pure logic with unit tests, components with component tests — rather than deferring
   testing to a later pass. A change that adds or alters behavior is incomplete until its tests
-  exist and pass. Co-locate tests as `*.test.ts(x)` next to the code (§15, DR-28).
+  exist and pass (§15, DR-28). Tests (`*.test.ts(x)`), Ladle stories (`*.stories.tsx`) and test
+  fixtures live in a `test/` directory inside the folder of the code they cover — e.g.
+  `components/form/test/JsonSchemaForm.test.tsx` — and import that code from `../` (§15, DR-43).
+  Shared test utilities and the Vitest setup live in `src/test/`.
 - **Unit (Vitest):** thorough coverage of the **pricing engine** and template helpers, plus
   date/money utilities and other pure functions.
 - **Pricing parity:** a shared fixture set (inputs → expected `PricingResults`) run against
@@ -2096,6 +2099,19 @@ reports, like the email.
 **Alternatives:** Keep Handlebars with an engine flag per event, as the emails did — not needed:
 the user chose a breaking change, and the few live events are re-imported each season. Send
 rendered HTML — the client already sanitizes and styles markdown for every other message.
+
+### DR-43 — Tests, stories and fixtures live in per-folder `test/` directories
+
+**Decision:** Each source folder keeps its `*.test.ts(x)`, `*.stories.tsx` and fixture files in a
+`test/` subdirectory (e.g. `pricing/test/calculatePrice.test.ts`) rather than beside the code.
+Vitest (`src/**/*.test.{ts,tsx}`) and Ladle (`src/**/*.stories.*`) find them by glob, and a
+Ladle story's id comes from its file name, so the e2e suite's story URLs are unaffected.
+**Context:** With tests and stories beside every component, folders were twice as long and the
+production modules were harder to pick out. A `test/` directory per folder keeps them near the
+code they cover (the DR-28 intent) while separating them from it.
+**Alternatives:** Co-locate beside the code (the previous layout) — noisy folders. A single
+top-level `src/test/` tree mirroring `src/` — the tests drift away from the code and every move
+has to be made twice.
 
 ---
 
