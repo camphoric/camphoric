@@ -327,8 +327,9 @@ Non-CRUD admin endpoints:
 - **Email history and accounts** (all admin-only; the outbox, §15, DR-44):
   - `GET /api/emailmessages/` — queued and sent email, newest first, 50 per page
     (`{ count, next, previous, results }`). Filters: `event`, `kind` / `kind__in`, `status` /
-    `status__in` (comma-separated), `registration`, `invitation`, `account`; `q` searches the
-    recipient and subject. Each result is an `EmailMessage` without `text` / `html`.
+    `status__in` (comma-separated), `registration`, `invitation`, `account`, `batch`,
+    `template`; `q` searches the recipient and subject. Each result is an `EmailMessage` without
+    `text` / `html`.
   - `GET /api/emailmessages/{id}/` — one message, with the `text` and `html` that were sent.
   - `POST /api/emailmessages/{id}/retry/` — queue a `failed` message again → the message; 409
     `{ detail }` when it isn't failed or its address can't be emailed.
@@ -343,6 +344,41 @@ Non-CRUD admin endpoints:
   - `POST /api/emailaccounts/{id}/test/` `{ to?, from_email? }` — queue a test message through
     the account (default `to`: the signed-in admin; default from: the account's username) →
     202 with the message. Deleting an account that an event or a message uses is a 409.
+- **Group email** (all admin-only; §15, DR-45):
+  - `GET /api/events/{id}/email/recipient-fields?source=registrations|campers` — the fields a
+    group email's recipients can be chosen by: `[{ key, label, group, type, options? }]`, where
+    `key` is a dotted path into the email's variables (`registration.balance`,
+    `camper.attributes.meal_type`), `type` is `string` | `number` | `boolean` | `enum` | `date`
+    | `list` (a multi-choice answer), and `options` (`[{ value, label }]`) lists an `enum`'s or
+    `list`'s choices. Groups: Registration, Registration answers, Registration admin fields,
+    Registration pricing, and for campers the same four for the camper.
+  - `POST /api/events/{id}/email/recipients` — who an audience reaches, from a group template's
+    fields, saved or not (`recipient_source`, `filter`, `filter_expression`,
+    `address_expression`, `name_expression`, `recipient_list`, `include_incomplete`, and
+    `template?`) → `{ recipients: [{ key, email, name, label, registration, camper,
+    already_sent }], skipped: [{ label, reason, detail, email, registration, camper }],
+    diagnostics }`. A recipient's `key` is `registration:<id>`, `camper:<id>` or
+    `address:<email>`; `already_sent` is whether `template` has been sent to it. `skipped`
+    reasons are those of bulk email; a bad rule or expression is a diagnostic on its field
+    (`filter`, `filter_expression`, …).
+  - `POST /api/emailtemplates/{id}/send/` `{ recipient_keys, account?, from_email?, reply_to?,
+    skip_already_sent? (default true), send_at? }` — send a `group` template to the reviewed
+    recipients, now or at `send_at` (ISO 8601; later needs the email worker) → 202 with the
+    `EmailBatch`. A 400 `{ detail }` when no recipients are given or the template isn't a group
+    email. The copies are rendered when the batch is prepared: a recipient no longer in the data
+    is skipped as `gone`, one the template already reached as `already_sent` (unless
+    `skip_already_sent` is false), and a copy that can't be rendered is a `failed` message.
+  - `POST /api/emailtemplates/{id}/test/` `{ to?, recipient_key?, subject?, body?, …audience }`
+    — queue one copy, `[Test]` before the subject, rendered for `recipient_key` (else the first
+    recipient), to `to` (default: the signed-in admin); unsaved `subject` / `body` / audience
+    fields may be given → 202 `{ message, rendered_for, diagnostics }`; 400 `{ detail,
+    diagnostics }` when it can't be rendered or there's no recipient.
+  - `POST /api/emailtemplates/{id}/duplicate/` — a copy of a `group` template, named
+    “… (copy)” → 201 with it.
+  - `GET /api/emailbatches/?event=&template=&status=` — the event's sends, newest first; each an
+    `EmailBatch`. `POST /api/emailbatches/{id}/cancel/` stops one — before it's prepared, or its
+    copies still waiting (409 when already cancelled); `POST /api/emailbatches/{id}/retry-failed/`
+    queues its failed copies again → the batch with `retried`.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -412,7 +448,25 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   timestamps. Saving one whose subject or body doesn't parse is refused with a 400
   `{ subject | body: ['Line N: message'] }`. Only `group` templates can be created or deleted
   (the confirmation and invitations come with their event and types; deleting one is a 409), and a
-  template's `purpose` and `event` can't change.
+  template's `purpose` and `event` can't change. A `group` template also has its default
+  audience: `recipient_source` (`registrations` | `campers` | `manual`), `filter` (rules,
+  `{ combinator: 'and' | 'or', rules: [{ field, op, value }] }` with `field` a recipient-fields
+  `key` and `op` by type — string: `contains`, `not_contains`, `is`, `is_not`, `is_set`,
+  `is_not_set`; number: `eq`, `ne`, `gt`, `lt`, `gte`, `lte`, `is_set`, `is_not_set`; boolean:
+  `is_true`, `is_false`; enum: `is`, `is_not`, `any_of` (value: a list), `is_set`,
+  `is_not_set`; date: `before`, `after`, `on`, `is_set`, `is_not_set`; list: `contains`,
+  `any_of`, `is_set`, `is_not_set`), `filter_expression` (Jinja; it and the rules must both
+  pass), `address_expression`, `name_expression`, `recipient_list` (for `manual`: one
+  `email` or `Name <email>` per line) and `include_incomplete`; saving one with a malformed rule
+  or an expression that doesn't parse is a 400 on that field.
+- **EmailBatch** (§15, DR-45): `id`, `event`, `template` (null once the template is deleted),
+  `name`, `subject`, `body` (a snapshot of what was sent), `recipient_source`,
+  `recipient_keys` (the reviewed recipients), `account`, `from_email`, `reply_to`,
+  `skip_already_sent`, `send_at`, `status` (`scheduled` | `expanding` | `sending` |
+  `cancelled`), `skipped` (`[{ key, label, reason }]`, from preparing it), `error`,
+  `created_by`, `created_by_name`, timestamps, and read-only counts `total`, `sent`, `failed`,
+  `cancelled`, `waiting`, and `state` (`scheduled` | `preparing` | `sending` | `done` |
+  `cancelled`; `done` is sending with nothing waiting).
 - **Email template engines** (task-based bulk email only, until it's retired): a
   `BulkEmailTask`'s `engine` is `mustache` (legacy) or `jinja` (the API default).
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,

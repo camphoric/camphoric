@@ -681,6 +681,13 @@ class EmailMessage(TimeStampedModel):
         Registration, null=True, blank=True, on_delete=models.SET_NULL)
     invitation = models.ForeignKey(
         Invitation, null=True, blank=True, on_delete=models.SET_NULL)
+    # A group email's: its batch, its template and who in its recipient list.
+    batch = models.ForeignKey(
+        'EmailBatch', null=True, blank=True, related_name='messages', on_delete=models.SET_NULL)
+    template = models.ForeignKey(
+        'EmailTemplate', null=True, blank=True, related_name='messages',
+        on_delete=models.SET_NULL)
+    recipient_key = models.CharField(max_length=255, blank=True, default='')
     # The sending account (null: the server's default mailer). An account with
     # messages can't be deleted, so a queued message never changes servers.
     account = models.ForeignKey(EmailAccount, null=True, blank=True, on_delete=models.PROTECT)
@@ -738,6 +745,13 @@ class WorkerHeartbeat(models.Model):
         return f'{self.hostname}:{self.pid} ({self.worker_id})'
 
 
+class EmailRecipientSource(models.TextChoices):
+    '''Who a group email goes to (SPEC §8.9, DR-45).'''
+    REGISTRATIONS = 'registrations', 'Registrations'
+    CAMPERS = 'campers', 'Campers'
+    MANUAL = 'manual', 'Listed addresses'
+
+
 class EmailTemplatePurpose(models.TextChoices):
     CONFIRMATION = 'confirmation', 'Registration confirmation'
     INVITATION = 'invitation', 'Invitation'
@@ -778,9 +792,69 @@ class EmailTemplate(TimeStampedModel):
         EmailAccount, null=True, blank=True, on_delete=models.SET_NULL,
         help_text="The sending account; blank: the event's")
 
+    # Group emails only: who they go to by default (the send dialog starts here).
+    recipient_source = models.CharField(
+        max_length=16, choices=EmailRecipientSource.choices,
+        default=EmailRecipientSource.REGISTRATIONS)
+    filter = CustomJSONField(
+        default=dict, blank=True,
+        help_text='Rules choosing recipients: {combinator, rules: [{field, op, value}]}')
+    filter_expression = models.TextField(
+        blank=True, default='', help_text='A Jinja expression recipients must also pass')
+    address_expression = models.TextField(
+        blank=True, default='', help_text="Jinja for each recipient's address; blank: default")
+    name_expression = models.TextField(
+        blank=True, default='', help_text="Jinja for each recipient's name; blank: default")
+    recipient_list = models.TextField(
+        blank=True, default='', help_text='Listed addresses, one per line: email or Name <email>')
+    include_incomplete = models.BooleanField(
+        default=False, help_text="Also choose from registrations that weren't completed")
+
     def __str__(self):
         return self.name
 
     @property
     def sender(self):
         return self.from_email or self.event.confirmation_email_from
+
+
+class EmailBatchStatus(models.TextChoices):
+    SCHEDULED = 'scheduled', 'Scheduled'
+    EXPANDING = 'expanding', 'Preparing'
+    SENDING = 'sending', 'Sending'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+class EmailBatch(TimeStampedModel):
+    '''
+    One send of a group email (SPEC §8.9, DR-45): the recipients the admin
+    reviewed and a snapshot of what was sent to them. Its messages are the
+    outbox rows; whether it's done is worked out from them.
+    '''
+    event = models.ForeignKey(Event, related_name='email_batches', on_delete=models.CASCADE)
+    template = models.ForeignKey(
+        EmailTemplate, null=True, blank=True, related_name='batches', on_delete=models.SET_NULL)
+    name = models.CharField(max_length=255, help_text="The template's name when it was sent")
+    subject = models.CharField(max_length=255, blank=True, default='')
+    body = models.TextField(blank=True, default='')
+    recipient_source = models.CharField(max_length=16, choices=EmailRecipientSource.choices)
+    address_expression = models.TextField(blank=True, default='')
+    name_expression = models.TextField(blank=True, default='')
+    recipient_list = models.TextField(blank=True, default='')
+    # The recipients chosen in the send dialog, e.g. ["camper:31", "address:pat@x.org"].
+    recipient_keys = CustomJSONField(default=list)
+    account = models.ForeignKey(EmailAccount, null=True, blank=True, on_delete=models.PROTECT)
+    from_email = models.CharField(max_length=255, blank=True, default='')
+    reply_to = models.CharField(max_length=255, blank=True, default='')
+    skip_already_sent = models.BooleanField(default=True)
+    send_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=10, choices=EmailBatchStatus.choices, default=EmailBatchStatus.SCHEDULED)
+    # Recipients left out when it was prepared (gone since, already sent), and why.
+    skipped = CustomJSONField(default=list, blank=True)
+    error = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f'{self.name} ({self.created_at:%Y-%m-%d})'

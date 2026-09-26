@@ -101,6 +101,11 @@ class SchemaWalker:
         }
         if isinstance(schema.get('enum'), list):
             entry['enum'] = schema['enum']
+        elif schema.get('type') == 'array':
+            # A multi-choice answer: its choices.
+            items = self.deref(schema.get('items') or {})
+            if isinstance(items.get('enum'), list):
+                entry['enum'] = items['enum']
         if schema.get('format'):
             entry['format'] = schema['format']
         return entry
