@@ -11,6 +11,9 @@ or not at all can't send twice or lose a message.
   without the other.
 - Delivery claims the row, sends through the account's mailer, and records the
   outcome. Temporary failures are retried with backoff; permanent ones fail.
+  Having sent its message, a delivery keeps the connection open and sends the
+  account's other due messages over it, a chunk at a time, claiming each one
+  the same way; their own wake-ups then find nothing to do.
 - Each account's per-minute and per-day limits are checked under a row lock on
   the account, so any number of workers keep to them. Over a limit, the
   message waits (without using up an attempt).
@@ -21,13 +24,15 @@ from email.utils import parseaddr
 import logging
 import smtplib
 import socket
+import time
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, make_msgid
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
-from django.db.models import Min, Q
+from django.db.models import Case, IntegerField, Min, Q, Value, When
+
 from django.utils import timezone
 
 from camphoric import models, worker
@@ -46,6 +51,11 @@ MAX_ATTEMPTS = len(BACKOFF) + 1
 # How long a claimed message may stay "sending" before it's presumed abandoned
 # (the worker died) and queued again.
 LEASE = timedelta(minutes=5)
+
+# One delivery sends at most this many messages over its connection, for at most
+# this long, so other accounts' email and other tasks get their turn.
+CHUNK_SIZE = 50
+CHUNK_SECONDS = 120
 
 # Task priority by kind: a registrant's confirmation goes ahead of a bulk backlog.
 PRIORITY = {
@@ -158,15 +168,45 @@ def wake(message, run_after=None):
 
 def deliver(message_id):
     '''
-    Try to send one queued message that's due. Returns what happened: 'sent',
-    'retry', 'failed', 'throttled' or 'skipped' (not queued, or not due yet).
+    Try to send one queued message that's due, then — over the same connection
+    — the account's other due messages, up to a chunk. Returns what happened to
+    the first: 'sent', 'retry', 'failed', 'throttled' or 'skipped' (not queued,
+    or not due yet).
     '''
-    now = timezone.now()
     message = (models.EmailMessage.objects.select_related('account', 'invitation')
                .filter(id=message_id).first())
-    if message is None or message.status != Status.QUEUED or message.next_attempt_at > now:
+    if message is None or message.status != Status.QUEUED \
+            or message.next_attempt_at > timezone.now():
         return 'skipped'
+    outcome = _claim(message)
+    if outcome:
+        return outcome
 
+    try:
+        mailer = mailer_for(message.account)
+        # Held open across the chunk; send_messages leaves an open connection open.
+        mailer.open()
+    except Exception as error:
+        return _record_failure(message, error)
+    try:
+        outcome = _send(mailer, message)
+        if outcome == 'sent':
+            _send_more(mailer, message.account_id)
+    finally:
+        try:
+            mailer.close()
+        except Exception as error:
+            logger.warning(f'closing the mail connection failed: {error}')
+    return outcome
+
+
+def _claim(message):
+    '''
+    Move a queued, due message to "sending", within the account's limits.
+    Returns None once it's claimed, else 'throttled' (it now waits for a slot)
+    or 'skipped' (it changed meanwhile).
+    '''
+    now = timezone.now()
     with transaction.atomic():
         if message.account_id:
             # Serializes every worker's limit check for this account.
@@ -179,17 +219,20 @@ def deliver(message_id):
                 if updated:
                     wake(message, run_after=wait_until)
                 return 'throttled' if updated else 'skipped'
-        # Claim it: only a queued, due message moves to "sending".
         claimed = (models.EmailMessage.objects
                    .filter(id=message.id, status=Status.QUEUED, next_attempt_at__lte=now)
                    .update(status=Status.SENDING, lease_until=now + LEASE))
     if not claimed:
         return 'skipped'
     message.refresh_from_db()
+    return None
 
+
+def _send(mailer, message):
+    '''Send a claimed message over `mailer` and record the outcome.'''
     try:
         email = _build(message)
-        sent = mailer_for(message.account).send_messages([email])
+        sent = mailer.send_messages([email])
         if not sent:
             raise RuntimeError('The mail server accepted no messages')
     except Exception as error:
@@ -207,6 +250,38 @@ def deliver(message_id):
         models.Invitation.objects.filter(id=message.invitation_id).update(
             sent_time=message.sent_at)
     return 'sent'
+
+
+def _priority():
+    return Case(*[When(kind=kind, then=Value(priority)) for kind, priority in PRIORITY.items()],
+                default=Value(0), output_field=IntegerField())
+
+
+def _send_more(mailer, account_id):
+    '''
+    Send the account's other due messages over the open connection — the most
+    urgent first — until a chunk is done, none are left, a limit is reached or
+    a send fails (the connection may be gone; the rest keep their wake-ups).
+    '''
+    started = time.monotonic()
+    for _ in range(CHUNK_SIZE - 1):
+        worker.still_working()
+        if time.monotonic() - started > CHUNK_SECONDS:
+            return
+        message = (models.EmailMessage.objects.select_related('account', 'invitation')
+                   .filter(account_id=account_id, status=Status.QUEUED,
+                           next_attempt_at__lte=timezone.now())
+                   .annotate(priority=_priority())
+                   .order_by('-priority', 'next_attempt_at', 'id').first())
+        if message is None:
+            return
+        outcome = _claim(message)
+        if outcome == 'throttled':
+            return
+        if outcome == 'skipped':
+            continue
+        if _send(mailer, message) != 'sent':
+            return
 
 
 def _throttled_until(account, now):

@@ -2298,6 +2298,15 @@ gives the same design a standard interface and a maintained worker. Celery or RQ
 moving parts than Camphoric's volume needs. Procrastinate — capable, but needs psycopg 3. Keep
 sending in the request and add retries there — still ties registration to the mail server.
 
+**One connection per chunk (addition):** Having sent its message, a delivery keeps the SMTP
+connection open and sends the sending account's other due messages over it — the most urgent
+kind first, each claimed and checked against the account's limits like any other — up to 50
+messages or two minutes, stopping at a limit or after a failed send. The other messages' own
+wake-ups then find nothing to do. A group email to a few hundred people signs in to the mail server
+a few times instead of once per message, which is faster and looks less suspicious to providers
+such as Gmail. A separate task per chunk was the alternative; reusing the per-message wake-up keeps
+one delivery path, and a message's row still decides whether it's sent.
+
 ### DR-45 — Every email is an email template, in Jinja
 
 **Decision:** The registration confirmation and each registration type's invitation are stored as

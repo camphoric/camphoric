@@ -151,6 +151,19 @@ def sd_notify(state):
         logger.warning(f'systemd notify failed: {error}')
 
 
+# This process's heartbeat, once the worker has started one.
+_heartbeat = None
+
+
+def still_working():
+    '''
+    A long task calls this as it goes (after each message of a chunk), so the
+    watchdog doesn't take it for stuck. Outside the worker it does nothing.
+    '''
+    if _heartbeat is not None:
+        _heartbeat.beat()
+
+
 class Heartbeat:
     def __init__(self, worker_id):
         self.worker_id = worker_id
@@ -174,6 +187,8 @@ class Heartbeat:
 
     def start(self, watchdog_seconds):
         '''Record the first heartbeat, beat after every task, and start the watchdog.'''
+        global _heartbeat
+        _heartbeat = self
         self.beat()
         task_finished.connect(self.beat, weak=False, dispatch_uid=f'heartbeat-{self.worker_id}')
         sd_notify('READY=1')
