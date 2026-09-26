@@ -1,4 +1,6 @@
-from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError
+from rest_framework.serializers import (
+    CharField, ModelSerializer, SerializerMethodField, ValidationError,
+)
 from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
 from camphoric import (
@@ -15,12 +17,42 @@ class OrganizationSerializer(ModelSerializer):
 
 
 class EmailAccountSerializer(ModelSerializer):
+    # 'set', 'unset', or 'unreadable' (stored, but the encryption key changed).
+    password_status = SerializerMethodField()
+
     class Meta:
         model = models.EmailAccount
         fields = '__all__'
         extra_kwargs = {
-            'password': {'write_only': True}
+            # Write-only; leaving it blank on an update keeps the stored password.
+            'password': {'write_only': True, 'required': False, 'allow_blank': True},
         }
+
+    def get_password_status(self, account):
+        if account.password is None:
+            return 'unreadable'
+        return 'set' if account.password else 'unset'
+
+    def update(self, instance, validated_data):
+        if not validated_data.get('password'):
+            validated_data.pop('password', None)
+        return super().update(instance, validated_data)
+
+
+class EmailMessageSerializer(ModelSerializer):
+    '''A message in the email history, without its content.'''
+    account_name = CharField(source='account.name', read_only=True, default=None)
+    created_by_name = CharField(source='created_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = models.EmailMessage
+        exclude = ['text', 'html', 'dedupe_key', 'lease_until', 'deleted_at']
+
+
+class EmailMessageDetailSerializer(EmailMessageSerializer):
+    '''A message with the content that was sent.'''
+    class Meta(EmailMessageSerializer.Meta):
+        exclude = ['dedupe_key', 'lease_until', 'deleted_at']
 
 
 class EventSerializer(ModelSerializer):
@@ -109,9 +141,20 @@ class ReportSerializer(ModelSerializer):
 
 
 class InvitationSerializer(ModelSerializer):
+    # The latest invitation email's delivery: its status and error (null: never sent).
+    email = SerializerMethodField()
+
     class Meta:
         model = models.Invitation
         fields = '__all__'
+
+    def get_email(self, invitation):
+        message = (models.EmailMessage.objects.filter(invitation=invitation)
+                   .order_by('-created_at', '-id').first())
+        if message is None:
+            return None
+        return {'id': message.id, 'status': message.status, 'error': message.last_error,
+                'queued_at': message.created_at, 'sent_at': message.sent_at}
 
 
 class LodgingSerializer(ModelSerializer):

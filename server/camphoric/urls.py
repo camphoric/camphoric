@@ -22,6 +22,7 @@ router.register('customchargetypes', views.CustomChargeTypeViewSet, basename='cu
 router.register('bulkemailtasks', views.BulkEmailTaskViewSet, basename='bulkemailtask')
 router.register(
     'bulkemailrecipients', views.BulkEmailRecipientViewSet, basename='bulkemailrecipient')
+router.register('emailmessages', views.EmailMessageViewSet, basename='emailmessage')
 router.register('users', views.UserViewSet, basename='user')
 
 
@@ -54,6 +55,7 @@ urlpatterns = router.urls + [
          views.BulkEmailRecipientsPreviewView.as_view()),
     path('bulkemailtasks/<int:task_id>/cancel', views.CancelBulkEmailView.as_view()),
     path('reports/<int:report_id>/render', views.RenderReportView.as_view()),
+    path('events/<int:event_id>/email/queue', views.EmailQueueView.as_view()),
     path(
         'events/<int:event_id>/templates/describe',
         template_views.TemplateDescribeView.as_view(),

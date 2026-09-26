@@ -320,6 +320,25 @@ Non-CRUD admin endpoints:
     (default: the signed-in admin's address), subject prefixed `[Test]` →
     `{ sent_to, rendered_for, subject, diagnostics }`; 400 `{ detail, diagnostics }` when it
     can't be rendered.
+- **Email history and accounts** (all admin-only; the outbox, §15, DR-44):
+  - `GET /api/emailmessages/` — queued and sent email, newest first, 50 per page
+    (`{ count, next, previous, results }`). Filters: `event`, `kind` / `kind__in`, `status` /
+    `status__in` (comma-separated), `registration`, `invitation`, `account`; `q` searches the
+    recipient and subject. Each result is an `EmailMessage` without `text` / `html`.
+  - `GET /api/emailmessages/{id}/` — one message, with the `text` and `html` that were sent.
+  - `POST /api/emailmessages/{id}/retry/` — queue a `failed` message again → the message; 409
+    `{ detail }` when it isn't failed or its address can't be emailed.
+  - `POST /api/emailmessages/{id}/cancel/` — stop a `queued` message → the message; 409 when it
+    isn't queued (it may already be sending).
+  - `GET /api/events/{id}/email/queue` — what the event's email is doing now: `{ queued,
+    sending, failed_last_day, next_attempt_at, worker: { required, alive, last_seen },
+    account: null | { id, name, max_per_minute, max_per_day, sent_last_minute, sent_last_day,
+    paused_until } }`. `paused_until` is set when a sending limit is used up (the account's mail
+    waits until then); `worker.alive` is false when no worker has reported in for 2 minutes
+    while `required`.
+  - `POST /api/emailaccounts/{id}/test/` `{ to?, from_email? }` — queue a test message through
+    the account (default `to`: the signed-in admin; default from: the account's username) →
+    202 with the message. Deleting an account that an event or a message uses is a 409.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -387,7 +406,18 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   with (§15, DR-40). Saving an event or registration type whose email is `jinja` is refused with a
   400 when its subject or template doesn't parse — `{ <field>: ['Line N: message'] }`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
-  `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`.
+  `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
+  the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`.
+- **EmailAccount:** `id`, `organization`, `name`, `backend`, `host`, `port`, `security`
+  (`starttls` | `ssl` | `none`), `timeout`, `username`, `max_per_minute?`, `max_per_day?`,
+  `default_reply_to`, and `password`, which is write-only (stored encrypted; blank on an update
+  keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
+  changed, so it must be entered again).
+- **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
+  `page_report` | `invitation` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
+  `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
+  (`queued` | `sending` | `sent` | `failed` | `cancelled`), `attempts`, `next_attempt_at`,
+  `last_error`, `sent_at?`, `smtp_message_id`, `created_by?`, `created_by_name?`, timestamps.
 - **Lodging:** `id`, `event`, `parent`, `name`, `children_title`, `capacity`, `reserved`,
   `visible`, `sharing_multiplier`, `notes`.
 - **Deposit:** `id`, `event`, `deposited_on`, `attributes`, `amount`.
