@@ -1274,6 +1274,8 @@ class SendInvitationPostTests(APITestCase):
 
 
 class UsersTests(APITestCase):
+    '''The basics of /api/users/; test_users_api.py covers the rest.'''
+
     def setUp(self):
         self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
         self.client.login(username='tom', password='password')
@@ -1290,40 +1292,32 @@ class UsersTests(APITestCase):
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['username'], 'tom')
+        self.assertEqual(response.data[0]['role'], 'admin')
         self.assertNotIn('password', response.data[0])
 
     def test_create(self):
-
         response = self.client.post(
             '/api/users/',
-            {'username': 'jerry'},
+            {'username': 'jerry', 'email': 'jerry@example.com', 'role': 'registrar',
+             'send_password_link': False},
             format='json'
         )
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.data)
         user = User.objects.get(username='jerry')
         self.assertFalse(user.has_usable_password())
-        self.assertEqual(user.get_username(), 'jerry')
-        self.assertIsInstance(user, User)
         self.assertEqual(len(User.objects.all()), 2)
 
     def test_edit(self):
+        user = User.objects.create_user(username='jerry', email='jerry@example.com')
 
-        user = User.objects.create_user(username='jerry')
-        self.assertEqual(user.email, '')
+        response = self.client.patch(
+            f'/api/users/{user.id}/', {'email': 'jerry@example.org'}, format='json')
 
-        response = self.client.put(
-            f'/api/users/{user.id}/',
-            {'username': 'jerry', 'email': 'jerry@example.com'},
-            format='json'
-        )
-
-        self.assertEqual(response.status_code, 200)
-        updated_user = User.objects.get(username='jerry')
-        self.assertEqual(updated_user.email, 'jerry@example.com')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(User.objects.get(username='jerry').email, 'jerry@example.org')
 
     def test_delete(self):
-
         user = User.objects.create_user(username='jerry')
 
         response = self.client.delete(f'/api/users/{user.id}/')

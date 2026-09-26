@@ -1,9 +1,15 @@
+from rest_framework import status
+from rest_framework.exceptions import APIException
 from rest_framework.serializers import (
-    CharField, ModelSerializer, SerializerMethodField, ValidationError,
+    BooleanField, CharField, ChoiceField, ModelSerializer, SerializerMethodField,
+    ValidationError,
 )
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 import jsonschema  # Using Draft-7
 from camphoric import (
+    accounts,
     models,
     roles,
 )
@@ -314,24 +320,149 @@ class CurrentUserSerializer(ModelSerializer):
     '''The signed-in user (GET /api/user), with their Camphoric permission group.'''
     role = SerializerMethodField()
 
+    must_change_password = SerializerMethodField()
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff',
-                  'is_superuser', 'is_active', 'last_login', 'date_joined', 'role']
+                  'is_superuser', 'is_active', 'last_login', 'date_joined', 'role',
+                  'must_change_password']
 
     def get_role(self, user):
         return roles.role_of(user)
 
+    def get_must_change_password(self, user):
+        return accounts.must_change_password(user)
 
-class UserSerializer(ModelSerializer):
+
+class Conflict(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_code = 'conflict'
+
+
+def password_problems(password, user):
+    '''Django's password validators' messages for `password`, or [] if it's fine.'''
+    try:
+        validate_password(password, user)
+    except DjangoValidationError as error:
+        return list(error.messages)
+    return []
+
+
+class ManagedUserSerializer(ModelSerializer):
+    '''
+    A user as Admins manage them (/api/users/, SPEC DR-50, DR-52): their
+    Camphoric permission group (`role`) and, for superusers only, their Django
+    access. Group membership and Django's flags can't be written directly.
+
+    Guard rails: nobody changes their own role or Django access, or deactivates
+    themselves (so there's always an active Admin). A superuser is always an
+    Admin; to change their group, change their Django access first.
+    '''
+    role = ChoiceField(choices=roles.ROLES, allow_null=True, required=False)
+    django_access = ChoiceField(choices=roles.DJANGO_ACCESS, required=False)
+    has_password = SerializerMethodField()
+    # Creating: email a set-password link (the default), or — superusers only —
+    # set a password now, to be changed at the next sign-in if `require_change`.
+    send_password_link = BooleanField(write_only=True, required=False, default=True)
+    password = CharField(write_only=True, required=False, trim_whitespace=False)
+    require_change = BooleanField(write_only=True, required=False, default=True)
+
     class Meta:
         model = User
-        exclude = ['password']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role',
+                  'django_access', 'is_active', 'last_login', 'date_joined', 'has_password',
+                  'send_password_link', 'password', 'require_change']
+        read_only_fields = ['last_login', 'date_joined']
+        extra_kwargs = {'email': {'required': True, 'allow_blank': False}}
+
+    @property
+    def _actor(self):
+        return self.context['request'].user
+
+    def get_has_password(self, user):
+        return user.has_usable_password()
+
+    def to_representation(self, user):
+        data = super().to_representation(user)
+        data['role'] = roles.assigned_role(user)
+        if self._actor.is_superuser:
+            data['django_access'] = roles.django_access_of(user)
+        else:
+            data.pop('django_access', None)
+        return data
+
+    def validate_email(self, value):
+        value = value.strip()
+        others = User.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            others = others.exclude(pk=self.instance.pk)
+        if others.exists():
+            raise ValidationError('Another user already has this email address.')
+        return value
+
+    def validate(self, attrs):
+        if not self._actor.is_superuser:
+            # Only superusers see or change Django access and set passwords.
+            for name in ('django_access', 'password', 'require_change'):
+                attrs.pop(name, None)
+        user = self.instance
+        if user is None:
+            if 'role' not in attrs:
+                raise ValidationError({'role': ['Choose a Camphoric permission group.']})
+            password = attrs.get('password')
+            if password:
+                candidate = User(username=attrs.get('username', ''), email=attrs.get('email', ''),
+                                 first_name=attrs.get('first_name', ''),
+                                 last_name=attrs.get('last_name', ''))
+                problems = password_problems(password, candidate)
+                if problems:
+                    raise ValidationError({'password': problems})
+            return attrs
+
+        # Passwords are set with the set-password action, not by editing.
+        for name in ('password', 'require_change', 'send_password_link'):
+            attrs.pop(name, None)
+        if user.pk == self._actor.pk:
+            if 'role' in attrs and attrs['role'] != roles.assigned_role(user):
+                raise Conflict('You can\'t change your own Camphoric permission group.')
+            if 'django_access' in attrs and attrs['django_access'] != roles.django_access_of(user):
+                raise Conflict('You can\'t change your own Django access.')
+            if attrs.get('is_active') is False:
+                raise Conflict('You can\'t deactivate your own account.')
+        access = attrs.get('django_access', roles.django_access_of(user))
+        if access == roles.SUPERUSER and attrs.get('role', roles.ADMIN) != roles.ADMIN:
+            raise ValidationError({'role': [
+                'A superuser is always an Admin; change their Django access first.']})
+        return attrs
 
     def create(self, validated_data):
-        kwargs = dict(validated_data)
-        del kwargs['username']
-        return User.objects.create_user(validated_data['username'], **kwargs)
+        role = validated_data.pop('role')
+        access = validated_data.pop('django_access', roles.REGULAR)
+        password = validated_data.pop('password', None)
+        require_change = validated_data.pop('require_change', True)
+        send_link = validated_data.pop('send_password_link', True)
+        username = validated_data.pop('username')
+        user = User.objects.create_user(username, password=None, **validated_data)
+        roles.set_role(user, role)
+        if access != roles.REGULAR:
+            roles.set_django_access(user, access)
+        if password:
+            accounts.set_password(user, password, must_change=require_change)
+        # The view emails the link once the user exists.
+        user._send_password_link = bool(send_link and not password)
+        return user
+
+    def update(self, user, validated_data):
+        role_given = 'role' in validated_data
+        role = validated_data.pop('role', None)
+        access = validated_data.pop('django_access', None)
+        user = super().update(user, validated_data)
+        if access is not None and access != roles.django_access_of(user):
+            roles.set_django_access(user, access)
+        if role_given and not user.is_superuser:
+            roles.set_role(user, role)
+        return user
 
 
 def validate_schema(schema):

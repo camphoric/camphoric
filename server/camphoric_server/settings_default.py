@@ -127,6 +127,10 @@ MAILERS = {
 # mailer, not the outbox, so they still arrive when the task worker is down.
 ADMINS = env.list('ADMINS', default=[])
 SERVER_EMAIL = env.str('SERVER_EMAIL', default='root@localhost')
+# The From address of account email: set-password and password-reset links.
+DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default=SERVER_EMAIL)
+# How long a set-password link works, in seconds (default 3 days).
+PASSWORD_RESET_TIMEOUT = env.int('PASSWORD_RESET_TIMEOUT', default=3 * 24 * 60 * 60)
 
 # Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
 # delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request
@@ -247,6 +251,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'camphoric.permissions.RolePermission',
     ],
+    # Asking for a password-reset link, per client address.
+    'DEFAULT_THROTTLE_RATES': {
+        'password_reset': env.str('CAMPHORIC_PASSWORD_RESET_RATE', default='5/hour'),
+    },
 }
 
 # The session cookie is Secure by default (production sits behind TLS; browsers exempt

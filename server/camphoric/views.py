@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from deepmerge import always_merger
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import ProtectedError, Q
@@ -24,19 +24,23 @@ from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from camphoric import (
+    accounts,
     models,
     pricing,
+    roles,
     serializers,
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
-from camphoric.permissions import AdminWrites, IsAdmin
+from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
@@ -407,6 +411,9 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
     def get_queryset(self):
         messages = (models.EmailMessage.objects.select_related('account', 'created_by')
                     .order_by('-created_at', '-id'))
+        if roles.role_of(self.request.user) != roles.ADMIN:
+            # Account email holds live set-password links (SPEC DR-52).
+            messages = messages.exclude(kind=models.EmailMessageKind.ACCOUNT)
         search = self.request.query_params.get('q', '').strip()
         if search:
             messages = messages.filter(Q(to__icontains=search) | Q(subject__icontains=search))
@@ -513,10 +520,152 @@ class CustomChargeViewSet(ModelViewSet):
 
 
 class UserViewSet(ModelViewSet):
-    '''User management: Admins only, and a 404 for everyone else (SPEC DR-50).'''
-    queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = serializers.UserSerializer
+    '''
+    User management: Admins only, and a 404 for everyone else (SPEC DR-50,
+    DR-52). Setting someone's password directly is for superusers only.
+    '''
+    queryset = User.objects.all().order_by('username')
+    serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        if getattr(user, '_send_password_link', False):
+            try:
+                accounts.send_password_link(
+                    user, request=self.request, created_by=self.request.user)
+            except accounts.AccountError as error:
+                logger.warning(f'set-password link for {user.username} not sent: {error}')
+
+    def perform_destroy(self, user):
+        if user.pk == self.request.user.pk:
+            raise serializers.Conflict('You can\'t delete your own account.')
+        user.delete()
+
+    @action(detail=True, methods=['post'], url_path='send-password-link')
+    def send_password_link(self, request, pk=None):
+        '''Email the user a set-password link → 202 `{to, status, last_error}`.'''
+        user = self.get_object()
+        if not user.is_active:
+            raise serializers.Conflict('Activate this user before sending a link.')
+        try:
+            message = accounts.send_password_link(user, request=request, created_by=request.user)
+        except accounts.AccountError as error:
+            raise serializers.Conflict(str(error))
+        return Response({'to': message.to, 'status': message.status,
+                         'last_error': message.last_error}, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['post'], url_path='password-link')
+    def password_link(self, request, pk=None):
+        '''A set-password link to hand over yourself (no email needed) → `{url, expires_at}`.'''
+        user = self.get_object()
+        if not user.is_active:
+            raise serializers.Conflict('Activate this user before making a link.')
+        url = accounts.password_link(user, request)
+        if not url:
+            raise serializers.Conflict(
+                'There is no public address to link to; set CAMPHORIC_PUBLIC_URL.')
+        return Response({'url': url, 'expires_at': accounts.link_expires_at()})
+
+    @action(detail=True, methods=['post'], url_path='set-password',
+            permission_classes=[IsSuperuser])
+    def set_password(self, request, pk=None):
+        '''
+        Superusers: set the user's password `{password, require_change = true}`
+        → 204. It signs them out everywhere (and removes their API token).
+        '''
+        user = self.get_object()
+        if user.pk == request.user.pk:
+            raise serializers.Conflict('Change your own password from your account menu.')
+        password = request.data.get('password') or ''
+        problems = serializers.password_problems(password, user) if password \
+            else ['This field is required.']
+        if problems:
+            return Response({'password': problems}, status=status.HTTP_400_BAD_REQUEST)
+        accounts.set_password(user, password,
+                              must_change=request.data.get('require_change', True) is not False)
+        Token.objects.filter(user=user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChangePasswordView(APIView):
+    '''
+    POST /api/user/password `{current_password, new_password}` → 204: change
+    your own password (and clear a must-change-password flag). You stay signed in.
+    '''
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current = request.data.get('current_password') or ''
+        new = request.data.get('new_password') or ''
+        if not user.check_password(current):
+            return Response({'current_password': ['That isn\'t your current password.']},
+                            status=status.HTTP_400_BAD_REQUEST)
+        problems = serializers.password_problems(new, user) if new \
+            else ['This field is required.']
+        if not problems and new == current:
+            problems = ['Choose a password different from your current one.']
+        if problems:
+            return Response({'new_password': problems}, status=status.HTTP_400_BAD_REQUEST)
+        accounts.set_password(user, new, must_change=False)
+        update_session_auth_hash(request, user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetRequestView(APIView):
+    '''
+    POST /api/password-reset `{email}` → 202, always with the same answer, so
+    it doesn't reveal which addresses have accounts. Emails a set-password link
+    to each active user with that address and a Camphoric permission group.
+    Throttled (`password_reset`).
+    '''
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
+    ANSWER = ('If an account uses that address, we\'ve emailed it a link to choose a new '
+              'password.')
+
+    def post(self, request):
+        email = str(request.data.get('email') or '').strip()
+        if email:
+            for user in User.objects.filter(email__iexact=email, is_active=True):
+                if roles.role_of(user) is None:
+                    continue
+                try:
+                    accounts.send_password_link(user, request=request)
+                except accounts.AccountError as error:
+                    logger.warning(f'password reset for {user.username} not sent: {error}')
+        return Response({'detail': self.ANSWER}, status=status.HTTP_202_ACCEPTED)
+
+
+class PasswordResetView(APIView):
+    '''
+    A set-password link (SPEC DR-52). GET /api/password-reset/<uid>/<token> →
+    `{username}` while the link works; POST `{new_password}` → 204 sets the
+    password (and clears a must-change flag). A used, expired or wrong link is
+    a 400. It doesn't sign the user in.
+    '''
+    permission_classes = [permissions.AllowAny]
+    INVALID = 'This link has expired or has already been used.'
+
+    def get(self, request, uidb64, token):
+        user = accounts.user_from_link(uidb64, token)
+        if user is None:
+            return Response({'detail': self.INVALID}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'username': user.username})
+
+    def post(self, request, uidb64, token):
+        user = accounts.user_from_link(uidb64, token)
+        if user is None:
+            return Response({'detail': self.INVALID}, status=status.HTTP_400_BAD_REQUEST)
+        password = request.data.get('new_password') or ''
+        problems = serializers.password_problems(password, user) if password \
+            else ['This field is required.']
+        if problems:
+            return Response({'new_password': problems}, status=status.HTTP_400_BAD_REQUEST)
+        accounts.set_password(user, password, must_change=False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InvitationError(Exception):

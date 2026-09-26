@@ -84,7 +84,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | Variable                      | Default               | Purpose                                                                                                          |
 | ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `CAMPHORIC_TEMPLATE_TIMEZONE` | `America/Los_Angeles` | Time zone that dates and times are shown in by server-rendered reports and emails.                               |
-| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration links in templates; when empty, links are derived from the current request (so group email and template checks have none). |
+| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration, unsubscribe and set-password links; when empty, links are derived from the current request (so group email and template checks have none). |
 
 ### Email
 
@@ -111,6 +111,9 @@ records the message.
 | `CAMPHORIC_SECRET_KEY_EMAIL`    | unset     | Fernet key(s) encrypting stored account passwords, comma-separated (the first encrypts; all decrypt, for rotation). Generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **When unset, the key is derived from `SECRET_KEY`, so changing `SECRET_KEY` makes stored passwords unreadable** (re-enter them). |
 | `ADMINS`                        | unset     | Comma-separated addresses emailed about server errors (sent directly through the default mailer, not the queue, so they arrive even when the worker is down). |
 | `SERVER_EMAIL`                  | `root@localhost` | The "from" address of those error emails. |
+| `DEFAULT_FROM_EMAIL`            | `SERVER_EMAIL` | The "from" address of account email (set-password and password-reset links), sent through the default mailer. Set it to a real address; `manage.py check --deploy` warns about a `localhost` one with SMTP. |
+| `PASSWORD_RESET_TIMEOUT`        | `259200` (3 days) | How long a set-password link works, in seconds. A link also stops working once it's used or the user signs in. |
+| `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
 
 ### The task worker
 
@@ -157,7 +160,7 @@ rejects the legacy `DBBACKUP_STORAGE` / `DBBACKUP_STORAGE_OPTIONS` settings.
 
 | Variable                                                      | Default | Purpose                                                                                     |
 | ------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------- |
-| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL`          | unset   | When username **and** password are set, an admin user is created on boot (idempotent).      |
+| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL`          | unset   | When username **and** password are set, a superuser is created on boot (idempotent). A superuser is always a Camphoric Admin. |
 | `CAMPHORIC_SKIP_MIGRATE`                                      | `0`     | `1` skips `manage.py migrate` at start (e.g. when running several replicas).                |
 | `GUNICORN_CMD_ARGS`                                           | unset   | Extra gunicorn options, e.g. `--workers 5 --timeout 60`, without overriding the `CMD`.      |
 
@@ -264,6 +267,32 @@ CSRF_TRUSTED_ORIGINS=https://register.example.org
 
 Proxy `/` to the container's port 8000; the image serves the SPA and `/static/*` itself
 (whitenoise), so no separate static file root is needed.
+
+## Users and roles
+
+Everyone who uses the admin needs a **Camphoric permission group**, kept as a Django group:
+
+- **Admin**: everything, including users and organizations. A superuser is always an Admin.
+- **Registrar**: everything except users and organizations.
+- **Reporter**: read-only.
+
+Admins manage users on the admin's **Users** screen, where a new user is emailed a link to
+choose a password. **Django access** (whether someone may use `/django-admin/`) is a separate
+setting that only superusers can change; most users need none. A staff account made in
+Django admin without a group can't use the Camphoric admin.
+
+Without working email (e.g. `CAMPHORIC_EMAIL_FORCE_BACKEND` sends everything to the log), hand a
+set-password link over yourself: the Users screen can copy one, or run the command below. Links
+use `CAMPHORIC_PUBLIC_URL`, so set it (or pass `--base-url`).
+
+```bash
+docker exec <container> python manage.py camphoric_password_link <username>          # print a link
+docker exec <container> python manage.py camphoric_password_link <username> --send   # ...and email it
+docker exec -it <container> python manage.py camphoric_password_link <username> --set --require-change
+docker exec -it <container> python manage.py changepassword <username>               # Django's own
+```
+
+---
 
 ## Ad-hoc management commands
 
