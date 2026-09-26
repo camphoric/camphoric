@@ -19,7 +19,7 @@ unknown context, a sample that isn't in this event) is a 400.
 import time
 
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -36,7 +36,6 @@ OUTPUTS = ('csv', 'md', 'txt', 'html', 'email')
 
 
 class TemplateDescribeView(APIView):
-    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
@@ -44,7 +43,6 @@ class TemplateDescribeView(APIView):
 
 
 class TemplateCheckView(APIView):
-    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
@@ -127,7 +125,8 @@ def build_preview_context(graph, name, data):
 
 
 class TemplatePreviewView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    # A preview renders unsaved text; it writes nothing.
+    read_only_methods = ('POST',)
 
     def post(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)

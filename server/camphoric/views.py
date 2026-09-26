@@ -36,6 +36,7 @@ from camphoric import (
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
+from camphoric.permissions import AdminWrites, IsAdmin
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
@@ -64,6 +65,7 @@ class SetCSRFCookieView(APIView):
     - https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication
     - https://yoongkang.com/blog/cookie-based-authentication-spa-django/
     '''
+    permission_classes = [permissions.AllowAny]
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request):
@@ -83,6 +85,7 @@ class LoginView(APIView):
     '''
 
     parser_classes = [JSONParser]
+    permission_classes = [permissions.AllowAny]
 
     # By default, Django REST Framework requires CSRF tokens for authenticated
     # views only, so we need to explicitly add CSRF protection for the login endpoint
@@ -94,12 +97,14 @@ class LoginView(APIView):
             password=request.data.get('password'))
         if user is not None:
             login(request, user)
-            return Response(serializers.UserSerializer(user).data)
+            return Response(serializers.CurrentUserSerializer(user).data)
 
         return Response({'detail': 'Login failed'}, status=400)
 
 
 class LogoutView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         logout(request)
 
@@ -107,20 +112,38 @@ class LogoutView(APIView):
 
 
 class UserView(APIView):
+    '''Who's signed in, with their Camphoric permission group (`role`; null for none).'''
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
-        return Response(serializers.UserSerializer(request.user).data)
+        return Response(serializers.CurrentUserSerializer(request.user).data)
 
 
 class OrganizationViewSet(ModelViewSet):
+    '''Any role may list organizations; only Admins create, rename or delete them.'''
     queryset = models.Organization.objects.all()
     serializer_class = serializers.OrganizationSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [AdminWrites]
+
+    def destroy(self, request, *args, **kwargs):
+        organization = self.get_object()
+        # Deleting would cascade to every event and its registrations.
+        if organization.event_set.exists():
+            return Response(
+                {'detail': 'This organization still has events, so it can\'t be deleted.'},
+                status=status.HTTP_409_CONFLICT)
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': 'This organization\'s email accounts have sent email, so it '
+                           'can\'t be deleted.'},
+                status=status.HTTP_409_CONFLICT)
 
 
 class EmailAccountViewSet(ModelViewSet):
     queryset = models.EmailAccount.objects.all()
     serializer_class = serializers.EmailAccountSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['organization']
 
     def destroy(self, request, *args, **kwargs):
@@ -158,7 +181,6 @@ class EmailTemplateViewSet(ModelViewSet):
     '''The event's email templates: its confirmation, its invitations, its group emails.'''
     queryset = models.EmailTemplate.objects.order_by('purpose', 'name', 'id')
     serializer_class = serializers.EmailTemplateSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event', 'purpose']
 
     def destroy(self, request, *args, **kwargs):
@@ -255,7 +277,8 @@ class EmailRecipientsView(APIView):
     `{recipients: [{key, email, name, label, registration, camper,
     already_sent}], skipped, diagnostics}`. `already_sent` is against `template`.
     '''
-    permission_classes = [permissions.IsAdminUser]
+    # Working out who an audience reaches only reads.
+    read_only_methods = ('POST',)
 
     def post(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
@@ -277,7 +300,6 @@ class EmailUnsubscribeViewSet(ModelViewSet):
     queryset = models.EmailUnsubscribe.objects.select_related('created_by').order_by(
         '-created_at', '-id')
     serializer_class = serializers.EmailUnsubscribeSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
 
@@ -329,7 +351,6 @@ class UnsubscribeView(View):
 
 class EmailRecipientFieldsView(APIView):
     '''GET ?source=registrations|campers: the fields recipients can be chosen by.'''
-    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
@@ -339,7 +360,6 @@ class EmailRecipientFieldsView(APIView):
 
 class EmailBatchViewSet(ReadOnlyModelViewSet):
     '''The event's group email sends, newest first, with their counts.'''
-    permission_classes = [permissions.IsAdminUser]
     serializer_class = serializers.EmailBatchSerializer
     filterset_fields = ['event', 'template', 'status']
 
@@ -372,7 +392,6 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
     kind, status (`kind__in`/`status__in` take comma-separated lists) and more;
     `q` searches the recipient and subject. The list leaves out the content.
     '''
-    permission_classes = [permissions.IsAdminUser]
     pagination_class = EmailMessagePagination
     filterset_fields = {
         'event': ['exact'],
@@ -421,7 +440,6 @@ class EmailQueueView(APIView):
     GET: what the event's email is doing now: counts, the next attempt, whether
     a worker is running, and the sending account's limits.
     '''
-    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
@@ -431,84 +449,74 @@ class EmailQueueView(APIView):
 class EventViewSet(ModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['organization']
 
 
 class RegistrationViewSet(ModelViewSet):
     queryset = models.Registration.objects.all()
     serializer_class = serializers.RegistrationSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event', 'completed']
 
 
 class ReportViewSet(ModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
 class RegistrationTypeViewSet(ModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
 class InvitationViewSet(ModelViewSet):
     queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration', 'registration_type__event']
 
 
 class LodgingViewSet(ModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
 class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration__event', 'registration', 'registration__completed']
 
 
 class DepositViewSet(ModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
 class PaymentViewSet(ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['registration', 'registration__event']
 
 
 class CustomChargeTypeViewSet(ModelViewSet):
     queryset = models.CustomChargeType.objects.all()
     serializer_class = serializers.CustomChargeTypeSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['event']
 
 
 class CustomChargeViewSet(ModelViewSet):
     queryset = models.CustomCharge.objects.all()
     serializer_class = serializers.CustomChargeSerializer
-    permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['camper', 'custom_charge_type__event']
 
 
 class UserViewSet(ModelViewSet):
+    '''User management: Admins only, and a 404 for everyone else (SPEC DR-50).'''
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = serializers.UserSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdmin]
 
 
 class InvitationError(Exception):
@@ -525,6 +533,7 @@ class PaymentError(Exception):
 
 
 class EventList(APIView):
+    permission_classes = [permissions.AllowAny]
     filterset_fields = ['organization']
 
     def get(self, request):
@@ -593,6 +602,8 @@ def queue_report(registration, kind, subject, body):
 
 
 class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, event_id=None, format=None):
         '''
         Return an object with the following keys:
@@ -1053,7 +1064,6 @@ class RegisterView(APIView):
 
 
 class SendInvitationView(APIView):
-    permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, invitation_id=None):
         '''
@@ -1097,7 +1107,8 @@ class SendInvitationView(APIView):
 
 
 class RenderReportView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    # Rendering reads; a Reporter may render.
+    read_only_methods = ('POST',)
 
     def post(self, request, report_id=None):
         '''
@@ -1148,7 +1159,6 @@ class RenderReportView(APIView):
 
 
 class LodgingSchemaView(APIView):
-    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, event_id=None):
         '''

@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 import jsonschema  # Using Draft-7
 from camphoric import (
     models,
+    roles,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
 from camphoric.templating.rules import compile_rules
@@ -307,6 +308,19 @@ class PaymentSerializer(ModelSerializer):
             return data
 
         return validate_attributes(data, data['registration'].event.payment_schema)
+
+
+class CurrentUserSerializer(ModelSerializer):
+    '''The signed-in user (GET /api/user), with their Camphoric permission group.'''
+    role = SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff',
+                  'is_superuser', 'is_active', 'last_login', 'date_joined', 'role']
+
+    def get_role(self, user):
+        return roles.role_of(user)
 
 
 class UserSerializer(ModelSerializer):

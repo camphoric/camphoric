@@ -1,4 +1,8 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+
+from . import roles
 from .models import (
     Camper, Deposit, EmailMessage, Event, Lodging, Payment, Registration, WorkerHeartbeat,
 )
@@ -29,3 +33,17 @@ class EmailMessageAdmin(admin.ModelAdmin):
 @admin.register(WorkerHeartbeat)
 class WorkerHeartbeatAdmin(admin.ModelAdmin):
     list_display = ['worker_id', 'hostname', 'pid', 'started_at', 'seen_at']
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class CamphoricUserAdmin(UserAdmin):
+    '''Django's user admin, showing each user's Camphoric permission group (SPEC DR-50).'''
+    list_display = [*UserAdmin.list_display, 'camphoric_permission_group']
+
+    @admin.display(description='Camphoric permission group')
+    def camphoric_permission_group(self, user):
+        role = roles.role_of(user)
+        return roles.GROUP_NAMES[role] if role else 'No access'
