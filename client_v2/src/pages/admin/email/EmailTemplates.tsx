@@ -4,8 +4,8 @@
  *   type's invitation. They're sent by registering and inviting, and edited
  *   where those are set up (Home, and Settings' registration types).
  * - Group emails: templates with a default audience, sent when an admin
- *   chooses. Create, edit (`?templateId`, `new` for a new one), duplicate or
- *   delete one.
+ *   chooses. Create, edit (`?templateId`, `new` for a new one), send (see
+ *   SendDialog), duplicate or delete one.
  */
 
 import {
@@ -24,10 +24,11 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconCopy, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconCopy, IconPencil, IconPlus, IconSend, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import type { ApiEmailTemplate, ApiEvent } from 'api-types';
+import type { ApiEmailBatch, ApiEmailTemplate, ApiEvent } from 'api-types';
 import { InlineLoading } from 'components/Loading';
+import { useState } from 'react';
 import { emailTemplateHooks } from 'store/entities';
 import { useDuplicateTemplate } from 'store/groupEmail';
 import { apiErrorMessage } from 'utils/fetch';
@@ -35,12 +36,15 @@ import { apiErrorMessage } from 'utils/fetch';
 import { SOURCE_LABEL } from './audience';
 import { formatTime } from './emailLabels';
 import { GroupTemplateEditor } from './GroupTemplateEditor';
+import { SendDialog } from './SendDialog';
 
 interface EmailTemplatesProps {
   event: ApiEvent;
   /** The template being edited: an id, `new`, or none. */
   templateId?: string;
   onEditTemplate: (templateId?: string) => void;
+  /** A group email was sent (or scheduled). */
+  onSent: (batch: ApiEmailBatch) => void;
   /** The Template Help page (without a context). */
   helpBase?: string;
 }
@@ -66,8 +70,10 @@ export function EmailTemplates({
   event,
   templateId,
   onEditTemplate,
+  onSent,
   helpBase,
 }: EmailTemplatesProps) {
+  const [sending, setSending] = useState<ApiEmailTemplate | null>(null);
   const { data: templates } = emailTemplateHooks.useList({ event: event.id });
   const duplicate = useDuplicateTemplate();
   const del = emailTemplateHooks.useDelete();
@@ -146,6 +152,15 @@ export function EmailTemplates({
                     <Table.Td>{formatTime(template.updated_at)}</Table.Td>
                     <Table.Td>
                       <Group gap={4} wrap="nowrap" justify="flex-end">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<IconSend size={14} />}
+                          aria-label={`Send ${template.name}`}
+                          onClick={() => setSending(template)}
+                        >
+                          Send
+                        </Button>
                         <Tooltip label="Edit">
                           <ActionIcon
                             variant="subtle"
@@ -235,6 +250,28 @@ export function EmailTemplates({
           </Card>
         ))}
       </Stack>
+
+      <Modal
+        opened={sending !== null}
+        onClose={() => setSending(null)}
+        title={sending ? `Send “${sending.name}”` : ''}
+        size="70rem"
+        fullScreen={narrow}
+        closeOnClickOutside={false}
+      >
+        {sending && (
+          <SendDialog
+            key={sending.id}
+            event={event}
+            template={sending}
+            onClose={() => setSending(null)}
+            onSent={(batch) => {
+              setSending(null);
+              onSent(batch);
+            }}
+          />
+        )}
+      </Modal>
 
       <Modal
         opened={editorOpen}

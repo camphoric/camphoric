@@ -12,6 +12,7 @@
 
 import { Badge, Button, Card, Grid, Group, Stack, Tabs, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
+import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InlineLoading } from 'components/Loading';
@@ -23,6 +24,7 @@ import { bulkEmailTaskHooks, eventHooks } from 'store/entities';
 import { BulkEmailComposer } from './BulkEmailComposer';
 import { BulkEmailTaskView, STATUS_COLOR, STATUS_LABEL } from './BulkEmailTaskView';
 import { EmailHistory } from './EmailHistory';
+import { formatTime } from './emailLabels';
 import { EmailTemplates } from './EmailTemplates';
 import { QueueStatus } from './QueueStatus';
 
@@ -62,6 +64,7 @@ export function EventAdminEmail() {
     kind: search.mkind,
     q: search.mq,
     page: search.mpage ? Number(search.mpage) : undefined,
+    batch: search.mbatch,
   };
   const setHistoryFilters = (filters: EmailHistoryFilters) =>
     setSearch({
@@ -69,6 +72,7 @@ export function EventAdminEmail() {
       mkind: filters.kind || undefined,
       mq: filters.q || undefined,
       mpage: filters.page && filters.page > 1 ? String(filters.page) : undefined,
+      mbatch: filters.batch || undefined,
     });
 
   const confirmDelete = () => {
@@ -119,6 +123,15 @@ export function EventAdminEmail() {
               event={event}
               templateId={templateId}
               onEditTemplate={(id) => setSearch({ templateId: id })}
+              onSent={(batch) => {
+                notifications.show({
+                  color: 'green',
+                  message: batch.send_at
+                    ? `Scheduled for ${formatTime(batch.send_at)}`
+                    : `Sending to ${batch.recipient_keys.length} recipients`,
+                });
+                setSearch({ emailTab: 'history', mbatch: String(batch.id), mpage: undefined });
+              }}
               helpBase={helpBase}
             />
           ) : (

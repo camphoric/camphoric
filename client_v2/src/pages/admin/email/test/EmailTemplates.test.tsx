@@ -45,6 +45,13 @@ vi.mock('../GroupTemplateEditor', () => ({
     return <div>Editing {props.template?.name ?? 'a new template'}</div>;
   },
 }));
+vi.mock('../SendDialog', () => ({
+  SendDialog: (props: { template: { name: string }; onSent: (batch: { id: number }) => void }) => (
+    <button type="button" onClick={() => props.onSent({ id: 31 })}>
+      Confirm sending {props.template.name}
+    </button>
+  ),
+}));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
@@ -59,10 +66,16 @@ beforeEach(() => {
 
 function setup(templateId?: string) {
   const onEditTemplate = vi.fn();
+  const onSent = vi.fn();
   renderWithProviders(
-    <EmailTemplates event={event} templateId={templateId} onEditTemplate={onEditTemplate} />,
+    <EmailTemplates
+      event={event}
+      templateId={templateId}
+      onEditTemplate={onEditTemplate}
+      onSent={onSent}
+    />,
   );
-  return { user: userEvent.setup(), onEditTemplate };
+  return { user: userEvent.setup(), onEditTemplate, onSent };
 }
 
 describe('EmailTemplates', () => {
@@ -107,6 +120,16 @@ describe('EmailTemplates', () => {
     const { onSuccess } = duplicate.mock.calls[0][1] as { onSuccess: (t: { id: number }) => void };
     onSuccess({ id: 11 });
     expect(onEditTemplate).toHaveBeenLastCalledWith('11');
+  });
+
+  it('sends a template from its row', async () => {
+    const { user, onSent } = setup();
+    await user.click(screen.getByRole('button', { name: 'Send Balance reminder' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Confirm sending Balance reminder' }),
+    );
+    expect(onSent).toHaveBeenCalledWith({ id: 31 });
+    expect(screen.queryByRole('button', { name: /Confirm sending/ })).not.toBeInTheDocument();
   });
 
   it('asks before deleting a template', async () => {
