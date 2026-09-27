@@ -1,6 +1,7 @@
 /**
  * Campers (SPEC §8.5). A sortable/filterable table of the event's campers
- * (name, registration, lodging, accommodation/camp preferences); selecting one
+ * (name, registration, lodging, the lodging they asked for, and the other
+ * campers on the same registration); selecting one
  * (URL-addressable via `?camperId`) opens its editor.
  *
  * Admin-only attributes, lodging stay, and custom charges are later slices.
@@ -56,28 +57,38 @@ export function EventAdminCampers() {
 
   const registrationEmail = (c: ApiCamper) =>
     vars?.registrationLookup[String(c.registration)]?.registrant_email ?? '';
+  // Each registration's campers, for "Other campers".
+  const campersByRegistration = useMemo(() => {
+    const byRegistration = new Map<string, ApiCamper[]>();
+    for (const camper of vars?.campers ?? []) {
+      const key = String(camper.registration);
+      byRegistration.set(key, [...(byRegistration.get(key) ?? []), camper]);
+    }
+    return byRegistration;
+  }, [vars]);
+  const otherCampers = (c: ApiCamper) =>
+    (campersByRegistration.get(String(c.registration)) ?? [])
+      .filter((other) => other.id !== c.id)
+      .map(camperName)
+      .join(', ');
   const lodgingPath = (c: ApiCamper) =>
     c.lodging == null ? 'Unassigned' : (vars?.lodgingLookup[String(c.lodging)]?.fullPath ?? '');
+  const requestedPath = (c: ApiCamper) =>
+    c.lodging_requested == null
+      ? ''
+      : (vars?.lodgingLookup[String(c.lodging_requested)]?.fullPath ?? '');
 
   const columns = useMemo<ColumnDef<ApiCamper, unknown>[]>(
     () => [
       { id: 'name', header: 'Name', accessorFn: camperName },
       { id: 'registration', header: 'Registration', accessorFn: registrationEmail },
       { id: 'lodging', header: 'Lodging', accessorFn: lodgingPath },
-      {
-        id: 'accommodation',
-        header: 'Accommodation',
-        accessorFn: (c) => getStr(c.attributes, ['accommodations', 'accommodation_preference']),
-      },
-      {
-        id: 'camp',
-        header: 'Camp',
-        accessorFn: (c) => getStr(c.attributes, ['accommodations', 'camp_preference']),
-      },
+      { id: 'requested', header: 'Requested lodging', accessorFn: requestedPath },
+      { id: 'others', header: 'Other campers', accessorFn: otherCampers },
     ],
-    // registrationEmail/lodgingPath close over `vars`; recompute when it changes.
+    // The accessors close over `vars`; recompute when it changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vars],
+    [vars, campersByRegistration],
   );
 
   if (!vars || !event) return <FullScreenLoading />;
