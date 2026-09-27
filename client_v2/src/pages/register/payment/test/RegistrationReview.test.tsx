@@ -215,4 +215,57 @@ describe('RegistrationReview', () => {
       .parentElement as HTMLElement;
     expect(within(second).getAllByText('$150.00')).toHaveLength(2);
   });
+
+  it('leaves out $0 lines but keeps discounts and the totals', () => {
+    const withExtras = makeRegisterConfig({
+      ...config,
+      pricingLogic: {
+        registration: [
+          { var: 'donation', exp: 0, label: 'Campership donation' },
+          { var: 'total', exp: 0 },
+        ],
+        camper: [
+          { var: 'tuition', exp: 0, label: 'Tuition' },
+          { var: 'linens', exp: 0, label: 'Linens' },
+          { var: 'discount', exp: 0, label: 'Work-trade discount' },
+          { var: 'total', exp: 0 },
+        ],
+      },
+    });
+    renderWithProviders(
+      <RegistrationReview
+        config={withExtras}
+        registration={{ ...registration, donation: 0 }}
+        results={{
+          total: 250,
+          donation: 0,
+          handling: 0,
+          campers: [
+            { tuition: 300, linens: 0, discount: -50, total: 250 },
+            { tuition: 0, linens: 0, discount: 0, total: 0 },
+          ],
+        }}
+      />,
+    );
+
+    const registrationSection = screen.getByRole('heading', { name: 'Registration' })
+      .parentElement as HTMLElement;
+    // The $0 donation and handling fee aren't listed; the total is.
+    expect(within(registrationSection).queryByText('$0.00')).not.toBeInTheDocument();
+    expect(within(registrationSection).queryByText('Electronic payment handling')).toBeNull();
+    expect(within(registrationSection).getByText('$250.00')).toBeInTheDocument();
+
+    const first = screen.getByRole('heading', { name: '1st Camper — Pat Camper' })
+      .parentElement as HTMLElement;
+    expect(within(first).queryByText('Linens')).not.toBeInTheDocument();
+    expect(within(first).getByText('Work-trade discount')).toBeInTheDocument();
+    expect(within(first).getByText('-$50.00')).toBeInTheDocument();
+
+    // Everything is $0 for Sam: just the camper total.
+    const second = screen.getByRole('heading', { name: '2nd Camper — Sam' })
+      .parentElement as HTMLElement;
+    expect(within(second).queryByText('Tuition')).not.toBeInTheDocument();
+    expect(within(second).getByText('Camper total')).toBeInTheDocument();
+    expect(within(second).getByText('$0.00')).toBeInTheDocument();
+  });
 });

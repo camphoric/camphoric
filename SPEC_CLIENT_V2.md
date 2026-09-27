@@ -753,8 +753,9 @@ and empty values, and resolving conditional fields (`$ref`, `dependencies`, `if/
 the entered data so the review lists exactly the fields the form showed. Each section ends with
 its share of `serverPricingResults`: the registration section lists the registration-level
 pricing components (plus the e-payment handling fee when present) and the grand total; each
-camper section lists that camper's components and its total. Labels come from the pricing
-logic's `label`s (§11).
+camper section lists that camper's components and its total. Components that come to exactly
+$0 are left out; negative ones (discounts, credits) are listed, and the totals are always shown,
+even at $0 (§15, DR-33). Labels come from the pricing logic's `label`s (§11).
 
 Then reads the payment-step payload's `serverPricingResults.total`:
 
@@ -2311,15 +2312,20 @@ places (the original app's mistake — two homes, one a stub; rejected in DR-11 
 **Decision:** The payment step's "Review registration" (§7.2) is generated from the form's
 `dataSchema`/`uiSchema` and the entered data, using rjsf's own schema resolution
 (`retrieveSchema`) to expand `$ref`s, `dependencies` and `if/then` against the data. Per-section
-pricing summaries come straight from `serverPricingResults`, labeled from the pricing logic.
+pricing summaries come straight from `serverPricingResults`, labeled from the pricing logic,
+leaving out components that come to exactly $0 (the totals always show; negative amounts stay).
 **Context:** Events define arbitrary registration and camper fields, so the review can't be a
 fixed layout. The same schema that rendered the form already carries titles, `enumNames` and
 conditional structure; reusing it (and the same resolver the form engine uses) keeps the review
 in lockstep with the form for every event with no per-event configuration. A per-event review
 template would be a second thing to author and would drift from the schema.
+Events define many optional components (add-ons, per-camper extras, the handling fee when
+paying by check) that are $0 for most registrations; listing them buried the real charges (#666).
 **Alternatives:** A per-event Handlebars/Jinja "review template" (extra authoring, drifts).
 Dumping the raw form data (unreadable enum codes and keys). Re-rendering the form read-only
 (rjsf's `readonly` mode keeps widget chrome and empty fields, and is far noisier than a rundown).
+Hiding $0 lines in the admin's fee breakdown too — the admin keeps them, since a registrar may
+want to see or override one (DR-56).
 
 ### DR-34 — Per-event validation messages as a path-keyed lookup
 
