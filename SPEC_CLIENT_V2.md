@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-51)
+- §15 — Decision Records (DR-1…DR-52)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -188,6 +188,8 @@ ending in `/` to the non-slash form.
 - `/events/:eventId/register/registration` — Step 1, the registration form.
 - `/events/:eventId/register/payment` — Step 2, payment.
 - `/events/:eventId/register/finished` — Step 3, confirmation.
+- `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
+  (§6; §15, DR-52). Reached before signing in, so it isn't behind the admin guard.
 
 The `eventId` is parsed from the URL by the registration API layer; the registration store's
 queries derive it from `window.location` rather than props, through the routing library.
@@ -196,6 +198,8 @@ queries derive it from `window.location` rather than props, through the routing 
 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
+- `/admin/users` — Users (§8.10), for Admins only; anyone else is sent to `/admin`. Search
+  param `?userId` — the user being edited: an id, or `new` for a new one.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
@@ -259,7 +263,7 @@ derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must als
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
 `Payment`, `CustomCharge`, `CustomChargeType`, `EmailAccount`, `EmailTemplate`,
-`EmailUnsubscribe` (no update), `User`.
+`EmailUnsubscribe` (no update), `User` (as ManagedUser, Admins only).
 
 Non-CRUD admin endpoints:
 
@@ -382,6 +386,25 @@ Non-CRUD admin endpoints:
   button, or a mail provider's one-click `List-Unsubscribe=One-Click` (RFC 8058) — records it
   and says so. The token is signed; a tampered one is a 400 page, an event that no longer exists
   a 404 page.
+- **Users and passwords** (§6, §8.10; §15, DR-52):
+  - `POST /api/users/{id}/send-password-link/` — email the user a set-password link → 202
+    `{ to, status, last_error }` (never the link); 409 `{ detail }` for a deactivated user or no
+    public address to link to.
+  - `POST /api/users/{id}/password-link/` — a set-password link to hand over yourself →
+    `{ url, expires_at }`.
+  - `POST /api/users/{id}/set-password/` `{ password, require_change? (default true) }` —
+    superusers only (404 for anyone else): set the password, ending the user's sessions → 204;
+    400 `{ password: [...] }` when the password rules refuse it; 409 for your own account.
+  - `POST /api/user/password` `{ current_password, new_password }` — change your own password
+    (you stay signed in; it clears a must-change flag) → 204, or 400 keyed by field.
+  - `POST /api/password-reset` `{ email }` (public) — always 202 `{ detail }` with the same
+    message, whether or not the address has an account; emails a link to each active user with
+    that address and a Camphoric permission group. Throttled per client address (429).
+  - `GET /api/password-reset/{uid}/{token}` (public) → `{ username }` while the link works, 400
+    `{ detail }` once it's used, expired or wrong. `POST` `{ new_password }` → 204 (or 400 keyed
+    by field) sets the password and clears a must-change flag; it doesn't sign the user in.
+  - While a user must change their password, every admin endpoint except whoami, logout and
+    `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -419,7 +442,21 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 > backend OpenAPI schema (`drf-spectacular`) via `openapi-typescript`, run in CI, so they can't
 > drift. Deferred from V1 because it touches `server/`.
 
-- **Organization:** `id`, `name`, timestamps.
+- **Organization:** `id`, `name`, timestamps. Any role lists them; only Admins create, rename
+  (`name` must not be blank) and delete them. Deleting one that still has events is a 409
+  `{ detail }` (§15, DR-50).
+- **ManagedUser** (`/api/users/`, Admins only — 404 for everyone else; §15, DR-50, DR-52): `id`,
+  `username`, `email` (required; unique regardless of case), `first_name`, `last_name`, `role`
+  (the Camphoric permission group: `admin` | `registrar` | `reporter`, or `null` for no access;
+  a superuser's is always `admin`), `django_access` (`regular` | `staff` | `superuser`; present
+  in responses to superusers only, and only they may change it — others' values are ignored),
+  `is_active`, and read-only `last_login`, `date_joined`, `has_password`. Creating takes `role`
+  (required) and `send_password_link` (default `true`: email a set-password link); a superuser
+  may instead give `password` and `require_change` (default `true`). `is_staff`,
+  `is_superuser`, groups and permissions can't be written. Nobody may change their own `role`
+  or `django_access`, deactivate or delete themselves (409 `{ detail }`); a superuser's `role`
+  can't change while they're a superuser (400). Deactivating ends the user's sessions and API
+  tokens.
 - **Event:** `id`, `name`; `registration_start`/`registration_end` (window); `start`/`end`
   (event dates); `default_stay_length`; JSON Schemas: `camper_schema`, `camper_admin_schema`,
   `registration_schema`, `registration_ui_schema`, `registration_admin_schema`,
@@ -533,8 +570,12 @@ hooks):
   create, change, delete or send are hidden, forms and editors are shown but can't be changed,
   and dragging on the lodging timeline is off; records still open for reading, a template opens
   to read, and previews, renders and recipient review work. The signed-in user's name and group
-  are always visible, with Sign out (§8.1, §8.2). A 403 the admin didn't prevent is reported as
-  "You don't have permission to do that." (§10).
+  are always visible, with Sign out, Change password, and — for Admins — Users (§8.1, §8.2,
+  §8.10). A 403 the admin didn't prevent is reported as "You don't have permission to do that."
+  (§10).
+- **Passwords** (§15, DR-52): anyone can ask for a link to choose a new password from the sign-in
+  form; new users get one by email; signed-in users can change their own; and a superuser can set
+  someone's password, requiring them to change it before they can do anything else (§8.10).
 - **Proactive session monitoring (admin).** Rather than waiting for a request to fail, the admin
   surface checks session validity (against the lightweight whoami endpoint, `GET /api/user`) on
   window **focus**, on **user activity** (throttled), and on a **regular interval**, and treats
@@ -670,6 +711,9 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 - **Event chooser:** lists events for the org; selecting one navigates into the Event Admin
   container for that event.
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
+- **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
+  rename one, and delete one after confirming — refused, with the reason, while it still has
+  events. Registrars and Reporters only see and open them.
 
 ### 8.2 Event Admin container and navigation
 
@@ -1049,6 +1093,45 @@ address, how it got there (an email's unsubscribe link, or added by an organizer
 when. Every group email leaves them out (as "Unsubscribed"); confirmations and invitations still
 reach them. The admin can add an address (e.g. someone who asked by replying) and remove one
 (after confirming), which lets group email reach it again.
+
+### 8.10 Users
+
+Admins manage who can sign in (URL-addressable, `/admin/users`, §4; §15, DR-50, DR-52); the
+screen and its API are hidden from everyone else, and the way there (the user menu's **Users**)
+only appears for Admins.
+
+- **The list** — every user: username and name, email, **Camphoric permission group** (Admin,
+  Registrar, Reporter, or No access), whether they're deactivated, whether they've chosen a
+  password yet, and when they last signed in. Superusers also see each user's **Django access**
+  when it's more than a regular user's.
+- **Adding a user** — username, email, first and last name, and their Camphoric permission group
+  (default Reporter). By default they're emailed a link to choose a password; the admin may turn
+  that off. A superuser also chooses the user's **Django access** — "Regular user" (the default),
+  "Staff (for developers)" or "Superuser (for developers)" — and may instead **set a password
+  now**, with "Require a password change at next sign-in" (on by default).
+- **Editing a user** — the same fields, plus whether the account is active. A superuser is
+  always an Admin; to change their group, change their Django access first (superusers only).
+- **For each user** — email a set-password link (after confirming); copy a set-password link to
+  hand over yourself (shown with when it expires); deactivate or reactivate; delete (after
+  confirming — deactivating keeps the account and its history instead); and, for superusers,
+  **set their password** (twice, with "Require a password change at next sign-in", on by
+  default), which signs them out everywhere.
+- **Guard rails** — nobody changes their own group or Django access, or deactivates or deletes
+  their own account, so there's always an active Admin. Refusals from the server are shown.
+
+**Passwords** (§6):
+
+- **Choosing a password from a link** — the page a set-password link opens (§4) checks the link,
+  names the account, and takes the new password twice; the server's password rules are shown
+  under the field. Once set, it offers to sign in. A used or expired link says so and offers to
+  email a new one.
+- **Forgot password** — the sign-in form offers "Forgot password?", which takes an email address
+  and always answers the same way, whether or not an account uses it.
+- **Changing your own password** — from the user menu: the current password, then the new one
+  twice.
+- **A password to be changed** — when a superuser set someone's password and required a change,
+  signing in shows only a "Choose a new password" form (and Sign out) until they do; a 403 saying
+  so (from a request already under way) brings that form up too.
 
 ---
 
@@ -2543,6 +2626,31 @@ tabs, filters and previews. Pass a `readOnly` prop down every screen — more ch
 forget on a new one. Show everything and rely on 403s — every attempted change would fail after
 the fact.
 
+### DR-52 — Passwords by emailed one-time link; superusers can set one to be changed
+
+**Decision:** New users choose their own password through an emailed **set-password link**, and
+anyone can ask for one from the sign-in form. The link is Django's password-reset token (single
+use: it stops working once the password changes or the user signs in; it expires after
+`PASSWORD_RESET_TIMEOUT`, 3 days by default) and opens a public page in the client
+(`/account/set-password/:uid/:token`). Asking for a link answers the same whatever the address,
+and is throttled. Account email goes through the outbox (DR-44) from `DEFAULT_FROM_EMAIL` and
+the default mailer, and is hidden from the email history for anyone who isn't an Admin (it holds
+live links). When email doesn't work, an Admin can copy a link to hand over, and
+`manage.py camphoric_password_link` prints one (or sets a password). A superuser can set a
+password directly, by default requiring a change at the next sign-in; until then the server
+refuses everything but changing it, and the client shows only that form.
+**Context:** No endpoint set passwords, so new users needed someone with shell access. An
+emailed link means the admin never knows the password and "forgot password" comes for free.
+Test servers often send email only to a log, so the copy-link and command fallbacks keep them
+usable. Setting a password is sometimes simply faster (a new helper at the registration desk),
+and requiring a change keeps it from becoming their permanent password; enforcing that on the
+server means a stale browser tab can't skip it.
+**Alternatives:** Admins set every password — they'd know them, and resets would all go through
+them. A server-rendered set-password page (like the unsubscribe page, DR-48) — that page must
+work in any mail client with one click; this one belongs to the admin app, with its forms and
+validation. Enforcing the forced change only in the client — the API would still accept the old
+password's session for everything.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2555,6 +2663,10 @@ must be coordinated with the backend. Grouped by status.
 
 - **Roles:** `role` and `must_change_password` on `GET /api/user` and the login response, and the
   role rules on every admin endpoint (§5, §6; DR-50).
+- **Users, organizations and passwords:** `/api/users/` with its actions, organization writes for
+  Admins, `POST /api/user/password`, `/api/password-reset` and
+  `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
+  §5 (§8.1, §8.10; DR-50, DR-52).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
   `POST /api/logout` (§3, §6; DR-9, DR-26).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

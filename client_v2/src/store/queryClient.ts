@@ -8,7 +8,7 @@
  */
 
 import { notifications } from '@mantine/notifications';
-import { MutationCache, QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import type { TemplateDiagnostic } from 'api-types';
 import { ApiError } from 'utils/fetch';
 
@@ -49,9 +49,31 @@ export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong';
 }
 
+/**
+ * The server refuses everything until a password set by a superuser is changed
+ * (DR-52). Refreshing who's signed in shows the change-password screen.
+ */
+function passwordChangeRequired(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 403) return false;
+  const body = error.body as { code?: unknown } | null;
+  return body?.code === 'password_change_required';
+}
+
+// Mirrors hooks/auth WHOAMI_KEY (importing it here would pull hooks into the store).
+const WHOAMI = ['WhoAmI'];
+
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (passwordChangeRequired(error)) void queryClient.invalidateQueries({ queryKey: WHOAMI });
+    },
+  }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
+      if (passwordChangeRequired(error)) {
+        void queryClient.invalidateQueries({ queryKey: WHOAMI });
+        return;
+      }
       if (mutation.meta?.suppressErrorNotification) return;
       notifications.show({
         color: 'red',

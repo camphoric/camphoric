@@ -35,6 +35,23 @@ export function apiErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * A 400's messages by field (`{ field: ['message', …] }` → `{ field: 'message …' }`),
+ * for showing under each input; empty for any other error.
+ */
+export function apiFieldErrors(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError) || error.status !== 400) return {};
+  if (!error.body || typeof error.body !== 'object' || Array.isArray(error.body)) return {};
+  const errors: Record<string, string> = {};
+  for (const [field, messages] of Object.entries(error.body as Record<string, unknown>)) {
+    if (field === 'detail') continue;
+    const list: unknown[] = Array.isArray(messages) ? messages : [messages];
+    const text = list.filter((m) => typeof m === 'string').join(' ');
+    if (text) errors[field] = text;
+  }
+  return errors;
+}
+
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export interface ApiRequestOptions {
