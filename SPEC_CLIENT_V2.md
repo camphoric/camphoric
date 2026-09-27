@@ -256,7 +256,10 @@ consistently:
   (§15, DR-54).
 - **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
   without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
-  the same plan, so the preview is exact at the time it's asked:
+  the same plan, so the preview is exact at the time it's asked. **Every delete confirmation in the
+  admin shows it** before offering the delete: what blocks it (no delete is offered), what goes
+  with it, what's left behind but changed, and whether it can be restored; the delete waits for
+  it, and only Cancel is offered if it can't be had.
   ```
   { can_delete: boolean,
     blocked_by: [{ detail, count, items: string[] }],   // why it can't be deleted
@@ -450,7 +453,8 @@ Non-CRUD admin endpoints:
   - Each is an array, newest first, of `{ id, timestamp, request_id, actor, action, object,
     changes }`:
     - `actor` is `{ id, username, name }`, or `null` when no one was signed in (an online
-      registration, a PayPal notification, the email worker).
+      registration, a PayPal notification, the email worker); a user since deleted is
+      `{ id: null, username: null, name }` with their email as `name`.
     - `action` is `'create' | 'update' | 'delete' | 'restore'`.
     - `object` is `{ type, id, label }`: `type` is the model (`registration`, `camper`,
       `payment`, `customcharge`), `label` what it was called at the time (a camper's name,
@@ -619,7 +623,8 @@ hooks):
   - **Registrar** — everything except users and organizations.
   - **Reporter** — read-only: they can open every section, render and download reports, and use
     previews, Template Help and recipient previews, but can't create, edit, delete or send
-    anything (test emails, invitations, retries and cancels included).
+    anything (test emails, invitations, retries and cancels included), and don't see change
+    histories or deleted items (§15, DR-53, DR-55).
 
   The server enforces the roles (§5). A signed-in user without a group sees a **no-access**
   screen (who they're signed in as, that an administrator must give them a group, and Sign out)
@@ -842,14 +847,23 @@ status) and works with it. For the selected registration they can:
 - **Edit core fields and attributes** — registration type, registrant email, and the
   schema-driven `registration_schema` attributes (rendered in admin mode, §9.5). Persists via
   PATCH `{ registrant_email, registration_type, attributes }`. The registration can be deleted
-  (with a confirmation step).
+  after confirming (the confirmation shows the delete preview: its campers, payments and charges
+  go with it, and it can be restored — §5; §15, DR-54, DR-55).
 - **Edit admin-only attributes** — assembled from `registration_admin_schema` (a map of named
   `{ data, ui }` schema pairs combined, ordered by title). Persists via PATCH `admin_attributes`.
 - **Review fees and manage payments** — see the fee breakdown from `server_pricing_results`
   (labels from the pricing-logic vars) and Total Owed / Total Payments / Balance Due; see payment
   history (type, date, amount, `payment_schema` fields, notes); and record a payment
   (`registration`, `payment_type` ∈ Check/PayPal/Card/Voucher, `paid_on`, `amount`, dynamic
-  attributes, optional `deposit`, `notes`).
+  attributes, optional `deposit`, `notes`). Registrars and Admins can delete a payment (after
+  confirming) and see the registration's deleted payments, with who deleted each and when, to
+  restore them (§15, DR-55).
+- **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
+  its campers', payments' and custom charges', newest first: when, who (or that no one was
+  signed in, e.g. the online registration; a user since deleted by their email), what it was
+  about, and each changed field's old and new value — attributes by their schema titles and only
+  the keys that changed, ids by name (registration type, lodging, charge type), a price as its
+  total. The changes one save made (an edit and the pricing it recalculated) are shown together.
 - **See and reorder its campers** — listed by `sequence`, each linking to the camper function,
   with the ability to change their order (PATCH `sequence`).
 
@@ -868,7 +882,15 @@ status) and works with it. For the selected registration they can:
   `not sent` (e.g. a `@dontsend.com` address), with the reason for the last two; otherwise `sent`
   if it has a sent time (sent before email was queued), else `unsent`. While an invitation's email
   is on its way, the list refreshes every few seconds. A redeemed invitation links through to its
-  registration.
+  registration. One whose registration has since been deleted says so instead (it still counts as
+  redeemed).
+
+**Deleted registrations, campers and payments** (Registrars and Admins; URL-addressable as
+`?registrationsTab=deleted`; §15, DR-55). The event's deleted registrations (with their camper
+count), the campers and payments deleted on their own, each with when and by whom it was
+deleted, and restoring one. A deleted registration's campers and payments come back with it, so
+they aren't listed on their own; a camper or payment can't be restored while its registration is
+deleted (the server's 409 says so).
 
 ### 8.5 Campers
 
@@ -877,7 +899,8 @@ name, registration, lodging, accommodation/camp preferences) and works with the 
 
 - **Edit the camper** — `camper_schema` in admin mode (admin-transformed UI schema; includes
   `registration_schema.definitions` for referenced types). Persists via PATCH `attributes`. The
-  camper can be deleted (with confirmation).
+  camper can be deleted after confirming (the preview lists its charges, and it can be restored;
+  §15, DR-54, DR-55).
 - **Edit admin-only attributes** — from `camper_admin_schema` (same pattern as registrations).
   Persists via PATCH `admin_attributes`.
 - **Set the lodging stay** — show the current assignment (path, or "Unassigned") and let the
@@ -886,6 +909,8 @@ name, registration, lodging, accommodation/camp preferences) and works with the 
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`) and remove them.
+- **See its change history** (Registrars and Admins) — as for a registration, for the camper and
+  its custom charges.
 
 (Exposing the raw record JSON is a useful aid.)
 

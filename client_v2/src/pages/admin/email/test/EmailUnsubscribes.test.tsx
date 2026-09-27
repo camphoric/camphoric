@@ -18,6 +18,8 @@ vi.mock('store/entities', () => ({
     useDelete: () => ({ mutate: remove }),
   },
 }));
+// The delete confirmation's preview: nothing in the way.
+vi.mock('store/deletes', async () => (await import('test/deletes')).mockDeletes);
 vi.mock('store/groupEmail', () => ({
   useAddUnsubscribe: () => ({ mutate: add, isPending: false, error: state.addError }),
 }));

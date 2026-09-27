@@ -10,10 +10,10 @@
  */
 
 import { Button, Card, Grid, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import type { ApiCamper, ApiLodging, AugmentedLodging, Scalar } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { FullScreenLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { useLodgingAssignment } from 'hooks/useLodgingAssignment';
@@ -66,16 +66,15 @@ export function EventAdminLodging() {
   const unassign = (c: ApiCamper) => move.mutate({ camper: c, lodging: null, stay: null });
 
   const confirmDeleteNode = (node: AugmentedLodging) =>
-    modals.openConfirmModal({
+    confirmDelete({
+      path: 'lodgings',
+      id: node.id,
       title: 'Delete lodging',
-      children: (
-        <Text>
-          Delete “{node.name}”{node.children.length > 0 ? ' and its children' : ''}? This cannot be
-          undone.
-        </Text>
+      message: (
+        <>
+          Delete “{node.name}”{node.children.length > 0 ? ' and everything under it' : ''}?
+        </>
       ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
       onConfirm: () => deleteNode.mutate({ id: node.id }),
     });
 

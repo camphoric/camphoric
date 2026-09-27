@@ -150,6 +150,8 @@ export interface ApiInvitation extends TimeStamped {
     queued_at: string;
     sent_at: string | null;
   } | null;
+  /** Redeemed by a registration that's since been deleted (read-only; SPEC DR-55). */
+  registration_deleted?: boolean;
 }
 
 export interface ApiLodging extends TimeStamped {
@@ -434,6 +436,71 @@ export const anonymousUser: ApiUser = {
   role: null,
   must_change_password: false,
 };
+
+// ---------------------------------------------------------------------------
+// Deletes, restores and change history (SPEC §5; DR-53, DR-54, DR-55)
+// ---------------------------------------------------------------------------
+
+/**
+ * Who made a change: `null` when no one was signed in; a user since deleted has
+ * only `name`, their email.
+ */
+export interface ApiActor {
+  id: number | null;
+  username: string | null;
+  name: string;
+}
+
+/** Some of the things a delete affects: `count` of them, up to 20 by name. */
+export interface ApiDeletePreviewGroup {
+  /** The model, e.g. `camper`. */
+  type: string;
+  /** How to call `count` of them, e.g. "campers". */
+  name: string;
+  count: number;
+  /** Empty for email and audit records, which are only counted. */
+  items: string[];
+}
+
+/** What deleting something would do (`GET …/{id}/delete-preview/`). */
+export interface ApiDeletePreview {
+  can_delete: boolean;
+  blocked_by: { detail: string; count: number; items: string[] }[];
+  /** What goes with it (for a restorable delete: what goes out of sight with it). */
+  deletes: ApiDeletePreviewGroup[];
+  /** What's left behind, changed, e.g. "will be unassigned from their lodging". */
+  changes: (ApiDeletePreviewGroup & { description: string })[];
+  /** A registration, camper or payment: it can be restored. */
+  restorable: boolean;
+}
+
+/** A soft-deleted registration, camper or payment, in a deleted list. */
+export type ApiDeleted<T> = T & { deleted_at: string; deleted_by: ApiActor | null };
+export type ApiDeletedRegistration = ApiDeleted<ApiRegistration> & { camper_count: number };
+export type ApiDeletedCamper = ApiDeleted<ApiCamper>;
+export type ApiDeletedPayment = ApiDeleted<ApiPayment>;
+
+export type HistoryAction = 'create' | 'update' | 'delete' | 'restore';
+
+/** A many-to-many change (a user's groups). */
+export interface HistoryM2mChange {
+  type: 'm2m';
+  operation: 'add' | 'delete';
+  objects: string[];
+}
+
+/** One recorded change (`GET /api/{registrations|campers}/{id}/history/`). */
+export interface ApiHistoryEntry {
+  id: number;
+  timestamp: string;
+  /** The same for every entry one request caused (an edit and the pricing it recalculated). */
+  request_id: string | null;
+  actor: ApiActor | null;
+  action: HistoryAction;
+  object: { type: string; id: number | null; label: string };
+  /** Field → [old, new]; JSON fields as JSON, other values as text, `null` for none. */
+  changes: Record<string, [unknown, unknown] | HistoryM2mChange>;
+}
 
 // ---------------------------------------------------------------------------
 // Pricing (mirrors the server's calculate_price output; SPEC §9.2)

@@ -46,7 +46,7 @@ export interface EntityHooks<T extends { id: Scalar }> {
 export type CreateBody<T> = Omit<T, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>;
 export type UpdateBody<T extends { id: Scalar }> = Partial<T> & Pick<T, 'id'>;
 
-function toQuery(params: ListParams): string {
+export function toQuery(params: ListParams): string {
   // Sort keys so the query string (and thus the cache key) is stable.
   const entries = Object.entries(params)
     .filter(([, value]) => value !== undefined)
@@ -71,7 +71,9 @@ export function createEntityHooks<T extends { id: Scalar }>(
   function useInvalidate() {
     const client = useQueryClient();
     return () => {
-      [name, ...alsoInvalidate].forEach((entity) => {
+      // Any change is in someone's history, and a delete may be in a deleted list
+      // (store/deletes).
+      [name, ...alsoInvalidate, 'History', 'Deleted'].forEach((entity) => {
         void client.invalidateQueries({ queryKey: [entity] });
       });
     };

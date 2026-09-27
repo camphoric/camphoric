@@ -6,10 +6,10 @@
  */
 
 import { Badge, Button, Group, Modal, Select, Stack, Table, Text, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconEdit, IconPlus, IconSend, IconTrash } from '@tabler/icons-react';
 import type { ApiEmailAccount, ApiEvent } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useTestEmailAccount } from 'store/email';
@@ -103,12 +103,12 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
       },
     );
 
-  const confirmDelete = (account: ApiEmailAccount) =>
-    modals.openConfirmModal({
+  const confirmDeleteAccount = (account: ApiEmailAccount) =>
+    confirmDelete({
+      path: 'emailaccounts',
+      id: account.id,
       title: 'Delete email account',
-      children: <Text>Delete “{account.name}”?</Text>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete “{account.name}”?</>,
       onConfirm: () => remove.mutate({ id: account.id }, { onError: fail }),
     });
 
@@ -199,7 +199,7 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
                           variant="light"
                           color="red"
                           leftSection={<IconTrash size={14} />}
-                          onClick={() => confirmDelete(account)}
+                          onClick={() => confirmDeleteAccount(account)}
                         >
                           Delete
                         </Button>

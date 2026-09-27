@@ -6,18 +6,18 @@
  * The invitations table (newest first) shows name, email, type, derived status
  * (redeemed → has a registration; otherwise how its latest email is doing:
  * sending, sent, failed or not sent — §15 DR-44; else unsent), and a link to
- * the linked registration when redeemed, with per-row resend/delete. While an
+ * the linked registration when redeemed (or that it's been deleted), with per-row resend/delete. While an
  * invitation's email is on its way, the list refreshes every couple of seconds.
  * Rendered as the "Invitations" tab of the section.
  */
 
 import { Anchor, Badge, Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiInvitation } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { DataTable } from 'components/DataTable';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
@@ -102,12 +102,12 @@ export function InvitationsPanel() {
       search: { registrationsTab: 'registrations', registrationId: String(registrationId) },
     });
 
-  const confirmDelete = (i: ApiInvitation) =>
-    modals.openConfirmModal({
+  const confirmDeleteInvitation = (i: ApiInvitation) =>
+    confirmDelete({
+      path: 'invitations',
+      id: i.id,
       title: 'Delete invitation',
-      children: <Text>Delete the invitation for “{i.recipient_name}”?</Text>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete the invitation for “{i.recipient_name || i.recipient_email}”?</>,
       onConfirm: () => del.mutate({ id: i.id }),
     });
 
@@ -154,6 +154,7 @@ export function InvitationsPanel() {
         header: 'Registration',
         cell: (info) => {
           const i = info.row.original;
+          if (i.registration_deleted) return <Text c="dimmed">Registration deleted</Text>;
           return i.registration != null ? (
             <Anchor component="button" type="button" onClick={() => openRegistration(Number(i.registration))}>
               View
@@ -185,7 +186,7 @@ export function InvitationsPanel() {
                 variant="light"
                 color="red"
                 leftSection={<IconTrash size={14} />}
-                onClick={() => confirmDelete(i)}
+                onClick={() => confirmDeleteInvitation(i)}
               >
                 Delete
               </Button>

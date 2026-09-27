@@ -22,6 +22,7 @@ import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import { Navigate, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ApiManagedUser, NewUserRequest } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { InlineLoading } from 'components/Loading';
 import { useCurrentUser } from 'hooks/auth';
 import { usePermissions } from 'hooks/permissions';
@@ -149,15 +150,11 @@ export function UsersPage() {
         },
       ),
     onDelete: (user: ApiManagedUser) =>
-      modals.openConfirmModal({
+      confirmDelete({
+        path: 'users',
+        id: user.id,
         title: 'Delete user',
-        children: (
-          <Text size="sm">
-            Delete {user.username}? Deactivating keeps their account and history instead.
-          </Text>
-        ),
-        labels: { confirm: 'Delete', cancel: 'Cancel' },
-        confirmProps: { color: 'red' },
+        message: <>Delete {user.username}? Deactivating keeps their account and history instead.</>,
         onConfirm: () => remove.mutate({ id: user.id }),
       }),
   };
