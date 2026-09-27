@@ -1,5 +1,6 @@
 from dataclasses import asdict
 import datetime
+from functools import partial
 import logging
 import traceback
 
@@ -10,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import ProtectedError, Q
+from django.db.models import Q
 from django.core import signing
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -34,6 +35,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from camphoric import (
     accounts,
     audit,
+    deletes,
     models,
     pricing,
     roles,
@@ -41,7 +43,7 @@ from camphoric import (
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
-from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser, WritersOnly
+from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
@@ -124,41 +126,52 @@ class UserView(APIView):
         return Response(serializers.CurrentUserSerializer(request.user).data)
 
 
-class OrganizationViewSet(ModelViewSet):
+class PlannedDeleteMixin:
+    '''
+    Deletes go by a plan (camphoric.deletes, SPEC DR-54): `GET …/{id}/delete-preview/`
+    shows what a delete would do, and DELETE does it — or answers 409 with what's in
+    the way. A view adds its own rules as `delete_checks`, and sets
+    `delete_permission_classes` when deleting needs more than writing does. The
+    preview asks the same permission as the delete.
+    '''
+    delete_permission_classes = None
+
+    def get_permissions(self):
+        if self.action in ('destroy', 'delete_preview') and self.delete_permission_classes:
+            return [permission() for permission in self.delete_permission_classes]
+        if self.action == 'delete_preview':
+            return [WritersOnly()]
+        return super().get_permissions()
+
+    def delete_checks(self):
+        return ()
+
+    def delete_plan(self, instance):
+        return deletes.plan(instance, self.delete_checks())
+
+    def destroy(self, request, *args, **kwargs):
+        self.delete_plan(self.get_object()).carry_out()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'], url_path='delete-preview')
+    def delete_preview(self, request, pk=None):
+        return Response(self.delete_plan(self.get_object()).preview())
+
+
+class OrganizationViewSet(PlannedDeleteMixin, ModelViewSet):
     '''Any role may list organizations; only Admins create, rename or delete them.'''
     queryset = models.Organization.objects.all()
     serializer_class = serializers.OrganizationSerializer
     permission_classes = [AdminWrites]
-
-    def destroy(self, request, *args, **kwargs):
-        organization = self.get_object()
-        # Deleting would cascade to every event and its registrations.
-        if organization.event_set.exists():
-            return Response(
-                {'detail': 'This organization still has events, so it can\'t be deleted.'},
-                status=status.HTTP_409_CONFLICT)
-        try:
-            return super().destroy(request, *args, **kwargs)
-        except ProtectedError:
-            return Response(
-                {'detail': 'This organization\'s email accounts have sent email, so it '
-                           'can\'t be deleted.'},
-                status=status.HTTP_409_CONFLICT)
+    # Its events keep it from being deleted (Event.organization is PROTECT).
+    delete_permission_classes = [AdminOnly]
 
 
-class EmailAccountViewSet(ModelViewSet):
+class EmailAccountViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.EmailAccount.objects.all()
     serializer_class = serializers.EmailAccountSerializer
     filterset_fields = ['organization']
-
-    def destroy(self, request, *args, **kwargs):
-        try:
-            return super().destroy(request, *args, **kwargs)
-        except ProtectedError:
-            return Response(
-                {'detail': 'This account is still used by an event or by sent email, so it '
-                           "can't be deleted. Choose another account for those events first."},
-                status=status.HTTP_409_CONFLICT)
+    # Events using it, and email sent with it, keep it (PROTECT).
 
     @action(detail=True, methods=['post'])
     def test(self, request, pk=None):
@@ -182,19 +195,14 @@ class EmailAccountViewSet(ModelViewSet):
                         status=status.HTTP_202_ACCEPTED)
 
 
-class EmailTemplateViewSet(ModelViewSet):
+class EmailTemplateViewSet(PlannedDeleteMixin, ModelViewSet):
     '''The event's email templates: its confirmation, its invitations, its group emails.'''
     queryset = models.EmailTemplate.objects.order_by('purpose', 'name', 'id')
     serializer_class = serializers.EmailTemplateSerializer
     filterset_fields = ['event', 'purpose']
 
-    def destroy(self, request, *args, **kwargs):
-        if self.get_object().purpose != models.EmailTemplatePurpose.GROUP:
-            return Response(
-                {'detail': 'The confirmation and invitation emails can\'t be deleted; '
-                           'edit them instead.'},
-                status=status.HTTP_409_CONFLICT)
-        return super().destroy(request, *args, **kwargs)
+    def delete_checks(self):
+        return (deletes.only_group_templates,)
 
     def group_template(self):
         template = self.get_object()
@@ -297,7 +305,7 @@ class EmailRecipientsView(APIView):
         return Response(result)
 
 
-class EmailUnsubscribeViewSet(ModelViewSet):
+class EmailUnsubscribeViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     The addresses that unsubscribed from an event's group email (`?event=`);
     an organizer can add one (someone who asked by reply) or remove one.
@@ -454,13 +462,19 @@ class EmailQueueView(APIView):
         return Response(outbox.queue_state(event))
 
 
-class EventViewSet(ModelViewSet):
+class EventViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
     filterset_fields = ['organization']
+    # Deleting an event deletes everything in it: Admins only, and not once
+    # anyone has registered.
+    delete_permission_classes = [AdminOnly]
+
+    def delete_checks(self):
+        return (deletes.no_registrations,)
 
 
-class RegistrationViewSet(ModelViewSet):
+class RegistrationViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Registration.objects.all()
     serializer_class = serializers.RegistrationSerializer
     filterset_fields = ['event', 'completed']
@@ -471,31 +485,37 @@ class RegistrationViewSet(ModelViewSet):
         return Response(audit.history(registration=self.get_object().id))
 
 
-class ReportViewSet(ModelViewSet):
+class ReportViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
     filterset_fields = ['event']
 
 
-class RegistrationTypeViewSet(ModelViewSet):
+class RegistrationTypeViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
     filterset_fields = ['event']
 
+    def delete_checks(self):
+        return (deletes.with_invitation_email,)
 
-class InvitationViewSet(ModelViewSet):
+
+class InvitationViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Invitation.objects.all()
     serializer_class = serializers.InvitationSerializer
     filterset_fields = ['registration', 'registration_type__event']
 
 
-class LodgingViewSet(ModelViewSet):
+class LodgingViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
     filterset_fields = ['event']
 
+    def delete_checks(self):
+        return (deletes.unassign_campers,)
 
-class CamperViewSet(ModelViewSet):
+
+class CamperViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     filterset_fields = ['registration__event', 'registration', 'registration__completed']
@@ -506,31 +526,31 @@ class CamperViewSet(ModelViewSet):
         return Response(audit.history(camper=self.get_object().id))
 
 
-class DepositViewSet(ModelViewSet):
+class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer
     filterset_fields = ['event']
 
 
-class PaymentViewSet(ModelViewSet):
+class PaymentViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     filterset_fields = ['registration', 'registration__event']
 
 
-class CustomChargeTypeViewSet(ModelViewSet):
+class CustomChargeTypeViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.CustomChargeType.objects.all()
     serializer_class = serializers.CustomChargeTypeSerializer
     filterset_fields = ['event']
 
 
-class CustomChargeViewSet(ModelViewSet):
+class CustomChargeViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.CustomCharge.objects.all()
     serializer_class = serializers.CustomChargeSerializer
     filterset_fields = ['camper', 'custom_charge_type__event']
 
 
-class UserViewSet(ModelViewSet):
+class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     User management: Admins only, and a 404 for everyone else (SPEC DR-50,
     DR-52). Setting someone's password directly is for superusers only.
@@ -538,6 +558,10 @@ class UserViewSet(ModelViewSet):
     queryset = User.objects.all().order_by('username')
     serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
+    delete_permission_classes = [IsAdmin]
+
+    def delete_checks(self):
+        return (partial(deletes.not_yourself, self.request.user),)
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -547,11 +571,6 @@ class UserViewSet(ModelViewSet):
                     user, request=self.request, created_by=self.request.user)
             except accounts.AccountError as error:
                 logger.warning(f'set-password link for {user.username} not sent: {error}')
-
-    def perform_destroy(self, user):
-        if user.pk == self.request.user.pk:
-            raise serializers.Conflict('You can\'t delete your own account.')
-        user.delete()
 
     @action(detail=True, methods=['post'], url_path='send-password-link')
     def send_password_link(self, request, pk=None):

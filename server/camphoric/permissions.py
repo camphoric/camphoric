@@ -57,6 +57,17 @@ class WritersOnly(BasePermission):
         return role in roles.WRITERS
 
 
+class AdminOnly(BasePermission):
+    '''Admins only (deleting an event or an organization); 403 for other roles.'''
+
+    def has_permission(self, request, view):
+        role = roles.role_of(request.user)
+        if role is None:
+            return False
+        _check_password_change(request)
+        return role == roles.ADMIN
+
+
 class AdminWrites(BasePermission):
     '''Any role may read; only Admins may write (organizations).'''
 
