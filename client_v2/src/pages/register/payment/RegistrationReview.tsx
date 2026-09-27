@@ -184,12 +184,18 @@ export function reviewItems(
   return items;
 }
 
-/** The numeric line items of a pricing result, labeled from the pricing logic. */
+/**
+ * The numeric line items of a pricing result, labeled from the pricing logic.
+ * Zero amounts are left out: they tell the registrant nothing (#666). Negative
+ * ones (discounts, credits) stay; the section's total is shown either way.
+ */
 function feeLines(results: Hash | undefined, keys: string[], ...logics: JsonLogicPricing[]) {
   if (!results) return [];
   return keys.flatMap((key) => {
     const value = results[key];
-    return typeof value === 'number' ? [{ key, label: feeLabel(key, ...logics), value }] : [];
+    return typeof value === 'number' && value !== 0
+      ? [{ key, label: feeLabel(key, ...logics), value }]
+      : [];
   });
 }
 
