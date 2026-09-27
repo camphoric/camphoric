@@ -167,7 +167,8 @@ class Event(TimeStampedModel):
     `registration_pricing_logic`, and `camper_pricing_logic` fields.
     See camphoric.views.RegisterView for more info.
     '''
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    # An organization with events can't be deleted (SPEC DR-54).
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     name = models.CharField(max_length=255)
     registration_start = models.DateField(null=True)
     registration_end = models.DateField(null=True)
@@ -290,6 +291,9 @@ class RegistrationType(TimeStampedModel):
             default=dict,
             help_text="JSON schema for overriding camper schema items")
 
+    def __str__(self):
+        return self.label or self.name
+
     def save(self, **kwargs):
         super().save(**kwargs)
         if self.invitation_template_id is None:
@@ -310,7 +314,9 @@ class Registration(TimeStampedModel):
     '''
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
+    # Deleting a registration type leaves its registrations, with no type (SPEC DR-54).
+    registration_type = models.ForeignKey(
+        RegistrationType, null=True, on_delete=models.SET_NULL)
     attributes = CustomJSONField(null=True)
     admin_attributes = CustomJSONField(
         default=dict,
@@ -398,13 +404,18 @@ class Invitation(TimeStampedModel):
     def invitation_code_default():
         return ''.join(random.choices('abcdefghjkmnpqrstuvwxyz23456789', k=8))
 
-    registration = models.ForeignKey(Registration, null=True, on_delete=models.CASCADE)
+    registration = models.ForeignKey(Registration, null=True, on_delete=models.SET_NULL)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)
     invitation_code = models.CharField(max_length=8, default=invitation_code_default)
     recipient_name = models.CharField(max_length=100, blank=True)
     recipient_email = models.EmailField()
     sent_time = models.DateTimeField(null=True)
     expiration_time = models.DateTimeField(null=True)
+
+    def __str__(self):
+        if self.recipient_name:
+            return f'{self.recipient_name} <{self.recipient_email}>'
+        return self.recipient_email
 
     class Meta:
         constraints = [
@@ -436,6 +447,9 @@ class Lodging(TimeStampedModel):
         help_text="campers with lodging_shared=True subtract this quantity from capacity")
     notes = models.TextField(blank=True, default='')
 
+    def __str__(self):
+        return self.name
+
     def get_parents(self, parents=[]):
         parents = [self] if len(parents) == 0 else parents
         last_item = parents[0]
@@ -465,11 +479,12 @@ class Camper(TimeStampedModel):
     '''
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
-    lodging = models.ForeignKey(Lodging, on_delete=models.CASCADE, null=True)
+    # Deleting a lodging leaves its campers, unassigned (SPEC DR-54).
+    lodging = models.ForeignKey(Lodging, on_delete=models.SET_NULL, null=True)
     lodging_requested = models.ForeignKey(
         Lodging,
         related_name='lodging_requested',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         help_text="original lodging at time of registration")
     lodging_reserved = models.BooleanField(
@@ -534,13 +549,17 @@ class CustomChargeType(TimeStampedModel):
     label = models.CharField(max_length=255, help_text="human friendly name")
     name = models.CharField(max_length=255, help_text="machine name")
 
+    def __str__(self):
+        return self.label or self.name
+
 
 class CustomCharge(TimeStampedModel):
     '''
     Promotion codes to be used during Registration.  Promotion codes can only
     be applied at the registration level
     '''
-    custom_charge_type = models.ForeignKey(CustomChargeType, on_delete=models.CASCADE)
+    # A charge type campers still have can't be deleted (SPEC DR-54).
+    custom_charge_type = models.ForeignKey(CustomChargeType, on_delete=models.PROTECT)
     camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     notes = models.TextField(blank=True, default='')
@@ -571,6 +590,10 @@ class Deposit(TimeStampedModel):
     attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
 
+    def __str__(self):
+        return "Deposit ${}{}".format(
+            self.amount, f' on {self.deposited_on}' if self.deposited_on else '')
+
 
 class Payment(TimeStampedModel):
     '''
@@ -584,7 +607,8 @@ class Payment(TimeStampedModel):
         default=PaymentType.CHECK,
         choices=PaymentType.choices,
     )
-    deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE, null=True)
+    # Deleting a deposit leaves its payments (SPEC DR-54).
+    deposit = models.ForeignKey(Deposit, on_delete=models.SET_NULL, null=True)
     paid_on = models.DateField(null=True)
     attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))

@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-53)
+- §15 — Decision Records (DR-1…DR-54)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -252,7 +252,28 @@ consistently:
 - **Get by id:** `GET /api/{entity}s/{id}/` → object.
 - **Create:** `POST /api/{entity}s/` (body without `id`/timestamps).
 - **Update:** `PATCH /api/{entity}s/{id}/` (partial body).
-- **Delete:** `DELETE /api/{entity}s/{id}/`.
+- **Delete:** `DELETE /api/{entity}s/{id}/` → 204, or 409 `{ detail }` when something keeps it
+  (§15, DR-54).
+- **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
+  without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
+  the same plan, so the preview is exact at the time it's asked:
+  ```
+  { can_delete: boolean,
+    blocked_by: [{ detail, count, items: string[] }],   // why it can't be deleted
+    deletes:    [{ type, name, count, items: string[] }],             // what goes with it
+    changes:    [{ type, name, count, items: string[], description }], // what's left, changed
+    restorable: boolean }
+  ```
+  `type` is the model (`camper`, `invitation`, …), `name` how to call `count` of them ("camper",
+  "campers"), `items` up to 20 of their names (empty for email and audit records, which are only
+  counted), and `description` what happens to them ("will be unassigned from their lodging",
+  "stay in the email history"). `deletes` doesn't include the thing itself.
+- **What a delete takes with it** (DR-54): deleting a lodging unassigns the campers in it or in
+  anything under it (clearing their stay) and clears it from campers who asked for it; deleting a
+  registration type leaves its registrations with no type, and deletes its invitations and its
+  invitation email; deleting a deposit leaves its payments; a custom charge type campers still
+  have, an organization with events, and an email account an event or sent email uses can't be
+  deleted; only Admins delete events, and only before anyone has registered.
 
 Caching/invalidation uses query keys (one key namespace per entity, parameterized by the
 filter params). Mutations invalidate the relevant entity key(s) so dependent lists refetch
@@ -857,7 +878,8 @@ across date ranges**, with capacity visibility. Required capabilities:
 - **See unassigned campers** — those not yet placed in a leaf unit — with the context needed to
   place them: name, requested lodging, sharing preference/partner, and comments.
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
-  (and reserved count), and create/edit/delete nodes. A node has: parent, name, a title for its
+  (and reserved count), and create/edit/delete nodes (deleting one unassigns the campers in it and
+  in anything under it; §15, DR-54). A node has: parent, name, a title for its
   children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, and notes; for a
   non-leaf node the calculated capacity is shown.
 - **Assign and schedule campers** — place a camper into a leaf unit and set the **days they're
@@ -2688,6 +2710,35 @@ makes crediting the signed-in user harder). Logging reads too — far more data,
 audit nobody has asked for. Leaving pricing out — fewer entries, but no record of how a balance
 changed.
 
+### DR-54 — What a delete takes with it, shown before it happens
+
+**Decision:** Deleting through the admin API never takes registrations, campers or payments with
+it by accident:
+- A lodging's campers are unassigned, their stay cleared.
+- A registration type's registrations are kept with no type. Its invitations are still deleted,
+  and so is its invitation email, rather than left orphaned.
+- A deposit's payments are kept.
+- A custom charge type campers still have can't be deleted.
+- An organization with events can't be deleted, in the API or in Django admin.
+- Only Admins delete events, and only before anyone has registered.
+- An invitation outlives its registration.
+
+Each rule is a foreign key's `on_delete` (`SET_NULL` or `PROTECT`), so Django admin follows it
+too. Every delete is worked out first as a plan — what blocks it, what goes with it, what's left
+changed — from Django's own delete collector plus a view's own rules (unassigning campers one by
+one, so pricing is recalculated and each change is in the audit log, DR-53). The admin shows the
+plan in the delete confirmation (`delete-preview`), and the delete carries out the same plan.
+**Context:** An audit of every cascade found deletes that silently removed people's data:
+deleting a lodging deleted every camper assigned to it or who had asked for it; deleting a
+registration type deleted its registrations with their campers and payments; deleting a deposit
+deleted its payments; deleting a charge type removed that charge from every camper's balance.
+The confirmation dialogs couldn't say what would happen, because the client didn't know.
+**Alternatives:** Refusing to delete a lodging while campers are assigned — safer, but moving
+dozens of campers by hand first is the common case when reorganizing. Working out the preview in
+the client — it would drift from the server's rules. A dry run that deletes inside a rolled-back
+transaction — exact, but it would run the delete's side effects (signals, pricing, the audit log)
+just to preview it.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2704,6 +2755,8 @@ must be coordinated with the backend. Grouped by status.
   Admins, `POST /api/user/password`, `/api/password-reset` and
   `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
   §5 (§8.1, §8.10; DR-50, DR-52).
+- **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
+  keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
