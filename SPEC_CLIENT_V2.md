@@ -909,7 +909,8 @@ registration) and works with the selected one:
   Persists via PATCH `stay` (the set of selected days).
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
-  ability to add (`camper`, `custom_charge_type`, `amount`, `notes`) and remove them.
+  ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
+  discount or credit) and remove them.
 - **See its change history** (Registrars and Admins) — as for a registration, for the camper and
   its custom charges.
 

@@ -1,6 +1,6 @@
 /**
  * Add a custom charge to a camper (SPEC §8.5): choose a custom-charge type,
- * amount, and notes; persists via POST. Adding a charge changes the camper's
+ * amount (negative for a discount or credit), and notes; persists via POST. Adding a charge changes the camper's
  * (and registration's) derived totals (multi-key invalidation).
  */
 
@@ -61,7 +61,13 @@ export function AddCustomChargeModal({ eventId, camper, opened, onClose }: AddCu
               onChange={(value) => setType(value ?? '')}
               allowDeselect={false}
             />
-            <NumberInput label="Amount" prefix="$" value={amount} onChange={setAmount} min={0} />
+            <NumberInput
+              label="Amount"
+              description="A negative amount is a discount or credit."
+              prefix="$"
+              value={amount}
+              onChange={setAmount}
+            />
             <TextInput
               label="Notes"
               value={notes}
