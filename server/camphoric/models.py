@@ -668,6 +668,58 @@ class Payment(TimeStampedModel):
         return {'registration': self.registration_id}
 
 
+class PricingOverride(TimeStampedModel):
+    '''
+    A registrar's amount for one price line of a registration or camper, in place
+    of what the pricing logic computes (SPEC DR-56). It's applied right after that
+    line is worked out, so everything after it — the totals, deposits — follows;
+    the total itself can't be overridden. Registrants only ever see the result.
+    '''
+    registration = models.ForeignKey(
+        Registration, on_delete=models.CASCADE, related_name='pricing_overrides')
+    # Null: a line of the registration itself (a donation, the handling fee).
+    camper = models.ForeignKey(
+        Camper, null=True, blank=True, on_delete=models.CASCADE,
+        related_name='pricing_overrides')
+    var = models.CharField(max_length=255, help_text="the pricing line's var")
+    amount = models.DecimalField(max_digits=7, decimal_places=2)
+    reason = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['camper', 'var'], condition=models.Q(camper__isnull=False),
+                name='one_override_per_camper_line'),
+            models.UniqueConstraint(
+                fields=['registration', 'var'], condition=models.Q(camper__isnull=True),
+                name='one_override_per_registration_line'),
+        ]
+
+    def __str__(self):
+        from camphoric.pricing import line_label
+        label = line_label(self.registration.event, self.var, camper=self.camper_id is not None)
+        whose = f' for {self.camper}' if self.camper_id else ''
+        amount = Decimal(self.amount)
+        return f'{label}{whose}: {"-" if amount < 0 else ""}${abs(amount):.2f}'
+
+    def get_additional_data(self):
+        # Tags audit entries for the registration's and camper's histories (camphoric.audit).
+        return {'registration': self.registration_id, 'camper': self.camper_id}
+
+    def save(self, **kwargs):
+        super().save(**kwargs)
+        Registration.all_objects.get(pk=self.registration_id).recalculate_server_pricing()
+
+    def delete(self, **kwargs):
+        registration = Registration.all_objects.get(pk=self.registration_id)
+        result = super().delete(**kwargs)
+        registration.recalculate_server_pricing()
+        return result
+
+
 class EmailMessageKind(models.TextChoices):
     CONFIRMATION = 'confirmation', 'Registration confirmation'
     CONFIRMATION_REPORT = 'confirmation_report', 'Confirmation email problem report'

@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-55)
+- §15 — Decision Records (DR-1…DR-56)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -592,6 +592,24 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount`, `notes`.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
+- **PricingOverride** (`/api/pricingoverrides/`, filter `registration`, `camper`,
+  `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
+  the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
+  registration itself), `var` (the line), `amount`, `reason`, read-only `created_by`,
+  `created_by_name`, `applied` (whether it's in effect: the event's pricing still has that line,
+  and for the handling fee, there is one), timestamps. Any role reads; Registrars and Admins
+  write. Rules (a 400 on `var` otherwise):
+  - `var` is one of the event's camper pricing lines (for a camper) or registration pricing
+    lines or `handling` (for the registration; `handling` only when the event charges one);
+    never `total`, which is always the sum.
+  - One per line; `reason` can't be blank. A camper's override takes its registration from the
+    camper.
+  - It applies right after its line is worked out, so everything after it — the totals, a
+    deposit — follows. The handling fee is worked out last, on the total; an override of it
+    only applies when there is a handling fee (not when paying by check).
+  - The pricing results record the amounts overrides replaced as `overridden`
+    (`{ var: computed }`, on the registration's results and each camper's). It's for the admin:
+    templates, emails and the registrant never see it, only the new amounts.
 - **User** (whoami): `id`, `username`, `email`, `first_name`, `last_name`, `is_staff`,
   `is_superuser`, `is_active`, `last_login`, `date_joined`, `role` and `must_change_password`; an
   anonymous user has `username: ''`, `id: null` and `role: null`.
@@ -2805,6 +2823,28 @@ bookkeeping for the same result. Filtering deleted rows by hand in each query (t
 convention) — easy to miss in pricing, lodging counts, reports and the public flow; only joins
 from another model (the lodging counts) still need it.
 
+### DR-56 — Per-line pricing overrides, on top of JsonLogic
+
+**Decision:** Pricing rules stay JsonLogic, written by developers. Registrars and Admins can set
+the amount of any single price line of a registration or camper — tuition, meals, a donation, the
+electronic-payment handling fee — with a reason, in place of what the rules compute; the total
+can't be set, only its lines. An override is stored data applied right after its line on every
+recalculation, so it survives later edits and everything after it follows. The admin shows the
+computed amount it replaced; registrants only ever see the result. Overrides are in the audit log
+and the change history (DR-53).
+**Context:** #667 set out to "recreate pricing". Working through it: developers write the rules
+and will keep doing so; every rule in the four events (lookup tables, age groups, per-day rates,
+early-bird dates, registration-type exceptions, percentage discounts, caps) is expressible in
+JsonLogic — the 40%-off-tuition discount of #568 already is. The need was one-off adjustments: a
+registrar could only add a custom charge, a separate line, not correct the line that was wrong.
+Replacing the engine is researched separately (#674); overrides sit on top of any engine.
+**Alternatives:** Percentage overrides ("40% off this line") — more to explain, and a fixed amount
+covers the one-off cases; percentages that apply to many registrations belong in the rules.
+Overriding the total — the breakdown would no longer add up. Custom charges only — they add a
+line rather than correcting one, and can't touch registration lines or the handling fee.
+Replacing JsonLogic now (structured rules, Python pricing, an expression language) — a large
+migration that doesn't address adjustments (#674).
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2821,6 +2861,8 @@ must be coordinated with the backend. Grouped by status.
   Admins, `POST /api/user/password`, `/api/password-reset` and
   `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
   §5 (§8.1, §8.10; DR-50, DR-52).
+- **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
+  shapes in §5 (DR-56).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Soft delete:** the restore and deleted-list endpoints for registrations, campers and

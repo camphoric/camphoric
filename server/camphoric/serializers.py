@@ -2,7 +2,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import (
     BooleanField, CharField, ChoiceField, ModelSerializer as BaseModelSerializer,
-    SerializerMethodField, ValidationError,
+    PrimaryKeyRelatedField, SerializerMethodField, ValidationError,
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -11,6 +11,7 @@ import jsonschema  # Using Draft-7
 from camphoric import (
     accounts,
     models,
+    pricing,
     roles,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
@@ -256,6 +257,63 @@ class CustomChargeSerializer(ModelSerializer):
     class Meta:
         model = models.CustomCharge
         fields = '__all__'
+
+
+class PricingOverrideSerializer(ModelSerializer):
+    '''
+    A registrar's amount for one price line (SPEC DR-56). For a camper's line the
+    registration is the camper's. `applied` says whether it's in effect: the event's
+    pricing still has that line (and, for the handling fee, there is one).
+    '''
+    registration = PrimaryKeyRelatedField(
+        queryset=models.Registration.objects.all(), required=False)
+    created_by_name = SerializerMethodField()
+    applied = SerializerMethodField()
+
+    class Meta:
+        model = models.PricingOverride
+        fields = ['id', 'registration', 'camper', 'var', 'amount', 'reason', 'created_by',
+                  'created_by_name', 'applied', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
+        # One per line is checked in validate(): DRF's own check would require
+        # `registration` even for a camper's line.
+        validators = []
+
+    def get_created_by_name(self, override):
+        user = override.created_by
+        return (user.get_full_name() or user.username) if user else None
+
+    def get_applied(self, override):
+        registration = override.registration
+        if override.var == pricing.HANDLING and registration.payment_type == 'Check':
+            return False
+        return override.var in pricing.overridable_lines(
+            registration.event, camper=override.camper_id is not None)
+
+    def validate(self, data):
+        instance = self.instance
+        camper = data['camper'] if 'camper' in data else getattr(instance, 'camper', None)
+        registration = data.get('registration') or getattr(instance, 'registration', None)
+        if camper is not None:
+            if registration is not None and registration != camper.registration:
+                raise ValidationError({'camper': 'That camper is on another registration.'})
+            registration = camper.registration
+        if registration is None:
+            raise ValidationError({'registration': 'This field is required.'})
+
+        var = data.get('var', getattr(instance, 'var', None))
+        if var == 'total':
+            raise ValidationError(
+                {'var': 'The total can’t be overridden; override one of its lines.'})
+        if var not in pricing.overridable_lines(registration.event, camper=camper is not None):
+            raise ValidationError({'var': f'This event’s pricing has no “{var}” line here.'})
+        same_line = models.PricingOverride.objects.filter(
+            registration=registration, camper=camper, var=var)
+        if instance is not None:
+            same_line = same_line.exclude(pk=instance.pk)
+        if same_line.exists():
+            raise ValidationError({'var': 'This line already has an override; change that one.'})
+        return {**data, 'registration': registration}
 
 
 class ReportSerializer(ModelSerializer):
