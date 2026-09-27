@@ -19,6 +19,12 @@ vi.mock('store/entities', () => ({
     }),
     useDelete: () => ({ mutate: del }),
   },
+  pricingOverrideHooks: {
+    useList: () => ({ data: [] }),
+    useCreate: () => ({ mutate: vi.fn(), isPending: false }),
+    useUpdate: () => ({ mutate: vi.fn(), isPending: false }),
+    useDelete: () => ({ mutate: vi.fn() }),
+  },
 }));
 vi.mock('store/deletes', async () => ({
   ...(await import('test/deletes')).mockDeletes,

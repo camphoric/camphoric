@@ -1,15 +1,16 @@
 /**
  * Review a camper's fees and custom charges (SPEC §8.5): the fee breakdown from
  * the camper's `server_pricing_results` (labels via `camper_pricing_logic`) and
- * its total, plus the custom charges (date, type, amount, notes) with add/remove.
+ * its total — with Registrars' and Admins' overrides of its lines (DR-56) — plus
+ * the custom charges (date, type, amount, notes) with add/remove.
  */
 
 import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, ApiCustomCharge, ApiEvent } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { FeeBreakdown } from 'components/FeeBreakdown';
 import { CanEdit } from 'hooks/permissions';
+import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
 import { customChargeHooks, customChargeTypeHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
@@ -41,7 +42,13 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
   return (
     <Stack>
       <Title order={4}>Fees &amp; custom charges</Title>
-      <FeeBreakdown results={camper.server_pricing_results} logics={[event.camper_pricing_logic]} />
+      <PriceLines
+        event={event}
+        results={camper.server_pricing_results}
+        logics={[event.camper_pricing_logic]}
+        registrationId={camper.registration}
+        camper={camper}
+      />
       <Group justify="space-between" maw={360}>
         <Text fw={600}>Total</Text>
         <Text fw={600}>{formatMoney(camper.server_pricing_results.total)}</Text>

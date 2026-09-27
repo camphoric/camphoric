@@ -55,6 +55,19 @@ describe('describing entries', () => {
   });
 });
 
+it('names a price override and its fields', () => {
+  const entry: ApiHistoryEntry = {
+    ...ENTRIES[4],
+    object: { type: 'pricingoverride', id: 2, label: 'Tuition for Pat Alpha: $450.00' },
+    changes: { amount: ['500.00', '450.00'], reason: ['Kid', 'Instructor’s kid'] },
+  };
+  expect(objectName(entry)).toBe('Price override “Tuition for Pat Alpha: $450.00”');
+  expect(changeLines(entry)).toEqual([
+    { field: 'Amount', from: '$500.00', to: '$450.00' },
+    { field: 'Reason', from: 'Kid', to: 'Instructor’s kid' },
+  ]);
+});
+
 describe('changedPaths', () => {
   it('walks nested objects and compares lists whole', () => {
     expect(

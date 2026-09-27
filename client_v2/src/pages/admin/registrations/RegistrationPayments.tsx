@@ -3,6 +3,8 @@
  * breakdown from `server_pricing_results` (labels from the pricing-logic vars),
  * Total Owed / Total Payments / Balance Due, the payment history (type, date,
  * amount, payment_schema fields, notes), and recording a payment. Registrars and
+ * Admins can override the registration's own price lines (its donation, the
+ * handling fee; DR-56). Registrars and
  * Admins can also delete a payment (after confirming) and restore a deleted one
  * (§15, DR-55).
  */
@@ -12,9 +14,9 @@ import { notifications } from '@mantine/notifications';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiEvent, ApiPayment, AugmentedRegistration, Hash } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { FeeBreakdown } from 'components/FeeBreakdown';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import type { JSONSchema7 } from 'json-schema';
+import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
 import { useDeletedPayments, useRestore } from 'store/deletes';
 import { paymentHooks } from 'store/entities';
@@ -65,9 +67,11 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
         Payment type at registration: {registration.payment_type || 'None'}
       </Text>
 
-      <FeeBreakdown
+      <PriceLines
+        event={event}
         results={registration.server_pricing_results}
         logics={[event.registration_pricing_logic, event.camper_pricing_logic]}
+        registrationId={registration.id}
       />
 
       <Stack gap={2} maw={360}>

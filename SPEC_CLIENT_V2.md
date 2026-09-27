@@ -876,6 +876,12 @@ status) and works with it. For the selected registration they can:
   attributes, optional `deposit`, `notes`). Registrars and Admins can delete a payment (after
   confirming) and see the registration's deleted payments, with who deleted each and when, to
   restore them (§15, DR-55).
+- **Override a price line** (Registrars and Admins; §15, DR-56) — set the amount of one of the
+  registration's own lines (from `registration_pricing_logic`, e.g. a donation, and the
+  electronic-payment handling fee when there is one) with a reason, change it, or remove it
+  (after confirming). Its campers' lines are overridden on each camper. An overridden line shows
+  what the pricing works out for it, the reason and who set it — to every role; an override that
+  isn't in effect is listed as such. The handling fee is labelled "Electronic payment handling".
 - **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
   its campers', payments' and custom charges', newest first: when, who (or that no one was
   signed in, e.g. the online registration; a user since deleted by their email), what it was
@@ -929,6 +935,8 @@ registration) and works with the selected one:
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
   discount or credit) and remove them.
+- **Override a price line** (Registrars and Admins; §15, DR-56) — as for a registration, for
+  the camper's lines (from `camper_pricing_logic`): tuition, meals and so on.
 - **See its change history** (Registrars and Admins) — as for a registration, for the camper and
   its custom charges.
 
@@ -1302,7 +1310,9 @@ DR-29). The custom templates are:
 
 A pure function computes a `PricingResults` object from the registration config and current
 form data. **It must produce results identical to the server's `calculate_price`** (the
-server remains authoritative; this is for live UX only).
+server remains authoritative; this is for live UX only). The server also applies registrars'
+price overrides (DR-56); those only exist on registrations already submitted, so the form never
+meets one and the client engine ignores them.
 
 Inputs: `config.event` (notably `epayment_handling`), `config.pricingLogic`
 (`{ registration: [...], camper: [...] }`), `config.pricing` (named numeric vars),
