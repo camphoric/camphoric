@@ -87,6 +87,7 @@ export function EmailTemplates({
   const editing = templateId === 'new' ? undefined : group.find((t) => String(t.id) === templateId);
   const { canEdit } = usePermissions();
   // A Reporter can open a template to read it, but not start a new one.
+  const openVerb = canEdit ? 'Edit' : 'View';
   const editorOpen = (templateId === 'new' && canEdit) || !!editing;
 
   const confirmDelete = (template: ApiEmailTemplate) =>
@@ -237,7 +238,7 @@ export function EmailTemplates({
                     />
                   )}
                 >
-                  Edit on Home
+                  {openVerb} on Home
                 </Anchor>
               ) : (
                 <Anchor
@@ -250,7 +251,7 @@ export function EmailTemplates({
                     />
                   )}
                 >
-                  Edit in Settings › Registration types
+                  {openVerb} in Settings › Registration types
                 </Anchor>
               )}
             </Group>
