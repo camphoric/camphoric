@@ -7,6 +7,7 @@ is derived from the current request as it always has been.
 '''
 
 import re
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.urls import reverse
@@ -15,7 +16,10 @@ from django.urls import reverse
 def register_url(event_id, invitation=None, request=None):
     '''The registration page for an event, with an invitation's code if given.'''
     if invitation is not None:
-        query = f'?email={invitation.recipient_email}&code={invitation.invitation_code}'
+        # Encoded, so an address like pat+camp@example.com arrives intact.
+        query = '?' + urlencode(
+            {'email': invitation.recipient_email, 'code': invitation.invitation_code},
+            safe='@')
     else:
         query = ''
 

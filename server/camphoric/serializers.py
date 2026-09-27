@@ -15,6 +15,7 @@ from camphoric import (
     roles,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
+from camphoric.templating.urls import register_url
 from camphoric.templating.rules import compile_rules
 from camphoric.templating.render import syntax_error
 
@@ -338,10 +339,19 @@ class InvitationSerializer(ModelSerializer):
     email = SerializerMethodField()
     # Redeemed by a registration that's since been deleted (it still counts as redeemed).
     registration_deleted = SerializerMethodField()
+    # The registration page with this invitation's code, for an organizer to copy
+    # (to register someone themselves, or send it another way).
+    register_link = SerializerMethodField()
 
     class Meta:
         model = models.Invitation
         fields = '__all__'
+
+    def get_register_link(self, invitation):
+        registration_type = invitation.registration_type
+        if registration_type is None:
+            return ''
+        return register_url(registration_type.event_id, invitation, self.context.get('request'))
 
     def get_registration_deleted(self, invitation):
         registration = invitation.registration
@@ -371,7 +381,21 @@ class CamperSerializer(ModelSerializer):
         if self.partial and 'registration' not in data:
             return data
 
-        return validate_attributes(data, data['registration'].event.camper_schema)
+        event = data['registration'].event
+        return validate_attributes(data, camper_schema_with_definitions(event))
+
+
+def camper_schema_with_definitions(event):
+    '''
+    The camper schema, able to resolve its `$ref`s: they point at the registration
+    schema's shared definitions (the registration form validates campers inside it).
+    '''
+    camper_schema = event.camper_schema or {}
+    definitions = {
+        **(event.registration_schema or {}).get('definitions', {}),
+        **camper_schema.get('definitions', {}),
+    }
+    return {**camper_schema, 'definitions': definitions} if definitions else camper_schema
 
 
 class DepositSerializer(ModelSerializer):
