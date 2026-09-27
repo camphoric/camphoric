@@ -152,8 +152,19 @@ built client. Match the patterns already in the codebase rather than introducing
 
 - **Inherit `TimeStampedModel`** for domain models. It provides `created_at` / `updated_at` and
   a soft-delete `deleted_at` with `soft_delete()` / `soft_undelete()`.
-- **Soft delete is not globally enforced** — there is no manager that hides soft-deleted rows.
-  When you query, filter explicitly with `.filter(deleted_at__isnull=True)` where appropriate.
+- **Registrations, campers and payments are soft-deleted** through the API. Their default
+  manager (`objects`, and so related managers, `get_object_or_404` and DRF querysets) hides
+  deleted rows, including the campers, payments and charges of a deleted registration;
+  `all_objects` sees everything. Two things bypass managers and need the filter by hand:
+  **joins and aggregates** from another model (e.g. `Count('camper')` from a lodging — filter
+  `camper__deleted_at__isnull=True, camper__registration__deleted_at__isnull=True`), and
+  anything that must see deleted rows (restoring, the deleted lists, history, Django admin),
+  which uses `all_objects`. Other models are deleted for real; `camphoric.deletes` works out
+  what each delete takes with it. Other models still have `deleted_at`, unused — filter it
+  explicitly if you ever set it.
+- **Keep audit entries meaningful.** Changes are logged by django-auditlog through model
+  signals (`camphoric.audit`), so change rows with `save()` rather than `QuerySet.update()`
+  when the change should appear in someone's history.
 - Use **`CustomJSONField`** (wraps `JSONField` with `DjangoJSONEncoder`) for JSON columns —
   schemas, `attributes`, `admin_attributes`, pricing logic, etc.
 - Use **`models.TextChoices`** for enumerations (see `PaymentType`, `ReportOutputType`).

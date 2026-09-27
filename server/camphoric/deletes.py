@@ -7,6 +7,9 @@ the delete carries it out, so the two can't disagree. Most of a plan comes from
 Django's own `Collector` — the same one that performs the delete — asked what
 it would do without doing it; a view adds its own rules (a lodging's campers
 are unassigned first, an event with registrations can't go) as checks.
+
+Registrations, campers and payments are soft-deleted instead (DR-55): their
+plan lists what goes out of sight with them until they're restored.
 '''
 
 from dataclasses import dataclass, field
@@ -16,6 +19,9 @@ from django.db.models import ProtectedError, RestrictedError
 from django.db.models.deletion import Collector
 
 from camphoric import models
+
+# Deleted by marking them, and restorable (DR-55).
+SOFT_DELETED = (models.Registration, models.Camper, models.Payment)
 
 # Labels shown per kind of thing; `count` always has the full number.
 MAX_ITEMS = 20
@@ -118,7 +124,10 @@ class Plan:
             with transaction.atomic():
                 for step in self.steps:
                     step()
-                self.instance.delete()
+                if self.restorable:
+                    self.instance.soft_delete()
+                else:
+                    self.instance.delete()
         except (ProtectedError, RestrictedError):
             raise Conflict(' '.join(
                 blocker['detail'] for blocker in plan(self.instance).blocked_by
@@ -130,8 +139,31 @@ def plan(instance, checks=()):
     result = Plan(instance)
     for check in checks:
         check(instance, result)
-    _collect(instance, result)
+    if isinstance(instance, SOFT_DELETED):
+        _hide(instance, result)
+    else:
+        _collect(instance, result)
     return result
+
+
+def _hide(instance, result):
+    '''A soft delete: what goes out of sight with it, until it's restored.'''
+    result.restorable = True
+    if isinstance(instance, models.Registration):
+        hidden = [
+            (models.Camper, instance.campers.all()),
+            (models.Payment, models.Payment.objects.filter(registration=instance)),
+            (models.CustomCharge,
+             models.CustomCharge.objects.filter(camper__registration=instance)),
+        ]
+    elif isinstance(instance, models.Camper):
+        hidden = [(models.CustomCharge, models.CustomCharge.objects.filter(camper=instance))]
+    else:
+        hidden = []
+    for model, queryset in hidden:
+        instances = list(queryset.order_by('id'))
+        if instances:
+            result.deletes.append(_entry(model, instances))
 
 
 def _collect(instance, result):
@@ -200,7 +232,8 @@ def only_group_templates(template, result):
 
 
 def no_registrations(event, result):
-    registrations = models.Registration.objects.filter(event=event).order_by('id')
+    # Deleted ones too: they can still be restored.
+    registrations = models.Registration.all_objects.filter(event=event).order_by('id')
     if registrations.exists():
         result.block('People have registered for this event, so it can\'t be deleted.',
                      registrations)
@@ -227,7 +260,8 @@ def unassign_campers(lodging, result):
         children = models.Lodging.objects.filter(parent_id__in=level)
         level = list(children.values_list('id', flat=True))
         ids += level
-    campers = list(models.Camper.objects.filter(lodging_id__in=ids).order_by('id'))
+    # Deleted campers too, so one restored later isn't left with a stay and no lodging.
+    campers = list(models.Camper.all_objects.filter(lodging_id__in=ids).order_by('id'))
     result.change(models.Camper, campers, LEFT_BEHIND[('camper', 'lodging')])
     result.covered.add(('camper', 'lodging'))
 

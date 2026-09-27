@@ -1,5 +1,5 @@
 '''
-The audit log of admin changes (SPEC §15, DR-54), kept by django-auditlog.
+The audit log of admin changes (SPEC §15, DR-53), kept by django-auditlog.
 
 - Which models are tracked, and which of their fields are left out.
 - Who is credited: auditlog's middleware reads the user before DRF has
@@ -161,3 +161,20 @@ def history(**tag):
                .select_related('actor', 'content_type')
                .order_by('-timestamp', '-id'))
     return [describe(entry) for entry in entries]
+
+
+def deleted_by(instances):
+    '''Who deleted each of these soft-deleted instances, by id (None: no one signed in).'''
+    if not instances:
+        return {}
+    entries = (LogEntry.objects
+               .get_for_objects(type(instances[0]).all_objects.filter(
+                   pk__in=[instance.pk for instance in instances]))
+               .filter(changes__has_key='deleted_at')
+               .select_related('actor')
+               .order_by('-timestamp', '-id'))
+    result = {}
+    for entry in entries:
+        # The newest change to `deleted_at` is the delete: they're deleted now.
+        result.setdefault(entry.object_id, _actor(entry))
+    return result

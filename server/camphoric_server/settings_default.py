@@ -70,7 +70,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # Records who changed what in the audit log (camphoric.audit, SPEC DR-54).
+    # Records who changed what in the audit log (camphoric.audit, SPEC DR-53).
     'camphoric.audit.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -260,7 +260,7 @@ REST_FRAMEWORK = {
     },
 }
 
-# The audit log (camphoric.audit, SPEC DR-54). One id per request groups the
+# The audit log (camphoric.audit, SPEC DR-53). One id per request groups the
 # entries a single save causes; the base manager lets auditlog see the previous
 # values of soft-deleted rows too.
 AUDITLOG_CID_GETTER = 'camphoric.audit.request_id'
