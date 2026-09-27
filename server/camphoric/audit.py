@@ -119,9 +119,11 @@ def _action(entry, changes):
 
 
 def _actor(entry):
+    '''Who made the change; a user since deleted by the email auditlog kept; None: no one.'''
     user = entry.actor
     if user is None:
-        return None
+        return {'id': None, 'username': None, 'name': entry.actor_email} \
+            if entry.actor_email else None
     return {'id': user.id, 'username': user.username,
             'name': user.get_full_name() or user.username}
 

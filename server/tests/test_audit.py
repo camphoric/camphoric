@@ -170,6 +170,16 @@ class HistoryTests(APITestCase):
                    if e['object']['type'] == 'camper']
         self.assertEqual(actions[:2], ['restore', 'delete'])
 
+    def test_a_deleted_user_is_named_by_their_email(self):
+        self.client.force_authenticate(self.registrar)
+        self.client.delete(f'/api/campers/{self.made.c2.id}/')
+        self.registrar.delete()
+        self.client.force_authenticate(make_user(roles.ADMIN, 'boss'))
+        response = self.client.get(f'/api/registrations/{self.made.r1.id}/history/')
+        deleted = next(e for e in response.data if e['action'] == 'delete')
+        self.assertEqual(deleted['actor'],
+                         {'id': None, 'username': None, 'name': 'reggie@example.com'})
+
     def test_only_registrars_and_admins(self):
         path = f'/api/registrations/{self.made.r1.id}/history/'
         self.assertEqual(self.client.get(path).status_code, 401)
