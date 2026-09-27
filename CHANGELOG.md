@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.8.0](https://github.com/camphoric/camphoric/compare/v0.7.0...v0.8.0) (2026-09-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** DELETE on registrations, campers and payments no longer removes the rows, and deleted_at can no longer be written.
+* **api:** DELETE on events is Admin-only and refused once anyone has registered; deleting a lodging, registration type or deposit no longer deletes campers, registrations or payments; deleting a charge type in use is a 409.
+* **auth:** /api/users/ has a new contract. It requires email and role, and accepts only the managed fields; is_staff, is_superuser, groups and user_permissions can't be written.
+* **auth:** the admin API needs a Camphoric permission group, not just is_staff. Staff accounts that aren't superusers become Registrars through the migration; staff created later need a group.
+
+### Features
+
+* **api:** give invitations their registration link, and fix adding campers ([84fd347](https://github.com/camphoric/camphoric/commit/84fd34772d957a018ccfd8d155ce305ec0616e45)), closes [#486](https://github.com/camphoric/camphoric/issues/486)
+* **api:** soft-delete registrations, campers and payments, with restore ([f4477cd](https://github.com/camphoric/camphoric/commit/f4477cd426932e7d8fc6eec8570490dbeac513a3)), closes [#652](https://github.com/camphoric/camphoric/issues/652)
+* **audit:** record who changed what in the admin ([954feb6](https://github.com/camphoric/camphoric/commit/954feb67892e0dbbd697a8d3392af9c7f818b828)), closes [#652](https://github.com/camphoric/camphoric/issues/652)
+* **auth:** add Admin, Registrar and Reporter roles ([6dd4dde](https://github.com/camphoric/camphoric/commit/6dd4dde46c0df7578fa5d4d43f9698d3927aa62e))
+* **auth:** manage users, reset passwords by emailed link, and let superusers set passwords ([c76406f](https://github.com/camphoric/camphoric/commit/c76406fb4dd2fc503faa62db285f0d08c88076ad))
+* **client_v2:** add a camper to a registration, and copy an invitation's link ([6ae523b](https://github.com/camphoric/camphoric/commit/6ae523ba1421dc2d0a97c13e928f02c2b1b36b96)), closes [#486](https://github.com/camphoric/camphoric/issues/486)
+* **client_v2:** add user and organization administration and password pages ([3fe8d14](https://github.com/camphoric/camphoric/commit/3fe8d14aca7321782e639618d1b302829ad76f93))
+* **client_v2:** make the admin read-only for Reporters ([0e75f80](https://github.com/camphoric/camphoric/commit/0e75f801a42724e938d4d3c139b3c5e737de2353))
+* **client_v2:** override a registration's or camper's price lines ([6eb3ba5](https://github.com/camphoric/camphoric/commit/6eb3ba5d963ddf2fb1e5676e3fe38c3a4be1fe78)), closes [#667](https://github.com/camphoric/camphoric/issues/667)
+* **client_v2:** show change history and restore deleted registrations, campers and payments ([9eea923](https://github.com/camphoric/camphoric/commit/9eea923abbfc08850c25b578b025a3e8bf202c8c)), closes [#652](https://github.com/camphoric/camphoric/issues/652)
+* **lodging:** let organizers mark lodging full or open ([302b438](https://github.com/camphoric/camphoric/commit/302b438281d5e9ad688f891fb906a1c0a4e3640d)), closes [#602](https://github.com/camphoric/camphoric/issues/602)
+* **pricing:** let registrars override a price line ([7767803](https://github.com/camphoric/camphoric/commit/77678030ddcc074d88061b854ea678c8eb45f0bd)), closes [#667](https://github.com/camphoric/camphoric/issues/667)
+
+
+### Bug Fixes
+
+* **api:** refuse public registrations outside the registration dates without an invitation ([ce63fff](https://github.com/camphoric/camphoric/commit/ce63fff3ad1b790eb37352615054a11538b21b50)), closes [#296](https://github.com/camphoric/camphoric/issues/296)
+* **api:** say why a registration's invitation was rejected ([4152a49](https://github.com/camphoric/camphoric/commit/4152a4901d69c2c3c585bbbcfb928843b339599e))
+* **api:** stop deletes from removing registrations, campers and payments ([f2c8e13](https://github.com/camphoric/camphoric/commit/f2c8e13f2e8a8f718c1456e6ea1f301af3fe5b90)), closes [#652](https://github.com/camphoric/camphoric/issues/652)
+* **audit:** name a deleted user by their email in histories ([6009587](https://github.com/camphoric/camphoric/commit/6009587a6c310e1a4e0b309b2a3b2f991a4bc004)), closes [#652](https://github.com/camphoric/camphoric/issues/652)
+* **client_v2:** allow negative custom charges for discounts and credits ([a087cab](https://github.com/camphoric/camphoric/commit/a087cab3f5574ba734233e5f525d44c4c73d28dd)), closes [#671](https://github.com/camphoric/camphoric/issues/671)
+* **client_v2:** disable the Address field's inputs in a disabled form ([5a2bc43](https://github.com/camphoric/camphoric/commit/5a2bc436bd9d6b5006e5b0ecd6aa6dba8b2a295f))
+* **client_v2:** lay out list fields like sections, one box per item ([d025540](https://github.com/camphoric/camphoric/commit/d0255404f94b63d50e30c7cda03de8a1dfbcfac2))
+* **client_v2:** leave $0 lines out of the registration review's pricing ([fcd4474](https://github.com/camphoric/camphoric/commit/fcd44749c8b91fc48575e3ff0e1ffc37dffc8f2e)), closes [#666](https://github.com/camphoric/camphoric/issues/666)
+* **client_v2:** replace Lark-only camper columns with requested lodging and fellow campers ([452e3b1](https://github.com/camphoric/camphoric/commit/452e3b1bdc90b03fa93cbf20c94b2b6e06836501))
+* **client_v2:** say "View" rather than "Edit" on automatic email links for Reporters ([3983bfb](https://github.com/camphoric/camphoric/commit/3983bfbca45063eb57ec6902004538005e3792c6))
+* **data:** stop printing blank names for Lark parking passes ([4f8e33d](https://github.com/camphoric/camphoric/commit/4f8e33d6eff81677f36049eaf8fd13a5ada2bb1e)), closes [#672](https://github.com/camphoric/camphoric/issues/672)
+
 ## [0.7.0](https://github.com/camphoric/camphoric/compare/v0.6.0...v0.7.0) (2026-09-26)
 
 
