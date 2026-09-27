@@ -6,13 +6,25 @@
  * The invitations table (newest first) shows name, email, type, derived status
  * (redeemed → has a registration; otherwise how its latest email is doing:
  * sending, sent, failed or not sent — §15 DR-44; else unsent), and a link to
- * the linked registration when redeemed (or that it's been deleted), with per-row resend/delete. While an
+ * the linked registration when redeemed (or that it's been deleted), with per-row resend/delete
+ * and, until it's redeemed, copying its registration link — to register someone yourself after
+ * registration has closed, or send the link another way (#486). While an
  * invitation's email is on its way, the list refreshes every couple of seconds.
  * Rendered as the "Invitations" tab of the section.
  */
 
-import { Anchor, Badge, Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+  Anchor,
+  Badge,
+  Button,
+  CopyButton,
+  Group,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
+import { IconCheck, IconLink, IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -172,6 +184,22 @@ export function InvitationsPanel() {
           return (
             <CanEdit>
             <Group gap="xs" wrap="nowrap">
+              {i.registration == null && i.register_link && (
+                <CopyButton value={i.register_link}>
+                  {({ copied, copy }) => (
+                    <Button
+                      size="compact-sm"
+                      variant="light"
+                      color={copied ? 'green' : undefined}
+                      leftSection={copied ? <IconCheck size={14} /> : <IconLink size={14} />}
+                      aria-label={`Copy the registration link for ${i.recipient_name || i.recipient_email}`}
+                      onClick={copy}
+                    >
+                      {copied ? 'Copied' : 'Copy link'}
+                    </Button>
+                  )}
+                </CopyButton>
+              )}
               <Button
                 size="compact-sm"
                 variant="light"

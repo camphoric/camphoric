@@ -1,15 +1,18 @@
 /**
  * The registration's campers (SPEC §8.4): listed by `sequence`, each linking to
  * the camper editor, with up/down controls to change their order (PATCH
- * `sequence`).
+ * `sequence`), and — for Registrars and Admins — adding a camper (#486).
  */
 
-import { ActionIcon, Anchor, Group, Stack, Text, Title } from '@mantine/core';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { ActionIcon, Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconChevronDown, IconChevronUp, IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import type { ApiCamper, AugmentedRegistration } from 'api-types';
+import type { ApiCamper, ApiEvent, AugmentedRegistration } from 'api-types';
 import { CanEdit } from 'hooks/permissions';
+import { useState } from 'react';
 import { camperHooks } from 'store/entities';
+
+import { AddCamperModal } from './AddCamperModal';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -17,10 +20,17 @@ const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? St
 const camperName = (c: ApiCamper) =>
   `${str(c.attributes.first_name)} ${str(c.attributes.last_name)}`.trim() || `Camper ${c.id}`;
 
-export function RegistrationCampers({ registration }: { registration: AugmentedRegistration }) {
+export function RegistrationCampers({
+  event,
+  registration,
+}: {
+  event: ApiEvent;
+  registration: AugmentedRegistration;
+}) {
   const { organizationId, eventId } = useParams({ from: FROM });
   const navigate = useNavigate();
   const update = camperHooks.useUpdate();
+  const [adding, setAdding] = useState(false);
 
   const campers = [...registration.campers].sort((a, b) => a.sequence - b.sequence);
 
@@ -42,6 +52,27 @@ export function RegistrationCampers({ registration }: { registration: AugmentedR
     });
   };
 
+  const addCamper = (
+    <CanEdit>
+      <Group>
+        <Button
+          variant="light"
+          leftSection={<IconPlus size={16} />}
+          onClick={() => setAdding(true)}
+        >
+          Add camper
+        </Button>
+      </Group>
+      <AddCamperModal
+        event={event}
+        registrationId={registration.id}
+        sequence={campers.length === 0 ? 0 : Math.max(...campers.map((c) => c.sequence)) + 1}
+        opened={adding}
+        onClose={() => setAdding(false)}
+      />
+    </CanEdit>
+  );
+
   if (campers.length === 0) {
     return (
       <Stack>
@@ -49,6 +80,7 @@ export function RegistrationCampers({ registration }: { registration: AugmentedR
         <Text c="dimmed" size="sm">
           No campers.
         </Text>
+        {addCamper}
       </Stack>
     );
   }
@@ -85,6 +117,7 @@ export function RegistrationCampers({ registration }: { registration: AugmentedR
           </Group>
         ))}
       </Stack>
+      {addCamper}
     </Stack>
   );
 }

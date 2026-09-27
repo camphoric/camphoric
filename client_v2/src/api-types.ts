@@ -152,6 +152,8 @@ export interface ApiInvitation extends TimeStamped {
   } | null;
   /** Redeemed by a registration that's since been deleted (read-only; SPEC DR-55). */
   registration_deleted?: boolean;
+  /** The registration page with this invitation's code (read-only; '' if it has no type). */
+  register_link?: string;
 }
 
 export interface ApiLodging extends TimeStamped {

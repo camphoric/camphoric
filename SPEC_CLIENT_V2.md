@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-27
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -581,7 +581,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
   the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`,
   and `registration_deleted` — its registration has been deleted (the invitation still counts
-  as redeemed; §15, DR-55).
+  as redeemed; §15, DR-55), and `register_link` — the registration page with this invitation's
+  email and code (from `CAMPHORIC_PUBLIC_URL`, else the request; `''` for an invitation with no
+  type).
 - **EmailAccount:** `id`, `organization`, `name`, `backend`, `host`, `port`, `security`
   (`starttls` | `ssl` | `none`), `timeout`, `username`, `max_per_minute?`, `max_per_day?`,
   `default_reply_to`, and `password`, which is write-only (stored encrypted; blank on an update
@@ -899,6 +901,12 @@ status) and works with it. For the selected registration they can:
   total. The changes one save made (an edit and the pricing it recalculated) are shown together.
 - **See and reorder its campers** — listed by `sequence`, each linking to the camper function,
   with the ability to change their order (PATCH `sequence`).
+- **Add a camper** (Registrars and Admins) — e.g. after registration has closed. The event's
+  camper questions in admin mode, with the event's template variables, checked on submit like
+  the registration form; `POST /api/campers/` `{ registration, attributes, admin_attributes: {},
+  sequence }` puts them at the end of the list, and the registration's price is worked out
+  again. The server checks the answers against the camper schema, with the registration
+  schema's shared `definitions` (for its `$ref`s). Lodging is assigned afterwards.
 
 (Exposing the raw record JSON is a useful aid.)
 
@@ -910,7 +918,9 @@ status) and works with it. For the selected registration they can:
   rendered, nothing is sent and the problem is shown (§5).
 - **Track invitations** — a sortable/filterable list of the event's invitations (default newest
   first) showing name, email, type, sent status, and linked registration (if redeemed), with
-  per-row resend/delete. Status is derived: `redeemed` (has a registration); otherwise from its
+  per-row resend/delete and — until it's redeemed — **copy registration link** (`register_link`),
+  so an organizer can register someone themselves after registration has closed, or send the
+  link another way. Status is derived: `redeemed` (has a registration); otherwise from its
   latest invitation email (§15, DR-44) — `sending` (queued or being sent), `sent`, `failed` or
   `not sent` (e.g. a `@dontsend.com` address), with the reason for the last two; otherwise `sent`
   if it has a sent time (sent before email was queued), else `unsent`. While an invitation's email
@@ -1626,10 +1636,6 @@ that is out of scope for this pass.
   the registration payment flow, but there's no admin screen to view/manage `Deposit` records.
   Deferred for V1 (deposits are created server-side on payment); revisit if organizers need to
   view/reconcile/batch deposits.
-- **Invitation registration link in the UI.** Deferred — depends on the backend returning a
-  `register_link` on invitations (a backend change out of scope here). When the API provides it,
-  show a copy-link action in the invitation list and add `register_link?: string` to the
-  `Invitation` type.
 
 ### B. Deferred with the plugin system (§14)
 
@@ -2884,6 +2890,8 @@ must be coordinated with the backend. Grouped by status.
   shapes in §5 (DR-56).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
+- **Invitations and campers:** `register_link` on invitations, and creating a camper on an
+  existing registration (`POST /api/campers/`), with the shapes in §5 and §8.4.
 - **Soft delete:** the restore and deleted-list endpoints for registrations, campers and
   payments, and `registration_deleted` on invitations, with the shapes in §5 (DR-55).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
@@ -2922,9 +2930,6 @@ must be coordinated with the backend. Grouped by status.
   Confirm `GET /api/user` is cheap enough to poll and that hitting it refreshes the session.
 - **Verify `POST /api/logout`** exists and behaves (clears the session, reports logged-out). A
   `LogoutView` appears to exist — confirm path/behavior (DR-9).
-- **Invitation `register_link` (deferred, optional):** add a request-derived `register_link` to
-  the invitation serializer so the admin can show/copy it; then the client adds
-  `register_link?: string` to the `Invitation` type (§13.A).
 - **Pricing-parity fixtures (DR-14):** a shared fixture set (inputs → expected `PricingResults`)
   plus a **server-side** test running them against `calculate_price`, so client/server parity is
   enforced in CI.
