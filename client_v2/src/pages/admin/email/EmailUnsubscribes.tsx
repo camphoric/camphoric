@@ -7,10 +7,10 @@
  */
 
 import { ActionIcon, Button, Group, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiEmailUnsubscribe } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { InlineLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
@@ -43,10 +43,12 @@ export function EmailUnsubscribes({ eventId }: { eventId: number }) {
     );
 
   const confirmRemove = (row: ApiEmailUnsubscribe) =>
-    modals.openConfirmModal({
+    confirmDelete({
+      path: 'emailunsubscribes',
+      id: row.id,
       title: 'Remove from the list?',
-      children: <Text size="sm">{row.email} will get this event’s group emails again.</Text>,
-      labels: { confirm: 'Remove', cancel: 'Cancel' },
+      message: <>{row.email} will get this event’s group emails again.</>,
+      confirmLabel: 'Remove',
       onConfirm: () =>
         remove.mutate(
           { id: row.id },

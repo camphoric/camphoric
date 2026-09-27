@@ -22,11 +22,11 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconCopy, IconPencil, IconPlus, IconSend, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ApiEmailBatch, ApiEmailTemplate, ApiEvent } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { InlineLoading } from 'components/Loading';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
@@ -90,16 +90,12 @@ export function EmailTemplates({
   const openVerb = canEdit ? 'Edit' : 'View';
   const editorOpen = (templateId === 'new' && canEdit) || !!editing;
 
-  const confirmDelete = (template: ApiEmailTemplate) =>
-    modals.openConfirmModal({
+  const confirmDeleteTemplate = (template: ApiEmailTemplate) =>
+    confirmDelete({
+      path: 'emailtemplates',
+      id: template.id,
       title: 'Delete template',
-      children: (
-        <Text size="sm">
-          Delete “{template.name}”? Emails already sent from it stay in the history.
-        </Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete “{template.name}”?</>,
       onConfirm: () =>
         del.mutate(
           { id: template.id },
@@ -192,7 +188,7 @@ export function EmailTemplates({
                               variant="subtle"
                               color="red"
                               aria-label={`Delete ${template.name}`}
-                              onClick={() => confirmDelete(template)}
+                              onClick={() => confirmDeleteTemplate(template)}
                             >
                               <IconTrash size={16} />
                             </ActionIcon>

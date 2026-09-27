@@ -283,3 +283,26 @@ test.describe('Passwords', () => {
     await expect(page.getByText(/If an account uses that address/)).toBeVisible();
   });
 });
+
+test.describe('Deletes and history', () => {
+  test('a delete that something blocks says why, with no Delete', async ({ page }) => {
+    await page.goto(story('confirm-delete--blocked'));
+    await expect(page.getByText('Campers still have this charge.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled();
+  });
+
+  test('a delete says what it takes with it and who it unassigns', async ({ page }) => {
+    await page.goto(story('confirm-delete--unassigns-campers'));
+    await expect(page.getByText('2 lodgings: Cabin A, Cabin B')).toBeVisible();
+    await expect(page.getByText('23 campers will be unassigned from their lodging')).toBeVisible();
+    await expect(page.getByText(/and 3 more$/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeEnabled();
+  });
+
+  test('a history shows who changed what', async ({ page }) => {
+    await page.goto(story('history-list--registration'));
+    await expect(page.getByText('Main address › City')).toBeVisible();
+    await expect(page.getByText('Berkeley → Oakland')).toBeVisible();
+    await expect(page.getByText('No one signed in')).toBeVisible();
+  });
+});

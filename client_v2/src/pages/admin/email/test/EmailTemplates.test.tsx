@@ -37,6 +37,8 @@ vi.mock('store/entities', () => ({
     useDelete: () => ({ mutate: del }),
   },
 }));
+// The delete confirmation's preview: nothing in the way.
+vi.mock('store/deletes', async () => (await import('test/deletes')).mockDeletes);
 vi.mock('store/groupEmail', () => ({
   useDuplicateTemplate: () => ({ mutate: duplicate, isPending: false }),
 }));

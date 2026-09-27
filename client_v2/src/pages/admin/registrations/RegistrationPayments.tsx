@@ -2,15 +2,21 @@
  * Review fees and manage payments for a registration (SPEC §8.4): the fee
  * breakdown from `server_pricing_results` (labels from the pricing-logic vars),
  * Total Owed / Total Payments / Balance Due, the payment history (type, date,
- * amount, payment_schema fields, notes), and recording a payment.
+ * amount, payment_schema fields, notes), and recording a payment. Registrars and
+ * Admins can also delete a payment (after confirming) and restore a deleted one
+ * (§15, DR-55).
  */
 
-import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
-import type { ApiEvent, AugmentedRegistration, Hash } from 'api-types';
+import { ActionIcon, Button, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { IconTrash } from '@tabler/icons-react';
+import type { ApiEvent, ApiPayment, AugmentedRegistration, Hash } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { FeeBreakdown } from 'components/FeeBreakdown';
-import { CanEdit } from 'hooks/permissions';
+import { CanEdit, usePermissions } from 'hooks/permissions';
 import type { JSONSchema7 } from 'json-schema';
 import { useState } from 'react';
+import { useDeletedPayments, useRestore } from 'store/deletes';
 import { paymentHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
@@ -33,7 +39,22 @@ interface RegistrationPaymentsProps {
 
 export function RegistrationPayments({ event, registration }: RegistrationPaymentsProps) {
   const { data: payments } = paymentHooks.useList({ registration: registration.id });
+  const { canEdit } = usePermissions();
+  const { data: deleted } = useDeletedPayments({ registration: registration.id }, canEdit);
+  const del = paymentHooks.useDelete();
+  const restore = useRestore('payments');
   const [addOpen, setAddOpen] = useState(false);
+
+  const paymentName = (p: ApiPayment) => `${p.payment_type} payment of ${formatMoney(p.amount)}`;
+
+  const confirmDeletePayment = (p: ApiPayment) =>
+    confirmDelete({
+      path: 'payments',
+      id: p.id,
+      title: 'Delete payment',
+      message: <>Delete the {paymentName(p)}?</>,
+      onConfirm: () => del.mutate({ id: p.id }),
+    });
 
   const schemaKeys = Object.keys(event.payment_schema?.properties ?? {}).sort();
 
@@ -76,6 +97,7 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
                 <Table.Th key={k}>{fieldTitle(event.payment_schema, k)}</Table.Th>
               ))}
               <Table.Th>Notes</Table.Th>
+              {canEdit && <Table.Th aria-label="Actions" />}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -88,6 +110,20 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
                   <Table.Td key={k}>{cellText(p.attributes, k)}</Table.Td>
                 ))}
                 <Table.Td>{p.notes}</Table.Td>
+                {canEdit && (
+                  <Table.Td>
+                    <Tooltip label="Delete">
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        aria-label={`Delete the ${paymentName(p)}`}
+                        onClick={() => confirmDeletePayment(p)}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Table.Td>
+                )}
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -105,6 +141,35 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
           </Button>
         </Group>
       </CanEdit>
+
+      {canEdit && deleted && deleted.length > 0 && (
+        <Stack gap="xs">
+          <Text fw={600}>Deleted payments</Text>
+          {deleted.map((p) => (
+            <Group key={p.id} justify="space-between" wrap="nowrap">
+              <Text size="sm">
+                {paymentName(p)}
+                {p.paid_on ? ` (paid ${p.paid_on})` : ''} — deleted{' '}
+                {new Date(p.deleted_at).toLocaleString()}
+                {p.deleted_by ? ` by ${p.deleted_by.name}` : ''}
+              </Text>
+              <Button
+                size="compact-sm"
+                variant="light"
+                loading={restore.isPending && restore.variables === p.id}
+                onClick={() =>
+                  restore.mutate(p.id, {
+                    onSuccess: () =>
+                      notifications.show({ color: 'green', message: 'Payment restored' }),
+                  })
+                }
+              >
+                Restore
+              </Button>
+            </Group>
+          ))}
+        </Stack>
+      )}
 
       <AddPaymentModal
         event={event}

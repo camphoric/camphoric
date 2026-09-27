@@ -6,10 +6,10 @@
  */
 
 import { Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
 import { reportHooks } from 'store/entities';
@@ -44,12 +44,12 @@ export function EventAdminReports() {
     });
   };
 
-  const confirmDelete = (report: ApiReport) =>
-    modals.openConfirmModal({
+  const confirmDeleteReport = (report: ApiReport) =>
+    confirmDelete({
+      path: 'reports',
+      id: report.id,
       title: 'Delete report',
-      children: <Text>Delete “{report.title}”? This cannot be undone.</Text>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete “{report.title}”?</>,
       onConfirm: () => del.mutate({ id: report.id }, { onSuccess: () => select(undefined) }),
     });
 
@@ -123,7 +123,7 @@ export function EventAdminReports() {
                       variant="light"
                       color="red"
                       leftSection={<IconTrash size={16} />}
-                      onClick={() => confirmDelete(selected)}
+                      onClick={() => confirmDeleteReport(selected)}
                     >
                       Delete
                     </Button>

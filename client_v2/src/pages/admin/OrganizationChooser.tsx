@@ -17,11 +17,11 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ApiOrganization } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { InlineLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
@@ -40,14 +40,12 @@ export function OrganizationChooser() {
 
   if (isLoading) return <InlineLoading />;
 
-  const confirmDelete = (organization: ApiOrganization) =>
-    modals.openConfirmModal({
+  const confirmDeleteOrganization = (organization: ApiOrganization) =>
+    confirmDelete({
+      path: 'organizations',
+      id: organization.id,
       title: 'Delete organization',
-      children: (
-        <Text size="sm">Delete “{organization.name}”? This only works when it has no events.</Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete “{organization.name}”?</>,
       onConfirm: () =>
         remove.mutate(
           { id: organization.id },
@@ -108,7 +106,7 @@ export function OrganizationChooser() {
                   <Menu.Item
                     color="red"
                     leftSection={<IconTrash size={16} />}
-                    onClick={() => confirmDelete(org)}
+                    onClick={() => confirmDeleteOrganization(org)}
                   >
                     Delete
                   </Menu.Item>

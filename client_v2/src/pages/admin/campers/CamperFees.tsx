@@ -5,9 +5,9 @@
  */
 
 import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, ApiCustomCharge, ApiEvent } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { FeeBreakdown } from 'components/FeeBreakdown';
 import { CanEdit } from 'hooks/permissions';
 import { useState } from 'react';
@@ -25,16 +25,16 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
   const typeLabel = (id: ApiCustomCharge['custom_charge_type']) =>
     types?.find((t) => String(t.id) === String(id))?.label ?? String(id);
 
-  const confirmDelete = (cc: ApiCustomCharge) =>
-    modals.openConfirmModal({
+  const confirmDeleteCharge = (cc: ApiCustomCharge) =>
+    confirmDelete({
+      path: 'customcharges',
+      id: cc.id,
       title: 'Delete custom charge',
-      children: (
-        <Text>
+      message: (
+        <>
           Delete {typeLabel(cc.custom_charge_type)} ({formatMoney(cc.amount)})?
-        </Text>
+        </>
       ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
       onConfirm: () => del.mutate({ id: cc.id }),
     });
 
@@ -73,7 +73,7 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
                       variant="light"
                       color="red"
                       leftSection={<IconTrash size={14} />}
-                      onClick={() => confirmDelete(cc)}
+                      onClick={() => confirmDeleteCharge(cc)}
                     >
                       Delete
                     </Button>

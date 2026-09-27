@@ -1,9 +1,10 @@
 /**
  * Edit a camper (SPEC §8.5), organized into tabbed sections — Attributes (the
- * schema-driven form), Admin attributes, Fees, and a raw record for debugging —
- * with a pinned action bar (Save / Delete) always visible below the scrolling
- * section. Save persists the camper's `attributes` and `admin_attributes` in a
- * single PATCH; the camper can be deleted (with confirmation).
+ * schema-driven form), Admin attributes, Fees, History (Registrars and Admins;
+ * DR-53), and a raw record for debugging — with a pinned action bar (Save /
+ * Delete) always visible below the scrolling section. Save persists the camper's
+ * `attributes` and `admin_attributes` in a single PATCH; the camper can be
+ * deleted after confirming what that does, and restored later (DR-54, DR-55).
  *
  * The `camper_schema` is rendered in admin mode (§9.5): the registrant UI schema
  * for a camper is the campers array's item UI schema, admin-transformed; the
@@ -12,13 +13,14 @@
  */
 
 import { Box, Button, Group, ScrollArea, Tabs } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { UiSchema } from '@rjsf/utils';
 import type { ApiCamper, ApiEvent, Hash } from 'api-types';
+import { confirmDelete } from 'components/ConfirmDelete';
 import { deriveAdminUiSchema, injectDefinitions, JsonSchemaForm } from 'components/form';
+import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
-import { CanEdit } from 'hooks/permissions';
+import { CanEdit, usePermissions } from 'hooks/permissions';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { camperHooks } from 'store/entities';
@@ -45,6 +47,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
   const [attributes, setAttributes] = useState<Hash>(camper.attributes);
   const [adminAttributes, setAdminAttributes] = useState<Hash>(camper.admin_attributes);
   const [tab, setTab] = useState<string | null>('attributes');
+  const { canEdit } = usePermissions();
 
   useEffect(() => {
     setAttributes(camper.attributes);
@@ -68,12 +71,12 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
       { onSuccess: () => notifications.show({ color: 'green', message: 'Camper saved' }) },
     );
 
-  const confirmDelete = () =>
-    modals.openConfirmModal({
+  const confirmDeleteCamper = () =>
+    confirmDelete({
+      path: 'campers',
+      id: camper.id,
       title: 'Delete camper',
-      children: <span>Delete the camper “{name}”?</span>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      message: <>Delete the camper “{name}”?</>,
       onConfirm: () => del.mutate({ id: camper.id }, { onSuccess: onDeleted }),
     });
 
@@ -88,6 +91,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
           <Tabs.Tab value="attributes">Attributes</Tabs.Tab>
           {hasAdmin && <Tabs.Tab value="admin">Admin attributes</Tabs.Tab>}
           <Tabs.Tab value="fees">Fees</Tabs.Tab>
+          {canEdit && <Tabs.Tab value="history">History</Tabs.Tab>}
           <Tabs.Tab value="raw">Raw</Tabs.Tab>
         </Tabs.List>
         <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
@@ -123,6 +127,11 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
             <Tabs.Panel value="fees">
               <CamperFees event={event} camper={camper} />
             </Tabs.Panel>
+            {canEdit && (
+              <Tabs.Panel value="history">
+                {tab === 'history' && <HistoryPanel event={event} path="campers" id={camper.id} />}
+              </Tabs.Panel>
+            )}
             <Tabs.Panel value="raw">
               <JsonViewer value={camper} />
             </Tabs.Panel>
@@ -138,7 +147,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
           <Button onClick={save} loading={update.isPending}>
             Save
           </Button>
-          <Button variant="light" color="red" onClick={confirmDelete} loading={del.isPending}>
+          <Button variant="light" color="red" onClick={confirmDeleteCamper} loading={del.isPending}>
             Delete
           </Button>
         </Group>
