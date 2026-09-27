@@ -144,6 +144,13 @@ describe('EmailTemplates', () => {
     expect(onEditTemplate).toHaveBeenLastCalledWith('5');
   });
 
+  it('offers a Reporter the automatic emails to view, not edit', () => {
+    setup(undefined, 'reporter');
+    expect(screen.getByText('View on Home')).toBeInTheDocument();
+    expect(screen.getByText('View in Settings › Registration types')).toBeInTheDocument();
+    expect(screen.queryByText('Edit on Home')).toBeNull();
+  });
+
   it('opens no new template for a Reporter', () => {
     setup('new', 'reporter');
     expect(screen.queryByText('Editing a new template')).not.toBeInTheDocument();
