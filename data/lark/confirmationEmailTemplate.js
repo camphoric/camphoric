@@ -37,7 +37,7 @@ Name badge ({{ camper.pricing.name_badge | money }}): {{ badge.name }} - {{ badg
 {% endif -%}
 Parking Passes Total: {{ camper.pricing.parking | money }}    
 {% for pass in camper.attributes.parking_passes or [] -%}
-- {{ pass.first_name }} {{ pass.last_name }}: {{ pass.vehicle_type }}    
+- {{ pass.vehicle_type }}    
 {% endfor %}
 {% if camper.pricing.tuition -%}
 Tuition: {{ camper.pricing.tuition | money }}    
