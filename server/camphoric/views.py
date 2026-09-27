@@ -584,6 +584,16 @@ class CamperViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         return Response(audit.history(camper=self.get_any_object().id))
 
 
+class PricingOverrideViewSet(PlannedDeleteMixin, ModelViewSet):
+    '''Registrars' amounts for single price lines of a registration or camper (SPEC DR-56).'''
+    queryset = models.PricingOverride.objects.select_related('created_by', 'registration__event')
+    serializer_class = serializers.PricingOverrideSerializer
+    filterset_fields = ['registration', 'camper', 'registration__event']
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
 class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer

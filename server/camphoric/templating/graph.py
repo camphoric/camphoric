@@ -95,10 +95,16 @@ def date_range(start, stop):
     return ReadOnlyList(start + datetime.timedelta(days=offset) for offset in range(max(days, 0)))
 
 
+# Not for templates: the per-camper breakdown, and the amounts a registrar's
+# overrides replaced (registrants only see the result; SPEC DR-56).
+HIDDEN_RESULTS = {'campers', 'overridden'}
+
+
 def pricing_results(results):
     '''Pricing results (minus the per-camper breakdown) with exact numbers.'''
     return freeze({
-        key: number(value) for key, value in (results or {}).items() if key != 'campers'
+        key: number(value) for key, value in (results or {}).items()
+        if key not in HIDDEN_RESULTS
     })
 
 

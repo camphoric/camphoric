@@ -13,6 +13,54 @@ def money_fmt(amt):
     return amt
 
 
+# The e-payment handling fee's line, worked out after everything else.
+HANDLING = 'handling'
+HANDLING_LABEL = 'Electronic payment handling'
+
+
+def line_label(event, var, camper=False):
+    '''A pricing line's label, from the event's logic (or the var itself).'''
+    if var == HANDLING and not camper:
+        return HANDLING_LABEL
+    logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
+    for component in logic or []:
+        if component.get('var') == var:
+            return component.get('label') or var
+    return var
+
+
+def overridable_lines(event, camper=False):
+    '''The vars a registrar may override (SPEC DR-56): every line but the total.'''
+    logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
+    lines = [c['var'] for c in logic or [] if c.get('var') and c['var'] != 'total']
+    if not camper and event.epayment_handling:
+        lines.append(HANDLING)
+    return lines
+
+
+def _load_overrides(registration):
+    '''{(camper id or None, var): amount} for a saved registration.'''
+    if registration.pk is None:
+        return {}
+    return {
+        (override.camper_id, override.var): override.amount
+        for override in models.PricingOverride.objects.filter(registration_id=registration.pk)
+    }
+
+
+def _as_number(amount):
+    '''A stored Decimal as the plain number pricing works in.'''
+    return int(amount) if amount == amount.to_integral_value() else float(amount)
+
+
+def _override(overrides, camper_id, var, value, overridden):
+    '''The line's value, or its override (noting the computed value it replaces).'''
+    if var == 'total' or (camper_id, var) not in overrides:
+        return value
+    overridden[var] = value
+    return _as_number(overrides[(camper_id, var)])
+
+
 def calculate_price(registration, campers):
     '''
     Parameters
@@ -38,6 +86,10 @@ def calculate_price(registration, campers):
         ]
     Every JsonLogic expression can refer to variables defined by
     previous components.
+
+    A registrar's overrides (models.PricingOverride, SPEC DR-56) replace a line
+    right after it's worked out, so later lines use the new amount; the values
+    they replaced are under `overridden`, for the admin only.
 
     See server/tests/test_pricing.py for examples.
 
@@ -69,10 +121,13 @@ def calculate_price(registration, campers):
     }
 
     date_props = get_date_props(event.camper_schema)
+    overrides = _load_overrides(registration)
+    overridden = {}
 
     for reg_component in event.registration_pricing_logic:
         var = reg_component["var"]
         value = money_fmt(jsonLogic(reg_component["exp"], data))
+        value = _override(overrides, None, var, value, overridden)
         results[var] = value
         data[var] = value
 
@@ -121,21 +176,28 @@ def calculate_price(registration, campers):
         data["camper"]["custom_charges"] = custom_charges
 
         camper_results = {}
+        camper_overridden = {}
         for camper_component in event.camper_pricing_logic:
             var = camper_component["var"]
             value = jsonLogic(camper_component["exp"], data)
+            value = _override(overrides, camper.pk, var, value, camper_overridden)
             camper_results[var] = value
             if isinstance(value, numbers.Number):
                 results[var] = money_fmt((results[var] or 0) + value)
             data[var] = value
 
+        if camper_overridden:
+            camper_results['overridden'] = camper_overridden
         results['campers'].append(camper_results)
 
     if event.epayment_handling and registration.payment_type != 'Check':
         handling = money_fmt(results['total'] * (float(event.epayment_handling) / 100))
-        results['handling'] = handling
+        handling = _override(overrides, None, HANDLING, handling, overridden)
+        results[HANDLING] = handling
         results['total'] = results['total'] + handling
 
+    if overridden:
+        results['overridden'] = overridden
     return dict(results)
 
 
