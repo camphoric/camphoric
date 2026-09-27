@@ -475,7 +475,12 @@ Non-CRUD admin endpoints:
   §7.1).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, invitation? }` → payment-step payload
-  (`{ registrationUUID, serverPricingResults, deposit }`).
+  (`{ registrationUUID, serverPricingResults, deposit }`). While the event isn't open (before
+  `registration_start` or from `registration_end`), it's refused — 409 `{ detail: 'Registration
+  for this event is closed.' }`, shown to the registrant — unless it carries a valid invitation
+  for this event, so special registration types can still register. An invitation that isn't
+  found, has been redeemed, has expired or is for another event is a 400 (and the `GET` reports
+  it as `invitationError`).
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
   paymentType, paymentData, payPalResponse? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where
@@ -483,7 +488,9 @@ Non-CRUD admin endpoints:
   markdown (§7.3). The confirmation email is queued, not sent, before the response (§15, DR-44):
   `emailError` is true only when it couldn't be queued (its template can't be rendered, or the
   address can't be emailed). Repeating the payment step for a registration that's already
-  complete returns the same payload and records no second payment or email.
+  complete returns the same payload and records no second payment or email. The payment step
+  isn't limited by the registration dates: a registration accepted before closing can still
+  pay.
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter.
@@ -632,7 +639,9 @@ hooks):
   **Login** form (username/password) that posts to `/api/login`; on success the whoami cache
   is invalidated and the guarded content renders.
 - The registration flow needs no authentication, but an **invitation code** in the query
-  string grants access to otherwise-closed registration and pre-fills invitation context.
+  string grants access to otherwise-closed registration and pre-fills invitation context. The
+  server enforces this too: outside the registration dates, only a submission carrying a valid
+  invitation for the event is accepted (§5).
 - A **logout** action (`POST /api/logout`) clears the session. A global handler bounces a 401 on
   any admin endpoint back to the login form, preserving the attempted URL; a 401/403 on a
   registration submit surfaces a friendly error (see §15, DR-9).
