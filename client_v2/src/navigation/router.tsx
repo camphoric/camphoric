@@ -25,6 +25,11 @@ import { Splash } from 'pages/Splash';
 // router shell are the only eager UI.
 const AdminShell = lazyRouteComponent(() => import('navigation/AdminShell'), 'AdminShell');
 const AdminFrame = lazyRouteComponent(() => import('navigation/AdminFrame'), 'AdminFrame');
+const UsersPage = lazyRouteComponent(() => import('pages/admin/users/UsersPage'), 'UsersPage');
+const SetPasswordPage = lazyRouteComponent(
+  () => import('pages/account/SetPasswordPage'),
+  'SetPasswordPage',
+);
 const EventAdminContainer = lazyRouteComponent(
   () => import('navigation/EventAdminContainer'),
   'EventAdminContainer',
@@ -192,6 +197,26 @@ const eventChooserRoute = createRoute({
   component: EventChooser,
 });
 
+// User management, for Admins only (SPEC §8.10). `?userId` is the user being
+// edited: an id, or `new`.
+const usersRoute = createRoute({
+  getParentRoute: () => adminFrameRoute,
+  path: 'users',
+  validateSearch: (search: Record<string, unknown>): { userId?: string } => ({
+    userId: typeof search.userId === 'string' && search.userId ? search.userId : undefined,
+  }),
+  component: UsersPage,
+});
+
+// --- Account (public: reached before signing in) --------------------------------
+
+// A set-password link from an email (SPEC §6, DR-52).
+const setPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/account/set-password/$uid/$token',
+  component: SetPasswordPage,
+});
+
 const eventAdminRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: 'organization/$organizationId/event/$eventId',
@@ -271,6 +296,7 @@ const eventAdminCatchAllRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   splashRoute,
+  setPasswordRoute,
   registerLayoutRoute.addChildren([
     registerIndexRoute,
     registrationStepRoute,
@@ -282,6 +308,7 @@ const routeTree = rootRoute.addChildren([
       organizationChooserIndexRoute,
       organizationChooserRoute,
       eventChooserRoute,
+      usersRoute,
     ]),
     eventAdminRoute.addChildren([
       eventAdminIndexRoute,

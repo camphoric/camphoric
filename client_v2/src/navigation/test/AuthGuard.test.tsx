@@ -10,6 +10,7 @@ vi.mock('hooks/auth', () => ({
   useCurrentUser: () => ({ data: current.user, isLoading: false }),
   isAuthenticated: (user?: ApiUser) => !!user && user.username !== '',
   useLogout: () => ({ mutate: vi.fn(), isPending: false }),
+  useChangePassword: () => ({ mutate: vi.fn(), isPending: false, error: null }),
 }));
 vi.mock('hooks/useSessionMonitor', () => ({ useSessionMonitor: () => undefined }));
 vi.mock('navigation/Login', () => ({ Login: () => <p>Sign in</p> }));
@@ -47,5 +48,12 @@ describe('AuthGuard', () => {
   it('lets anyone with a group in', () => {
     renderGuard(user({ role: 'reporter' }));
     expect(screen.getByText('The admin')).toBeInTheDocument();
+  });
+
+  it('asks for a new password before anything else when one must be chosen', () => {
+    renderGuard(user({ role: 'registrar', must_change_password: true }));
+    expect(screen.getByRole('heading', { name: 'Choose a new password' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Current password')).toBeInTheDocument();
+    expect(screen.queryByText('The admin')).not.toBeInTheDocument();
   });
 });

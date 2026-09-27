@@ -386,6 +386,41 @@ export interface ApiUser {
   must_change_password: boolean;
 }
 
+/** Whether someone may use Django's admin site (SPEC §8.10; §15 DR-50). Superusers only change it. */
+export type DjangoAccess = 'regular' | 'staff' | 'superuser';
+
+/** A user as Admins manage them: GET/POST/PATCH /api/users/ (SPEC §5, §8.10). */
+export interface ApiManagedUser {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  /** The Camphoric permission group; null means no access. A superuser is always `admin`. */
+  role: Role | null;
+  /** Only in responses to superusers. */
+  django_access?: DjangoAccess;
+  is_active: boolean;
+  last_login: string | null;
+  date_joined: string;
+  /** False until they've chosen a password (or one was set for them). */
+  has_password: boolean;
+}
+
+/** POST /api/users/: a new user. `password` and `django_access` count only from a superuser. */
+export interface NewUserRequest {
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  role: Role | null;
+  django_access?: DjangoAccess;
+  /** Email a set-password link (the default). */
+  send_password_link?: boolean;
+  password?: string;
+  require_change?: boolean;
+}
+
 /** The anonymous (logged-out) user — username is empty and id is null. */
 export const anonymousUser: ApiUser = {
   id: null,

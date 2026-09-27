@@ -232,3 +232,54 @@ test.describe('Read-only for Reporters', () => {
     await expect(page.getByRole('button', { name: 'Send a test to me' })).toHaveCount(0);
   });
 });
+
+test.describe('User administration', () => {
+  test('a new user is a regular user, and you can’t change your own group', async ({ page }) => {
+    await page.goto(story('user-form--new-user-as-superuser'));
+    await expect(page.getByRole('textbox', { name: 'Django access' })).toHaveValue('Regular user');
+    await page.getByRole('textbox', { name: 'Username' }).fill('lee');
+    await page.getByRole('textbox', { name: 'Email' }).fill('lee@example.com');
+    await page.getByRole('button', { name: 'Add user' }).click();
+    await expect(page.getByTestId('saved')).toContainText('"django_access": "regular"');
+
+    await page.goto(story('user-form--edit-yourself'));
+    await expect(page.getByRole('textbox', { name: 'Camphoric permission group' })).toBeDisabled();
+    await expect(page.getByRole('textbox', { name: 'Django access' })).toBeDisabled();
+  });
+
+  test('an Admin adds and renames an organization', async ({ page }) => {
+    await page.goto(story('organization-chooser--as-admin'));
+    await page.getByRole('button', { name: 'New organization' }).click();
+    await page.getByRole('dialog').getByRole('textbox', { name: 'Name' }).fill('Folk Week');
+    await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Folk Week')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Change Folk Week' }).click();
+    await page.getByRole('menuitem', { name: 'Rename' }).click();
+    const name = page.getByRole('dialog').getByRole('textbox', { name: 'Name' });
+    await name.fill('Folk Camp');
+    await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Folk Camp')).toBeVisible();
+  });
+});
+
+test.describe('Passwords', () => {
+  test('choosing a password checks the two match', async ({ page }) => {
+    await page.goto(story('password-forms--set-password'));
+    await page.getByLabel('New password', { exact: true }).fill('Correct-horse-9');
+    await page.getByLabel('New password again').fill('Correct-horse-8');
+    await expect(page.getByText('The passwords don’t match.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Set password' })).toBeDisabled();
+    await page.getByLabel('New password again').fill('Correct-horse-9');
+    await page.getByRole('button', { name: 'Set password' }).click();
+    await expect(page.getByTestId('chosen')).toHaveText('15 characters');
+  });
+
+  test('forgot password gives the same answer for any address', async ({ page }) => {
+    await page.goto(story('login--sign-in'));
+    await page.getByRole('button', { name: 'Forgot password?' }).click();
+    await page.getByRole('textbox', { name: 'Email' }).fill('anyone@example.com');
+    await page.getByRole('button', { name: 'Email me a link' }).click();
+    await expect(page.getByText(/If an account uses that address/)).toBeVisible();
+  });
+});

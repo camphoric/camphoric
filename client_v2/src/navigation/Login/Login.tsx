@@ -1,12 +1,26 @@
 /**
  * Admin login form (SPEC §6). Posts username/password to /api/login; on success
- * the whoami cache is invalidated and the guarded content renders.
+ * the whoami cache is invalidated and the guarded content renders. "Forgot
+ * password?" switches to asking for a set-password link (DR-52).
  */
 
-import { Alert, Button, Card, Center, PasswordInput, Stack, TextInput, Title } from '@mantine/core';
+import {
+  Alert,
+  Anchor,
+  Button,
+  Card,
+  Center,
+  PasswordInput,
+  Stack,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useLogin } from 'hooks/auth';
+import { useState } from 'react';
 import { ApiError } from 'utils/fetch';
+
+import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 /** A 401/400 means bad credentials; anything else (403 CSRF, network, 500) is a
  * different failure and shouldn't be reported as "invalid credentials". */
@@ -18,6 +32,7 @@ function loginErrorMessage(error: unknown): string {
 }
 
 export function Login() {
+  const [forgot, setForgot] = useState(false);
   const login = useLogin();
   const form = useForm({
     initialValues: { username: '', password: '' },
@@ -28,6 +43,19 @@ export function Login() {
   });
 
   const handleSubmit = form.onSubmit((values) => login.mutate(values));
+
+  if (forgot) {
+    return (
+      <Center h="100vh" px="md">
+        <Card withBorder shadow="sm" radius="md" w={360} p="lg">
+          <Stack>
+            <Title order={3}>Forgot your password?</Title>
+            <ForgotPasswordForm onBack={() => setForgot(false)} />
+          </Stack>
+        </Card>
+      </Center>
+    );
+  }
 
   return (
     <Center h="100vh" px="md">
@@ -53,6 +81,9 @@ export function Login() {
             <Button type="submit" loading={login.isPending} fullWidth>
               Sign in
             </Button>
+            <Anchor component="button" type="button" size="sm" onClick={() => setForgot(true)}>
+              Forgot password?
+            </Anchor>
           </Stack>
         </form>
       </Card>
