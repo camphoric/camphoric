@@ -44,3 +44,24 @@ export const Address: Story = () => {
     </Stack>
   );
 };
+
+/** A disabled form (e.g. a Reporter viewing a registration) can't be typed into. */
+export const Disabled: Story = () => (
+  <Stack maw={520} p="md">
+    <Title order={4}>Address (disabled)</Title>
+    <JsonSchemaForm
+      schema={schema}
+      uiSchema={uiSchema}
+      disabled
+      formData={{
+        address: {
+          street_address: '1 Main St',
+          city: 'Mendocino',
+          state_or_province: 'CA',
+          zip_code: '95460',
+          country: 'United States',
+        },
+      }}
+    />
+  </Stack>
+);

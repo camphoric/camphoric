@@ -4,7 +4,8 @@
  * field is a Google Places (New) autocomplete that, on selection, populates all
  * sub-fields atomically and suppresses Enter-to-submit (DR-23); with no key it
  * is a plain text input. Referenced from an event's uiSchema as
- * `ui:field: 'Address'`.
+ * `ui:field: 'Address'`. A disabled or read-only form shows plain, disabled
+ * inputs (the autocomplete can't be disabled).
  */
 
 import { Input, Select, Stack, TextInput, Title } from '@mantine/core';
@@ -34,7 +35,8 @@ export function Address(props: FieldProps) {
   const schemaProperties = (props.schema.properties ?? {}) as Record<string, RJSFSchema>;
   const requiredKeys = props.schema.required ?? [];
   const autocompleteRef = useRef<HTMLDivElement>(null);
-  const useGoogle = Boolean(googleApiKey);
+  const locked = Boolean(props.disabled || props.readonly);
+  const useGoogle = Boolean(googleApiKey) && !locked;
 
   const change = (patch: Partial<AddressValue>) =>
     props.onChange({ ...value, ...patch }, props.fieldPathId.path);
@@ -42,14 +44,14 @@ export function Address(props: FieldProps) {
   const setField = (key: keyof AddressValue) => (event: ChangeEvent<HTMLInputElement>) =>
     change({ [key]: event.currentTarget.value || undefined });
 
-  // Mount the Google autocomplete once; it reports the whole address on select.
+  // Mount the Google autocomplete while it's shown; it reports the whole address on select.
   useEffect(() => {
     if (!useGoogle || !googleApiKey || !autocompleteRef.current) return;
     return mountPlaceAutocomplete(autocompleteRef.current, googleApiKey, (address) =>
       props.onChange(address, props.fieldPathId.path),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- remount only when shown or hidden
+  }, [useGoogle]);
 
   const labelFor = (key: string, fallback: string) =>
     (schemaProperties[key]?.title) ?? fallback;
@@ -71,6 +73,7 @@ export function Address(props: FieldProps) {
         <TextInput
           label={labelFor('street_address', 'Street address')}
           required={isRequired('street_address')}
+          disabled={locked}
           value={value.street_address ?? ''}
           onChange={setField('street_address')}
         />
@@ -81,6 +84,7 @@ export function Address(props: FieldProps) {
           key={key}
           label={labelFor(key, label)}
           required={isRequired(key)}
+          disabled={locked}
           value={value[key] ?? ''}
           onChange={setField(key)}
         />
@@ -90,6 +94,7 @@ export function Address(props: FieldProps) {
         <Select
           label={countrySchema.title ?? 'Country'}
           required={isRequired('country')}
+          disabled={locked}
           data={countrySchema.enum}
           value={value.country ?? countrySchema.default ?? null}
           onChange={(next) => change({ country: next ?? undefined })}
