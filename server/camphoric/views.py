@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_
 
 import jsonschema
 from rest_framework import permissions, status
+from rest_framework.exceptions import APIException
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
@@ -771,6 +772,15 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+class InvitationRejected(APIException):
+    '''
+    A registration submitted with an invitation that's no good: a 400 whose
+    `detail` is the message for the registrant, which the form shows as is.
+    '''
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = 'invitation'
+
+
 class PaymentError(Exception):
     def __init__(self, message):
         self.message = message
@@ -931,7 +941,7 @@ class RegisterView(APIView):
         try:
             invitation = self.find_invitation(request, event)
         except InvitationError as e:
-            raise ValidationError(e.user_message)
+            raise InvitationRejected(e.user_message)
         # Outside the registration dates only an invitation gets in, so special
         # registration types can register after it closes (or before it opens).
         # A registration already accepted can always go on to pay.

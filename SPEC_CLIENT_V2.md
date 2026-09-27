@@ -479,8 +479,8 @@ Non-CRUD admin endpoints:
   `registration_start` or from `registration_end`), it's refused — 409 `{ detail: 'Registration
   for this event is closed.' }`, shown to the registrant — unless it carries a valid invitation
   for this event, so special registration types can still register. An invitation that isn't
-  found, has been redeemed, has expired or is for another event is a 400 (and the `GET` reports
-  it as `invitationError`).
+  found, has been redeemed, has expired or is for another event is a 400 `{ detail }` saying
+  which, shown to the registrant (the `GET` reports the same as `invitationError`).
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
   paymentType, paymentData, payPalResponse? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where

@@ -83,7 +83,8 @@ class RegistrationDatesTests(APITestCase):
         self.set_dates(**CLOSED)
 
         response = self.register(elsewhere, status=400)
-        self.assertIn('different event', str(response.data))
+        self.assertEqual(
+            response.data, {'detail': 'Sorry, that invitation is for a different event'})
         self.assertEqual(models.Registration.objects.count(), 0)
 
         # The registration page says so too.
@@ -98,7 +99,22 @@ class RegistrationDatesTests(APITestCase):
             datetime.timedelta(days=1)
         self.invitation.save()
         self.set_dates(**CLOSED)
-        self.register(self.invitation, status=400)
+        response = self.register(self.invitation, status=400)
+        self.assertEqual(response.data, {'detail': 'Sorry, that invitation code has expired'})
+
+    def test_a_rejected_invitation_says_why(self):
+        # Its message is the response's `detail`, which the form shows as is.
+        missing = models.Invitation(recipient_email='kim@example.com', invitation_code='nope2345')
+        response = self.register(missing, status=400)
+        self.assertEqual(response.data, {
+            'detail': 'Sorry, we couldn\'t find an invitation for "kim@example.com" '
+                      'with code "nope2345"'})
+
+        self.register(self.invitation)
+        models.Registration.objects.update(completed=True)
+        response = self.register(self.invitation, status=400)
+        self.assertEqual(
+            response.data, {'detail': 'Sorry, that invitation code has already been redeemed'})
 
     def test_a_registration_accepted_before_it_closed_can_still_pay(self):
         uuid = self.register().data['registrationUUID']
