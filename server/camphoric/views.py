@@ -892,7 +892,7 @@ class RegisterView(APIView):
 
         invitation = None
         try:
-            invitation = self.find_invitation(request)
+            invitation = self.find_invitation(request, event)
         except InvitationError as e:
             response_data['invitationError'] = e.user_message
         if invitation:
@@ -927,16 +927,22 @@ class RegisterView(APIView):
         client_reported_pricing = request.data.get('pricingResults')
         if client_reported_pricing is None:
             raise ValidationError({'pricingResults': 'This field is required.'})
+        invitation = None
+        try:
+            invitation = self.find_invitation(request, event)
+        except InvitationError as e:
+            raise ValidationError(e.user_message)
+        # Outside the registration dates only an invitation gets in, so special
+        # registration types can register after it closes (or before it opens).
+        # A registration already accepted can always go on to pay.
+        if invitation is None and not event.is_open():
+            raise serializers.Conflict('Registration for this event is closed.')
+
         self.validate_form_data(event, form_data)
 
         registration, campers = self.deserialize_form_data(
             event, form_data)
 
-        invitation = None
-        try:
-            invitation = self.find_invitation(request)
-        except InvitationError as e:
-            raise ValidationError(e.user_message)
         if invitation:
             registration.registration_type = invitation.registration_type
 
@@ -1233,7 +1239,8 @@ class RegisterView(APIView):
         return response_data
 
     @classmethod
-    def find_invitation(cls, request):
+    def find_invitation(cls, request, event):
+        '''The request's invitation to this event, or None; InvitationError if it's no good.'''
         email, code = None, None
         if request.method == 'POST' and 'invitation' in request.data:
             email = request.data['invitation'].get('recipient_email')
@@ -1255,6 +1262,10 @@ class RegisterView(APIView):
         except models.Invitation.DoesNotExist:
             raise InvitationError(
                 f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+
+        # A code for another event mustn't open this one, or bring its registration type.
+        if getattr(invitation.registration_type, 'event_id', None) != event.id:
+            raise InvitationError('Sorry, that invitation is for a different event')
 
         if invitation.registration and invitation.registration.completed:
             raise InvitationError('Sorry, that invitation code has already been redeemed')
