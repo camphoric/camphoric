@@ -895,7 +895,8 @@ deleted (the server's 409 says so).
 ### 8.5 Campers
 
 The admin finds a camper (the campers list is a sortable/filterable table — columns such as
-name, registration, lodging, accommodation/camp preferences) and works with the selected one:
+name, registration, lodging, the lodging they asked for, the other campers on the same
+registration) and works with the selected one:
 
 - **Edit the camper** — `camper_schema` in admin mode (admin-transformed UI schema; includes
   `registration_schema.definitions` for referenced types). Persists via PATCH `attributes`. The
