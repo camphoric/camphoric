@@ -1,13 +1,24 @@
 /**
  * Create or edit a lodging node (SPEC §8.6). A node has a name, a title for its
  * children, capacity (0 ⇒ auto-sum of children), reserved count, a sharing
- * multiplier, visibility, and notes. New nodes are created under the given
+ * multiplier, visibility, availability (by capacity, or marked always full or
+ * always open on the registration form; #602), and notes. New nodes are created under the given
  * parent (null for the root). Persists via POST (new) or PATCH (edit).
  */
 
-import { Button, Group, Modal, NumberInput, Stack, Switch, Textarea, TextInput } from '@mantine/core';
+import {
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  Select,
+  Stack,
+  Switch,
+  Textarea,
+  TextInput,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import type { ApiLodging, Scalar } from 'api-types';
+import type { ApiLodging, LodgingAvailability, Scalar } from 'api-types';
 import { useState } from 'react';
 import { lodgingHooks } from 'store/entities';
 
@@ -23,6 +34,12 @@ interface LodgingNodeFormProps {
 
 const num = (v: number | string) => (typeof v === 'number' ? v : Number(v) || 0);
 
+const AVAILABILITY: { value: LodgingAvailability; label: string }[] = [
+  { value: 'auto', label: 'By capacity' },
+  { value: 'full', label: 'Always full' },
+  { value: 'open', label: 'Always open' },
+];
+
 export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: LodgingNodeFormProps) {
   const create = lodgingHooks.useCreate();
   const update = lodgingHooks.useUpdate();
@@ -35,6 +52,9 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
     node?.sharing_multiplier ?? 1,
   );
   const [visible, setVisible] = useState(node?.visible ?? true);
+  const [availability, setAvailability] = useState<LodgingAvailability>(
+    node?.availability ?? 'auto',
+  );
   const [notes, setNotes] = useState(node?.notes ?? '');
 
   const save = () => {
@@ -46,6 +66,7 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
       reserved: num(reserved),
       sharing_multiplier: num(sharingMultiplier),
       visible,
+      availability,
       notes,
     };
     const onSuccess = () => {
@@ -95,6 +116,14 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
           label="Visible"
           checked={visible}
           onChange={(e) => setVisible(e.currentTarget.checked)}
+        />
+        <Select
+          label="On the registration form"
+          description="Full options are shown as “(full)” and can’t be chosen. Marking it full or open overrides its count, which is kept as it is."
+          data={AVAILABILITY}
+          value={availability}
+          onChange={(value) => setAvailability((value as LodgingAvailability | null) ?? 'auto')}
+          allowDeselect={false}
         />
         <Textarea
           label="Notes"

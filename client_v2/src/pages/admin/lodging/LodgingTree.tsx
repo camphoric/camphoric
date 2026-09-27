@@ -46,6 +46,16 @@ export function LodgingTree({
             </Badge>
           )}
           {!node.visible && <Badge color="gray">hidden</Badge>}
+          {node.availability === 'full' && (
+            <Badge variant="light" color="red">
+              marked full
+            </Badge>
+          )}
+          {node.availability === 'open' && (
+            <Badge variant="light" color="green">
+              marked open
+            </Badge>
+          )}
         </Group>
         <CanEdit>
           <Group gap={2} wrap="nowrap">

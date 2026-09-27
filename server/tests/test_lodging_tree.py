@@ -4,7 +4,9 @@ from camphoric import models
 from camphoric.lodging import LodgingTree
 
 
-class TestLodgingTree(TestCase):
+class LodgingTreeTestCase(TestCase):
+    '''Two camps, each with tents and cabins.'''
+
     def setUp(self):
         self.organization = models.Organization.objects.create(name='Test Organization')
         self.event = models.Event.objects.create(
@@ -63,6 +65,8 @@ class TestLodgingTree(TestCase):
         self.cabins_camp2_B = self.event.lodging_set.create(
             name='cabins_camp2_B', parent=self.cabins_camp2, capacity=8)
 
+
+class TestLodgingTree(LodgingTreeTestCase):
     def test_get(self):
         tree = LodgingTree(self.event).build()
 
@@ -173,3 +177,59 @@ class TestLodgingTree(TestCase):
         self.assertEqual(tree.get(self.cabins_camp1_B.id).remaining_unreserved_capacity, 0)
         self.assertEqual(tree.get(self.cabins_camp1.id).remaining_unreserved_capacity, 0)
         self.assertEqual(tree.get(self.camp1.id).remaining_unreserved_capacity, 30)
+
+
+class TestMarkingLodgingFullOrOpen(LodgingTreeTestCase):
+    '''An organizer's "always full" / "always open" (Lodging.availability, issue #602).'''
+
+    def mark(self, lodging, availability):
+        lodging.availability = availability
+        lodging.save()
+
+    def tree(self):
+        return LodgingTree(self.event, show_all=True).build()
+
+    def full(self, lodging, tree=None):
+        return (tree or self.tree()).get(lodging.id).full
+
+    def test_by_capacity_it_is_full_when_the_room_is_used_up(self):
+        tree = self.tree()
+        # cabins_camp1_A's two places are both reserved.
+        self.assertTrue(self.full(self.cabins_camp1_A, tree))
+        self.assertFalse(self.full(self.cabins_camp1_B, tree))
+
+    def test_marked_full_it_is_full_whatever_the_count(self):
+        self.mark(self.cabins_camp1_B, 'full')
+        tree = self.tree()
+        node = tree.get(self.cabins_camp1_B.id)
+        self.assertTrue(node.full)
+        # The counts are left alone.
+        self.assertEqual(node.remaining_unreserved_capacity, 2)
+        # Both cabins are now full, so camp 1's cabins are; its tents aren't, so camp 1 isn't.
+        self.assertTrue(self.full(self.cabins_camp1, tree))
+        self.assertFalse(self.full(self.camp1, tree))
+
+    def test_marked_open_it_is_open_whatever_the_count(self):
+        self.mark(self.cabins_camp1_A, 'open')
+        tree = self.tree()
+        self.assertFalse(self.full(self.cabins_camp1_A, tree))
+        self.assertEqual(tree.get(self.cabins_camp1_A.id).remaining_unreserved_capacity, 0)
+
+    def test_something_open_underneath_keeps_its_parent_open(self):
+        self.mark(self.cabins_camp1_B, 'full')
+        self.mark(self.cabins_camp1_A, 'open')
+        self.assertFalse(self.full(self.cabins_camp1))
+
+    def test_a_parent_marked_full_is_full_even_with_room_below(self):
+        self.mark(self.camp2, 'full')
+        self.mark(self.cabins_camp2_A, 'open')
+        tree = self.tree()
+        self.assertTrue(self.full(self.camp2, tree))
+        self.assertFalse(self.full(self.root, tree))
+
+    def test_the_registration_form_is_told(self):
+        self.mark(self.cabins_camp1_B, 'full')
+        nodes = {n['id']: n for n in self.tree().registration_nodes}
+        self.assertTrue(nodes[self.cabins_camp1_B.id]['full'])
+        self.assertEqual(nodes[self.cabins_camp1_B.id]['availability'], 'full')
+        self.assertFalse(nodes[self.cabins_camp2_A.id]['full'])

@@ -462,6 +462,13 @@ class Invitation(TimeStampedModel):
         ]
 
 
+class LodgingAvailability(models.TextChoices):
+    '''Whether the registration form offers a lodging (issue #602).'''
+    AUTO = 'auto', 'By capacity'
+    FULL = 'full', 'Always full'
+    OPEN = 'open', 'Always open'
+
+
 class Lodging(TimeStampedModel):
     '''
     - Recursive table that contains a series of lodging groups
@@ -482,6 +489,11 @@ class Lodging(TimeStampedModel):
         default=1,
         help_text="campers with lodging_shared=True subtract this quantity from capacity")
     notes = models.TextField(blank=True, default='')
+    # An organizer can mark a lodging full whatever its count says, or keep it
+    # open past its capacity (camphoric.lodging).
+    availability = models.CharField(
+        max_length=4, choices=LodgingAvailability.choices, default=LodgingAvailability.AUTO,
+        help_text="whether registration offers it: by capacity, always full, or always open")
 
     def __str__(self):
         return self.name

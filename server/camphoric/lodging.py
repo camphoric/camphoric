@@ -30,6 +30,18 @@ remaining capacity of camp 1, and so will not disable camp 1 as an option on the
 registration form.
 
 
+Marking lodging full or open
+----------------------------
+
+An organizer can override the count (Lodging.availability, issue #602): a node
+marked "always full" is offered as full whatever its remaining capacity, and one
+marked "always open" is offered whatever it says. The counts themselves are left
+alone, for reports and the admin. A node left "by capacity" is full when its
+remaining capacity is used up (unless something under it is marked open), or
+when every choice under it is full — so marking a cabin full can fill its camp,
+and marking one open keeps its camp open.
+
+
 See also:
 - camphoric.models.Lodging
 - camphoric.models.Camper
@@ -39,6 +51,8 @@ from collections import defaultdict
 
 from django.db.models import Count, Sum, Q
 from django.forms.models import model_to_dict
+
+from camphoric.models import LodgingAvailability
 
 # These properties are imported and used by tests, so should be considered
 # canonical across all code.
@@ -174,9 +188,7 @@ def get_lodging_json_schema(tree):
             'title': node.lodging.children_title,
             'enum': [child.lodging.id for child in children],
             'enumNames': [
-                child.lodging.name
-                if child.remaining_unreserved_capacity > 0
-                else f'{child.lodging.name} (full)'
+                f'{child.lodging.name} (full)' if child.full else child.lodging.name
                 for child in children
             ],
         }
@@ -244,7 +256,7 @@ def get_lodging_ui_schema(tree):
         nonlocal max_depth
         max_depth = max(max_depth, depth)
 
-        if node.remaining_unreserved_capacity <= 0:
+        if node.full:
             key = f'lodging_{depth}'
             if key not in ui_schema:
                 ui_schema[key] = {'ui:enumDisabled': []}
@@ -383,12 +395,35 @@ class LodgingTreeNode:
                 (self.capacity - self.reserved)
                 - (self.camper_count_adjusted - self.camper_reserved_count_adjusted)))
 
+        # Whether registration offers it as full (see "Marking lodging full or open").
+        self.full = self._full()
+
+    def _full(self):
+        availability = self.lodging.availability
+        if availability == LodgingAvailability.FULL:
+            return True
+        if availability == LodgingAvailability.OPEN:
+            return False
+        choices = self.visible_children
+        if choices and all(child.full for child in choices):
+            return True
+        return self.remaining_unreserved_capacity <= 0 and not self.open_below
+
+    @property
+    def open_below(self):
+        '''Whether something under it, still reachable, is marked always open.'''
+        return any(
+            child.lodging.availability == LodgingAvailability.OPEN
+            or (child.lodging.availability != LodgingAvailability.FULL and child.open_below)
+            for child in self.visible_children)
+
     def to_registration_data(self):
         return {
             **model_to_dict(self.lodging),
             'capacity': self.capacity,
             'camper_count_adjusted': self.camper_count_adjusted,
             'remaining_unreserved_capacity': self.remaining_unreserved_capacity,
+            'full': self.full,
         }
 
     @property

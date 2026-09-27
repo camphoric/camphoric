@@ -101,6 +101,29 @@ describe('LodgingRequested field', () => {
     const fullOption = screen.getByText('Cabin B (full)').closest('[role="option"]');
     expect(fullOption).toHaveAttribute('data-combobox-disabled', 'true');
   });
+
+  it('follows an organizer marking lodging full or open (#602)', async () => {
+    const user = userEvent.setup();
+    const marked = lodgingNodes.map((node) =>
+      node.id === 3 ? { ...node, full: true } : node.id === 4 ? { ...node, full: false } : node,
+    );
+    renderForm(
+      <JsonSchemaForm
+        schema={schema}
+        uiSchema={{
+          lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: marked },
+        }}
+        formData={{ lodging_requested: { choices: [2] } }}
+      />,
+    );
+
+    await user.click(screen.getByPlaceholderText('Cabin *'));
+    // Cabin A has room but is marked full; Cabin B has none but is marked open.
+    const cabinA = screen.getByText('Cabin A (full)').closest('[role="option"]');
+    expect(cabinA).toHaveAttribute('data-combobox-disabled', 'true');
+    const cabinB = screen.getByText('Cabin B').closest('[role="option"]');
+    expect(cabinB).not.toHaveAttribute('data-combobox-disabled');
+  });
 });
 
 describe('BooleanField', () => {
