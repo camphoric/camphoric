@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-54)
+- §15 — Decision Records (DR-1…DR-55)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -274,6 +274,23 @@ consistently:
   invitation email; deleting a deposit leaves its payments; a custom charge type campers still
   have, an organization with events, and an email account an event or sent email uses can't be
   deleted; only Admins delete events, and only before anyone has registered.
+- **Soft delete** (registrations, campers and payments; §15, DR-55): `DELETE` marks one deleted
+  (its `delete-preview` has `restorable: true`, and lists under `deletes` what goes out of sight
+  with it: a registration's campers, payments and custom charges, a camper's charges). A deleted
+  one — and a deleted registration's campers, payments and charges — is gone from every list,
+  detail (404), total, lodging count, report and recipient list, until it's restored. Its
+  `deleted_at` is read-only everywhere (set only by these endpoints).
+  - `POST /api/{registrations|campers|payments}/{id}/restore/` (Registrars and Admins) → 200
+    with the object; 409 `{ detail }` if it isn't deleted, or for a camper or payment whose
+    registration is deleted ("Restore the registration first."). Restoring a registration
+    brings back its campers and payments, except ones deleted on their own before it.
+  - `GET /api/registrations/deleted/?event=`, `GET /api/campers/deleted/?event=` and
+    `GET /api/payments/deleted/?event=|registration=` (Registrars and Admins; 400 without a
+    filter) → the deleted ones, most recently deleted first, as the usual entity plus
+    `deleted_at` and `deleted_by` (`{ id, username, name }`, or `null`); registrations also have
+    `camper_count`. Campers and payments of a deleted registration aren't listed on their own —
+    they come back with it.
+  - `GET /api/{registrations|campers}/{id}/history/` works for a deleted one too.
 
 Caching/invalidation uses query keys (one key namespace per entity, parameterized by the
 filter params). Mutations invalidate the relevant entity key(s) so dependent lists refetch
@@ -551,7 +568,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   and `created_at`.
 - **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
-  the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`.
+  the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`,
+  and `registration_deleted` — its registration has been deleted (the invitation still counts
+  as redeemed; §15, DR-55).
 - **EmailAccount:** `id`, `organization`, `name`, `backend`, `host`, `port`, `security`
   (`starttls` | `ssl` | `none`), `timeout`, `username`, `max_per_minute?`, `max_per_day?`,
   `default_reply_to`, and `password`, which is write-only (stored encrypted; blank on an update
@@ -2739,6 +2758,26 @@ the client — it would drift from the server's rules. A dry run that deletes in
 transaction — exact, but it would run the delete's side effects (signals, pricing, the audit log)
 just to preview it.
 
+### DR-55 — Soft delete for registrations, campers and payments
+
+**Decision:** Deleting a registration, camper or payment through the admin marks it deleted
+instead of removing it; Registrars and Admins can list what's deleted, with who deleted it, and
+restore it. Only these three are soft-deleted — everything else is deleted for real (DR-54),
+with the audit log (DR-53) keeping its last values. "Not deleted" is built into these models'
+default managers: a deleted registration hides its campers, payments and charges without marking
+them, so restoring it brings back exactly what went with it, while a camper or payment deleted
+on its own earlier stays deleted. A deleted registration's price is left as it was, and
+recalculated when it's restored.
+**Context:** A mistaken delete of a registration or payment couldn't be undone; the models
+already had an unused `deleted_at`. These are the records people type in and money depends on;
+the rest (lodging, reports, templates, …) is set up by organizers and easy to recreate.
+**Alternatives:** Soft delete for every model — many more places that would have to hide
+deleted rows, and unique names blocked by deleted ones, for data that's cheap to recreate.
+Marking the children too, with a shared timestamp to restore them together — more writes and
+bookkeeping for the same result. Filtering deleted rows by hand in each query (the old
+convention) — easy to miss in pricing, lodging counts, reports and the public flow; only joins
+from another model (the lodging counts) still need it.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2757,6 +2796,8 @@ must be coordinated with the backend. Grouped by status.
   §5 (§8.1, §8.10; DR-50, DR-52).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
+- **Soft delete:** the restore and deleted-list endpoints for registrations, campers and
+  payments, and `registration_deleted` on invitations, with the shapes in §5 (DR-55).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,

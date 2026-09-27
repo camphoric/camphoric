@@ -8,11 +8,39 @@ from .models import (
 )
 
 admin.site.register(Event)
-admin.site.register(Registration)
 admin.site.register(Lodging)
-admin.site.register(Camper)
 admin.site.register(Deposit)
-admin.site.register(Payment)
+
+
+class DeletedFilter(admin.SimpleListFilter):
+    title = 'deleted'
+    parameter_name = 'deleted'
+
+    def lookups(self, request, model_admin):
+        return [('no', 'Not deleted'), ('yes', 'Deleted')]
+
+    def queryset(self, request, queryset):
+        if self.value() in ('no', 'yes'):
+            return queryset.filter(deleted_at__isnull=self.value() == 'no')
+        return queryset
+
+
+class SoftDeletedAdmin(admin.ModelAdmin):
+    '''
+    Registrations, campers and payments, deleted or not (SPEC DR-55): the admin
+    API soft-deletes them, and their default manager hides deleted ones.
+    '''
+    list_display = ['__str__', 'deleted_at']
+    list_filter = [DeletedFilter]
+    readonly_fields = ['deleted_at']
+
+    def get_queryset(self, request):
+        return self.model.all_objects.all()
+
+
+admin.site.register(Registration, SoftDeletedAdmin)
+admin.site.register(Camper, SoftDeletedAdmin)
+admin.site.register(Payment, SoftDeletedAdmin)
 
 
 @admin.register(EmailMessage)

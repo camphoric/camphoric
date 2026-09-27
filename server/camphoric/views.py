@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.core import signing
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -156,6 +156,58 @@ class PlannedDeleteMixin:
     @action(detail=True, methods=['get'], url_path='delete-preview')
     def delete_preview(self, request, pk=None):
         return Response(self.delete_plan(self.get_object()).preview())
+
+
+class SoftDeleteMixin:
+    '''
+    Registrations, campers and payments are soft-deleted (SPEC DR-55): DELETE marks
+    one deleted (the plan, above, says so), `POST …/{id}/restore/` brings it back,
+    and `GET …/deleted/?event=` lists the deleted ones with who deleted them. A
+    camper or payment whose registration is deleted comes back with it, so it's
+    neither listed nor restored on its own.
+    '''
+    # Query parameter → lookup, for the deleted list; at least one is required.
+    deleted_filters = {'event': 'registration__event', 'registration': 'registration'}
+    # Annotations the deleted list adds to each row.
+    deleted_extras = ()
+
+    def get_any_object(self):
+        '''The object, deleted or not.'''
+        instance = get_object_or_404(self.queryset.model.all_objects, pk=self.kwargs['pk'])
+        self.check_object_permissions(self.request, instance)
+        return instance
+
+    def deleted_queryset(self):
+        return self.queryset.model.all_objects.filter(
+            deleted_at__isnull=False, registration__deleted_at__isnull=True)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        instance = self.get_any_object()
+        if instance.deleted_at is None:
+            raise serializers.Conflict('This isn\'t deleted.')
+        registration = getattr(instance, 'registration', None)
+        if registration is not None and registration.deleted_at is not None:
+            raise serializers.Conflict('Restore the registration first.')
+        instance.soft_undelete()
+        return Response(self.get_serializer(instance).data)
+
+    @action(detail=False, methods=['get'], permission_classes=[WritersOnly])
+    def deleted(self, request):
+        filters = {lookup: request.query_params[param]
+                   for param, lookup in self.deleted_filters.items()
+                   if request.query_params.get(param)}
+        if not filters:
+            raise ValidationError({name: 'This field is required.'
+                                   for name in self.deleted_filters})
+        instances = list(self.deleted_queryset().filter(**filters).order_by('-deleted_at', '-id'))
+        deleters = audit.deleted_by(instances)
+        rows = self.get_serializer(instances, many=True).data
+        for row, instance in zip(rows, instances):
+            row['deleted_by'] = deleters.get(instance.pk)
+            for extra in self.deleted_extras:
+                row[extra] = getattr(instance, extra)
+        return Response(rows)
 
 
 class OrganizationViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -474,15 +526,21 @@ class EventViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.no_registrations,)
 
 
-class RegistrationViewSet(PlannedDeleteMixin, ModelViewSet):
+class RegistrationViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Registration.objects.all()
     serializer_class = serializers.RegistrationSerializer
     filterset_fields = ['event', 'completed']
+    deleted_filters = {'event': 'event'}
+    deleted_extras = ('camper_count',)
+
+    def deleted_queryset(self):
+        return models.Registration.all_objects.filter(deleted_at__isnull=False).annotate(
+            camper_count=Count('campers', filter=Q(campers__deleted_at__isnull=True)))
 
     @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
     def history(self, request, pk=None):
-        '''The registration's audit log, with its campers, payments and charges (DR-54).'''
-        return Response(audit.history(registration=self.get_object().id))
+        '''The registration's audit log, with its campers, payments and charges (DR-53).'''
+        return Response(audit.history(registration=self.get_any_object().id))
 
 
 class ReportViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -501,7 +559,7 @@ class RegistrationTypeViewSet(PlannedDeleteMixin, ModelViewSet):
 
 
 class InvitationViewSet(PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Invitation.objects.all()
+    queryset = models.Invitation.objects.select_related('registration')
     serializer_class = serializers.InvitationSerializer
     filterset_fields = ['registration', 'registration_type__event']
 
@@ -515,15 +573,15 @@ class LodgingViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.unassign_campers,)
 
 
-class CamperViewSet(PlannedDeleteMixin, ModelViewSet):
+class CamperViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     filterset_fields = ['registration__event', 'registration', 'registration__completed']
 
     @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
     def history(self, request, pk=None):
-        '''The camper's audit log, with its charges (DR-54).'''
-        return Response(audit.history(camper=self.get_object().id))
+        '''The camper's audit log, with its charges (DR-53).'''
+        return Response(audit.history(camper=self.get_any_object().id))
 
 
 class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -532,7 +590,7 @@ class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
     filterset_fields = ['event']
 
 
-class PaymentViewSet(PlannedDeleteMixin, ModelViewSet):
+class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     filterset_fields = ['registration', 'registration__event']

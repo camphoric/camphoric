@@ -81,13 +81,42 @@ class TimeStampedModel(models.Model):
     class Meta:
         abstract = True
 
+    # Saving only these, a soft delete or restore can't overwrite anything else.
+    SOFT_DELETE_FIELDS = ['deleted_at', 'updated_at']
+
     def soft_delete(self):
         self.deleted_at = timezone.now()
-        self.save()
+        self.save(update_fields=self.SOFT_DELETE_FIELDS)
 
     def soft_undelete(self):
         self.deleted_at = None
-        self.save()
+        self.save(update_fields=self.SOFT_DELETE_FIELDS)
+
+
+# Registrations, campers and payments are soft-deleted through the API (SPEC
+# DR-55). Their default manager — `objects`, and so related managers such as
+# `registration.campers`, `get_object_or_404` and the API — shows only live
+# rows; `all_objects` shows everything. A registration's campers, payments and
+# charges go and come back with it, without being marked themselves.
+
+class LiveRegistrations(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
+class LiveUnderRegistration(models.Manager):
+    '''Campers and payments: not deleted, and neither is their registration.'''
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            deleted_at__isnull=True, registration__deleted_at__isnull=True)
+
+
+class LiveCustomCharges(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            deleted_at__isnull=True, camper__deleted_at__isnull=True,
+            camper__registration__deleted_at__isnull=True)
 
 
 class Organization(TimeStampedModel):
@@ -336,6 +365,9 @@ class Registration(TimeStampedModel):
         help_text="True if the user has made it to the end of the registration process",
     )
 
+    objects = LiveRegistrations()
+    all_objects = models.Manager()
+
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
 
@@ -348,6 +380,10 @@ class Registration(TimeStampedModel):
         self.recalculate_server_pricing()
 
     def recalculate_server_pricing(self):
+        # A deleted registration's price stays as it was (its campers are out of
+        # sight); restoring it recalculates.
+        if self.deleted_at is not None:
+            return
         campers = self.campers.all()
         server_pricing_results = pricing.calculate_price(
             self,
@@ -514,6 +550,9 @@ class Camper(TimeStampedModel):
         default=dict,
         help_text="custom attributes for administrative use")
 
+    objects = LiveUnderRegistration()
+    all_objects = models.Manager()
+
     def __str__(self):
         attributes = self.attributes or {}
         parts = (attributes.get('first_name'), attributes.get('last_name'))
@@ -563,6 +602,9 @@ class CustomCharge(TimeStampedModel):
     camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     notes = models.TextField(blank=True, default='')
+
+    objects = LiveCustomCharges()
+    all_objects = models.Manager()
 
     def __str__(self):
         return "{} ${}".format(self.custom_charge_type.label, self.amount)
@@ -614,6 +656,9 @@ class Payment(TimeStampedModel):
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     paypal_order_details = CustomJSONField(null=True)
     notes = models.TextField(blank=True, default='')
+
+    objects = LiveUnderRegistration()
+    all_objects = models.Manager()
 
     def __str__(self):
         return "{} payment ${}".format(self.get_payment_type_display(), self.amount)

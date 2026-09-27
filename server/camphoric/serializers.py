@@ -1,8 +1,8 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import (
-    BooleanField, CharField, ChoiceField, ModelSerializer, SerializerMethodField,
-    ValidationError,
+    BooleanField, CharField, ChoiceField, ModelSerializer as BaseModelSerializer,
+    SerializerMethodField, ValidationError,
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -16,6 +16,18 @@ from camphoric import (
 from camphoric.templating.bulk import Criteria, expression_diagnostics
 from camphoric.templating.rules import compile_rules
 from camphoric.templating.render import syntax_error
+
+
+class ModelSerializer(BaseModelSerializer):
+    '''
+    DRF's, except that `deleted_at` is never written: deleting and restoring go
+    through their own endpoints (SPEC DR-55).
+    '''
+
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        extra_kwargs['deleted_at'] = {**extra_kwargs.get('deleted_at', {}), 'read_only': True}
+        return extra_kwargs
 
 
 class OrganizationSerializer(ModelSerializer):
@@ -266,10 +278,16 @@ class ReportSerializer(ModelSerializer):
 class InvitationSerializer(ModelSerializer):
     # The latest invitation email's delivery: its status and error (null: never sent).
     email = SerializerMethodField()
+    # Redeemed by a registration that's since been deleted (it still counts as redeemed).
+    registration_deleted = SerializerMethodField()
 
     class Meta:
         model = models.Invitation
         fields = '__all__'
+
+    def get_registration_deleted(self, invitation):
+        registration = invitation.registration
+        return registration is not None and registration.deleted_at is not None
 
     def get_email(self, invitation):
         message = (models.EmailMessage.objects.filter(invitation=invitation)
