@@ -65,7 +65,9 @@ jobs:
       - name: Install Dependencies
         run: python -m pip install --upgrade pipenv wheel psycopg2-binary
       - name: Make build dir
-        run: mkdir -p frontend_bootstrap/build/
+        # The static directories settings expect (the built client, collected
+        # files), so the system checks and whitenoise don't warn about them.
+        run: mkdir -p frontend_bootstrap/build/static static
       - id: cache-pipenv
         uses: actions/cache@v4
         with:

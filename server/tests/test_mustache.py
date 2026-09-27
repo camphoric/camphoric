@@ -7,6 +7,9 @@ rendered (the variables below, as Camphoric passed them) and its conversion the
 way emails are rendered now, and compare.
 '''
 
+from contextlib import redirect_stdout
+from io import StringIO
+
 import chevron
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -174,7 +177,10 @@ class MigrationTests(TransactionTestCase):
             invitation_email_subject='Join', invitation_email_template='{{> partial}}')
 
         executor = MigrationExecutor(connection)
-        executor.migrate(self.after)
+        # The migration tells whoever runs it about a template it couldn't convert.
+        with redirect_stdout(StringIO()) as printed:
+            executor.migrate(self.after)
+        self.assertIn('Crew invitation: not converted from Mustache', printed.getvalue())
         # The models as they were after 0065 (later migrations add fields).
         apps = executor.loader.project_state(self.after).apps
         Event = apps.get_model('camphoric', 'Event')
