@@ -27,6 +27,7 @@ const TYPE_NAMES: Record<string, string> = {
   camper: 'Camper',
   payment: 'Payment',
   customcharge: 'Custom charge',
+  pricingoverride: 'Price override',
 };
 
 // Model fields by what they're called; attributes are named by their schema.
@@ -49,6 +50,8 @@ const FIELD_NAMES: Record<string, string> = {
   notes: 'Notes',
   deposit: 'Deposit',
   custom_charge_type: 'Charge type',
+  var: 'Line',
+  reason: 'Reason',
 };
 
 // Recorded but not worth showing: the action says it, or it never changes by hand.

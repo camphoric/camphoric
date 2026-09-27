@@ -306,3 +306,23 @@ test.describe('Deletes and history', () => {
     await expect(page.getByText('No one signed in')).toBeVisible();
   });
 });
+
+test.describe('Pricing overrides', () => {
+  test('a Registrar sees what an overridden line works out to, and can change it', async ({
+    page,
+  }) => {
+    await page.goto(story('fee-breakdown--overridden-as-registrar'));
+    await expect(page.getByText(/the pricing works out \$920\.00/)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Change the override of Tuition' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Override Meals' })).toBeVisible();
+    await expect(page.getByText(/Not in effect/)).toBeVisible();
+  });
+
+  test('a Reporter sees the override but can’t change it', async ({ page }) => {
+    await page.goto(story('fee-breakdown--overridden-as-reporter'));
+    await expect(page.getByText(/the pricing works out \$920\.00/)).toBeVisible();
+    await expect(page.getByRole('button')).toHaveCount(0);
+  });
+});

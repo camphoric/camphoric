@@ -20,6 +20,7 @@ import type {
   ApiLodging,
   ApiOrganization,
   ApiPayment,
+  ApiPricingOverride,
   ApiRegistration,
   ApiRegistrationType,
   ApiReport,
@@ -67,6 +68,12 @@ export const paymentHooks = createEntityHooks<ApiPayment>({
 });
 export const customChargeHooks = createEntityHooks<ApiCustomCharge>({
   name: 'CustomCharge',
+  alsoInvalidate: ['Registration', 'Camper'],
+});
+// Overrides change a line and so the camper's and registration's totals (SPEC DR-56).
+export const pricingOverrideHooks = createEntityHooks<ApiPricingOverride>({
+  name: 'PricingOverride',
+  path: 'pricingoverrides',
   alsoInvalidate: ['Registration', 'Camper'],
 });
 export const customChargeTypeHooks = createEntityHooks<ApiCustomChargeType>({

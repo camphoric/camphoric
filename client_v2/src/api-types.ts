@@ -199,6 +199,23 @@ export interface ApiCustomCharge extends TimeStamped {
   notes: string;
 }
 
+/** A registrar's amount for one price line (`/api/pricingoverrides/`; SPEC DR-56). */
+export interface ApiPricingOverride extends TimeStamped {
+  id: number;
+  registration: Scalar;
+  /** Null: a line of the registration itself (a donation, the handling fee). */
+  camper: Scalar | null;
+  /** The pricing line's var, e.g. `tuition` or `handling`. */
+  var: string;
+  // A string on read (DRF decimal), a number on write.
+  amount: number | string;
+  reason: string;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  /** In effect: the event's pricing still has the line (and a handling fee, for `handling`). */
+  applied?: boolean;
+}
+
 export interface ApiCustomChargeType extends TimeStamped {
   id: number;
   event: Scalar;
@@ -514,7 +531,12 @@ export interface PricingResults {
   total: number;
   campers: Hash[];
   handling?: number;
-  [namedSubtotal: string]: number | Hash[] | undefined;
+  /**
+   * The computed amounts a registrar's overrides replaced, by line (admin only;
+   * SPEC DR-56). Each camper's results can have its own.
+   */
+  overridden?: Record<string, number>;
+  [namedSubtotal: string]: number | Hash[] | Record<string, number> | undefined;
 }
 
 // ---------------------------------------------------------------------------
