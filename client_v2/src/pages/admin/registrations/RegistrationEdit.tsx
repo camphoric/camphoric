@@ -137,6 +137,7 @@ export function RegistrationEdit({
                   uiSchema={adminUiSchema}
                   formData={attributes}
                   templateData={{
+                    ...event.registration_template_vars,
                     pricing: event.pricing,
                     formData: registration.attributes,
                     totals: registration.server_pricing_results,
@@ -164,7 +165,7 @@ export function RegistrationEdit({
               <RegistrationPayments event={event} registration={registration} />
             </Tabs.Panel>
             <Tabs.Panel value="campers">
-              <RegistrationCampers registration={registration} />
+              <RegistrationCampers event={event} registration={registration} />
             </Tabs.Panel>
             {canEdit && (
               <Tabs.Panel value="history">

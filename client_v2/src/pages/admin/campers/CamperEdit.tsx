@@ -14,31 +14,24 @@
 
 import { Box, Button, Group, ScrollArea, Tabs } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import type { UiSchema } from '@rjsf/utils';
 import type { ApiCamper, ApiEvent, Hash } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { deriveAdminUiSchema, injectDefinitions, JsonSchemaForm } from 'components/form';
+import { JsonSchemaForm } from 'components/form';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { camperHooks } from 'store/entities';
 
 import { CamperFees } from './CamperFees';
+import { useCamperForm } from './camperForm';
 
 interface CamperEditProps {
   event: ApiEvent;
   camper: ApiCamper;
   name: string;
   onDeleted: () => void;
-}
-
-/** The camper UI schema is the campers array's item UI schema (§9.1, §9.5). */
-function camperItemUiSchema(registrationUiSchema: Hash): UiSchema {
-  const campers = registrationUiSchema.campers;
-  const items = campers && typeof campers === 'object' ? (campers as Hash).items : undefined;
-  return (items && typeof items === 'object' ? items : {}) as UiSchema;
 }
 
 export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) {
@@ -54,14 +47,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
     setAdminAttributes(camper.admin_attributes);
   }, [camper]);
 
-  const schema = useMemo(
-    () => injectDefinitions(event.camper_schema, event.registration_schema.definitions),
-    [event.camper_schema, event.registration_schema],
-  );
-  const uiSchema = useMemo(
-    () => deriveAdminUiSchema(camperItemUiSchema(event.registration_ui_schema)),
-    [event.registration_ui_schema],
-  );
+  const { schema, uiSchema } = useCamperForm(event);
 
   const hasAdmin = Object.keys(event.camper_admin_schema ?? {}).length > 0;
 
@@ -101,7 +87,11 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
                 schema={schema}
                 uiSchema={uiSchema}
                 formData={attributes}
-                templateData={{ pricing: event.pricing, formData: camper.attributes }}
+                templateData={{
+                  ...event.registration_template_vars,
+                  pricing: event.pricing,
+                  formData: camper.attributes,
+                }}
                 // Validation messages show as the admin edits, but never block
                 // saving (admins may need to save partial or legacy data).
                 liveValidate
