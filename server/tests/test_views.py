@@ -394,6 +394,8 @@ class RegisterGetTests(APITestCase):
                     'notes': '',
                     'parent': root.id,
                     'remaining_unreserved_capacity': 0,
+                    'full': True,
+                    'availability': 'auto',
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
                     'visible': True},
@@ -408,6 +410,8 @@ class RegisterGetTests(APITestCase):
                     'notes': '',
                     'parent': root.id,
                     'remaining_unreserved_capacity': 1,
+                    'full': False,
+                    'availability': 'auto',
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
                     'visible': True}

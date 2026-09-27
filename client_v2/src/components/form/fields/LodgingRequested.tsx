@@ -7,8 +7,9 @@
  * `id`/`name` are set only when the current selection is a leaf.
  *
  * The lodging tree (a flat array of nodes, with computed remaining capacity) is
- * provided on the field's uiSchema as `lodging_nodes`. Nodes with no remaining
- * capacity are labelled "(full)" and disabled. Referenced from an event's
+ * provided on the field's uiSchema as `lodging_nodes`. Full nodes — the server's
+ * `full`: out of room, or marked full by an organizer (and not when marked open;
+ * #602) — are labelled "(full)" and disabled. Referenced from an event's
  * uiSchema as `ui:field: 'LodgingRequested'`.
  *
  * Validation errors — the field's own, and those on its `id` / `choices`
@@ -25,7 +26,11 @@ export interface LodgingNode {
   name: string;
   children_title: string;
   remaining_unreserved_capacity: number;
+  /** Offered as full; older servers only send the remaining capacity. */
+  full?: boolean;
 }
+
+const isFull = (node: LodgingNode) => node.full ?? node.remaining_unreserved_capacity <= 0;
 
 interface LodgingRequestedValue {
   choices?: number[];
@@ -94,8 +99,8 @@ export function LodgingRequested(props: FieldProps) {
           .sort((a, b) => a.name.localeCompare(b.name));
         const data = optionNodes.map((node) => ({
           value: String(node.id),
-          label: node.remaining_unreserved_capacity <= 0 ? `${node.name} (full)` : node.name,
-          disabled: node.remaining_unreserved_capacity <= 0,
+          label: isFull(node) ? `${node.name} (full)` : node.name,
+          disabled: isFull(node),
         }));
         return (
           <Select

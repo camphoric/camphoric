@@ -94,6 +94,55 @@ export const LodgingRequested: Story = () => {
 };
 
 /**
+ * LodgingRequested — lodging an organizer has marked (#602): the tent field is
+ * marked full though it has room, and Cabin B is marked open though it has none.
+ */
+export const LodgingRequestedMarked: Story = () => {
+  const [formData, setFormData] = useState<unknown>({});
+  const schema: RJSFSchema = {
+    type: 'object',
+    properties: { lodging_requested: { type: 'object', title: 'Requested lodging' } },
+  };
+  const node = (
+    id: number,
+    parent: number | null,
+    name: string,
+    remaining: number,
+    full: boolean,
+  ) => ({
+    id,
+    parent,
+    name,
+    children_title: id === 1 ? 'Area' : id === 2 ? 'Cabin' : 'Spot',
+    remaining_unreserved_capacity: remaining,
+    full,
+  });
+  const lodgingNodes = [
+    node(1, null, 'Camp', 40, false),
+    node(2, 1, 'Cabins', 4, false),
+    node(3, 1, 'Tent Field', 20, true),
+    node(4, 2, 'Cabin A', 4, false),
+    node(5, 2, 'Cabin B', 0, false),
+    node(6, 3, 'Spot 1', 2, false),
+  ];
+  const uiSchema: UiSchema = {
+    lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: lodgingNodes },
+  };
+  return (
+    <Stack maw={560} p="md">
+      <Title order={4}>Requested lodging</Title>
+      <JsonSchemaForm
+        schema={schema}
+        uiSchema={uiSchema}
+        formData={formData}
+        onChange={setFormData}
+      />
+      <Code block>{JSON.stringify(formData, null, 2)}</Code>
+    </Stack>
+  );
+};
+
+/**
  * LodgingRequested — an unfinished choice. "RV Camping" needs an RV length from
  * the second dropdown; submit to see the event's validation message under the
  * unfinished dropdown and in the list at the top.

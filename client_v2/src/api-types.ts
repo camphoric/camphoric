@@ -167,7 +167,11 @@ export interface ApiLodging extends TimeStamped {
   visible: boolean;
   sharing_multiplier: number;
   notes: string;
+  /** Whether registration offers it: by capacity, or marked always full / always open (#602). */
+  availability: LodgingAvailability;
 }
+
+export type LodgingAvailability = 'auto' | 'full' | 'open';
 
 export interface ApiDeposit extends TimeStamped {
   id: number;

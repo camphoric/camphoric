@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-56)
+- §15 — Decision Records (DR-1…DR-57)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -971,8 +971,10 @@ across date ranges**, with capacity visibility. Required capabilities:
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
   (and reserved count), and create/edit/delete nodes (deleting one unassigns the campers in it and
   in anything under it; §15, DR-54). A node has: parent, name, a title for its
-  children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, and notes; for a
-  non-leaf node the calculated capacity is shown.
+  children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, **availability**
+  on the registration form — `auto` (by capacity, the default), `full` (always shown full) or
+  `open` (never shown full; §15, DR-57) — and notes; for a non-leaf node the calculated capacity
+  is shown, and a node marked full or open says so.
 - **Assign and schedule campers** — place a camper into a leaf unit and set the **days they're
   present** (`stay`), and later move, reschedule, or unassign them. Assigning/scheduling persists
   via PATCH camper (`lodging`, `stay`); unassigning sets `lodging: null, stay: null`. A new
@@ -1299,7 +1301,10 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   the autocomplete list is open.
 - **LodgingRequested** — cascading select that walks the lodging tree level by level; only a
   leaf may be the final choice; tracks the chosen path; shows its validation errors (including
-  those for its `id`/`choices`) under the last dropdown.
+  those for its `id`/`choices`) under the last dropdown. The server's lodging nodes (on the
+  field's uiSchema as `lodging_nodes`) carry `full`; a full option is labelled "(full)" and
+  can't be chosen (DR-57). Without `full` (an older server), a node with no
+  `remaining_unreserved_capacity` is full.
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
 
@@ -2869,6 +2874,24 @@ Overriding the total — the breakdown would no longer add up. Custom charges on
 line rather than correcting one, and can't touch registration lines or the handling fee.
 Replacing JsonLogic now (structured rules, Python pricing, an expression language) — a large
 migration that doesn't address adjustments (#674).
+
+### DR-57 — Organizers can mark lodging full or open
+
+**Decision:** Each lodging node has an availability: **by capacity** (the default), **always
+full**, or **always open**. It decides only whether the registration form offers the node as full;
+the capacity and remaining-capacity counts are left as they are, for reports and the admin. A node
+left by capacity is full when its remaining capacity is used up — unless something under it is
+marked open — or when every visible choice under it is full. So marking every cabin full fills
+the cabin area, and marking one tent spot open keeps its camp choosable. The server works this
+out and sends `full` on each lodging node; the form follows it.
+**Context:** The automatic cut-off doesn't always match what organizers want (#602): they need to
+close a lodging type that still has room (it's being held, or they're reorganizing), or keep one
+open past its count (they know the real space better than the numbers).
+**Alternatives:** Setting capacity to the current count to close it, or raising it to open it —
+the workaround organizers used, but it corrupts the counts reports rely on and has to be undone.
+Hiding the lodging (`visible`) — it disappears instead of showing as full, which confuses people
+who expected it. Working out "full" in the client — it would drift from the server's counts
+and rules.
 
 ---
 
