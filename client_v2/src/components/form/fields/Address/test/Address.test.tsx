@@ -61,4 +61,11 @@ describe('Address field (plain inputs)', () => {
     const last = onChange.mock.calls.at(-1)?.[0] as { address?: { country?: string } };
     expect(last.address?.country).toBe('Canada');
   });
+
+  it('disables every input when the form is disabled', () => {
+    renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} disabled />);
+    for (const label of ['Street', 'City', 'State', 'ZIP'])
+      expect(screen.getByLabelText(label)).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Country' })).toBeDisabled();
+  });
 });
