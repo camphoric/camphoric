@@ -33,6 +33,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from camphoric import (
     accounts,
+    audit,
     models,
     pricing,
     roles,
@@ -40,7 +41,7 @@ from camphoric import (
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
-from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser
+from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser, WritersOnly
 from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
@@ -464,6 +465,11 @@ class RegistrationViewSet(ModelViewSet):
     serializer_class = serializers.RegistrationSerializer
     filterset_fields = ['event', 'completed']
 
+    @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
+    def history(self, request, pk=None):
+        '''The registration's audit log, with its campers, payments and charges (DR-54).'''
+        return Response(audit.history(registration=self.get_object().id))
+
 
 class ReportViewSet(ModelViewSet):
     queryset = models.Report.objects.all()
@@ -493,6 +499,11 @@ class CamperViewSet(ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     filterset_fields = ['registration__event', 'registration', 'registration__completed']
+
+    @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
+    def history(self, request, pk=None):
+        '''The camper's audit log, with its charges (DR-54).'''
+        return Response(audit.history(camper=self.get_object().id))
 
 
 class DepositViewSet(ModelViewSet):

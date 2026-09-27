@@ -46,6 +46,17 @@ class RolePermission(BasePermission):
         return _reads(request, view) or role in roles.WRITERS
 
 
+class WritersOnly(BasePermission):
+    '''Registrars and Admins only, even to read (change history).'''
+
+    def has_permission(self, request, view):
+        role = roles.role_of(request.user)
+        if role is None:
+            return False
+        _check_password_change(request)
+        return role in roles.WRITERS
+
+
 class AdminWrites(BasePermission):
     '''Any role may read; only Admins may write (organizations).'''
 
