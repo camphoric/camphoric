@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-52)
+- §15 — Decision Records (DR-1…DR-53)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -405,6 +405,23 @@ Non-CRUD admin endpoints:
     by field) sets the password and clears a must-change flag; it doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
+- **Change history** (Registrars and Admins; 403 for Reporters; §15, DR-53):
+  - `GET /api/registrations/{id}/history/` — the registration's changes and those of its campers,
+    payments and custom charges, including ones since deleted; `GET /api/campers/{id}/history/` —
+    the camper's and its custom charges'.
+  - Each is an array, newest first, of `{ id, timestamp, request_id, actor, action, object,
+    changes }`:
+    - `actor` is `{ id, username, name }`, or `null` when no one was signed in (an online
+      registration, a PayPal notification, the email worker).
+    - `action` is `'create' | 'update' | 'delete' | 'restore'`.
+    - `object` is `{ type, id, label }`: `type` is the model (`registration`, `camper`,
+      `payment`, `customcharge`), `label` what it was called at the time (a camper's name,
+      "Check payment $100.00").
+    - `changes` maps each changed field to `[old, new]`. JSON fields (`attributes`,
+      `admin_attributes`, `stay`, the pricing results) come back as JSON; other values as text,
+      with `null` for none. A create lists every field's first value, a delete its last.
+    - `request_id` is the same for every entry one request caused, e.g. an edit and the pricing it
+      recalculated.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -2651,6 +2668,26 @@ work in any mail client with one click; this one belongs to the admin app, with 
 validation. Enforcing the forced change only in the client — the API would still accept the old
 password's session for everything.
 
+### DR-53 — An audit log of changes, with old and new values
+
+**Decision:** The server keeps an **audit log** with django-auditlog: every change to the event
+data, organizations, email settings and users records who made it, when, and each changed
+field's old and new values; deletes record the last values. Only changes are logged, not reads,
+and entries are kept indefinitely. Timestamps, PayPal's replies (they carry payer details and are
+written once by the payment flow) and passwords are left out; pricing results are kept, so a
+balance's history shows. The email outbox isn't tracked — its history already records each
+message. Registrars and Admins can read a registration's or camper's history (Reporters can't);
+superusers see the whole log in Django admin.
+**Context:** The admin now has several users with different roles, and nothing recorded who
+changed a registration, payment or lodging assignment, or what it said before — a mistaken edit
+couldn't be traced or undone by hand.
+**Alternatives:** django-simple-history (a full copy of each row per change, in a table per
+model — more storage and migrations, for a whole-row view this admin doesn't need).
+django-pghistory (Postgres triggers — also catches bulk updates, but ties the log to Postgres and
+makes crediting the signed-in user harder). Logging reads too — far more data, for a privacy
+audit nobody has asked for. Leaving pricing out — fewer entries, but no record of how a balance
+changed.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -2667,6 +2704,8 @@ must be coordinated with the backend. Grouped by status.
   Admins, `POST /api/user/password`, `/api/password-reset` and
   `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
   §5 (§8.1, §8.10; DR-50, DR-52).
+- **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
+  with the shape in §5 (DR-53).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
   `POST /api/logout` (§3, §6; DR-9, DR-26).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

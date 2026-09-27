@@ -333,6 +333,10 @@ class Registration(TimeStampedModel):
     def __str__(self):
         return "Registration #{} ({})".format(self.id, self.event.name)
 
+    def get_additional_data(self):
+        # Tags audit entries for the registration's history (camphoric.audit).
+        return {'registration': self.id}
+
     def save(self, **kwargs):
         super().save(**kwargs)
         self.recalculate_server_pricing()
@@ -495,6 +499,16 @@ class Camper(TimeStampedModel):
         default=dict,
         help_text="custom attributes for administrative use")
 
+    def __str__(self):
+        attributes = self.attributes or {}
+        parts = (attributes.get('first_name'), attributes.get('last_name'))
+        name = ' '.join(str(part) for part in parts if part)
+        return name or "Camper #{}".format(self.id)
+
+    def get_additional_data(self):
+        # Tags audit entries for the registration's and camper's histories (camphoric.audit).
+        return {'registration': self.registration_id, 'camper': self.id}
+
     def save_without_recalc(self, **kwargs):
         super().save(**kwargs)
 
@@ -530,6 +544,13 @@ class CustomCharge(TimeStampedModel):
     camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     notes = models.TextField(blank=True, default='')
+
+    def __str__(self):
+        return "{} ${}".format(self.custom_charge_type.label, self.amount)
+
+    def get_additional_data(self):
+        # Tags audit entries for the registration's and camper's histories (camphoric.audit).
+        return {'registration': self.camper.registration_id, 'camper': self.camper_id}
 
     def save(self, **kwargs):
         super().save(**kwargs)
@@ -569,6 +590,13 @@ class Payment(TimeStampedModel):
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     paypal_order_details = CustomJSONField(null=True)
     notes = models.TextField(blank=True, default='')
+
+    def __str__(self):
+        return "{} payment ${}".format(self.get_payment_type_display(), self.amount)
+
+    def get_additional_data(self):
+        # Tags audit entries for the registration's history (camphoric.audit).
+        return {'registration': self.registration_id}
 
 
 class EmailMessageKind(models.TextChoices):

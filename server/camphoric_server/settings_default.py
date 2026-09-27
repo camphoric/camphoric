@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'dbbackup',  # django-dbbackup
     'django_filters',
     'django_tasks_db',
+    'auditlog',
 ]
 
 MIDDLEWARE = [
@@ -69,6 +70,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Records who changed what in the audit log (camphoric.audit, SPEC DR-54).
+    'camphoric.audit.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -256,6 +259,12 @@ REST_FRAMEWORK = {
         'password_reset': env.str('CAMPHORIC_PASSWORD_RESET_RATE', default='5/hour'),
     },
 }
+
+# The audit log (camphoric.audit, SPEC DR-54). One id per request groups the
+# entries a single save causes; the base manager lets auditlog see the previous
+# values of soft-deleted rows too.
+AUDITLOG_CID_GETTER = 'camphoric.audit.request_id'
+AUDITLOG_USE_BASE_MANAGER = True
 
 # The session cookie is Secure by default (production sits behind TLS; browsers exempt
 # localhost). Set SESSION_COOKIE_SECURE=false for plain http on any other host. Behind a

@@ -30,6 +30,7 @@ whitenoise = "*"
 gunicorn = "*"
 django-tasks-db = "*"
 cryptography = "*"
+django-auditlog = ">=3.4"
 
 [requires]
 python_version = "3.12"
