@@ -969,7 +969,9 @@ This function manages the event's **lodging hierarchy** and **assigns campers to
 across date ranges**, with capacity visibility. Required capabilities:
 
 - **See unassigned campers** — those not yet placed in a leaf unit — with the context needed to
-  place them: name, requested lodging, sharing preference/partner, and comments.
+  place them: name, requested lodging, sharing preference/partner, and comments. Registration
+  sets a camper's `lodging` to the node they requested, often a non-leaf (e.g. "Cabins"), so a
+  camper whose `lodging` is null *or* a non-leaf node counts as unassigned.
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
   (and reserved count), and create/edit/delete nodes (deleting one unassigns the campers in it and
   in anything under it; §15, DR-54). A node has: parent, name, a title for its

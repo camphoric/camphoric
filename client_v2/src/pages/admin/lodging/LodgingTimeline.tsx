@@ -58,6 +58,8 @@ interface LodgingTimelineProps {
 
 interface DragData {
   camper: ApiCamper;
+  /** Whether this is a bar already placed in a leaf (vs. a sidebar camper). */
+  placed: boolean;
   /** Current stay length for a placed bar (so a move preserves duration). */
   length: number;
 }
@@ -96,14 +98,14 @@ export function LodgingTimeline({
     if (!data || !over) return;
 
     if (over.id === 'unassigned') {
-      if (data.camper.lodging != null) onUnassign(data.camper.id);
+      if (data.placed) onUnassign(data.camper.id);
       return;
     }
 
     const overId = String(over.id);
     if (!overId.startsWith('cell:')) return;
     const [, leafId, dayIndex] = overId.split(':');
-    const length = data.camper.lodging != null ? data.length : defaultStayLength;
+    const length = data.placed ? data.length : defaultStayLength;
     onAssign(data.camper.id, Number(leafId), stayFrom(days, Number(dayIndex), length));
   };
 
@@ -235,7 +237,7 @@ function CamperChip({
   const { canEdit } = usePermissions();
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `camper:${camper.id}`,
-    data: { camper, length: 1 } satisfies DragData,
+    data: { camper, placed: false, length: 1 } satisfies DragData,
   });
   return (
     <Paper
@@ -347,7 +349,7 @@ function CamperBar({
   const [previewLen, setPreviewLen] = useState<number | null>(null);
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `camper:${camper.id}`,
-    data: { camper, length: baseLen } satisfies DragData,
+    data: { camper, placed: true, length: baseLen } satisfies DragData,
   });
 
   if (!span) return null;

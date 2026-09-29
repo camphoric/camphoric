@@ -52,6 +52,8 @@ const SEED: ApiCamper[] = [
   camper(3, 'Buffy', 'Summers', 11, [DAYS[0], DAYS[1], DAYS[2], DAYS[3]]),
   camper(4, 'Ani', 'Skywalker', null, null),
   camper(5, 'Malcolm', 'Reynolds', null, null),
+  // Registration leaves a camper on the node they requested, often a branch: still unassigned.
+  camper(6, 'River', 'Tam', 1, null),
 ];
 
 export const Assignment: Story = () => {
@@ -61,7 +63,7 @@ export const Assignment: Story = () => {
     const assigned = campers.filter((c) => c.lodging === l.id);
     return { ...l, campers: assigned, count: assigned.length };
   });
-  const unassigned = campers.filter((c) => c.lodging == null);
+  const unassigned = campers.filter((c) => !LEAVES.some((l) => l.id === c.lodging));
 
   return (
     <Stack p="md">

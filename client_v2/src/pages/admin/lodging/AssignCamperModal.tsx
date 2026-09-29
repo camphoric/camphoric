@@ -38,9 +38,11 @@ export function AssignCamperModal({
 }: AssignCamperModalProps) {
   const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
 
-  const [leafId, setLeafId] = useState<string>(
-    camper.lodging != null ? String(camper.lodging) : (leaves[0] ? String(leaves[0].id) : ''),
-  );
+  // A camper may sit on a branch (the node they requested), which isn't a choice here.
+  const [leafId, setLeafId] = useState<string>(() => {
+    const current = leaves.find((l) => l.id === camper.lodging) ?? leaves[0];
+    return current ? String(current.id) : '';
+  });
   const [stay, setStay] = useState<string[]>(
     camper.stay ?? days.slice(0, event.default_stay_length || days.length),
   );

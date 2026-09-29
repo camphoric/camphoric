@@ -2,7 +2,9 @@
  * Lodging data for the admin lodging section (SPEC §8.6). Fetches the event's
  * lodging nodes and completed campers, builds the augmented tree (occupancy,
  * capacity, full paths), the flat lookup, the leaf list (campers attach only to
- * leaves), and the unassigned campers (no lodging yet).
+ * leaves), and the unassigned campers: those not in a leaf unit. Registration
+ * sets a camper's `lodging` to the node they requested, which is often a branch
+ * (e.g. "Cabins"), so a non-null `lodging` doesn't mean they've been placed.
  */
 
 import type { ApiCamper, AugmentedLodging, LodgingLookup } from 'api-types';
@@ -30,7 +32,9 @@ export function useLodgingData(eventId: string): LodgingData | undefined {
     const tree = buildLodgingTree(lodgings, campers, eventId);
     const lodgingLookup = flattenLodgingTree(tree);
     const leaves = Object.values(lodgingLookup).filter((n) => n.isLeaf);
-    const unassigned = campers.filter((c) => c.lodging == null);
+    const unassigned = campers.filter(
+      (c) => c.lodging == null || !lodgingLookup[String(c.lodging)]?.isLeaf,
+    );
     return { tree, lodgingLookup, leaves, campers, unassigned };
   }, [lodgings, campers, eventId]);
 }
