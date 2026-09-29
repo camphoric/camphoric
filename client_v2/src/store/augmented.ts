@@ -146,6 +146,19 @@ export function buildLodgingTree(
   return createNode(root);
 }
 
+/**
+ * Every node of a lodging tree in tree order (each node before its children).
+ * The id-keyed lookup can't give this order: an object's integer-like keys
+ * iterate in ascending id order, so a unit added later would sort last.
+ */
+export function listLodgingTree(tree: AugmentedLodging | undefined): AugmentedLodging[] {
+  const list = (node: AugmentedLodging): AugmentedLodging[] => [
+    node,
+    ...node.children.flatMap(list),
+  ];
+  return tree ? list(tree) : [];
+}
+
 /** Flatten a lodging tree into an id→node lookup (used by report templates). */
 export function flattenLodgingTree(tree: AugmentedLodging | undefined): LodgingLookup {
   const lookup: LodgingLookup = {};

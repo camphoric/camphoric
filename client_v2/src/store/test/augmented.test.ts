@@ -13,6 +13,7 @@ import {
   buildRegistrationLookup,
   buildRegistrationTypeLookup,
   flattenLodgingTree,
+  listLodgingTree,
 } from '../augmented';
 
 const reg = (over: Partial<ApiRegistration> & { id: number }): ApiRegistration =>
@@ -108,5 +109,30 @@ describe('buildLodgingTree / flattenLodgingTree', () => {
 
   it('returns undefined when there is no root lodging', () => {
     expect(buildLodgingTree([], [], '1')).toBeUndefined();
+  });
+});
+
+describe('listLodgingTree', () => {
+  it('lists the nodes in tree order, not id order', () => {
+    const lodgings = [
+      lodging({ id: 1, name: 'Camp', parent: null, capacity: 0 }),
+      lodging({ id: 2, name: 'Cabins', parent: 1, capacity: 0 }),
+      lodging({ id: 3, name: 'Tents', parent: 1, capacity: 0 }),
+      lodging({ id: 4, name: 'Tent 1', parent: 3, capacity: 1 }),
+      // Added later, so its id is the highest; it still follows its sibling cabins.
+      lodging({ id: 5, name: 'Cabin A', parent: 2, capacity: 4 }),
+    ];
+    const tree = buildLodgingTree(lodgings, [], '1');
+    expect(listLodgingTree(tree).map((n) => n.name)).toEqual([
+      'Camp',
+      'Cabins',
+      'Cabin A',
+      'Tents',
+      'Tent 1',
+    ]);
+  });
+
+  it('is empty without a tree', () => {
+    expect(listLodgingTree(undefined)).toEqual([]);
   });
 });
