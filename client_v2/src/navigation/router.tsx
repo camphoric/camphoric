@@ -3,8 +3,8 @@
  * branches — public registration and admin (behind the auth guard). Admin
  * selection state lives in typed, validated search params (DR-2). A trailing-
  * slash normalizer redirects any `…/` URL to the non-slash form. Admin selection
- * (registration/camper/report) and the registrations sub-tab are URL-addressable
- * search params.
+ * (registration/camper/report) and the open tab or view within a section or
+ * record editor are URL-addressable search params.
  */
 
 import {
@@ -69,6 +69,12 @@ export interface AdminSearch {
   camperId?: string;
   reportId?: string;
   registrationsTab?: string;
+  // The open section of the registration / camper editors, the Lodging view,
+  // and the Settings tab.
+  regTab?: string;
+  camperTab?: string;
+  lodgingView?: string;
+  settingsTab?: string;
   // Email (SPEC §8.9): the tab, the template being edited, the open message,
   // and the history's filters.
   emailTab?: string;

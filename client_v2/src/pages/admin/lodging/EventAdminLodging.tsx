@@ -6,7 +6,8 @@
  * unassigning sets both to null.
  *
  * Two views (toggle): the form-based "Hierarchy" (tree + node CRUD + per-leaf
- * assign/unassign) and the drag/resize "Timeline" (§8.6, DR-6).
+ * assign/unassign) and the drag/resize "Timeline" (§8.6, DR-6). The view is
+ * URL-addressable via `?lodgingView`.
  */
 
 import { Button, Card, Grid, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
@@ -18,6 +19,7 @@ import { FullScreenLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { useLodgingAssignment } from 'hooks/useLodgingAssignment';
 import { useLodgingData } from 'hooks/useLodgingData';
+import { useSearchTab } from 'hooks/useSearchTab';
 import { useMemo, useState } from 'react';
 import { eventHooks, lodgingHooks } from 'store/entities';
 import { camperName } from 'utils/camper';
@@ -30,6 +32,8 @@ import { LodgingTree } from './LodgingTree';
 import { UnassignedCampers } from './UnassignedCampers';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
+
+const VIEWS = ['hierarchy', 'timeline'] as const;
 
 interface NodeFormState {
   open: boolean;
@@ -48,7 +52,7 @@ export function EventAdminLodging() {
 
   const [nodeForm, setNodeForm] = useState<NodeFormState>({ open: false });
   const [assigning, setAssigning] = useState<ApiCamper>();
-  const [view, setView] = useState<'hierarchy' | 'timeline'>('hierarchy');
+  const [view, setView] = useSearchTab('lodgingView', VIEWS);
 
   const days = useMemo(() => (event ? eventDays(event.start, event.end) : []), [event]);
   const branches = useMemo(
@@ -87,7 +91,7 @@ export function EventAdminLodging() {
           <Title order={2}>Lodging</Title>
           <SegmentedControl
             value={view}
-            onChange={(value) => setView(value as 'hierarchy' | 'timeline')}
+            onChange={setView}
             data={[
               { label: 'Hierarchy', value: 'hierarchy' },
               { label: 'Timeline', value: 'timeline' },

@@ -173,7 +173,8 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?registrationsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
+`?registrationsTab`, the record editors' `?regTab` and `?camperTab`, Lodging's `?lodgingView`,
+Settings' `?settingsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
 filters, and
 Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
@@ -203,6 +204,15 @@ queries derive it from `window.location` rather than props, through the routing 
   param `?userId` — the user being edited: an id, or `new` for a new one.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
+- `/admin/organization/:organizationId/event/:eventId/registrations` and `…/campers` — search
+  params `?registrationsTab` (the Registrations section's tab), `?registrationId` / `?camperId`
+  (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
+  (`attributes` by default, `admin`, `fees`, `campers` for a registration, `history`, `raw`).
+- `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
+  (default) or `timeline`.
+- `/admin/organization/:organizationId/event/:eventId/settings` — `?settingsTab`: the open
+  settings section (`registration_types` by default, `validation_messages`, `email`, or the
+  event field being edited, e.g. `camper_schema`).
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
   `?emailTab` — `history`, `unsubscribed`, or templates (the default, left out of the URL);
   `?templateId` —
@@ -811,7 +821,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 ### 8.2 Event Admin container and navigation
 
 The event-admin area provides navigation among the event's admin functions, indicating the
-current one and showing the event/organization identity. The functions (each addressable at
+current one, showing the event's name, and offering a way back to event selection (§8.1). The functions (each addressable at
 `…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `campers`,
 `lodging`, `reports`, `email`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
 contract; the navigation's visual form is not.) The container shows who's signed in, with their
@@ -820,8 +830,9 @@ Camphoric permission group and Sign out, and marks the admin as read-only for a 
 Within each function the admin typically **finds/selects a record and views or edits its
 details**. Two cross-cutting requirements (the presentation is the implementer's call):
 
-- **Selection is URL-addressable** — the selected record (and, for tables, the sort/filter/page
-  state) lives in the URL so views are shareable, bookmarkable, and back/forward-friendly
+- **Selection is URL-addressable** — the selected record, the open tab or view within a section
+  or record editor (see §4 for each param; a default is left out of the URL, and an unknown or
+  unavailable value falls back to it), and, for tables, the sort/filter/page state live in the URL so views are shareable, bookmarkable, and back/forward-friendly
   (e.g. `?registrationId=…`, `?camperId=…`, `?reportId=…`).
 - **Data-heavy lists** (registrations, campers, invitations) support **sorting, filtering, and
   pagination** — handled client-side in the table over the full per-event dataset, which is small

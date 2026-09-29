@@ -6,7 +6,7 @@
  *   - Admin attribute schemas: registration, camper.
  * Registration types are also managed here (§8.4, §15 DR-32), as are the
  * registration form's custom validation messages (§15 DR-34) and the event's
- * email account (§15 DR-44).
+ * email account (§15 DR-44). The open tab is URL-addressable via `?settingsTab`.
  */
 
 import { Alert, Button, Container, Group, Stack, Tabs, Title } from '@mantine/core';
@@ -16,6 +16,7 @@ import type { ApiEvent } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
+import { useSearchTab } from 'hooks/useSearchTab';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 
@@ -50,6 +51,13 @@ const EDITABLE_FIELDS: { field: EditableField; title: string }[] = [
   { field: 'payment_schema', title: 'Payment schema' },
   { field: 'registration_admin_schema', title: 'Registration admin attrs' },
   { field: 'camper_admin_schema', title: 'Camper admin attrs' },
+];
+
+const TABS = [
+  REGISTRATION_TYPES,
+  VALIDATION_MESSAGES,
+  EMAIL,
+  ...EDITABLE_FIELDS.map(({ field }) => field),
 ];
 
 function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField }) {
@@ -98,6 +106,7 @@ export function EventAdminSettings() {
     from: '/admin/organization/$organizationId/event/$eventId',
   });
   const { data: event } = eventHooks.useById(eventId);
+  const [tab, setTab] = useSearchTab('settingsTab', TABS);
 
   if (!event) return <FullScreenLoading />;
 
@@ -105,7 +114,7 @@ export function EventAdminSettings() {
     <Container size="lg">
       <Stack>
         <Title order={2}>Settings</Title>
-        <Tabs defaultValue={REGISTRATION_TYPES} orientation="vertical">
+        <Tabs value={tab} onChange={setTab} orientation="vertical">
           <Tabs.List>
             <Tabs.Tab value={REGISTRATION_TYPES}>Registration types</Tabs.Tab>
             <Tabs.Tab value={VALIDATION_MESSAGES}>Validation messages</Tabs.Tab>

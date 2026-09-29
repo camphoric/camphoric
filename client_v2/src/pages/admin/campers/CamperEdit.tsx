@@ -5,6 +5,7 @@
  * Delete) always visible below the scrolling section. Save persists the camper's
  * `attributes` and `admin_attributes` in a single PATCH; the camper can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55).
+ * The open section is URL-addressable via `?camperTab`.
  *
  * The `camper_schema` is rendered in admin mode (§9.5): the registrant UI schema
  * for a camper is the campers array's item UI schema, admin-transformed; the
@@ -20,6 +21,7 @@ import { JsonSchemaForm } from 'components/form';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useState } from 'react';
 import { camperHooks } from 'store/entities';
@@ -39,7 +41,6 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
   const del = camperHooks.useDelete();
   const [attributes, setAttributes] = useState<Hash>(camper.attributes);
   const [adminAttributes, setAdminAttributes] = useState<Hash>(camper.admin_attributes);
-  const [tab, setTab] = useState<string | null>('attributes');
   const { canEdit } = usePermissions();
 
   useEffect(() => {
@@ -50,6 +51,13 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
   const { schema, uiSchema } = useCamperForm(event);
 
   const hasAdmin = Object.keys(event.camper_admin_schema ?? {}).length > 0;
+  const [tab, setTab] = useSearchTab('camperTab', [
+    'attributes',
+    ...(hasAdmin ? ['admin'] : []),
+    'fees',
+    ...(canEdit ? ['history'] : []),
+    'raw',
+  ]);
 
   const save = () =>
     update.mutate(
