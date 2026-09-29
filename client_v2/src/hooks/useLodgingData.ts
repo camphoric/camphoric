@@ -1,15 +1,16 @@
 /**
  * Lodging data for the admin lodging section (SPEC §8.6). Fetches the event's
  * lodging nodes and completed campers, builds the augmented tree (occupancy,
- * capacity, full paths), the flat lookup, the leaf list (campers attach only to
- * leaves), and the unassigned campers: those not in a leaf unit. Registration
- * sets a camper's `lodging` to the node they requested, which is often a branch
- * (e.g. "Cabins"), so a non-null `lodging` doesn't mean they've been placed.
+ * capacity, full paths), the flat lookup, the leaf list in tree order (campers
+ * attach only to leaves), and the unassigned campers: those not in a leaf unit.
+ * Registration sets a camper's `lodging` to the node they requested, which is
+ * often a branch (e.g. "Cabins"), so a non-null `lodging` doesn't mean they've
+ * been placed.
  */
 
 import type { ApiCamper, AugmentedLodging, LodgingLookup } from 'api-types';
 import { useMemo } from 'react';
-import { buildLodgingTree, flattenLodgingTree } from 'store/augmented';
+import { buildLodgingTree, flattenLodgingTree, listLodgingTree } from 'store/augmented';
 import { camperHooks, lodgingHooks } from 'store/entities';
 
 export interface LodgingData {
@@ -31,7 +32,7 @@ export function useLodgingData(eventId: string): LodgingData | undefined {
     if (!lodgings || !campers) return undefined;
     const tree = buildLodgingTree(lodgings, campers, eventId);
     const lodgingLookup = flattenLodgingTree(tree);
-    const leaves = Object.values(lodgingLookup).filter((n) => n.isLeaf);
+    const leaves = listLodgingTree(tree).filter((n) => n.isLeaf);
     const unassigned = campers.filter(
       (c) => c.lodging == null || !lodgingLookup[String(c.lodging)]?.isLeaf,
     );
