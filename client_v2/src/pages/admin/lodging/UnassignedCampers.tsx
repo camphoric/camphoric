@@ -1,6 +1,7 @@
 /**
  * Campers not yet placed in a leaf unit (SPEC §8.6), with the context needed to
  * place them: name, requested lodging, sharing preference/partner, and comments.
+ * Choosing a name selects the camper, showing their full lodging details.
  */
 
 import { Anchor, Button, Card, Group, Stack, Text, Title } from '@mantine/core';

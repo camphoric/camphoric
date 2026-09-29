@@ -69,11 +69,13 @@ export interface AdminSearch {
   camperId?: string;
   reportId?: string;
   registrationsTab?: string;
-  // The open section of the registration / camper editors, the Lodging view,
-  // and the Settings tab.
+  // The open section of the registration / camper editors, the Lodging view
+  // and the lodging it's narrowed to (comma-separated node ids), and the
+  // Settings tab.
   regTab?: string;
   camperTab?: string;
   lodgingView?: string;
+  lodgingFilter?: string;
   settingsTab?: string;
   // Email (SPEC §8.9): the tab, the template being edited, the open message,
   // and the history's filters.
