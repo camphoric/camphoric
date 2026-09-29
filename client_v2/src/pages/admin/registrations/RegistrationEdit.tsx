@@ -7,7 +7,8 @@
  * scrolling section. Save persists `{ registrant_email, registration_type,
  * attributes, admin_attributes }` in a single PATCH; the registration can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55). The
- * attributes form is rendered in admin mode (§9.5).
+ * attributes form is rendered in admin mode (§9.5). The open section is
+ * URL-addressable via `?regTab`.
  */
 
 import { Box, Button, Group, ScrollArea, Select, Stack, Tabs, TextInput } from '@mantine/core';
@@ -18,6 +19,7 @@ import { deriveAdminUiSchema, JsonSchemaForm } from 'components/form';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { registrationHooks } from 'store/entities';
@@ -49,7 +51,6 @@ export function RegistrationEdit({
   );
   const [attributes, setAttributes] = useState<Hash>(registration.attributes);
   const [adminAttributes, setAdminAttributes] = useState<Hash>(registration.admin_attributes);
-  const [tab, setTab] = useState<string | null>('attributes');
   const { canEdit } = usePermissions();
 
   // Reset the controlled fields when a different registration is selected.
@@ -68,6 +69,14 @@ export function RegistrationEdit({
   );
 
   const hasAdmin = Object.keys(event.registration_admin_schema ?? {}).length > 0;
+  const [tab, setTab] = useSearchTab('regTab', [
+    'attributes',
+    ...(hasAdmin ? ['admin'] : []),
+    'fees',
+    'campers',
+    ...(canEdit ? ['history'] : []),
+    'raw',
+  ]);
 
   const typeOptions = [
     { value: NONE, label: 'None' },

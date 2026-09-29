@@ -4,13 +4,25 @@
  * at …/event/:eventId/<section> so they're linkable; an unknown subpath falls
  * back to home (handled in the router).
  *
- * The header carries the user menu, and a "Read-only" badge for a user who can
- * view but not change (a Reporter; DR-51).
+ * The header names the event, links back to the event chooser, and carries the
+ * user menu and a "Read-only" badge for a user who can view but not change (a
+ * Reporter; DR-51).
  */
 
-import { AppShell, Badge, Burger, Group, NavLink, ScrollArea, Title } from '@mantine/core';
+import {
+  ActionIcon,
+  AppShell,
+  Badge,
+  Burger,
+  Group,
+  NavLink,
+  ScrollArea,
+  Text,
+  Title,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+  IconArrowLeft,
   IconBed,
   IconFileText,
   IconHelp,
@@ -24,6 +36,7 @@ import { Link, Outlet, useParams } from '@tanstack/react-router';
 import { usePermissions } from 'hooks/permissions';
 import { UserMenu } from 'navigation/UserMenu';
 import type { ReactNode } from 'react';
+import { eventHooks } from 'store/entities';
 
 const SECTIONS = [
   { path: 'home', label: 'Home', icon: IconHome },
@@ -40,6 +53,7 @@ export function EventAdminContainer() {
   const { organizationId, eventId } = useParams({ strict: false });
   const [opened, { toggle }] = useDisclosure();
   const { canEdit } = usePermissions();
+  const { data: event } = eventHooks.useById(eventId);
 
   const base = `/admin/organization/${organizationId}/event/${eventId}`;
 
@@ -51,9 +65,26 @@ export function EventAdminContainer() {
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Group wrap="nowrap">
+          <Group wrap="nowrap" style={{ minWidth: 0 }}>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Title order={4}>Camphoric Admin</Title>
+            <ActionIcon
+              component={Link}
+              to={`/admin/organization/${organizationId}/event`}
+              variant="subtle"
+              color="gray"
+              aria-label="Back to event selection"
+              title="Back to event selection"
+            >
+              <IconArrowLeft size={18} />
+            </ActionIcon>
+            <Title order={4} style={{ whiteSpace: 'nowrap' }}>
+              Camphoric Admin
+            </Title>
+            {event && (
+              <Text fw={500} c="dimmed" truncate>
+                {event.name}
+              </Text>
+            )}
             {!canEdit && (
               <Badge
                 variant="light"
