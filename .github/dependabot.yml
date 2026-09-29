@@ -1,0 +1,84 @@
+# Dependabot version updates: one grouped PR a month per directory for minor
+# and patch releases; major releases come as their own PRs. Security updates
+# (a repository setting) still open as soon as an alert does.
+#
+# Commit messages follow RELEASE.md: runtime dependencies as `fix(deps)` (a
+# patch release), development-only ones as `chore(deps-dev)` (no release).
+#
+# client/ (the v1 app) is left out: it's being retired, not updated.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /client_v2
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  - package-ecosystem: npm
+    directory: /data
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  # Pipfile / Pipfile.lock
+  - package-ecosystem: pip
+    directory: /server
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Base images. Python 3.12, Node 22 and Postgres 16 are pinned together
+  # across the Pipfile, CI and the Dockerfiles (the root Dockerfile's
+  # NODE_VERSION/PYTHON_VERSION ARGs, which Dependabot can't update), so an
+  # image PR is a reminder to move them all, not a change to merge alone.
+  - package-ecosystem: docker
+    directories: [/server, /data]
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: fix
+      include: scope
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # A new Postgres major needs the data upgraded (dump and restore or
+      # pg_upgrade), not a tag bump.
+      - dependency-name: postgres
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: fix
+      include: scope
