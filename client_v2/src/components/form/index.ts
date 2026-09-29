@@ -15,6 +15,7 @@ export {
 export { Address, Campers, customFields, LodgingRequested } from './fields';
 export { type ErrorMessagesOptions, JsonSchemaForm, type JsonSchemaFormProps } from './JsonSchemaForm';
 export { createMessagingValidator } from './messagingValidator';
+export { isPlainObject, type ReviewItem, reviewItems } from './reviewItems';
 export { collectFieldPaths, ERROR_KEYWORDS, type ErrorKeyword, type FieldPathInfo } from './schemaPaths';
 export { DescriptionFieldTemplate } from './templates/DescriptionFieldTemplate';
 export { customWidgets, DateWidget, NaturalNumberInput, PhoneInput, TextareaWidget } from './widgets';
