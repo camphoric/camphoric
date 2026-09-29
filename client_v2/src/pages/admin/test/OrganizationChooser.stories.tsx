@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the organization chooser (SPEC §8.1): an Admin's, who can
+ * Stories for the organization chooser (SPEC §8.1): an Admin's, who can
  * add, rename and delete organizations, and a Registrar's. The story keeps the
  * organizations itself (one with events can't be deleted) and runs in a small
- * in-memory router. Run `npm run ladle`.
+ * in-memory router. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
@@ -87,5 +87,7 @@ function Chooser({ userRole }: { userRole: Role }) {
   );
 }
 
-export const AsAdmin: Story = () => <Chooser userRole="admin" />;
-export const AsRegistrar: Story = () => <Chooser userRole="registrar" />;
+export default { title: 'Organization Chooser' } satisfies Meta;
+
+export const AsAdmin: StoryFn = () => <Chooser userRole="admin" />;
+export const AsRegistrar: StoryFn = () => <Chooser userRole="registrar" />;

@@ -1,11 +1,11 @@
 /**
- * Ladle story for RegistrationReview (SPEC §7.2): the read-only rundown shown
+ * Story for RegistrationReview (SPEC §7.2): the read-only rundown shown
  * above the payment options, with enum/boolean/array/nested values and the
- * per-section pricing summaries. Run `npm run ladle`.
+ * per-section pricing summaries. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ApiRegister } from 'api-types';
 
 import { RegistrationReview } from '../RegistrationReview';
@@ -193,14 +193,16 @@ const results = {
 };
 
 /** Two campers, nested groups, conditional fields and per-section fee summaries. */
-export const Review: Story = () => (
+export default { title: 'Registration Review' } satisfies Meta;
+
+export const Review: StoryFn = () => (
   <Stack maw={720} p="md">
     <RegistrationReview config={config} registration={registration} results={results} />
   </Stack>
 );
 
 /** A bare registration with a single camper and no fee lines besides the total. */
-export const Minimal: Story = () => (
+export const Minimal: StoryFn = () => (
   <Stack maw={720} p="md">
     <RegistrationReview
       config={{ ...config, pricingLogic: { registration: [], camper: [] } }}

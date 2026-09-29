@@ -36,7 +36,7 @@ server/frontend_bootstrap/build/
 client/
 client_v2/build/
 client_v2/dist/
-client_v2/ladle-dist/
+client_v2/storybook-static/
 client_v2/test-results/
 client_v2/playwright-report/
 client_v2/*.tsbuildinfo

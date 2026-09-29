@@ -1,14 +1,16 @@
 /**
- * Ladle story for the KeyValueEdit component (SPEC §9.6). Run `npm run ladle`.
+ * Story for the KeyValueEdit component (SPEC §9.6). Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack, Title } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { KeyValueEdit, type KeyValueMap } from '../KeyValueEdit';
 
-export const Pricing: Story = () => {
+export default { title: 'Key Value Edit' } satisfies Meta;
+
+export const Pricing: StoryFn = () => {
   const [value, setValue] = useState<KeyValueMap>({ adult: 100, child: 50 });
   return (
     <Stack maw={480} p="md">
@@ -19,7 +21,7 @@ export const Pricing: Story = () => {
   );
 };
 
-export const TemplateVars: Story = () => {
+export const TemplateVars: StoryFn = () => {
   const [value, setValue] = useState<KeyValueMap>({ camp_name: 'Summer Camp' });
   return (
     <Stack maw={480} p="md">

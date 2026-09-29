@@ -1,13 +1,15 @@
 /**
- * Ladle story for the template problems list (SPEC §9.6). Run `npm run ladle`.
+ * Story for the template problems list (SPEC §9.6). Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 
 import { TemplateDiagnostics } from '../TemplateDiagnostics';
 
-export const Problems: Story = () => (
+export default { title: 'Template Diagnostics' } satisfies Meta;
+
+export const Problems: StoryFn = () => (
   <Stack maw={720} p="md">
     <TemplateDiagnostics
       onJump={(d) => window.alert(`Jump to line ${d.line}`)}

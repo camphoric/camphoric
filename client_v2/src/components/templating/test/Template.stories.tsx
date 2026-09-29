@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the templating engine — a live playground for the Handlebars
+ * Stories for the templating engine — a live playground for the Handlebars
  * helpers, the markdown pipeline, sanitization, and the error fallback. Run
- * `npm run ladle`.
+ * `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Divider, Stack, Textarea, Title } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { Template } from 'components/templating';
 import { useState } from 'react';
 
@@ -22,7 +22,9 @@ const sampleVars = {
 };
 
 /** Plain GFM markdown rendering. */
-export const Markdown: Story = () => (
+export default { title: 'Template' } satisfies Meta;
+
+export const Markdown: StoryFn = () => (
   <Stack p="md" maw={640}>
     <Template
       markdown={
@@ -33,7 +35,7 @@ export const Markdown: Story = () => (
 );
 
 /** Handlebars helpers rendered against `sampleVars`. */
-export const Helpers: Story = () => (
+export const Helpers: StoryFn = () => (
   <Stack p="md" maw={640}>
     <Template
       markdown={[
@@ -48,7 +50,7 @@ export const Helpers: Story = () => (
 );
 
 /** Sanitization: scripts are stripped; class/style on div/span are kept; external links open in a new tab. */
-export const Sanitization: Story = () => (
+export const Sanitization: StoryFn = () => (
   <Stack p="md" maw={640}>
     <Template
       markdown={[
@@ -63,7 +65,7 @@ export const Sanitization: Story = () => (
 );
 
 /** A render failure shows the error in a <pre> rather than crashing. */
-export const RenderError: Story = () => (
+export const RenderError: StoryFn = () => (
   <Stack p="md" maw={640}>
     {/* {{count 5}} throws (non-array) and is caught by the component. */}
     <Template markdown="{{count 5}}" />
@@ -71,7 +73,7 @@ export const RenderError: Story = () => (
 );
 
 /** Edit a template live against the sample variables. */
-export const Playground: Story = () => {
+export const Playground: StoryFn = () => {
   const [markdown, setMarkdown] = useState(
     "Hello **{{getCamperValue '1' 'attributes.first_name'}}** — {{count campers}} campers.",
   );

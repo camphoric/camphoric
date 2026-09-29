@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the password forms (SPEC §6; §15 DR-52): choosing a
+ * Stories for the password forms (SPEC §6; §15 DR-52): choosing a
  * password from a set-password link, a password the server refuses, changing
  * your own, and the forced "choose a new password" screen. The story answers
- * the change-password request itself. Run `npm run ladle`.
+ * the change-password request itself. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { anonymousUser } from 'api-types';
 import { MustChangePassword } from 'navigation/MustChangePassword';
@@ -46,7 +46,9 @@ function WithQueries({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-export const SetPassword: Story = () => {
+export default { title: 'Password Forms' } satisfies Meta;
+
+export const SetPassword: StoryFn = () => {
   const [chosen, setChosen] = useState<string | null>(null);
   return (
     <Stack p="md" maw={400}>
@@ -56,13 +58,13 @@ export const SetPassword: Story = () => {
   );
 };
 
-export const SetPasswordRefused: Story = () => (
+export const SetPasswordRefused: StoryFn = () => (
   <Stack p="md" maw={400}>
     <SetPasswordForm username="pat" onSubmit={() => {}} error="This password is too common." />
   </Stack>
 );
 
-export const ChangePassword: Story = () => {
+export const ChangePassword: StoryFn = () => {
   const [done, setDone] = useState(false);
   return (
     <WithQueries>
@@ -74,7 +76,7 @@ export const ChangePassword: Story = () => {
   );
 };
 
-export const MustChange: Story = () => (
+export const MustChange: StoryFn = () => (
   <WithQueries>
     <MustChangePassword user={{ ...anonymousUser, id: 3, username: 'pat', is_active: true }} />
   </WithQueries>

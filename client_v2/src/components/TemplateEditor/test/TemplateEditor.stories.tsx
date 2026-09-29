@@ -1,16 +1,16 @@
 /**
- * Ladle stories for the Jinja template editor (SPEC §9.6, DR-36). They use a
+ * Stories for the Jinja template editor (SPEC §9.6, DR-36). They use a
  * real variable spec (Camp Harmony's, trimmed) and a stand-in preview, so no
  * backend is needed: autocomplete, hover docs and highlighting are the real
  * thing; the preview flags `frist_name` as a typo and an unclosed tag as a
- * syntax error. Run `npm run ladle`.
+ * syntax error. Run `npm run storybook`.
  *
  * Try: `{{ event.` · `{% for camper in campers %}{{ camper.attributes.` ·
  * `{{ campers | ` · `{% `.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { TemplateDiagnostic, TemplatePreviewOutput, TemplatePreviewResponse } from 'api-types';
 import { useMemo, useState } from 'react';
 
@@ -88,20 +88,22 @@ function Editor({ initial, output }: { initial: string; output: TemplatePreviewO
   );
 }
 
-export const CsvReport: Story = () => <Editor initial={CABIN_REPORT} output="csv" />;
+export default { title: 'Template Editor' } satisfies Meta;
 
-export const MarkdownReport: Story = () => <Editor initial={BALANCES} output="md" />;
+export const CsvReport: StoryFn = () => <Editor initial={CABIN_REPORT} output="csv" />;
 
-export const WithProblems: Story = () => (
+export const MarkdownReport: StoryFn = () => <Editor initial={BALANCES} output="md" />;
+
+export const WithProblems: StoryFn = () => (
   <Editor
     initial={'Name\n{% for camper in campers %}\n{{ camper.attributes.frist_name }}\n'}
     output="csv"
   />
 );
 
-export const Empty: Story = () => <Editor initial="" output="csv" />;
+export const Empty: StoryFn = () => <Editor initial="" output="csv" />;
 
-export const EditorOnly: Story = () => {
+export const EditorOnly: StoryFn = () => {
   const [value, setValue] = useState(CABIN_REPORT);
   return (
     <Stack p="md">

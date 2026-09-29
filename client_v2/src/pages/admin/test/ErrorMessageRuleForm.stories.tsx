@@ -1,12 +1,12 @@
 /**
- * Ladle stories for ErrorMessageRuleForm (SPEC §8.8, DR-34): adding a message
+ * Stories for ErrorMessageRuleForm (SPEC §8.8, DR-34): adding a message
  * (pick a field from a Harmony-like registration schema, then an error type,
- * and watch the preview) and editing an existing one. Run `npm run ladle`.
+ * and watch the preview) and editing an existing one. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Button, Code, Stack } from '@mantine/core';
 import type { RJSFSchema } from '@rjsf/utils';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { RegistrationErrorMessages } from 'api-types';
 import { collectFieldPaths, type ErrorMessageRule } from 'components/form';
 import { useState } from 'react';
@@ -74,10 +74,12 @@ function Harness({
 }
 
 /** A new message: choose a field and error type, write the message, see the preview. */
-export const AddMessage: Story = () => <Harness initial={{}} />;
+export default { title: 'Error Message Rule Form' } satisfies Meta;
+
+export const AddMessage: StoryFn = () => <Harness initial={{}} />;
 
 /** Editing the Camp Harmony lodging message. */
-export const EditMessage: Story = () => {
+export const EditMessage: StoryFn = () => {
   const rule = {
     path: 'campers.*.lodging.lodging_requested.id',
     keyword: 'required',

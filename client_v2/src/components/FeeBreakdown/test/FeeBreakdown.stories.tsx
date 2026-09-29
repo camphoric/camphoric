@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the fee breakdown (SPEC §8.4, §8.5; §15, DR-56): plain,
+ * Stories for the fee breakdown (SPEC §8.4, §8.5; §15, DR-56): plain,
  * with an overridden line as a Registrar sees it (with actions) and as a
  * Reporter does (without), an override that isn't in effect, and a waived
- * handling fee. Run `npm run ladle`.
+ * handling fee. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Box } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 
 import { FeeBreakdown } from '../FeeBreakdown';
 import {
@@ -21,7 +21,9 @@ import {
 
 const noop = () => undefined;
 
-export const Plain: Story = () => (
+export default { title: 'Fee Breakdown' } satisfies Meta;
+
+export const Plain: StoryFn = () => (
   <Box p="md">
     <FeeBreakdown
       results={{ ...OVERRIDDEN, tuition: 920, overridden: undefined }}
@@ -30,7 +32,7 @@ export const Plain: Story = () => (
   </Box>
 );
 
-export const OverriddenAsRegistrar: Story = () => (
+export const OverriddenAsRegistrar: StoryFn = () => (
   <Box p="md">
     <FeeBreakdown
       results={OVERRIDDEN}
@@ -43,13 +45,13 @@ export const OverriddenAsRegistrar: Story = () => (
   </Box>
 );
 
-export const OverriddenAsReporter: Story = () => (
+export const OverriddenAsReporter: StoryFn = () => (
   <Box p="md">
     <FeeBreakdown results={OVERRIDDEN} logics={[CAMPER_LOGIC]} overrides={[TUITION_OVERRIDE]} />
   </Box>
 );
 
-export const HandlingWaived: Story = () => (
+export const HandlingWaived: StoryFn = () => (
   <Box p="md">
     <FeeBreakdown
       results={HANDLING_WAIVED}

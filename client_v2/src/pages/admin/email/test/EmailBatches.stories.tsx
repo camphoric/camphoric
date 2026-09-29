@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the group email sends in the history (SPEC §8.9): one
+ * Stories for the group email sends in the history (SPEC §8.9): one
  * sending, one scheduled, one finished with failures, and one cancelled.
- * Cancel and Retry failed are answered by the story. Run `npm run ladle`.
+ * Cancel and Retry failed are answered by the story. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -51,7 +51,9 @@ const batches = [
   }),
 ];
 
-export const Sends: Story = () => {
+export default { title: 'Email Batches' } satisfies Meta;
+
+export const Sends: StoryFn = () => {
   const [selected, setSelected] = useState<number | undefined>();
   const [client] = useState(() => {
     stubEmailApi(() => {});

@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the group email template editor (SPEC §8.9): a new
+ * Stories for the group email template editor (SPEC §8.9): a new
  * template, and an existing one with conditions. The story answers the API
- * itself (stubEmailApi), so no backend is needed. Run `npm run ladle`.
+ * itself (stubEmailApi), so no backend is needed. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ApiEmailTemplate } from 'api-types';
 import { useState } from 'react';
@@ -40,9 +40,11 @@ function Harness({ template }: { template?: ApiEmailTemplate }) {
   );
 }
 
-export const New: Story = () => <Harness />;
+export default { title: 'Group Template Editor' } satisfies Meta;
 
-export const WithConditions: Story = () => (
+export const New: StoryFn = () => <Harness />;
+
+export const WithConditions: StoryFn = () => (
   <Harness
     template={sampleTemplate({
       recipient_source: 'campers',

@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the event's unsubscribed addresses (SPEC §8.9): a list with
+ * Stories for the event's unsubscribed addresses (SPEC §8.9): a list with
  * both kinds of entry, and an empty one. The story keeps the list itself, so
- * adding and removing work without a backend. Run `npm run ladle`.
+ * adding and removing work without a backend. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ApiEmailUnsubscribe } from 'api-types';
 import { useState } from 'react';
@@ -69,7 +69,9 @@ function Harness({ rows }: { rows: ApiEmailUnsubscribe[] }) {
   );
 }
 
-export const List: Story = () => (
+export default { title: 'Email Unsubscribes' } satisfies Meta;
+
+export const List: StoryFn = () => (
   <Harness
     rows={[
       {
@@ -94,4 +96,4 @@ export const List: Story = () => (
   />
 );
 
-export const Empty: Story = () => <Harness rows={[]} />;
+export const Empty: StoryFn = () => <Harness rows={[]} />;

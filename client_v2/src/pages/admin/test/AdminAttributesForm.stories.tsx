@@ -1,11 +1,11 @@
 /**
- * Ladle story for AdminAttributesForm (SPEC §8.4, §8.5). Exercises the combined
+ * Story for AdminAttributesForm (SPEC §8.4, §8.5). Exercises the combined
  * `*_admin_schema` map through the real form engine, plus the empty case (which
- * renders nothing). Run `npm run ladle`.
+ * renders nothing). Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack, Title } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { Hash } from 'api-types';
 import { useState } from 'react';
 
@@ -30,7 +30,9 @@ const adminSchema = {
   },
 };
 
-export const Populated: Story = () => {
+export default { title: 'Admin Attributes Form' } satisfies Meta;
+
+export const Populated: StoryFn = () => {
   const [value, setValue] = useState<Hash>({ vip: { vip_notes: 'Major sponsor' } });
   return (
     <Stack maw={520} p="md">
@@ -41,7 +43,7 @@ export const Populated: Story = () => {
   );
 };
 
-export const Empty: Story = () => (
+export const Empty: StoryFn = () => (
   <Stack maw={520} p="md">
     <Title order={6}>An empty admin schema renders nothing below:</Title>
     <AdminAttributesForm adminSchema={{}} value={{}} onChange={() => undefined} />

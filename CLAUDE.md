@@ -50,15 +50,17 @@ cross-references — so the document never contradicts itself.
 
 Abide by all principles in the [CONTRIBUTING.md](./CONTRIBUTING.md) document.
 
-## Component Stories (Ladle)
+## Component Stories (Storybook)
 
-The V2 client (`client_v2/`) uses [Ladle](https://ladle.dev) as its component workbench
-(`npm run ladle`). **Every form widget — and any other reusable UI component — must ship with a
-Ladle story when it's added.** Put the story in the `test/` directory inside the component's
+The V2 client (`client_v2/`) uses [Storybook](https://storybook.js.org) as its component workbench
+(`npm run storybook`). **Every form widget — and any other reusable UI component — must ship with a
+story when it's added.** Put the story in the `test/` directory inside the component's
 folder as `test/<Component>.stories.tsx` (tests and fixtures go there too), wrap usage in a story that exercises the component's states (and, for
 form widgets, render them through the `JsonSchemaForm` engine with a representative schema so the
 real rjsf wiring is covered). Stories use the CSF format and double as render targets for the
-Playwright e2e suite, so keep them current as components change.
+Playwright e2e suite, so keep them current as components change. Give each stories file a meta
+title that is its component's name in words (`export default { title: 'Confirm Delete' } satisfies
+Meta;`): the title fixes the story ids (`confirm-delete--blocked`) that the e2e suite opens.
 
 ## Using Git
 

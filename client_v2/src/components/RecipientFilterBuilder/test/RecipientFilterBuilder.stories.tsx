@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the recipient filter builder (SPEC §8.9): no conditions,
+ * Stories for the recipient filter builder (SPEC §8.9): no conditions,
  * a filter using every kind of field, and a rule on a field the event no longer
- * has. The JSON the builder produces is shown under it. Run `npm run ladle`.
+ * has. The JSON the builder produces is shown under it. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { EmailFilter } from 'api-types';
 import { useState } from 'react';
 
@@ -29,9 +29,11 @@ function Harness({ initial }: { initial: EmailFilter }) {
   );
 }
 
-export const Empty: Story = () => <Harness initial={EMPTY_FILTER} />;
+export default { title: 'Recipient Filter Builder' } satisfies Meta;
 
-export const EveryType: Story = () => (
+export const Empty: StoryFn = () => <Harness initial={EMPTY_FILTER} />;
+
+export const EveryType: StoryFn = () => (
   <Harness
     initial={{
       combinator: 'and',
@@ -48,7 +50,7 @@ export const EveryType: Story = () => (
   />
 );
 
-export const MissingField: Story = () => (
+export const MissingField: StoryFn = () => (
   <Harness
     initial={{
       combinator: 'or',

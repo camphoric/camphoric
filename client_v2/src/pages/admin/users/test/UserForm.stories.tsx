@@ -1,12 +1,12 @@
 /**
- * Ladle stories for adding and editing users (SPEC §8.10): as an Admin, as a
+ * Stories for adding and editing users (SPEC §8.10): as an Admin, as a
  * superuser (with Django access and password choices), editing yourself, and
  * a superuser setting someone's password. The story prints what would be
- * saved. Run `npm run ladle`.
+ * saved. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { SetUserPasswordModal } from '../SetUserPasswordModal';
@@ -27,14 +27,16 @@ function Harness(props: Partial<UserFormProps>) {
   );
 }
 
-export const NewUser: Story = () => <Harness />;
-export const NewUserAsSuperuser: Story = () => <Harness isSuperuser />;
-export const Edit: Story = () => <Harness user={sampleUser()} />;
-export const EditYourself: Story = () => (
+export default { title: 'User Form' } satisfies Meta;
+
+export const NewUser: StoryFn = () => <Harness />;
+export const NewUserAsSuperuser: StoryFn = () => <Harness isSuperuser />;
+export const Edit: StoryFn = () => <Harness user={sampleUser()} />;
+export const EditYourself: StoryFn = () => (
   <Harness user={sampleUser({ role: 'admin' })} isSelf isSuperuser />
 );
 
-export const SetPassword: Story = () => {
+export const SetPassword: StoryFn = () => {
   const [open, setOpen] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   return (

@@ -1,14 +1,16 @@
 /**
- * Ladle story for InlineDoc (SPEC §9.3): spec docs with `code` names. Run
- * `npm run ladle`.
+ * Story for InlineDoc (SPEC §9.3): spec docs with `code` names. Run
+ * `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 
 import { InlineDoc } from '../InlineDoc';
 
-export const Doc: Story = () => (
+export default { title: 'Inline Doc' } satisfies Meta;
+
+export const Doc: StoryFn = () => (
   <Stack maw={560} p="md">
     <InlineDoc>
       {

@@ -1,17 +1,19 @@
 /**
- * Ladle stories for the custom rjsf fields (SPEC §9.1). Each is exercised through
+ * Stories for the custom rjsf fields (SPEC §9.1). Each is exercised through
  * the JsonSchemaForm engine with a representative schema, alongside a live view
- * of the form data. Run `npm run ladle`.
+ * of the form data. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack, Title } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { JsonSchemaForm } from 'components/form';
 import { useState } from 'react';
 
 /** Campers — an array of campers with ordinal headings and add/remove controls. */
-export const Campers: Story = () => {
+export default { title: 'Fields' } satisfies Meta;
+
+export const Campers: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({ campers: [{}, {}] });
   const schema: RJSFSchema = {
     type: 'object',
@@ -44,7 +46,7 @@ export const Campers: Story = () => {
 };
 
 /** LodgingRequested — a cascading select over a lodging tree, leaf-only final choice. */
-export const LodgingRequested: Story = () => {
+export const LodgingRequested: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   const schema: RJSFSchema = {
     type: 'object',
@@ -97,7 +99,7 @@ export const LodgingRequested: Story = () => {
  * LodgingRequested — lodging an organizer has marked (#602): the tent field is
  * marked full though it has room, and Cabin B is marked open though it has none.
  */
-export const LodgingRequestedMarked: Story = () => {
+export const LodgingRequestedMarked: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   const schema: RJSFSchema = {
     type: 'object',
@@ -147,7 +149,7 @@ export const LodgingRequestedMarked: Story = () => {
  * the second dropdown; submit to see the event's validation message under the
  * unfinished dropdown and in the list at the top.
  */
-export const LodgingRequestedUnfinished: Story = () => {
+export const LodgingRequestedUnfinished: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({
     lodging_requested: { choices: [2] },
   });

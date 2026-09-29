@@ -1,10 +1,10 @@
 /**
- * Ladle stories for the user menu (SPEC §6, §8.2): who's signed in and their
- * Camphoric permission group, for each group. Run `npm run ladle`.
+ * Stories for the user menu (SPEC §6, §8.2): who's signed in and their
+ * Camphoric permission group, for each group. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Group } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { anonymousUser, type ApiUser, type Role } from 'api-types';
 import { WHOAMI_KEY } from 'hooks/auth';
@@ -40,11 +40,13 @@ function Signed({ userRole, name }: { userRole: Role | null; name: [string, stri
   );
 }
 
-export const Admin: Story = () => <Signed userRole="admin" name={['Pat', 'Alpha']} />;
-export const Registrar: Story = () => <Signed userRole="registrar" name={['Sam', 'Beta']} />;
-export const Reporter: Story = () => <Signed userRole="reporter" name={['', '']} />;
+export default { title: 'User Menu' } satisfies Meta;
 
-export const WithoutAccess: Story = () => {
+export const Admin: StoryFn = () => <Signed userRole="admin" name={['Pat', 'Alpha']} />;
+export const Registrar: StoryFn = () => <Signed userRole="registrar" name={['Sam', 'Beta']} />;
+export const Reporter: StoryFn = () => <Signed userRole="reporter" name={['', '']} />;
+
+export const WithoutAccess: StoryFn = () => {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>

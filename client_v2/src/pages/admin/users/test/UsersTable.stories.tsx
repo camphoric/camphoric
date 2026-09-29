@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the users list (SPEC §8.10): a superuser's view (with
+ * Stories for the users list (SPEC §8.10): a superuser's view (with
  * Django access and Set password) and an Admin's. The last action taken is
- * shown under the table. Run `npm run ladle`.
+ * shown under the table. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ApiManagedUser } from 'api-types';
 import { useState } from 'react';
 
@@ -35,5 +35,7 @@ function Harness({ superuser }: { superuser: boolean }) {
   );
 }
 
-export const AsSuperuser: Story = () => <Harness superuser />;
-export const AsAdmin: Story = () => <Harness superuser={false} />;
+export default { title: 'Users Table' } satisfies Meta;
+
+export const AsSuperuser: StoryFn = () => <Harness superuser />;
+export const AsAdmin: StoryFn = () => <Harness superuser={false} />;

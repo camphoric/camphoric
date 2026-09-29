@@ -1,15 +1,18 @@
 /**
- * Component e2e (SPEC §12, DR-28) — drives the Ladle stories so the real form
+ * Component e2e (SPEC §12, DR-28) — drives the Storybook stories so the real form
  * engine, templating pipeline, data table, and admin widgets are exercised in a
  * browser, with no backend. Runs on desktop and mobile projects.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
-import { LADLE_URL } from '../playwright.config';
+import { STORYBOOK_URL } from '../playwright.config';
 
-/** Open a Ladle story in preview mode (no Ladle chrome). */
-const story = (id: string) => `${LADLE_URL}/?story=${id}&mode=preview`;
+/** Open a story on its own (Storybook's iframe, without the Storybook UI). */
+const story = (id: string) => `${STORYBOOK_URL}/iframe.html?id=${id}&viewMode=story`;
+
+/** The story's table rows (Storybook's page also holds a hidden placeholder table). */
+const tableRows = (page: Page) => page.locator('#storybook-root tbody tr');
 
 test.describe('Form engine', () => {
   test('renders the custom widgets through JsonSchemaForm', async ({ page }) => {
@@ -22,7 +25,7 @@ test.describe('Form engine', () => {
 test.describe('Data table', () => {
   test('sorts, filters, and stays usable on small screens', async ({ page }) => {
     await page.goto(story('data-table--basic'));
-    const rows = page.locator('tbody tr');
+    const rows = tableRows(page);
     await expect(rows.first()).toBeVisible();
 
     // Sort by name ascending → an "Abby …" row sorts first.
@@ -130,7 +133,7 @@ test.describe('Email history', () => {
   // The story filters its sample messages the way the server does.
   test('filters by status and searches, on any screen size', async ({ page }) => {
     await page.goto(story('email-history-table--history'));
-    const rows = page.locator('tbody tr');
+    const rows = tableRows(page);
     await expect(rows).toHaveCount(6);
 
     const status = page.getByRole('radiogroup', { name: 'Status' });

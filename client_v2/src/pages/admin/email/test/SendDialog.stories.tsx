@@ -1,13 +1,13 @@
 /**
- * Ladle stories for sending a group email (SPEC §8.9): review the recipients
+ * Stories for sending a group email (SPEC §8.9): review the recipients
  * (one already got it), choose more with an ad-hoc filter, pick the sender and
  * when, send a test, and confirm. The story answers the API itself
- * (stubEmailApi) and shows what it would have posted. Run `npm run ladle`.
+ * (stubEmailApi) and shows what it would have posted. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ApiEvent, Role } from 'api-types';
 import { PermissionsProvider } from 'hooks/permissions';
@@ -52,7 +52,9 @@ function Harness({ userRole }: { userRole: Role }) {
   );
 }
 
-export const Send: Story = () => <Harness userRole="admin" />;
+export default { title: 'Send Dialog' } satisfies Meta;
+
+export const Send: StoryFn = () => <Harness userRole="admin" />;
 
 /** A Reporter can review the recipients but has no Send or test button (DR-51). */
-export const AsReporter: Story = () => <Harness userRole="reporter" />;
+export const AsReporter: StoryFn = () => <Harness userRole="reporter" />;

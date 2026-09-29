@@ -1,9 +1,9 @@
 /**
- * Ladle stories for the email history table (SPEC §8.9), with a page of mixed
- * messages; the filters work against the sample data. Run `npm run ladle`.
+ * Stories for the email history table (SPEC §8.9), with a page of mixed
+ * messages; the filters work against the sample data. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ApiEmailMessage } from 'api-types';
 import { useState } from 'react';
 import type { EmailHistoryFilters } from 'store/email';
@@ -42,7 +42,9 @@ const MESSAGES: ApiEmailMessage[] = [
   sampleMessage({ id: 1 }),
 ];
 
-export const History: Story = () => {
+export default { title: 'Email History Table' } satisfies Meta;
+
+export const History: StoryFn = () => {
   const [filters, setFilters] = useState<EmailHistoryFilters>({});
   const [selected, setSelected] = useState<number>();
   const statuses = filters.status ? filters.status.split(',') : null;
@@ -65,7 +67,7 @@ export const History: Story = () => {
   );
 };
 
-export const Empty: Story = () => (
+export const Empty: StoryFn = () => (
   <EmailHistoryTable
     page={{ count: 0, next: null, previous: null, results: [] }}
     filters={{}}

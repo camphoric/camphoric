@@ -1,10 +1,10 @@
 /**
- * Ladle story for the DataTable (SPEC §8.2, DR-19). Exercises sorting, the
- * global fuzzy filter, pagination, and row selection. Run `npm run ladle`.
+ * Story for the DataTable (SPEC §8.2, DR-19). Exercises sorting, the
+ * global fuzzy filter, pagination, and row selection. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack, Title } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
 
@@ -30,7 +30,9 @@ const columns: ColumnDef<Person, unknown>[] = [
   { accessorKey: 'age', header: 'Age' },
 ];
 
-export const Basic: Story = () => {
+export default { title: 'Data Table' } satisfies Meta;
+
+export const Basic: StoryFn = () => {
   const [selectedId, setSelectedId] = useState<number>();
   return (
     <Stack maw={640} p="md">
@@ -47,7 +49,7 @@ export const Basic: Story = () => {
   );
 };
 
-export const Empty: Story = () => (
+export const Empty: StoryFn = () => (
   <Stack maw={640} p="md">
     <DataTable data={[]} columns={columns} emptyMessage="No people yet." />
   </Stack>

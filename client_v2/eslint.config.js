@@ -8,7 +8,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['build', 'dist', 'ladle-dist', 'node_modules', 'coverage', '.ladle'] },
+  { ignores: ['build', 'dist', 'storybook-static', 'node_modules', 'coverage', '.storybook'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

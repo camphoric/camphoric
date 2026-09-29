@@ -1,12 +1,12 @@
 /**
- * Ladle story for the LodgingTimeline (SPEC §8.6, DR-6). Seeds a small set of
+ * Story for the LodgingTimeline (SPEC §8.6, DR-6). Seeds a small set of
  * leaves and campers in local state so dragging a camper into a day cell, moving
  * a bar, resizing it, and dragging back to "Unassigned" all visibly update.
- * Run `npm run ladle`.
+ * Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack, Title } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
 import { PermissionsProvider } from 'hooks/permissions';
 import { useState } from 'react';
@@ -44,7 +44,12 @@ const camper = (
   lodging: number | null,
   stay: string[] | null,
 ): ApiCamper =>
-  ({ id, attributes: { first_name: first, last_name: last }, lodging, stay }) as unknown as ApiCamper;
+  ({
+    id,
+    attributes: { first_name: first, last_name: last },
+    lodging,
+    stay,
+  }) as unknown as ApiCamper;
 
 const SEED: ApiCamper[] = [
   camper(1, 'Bob', 'Ross', 10, [DAYS[0], DAYS[1], DAYS[2]]),
@@ -56,7 +61,9 @@ const SEED: ApiCamper[] = [
   camper(6, 'River', 'Tam', 1, null),
 ];
 
-export const Assignment: Story = () => {
+export default { title: 'Lodging Timeline' } satisfies Meta;
+
+export const Assignment: StoryFn = () => {
   const [campers, setCampers] = useState<ApiCamper[]>(SEED);
 
   const leaves = LEAVES.map((l) => {
@@ -86,7 +93,7 @@ export const Assignment: Story = () => {
 };
 
 /** A Reporter sees the timeline but can't drag or resize (DR-51). */
-export const AsReporter: Story = () => (
+export const AsReporter: StoryFn = () => (
   <PermissionsProvider userRole="reporter">
     <Assignment />
   </PermissionsProvider>
