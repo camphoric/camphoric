@@ -20,7 +20,8 @@ export function useSearchTab<T extends string>(
   const setTab = (value: string | null) =>
     void navigate({
       to: '.',
-      search: (prev: Record<string, unknown>) => ({
+      // Search params are strings (the admin routes' AdminSearch contract, SPEC §4).
+      search: (prev: Record<string, string | undefined>) => ({
         ...prev,
         [param]: value && value !== allowed[0] ? value : undefined,
       }),
