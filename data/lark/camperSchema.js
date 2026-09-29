@@ -1,5 +1,6 @@
 import meals from './camperMeals.js';
 import pricing from './pricing/pricing.js';
+import regTemplateVars from './regTemplateVars.js';
 
 export const sessionTypes = {
   F: 'Full camp',
@@ -217,7 +218,7 @@ help.
 **ALL vehicles and trailers are required to have a parking pass.**  
 *Mendocino Woodlands vehicle requirements:* If you have a car AND a trailer, you will need two (2) parking passes. If your vehicle, or combined vehicle and trailer, is over 20 feet long, call to ensure there is available space *before* you register.
 
-*   You can pre-purchase parking passes for \${{pricing.camper_parking_pass}}; you’ll receive your parking pass when you arrive at camp.
+*   You can pre-purchase parking passes for \$${pricing.camper_parking_pass}; you’ll receive your parking pass when you arrive at camp.
 *   If you purchase your parking pass at camp, the cost will be \$${pricing.parking_pass_at_camp_extra + pricing.camper_parking_pass} (no credit cards accepted at camp).`,
       'minItems': 0,
       'maxItems': 4,
@@ -258,14 +259,14 @@ help.
     'session': {
       'type': 'string',
       'title': 'When will you attend?',
-      'description': `*Full camp* begins {{full_camp_start_date_time}}, and ends {{full_camp_end_date_time}}.  
-*First half camp* begins {{first_half_camp_start_date_time}}, and ends {{first_half_camp_end_date_time}}.  
-*Second half camp* begins {{second_half_camp_start_date_time}}, and ends {{second_half_camp_end_date_time}}.  
+      'description': `*Full camp* begins ${regTemplateVars.full_camp_start_date_time}, and ends ${regTemplateVars.full_camp_end_date_time}.  
+*First half camp* begins ${regTemplateVars.first_half_camp_start_date_time}, and ends ${regTemplateVars.first_half_camp_end_date_time}.  
+*Second half camp* begins ${regTemplateVars.second_half_camp_start_date_time}, and ends ${regTemplateVars.second_half_camp_end_date_time}.  
 
 | Pricing (age range) | adult (18+) | youth (5-17) | kid¹ (0-4) |
 | --- | --- | --- | --- |
-| Full Camp | \${{pricing.full_adult}} | \${{pricing.full_youth}} | \${{pricing.full_kid}} |
-| Half Camp | \${{pricing.half_adult}} | \${{pricing.half_youth}} | \${{pricing.half_kid}} |
+| Full Camp | \$${pricing.full_adult} | \$${pricing.full_youth} | \$${pricing.full_kid} |
+| Half Camp | \$${pricing.half_adult} | \$${pricing.half_youth} | \$${pricing.half_kid} |
 
 1: Children 4 and under are free, but may not take up a cabin bed.`,
       'enum': Object.values(sessionTypes),
