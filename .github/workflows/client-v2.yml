@@ -51,7 +51,7 @@ jobs:
       - name: Unit tests
         run: npm test
 
-  # The component tests drive a static Ladle build of the stories; the
+  # The component tests drive a static Storybook build of the stories; the
   # registration smoke test needs the Django API, so it skips here (no backend).
   e2e:
     runs-on: ubuntu-latest

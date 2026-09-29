@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the template preview panel (SPEC §9.6): each output
+ * Stories for the template preview panel (SPEC §9.6): each output
  * format, problems, a cut-off result and a failed request. Run
- * `npm run ladle`.
+ * `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { TemplatePreviewResponse } from 'api-types';
 
 import { TemplatePreviewPanel } from '../TemplatePreviewPanel';
@@ -24,7 +24,9 @@ const wrap = (node: React.ReactNode) => (
   </Stack>
 );
 
-export const Csv: Story = () =>
+export default { title: 'Template Preview Panel' } satisfies Meta;
+
+export const Csv: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="csv"
@@ -32,7 +34,7 @@ export const Csv: Story = () =>
     />,
   );
 
-export const Markdown: Story = () =>
+export const Markdown: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="md"
@@ -43,7 +45,7 @@ export const Markdown: Story = () =>
     />,
   );
 
-export const Html: Story = () =>
+export const Html: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="html"
@@ -54,7 +56,7 @@ export const Html: Story = () =>
     />,
   );
 
-export const Text: Story = () =>
+export const Text: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="txt"
@@ -63,7 +65,7 @@ export const Text: Story = () =>
     />,
   );
 
-export const Email: Story = () =>
+export const Email: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="email"
@@ -77,7 +79,7 @@ export const Email: Story = () =>
     />,
   );
 
-export const WithProblems: Story = () =>
+export const WithProblems: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="csv"
@@ -108,7 +110,7 @@ export const WithProblems: Story = () =>
     />,
   );
 
-export const RequestFailed: Story = () =>
+export const RequestFailed: StoryFn = () =>
   wrap(
     <TemplatePreviewPanel
       output="csv"

@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-58)
+- §15 — Decision Records (DR-1…DR-59)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1591,7 +1591,7 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Tests ship with the code that they cover.** Every feature lands with its tests in the same
   change — pure logic with unit tests, components with component tests — rather than deferring
   testing to a later pass. A change that adds or alters behavior is incomplete until its tests
-  exist and pass (§15, DR-28). Tests (`*.test.ts(x)`), Ladle stories (`*.stories.tsx`) and test
+  exist and pass (§15, DR-28). Tests (`*.test.ts(x)`), Storybook stories (`*.stories.tsx`) and test
   fixtures live in a `test/` directory inside the folder of the code they cover — e.g.
   `components/form/test/JsonSchemaForm.test.tsx` — and import that code from `../` (§15, DR-43).
   Shared test utilities and the Vitest setup live in `src/test/`.
@@ -1602,9 +1602,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   updates both sides (§15, DR-14).
 - **Component (React Testing Library):** the form engine (custom fields/widgets/templates) and
   key admin screens.
-- **E2E (Playwright):** component e2e drives the Ladle stories (the form engine, templating, the
-  data table, and admin widgets) against a static Ladle build, plus a registration-flow smoke
-  against the dev server; every test runs on desktop and two mobile devices (§15, DR-31). The
+- **E2E (Playwright):** component e2e drives the Storybook stories (the form engine, templating,
+  the data table, and admin widgets) against a static Storybook build, plus a registration-flow
+  smoke against the dev server; every test runs on desktop and two mobile devices (§15, DR-31,
+  DR-59). The
   registration smoke skips when no backend is reachable (as in CI).
 - **Gates:** type-check, lint, unit tests and the e2e suite pass in CI (the *Client v2* workflow,
   on every push/PR that touches `client_v2/`) and in the pre-commit hook (§15, DR-15).
@@ -2281,18 +2282,19 @@ but US-only, no country picker/validation — only worth it if phone is treated 
 the spec's "international" intent rejects). Hand-rolling on `libphonenumber-js` (same weight as
 the rejected option, more code).
 
-### DR-31 — Playwright e2e: static-Ladle component suite + mobile projects
+### DR-31 — Playwright e2e: static-Storybook component suite + mobile projects
 
-**Decision:** The Playwright e2e suite has two parts. The **component e2e** drives the **Ladle
-stories** (the form engine, templating pipeline, data table, and admin widgets) served from a
-**static `ladle build`** (not the dev server). A **registration-flow smoke** drives the Vite dev
+**Decision:** The Playwright e2e suite has two parts. The **component e2e** drives the
+**Storybook stories** (the form engine, templating pipeline, data table, and admin widgets)
+served from a **static `storybook build`** (not the dev server; the workbench was Ladle when this
+was decided — DR-59). A **registration-flow smoke** drives the Vite dev
 server (which proxies to the Django backend) and skips gracefully when the registration config
 can't load, so it stays green without a backend and never submits (creates no data). Every test
 runs across three projects — **Desktop Chrome, Mobile Chrome (Pixel 5), Mobile Safari
 (iPhone 13)** — exercising layouts responsively (DR-17).
-**Context:** The Ladle stories already exercise the real components through their providers, so
-they're the natural e2e render targets (DR-7) — no backend, fast, deterministic. Driving Ladle's
-**dev** server proved flaky: Vite's on-demand per-story compile and dep-optimization reload made
+**Context:** The stories already exercise the real components through their providers, so
+they're the natural e2e render targets (DR-7) — no backend, fast, deterministic. Driving the
+workbench's **dev** server proved flaky: Vite's on-demand per-story compile and dep-optimization reload made
 story loads race the assertions under parallel workers. Serving a **static build** removes
 compilation from the hot path entirely, so the suite is fast and stable in parallel. The
 registration smoke covers the one genuinely end-to-end public path (load → live pricing →
@@ -2567,8 +2569,9 @@ rendered HTML — the client already sanitizes and styles markdown for every oth
 
 **Decision:** Each source folder keeps its `*.test.ts(x)`, `*.stories.tsx` and fixture files in a
 `test/` subdirectory (e.g. `pricing/test/calculatePrice.test.ts`) rather than beside the code.
-Vitest (`src/**/*.test.{ts,tsx}`) and Ladle (`src/**/*.stories.*`) find them by glob, and a
-Ladle story's id comes from its file name, so the e2e suite's story URLs are unaffected.
+Vitest (`src/**/*.test.{ts,tsx}`) and Storybook (`src/**/*.stories.tsx`) find them by glob,
+and a story's id comes from its meta title (DR-59), not its path, so the e2e suite's story URLs
+are unaffected.
 **Context:** With tests and stories beside every component, folders were twice as long and the
 production modules were harder to pick out. A `test/` directory per folder keeps them near the
 code they cover (the DR-28 intent) while separating them from it.
@@ -2763,7 +2766,7 @@ case by case — easy to miss one, where closed-by-default fails safe.
 wrapped so they render only when the user can edit; form bodies are wrapped in a disabled
 fieldset; schema forms and the code editors turn read-only on their own when the user can't
 edit; the lodging timeline drops its drag sensors. The context's default is unrestricted, so the
-public registration pages, Ladle stories and tests that render components on their own are
+public registration pages, Storybook stories and tests that render components on their own are
 unaffected. A 403 that still happens gets a plain "You don't have permission to do that."
 **Context:** A Reporter's view should show everything they may read without offering buttons
 that would only fail. The server remains the authority (DR-50); the UI's job is not to invite a
@@ -2928,6 +2931,27 @@ lines to own and test (models per path, outside value changes without losing the
 history, StrictMode, cleanup), for no fix beyond what bundling gives; revisit if the wrapper ever
 blocks a React or Monaco upgrade. Importing all of `monaco-editor` — simplest, but ships the
 unused language workers.
+
+### DR-59 — Storybook replaces Ladle as the component workbench
+
+**Decision:** The component stories run in **Storybook** (`storybook` + `@storybook/react-vite`),
+built with the app's own `vite.config.ts` (its type/lint checker left out) and wrapped in the
+app's Mantine provider and dark theme. Stories are CSF function stories (`StoryFn`). Each stories
+file's meta title is its component's name in words (`'Confirm Delete'`), which gives the same
+story ids Ladle derived from the file name (`confirm-delete--blocked`), so the e2e suite (DR-31)
+opens the same stories at Storybook's `iframe.html?id=…`. Telemetry is off.
+**Context:** Ladle ships its own Vite, and its last release (5.1.1, November 2025) is on Vite 6,
+which by late 2026 gets security fixes only and loses support when Vite 9 ships. Ladle's move to
+Vite 8 was merged in June 2026 but not released, and its pull requests have gone unreviewed since.
+Because Ladle loads the app's Vite config, the app's own Vite and `@vitejs/plugin-react` upgrades
+were held to what Ladle's Vite could run. Storybook supports Vite 5–8 and React 16–19 and is
+actively released, so the workbench no longer gates the app's build tooling.
+**Alternatives:** Staying on Ladle and letting the app move to Vite 8 alone — works, but keeps a
+second, soon-unsupported Vite and caps `@vitejs/plugin-react` at a line that still supports Vite 6;
+every future Vite major waits on a Ladle release. React Cosmos (maintained, any Vite) — its
+fixture format means renaming and restructuring every stories file and changing every e2e story
+URL. Storybook's costs: a larger install and slower build than Ladle, and its own major-version
+upgrades (largely automated by `storybook upgrade`).
 
 ---
 

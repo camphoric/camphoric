@@ -1,10 +1,10 @@
 /**
- * Ladle stories for signing in (SPEC §6): the sign-in form, and "Forgot
+ * Stories for signing in (SPEC §6): the sign-in form, and "Forgot
  * password?", whose answer is the same for any address (DR-52). The story
- * answers the requests itself. Run `npm run ladle`.
+ * answers the requests itself. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -34,7 +34,9 @@ function stubAuth() {
   };
 }
 
-export const SignIn: Story = () => {
+export default { title: 'Login' } satisfies Meta;
+
+export const SignIn: StoryFn = () => {
   const [client] = useState(() => {
     stubAuth();
     return new QueryClient();

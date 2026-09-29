@@ -9,7 +9,7 @@
  * unassigns. The view can be narrowed to a branch of the hierarchy.
  *
  * Presentational: the parent supplies the data and the assign/unassign
- * callbacks (so this renders in Ladle and against the live API alike).
+ * callbacks (so this renders in Storybook and against the live API alike).
  */
 
 import {

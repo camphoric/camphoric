@@ -1,10 +1,10 @@
 /**
- * Ladle stories for the delete confirmation (SPEC §5; §15, DR-54): each kind of
- * answer the server's delete preview gives. Run `npm run ladle`.
+ * Stories for the delete confirmation (SPEC §5; §15, DR-54): each kind of
+ * answer the server's delete preview gives. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Paper } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ApiDeletePreview } from 'api-types';
 
 import { ConfirmDeleteView } from '../ConfirmDelete';
@@ -32,18 +32,20 @@ function Frame({
   );
 }
 
-export const Checking: Story = () => <Frame message="Delete “Cabins”?" />;
-export const NothingElse: Story = () => (
+export default { title: 'Confirm Delete' } satisfies Meta;
+
+export const Checking: StoryFn = () => <Frame message="Delete “Cabins”?" />;
+export const NothingElse: StoryFn = () => (
   <Frame message="Delete “Campers by cabin”?" preview={NOTHING_ELSE} />
 );
-export const UnassignsCampers: Story = () => (
+export const UnassignsCampers: StoryFn = () => (
   <Frame message="Delete “Cabins” and everything under it?" preview={LODGING} />
 );
-export const Restorable: Story = () => (
+export const Restorable: StoryFn = () => (
   <Frame message="Delete the registration for “pat@example.com”?" preview={REGISTRATION} />
 );
-export const SentEmail: Story = () => <Frame message="Delete “News”?" preview={SENT_TEMPLATE} />;
-export const Blocked: Story = () => <Frame message="Delete “Linens”?" preview={BLOCKED} />;
-export const CouldNotCheck: Story = () => (
+export const SentEmail: StoryFn = () => <Frame message="Delete “News”?" preview={SENT_TEMPLATE} />;
+export const Blocked: StoryFn = () => <Frame message="Delete “Linens”?" preview={BLOCKED} />;
+export const CouldNotCheck: StoryFn = () => (
   <Frame message="Delete “Cabins”?" error={new Error('Network down')} />
 );

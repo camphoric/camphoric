@@ -1,13 +1,13 @@
 /**
- * Ladle stories for the email template editor (SPEC §8.3, §8.4). The story
+ * Stories for the email template editor (SPEC §8.3, §8.4). The story
  * answers the describe and preview requests itself (a real variable spec, and
  * a stand-in render that echoes the subject and body), so no backend is
- * needed. Run `npm run ladle`.
+ * needed. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { TemplatePreviewRequest, TemplatePreviewResponse } from 'api-types';
 import { sampleDescription } from 'components/TemplateEditor/sampleDescription';
@@ -85,7 +85,9 @@ function Editor({ initialBody }: { initialBody: string }) {
   );
 }
 
-export const Jinja: Story = () => (
+export default { title: 'Email Template Editor' } satisfies Meta;
+
+export const Jinja: StoryFn = () => (
   <Editor
     initialBody={
       '# Hi {{ invitation.recipient_name }}\n\nRegister here: {{ invitation.register_url }}'
@@ -93,4 +95,4 @@ export const Jinja: Story = () => (
   />
 );
 
-export const Empty: Story = () => <Editor initialBody="" />;
+export const Empty: StoryFn = () => <Editor initialBody="" />;

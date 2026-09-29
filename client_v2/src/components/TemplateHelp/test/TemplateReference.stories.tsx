@@ -1,20 +1,22 @@
 /**
- * Ladle stories for the variables reference (SPEC §9.3). Run `npm run ladle`.
+ * Stories for the variables reference (SPEC §9.3). Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { sampleDescription } from 'components/TemplateEditor/sampleDescription';
 
 import { TemplateReference } from '../TemplateReference';
 
-export const InvitationEmail: Story = () => (
+export default { title: 'Template Reference' } satisfies Meta;
+
+export const InvitationEmail: StoryFn = () => (
   <Stack maw={720} p="md">
     <TemplateReference description={sampleDescription} context="invitation_email" />
   </Stack>
 );
 
-export const Searched: Story = () => (
+export const Searched: StoryFn = () => (
   <Stack maw={720} p="md">
     <TemplateReference
       description={sampleDescription}
@@ -25,7 +27,7 @@ export const Searched: Story = () => (
   </Stack>
 );
 
-export const NoMatch: Story = () => (
+export const NoMatch: StoryFn = () => (
   <Stack maw={720} p="md">
     <TemplateReference description={sampleDescription} context="report" query="zzz" />
   </Stack>

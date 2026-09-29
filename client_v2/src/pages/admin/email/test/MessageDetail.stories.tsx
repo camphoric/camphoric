@@ -1,18 +1,20 @@
 /**
- * Ladle stories for one email in the history (SPEC §8.9): sent, failed (with
- * Retry), and queued for another try (with Don't send). Run `npm run ladle`.
+ * Stories for one email in the history (SPEC §8.9): sent, failed (with
+ * Retry), and queued for another try (with Don't send). Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 
 import { MessageDetail } from '../MessageDetail';
 import { sampleMessage } from './emailFixtures';
 
 const noop = () => {};
 
-export const Sent: Story = () => <MessageDetail message={sampleMessage()} />;
+export default { title: 'Message Detail' } satisfies Meta;
 
-export const Failed: Story = () => (
+export const Sent: StoryFn = () => <MessageDetail message={sampleMessage()} />;
+
+export const Failed: StoryFn = () => (
   <MessageDetail
     message={sampleMessage({
       status: 'failed',
@@ -24,7 +26,7 @@ export const Failed: Story = () => (
   />
 );
 
-export const Retrying: Story = () => (
+export const Retrying: StoryFn = () => (
   <MessageDetail
     message={sampleMessage({
       status: 'queued',
@@ -37,7 +39,7 @@ export const Retrying: Story = () => (
   />
 );
 
-export const TextOnly: Story = () => (
+export const TextOnly: StoryFn = () => (
   <MessageDetail
     message={sampleMessage({
       kind: 'confirmation_report',

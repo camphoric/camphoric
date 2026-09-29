@@ -1,14 +1,16 @@
 /**
- * Ladle story for the CsvTable (SPEC §8.7, §9.6): report output and template
- * previews as a table. Run `npm run ladle`.
+ * Story for the CsvTable (SPEC §8.7, §9.6): report output and template
+ * previews as a table. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 
 import { CsvTable } from '../CsvTable';
 
-export const Basic: Story = () => (
+export default { title: 'CSV Table' } satisfies Meta;
+
+export const Basic: StoryFn = () => (
   <Stack maw={720} p="md">
     <CsvTable
       csv={
@@ -18,7 +20,7 @@ export const Basic: Story = () => (
   </Stack>
 );
 
-export const HeaderOnly: Story = () => (
+export const HeaderOnly: StoryFn = () => (
   <Stack maw={720} p="md">
     <CsvTable csv="Name,Lodging" />
   </Stack>

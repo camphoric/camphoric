@@ -54,20 +54,14 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // Ladle reuses this config; its internal Vite root breaks the checker's
-    // eslint glob, so skip the checker under Ladle (the `ladle` scripts set
-    // LADLE). The app's own dev/build still run it.
-    ...(process.env.LADLE
-      ? []
-      : [
-          checker({
-            typescript: true,
-            eslint: {
-              lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-              useFlatConfig: true,
-            },
-          }),
-        ]),
+    // Storybook reuses this config and leaves the checker out (.storybook/main.ts).
+    checker({
+      typescript: true,
+      eslint: {
+        lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
+        useFlatConfig: true,
+      },
+    }),
   ],
   test: {
     globals: true,

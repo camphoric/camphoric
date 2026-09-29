@@ -1,13 +1,13 @@
 /**
- * Ladle story for the Address field (SPEC §9.1). Shows the plain-input composite
+ * Story for the Address field (SPEC §9.1). Shows the plain-input composite
  * (street/city/state/zip + country select). With a Google Maps API key
  * configured (VITE_GOOGLE_MAPS_API_KEY), the street field becomes a Places
  * autocomplete that populates the rest (DR-23); without one it stays plain.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack, Title } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { JsonSchemaForm } from 'components/form';
 import { useState } from 'react';
 
@@ -34,19 +34,26 @@ const schema: RJSFSchema = {
 };
 const uiSchema: UiSchema = { address: { 'ui:field': 'Address' } };
 
-export const Address: Story = () => {
+export default { title: 'Address' } satisfies Meta;
+
+export const Address: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   return (
     <Stack maw={520} p="md">
       <Title order={4}>Address</Title>
-      <JsonSchemaForm schema={schema} uiSchema={uiSchema} formData={formData} onChange={setFormData} />
+      <JsonSchemaForm
+        schema={schema}
+        uiSchema={uiSchema}
+        formData={formData}
+        onChange={setFormData}
+      />
       <Code block>{JSON.stringify(formData, null, 2)}</Code>
     </Stack>
   );
 };
 
 /** A disabled form (e.g. a Reporter viewing a registration) can't be typed into. */
-export const Disabled: Story = () => (
+export const Disabled: StoryFn = () => (
   <Stack maw={520} p="md">
     <Title order={4}>Address (disabled)</Title>
     <JsonSchemaForm

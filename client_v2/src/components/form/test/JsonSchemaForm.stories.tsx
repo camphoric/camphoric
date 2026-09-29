@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the form engine — a live playground to try the custom and
- * base widgets. Run `npm run ladle`. These also serve as render targets for
+ * Stories for the form engine — a live playground to try the custom and
+ * base widgets. Run `npm run storybook`. These also serve as render targets for
  * future Playwright e2e coverage.
  */
 
-import type { Story } from '@ladle/react';
 import { Code, Stack, Title } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { JsonSchemaForm } from 'components/form';
 import { useState } from 'react';
 
@@ -65,7 +65,9 @@ const uiSchema: UiSchema = {
 };
 
 /** Every custom + base widget on one form, with a live view of the form data. */
-export const AllWidgets: Story = () => {
+export default { title: 'JSON Schema Form' } satisfies Meta;
+
+export const AllWidgets: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   return (
     <Stack maw={560} p="md">
@@ -85,7 +87,7 @@ export const AllWidgets: Story = () => {
 };
 
 /** The same form rendered read-only via the wrapper's `disabled` flag. */
-export const Disabled: Story = () => (
+export const Disabled: StoryFn = () => (
   <Stack maw={560} p="md">
     <JsonSchemaForm
       schema={schema}
@@ -151,7 +153,7 @@ const listUiSchema: UiSchema = {
  * registration-only hide class, so it shows here (outside registration) but
  * not on the registration page; the helpers list opts into reordering.
  */
-export const Lists: Story = () => {
+export const Lists: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({
     parking_passes: [{ vehicle_type: 'Regular car', pass_type: 'Long Term' }],
     helpers: ['Pat', 'Sam'],
@@ -172,7 +174,7 @@ export const Lists: Story = () => {
 };
 
 /** The same lists on the registration page, where Parking Type is hidden. */
-export const ListsDuringRegistration: Story = () => (
+export const ListsDuringRegistration: StoryFn = () => (
   <Stack maw={640} p="md" className="camphoric-registration">
     <JsonSchemaForm
       schema={listSchema}

@@ -1,12 +1,12 @@
 /**
- * Ladle stories for the email account form (SPEC §8.8): adding an account,
+ * Stories for the email account form (SPEC §8.8): adding an account,
  * editing one (its password kept unless re-entered), and one whose stored
  * password can no longer be read. Submitting shows what would be saved.
- * Run `npm run ladle`.
+ * Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
 import { Stack } from '@mantine/core';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { type EmailAccountBody, EmailAccountForm } from '../EmailAccountForm';
@@ -27,10 +27,12 @@ function Harness({ account }: { account?: Parameters<typeof EmailAccountForm>[0]
   );
 }
 
-export const New: Story = () => <Harness />;
+export default { title: 'Email Account Form' } satisfies Meta;
 
-export const Editing: Story = () => <Harness account={sampleAccount()} />;
+export const New: StoryFn = () => <Harness />;
 
-export const UnreadablePassword: Story = () => (
+export const Editing: StoryFn = () => <Harness account={sampleAccount()} />;
+
+export const UnreadablePassword: StoryFn = () => (
   <Harness account={sampleAccount({ password_status: 'unreadable' })} />
 );

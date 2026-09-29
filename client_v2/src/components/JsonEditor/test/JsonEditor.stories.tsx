@@ -1,11 +1,11 @@
 /**
- * Ladle stories for the Monaco code editor (SPEC §9.6, DR-8), bundled with the
+ * Stories for the Monaco code editor (SPEC §9.6, DR-8), bundled with the
  * app (DR-58). JSON is checked by Monaco's JSON worker, so the invalid story's
  * underline shows the worker loaded; the legacy report formats are highlighted
- * only. Run `npm run ladle`.
+ * only. Run `npm run storybook`.
  */
 
-import type { Story } from '@ladle/react';
+import type { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { JsonEditor } from '../JsonEditor';
@@ -38,7 +38,9 @@ function Editor({ initial, language }: { initial: string; language?: string }) {
   return <JsonEditor value={value} onChange={setValue} language={language} height={260} />;
 }
 
-export const Json: Story = () => <Editor initial={SETTINGS} />;
-export const InvalidJson: Story = () => <Editor initial={INVALID} />;
-export const Handlebars: Story = () => <Editor initial={HANDLEBARS} language="handlebars" />;
-export const Markdown: Story = () => <Editor initial={MARKDOWN} language="markdown" />;
+export default { title: 'JSON Editor' } satisfies Meta;
+
+export const Json: StoryFn = () => <Editor initial={SETTINGS} />;
+export const InvalidJson: StoryFn = () => <Editor initial={INVALID} />;
+export const Handlebars: StoryFn = () => <Editor initial={HANDLEBARS} language="handlebars" />;
+export const Markdown: StoryFn = () => <Editor initial={MARKDOWN} language="markdown" />;
