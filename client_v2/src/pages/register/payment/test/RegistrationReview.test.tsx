@@ -1,10 +1,11 @@
 import type { UiSchema } from '@rjsf/utils';
+import { reviewItems } from 'components/form';
 import type { JSONSchema7 } from 'json-schema';
 import { makeRegisterConfig } from 'test/fixtures';
 import { renderWithProviders, screen, within } from 'test/utils';
 import { describe, expect, it } from 'vitest';
 
-import { RegistrationReview, reviewItems } from '../RegistrationReview';
+import { RegistrationReview } from '../RegistrationReview';
 
 const dataSchema: JSONSchema7 = {
   definitions: {
