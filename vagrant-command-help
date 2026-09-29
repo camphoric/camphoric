@@ -41,6 +41,13 @@ Run flake8
 Run django tests
   vagrant ssh -c "cd /vagrant/server; pipenv run ./manage.py test"
 
+Diagnose a VM that won't boot or a vagrant command that hangs
+(see "Troubleshooting a stuck VM" in VM_DEV_SETUP.md)
+  ./vagrant-doctor
+
+Power off, clear stuck processes and cold-boot the VM
+  ./vagrant-doctor --fix
+
 Destroy the VM
   vagrant destroy
 

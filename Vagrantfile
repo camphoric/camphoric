@@ -29,6 +29,24 @@ Vagrant.configure("2") do |config|
       config.vm.box = ENV['CAMPHORIC_VAGRANT_BASE_IMAGE']
   end
 
+  # On Apple Silicon, resuming a VirtualBox VM from a saved state often brings
+  # it back with a dead network card: the guest runs, but SSH and the app never
+  # answer and `vagrant up` times out. Throw the saved state away before booting
+  # so the VM always cold-boots (the disk and database are kept). VirtualBox
+  # saves the VM by itself when the host battery runs low. Set
+  # CAMPHORIC_VAGRANT_KEEP_SAVED_STATE=1 to resume instead.
+  # See "Troubleshooting a stuck VM" in VM_DEV_SETUP.md.
+  config.trigger.before :up do |trigger|
+    trigger.name = "Discard saved VM state"
+    trigger.ruby do |env, machine|
+      if is_arm64() && machine.state.id == :saved && !ENV['CAMPHORIC_VAGRANT_KEEP_SAVED_STATE']
+        machine.ui.info("Discarding the VM's saved state so it cold-boots " \
+                        "(set CAMPHORIC_VAGRANT_KEEP_SAVED_STATE=1 to resume instead)")
+        system("VBoxManage", "discardstate", machine.id)
+      end
+    end
+  end
+
   # Provision with ansible
   config.vm.provision "ansible" do |ansible|
       ansible.verbose = "v"

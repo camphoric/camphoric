@@ -225,6 +225,60 @@ at an Ubuntu 24.04 box before `vagrant up`; otherwise the old base image is
 used again.
 
 
+Troubleshooting a stuck VM
+--------------------------
+
+If `vagrant up` sits at "Waiting for machine to boot" and then times out, or
+`vagrant status`/`vagrant halt` hang, run:
+
+```
+./vagrant-doctor
+```
+
+It checks the VM with hard timeouts and says what's wrong. To power the VM off,
+clear any stuck processes and cold-boot it, run `./vagrant-doctor --fix`. A
+cold boot keeps the VM's disk and database; it only loses what was in memory.
+
+### What goes wrong
+
+On Apple Silicon Macs, a VirtualBox VM that is resumed from a *saved state*
+often comes back with a dead network card. The guest is running, but SSH and
+http://localhost:8000 never answer, so `vagrant up` times out. The VM ends up
+in a saved state when you run `vagrant suspend`, or when VirtualBox saves it
+by itself because the Mac's battery is running low.
+
+The Vagrantfile guards against this: on Apple Silicon, `vagrant up` discards a
+saved state before booting, so the VM always cold-boots. Set
+`CAMPHORIC_VAGRANT_KEEP_SAVED_STATE=1` to resume the saved state instead. Use
+`vagrant halt` rather than `vagrant suspend` to stop the VM.
+
+Powering off a stuck VM can leave its `VBoxHeadless` process alive. While it
+lives, the VirtualBox service waits on it, so every `VBoxManage` and `vagrant`
+command hangs. `vagrant-doctor --fix` kills that process (and restarts the
+VirtualBox service if it is still hung). `./vagrant-kill-all` is the blunt
+version: it kills every VirtualBox process on the machine, including other VMs.
+
+### Doing it by hand
+
+```
+# find the VM's id and its VirtualBox process
+cat .vagrant/machines/default/virtualbox/id
+pgrep -fl VBoxHeadless
+
+# power the VM off; if this hangs, kill -9 the VBoxHeadless process instead
+VBoxManage controlvm <id> poweroff
+
+# if the VM shows as "saved", throw the saved state away
+VBoxManage discardstate <id>
+
+vagrant up
+```
+
+The VM's own log is at `~/VirtualBox VMs/<vm name>/Logs/VBox.log`. A
+network card that died after a resume shows up at the end of the log (written
+at power-off) as `E1000#0: Received frames : 0`.
+
+
 Vault setup instructions
 ------------------------
 

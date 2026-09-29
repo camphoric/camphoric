@@ -1,0 +1,168 @@
+#!/bin/bash
+#
+# Diagnose (and optionally repair) a Vagrant VM that won't come up.
+#
+#   ./vagrant-doctor          check the VM and explain what's wrong
+#   ./vagrant-doctor --fix    also power it off, clear any stuck processes,
+#                             and cold-boot it with `vagrant up`
+#
+# Every VirtualBox call runs under a hard timeout, because a wedged VM can make
+# VBoxManage (and therefore every vagrant command) block forever. See
+# "Troubleshooting a stuck VM" in VM_DEV_SETUP.md for the background.
+
+cd "$(dirname "$0")" || exit 1
+
+FIX=false
+[ "$1" = "--fix" ] && FIX=true
+
+ok()   { echo "  ok    $*"; }
+warn() { echo "  WARN  $*"; }
+fail() { echo "  FAIL  $*"; }
+
+# run_with_timeout SECONDS CMD... -- kills CMD with SIGKILL after SECONDS.
+# (VBoxManage ignores SIGALRM, so `perl -e alarm` style timeouts don't work.)
+run_with_timeout() {
+    local secs=$1; shift
+    "$@" &
+    local pid=$!
+    ( sleep "$secs"; kill -9 "$pid" ) >/dev/null 2>&1 &
+    local watcher=$!
+    wait "$pid"
+    local rc=$?
+    kill "$watcher" >/dev/null 2>&1
+    wait "$watcher" 2>/dev/null
+    return $rc
+}
+
+ID_FILE=.vagrant/machines/default/virtualbox/id
+if [ ! -f "$ID_FILE" ]; then
+    echo "No VM has been created for this checkout yet. Run: vagrant up"
+    exit 1
+fi
+ID=$(cat "$ID_FILE")
+
+echo "Checking VirtualBox VM $ID"
+
+# Find the VM's settings file without VBoxManage, which may be hung.
+VBOX_FILE=$(grep -l "uuid=\"{$ID}\"" "$HOME/VirtualBox VMs"/*/*.vbox 2>/dev/null | head -1)
+VM_DIR=${VBOX_FILE%/*}
+LOG="$VM_DIR/Logs/VBox.log"
+
+problems=0
+vboxmanage_hung=false
+orphan=false
+saved=false
+guest_dead=false
+state=unknown
+
+# 1. Is the VirtualBox service answering?
+info=$(run_with_timeout 15 VBoxManage showvminfo "$ID" --machinereadable 2>/dev/null)
+rc=$?
+if [ $rc -eq 137 ]; then
+    fail "VBoxManage didn't answer within 15s; the VirtualBox service is hung"
+    vboxmanage_hung=true
+    problems=$((problems + 1))
+elif [ $rc -ne 0 ]; then
+    fail "VBoxManage doesn't know this VM (exit $rc); it may have been deleted"
+    exit 1
+else
+    state=$(echo "$info" | sed -n 's/^VMState="\(.*\)"$/\1/p')
+    ok "VBoxManage answers; VM state is '$state'"
+fi
+
+# 2. Is there a saved (suspended-to-disk) state waiting to be resumed?
+if [ -n "$VBOX_FILE" ] && grep -q 'stateFile="' "$VBOX_FILE"; then
+    saved=true
+    warn "the VM has a saved state; resuming it often leaves the network dead"
+    problems=$((problems + 1))
+fi
+
+# 3. Is a VM process alive that shouldn't be?
+vm_pid=$(pgrep -f "VBoxHeadless.*--startvm $ID" | head -1)
+if [ -n "$vm_pid" ] && [ "$state" != "running" ]; then
+    fail "VBoxHeadless (pid $vm_pid) is still alive but the VM isn't running"
+    orphan=true
+    problems=$((problems + 1))
+fi
+
+# 4. If it's running, can we reach the guest?
+if [ "$state" = "running" ]; then
+    ssh_port=$(echo "$info" | sed -n 's/^Forwarding([0-9]*)="ssh,tcp,[^,]*,\([0-9]*\),.*/\1/p' | head -1)
+    ssh_port=${ssh_port:-2222}
+    banner=$(run_with_timeout 8 bash -c \
+        "exec 3<>/dev/tcp/127.0.0.1/$ssh_port && read -r -t 5 line <&3 && echo \"\$line\"" 2>/dev/null)
+    if [[ "$banner" == SSH-* ]]; then
+        ok "guest SSH answers on port $ssh_port"
+        services=$(run_with_timeout 30 vagrant ssh -c \
+            'systemctl is-active camphoric camphoric-worker' 2>/dev/null | tr -d '\r' | tr '\n' ' ')
+        if [ "$services" = "active active " ]; then
+            ok "camphoric and camphoric-worker services are active"
+        else
+            warn "service status (camphoric, camphoric-worker): ${services:-no answer}"
+            echo "        check the logs with: vagrant ssh -c 'journalctl -u camphoric -n 50'"
+            problems=$((problems + 1))
+        fi
+    else
+        fail "the VM is running but its SSH (port $ssh_port) doesn't answer"
+        guest_dead=true
+        problems=$((problems + 1))
+        if [ -f "$LOG" ] && grep -q "from 'LOADING' to 'SUSPENDED'" "$LOG"; then
+            echo "        This run was resumed from a saved state. On Apple Silicon the"
+            echo "        virtual network card often comes back dead after a resume."
+        fi
+    fi
+
+    http=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:8000/)
+    if [ "$http" = "200" ]; then
+        ok "http://localhost:8000 returns 200"
+    else
+        warn "http://localhost:8000 returns ${http/000/no response}"
+    fi
+fi
+
+echo
+if [ $problems -eq 0 ]; then
+    echo "The VM looks healthy."
+    exit 0
+fi
+
+if grep -q "Saving state of VM, reason 'HostBatteryLow'" "$VM_DIR"/Logs/VBox.log* 2>/dev/null; then
+    echo "Note: VirtualBox recently saved this VM on its own because the host battery ran low."
+fi
+
+if ! $FIX; then
+    echo "Found $problems problem(s). To power the VM off, clear stuck processes and"
+    echo "cold-boot it (the disk and database are kept), run:"
+    echo "  ./vagrant-doctor --fix"
+    exit 1
+fi
+
+echo "Repairing..."
+
+if $guest_dead || [ "$state" = "running" ]; then
+    echo "- powering off the VM"
+    run_with_timeout 30 VBoxManage controlvm "$ID" poweroff >/dev/null 2>&1
+fi
+
+# Whatever state it's in now, the VM's own process must be gone before we boot.
+vm_pid=$(pgrep -f "VBoxHeadless.*--startvm $ID" | head -1)
+if [ -n "$vm_pid" ]; then
+    echo "- killing the VM's leftover VBoxHeadless (pid $vm_pid)"
+    kill -9 "$vm_pid"
+    sleep 2
+fi
+
+if ! run_with_timeout 15 VBoxManage showvminfo "$ID" --machinereadable >/dev/null 2>&1; then
+    # The COM/API server respawns on the next VBoxManage call.
+    echo "- VirtualBox service still hung; restarting it"
+    pkill -9 -f VBoxSVC
+    sleep 2
+fi
+
+if grep -q 'stateFile="' "$VBOX_FILE" 2>/dev/null; then
+    echo "- discarding the saved state so the VM cold-boots"
+    run_with_timeout 30 VBoxManage discardstate "$ID"
+fi
+
+echo "- vagrant up"
+vagrant up
