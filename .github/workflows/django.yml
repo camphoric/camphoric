@@ -57,9 +57,9 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
@@ -69,7 +69,7 @@ jobs:
         # files), so the system checks and whitenoise don't warn about them.
         run: mkdir -p frontend_bootstrap/build/static static
       - id: cache-pipenv
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/virtualenvs
           key: ${{ runner.os }}-py${{ matrix.python-version }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}-3
