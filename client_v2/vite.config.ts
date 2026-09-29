@@ -28,6 +28,17 @@ export default defineConfig({
       },
     },
   },
+  // Web workers (Monaco's) go to static/ too: the server serves only that.
+  worker: {
+    format: 'es',
+    rollupOptions: {
+      output: {
+        assetFileNames: 'static/[name]-[hash][extname]',
+        chunkFileNames: 'static/[name]-[hash].js',
+        entryFileNames: 'static/[name]-[hash].js',
+      },
+    },
+  },
   resolve: {
     alias: {
       'api-types': fileURLToPath(new URL('./src/api-types.ts', import.meta.url)),

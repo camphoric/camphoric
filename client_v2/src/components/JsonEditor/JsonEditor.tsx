@@ -1,7 +1,8 @@
 /**
- * Monaco-based JSON/code editor (SPEC §9.6, DR-8). Monaco is lazy-loaded so it
- * isn't in the registration entry bundle (§11) — it loads only when an editor
- * first opens (a schema editor in Settings, a report template, etc.).
+ * Monaco-based JSON/code editor (SPEC §9.6, DR-8). Monaco is bundled with the
+ * app (DR-58) and lazy-loaded so it isn't in the registration entry bundle
+ * (§11) — it loads only when an editor first opens (a schema editor in
+ * Settings, a report template, etc.).
  *
  * `path`, `beforeMount`, `onMount` and `options` pass through to Monaco, so
  * richer editors (the template editor) can build on this one.
@@ -16,7 +17,7 @@ import { InlineLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { lazy, Suspense } from 'react';
 
-const MonacoEditor = lazy(() => import('@monaco-editor/react'));
+const MonacoEditor = lazy(() => import('./monaco'));
 
 interface JsonEditorProps {
   value: string;

@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-27
+**Last updated:** 2026-09-29
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-57)
+- §15 — Decision Records (DR-1…DR-58)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -117,7 +117,8 @@ behaviors specified throughout this document.
   TanStack Router search params. (Headless TanStack Table is the lean alternative; see §15,
   DR-19.)
 - **Editors:** Monaco (`@monaco-editor/react`) for editing JSON schemas and report templates in
-  admin (single editor; see §15, DR-8).
+  admin (single editor; see §15, DR-8). Monaco is bundled with the app (`monaco-editor`), not
+  fetched from a CDN (§15, DR-58).
 - **Dates:** Luxon (`DateTime`) for parsing/formatting with explicit timezone handling
   (immutable values; use `setZone`/`toISODate`/`toFormat` rather than mutation).
 - **CSV:** `d3-dsv` (`csvParseRows`) to parse server-produced CSV report output into rows for a
@@ -1475,7 +1476,11 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Loading indicator** — inline and full-surface variants.
 - **Code/JSON editor** — a single **Monaco**-based editor for all JSON/template/schema editing
   (report templates, raw event schemas, admin/plugin config), with JSON-schema validation where
-  applicable. V2 standardizes on Monaco (drops `vanilla-jsoneditor`; see §15, DR-8).
+  applicable. V2 standardizes on Monaco (drops `vanilla-jsoneditor`; see §15, DR-8). Monaco and its
+  web workers are bundled with the app and served with the rest of the static build; nothing is
+  loaded from a CDN at runtime. Only what the admin uses is included: the editor's features,
+  JSON (validated in its worker), highlighting for the legacy report formats (Handlebars,
+  Markdown, HTML), and the template editor's own Jinja language (§15, DR-58).
 - **Template editor** — the Monaco editor specialised for server-rendered Jinja (§9.3), used
   wherever such a template is written (server-source reports, §8.7). Given the event and the
   template's context, it provides (§15, DR-36):
@@ -1564,10 +1569,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   load as **lean and fast as possible** (it's the mobile-facing, first-load-sensitive surface).
   The entire **admin** application and its heavy, admin-only dependencies are **code-split behind
   the `/admin` routes and lazy-loaded** so none of it ships in the registration entry bundle — in
-  particular **Monaco** (load only when a report/schema editor opens), `@tanstack/react-table`,
-  `dnd-kit`, and the reports/templating tooling. Keep the registration bundle to what the form,
-  pricing, and payment flow actually need (PayPal's SDK loads at the payment step); admin code
-  may be heavier but should still code-split per section.
+  particular **Monaco** (bundled, DR-58; loaded only when a report/schema editor opens),
+  `@tanstack/react-table`, `dnd-kit`, and the reports/templating tooling. Keep the registration
+  bundle to what the form, pricing, and payment flow actually need (PayPal's SDK loads at the
+  payment step); admin code may be heavier but should still code-split per section.
 - **Accessibility/UX:** scroll to the error summary and focus problem fields on validation
   failure; show progress/disable interaction during payment.
 - **Data-driven by design:** virtually all form structure, pricing, templates, and admin
@@ -2898,6 +2903,27 @@ the workaround organizers used, but it corrupts the counts reports rely on and h
 Hiding the lodging (`visible`) — it disappears instead of showing as full, which confuses people
 who expected it. Working out "full" in the client — it would drift from the server's counts
 and rules.
+
+---
+
+### DR-58 — Bundle Monaco; keep the React wrapper
+
+**Decision:** Monaco is a dependency of the app (`monaco-editor`) and is bundled by Vite, lazily,
+with its editor and JSON web workers; `@monaco-editor/react` stays as the React wrapper, with its
+loader handed the bundled instance (`loader.config({ monaco })`). Only what the admin uses is
+imported — the editor's features, JSON, and highlighting for Handlebars, Markdown and HTML — not
+the whole package, whose TypeScript and CSS services add 8 MB of workers. Workers are emitted
+into `static/` with the rest of the build, since that's all the server serves.
+**Context:** The wrapper's loader fetched its own pinned Monaco (0.55.1) from jsdelivr, whatever
+the lockfile said. So Dependabot's alerts on the installed copy (DOMPurify, inside Monaco) could
+be silenced by an upgrade while browsers kept running the old one, and every admin session,
+Ladle and the e2e suite depended on a third-party CDN being reachable.
+**Alternatives:** Pinning the loader's CDN path to the installed version — keeps the CDN
+dependency, and the two can drift again. Replacing the wrapper with our own component — about 150
+lines to own and test (models per path, outside value changes without losing the cursor or undo
+history, StrictMode, cleanup), for no fix beyond what bundling gives; revisit if the wrapper ever
+blocks a React or Monaco upgrade. Importing all of `monaco-editor` — simplest, but ships the
+unused language workers.
 
 ---
 
