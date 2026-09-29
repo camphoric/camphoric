@@ -11,7 +11,7 @@ import { deriveAdminUiSchema, injectDefinitions } from 'components/form';
 import { useMemo } from 'react';
 
 /** The camper UI schema is the campers array's item UI schema (§9.1, §9.5). */
-function camperItemUiSchema(registrationUiSchema: Hash): UiSchema {
+export function camperItemUiSchema(registrationUiSchema: Hash): UiSchema {
   const campers = registrationUiSchema.campers;
   const items = campers && typeof campers === 'object' ? (campers as Hash).items : undefined;
   return (items && typeof items === 'object' ? items : {}) as UiSchema;

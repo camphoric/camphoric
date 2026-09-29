@@ -358,3 +358,46 @@ test.describe('Lodging marked full or open', () => {
     );
   });
 });
+
+test.describe('Lodging timeline', () => {
+  test('units are grouped under sections named for where they are', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    const headings = page.locator('#storybook-root [role="heading"][aria-level="3"]');
+    await expect(headings).toHaveText(['Camp 1 → Cabins', 'Camp 1 → Tents', 'Top level']);
+  });
+
+  test('clicking a camper selects them instead of leaving the page', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    await page.getByRole('button', { name: 'Buffy Summers' }).click();
+    await expect(page.getByTestId('selected-camper')).toHaveText('Selected: Buffy Summers');
+    await page.getByRole('button', { name: 'Ani Skywalker' }).click();
+    await expect(page.getByTestId('selected-camper')).toHaveText('Selected: Ani Skywalker');
+  });
+
+  test('the view narrows to any lodging, a top-level unit included', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    await page.getByRole('textbox', { name: 'Show lodging' }).fill('Off');
+    await page.getByRole('option', { name: 'Off Site' }).click();
+    await expect(page.getByRole('button', { name: 'Kaylee Frye' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Bob Ross' })).toHaveCount(0);
+  });
+});
+
+test.describe('Camper lodging info', () => {
+  test('shows what an admin needs to place the camper', async ({ page }) => {
+    await page.goto(story('camper-lodging-info--placed'));
+    const panel = page.getByRole('region', { name: 'Lodging details for Bob Ross' });
+    await expect(panel.getByText('Yes, with Jane Ross')).toBeVisible();
+    await expect(panel.getByText('Bob needs a lower bunk.')).toBeVisible();
+    await expect(panel.getByText('Would like to be near the bathhouse.')).toBeVisible();
+    await expect(panel.getByText(/The top bunk is broken/)).toBeVisible();
+    await expect(panel.getByText('3 days: Fri 10/16 – Sun 10/18')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Unassign' })).toBeVisible();
+  });
+
+  test('a Reporter can read it but not unassign', async ({ page }) => {
+    await page.goto(story('camper-lodging-info--placed-as-reporter'));
+    await expect(page.getByText('Yes, with Jane Ross')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unassign' })).toHaveCount(0);
+  });
+});

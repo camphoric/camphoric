@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-59)
+- §15 — Decision Records (DR-1…DR-65)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -173,7 +173,8 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?registrationsTab`, the record editors' `?regTab` and `?camperTab`, Lodging's `?lodgingView`,
+`?registrationsTab`, the record editors' `?regTab` and `?camperTab`, Lodging's `?lodgingView` and
+`?lodgingFilter`,
 Settings' `?settingsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
 filters, and
 Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
@@ -209,7 +210,9 @@ queries derive it from `window.location` rather than props, through the routing 
   (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
   (`attributes` by default, `admin`, `fees`, `campers` for a registration, `history`, `raw`).
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
-  (default) or `timeline`.
+  (default) or `timeline`; `?camperId` — the selected camper, whose lodging details show beside
+  either view (§8.6); `?lodgingFilter` — the lodging nodes the timeline is narrowed to, as
+  comma-separated ids (none: everything).
 - `/admin/organization/:organizationId/event/:eventId/settings` — `?settingsTab`: the open
   settings section (`registration_types` by default, `validation_messages`, `email`, or the
   event field being edited, e.g. `camper_schema`).
@@ -963,8 +966,9 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
 - **Edit admin-only attributes** — from `camper_admin_schema` (same pattern as registrations).
   Persists via PATCH `admin_attributes`.
 - **Set the lodging stay** — show the current assignment (path, or "Unassigned") and let the
-  admin choose which event days the camper is present (the days derive from event start/end).
-  Persists via PATCH `stay` (the set of selected days).
+  admin choose which event days the camper is present (the days derive from event start/end;
+  the last is departure day and can't be chosen, §8.6). Persists via PATCH `stay` (the set of
+  selected days).
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
@@ -995,17 +999,36 @@ across date ranges**, with capacity visibility. Required capabilities:
 - **Assign and schedule campers** — place a camper into a leaf unit and set the **days they're
   present** (`stay`), and later move, reschedule, or unassign them. Assigning/scheduling persists
   via PATCH camper (`lodging`, `stay`); unassigning sets `lodging: null, stay: null`. A new
-  assignment seeds its stay from the event's `default_stay_length`.
-- **Inspect a camper in place** — requested lodging, sharing, registration type, attributes, and
-  the registration's notes, with a quick unassign.
+  assignment seeds its stay from the event's `default_stay_length`. **The event's last day is
+  departure day:** campers leave by midday and no one stays over, so a stay never includes it —
+  it can't be chosen, a stay placed or stretched toward it ends the day before, and an older
+  stay that includes it loses it when next edited. (A one-day event keeps its only day.) The
+  client enforces this; the server accepts any days (§15, DR-65).
+- **Inspect a camper in place** — selecting a camper (in the unassigned list, the hierarchy, or
+  the timeline) shows their lodging details without leaving the lodging screen, beside whichever
+  view is open, so bars stay draggable while they're shown: the unit they're placed in and their
+  stay, the unit's notes, the lodging they requested, whether they're sharing and with whom, their
+  own lodging comments, the registration type, the registration's notes — its free-text fields,
+  those its form renders as a textarea (§15, DR-60) — and the camper's answers in readable form
+  (as in the registration review, §7.2). From there the admin can open the camper's record (§8.5)
+  or unassign them. Selecting a camper never navigates away; a click that falls short of a drag
+  just selects (§15, DR-61). The selection is URL-addressable (`?camperId`, §4).
 
 These must work efficiently across a whole event's campers and the event's date range. A
 productive realization is a **calendar/timeline assignment view** — a column per event day,
 campers shown as draggable/resizable bars spanning their stay, with unassigned campers dragged
-in, and the ability to narrow the view to a branch of the hierarchy. If built that way, use
-dnd-kit with day-column snapping and a custom resize handle (DR-6). The drag interaction is a
+in. If built that way, use dnd-kit with day-column snapping and a custom resize handle (DR-6),
+with one drop target per unit rather than per day (§15, DR-62). The drag interaction is a
 recommendation, not a requirement; what's required is the assign/schedule/unassign capability
 and capacity visibility above.
+
+**Finding units.** The units are listed grouped by where they sit — each group headed by its
+parent's path ("Camp 1 → Cabin"; units directly under the root form a "Top level" group) — with
+the groups ordered by that path and the units within a group by name, numbers in numeric order
+("Cabin 2" before "Cabin 10"). The view can be narrowed to any set of lodging nodes, leaves
+included (a top-level unit with no sub-units, such as Lark's "Off Site", is a leaf), picked from a
+searchable list of full paths; it then shows every unit under any chosen node. The choice is
+URL-addressable (`?lodgingFilter`, §4; §15, DR-63). Days are shown in local time (§10).
 
 **Capacity & sharing rules:** campers attach only to **leaf** nodes; non-leaf nodes are
 containers whose occupancy/capacity aggregate their descendants; `sharing_multiplier` and
@@ -1538,10 +1561,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Money:** formatted to two decimals; computed in whole dollars.
 - **Dates/times:** Luxon (`DateTime`) with explicit timezone handling; form date values are
   `YYYY-MM-DD`, datetimes are ISO with offset. Camper `stay` is an array of `YYYY-MM-DD`
-  strings. Pricing logic receives dates as `{ year, month, day }` objects. Watch UTC-vs-local
-  boundaries (the previous grid header rendered day labels at a fixed UTC offset to avoid
-  off-by-one shifts) — use `setZone`/`toISODate` deliberately rather than relying on the
-  local zone.
+  strings. Pricing logic receives dates as `{ year, month, day }` objects. Dates are **displayed
+  in the viewer's local time**. A date-only value is read as local midnight of that same day, so
+  its label names the calendar day it holds; arithmetic that only builds `YYYY-MM-DD` strings
+  (such as listing an event's days) may use a fixed zone (§15, DR-64).
 - **CSRF & credentials:** every request includes credentials; mutations send `X-CSRFToken`
   from the cookie set at bootstrap.
 - **Loading discipline:** components render a spinner until their required queries resolve;
@@ -1970,7 +1993,8 @@ conditionals, and array handling that rjsf already provides).
 **Context:** moment is in maintenance mode. Luxon provides immutable values and explicit-zone
 methods (`setZone`/`toISODate`/`toFormat`). Be deliberate about UTC vs. local boundaries — the
 old lodging grid header rendered day labels at a fixed UTC offset to avoid off-by-one day
-shifts; reproduce that intent rather than relying on the local zone.
+shifts; reproduce that intent rather than relying on the local zone. (Superseded for display by
+DR-64: dates are shown in local time.)
 
 ### DR-6 — Drag and drop via dnd-kit (replacing react-grid-layout)
 
@@ -2963,6 +2987,88 @@ every future Vite major waits on a Ladle release. React Cosmos (maintained, any 
 fixture format means renaming and restructuring every stories file and changing every e2e story
 URL. Storybook's costs: a larger install and slower build than Ladle, and its own major-version
 upgrades (largely automated by `storybook upgrade`).
+
+### DR-60 — A registration's notes are its free-text fields
+
+**Decision:** Where the lodging screen shows "the registration's notes" (§8.6), it shows the
+registration's top-level fields that its form renders as a textarea (`ui:widget: textarea`),
+each under its own title — Lark's "Comments", for instance. Nothing is shown when none are filled.
+**Context:** The old client read `registration.attributes.notes`, a key Lark's registrations
+don't have (theirs is `comments`). The client is data-driven (§1), so it can't assume a field
+name; a textarea is how an event asks for free-form text.
+**Alternatives:** Every registration field in readable form — complete, but buries the notes
+among addresses and phone numbers. Hard-coding `comments` and `notes` — works for today's events
+only.
+
+### DR-61 — Selecting a camper on the lodging screen shows their details in place
+
+**Decision:** Clicking (or pressing Enter/Space on) a camper anywhere on the lodging screen
+selects them — `?camperId` — and their lodging details show beside the open view (§8.6). Opening
+the camper's record is an explicit action from those details.
+**Context:** Clicking a timeline card opened the camper's record, leaving the lodging screen. The
+card is also the drag handle: a drag starts only after the pointer moves 5px, so a slightly
+shaky click navigated away, and the click the browser fires after a drag or resize did too.
+Admins also needed a camper's lodging needs while placing them, and the old popover showing them
+opened on hover — which fights with dragging and doesn't exist on touch screens.
+**Alternatives:** A separate "open" control on each card — keeps navigation a click away but
+leaves the details problem unsolved. Suppressing the click after a drag or resize — fragile
+bookkeeping, and a short click would still navigate. A hover popover, as before.
+
+### DR-62 — Timeline drop targets are rows, not day cells
+
+**Decision:** Each unit's row is a single dnd-kit drop target; the day a camper lands on is read
+from the pointer's position along the row (tracked during the drag). The day grid is drawn as a
+background rather than an element per cell. Rows are memoized with stable callbacks, so starting
+or ending a drag doesn't re-render the unchanged ones. The day columns share the available width
+evenly, down to a minimum below which the timeline scrolls sideways; departure day (DR-65) is
+drawn as a half column — its morning — since no stay reaches past its midday.
+**Context:** With a drop target per unit per day, Lark (about 300 units over 10 days) had about
+3,000 targets. dnd-kit re-renders every droppable and draggable whenever the target under the
+pointer changes, and measures every droppable as a drag starts, so dragging stuttered: in a dev
+build a pointer move took 78 ms on average (325 ms at the 95th percentile). With row targets it
+takes about 14 ms (44 ms), and the page has half as many elements.
+**Alternatives:** Memoizing the cells — doesn't help, since they re-render through dnd-kit's
+context, not their props. Virtualizing the rows — more machinery than the problem needs now; worth
+revisiting for much larger events. Pragmatic drag and drop (see DR-6).
+
+### DR-63 — Narrowing the timeline to any set of lodging nodes; units grouped by where they are
+
+**Decision:** The timeline can be narrowed to any number of lodging nodes, leaves included, chosen
+from a searchable list of full paths, and kept in the URL (`?lodgingFilter`). Units are grouped
+under their parent's path, the groups sorted by that path and the units by name in natural order.
+**Context:** The filter offered only nodes with children, one at a time, so a top-level unit
+with no sub-units (Lark's "Off Site") couldn't be picked, two areas couldn't be compared side by
+side, and the choice was lost on leaving the page. The rows showed only a unit's own name
+("Cabin 05"), which doesn't say which camp it's in, and came in id order, so a unit added later
+sorted last.
+**Alternatives:** Only the top-level areas — short, but can't narrow to one tent area. A
+level-by-level picker walking the tree — one branch at a time, and slower to use than typing part
+of a name.
+
+### DR-64 — Dates display in local time
+
+**Decision:** Dates are shown in the viewer's local time (§10). Date-only values are read as local
+midnight of their own day, so a label always names the calendar day the value holds.
+**Context:** DR-5 carried over the old client's practice of rendering day labels at a fixed UTC
+offset. Organizers expect the dates they see to be in their own time, and reading a `YYYY-MM-DD`
+value in local time gives the same calendar day as reading it in UTC, so the fixed zone bought
+nothing for display.
+**Alternatives:** Keep rendering in UTC — right for date-only values, but it shows timestamps
+at the wrong hour and date for anyone outside UTC.
+
+### DR-65 — No one stays over on the last day, enforced in the client
+
+**Decision:** A camper's `stay` never includes the event's last day (§8.6). The lodging screen
+doesn't offer it, and a drop or resize that reaches it stops on the day before. Only the client
+enforces this; the server stores whatever days it's sent.
+**Context:** A stay lists the days a camper is present, arriving midday on the first and leaving
+midday the day after the last. At every camp the organizers have run, campers leave on the last
+day, so a stay that includes it means a night that doesn't exist; the timeline allowed it, and
+bars dragged to the end of the grid created one.
+**Alternatives:** Validating on the server as well — would guard every writer (imports, the API),
+but no other writer sets stays today. A per-event setting for camps where people do stay over —
+no such camp yet; the rule lives in one helper (`stayableDays`), so it's easy to make
+configurable later.
 
 ---
 
