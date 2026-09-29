@@ -20,6 +20,7 @@ import { eventHooks } from 'store/entities';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
 import { CamperEdit } from './CamperEdit';
+import { assignedLodgingPath } from './lodgingPath';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -71,8 +72,7 @@ export function EventAdminCampers() {
       .filter((other) => other.id !== c.id)
       .map(camperName)
       .join(', ');
-  const lodgingPath = (c: ApiCamper) =>
-    c.lodging == null ? 'Unassigned' : (vars?.lodgingLookup[String(c.lodging)]?.fullPath ?? '');
+  const lodgingPath = (c: ApiCamper) => (vars ? assignedLodgingPath(c, vars.lodgingLookup) : '');
   const requestedPath = (c: ApiCamper) =>
     c.lodging_requested == null
       ? ''
