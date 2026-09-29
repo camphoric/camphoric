@@ -64,6 +64,17 @@ test.describe('Admin attributes', () => {
   });
 });
 
+test.describe('Code editor', () => {
+  // Monaco is bundled (DR-58): the JSON worker must load from the build for
+  // the missing comma to be underlined.
+  test('checks JSON in its worker', async ({ page }) => {
+    await page.goto(story('json-editor--invalid-json'));
+    const editor = page.locator('.monaco-editor').first();
+    await expect(editor).toBeVisible();
+    await expect(editor.locator('.squiggly-error').first()).toBeVisible();
+  });
+});
+
 test.describe('Template editor', () => {
   // The story uses a real variable spec and a stand-in preview that flags
   // `frist_name` as a typo and an unclosed {% for %} as a syntax error.
