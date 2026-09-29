@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.1](https://github.com/camphoric/camphoric/compare/v0.8.0...v0.8.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **client_v2:** bundle Monaco instead of loading it from a CDN ([10916a5](https://github.com/camphoric/camphoric/commit/10916a5bed3276db56cd713666e40cb14a9d371a))
+* **client_v2:** keep Monaco editors from dropping fast keystrokes ([bd659ef](https://github.com/camphoric/camphoric/commit/bd659eff71000a4e75a90ec51c408d54d88f5597))
+* **client_v2:** show campers on a lodging branch as unassigned ([9908393](https://github.com/camphoric/camphoric/commit/9908393a014e7d12ee5ef1a5bd629c8080815b5d))
+* **client_v2:** show campers placed above a leaf as Unassigned ([67c2835](https://github.com/camphoric/camphoric/commit/67c2835437813cf9fe6641b083ab27087fd70196))
+* **deps:** bump chalk from 5.3.0 to 6.0.0 in /data ([78ef754](https://github.com/camphoric/camphoric/commit/78ef7541fdde157e74b50223e164436529d89595))
+* **deps:** bump dotenv from 16.4.5 to 18.0.4 in /data ([1e46eb4](https://github.com/camphoric/camphoric/commit/1e46eb47d923368b3abfe4b2373b67c06ce078ee))
+* **deps:** bump moment in /data in the minor-and-patch group ([c40a38c](https://github.com/camphoric/camphoric/commit/c40a38ce945ef547072599db7f2d871f08ba2460))
+* **deps:** bump the minor-and-patch group in /client_v2 with 18 updates ([be08172](https://github.com/camphoric/camphoric/commit/be08172ca864c5142fbabc9ebee343764acce9ee))
+* **deps:** refresh client_v2 and data lockfiles for security fixes ([59a8e87](https://github.com/camphoric/camphoric/commit/59a8e871582a672efecd9f5e1760c93d15ef917e))
+* **deps:** upgrade inquirer to 12 in the data importer ([78708ee](https://github.com/camphoric/camphoric/commit/78708ee59e886b7a5e4d1aaf540ec4f443116ee3))
+* **deps:** upgrade vitest to 4.1.11 in client_v2 ([48f9e0c](https://github.com/camphoric/camphoric/commit/48f9e0c7622b10995b607a7b0a172935d0b589ae))
+
 ## [0.8.0](https://github.com/camphoric/camphoric/compare/v0.7.0...v0.8.0) (2026-09-27)
 
 
