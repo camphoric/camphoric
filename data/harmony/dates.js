@@ -5,7 +5,7 @@ export const lengthInDays = 5;
 const today = DateTime.now();
 export const year = today.year;
 
-const startDate = DateTime.fromISO(`${year}-12-30T14:00:00.000-07:00`);
+const startDate = DateTime.fromISO(`${year}-12-29T14:00:00.000-07:00`);
 const regEndDate = DateTime.fromISO(`${year}-12-13T14:00:00.000-07:00`);
 
 const dateHash = {
