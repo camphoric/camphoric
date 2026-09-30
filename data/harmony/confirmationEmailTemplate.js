@@ -46,7 +46,7 @@ Each camper 2 years and older will need to take a rapid COVID test no more than 
 NEW THIS YEAR: Campers staying longer than 2 nights will take a COVID test 48 hours after arriving at camp. All campers should plan to bring rapid COVID tests with them.
 
 If you would like to sign up to lead a workshop, you may do so on the
-[Workshop Signup Thread](https://docs.google.com/forms/d/1ISs1zhwBzUyp4Q8inU6Z8x12dFmmLmWsjExMZPt3EKc)
+[Workshop Signup Form](https://docs.google.com/forms/d/1ISs1zhwBzUyp4Q8inU6Z8x12dFmmLmWsjExMZPt3EKc)
 
 You will be receiving an email with your housing assignment and additional details by December 16. Thank you for registering for Camp Harmony!
 
