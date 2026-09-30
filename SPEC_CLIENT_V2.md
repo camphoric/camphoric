@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -1356,6 +1356,9 @@ genuinely additive widgets are layered on (§15, DR-29):
 - **NaturalNumberInput** — digits-only non-negative integer.
 - **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
   or pre-filled overflow).
+- **Checkboxes** — overrides the base checkboxes so the chosen values are saved in the order the
+  schema lists its options, not the order they were ticked (§15, DR-66). Emails, reports and
+  admin views then list the choices (e.g. attendance days) in a stable, meaningful order.
 
 **Templates.** The base theme's templates render field layout, errors, help and objects (§15,
 DR-29). The custom templates are:
@@ -3069,6 +3072,21 @@ bars dragged to the end of the grid created one.
 but no other writer sets stays today. A per-event setting for camps where people do stay over —
 no such camp yet; the rule lives in one helper (`stayableDays`), so it's easy to make
 configurable later.
+
+### DR-66 — Checkbox choices are saved in option order
+
+**Decision:** A checkboxes field saves its chosen values in the order the schema lists the
+options (§9.1). The client wraps the `@rjsf/mantine` base widget to reorder what it reports; the
+server stores the list as sent.
+**Context:** The base widget reports values in the order they were ticked (Mantine's checkbox
+group appends each new one), so a camper who ticked Fri, Sun, Sat was saved that way, and the
+confirmation email listed the days out of order. rjsf's own core widget keeps option order; the
+Mantine theme doesn't. Fixing the stored order fixes every email, report and view at once, where
+sorting at display time would need each template to know the option order.
+**Alternatives:** Sort in each email and report template — every template would repeat it, and
+Jinja templates don't have the schema's option order to sort by. Sort on the server — the server
+doesn't otherwise interpret form fields. Neither reorders registrations already saved; those keep
+their stored order.
 
 ---
 

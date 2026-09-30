@@ -11,15 +11,18 @@
  *   - DateWidget        — overrides the base date widget to display MM/DD/YYYY
  *                         while storing ISO YYYY-MM-DD
  *   - SelectWidget      — overrides the base select to render the description
+ *   - CheckboxesWidget  — overrides the base checkboxes to save the choices in
+ *                         option order rather than click order
  *
  * `PhoneInput` and `NaturalNumberInput` are keyed by the names event uiSchemas
  * reference (the v4 names, e.g. `ui:widget: 'PhoneInput'`). `textarea`,
- * `date` and `select` use rjsf's lowercase keys to OVERRIDE the base widgets of
- * the same name. The base theme already supplies CheckboxesWidget / TextWidget.
+ * `date`, `select` and `checkboxes` use rjsf's lowercase keys to OVERRIDE the
+ * base widgets of the same name. The base theme already supplies TextWidget.
  */
 
 import type { RegistryWidgetsType } from '@rjsf/utils';
 
+import { CheckboxesWidget } from './CheckboxesWidget';
 import { DateWidget } from './DateWidget';
 import { NaturalNumberInput } from './NaturalNumberInput';
 import { PhoneInput } from './PhoneInput';
@@ -33,6 +36,14 @@ export const customWidgets: RegistryWidgetsType = {
   textarea: TextareaWidget,
   date: DateWidget,
   select: SelectWidget,
+  checkboxes: CheckboxesWidget,
 };
 
-export { DateWidget, NaturalNumberInput, PhoneInput, SelectWidget, TextareaWidget };
+export {
+  CheckboxesWidget,
+  DateWidget,
+  NaturalNumberInput,
+  PhoneInput,
+  SelectWidget,
+  TextareaWidget,
+};
