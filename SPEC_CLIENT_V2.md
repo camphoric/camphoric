@@ -1358,7 +1358,9 @@ genuinely additive widgets are layered on (§15, DR-29):
   or pre-filled overflow).
 - **Checkboxes** — overrides the base checkboxes so the chosen values are saved in the order the
   schema lists its options, not the order they were ticked (§15, DR-66). Emails, reports and
-  admin views then list the choices (e.g. attendance days) in a stable, meaningful order.
+  admin views then list the choices (e.g. attendance days) in a stable, meaningful order. It
+  also shows the field's description (templated markdown) between the label and the
+  checkboxes, which the base widget omits.
 
 **Templates.** The base theme's templates render field layout, errors, help and objects (§15,
 DR-29). The custom templates are:

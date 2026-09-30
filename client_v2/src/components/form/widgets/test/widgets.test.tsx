@@ -119,6 +119,36 @@ describe('custom widgets', () => {
     expect(onChange).toHaveBeenLastCalledWith({ days: ['Fri', 'Sat', 'Sun'] }, expect.anything());
   });
 
+  it('checkboxes render the field description', () => {
+    const schema: RJSFSchema = {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'array',
+          title: 'Days',
+          description: 'Check-in is at **2pm**.',
+          items: { type: 'string', enum: ['Thu', 'Fri'] },
+          uniqueItems: true,
+        },
+      },
+    };
+    const uiSchema: UiSchema = { days: { 'ui:widget': 'checkboxes' } };
+    renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} />);
+
+    // Rendered through the markdown template, between the label and the boxes.
+    const description = screen.getByText('2pm').closest('.field-description') as HTMLElement;
+    expect(description).toHaveTextContent('Check-in is at 2pm.');
+    expect(screen.getAllByText('Days')).toHaveLength(1);
+    expect(
+      screen.getByText('Days').compareDocumentPosition(description) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      description.compareDocumentPosition(screen.getByLabelText('Thu')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   const customWidgetCases: [string, RJSFSchema, UiSchema][] = [
     ['PhoneInput', { type: 'string' }, { 'ui:widget': 'PhoneInput' }],
     ['NaturalNumberInput', { type: 'integer' }, { 'ui:widget': 'NaturalNumberInput' }],
