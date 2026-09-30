@@ -1,7 +1,7 @@
 const lodgingDescription = `
 [Click here to see the current rates](https://docs.google.com/spreadsheets/d/1Z-GSxRMS7SnyC32F9v7MVNaE3UxjcmdXBSswUjp6HPc/edit?usp=sharing) for lodging (all prices include meals)
 
-For Lodge: Linens included. Preference given to campers staying for full camp.
+For Lodge: Linens and bedding (pillows, blankets) included. Preference given to campers staying for full camp.
 `;
 
 const lodgingCommentsDescription= `
