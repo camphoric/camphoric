@@ -20,6 +20,16 @@ test.describe('Form engine', () => {
     await expect(page.locator('form').first()).toBeVisible();
     await expect(page.locator('form input, form select, form textarea').first()).toBeVisible();
   });
+
+  test('checkboxes save the choices in the order they are listed', async ({ page }) => {
+    await page.goto(story('checkboxes--days'));
+    await page.getByLabel('Fri Jan 1').check();
+    await page.getByLabel('Sun Jan 3').check();
+    await page.getByLabel('Sat Jan 2').check();
+
+    const saved: unknown = JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}');
+    expect(saved).toEqual({ attendance: ['Fri Jan 1', 'Sat Jan 2', 'Sun Jan 3'] });
+  });
 });
 
 test.describe('Data table', () => {

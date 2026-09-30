@@ -95,6 +95,30 @@ describe('custom widgets', () => {
     ).toBeTruthy();
   });
 
+  it('checkboxes save the choices in option order, not click order', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const schema: RJSFSchema = {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'array',
+          title: 'Days',
+          items: { type: 'string', enum: ['Thu', 'Fri', 'Sat', 'Sun'] },
+          uniqueItems: true,
+        },
+      },
+    };
+    const uiSchema: UiSchema = { days: { 'ui:widget': 'checkboxes' } };
+    renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+
+    await user.click(screen.getByLabelText('Fri'));
+    await user.click(screen.getByLabelText('Sun'));
+    await user.click(screen.getByLabelText('Sat'));
+
+    expect(onChange).toHaveBeenLastCalledWith({ days: ['Fri', 'Sat', 'Sun'] }, expect.anything());
+  });
+
   const customWidgetCases: [string, RJSFSchema, UiSchema][] = [
     ['PhoneInput', { type: 'string' }, { 'ui:widget': 'PhoneInput' }],
     ['NaturalNumberInput', { type: 'integer' }, { 'ui:widget': 'NaturalNumberInput' }],
