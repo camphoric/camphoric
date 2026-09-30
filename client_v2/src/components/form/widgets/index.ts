@@ -11,8 +11,9 @@
  *   - DateWidget        — overrides the base date widget to display MM/DD/YYYY
  *                         while storing ISO YYYY-MM-DD
  *   - SelectWidget      — overrides the base select to render the description
- *   - CheckboxesWidget  — overrides the base checkboxes to save the choices in
- *                         option order rather than click order
+ *   - CheckboxesWidget  — overrides the base checkboxes to render the description
+ *                         and save the choices in option order rather than
+ *                         click order
  *
  * `PhoneInput` and `NaturalNumberInput` are keyed by the names event uiSchemas
  * reference (the v4 names, e.g. `ui:widget: 'PhoneInput'`). `textarea`,
