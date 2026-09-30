@@ -147,8 +147,8 @@ export default {
       'default': false,
     },
     'attendance': {
-      'title': 'When will you attend?',
-      'description': 'Each camp day starts at 2pm and ends at 2pm the following day. Each camp day includes dinner on the day you arrive, and breakfast & lunch the following day.',
+      'title': 'What nights will you attend Camp?',
+      'description': 'Check-in time is 2:00pm. Meals for each night include dinner, and breakfast & lunch the following day.',
       'type': 'array',
       'items': {
         'type': 'string',
