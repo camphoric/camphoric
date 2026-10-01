@@ -90,7 +90,7 @@ class MigrationTests(TransactionTestCase):
 PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
     views.EventList, views.RegisterView, ObtainAuthToken,
-    views.PasswordResetRequestView, views.PasswordResetView,
+    views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
 }
 # Any signed-in user, for their own account.
 SELF_SERVICE = {views.ChangePasswordView}

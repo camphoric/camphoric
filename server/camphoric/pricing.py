@@ -17,11 +17,18 @@ def money_fmt(amt):
 HANDLING = 'handling'
 HANDLING_LABEL = 'Electronic payment handling'
 
+# A promo code's discount line, worked out after every other line but handling
+# (SPEC DR-67), labelled with the code's own label.
+PROMO = 'promo'
+PROMO_LABEL = 'Promo code'
+
 
 def line_label(event, var, camper=False):
     '''A pricing line's label, from the event's logic (or the var itself).'''
     if var == HANDLING and not camper:
         return HANDLING_LABEL
+    if var == PROMO:
+        return PROMO_LABEL
     logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
     for component in logic or []:
         if component.get('var') == var:
@@ -61,6 +68,55 @@ def _override(overrides, camper_id, var, value, overridden):
     return _as_number(overrides[(camper_id, var)])
 
 
+def _is_amount(value):
+    return isinstance(value, numbers.Number) and not isinstance(value, bool)
+
+
+def promo_discount(logic, data, cap):
+    '''
+    The discount a promo code's logic works out: a positive amount, never more
+    than `cap` (so it can't add a charge or take the total below zero).
+    '''
+    value = jsonLogic(logic, data)
+    if not _is_amount(value) or math.isnan(value):
+        return 0
+    return money_fmt(max(0, min(value, cap)))
+
+
+def _negated(discount):
+    '''A discount as its (negative) price line, without a negative zero.'''
+    return -discount if discount else 0
+
+
+def _apply_promo(promo_code, data, results, camper_contexts):
+    '''
+    Subtract the promo code's discount from the total (SPEC §9.2, DR-67). A
+    registration-scoped code sees the registration's lines (camper lines summed);
+    a camper-scoped one is worked out in each camper's context, with that
+    camper's own lines, and shows on the camper's breakdown too.
+    '''
+    remaining = max(0, results['total'] or 0)
+    if promo_code.scope == models.PromoCodeScope.CAMPER:
+        discount = 0
+        for camper_data, camper_results in zip(camper_contexts, results['campers']):
+            camper_total = camper_results.get('total')
+            cap = min(camper_total, remaining) if _is_amount(camper_total) else remaining
+            camper_discount = promo_discount(
+                promo_code.pricing_logic, {**data, **camper_results, 'camper': camper_data},
+                max(0, cap))
+            camper_results[PROMO] = _negated(camper_discount)
+            if _is_amount(camper_total):
+                camper_results['total'] = money_fmt(camper_total - camper_discount)
+            remaining -= camper_discount
+            discount += camper_discount
+    else:
+        registration_lines = {var: value for var, value in results.items() if var != 'campers'}
+        discount = promo_discount(
+            promo_code.pricing_logic, {**data, **registration_lines}, remaining)
+    results[PROMO] = _negated(money_fmt(discount))
+    results['total'] = money_fmt((results['total'] or 0) - discount)
+
+
 def calculate_price(registration, campers):
     '''
     Parameters
@@ -91,6 +147,10 @@ def calculate_price(registration, campers):
     right after it's worked out, so later lines use the new amount; the values
     they replaced are under `overridden`, for the admin only.
 
+    The registration's promo code, if any, then takes its discount off the
+    total as a negative `promo` line (and on each camper's breakdown, for a
+    per-camper code), before the e-payment handling fee (SPEC DR-67).
+
     See server/tests/test_pricing.py for examples.
 
     Returns
@@ -101,7 +161,8 @@ def calculate_price(registration, campers):
             camper components)
 
         This should produce identical results to `calculatePrice` in
-        client/src/components/RegisterPage/utils.ts.
+        client_v2/src/pricing/calculatePrice.ts (and the legacy
+        client/src/components/RegisterPage/utils.ts, which has no promo codes).
     '''
     results = defaultdict(int)
     results['campers'] = []
@@ -123,6 +184,7 @@ def calculate_price(registration, campers):
     date_props = get_date_props(event.camper_schema)
     overrides = _load_overrides(registration)
     overridden = {}
+    camper_contexts = []
 
     for reg_component in event.registration_pricing_logic:
         var = reg_component["var"]
@@ -189,6 +251,11 @@ def calculate_price(registration, campers):
         if camper_overridden:
             camper_results['overridden'] = camper_overridden
         results['campers'].append(camper_results)
+        camper_contexts.append(data["camper"])
+
+    data.pop("camper", None)
+    if registration.promo_code is not None:
+        _apply_promo(registration.promo_code, data, results, camper_contexts)
 
     if event.epayment_handling and registration.payment_type != 'Check':
         handling = money_fmt(results['total'] * (float(event.epayment_handling) / 100))

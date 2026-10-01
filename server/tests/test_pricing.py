@@ -628,3 +628,87 @@ class TestCalculatePrice(unittest.TestCase):
             price_components["campers"][0]["housing"],
             event.pricing["offsite"]
         )
+
+
+class TestPromoCodePricing(unittest.TestCase):
+    '''
+    A promo code's discount (SPEC §9.2, DR-67). The same cases, with the same
+    inputs and results, are in client_v2/src/pricing/test/fixtures.ts.
+    '''
+
+    def setUp(self):
+        # total = registration fee (50) + each camper's tuition (200).
+        self.event = models.Event(
+            name='Promo Camp',
+            pricing={'camp_fee': 200, 'registration_fee': 50},
+            registration_pricing_logic=[
+                {'var': 'total', 'exp': {'var': 'pricing.registration_fee'}},
+            ],
+            camper_pricing_logic=[
+                {'var': 'tuition', 'exp': {'var': 'pricing.camp_fee'}},
+                {'var': 'total', 'exp': {'var': 'tuition'}},
+            ],
+        )
+
+    def price(self, logic=None, scope=models.PromoCodeScope.REGISTRATION,
+              payment_type='Check', campers=2):
+        promo_code = None if logic is None else models.PromoCode(
+            event=self.event, label='Promo', code='PROMO', pricing_logic=logic, scope=scope)
+        registration = models.Registration(
+            event=self.event, attributes={}, payment_type=payment_type, promo_code=promo_code)
+        return pricing.calculate_price(
+            registration, [models.Camper(registration=registration) for _ in range(campers)])
+
+    def test_no_code_has_no_promo_line(self):
+        results = self.price()
+        self.assertNotIn('promo', results)
+        self.assertEqual(results['total'], 450)
+
+    def test_flat_discount(self):
+        results = self.price(30)
+        self.assertEqual(results['promo'], -30)
+        self.assertEqual(results['total'], 420)
+        self.assertEqual(results['campers'], [
+            {'tuition': 200, 'total': 200}, {'tuition': 200, 'total': 200}])
+
+    def test_percentage_of_a_summed_line(self):
+        results = self.price({'*': [{'var': 'tuition'}, 0.4]})
+        self.assertEqual(results['promo'], -160)
+        self.assertEqual(results['total'], 290)
+
+    def test_discount_is_capped_at_the_total(self):
+        results = self.price(1000)
+        self.assertEqual(results['promo'], -450)
+        self.assertEqual(results['total'], 0)
+
+    def test_negative_or_non_numeric_discount_is_zero(self):
+        for logic in ({'-': [0, 10]}, 'free', {'var': 'nothing'}):
+            with self.subTest(logic=logic):
+                results = self.price(logic)
+                self.assertEqual(results['promo'], 0)
+                self.assertEqual(results['total'], 450)
+
+    def test_handling_is_on_the_discounted_total(self):
+        self.event.epayment_handling = 3
+        results = self.price(30, payment_type='PayPal')
+        self.assertEqual(results['promo'], -30)
+        self.assertAlmostEqual(results['handling'], 12.6)
+        self.assertAlmostEqual(results['total'], 432.6)
+
+    def test_per_camper_discount(self):
+        # The first camper's is capped at their own total.
+        results = self.price(
+            {'if': [{'==': [{'var': 'camper.index'}, 0]}, 1000,
+                    {'*': [{'var': 'tuition'}, 0.5]}]},
+            scope=models.PromoCodeScope.CAMPER)
+        self.assertEqual(results['campers'], [
+            {'tuition': 200, 'total': 0, 'promo': -200},
+            {'tuition': 200, 'total': 100, 'promo': -100},
+        ])
+        self.assertEqual(results['promo'], -300)
+        self.assertEqual(results['total'], 150)
+
+    def test_per_camper_discount_with_no_campers(self):
+        results = self.price(50, scope=models.PromoCodeScope.CAMPER, campers=0)
+        self.assertEqual(results['promo'], 0)
+        self.assertEqual(results['total'], 50)

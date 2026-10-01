@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 
 from . import roles
 from .models import (
-    Camper, Deposit, EmailMessage, Event, Lodging, Payment, Registration, WorkerHeartbeat,
+    Camper, Deposit, EmailMessage, Event, Lodging, Payment, PromoCode, Registration,
+    WorkerHeartbeat,
 )
 
 admin.site.register(Event)
@@ -27,7 +28,7 @@ class DeletedFilter(admin.SimpleListFilter):
 
 class SoftDeletedAdmin(admin.ModelAdmin):
     '''
-    Registrations, campers and payments, deleted or not (SPEC DR-55): the admin
+    Registrations, campers, payments and promo codes, deleted or not (SPEC DR-55): the admin
     API soft-deletes them, and their default manager hides deleted ones.
     '''
     list_display = ['__str__', 'deleted_at']
@@ -41,6 +42,7 @@ class SoftDeletedAdmin(admin.ModelAdmin):
 admin.site.register(Registration, SoftDeletedAdmin)
 admin.site.register(Camper, SoftDeletedAdmin)
 admin.site.register(Payment, SoftDeletedAdmin)
+admin.site.register(PromoCode, SoftDeletedAdmin)
 
 
 @admin.register(EmailMessage)

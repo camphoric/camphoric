@@ -18,6 +18,7 @@ router.register('campers', views.CamperViewSet, basename='camper')
 router.register('deposits', views.DepositViewSet, basename='deposit')
 router.register('payments', views.PaymentViewSet, basename='payment')
 router.register('customcharges', views.CustomChargeViewSet, basename='customcharge')
+router.register('promocodes', views.PromoCodeViewSet, basename='promocode')
 router.register('customchargetypes', views.CustomChargeTypeViewSet, basename='customchargetype')
 router.register('pricingoverrides', views.PricingOverrideViewSet, basename='pricingoverride')
 router.register('emailtemplates', views.EmailTemplateViewSet, basename='emailtemplate')
@@ -41,6 +42,7 @@ urlpatterns = router.urls + [
         views.RegisterView.as_view(),
         name='register',
     ),
+    path('events/<int:event_id>/checkpromo', views.CheckPromoCodeView.as_view()),
     path(
         'eventlist',
         views.EventList.as_view(),

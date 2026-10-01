@@ -257,6 +257,7 @@ REST_FRAMEWORK = {
     # Asking for a password-reset link, per client address.
     'DEFAULT_THROTTLE_RATES': {
         'password_reset': env.str('CAMPHORIC_PASSWORD_RESET_RATE', default='5/hour'),
+        'promo_code_check': env.str('CAMPHORIC_PROMO_CODE_CHECK_RATE', default='30/minute'),
     },
 }
 
