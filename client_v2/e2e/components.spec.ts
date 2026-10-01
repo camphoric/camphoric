@@ -400,6 +400,12 @@ test.describe('Lodging hierarchy', () => {
     await expect(names).toHaveText(['Camp 1', 'Cabin A', 'Cabin B', 'Off Site']);
   });
 
+  test('a unit lists its campers on one line', async ({ page }) => {
+    await page.goto(story('lodging-tree--hierarchy'));
+    await expect(page.getByText('Bob Ross, Jane Ross', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unassign' })).toHaveCount(0);
+  });
+
   test('a node’s name shows all its details, with Edit', async ({ page }) => {
     await page.goto(story('lodging-tree--hierarchy'));
     await page.getByRole('button', { name: 'Cabins', exact: true }).click();

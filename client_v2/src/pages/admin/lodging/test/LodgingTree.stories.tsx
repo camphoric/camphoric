@@ -1,9 +1,9 @@
 /**
  * Stories for the LodgingTree (SPEC §8.6): the hierarchy with occupancy, node
- * actions, and each leaf's campers, siblings listed by name. Cabin A, Tent 1,
+ * actions, and each leaf's campers on one line, siblings listed by name. Cabin A, Tent 1,
  * and Cabins carry notes, which an icon beside the node opens. A node's name
  * selects it, showing its details alongside with an Edit action. A Reporter
- * sees no node actions, Unassign, or Edit (DR-51). Run `npm run storybook`.
+ * sees no node actions or Edit (DR-51). Run `npm run storybook`.
  */
 
 import { Card, Grid, Text } from '@mantine/core';
@@ -40,7 +40,6 @@ export const Hierarchy: StoryFn = () => {
             onAddChild={noop}
             onEdit={setEditing}
             onDelete={noop}
-            onUnassign={noop}
             onSelectCamper={noop}
             selectedLodgingId={selectedId}
             onSelectLodging={setSelectedId}
