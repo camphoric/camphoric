@@ -851,7 +851,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 
 - **Organization chooser:** lists organizations; selecting one navigates to its event chooser.
 - **Event chooser:** lists events for the org; selecting one navigates into the Event Admin
-  container for that event.
+  container for that event. It offers a way back to organization selection.
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
 - **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
   rename one, and delete one after confirming — refused, with the reason, while it still has
