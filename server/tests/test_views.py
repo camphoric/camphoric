@@ -1664,6 +1664,62 @@ def create_standard_test_event(
     }
 
 
+class EventPricingLogicValidationTests(APITestCase):
+    '''Camper and registration pricing logic must have a `total` (SPEC DR-69).'''
+
+    FIELDS = ['camper_pricing_logic', 'registration_pricing_logic']
+
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")
+        self.client.force_authenticate(user=self.admin_user)
+        self.organization = models.Organization.objects.create(name='Test Organization')
+        self.event = models.Event.objects.create(
+            organization=self.organization,
+            name='Test Event',
+        )
+
+    def patch(self, field, value):
+        return self.client.patch(
+            f'/api/events/{self.event.id}/', {field: value}, format='json')
+
+    def test_accepts_logic_with_a_total(self):
+        value = [
+            {'var': 'tuition', 'label': 'Tuition', 'exp': 200},
+            {'var': 'total', 'label': 'Total', 'exp': {'var': 'tuition'}},
+        ]
+        for field in self.FIELDS:
+            with self.subTest(field=field):
+                response = self.patch(field, value)
+                self.assertEqual(response.status_code, 200, response.data)
+                self.event.refresh_from_db()
+                self.assertEqual(getattr(self.event, field), value)
+
+    def test_rejects_logic_without_a_total(self):
+        for value in [
+            [],
+            [{'var': 'tuition', 'exp': 200}],
+            {'var': 'total', 'exp': 200},
+            [{'var': 'total'}],
+            [{'exp': 200}, {'var': 'total', 'exp': 200}],
+            ['total'],
+        ]:
+            for field in self.FIELDS:
+                with self.subTest(field=field, value=value):
+                    response = self.patch(field, value)
+                    self.assertEqual(response.status_code, 400, response.data)
+                    self.assertIn(field, response.data)
+
+    def test_creating_an_event_checks_it_too(self):
+        response = self.client.post('/api/events/', {
+            'organization': self.organization.id,
+            'name': 'No Total',
+            'camper_pricing_logic': [{'var': 'tuition', 'exp': 200}],
+            'registration_pricing_logic': [{'var': 'total', 'exp': 0}],
+        }, format='json')
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(list(response.data), ['camper_pricing_logic'])
+
+
 class EventErrorMessagesValidationTests(APITestCase):
     def setUp(self):
         self.admin_user = User.objects.create_superuser("tom", "tom@example.com", "password")

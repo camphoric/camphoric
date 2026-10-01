@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-01
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-68)
+- §15 — Decision Records (DR-1…DR-69)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -552,7 +552,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   (event dates); `default_stay_length`; JSON Schemas: `camper_schema`, `camper_admin_schema`,
   `registration_schema`, `registration_ui_schema`, `registration_admin_schema`,
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
-  `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists);
+  `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists, each
+  `[{ var, label?, exp }]` with a component whose `var` is `total`; saving one without is
+  refused with a 400 `{ <field>: ['message'] }`, §15, DR-69);
   `registration_template_vars`; `registration_error_messages` (custom validation messages,
   `{ field path: { validation keyword: Handlebars message } }`, §7.1);
   `confirmation_page_template` (a Jinja markdown template, §7.3; saving one that doesn't parse
@@ -1126,7 +1128,8 @@ An interface to edit the event's JSON configuration directly (in Monaco), each p
 to the event via PATCH:
 
 - Schemas: camper, registration, registration UI, deposit, payment.
-- Pricing logic: camper pricing, registration pricing.
+- Pricing logic: camper pricing, registration pricing. Each must keep a `total` component; the
+  server refuses a save without one and the error is shown (§15, DR-69).
 - Admin attribute schemas: registration admin attributes, camper admin attributes (each a map
   of named `{ data, ui }` pairs).
 
@@ -3199,6 +3202,21 @@ and the question shows before the price is known. Floor each credit at what it c
 event's logic — every event's logic must remember to, and a forgotten one is the same bug.
 Floor only the registration's total — one camper's credit would still come off another's
 charges, which was the bug.
+
+### DR-69 — Pricing logic must have a total
+
+**Decision:** The server refuses an event's `camper_pricing_logic` or
+`registration_pricing_logic` (400, on create or update) unless it's a list of components, each
+an object with a string `var` and an `exp`, one of them with `var: "total"` (§5, §8.8). It
+checks the shape only, not the expressions.
+**Context:** The `total` lines are what everything downstream reads: the registration's amount
+owed, the promo-code discount and its cap (DR-67), the floor at 0 (DR-68), the handling fee,
+payments, and reports. Logic without one prices every registration at $0 with no error, and is
+easy to do by hand-editing the JSON in Settings. Logic that isn't a list of `var`/`exp`
+components makes pricing fail outright.
+**Alternatives:** Check it in the client's Settings editor — the data loader and other API
+callers would still get through. Treat a missing `total` as the sum of the other lines — not
+every line is money (some are counts or rates), so the sum would be wrong.
 
 ---
 
