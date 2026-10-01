@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-72)
+- §15 — Decision Records (DR-1…DR-75)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -211,7 +211,7 @@ queries derive it from `window.location` rather than props, through the routing 
   (`attributes` by default, `admin`, `fees`, `campers` for a registration, `lodging` for a
   camper, `history`, `raw`).
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
-  (default) or `timeline`; `?camperId` and `?lodgingId` — the camper and the lodging node
+  (default; the view labelled Layout) or `timeline` (labelled Assignments; §15, DR-74); `?camperId` and `?lodgingId` — the camper and the lodging node
   selected on the hierarchy, and `?timelineCamperId` and `?timelineLodgingId` — those selected on
   the timeline, whose details show beside that view only (§8.6; §15, DR-71); `?lodgingFilter` —
   the lodging nodes the timeline is narrowed to, as comma-separated ids (none: everything).
@@ -1069,9 +1069,12 @@ across date ranges**, with capacity visibility. Required capabilities:
   value its form sets — capacity (saying when it's the sum of the units under it), reserved
   count, sharing multiplier, the title for its children, visibility, availability on the
   registration form, and notes — plus, for a non-leaf, how many units are under it. From the
-  hierarchy's details the admin can edit the node. On the timeline, units and groups whose node
+  node's details, on either view, the admin can edit the node (§15, DR-75). On the timeline, units and groups whose node
   has notes are marked. Selecting a node never navigates away; each view keeps its own selection
   (§15, DR-71), URL-addressable as `?lodgingId` and `?timelineLodgingId` (§4; §15, DR-70).
+
+The screen has two views, each named for what the admin does there: the hierarchy is labelled
+**Layout** and the timeline **Assignments** (§15, DR-74).
 
 These must work efficiently across a whole event's campers and the event's date range. A
 productive realization is a **calendar/timeline assignment view** — a column per event day,
@@ -1630,6 +1633,11 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
     text at their line/column; choosing one moves the cursor to it.
   - **Help** — Template Help for the editor's context (§9.3) can be opened alongside the editor
     without blocking it, inserts entries at the cursor, and links to the standalone help page.
+  - **Room to write** — the preview can be hidden so the text gets the editor's full width; its
+    problems stay underlined and their count stays visible. The editor can also be expanded to
+    fill the screen, with the preview (which can still be hidden) and help, and edits made there
+    are the same unsaved text the page holds. Escape in the expanded view belongs to the editor
+    (dismissing suggestions), not to closing it (§15, DR-73).
 
   Several template editors can be open at once, each with its own context.
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation
@@ -3240,6 +3248,8 @@ every line is money (some are counts or rates), so the sum would be wrong.
 
 ### DR-70 — Lodging notes: an icon on the hierarchy, a details panel on the timeline
 
+*Edit, offered here only in the hierarchy's details, is offered on both views since DR-75.*
+
 **Decision:** On the hierarchy, a node with notes has an icon beside it that opens them on
 click. On the timeline, units and groups whose node has notes are marked with an icon, and a
 unit's or group's name selects that node (`?timelineLodgingId`), showing its details, notes
@@ -3284,6 +3294,41 @@ sharing with, which otherwise means finding the unit on the lodging screen.
 **Alternatives:** Only the unit's path and notes — leaves "who's in there with them" to the
 lodging screen. Editing the stay here as well — the lodging screen already does it, with the
 unit's occupancy in view; it remains the planned "Set the lodging stay" capability.
+
+### DR-74 — The lodging views are labelled Layout and Assignments
+
+**Decision:** On the lodging screen (§8.6) the hierarchy is labelled **Layout** and the timeline
+**Assignments**. The URL values (`?lodgingView=hierarchy|timeline`, §4) and the selection
+parameters keep their names, so existing links still open the same view.
+**Context:** "Hierarchy" and "Timeline" describe how each view is drawn, not what it's for:
+organizers set up and review the camp's lodging on one and place campers on the other.
+**Alternatives:** "Full Tree" — still names the drawing. "Buildings & Units" — not all lodging is
+a building (tents, RV spaces). "By Place" / "By Day" — accurate, but says less about what each
+view is for. Renaming the URL values too — breaks saved links for no gain.
+
+### DR-75 — Lodging details offer Edit on both views
+
+**Decision:** A selected lodging node's details offer Edit on the timeline as well as the
+hierarchy (§8.6), opening the same node form.
+**Context:** DR-70 offered Edit only beside the hierarchy, where nodes are managed. While placing
+campers on the timeline, organizers spot a unit whose capacity or notes need fixing and had to
+switch views, find the node, and select it again to change it.
+**Alternatives:** Keep Edit on the hierarchy only — the detour above. Edit the notes in place in
+the details — a second way to edit one field, beside the form that edits them all.
+
+### DR-73 — The template editor can hide its preview and expand to fill the screen
+
+**Decision:** The template editor (§9.6) has two ways to make room: hide the preview so the text
+takes the full width (the problem count stays visible), and expand the whole editor — text,
+preview and help — to fill the screen. Both apply everywhere the editor is used (reports, emails,
+the confirmation page).
+**Context:** Report templates are edited in a card on the reports screen and email bodies sit
+beside their preview inside a dialog; organizers found both too cramped to write long templates
+in.
+**Alternatives:** Moving the preview into its own dialog — the preview is most useful while
+typing, so it should stay beside the text. A draggable split between text and preview — more
+machinery, and still bounded by the surrounding card or dialog. Expanding only the text without
+the preview and help — loses the feedback that makes the editor worth using.
 
 ---
 
