@@ -629,6 +629,15 @@ function CamperBar({
   const baseLen = span ? span.end - span.start + 1 : 1;
   const resizing = useRef<{ startX: number; startLen: number } | null>(null);
   const [previewLen, setPreviewLen] = useState<number | null>(null);
+  // A finished resize keeps its length on show until the camper's stay changes.
+  // The saved (optimistic) stay reaches the bar a tick after the pointer is
+  // released, so dropping the preview then flashed the old stay; a failed save
+  // rolls the stay back, which also ends the preview.
+  const [shownStay, setShownStay] = useState(camper.stay);
+  if (camper.stay !== shownStay) {
+    setShownStay(camper.stay);
+    setPreviewLen(null);
+  }
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `camper:${camper.id}`,
     data: { camper, placed: true, length: baseLen } satisfies DragData,
@@ -657,8 +666,12 @@ function CamperBar({
         maxLen,
       );
       resizing.current = null;
-      setPreviewLen(null);
-      if (finalLen !== baseLen) onResize(camper.id, days.slice(span.start, span.start + finalLen));
+      if (finalLen === baseLen) {
+        setPreviewLen(null);
+      } else {
+        setPreviewLen(finalLen);
+        onResize(camper.id, days.slice(span.start, span.start + finalLen));
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
