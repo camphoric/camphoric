@@ -92,6 +92,15 @@ export function EventAdminLodging() {
 
   const [nodeForm, setNodeForm] = useState<NodeFormState>({ open: false });
   const [view, setView] = useSearchTab('lodgingView', VIEWS);
+  // The hierarchy starts collapsed. Kept here, not in the tree, so it's as it
+  // was left on coming back from the timeline.
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(new Set());
+  const toggleExpanded = (lodgingId: number) =>
+    setExpandedIds((ids) => {
+      const next = new Set(ids);
+      if (!next.delete(lodgingId)) next.add(lodgingId);
+      return next;
+    });
 
   const days = useMemo(() => (event ? eventDays(event.start, event.end) : []), [event]);
   const filterNodes = useMemo(() => lodgingFilterNodes(data?.tree), [data]);
@@ -223,6 +232,8 @@ export function EventAdminLodging() {
                   onSelectCamper={selectCamper}
                   selectedLodgingId={selectedLodging?.id}
                   onSelectLodging={selectLodging}
+                  expandedIds={expandedIds}
+                  onToggleExpanded={toggleExpanded}
                 />
               ) : (
                 <Text c="dimmed">No lodging hierarchy yet. Add a root lodging to begin.</Text>

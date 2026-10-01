@@ -393,21 +393,45 @@ test.describe('Lodging timeline', () => {
   });
 });
 
+/** Open a lodging tree story with every node expanded (the tree starts collapsed). */
+async function openExpandedTree(page: Page, id: string) {
+  await page.goto(story(id));
+  // Wait for the tree, or there's nothing to count yet.
+  await expect(page.getByRole('button', { name: 'Expand Camp 1' })).toBeVisible();
+  const expand = page.getByRole('button', { name: /^Expand / });
+  while ((await expand.count()) > 0) await expand.first().click();
+}
+
 test.describe('Lodging hierarchy', () => {
   test('lists each node’s children by name', async ({ page }) => {
-    await page.goto(story('lodging-tree--hierarchy'));
+    await openExpandedTree(page, 'lodging-tree--hierarchy');
     const names = page.locator('#storybook-root').getByText(/^(Camp 1|Off Site|Cabin [AB])$/);
     await expect(names).toHaveText(['Camp 1', 'Cabin A', 'Cabin B', 'Off Site']);
   });
 
   test('a unit lists its campers on one line', async ({ page }) => {
-    await page.goto(story('lodging-tree--hierarchy'));
+    await openExpandedTree(page, 'lodging-tree--hierarchy');
     await expect(page.getByText('Bob Ross, Jane Ross', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Unassign' })).toHaveCount(0);
   });
 
-  test('a node’s name shows all its details, with Edit', async ({ page }) => {
+  test('starts collapsed; nodes with nodes under them, but the root, expand', async ({ page }) => {
     await page.goto(story('lodging-tree--hierarchy'));
+    await expect(page.getByRole('button', { name: /^(Collapse|Expand) Lodging$/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Off Site', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cabins', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Expand Camp 1' }).click();
+    await expect(page.getByRole('button', { name: 'Cabin A', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Expand Cabins' }).click();
+    await expect(page.getByText('Bob Ross, Jane Ross', { exact: true })).toBeVisible();
+    // A unit has nothing under it to collapse but its campers.
+    await expect(page.getByRole('button', { name: /^(Collapse|Expand) Cabin A$/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Collapse Cabins' }).click();
+    await expect(page.getByRole('button', { name: 'Cabin A', exact: true })).toHaveCount(0);
+  });
+
+  test('a node’s name shows all its details, with Edit', async ({ page }) => {
+    await openExpandedTree(page, 'lodging-tree--hierarchy');
     await page.getByRole('button', { name: 'Cabins', exact: true }).click();
     const panel = page.getByRole('region', { name: 'Details for Cabins' });
     await expect(panel.getByText('3 of 4')).toBeVisible();
@@ -419,7 +443,7 @@ test.describe('Lodging hierarchy', () => {
   });
 
   test('a Reporter sees a node’s details but can’t edit it', async ({ page }) => {
-    await page.goto(story('lodging-tree--as-reporter'));
+    await openExpandedTree(page, 'lodging-tree--as-reporter');
     await page.getByRole('button', { name: 'Cabin A', exact: true }).click();
     const panel = page.getByRole('region', { name: 'Details for Cabin A' });
     await expect(panel.getByText('2 of 2')).toBeVisible();
@@ -429,7 +453,7 @@ test.describe('Lodging hierarchy', () => {
 
 test.describe('Lodging notes', () => {
   test('the hierarchy opens a node’s notes from its icon', async ({ page }) => {
-    await page.goto(story('lodging-tree--hierarchy'));
+    await openExpandedTree(page, 'lodging-tree--hierarchy');
     await expect(page.getByRole('button', { name: 'Notes for Cabin B' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Notes for Cabin A' }).click();
     await expect(page.getByText(/The ladder to the top bunk is broken/)).toBeVisible();

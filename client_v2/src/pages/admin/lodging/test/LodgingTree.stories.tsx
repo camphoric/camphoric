@@ -2,7 +2,9 @@
  * Stories for the LodgingTree (SPEC §8.6): the hierarchy with occupancy, node
  * actions, and each leaf's campers on one line, siblings listed by name. Cabin A, Tent 1,
  * and Cabins carry notes, which an icon beside the node opens. A node's name
- * selects it, showing its details alongside with an Edit action. A Reporter
+ * selects it, showing its details alongside with an Edit action. Every node
+ * with nodes under it, but the root, collapses to hide them, and starts
+ * collapsed. A Reporter
  * sees no node actions or Edit (DR-51). Run `npm run storybook`.
  */
 
@@ -25,6 +27,13 @@ const TREE = treeWith(CAMPERS);
 export const Hierarchy: StoryFn = () => {
   const [selectedId, setSelectedId] = useState<number>();
   const [editing, setEditing] = useState<AugmentedLodging>();
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(new Set());
+  const toggleExpanded = (id: number) =>
+    setExpandedIds((ids) => {
+      const next = new Set(ids);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const selected = listLodgingTree(TREE).find((n) => n.id === selectedId);
 
   return (
@@ -43,6 +52,8 @@ export const Hierarchy: StoryFn = () => {
             onSelectCamper={noop}
             selectedLodgingId={selectedId}
             onSelectLodging={setSelectedId}
+            expandedIds={expandedIds}
+            onToggleExpanded={toggleExpanded}
           />
         </Card>
       </Grid.Col>
