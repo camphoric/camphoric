@@ -100,6 +100,12 @@ class EventSerializer(ModelSerializer):
     def validate_registration_error_messages(self, messages):
         return validate_error_messages(messages)
 
+    def validate_camper_pricing_logic(self, logic):
+        return validate_pricing_logic(logic)
+
+    def validate_registration_pricing_logic(self, logic):
+        return validate_pricing_logic(logic)
+
     def validate_confirmation_page_template(self, template):
         '''The confirmation page is Jinja, rendered on the server: it must parse (DR-42).'''
         problem = syntax_error(template)
@@ -625,6 +631,23 @@ def validate_schema(schema):
     except jsonschema.exceptions.SchemaError as e:
         raise ValidationError(e.message)
     return schema
+
+
+def validate_pricing_logic(logic):
+    '''
+    Check the shape of Event.camper_pricing_logic / registration_pricing_logic:
+    a list of { "var", "exp" } components, one of them the `total` (SPEC DR-69),
+    which pricing, promo codes, payments and reports all rely on.
+    '''
+    if not isinstance(logic, list):
+        raise ValidationError('must be a list of { "var", "exp" } components')
+    for component in logic:
+        if not isinstance(component, dict) or not isinstance(component.get('var'), str) \
+                or 'exp' not in component:
+            raise ValidationError('each component must be an object with a "var" and an "exp"')
+    if not any(component['var'] == 'total' for component in logic):
+        raise ValidationError('must have a component whose "var" is "total"')
+    return logic
 
 
 def validate_error_messages(messages):
