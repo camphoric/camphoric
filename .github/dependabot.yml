@@ -29,6 +29,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # ESLint 10 drops the eslintrc config data/ still uses; the flat-config
+      # conversion comes with the upgrade (#725). Remove this then.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
       prefix-development: chore
