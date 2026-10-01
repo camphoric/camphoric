@@ -1031,9 +1031,11 @@ across date ranges**, with capacity visibility. Required capabilities:
   camper whose `lodging` is null *or* a non-leaf node counts as unassigned.
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
   (and reserved count), each node's children listed by name in natural order, as the timeline
-  lists units ("Cabin 2" before "Cabin 10"; §15, DR-63), and create/edit/delete nodes (deleting one unassigns the campers in it and
-  in anything under it; §15, DR-54). A node has: parent, name, a title for its
-  children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, **availability**
+  lists units ("Cabin 2" before "Cabin 10"; §15, DR-63), any node with nodes under it but the
+  root collapsible to hide them (all start collapsed, so the tree opens at the root's children),
+  and create/edit/delete nodes (deleting one unassigns the campers in it and in anything under
+  it; §15, DR-54). A node has: parent, name, a title for
+  its children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, **availability**
   on the registration form — `auto` (by capacity, the default), `full` (always shown full) or
   `open` (never shown full; §15, DR-57) — and notes; for a non-leaf node the calculated capacity
   is shown, and a node marked full or open says so. A node with notes says so, and its notes can
