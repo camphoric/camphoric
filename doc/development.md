@@ -61,15 +61,16 @@ First you'll need to build the web and db docker containers for the server:
 docker-compose up --build -d
 ```
 
-After this finishes, run `docker ps`. You should now see both your postgres,
-django and react services running:
+After this finishes, run `docker ps`. You should now see your postgres,
+django, worker and react services running, with postgres reporting healthy:
 
 ```
 ❯ docker ps
-CONTAINER ID   IMAGE              COMMAND                  CREATED              STATUS                    PORTS                    NAMES
-c3fc38546a07   camphoric_react    "docker-entrypoint.s…"   About a minute ago   Up 1 minute (healthy)     0.0.0.0:3000->3000/tcp   camphoric_react_1
-feba46e79c59   camphoric_django   "bash -c './manage.p…"   2 minutes ago        Up 2 minutes (healthy)    0.0.0.0:8000->8000/tcp   camphoric_django_1
-9a600e45e1ce   postgres:13        "docker-entrypoint.s…"   15 minutes ago       Up 15 minutes (healthy)   0.0.0.0:5434->5432/tcp   camphoric_postgres_1
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS                   PORTS                              NAMES
+9221cf257ca2   postgres:16-alpine   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:5434->5432/tcp             camphoric-postgres-1
+9e5b365574e6   camphoric-worker     "./manage.py camphor…"   6 minutes ago   Up 4 minutes                                                camphoric-worker-1
+df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   Up 4 minutes             0.0.0.0:8000->8000/tcp             camphoric-django-1
+1e66e583199e   camphoric-react      "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             0.0.0.0:3000-3001->3000-3001/tcp   camphoric-react-1
 ```
 
 Run the following command to get your secret key:
