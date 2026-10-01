@@ -119,7 +119,9 @@ records the message.
 
 Run a second container from the same image as the worker; it delivers queued email, retries
 temporary failures, keeps to each account's sending limits, and recovers messages from a worker
-that died mid-send. `docker-compose.image.yml` includes it as the `worker` service.
+that died mid-send. Each night at 10:00 UTC it also deletes the registrations that were started
+but never finished and that nobody has changed in 30 days. `docker-compose.image.yml` includes it
+as the `worker` service.
 
 ```bash
 docker run -d --restart unless-stopped \
@@ -140,6 +142,8 @@ docker run -d --restart unless-stopped \
   in for 2 minutes. (The image's own health check calls the web server, so override it for the
   worker, as above.) The admin warns when no worker is running.
 - **Stopping:** SIGTERM lets the task in progress (an SMTP send) finish first; allow up to 60s.
+- **Nightly clean-up:** `python manage.py camphoric_clean_up --dry-run` lists, per event, the
+  abandoned registrations the next run will delete; without `--dry-run` it deletes them now.
 
 ### Backups (django-dbbackup)
 

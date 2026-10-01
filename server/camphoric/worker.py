@@ -4,7 +4,8 @@ camphoric_worker` wires these into django-tasks-db's worker.
 
 - The reconciler, a task that runs every minute by re-enqueueing itself. It
   recovers the email outbox (camphoric.mail.outbox.recover), marks tasks whose
-  worker died as failed, and prunes old task results and heartbeats.
+  worker died as failed, and prunes old task results and heartbeats. The
+  nightly clean-up (camphoric.cleanup) is a chain like it.
 - The heartbeat a worker writes as it finishes tasks (the reconciler's run
   makes one at least every minute). The admin warns when no worker has
   reported in; `camphoric_worker --check` is the container health check.
@@ -72,19 +73,25 @@ def reconcile():
 
 
 def schedule_reconcile(delay=RECONCILE_EVERY):
+    '''Enqueue the next reconcile run unless one is already waiting.'''
+    return enqueue_once(reconcile, timezone.now() + delay, _RECONCILE_LOCK)
+
+
+def enqueue_once(task_obj, run_after, lock_key):
     '''
-    Enqueue the next reconcile run unless one is already waiting (so there's
-    only ever one chain). Returns whether it enqueued one. Only the database
-    backend runs a reconciler.
+    Enqueue `task_obj` to run at `run_after` unless a run is already waiting, so
+    a task that re-enqueues itself only ever has one chain. Returns whether it
+    enqueued one. Only the database backend runs these chains. `lock_key` is
+    the task's own Postgres advisory lock key.
     '''
-    if _database_backend(reconcile) is None:
+    if _database_backend(task_obj) is None:
         return False
     with transaction.atomic():
         with connection.cursor() as cursor:
-            cursor.execute('SELECT pg_advisory_xact_lock(%s)', [_RECONCILE_LOCK])
-        if _task_results().filter(task_path=reconcile.module_path, status='READY').exists():
+            cursor.execute('SELECT pg_advisory_xact_lock(%s)', [lock_key])
+        if _task_results().filter(task_path=task_obj.module_path, status='READY').exists():
             return False
-        reconcile.using(run_after=timezone.now() + delay).enqueue()
+        task_obj.using(run_after=run_after).enqueue()
     return True
 
 

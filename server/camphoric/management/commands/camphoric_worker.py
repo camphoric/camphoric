@@ -1,6 +1,7 @@
 '''
 The background task worker: django-tasks-db's `db_worker` (same options) plus
-Camphoric's heartbeat, watchdog and reconciler (camphoric.worker).
+Camphoric's heartbeat, watchdog and reconciler (camphoric.worker), and the
+nightly clean-up (camphoric.cleanup).
 
     manage.py camphoric_worker --queue-name '*'         # run a worker
     manage.py camphoric_worker --check                  # health check
@@ -13,12 +14,12 @@ from django.core.management.base import CommandError
 from django.utils.autoreload import DJANGO_AUTORELOAD_ENV
 from django_tasks_db.management.commands.db_worker import Command as DatabaseWorkerCommand
 
-from camphoric import worker
+from camphoric import cleanup, worker
 
 
 class Command(DatabaseWorkerCommand):
     help = ("Run the background task worker (django-tasks-db's db_worker) with a heartbeat, "
-            "a watchdog, and the every-minute reconciler.")
+            "a watchdog, the every-minute reconciler and the nightly clean-up.")
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -45,6 +46,7 @@ class Command(DatabaseWorkerCommand):
                             and os.environ.get(DJANGO_AUTORELOAD_ENV) != 'true')
         if not reloading_parent:
             worker.schedule_reconcile(delay=timedelta(0))
+            cleanup.schedule_clean_up()
             heartbeat = worker.Heartbeat(options['worker_id'])
             heartbeat.start(0 if options['batch'] else watchdog)
         super().handle(**options)

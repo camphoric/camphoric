@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-75)
+- §15 — Decision Records (DR-1…DR-76)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1530,7 +1530,10 @@ example and its result.
 - **Variables** — each kind of template (a *context*) has its own root variables; a report gets
   `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `lodging` (the
   root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`, `today` and
-  `now`. `registrations`, `campers` and `payments` are those of completed registrations. A
+  `now`. `registrations`, `campers` and `payments` are those of completed registrations;
+  `incomplete_registrations` are those started but never finished, which the server deletes,
+  for real and with their campers, once nobody has changed one in 30 days, unless it has a
+  payment (§15, DR-76). A
   confirmation email — and the confirmation page — gets the one registration it's for
   (`registration`, its `campers`, `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
   `registration_type` and `event`; a group email's copy gets its recipient's registration or
@@ -3298,6 +3301,20 @@ sharing with, which otherwise means finding the unit on the lodging screen.
 lodging screen. Editing the stay here as well — the lodging screen already does it, with the
 unit's occupancy in view; it remains the planned "Set the lodging stay" capability.
 
+### DR-73 — The template editor can hide its preview and expand to fill the screen
+
+**Decision:** The template editor (§9.6) has two ways to make room: hide the preview so the text
+takes the full width (the problem count stays visible), and expand the whole editor — text,
+preview and help — to fill the screen. Both apply everywhere the editor is used (reports, emails,
+the confirmation page).
+**Context:** Report templates are edited in a card on the reports screen and email bodies sit
+beside their preview inside a dialog; organizers found both too cramped to write long templates
+in.
+**Alternatives:** Moving the preview into its own dialog — the preview is most useful while
+typing, so it should stay beside the text. A draggable split between text and preview — more
+machinery, and still bounded by the surrounding card or dialog. Expanding only the text without
+the preview and help — loses the feedback that makes the editor worth using.
+
 ### DR-74 — The lodging views are labelled Layout and Assignments
 
 **Decision:** On the lodging screen (§8.6) the hierarchy is labelled **Layout** and the timeline
@@ -3319,19 +3336,23 @@ switch views, find the node, and select it again to change it.
 **Alternatives:** Keep Edit on the hierarchy only — the detour above. Edit the notes in place in
 the details — a second way to edit one field, beside the form that edits them all.
 
-### DR-73 — The template editor can hide its preview and expand to fill the screen
 
-**Decision:** The template editor (§9.6) has two ways to make room: hide the preview so the text
-takes the full width (the problem count stays visible), and expand the whole editor — text,
-preview and help — to fill the screen. Both apply everywhere the editor is used (reports, emails,
-the confirmation page).
-**Context:** Report templates are edited in a card on the reports screen and email bodies sit
-beside their preview inside a dialog; organizers found both too cramped to write long templates
-in.
-**Alternatives:** Moving the preview into its own dialog — the preview is most useful while
-typing, so it should stay beside the text. A draggable split between text and preview — more
-machinery, and still bounded by the surrounding card or dialog. Expanding only the text without
-the preview and help — loses the feedback that makes the editor worth using.
+### DR-76 — Incomplete registrations are deleted after a month untouched
+
+**Decision:** Each night the task worker (DR-44) deletes the registrations that were started but
+never finished and that nobody has changed in 30 days, counted from their last change, with
+their campers, charges and pricing overrides. They're deleted for real, not soft-deleted
+(DR-55); the audit log (DR-53) keeps their last values. One with a payment, even a deleted one,
+is left alone. Invitations and sent email that point at one keep their rows, unlinked from it,
+so an invitee can register again. The run is at 3 a.m. California time; a command runs it on
+demand and previews what it would delete.
+**Context:** Every registrant who stops partway leaves a registration behind, which piles up in
+`incomplete_registrations` and the database (GitHub #339). A month leaves time to follow up
+with someone who stopped, using the incomplete registrations a report or group email can reach.
+**Alternatives:** Soft delete — restorable, but the Deleted list would fill with abandoned forms
+nobody wants back. Counting from when the registration was started — would sweep one a
+registrant came back to recently. A few days — too short to follow up. Deleting ones with a
+payment too — money is never deleted by a background job.
 
 ---
 
@@ -3388,6 +3409,8 @@ must be coordinated with the backend. Grouped by status.
   `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
   which the client adopts (§5, §11).
+- **Nightly clean-up:** the task worker deletes incomplete registrations nobody has changed in
+  30 days (§9.3; DR-76).
 
 ### A.2 — Needs a backend change (coordinate)
 

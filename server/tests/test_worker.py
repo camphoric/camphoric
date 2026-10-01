@@ -11,7 +11,7 @@ from django.utils import timezone
 from django_tasks_db.models import DBTaskResult
 from freezegun import freeze_time
 
-from camphoric import models, worker
+from camphoric import cleanup, models, worker
 from camphoric.mail import outbox
 from camphoric.mail.tasks import deliver_message
 from camphoric.test.tasks import clear_deferred_tasks
@@ -179,3 +179,6 @@ class WorkerCommandTests(WorkerTestCase):
         reconciles = DBTaskResult.objects.filter(task_path=worker.reconcile.module_path)
         self.assertEqual(sorted(reconciles.values_list('status', flat=True)),
                          ['READY', 'SUCCESSFUL'])
+        # It seeded the nightly clean-up too, which waits for its time.
+        clean_ups = DBTaskResult.objects.filter(task_path=cleanup.clean_up.module_path)
+        self.assertEqual(list(clean_ups.values_list('status', flat=True)), ['READY'])
