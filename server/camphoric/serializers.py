@@ -109,11 +109,42 @@ class EventSerializer(ModelSerializer):
 
 
 class RegistrationSerializer(ModelSerializer):
+    # A deleted promo code stays on the registrations that have it (SPEC DR-67).
+    promo_code = PrimaryKeyRelatedField(
+        queryset=models.PromoCode.all_objects.all(), allow_null=True, required=False)
+    # The code itself, so its discount line can be labelled even once it's deleted.
+    promo = SerializerMethodField()
+
     class Meta:
         model = models.Registration
         fields = '__all__'
 
+    def get_promo(self, registration):
+        promo_code = registration.promo_code
+        if promo_code is None:
+            return None
+        return {
+            'id': promo_code.id,
+            'code': promo_code.code,
+            'label': promo_code.label,
+            'scope': promo_code.scope,
+            'deleted': promo_code.deleted_at is not None,
+        }
+
+    def validate_promo_code(self, promo_code):
+        # A registrar may give any live code, usable by registrants or not.
+        unchanged = self.instance is not None and promo_code is not None and (
+            self.instance.promo_code_id == promo_code.id)
+        if promo_code is not None and promo_code.deleted_at is not None and not unchanged:
+            raise ValidationError('This promo code has been deleted.')
+        return promo_code
+
     def validate(self, data):
+        event = data.get('event') or getattr(self.instance, 'event', None)
+        promo_code = data.get('promo_code')
+        if promo_code is not None and event is not None and promo_code.event_id != event.id:
+            raise ValidationError({'promo_code': 'This promo code is for another event.'})
+
         if self.partial and 'event' not in data:
             return data
 
@@ -246,6 +277,29 @@ class EmailBatchSerializer(ModelSerializer):
         if batch.status == models.EmailBatchStatus.SENDING and not self.get_waiting(batch):
             return 'done'
         return {models.EmailBatchStatus.EXPANDING: 'preparing'}.get(batch.status, batch.status)
+
+
+class PromoCodeSerializer(ModelSerializer):
+    class Meta:
+        model = models.PromoCode
+        fields = '__all__'
+
+    def validate_code(self, code):
+        code = code.strip()
+        if not code:
+            raise ValidationError('This field may not be blank.')
+        return code
+
+    def validate(self, data):
+        event = data.get('event') or getattr(self.instance, 'event', None)
+        code = data.get('code')
+        if code is not None and event is not None:
+            others = models.PromoCode.objects.filter(event=event, code__iexact=code)
+            if self.instance is not None:
+                others = others.exclude(pk=self.instance.pk)
+            if others.exists():
+                raise ValidationError({'code': 'Another promo code already uses this code.'})
+        return data
 
 
 class CustomChargeTypeSerializer(ModelSerializer):

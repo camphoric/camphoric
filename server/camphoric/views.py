@@ -528,7 +528,7 @@ class EventViewSet(PlannedDeleteMixin, ModelViewSet):
 
 
 class RegistrationViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Registration.objects.all()
+    queryset = models.Registration.objects.select_related('promo_code')
     serializer_class = serializers.RegistrationSerializer
     filterset_fields = ['event', 'completed']
     deleted_filters = {'event': 'event'}
@@ -605,6 +605,28 @@ class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Payment.objects.all()
     serializer_class = serializers.PaymentSerializer
     filterset_fields = ['registration', 'registration__event']
+
+
+class PromoCodeViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
+    '''
+    An event's promo codes (SPEC DR-67). They're soft-deleted (DR-55), so the
+    registrations that have one keep it — and their discount.
+    '''
+    queryset = models.PromoCode.objects.all()
+    serializer_class = serializers.PromoCodeSerializer
+    filterset_fields = ['event']
+    deleted_filters = {'event': 'event'}
+
+    def deleted_queryset(self):
+        return models.PromoCode.all_objects.filter(deleted_at__isnull=False)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        instance = self.get_any_object()
+        if instance.deleted_at is not None and instance.clashes_with_live_code():
+            raise serializers.Conflict(
+                'Another promo code now uses this code. Change or delete it first.')
+        return super().restore(request, pk)
 
 
 class CustomChargeTypeViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -772,6 +794,16 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+class PromoCodeRejected(APIException):
+    '''
+    A registration submitted with a promo code the registrant can't use: a 400
+    whose `detail` the form shows as is (SPEC DR-67).
+    '''
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = 'promo_code'
+    default_detail = 'That promo code isn\'t valid for this event.'
+
+
 class InvitationRejected(APIException):
     '''
     A registration submitted with an invitation that's no good: a 400 whose
@@ -895,6 +927,10 @@ class RegisterView(APIView):
             },
         }
 
+        # Whether to offer a promo code field at all (SPEC DR-67).
+        response_data['hasPromoCodes'] = any(
+            promo_code.is_valid() for promo_code in event.promo_codes.all())
+
         if event.paypal_enabled and event.paypal_client_id:
             response_data['payPalOptions'] = {
                 'clientId': event.paypal_client_id,
@@ -956,6 +992,8 @@ class RegisterView(APIView):
         if invitation:
             registration.registration_type = invitation.registration_type
 
+        registration.promo_code = self.find_promo_code(request, event)
+
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
@@ -976,6 +1014,16 @@ class RegisterView(APIView):
             'serverPricingResults': server_pricing_results,
             'deposit': registration.event.registration_deposit_schema,
         })
+
+    def find_promo_code(self, request, event):
+        '''The promo code the registrant entered, if any; one they can't use is refused.'''
+        code = request.data.get('promoCode')
+        if not isinstance(code, str) or not code.strip():
+            return None
+        promo_code = models.PromoCode.find_valid(event, code)
+        if promo_code is None:
+            raise PromoCodeRejected()
+        return promo_code
 
     def post_payment(self, request, event):
         registration_uuid = request.data.get('registrationUUID')
@@ -1329,6 +1377,31 @@ class RegisterView(APIView):
             paypal_order_details=order_details,
             notes=notes
         )
+
+
+class CheckPromoCodeView(APIView):
+    '''
+    POST /api/events/<id>/checkpromo `{code}` → 200 `{code, label, scope,
+    pricingLogic}` for a code a registrant can use now (enough for the form to
+    price the discount live), or 400 `{detail}` (SPEC DR-67). Anyone may ask;
+    throttled (`promo_code_check`) so codes can't be guessed wholesale.
+    '''
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'promo_code_check'
+
+    def post(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        code = request.data.get('code')
+        promo_code = models.PromoCode.find_valid(event, code) if isinstance(code, str) else None
+        if promo_code is None:
+            raise PromoCodeRejected()
+        return Response({
+            'code': promo_code.code,
+            'label': promo_code.label,
+            'scope': promo_code.scope,
+            'pricingLogic': promo_code.pricing_logic,
+        })
 
 
 class SendInvitationView(APIView):

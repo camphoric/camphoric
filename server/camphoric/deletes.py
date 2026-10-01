@@ -8,8 +8,9 @@ Django's own `Collector` — the same one that performs the delete — asked wha
 it would do without doing it; a view adds its own rules (a lodging's campers
 are unassigned first, an event with registrations can't go) as checks.
 
-Registrations, campers and payments are soft-deleted instead (DR-55): their
-plan lists what goes out of sight with them until they're restored.
+Registrations, campers, payments and promo codes are soft-deleted instead
+(DR-55, DR-67): their plan lists what goes out of sight with them until they're
+restored.
 '''
 
 from dataclasses import dataclass, field
@@ -20,8 +21,8 @@ from django.db.models.deletion import Collector
 
 from camphoric import models
 
-# Deleted by marking them, and restorable (DR-55).
-SOFT_DELETED = (models.Registration, models.Camper, models.Payment)
+# Deleted by marking them, and restorable (DR-55, DR-67).
+SOFT_DELETED = (models.Registration, models.Camper, models.Payment, models.PromoCode)
 
 # Labels shown per kind of thing; `count` always has the full number.
 MAX_ITEMS = 20
@@ -158,6 +159,12 @@ def _hide(instance, result):
         ]
     elif isinstance(instance, models.Camper):
         hidden = [(models.CustomCharge, models.CustomCharge.objects.filter(camper=instance))]
+    elif isinstance(instance, models.PromoCode):
+        # Registrations that have the code keep it, and its discount (DR-67).
+        hidden = []
+        result.change(
+            models.Registration, instance.registrations.order_by('id'),
+            'will keep this code and its discount')
     else:
         hidden = []
     for model, queryset in hidden:

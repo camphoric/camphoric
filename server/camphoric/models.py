@@ -7,6 +7,8 @@ import uuid
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 from camphoric import (
     crypto,
@@ -110,6 +112,11 @@ class LiveUnderRegistration(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(
             deleted_at__isnull=True, registration__deleted_at__isnull=True)
+
+
+class LivePromoCodes(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
 
 class LiveCustomCharges(models.Manager):
@@ -333,6 +340,67 @@ class RegistrationType(TimeStampedModel):
             super().save(update_fields=['invitation_template'])
 
 
+class PromoCodeScope(models.TextChoices):
+    REGISTRATION = 'registration', 'Per registration'
+    CAMPER = 'camper', 'Per camper'
+
+
+class PromoCode(TimeStampedModel):
+    '''
+    A code a registrant can enter while registering for a discount (SPEC DR-67).
+    Its `pricing_logic` works out the discount once for the registration or
+    once per camper (`scope`), after every other price line (camphoric.pricing).
+
+    Soft-deleted (DR-55): a deleted code can't be used any more, but the
+    registrations that already have it keep it, and their discount.
+    '''
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='promo_codes')
+    label = models.CharField(
+        max_length=255, help_text="human friendly name, shown on the discount's price line")
+    code = models.CharField(max_length=255, help_text="what the registrant enters")
+    pricing_logic = CustomJSONField(
+        default=dict,
+        help_text="JsonLogic expression for the discount amount (a positive number)")
+    scope = models.CharField(
+        max_length=20, choices=PromoCodeScope.choices, default=PromoCodeScope.REGISTRATION,
+        help_text="whether the discount is worked out for the registration or for each camper")
+    enabled = models.BooleanField(
+        default=True, help_text="False if registrants can't use this code")
+    expiration_date = models.DateTimeField(
+        null=True, blank=True, help_text="registrants can't use this code after this time")
+
+    objects = LivePromoCodes()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            # Codes are entered without regard to case, and a deleted code's
+            # text can be used again.
+            models.UniqueConstraint(
+                Lower('code'), 'event', condition=Q(deleted_at__isnull=True),
+                name='promo_code_per_event'),
+        ]
+
+    def __str__(self):
+        return self.label or self.code
+
+    def is_valid(self, at=None):
+        '''Whether a registrant may use this code (at `at`, or now).'''
+        at = at or timezone.now()
+        return self.enabled and (self.expiration_date is None or at <= self.expiration_date)
+
+    @classmethod
+    def find_valid(cls, event, code):
+        '''The event's live, usable code the registrant typed, or None.'''
+        promo_code = cls.objects.filter(event=event, code__iexact=(code or '').strip()).first()
+        return promo_code if promo_code and promo_code.is_valid() else None
+
+    def clashes_with_live_code(self):
+        '''Whether another live code of the event has the same text.'''
+        return PromoCode.objects.filter(
+            event_id=self.event_id, code__iexact=self.code).exclude(pk=self.pk).exists()
+
+
 class Registration(TimeStampedModel):
     '''
     Group of campers registering together.
@@ -346,6 +414,10 @@ class Registration(TimeStampedModel):
     # Deleting a registration type leaves its registrations, with no type (SPEC DR-54).
     registration_type = models.ForeignKey(
         RegistrationType, null=True, on_delete=models.SET_NULL)
+    # Promo codes are soft-deleted, so a registration keeps its code (SPEC DR-67).
+    promo_code = models.ForeignKey(
+        PromoCode, null=True, blank=True, on_delete=models.PROTECT,
+        related_name='registrations')
     attributes = CustomJSONField(null=True)
     admin_attributes = CustomJSONField(
         default=dict,
@@ -593,8 +665,8 @@ class Camper(TimeStampedModel):
 
 class CustomChargeType(TimeStampedModel):
     '''
-    Promotion codes to be used during Registration.  Promotion codes can only
-    be applied at the registration level
+    A kind of charge (or credit) a registrar can add to a camper, such as extra
+    bedding. Camper pricing logic sees each camper's charges.
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     label = models.CharField(max_length=255, help_text="human friendly name")
@@ -606,8 +678,7 @@ class CustomChargeType(TimeStampedModel):
 
 class CustomCharge(TimeStampedModel):
     '''
-    Promotion codes to be used during Registration.  Promotion codes can only
-    be applied at the registration level
+    A charge (or, when negative, a credit) a registrar has added to a camper.
     '''
     # A charge type campers still have can't be deleted (SPEC DR-54).
     custom_charge_type = models.ForeignKey(CustomChargeType, on_delete=models.PROTECT)
