@@ -682,7 +682,9 @@ def validate_error_messages(messages):
 def validate_attributes(data, schema):
     decoded_json = data['attributes']
     try:
-        jsonschema.validate(decoded_json, schema)
+        # Draft 7, as the forms validate in the browser (see
+        # RegisterView.validate_form_data).
+        jsonschema.Draft7Validator(schema).validate(decoded_json)
     except jsonschema.exceptions.ValidationError as e:
         raise ValidationError({'attributes': e.message})
     return data
