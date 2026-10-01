@@ -25,6 +25,16 @@
         cmd: pipenv run python manage.py flush --noinput
         chdir: "{{camphoric_folder}}/server"
 
+    # A data reset skips "Setup Django", so migrate here too: loading into a
+    # schema behind the code fails partway, leaving only the first event.
+    - name: Run Django migrations
+      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: pipenv run python manage.py migrate
+        chdir: "{{camphoric_folder}}/server"
+
     # Fails harmlessly when the superuser already exists (no reset ran).
     - name: Create Django superuser
       tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
