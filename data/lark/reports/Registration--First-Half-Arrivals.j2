@@ -14,7 +14,7 @@
 "Half camp - 1st half": "1st½",
 "Half camp - 2nd half": "2nd½",
 } -%}
-Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park, COVID
+Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park
 {% for camper in campers | sort(attribute="attributes.last_name") if camper.attributes.session != 'Half camp - 2nd half' -%}
   {%- set registration_type = camper.registration.registration_type -%}
   {%- set crew = registration_type.name if registration_type else '' -%}
@@ -60,12 +60,5 @@ Last, First, Age, Guardian, Forms, Crew, Lodging, Stay, Park, COVID
   parking_short[parking] +
   ('$' if (camper.registration.pricing.parking or 0) > 0 else '')
   ) if parking_passes else '-'
-  }},
-  {#- TODO: vaccination_checked is no longer one of Lark's camper admin fields, so this
-      column always says "Check Test". -#}
-  {%- if camper.admin_attributes.vaccination_checked -%}
-    Vaxxed
-  {%- else -%}
-    Check Test
-  {%- endif %}
+  }}
 {% endfor -%}

@@ -83,11 +83,6 @@ const reports = [
     template: readFile('Donation-Report---Lark.j2'),
   },
   {
-    title: 'Campers, Vaccinations by Last Name',
-    output: 'csv',
-    template: readFile('Campers--Vaccinations-by-Last-Name.j2'),
-  },
-  {
     title: 'Campers, Confirmation Email Info',
     output: 'csv',
     template: readFile('Campers--Confirmation-Email-Info.j2'),
