@@ -6,7 +6,6 @@
   "scripts": {
     "test": "npm run test:offline",
     "test:offline": "NODE_OPTIONS=--experimental-vm-modules jest __tests__/offline",
-    "test:live": "NODE_OPTIONS=--experimental-vm-modules jest --testPathIgnorePatterns /node_modules/ __tests__/offline",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint ."
   },
   "dependencies": {

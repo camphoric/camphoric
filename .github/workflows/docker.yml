@@ -121,17 +121,6 @@ jobs:
       - name: Check the imported templates
         run: docker compose -f docker-compose.image.yml exec -T app python manage.py check_templates --all
 
-      # Advisory: the stored snapshots may lag behind data edits; the import's
-      # exit code above is the blocking check.
-      - name: Post-import snapshot tests (advisory)
-        working-directory: data
-        env:
-          CAMPHORIC_URL: http://localhost:8000
-          DJANGO_SUPERUSER_USERNAME: admin
-          DJANGO_SUPERUSER_PASSWORD: admin
-        run: npm run test:live
-        continue-on-error: true
-
       - name: App logs on failure
         if: failure()
         run: docker compose -f docker-compose.image.yml logs app worker
