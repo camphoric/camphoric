@@ -12,23 +12,13 @@ import { CanEdit } from 'hooks/permissions';
 
 import type { CamperLodgingDetails } from './camperLodgingDetails';
 import { Field } from './Field';
-import { areConsecutiveDays, dayLabel } from './timelineUtils';
+import { stayText } from './timelineUtils';
 
 interface CamperLodgingInfoProps {
   details: CamperLodgingDetails;
   onOpenCamper: (camperId: number) => void;
   onUnassign: (camperId: number) => void;
   onClose: () => void;
-}
-
-/** "3 days: Fri 10/16 – Sun 10/18", or the days listed when they aren't consecutive. */
-function stayText(stay: string[]): string {
-  if (stay.length === 0) return 'No days set';
-  const count = `${stay.length} ${stay.length === 1 ? 'day' : 'days'}`;
-  if (stay.length === 1) return `${count}: ${dayLabel(stay[0])}`;
-  return areConsecutiveDays(stay)
-    ? `${count}: ${dayLabel(stay[0])} – ${dayLabel(stay[stay.length - 1])}`
-    : `${count}: ${stay.map((day) => dayLabel(day)).join(', ')}`;
 }
 
 /** Answers as label/value pairs, nested groups indented under their heading. */

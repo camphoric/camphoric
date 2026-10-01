@@ -113,6 +113,16 @@ export function ownCapacity(node: AugmentedLodging): number {
   return node.maxCapacity - node.children.reduce((sum, child) => sum + child.capacity, 0);
 }
 
+/** "3 days: Fri 10/16 – Sun 10/18", or the days listed when they aren't consecutive. */
+export function stayText(stay: string[]): string {
+  if (stay.length === 0) return 'No days set';
+  const count = `${stay.length} ${stay.length === 1 ? 'day' : 'days'}`;
+  if (stay.length === 1) return `${count}: ${dayLabel(stay[0])}`;
+  return areConsecutiveDays(stay)
+    ? `${count}: ${dayLabel(stay[0])} – ${dayLabel(stay[stay.length - 1])}`
+    : `${count}: ${stay.map((day) => dayLabel(day)).join(', ')}`;
+}
+
 /** A path for display, e.g. "Camp 1 → Cabin". */
 export function lodgingPathLabel(pathParts: string[]): string {
   return pathParts.join(' → ');

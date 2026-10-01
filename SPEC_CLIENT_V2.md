@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-71)
+- §15 — Decision Records (DR-1…DR-72)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -208,7 +208,8 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event/:eventId/registrations` and `…/campers` — search
   params `?registrationsTab` (the Registrations section's tab), `?registrationId` / `?camperId`
   (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
-  (`attributes` by default, `admin`, `fees`, `campers` for a registration, `history`, `raw`).
+  (`attributes` by default, `admin`, `fees`, `campers` for a registration, `lodging` for a
+  camper, `history`, `raw`).
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
   (default) or `timeline`; `?camperId` and `?lodgingId` — the camper and the lodging node
   selected on the hierarchy, and `?timelineCamperId` and `?timelineLodgingId` — those selected on
@@ -1005,6 +1006,9 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
   §15, DR-54, DR-55).
 - **Edit admin-only attributes** — from `camper_admin_schema` (same pattern as registrations).
   Persists via PATCH `admin_attributes`.
+- **See the camper's lodging** — the unit they're placed in (path, or "Unassigned") and their
+  stay, the unit's notes, and the other campers in that unit with their stays, each opening that
+  camper's record; and a way to the lodging screen with the camper selected (§8.6; §15, DR-72).
 - **Set the lodging stay** — show the current assignment (path, or "Unassigned") and let the
   admin choose which event days the camper is present (the days derive from event start/end;
   the last is departure day and can't be chosen, §8.6). Persists via PATCH `stay` (the set of
@@ -3267,6 +3271,19 @@ something else. The hierarchy keeps the original name, so a link to the lodging 
 camper selected opens on its default view as before.
 **Alternatives:** Clear the selection whenever the view changes — one parameter, but switching
 back and forth loses the camper being placed. Keep one shared selection, as before.
+
+### DR-72 — The camper record shows its lodging and who's in the unit with it
+
+**Decision:** The camper's record has a read-only lodging section (§8.5): the unit and the
+camper's stay, the unit's notes, and the other campers placed in the same unit with their stays,
+each opening that camper's record, plus a way to the lodging screen with the camper selected.
+Placing the camper stays on the lodging screen (§8.6).
+**Context:** The old client's camper editor had a lodging tab, and organizers asked for the
+unit's notes there (#520). Working from a camper's record, they also need to see who they're
+sharing with, which otherwise means finding the unit on the lodging screen.
+**Alternatives:** Only the unit's path and notes — leaves "who's in there with them" to the
+lodging screen. Editing the stay here as well — the lodging screen already does it, with the
+unit's occupancy in view; it remains the planned "Set the lodging stay" capability.
 
 ---
 
