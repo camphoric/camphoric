@@ -1,5 +1,5 @@
 import type { ApiRenderedReport, ApiReport } from 'api-types';
-import { renderWithProviders, screen } from 'test/utils';
+import { renderWithProviders, screen, within } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RenderedReport } from '../RenderedReport';
@@ -44,6 +44,16 @@ describe('RenderedReport', () => {
     expect(screen.getByRole('cell', { name: 'Pat' })).toBeInTheDocument();
     expect(templateVars).not.toHaveBeenCalled();
     expect(legacy).not.toHaveBeenCalled();
+  });
+
+  it('puts the output in its own scrolling region, with the download outside it', () => {
+    server.mockReturnValue(rendered({ report: 'Name\nPat\n', error: null, diagnostics: [] }));
+    renderWithProviders(<RenderedReport report={report({})} eventId="7" />);
+
+    const output = screen.getByRole('region', { name: 'Report output' });
+    expect(output).toHaveStyle({ overflow: 'auto' });
+    expect(within(output).getByRole('cell', { name: 'Pat' })).toBeInTheDocument();
+    expect(within(output).queryByRole('button', { name: /Download/ })).toBeNull();
   });
 
   it('shows a server report’s problems with their lines', () => {

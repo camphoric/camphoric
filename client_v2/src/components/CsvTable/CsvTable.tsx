@@ -1,13 +1,14 @@
 /**
  * Render a CSV string as a bordered table with a row count (SPEC §8.7, §9.6). The
  * first row is treated as the header; a leading ordinal column numbers the
- * data rows.
+ * data rows. With `stickyHeader`, the header row stays in view while the
+ * table's scrolling container scrolls.
  */
 
 import { Stack, Table, Text } from '@mantine/core';
 import { csvParseRows } from 'd3-dsv';
 
-export function CsvTable({ csv }: { csv: string }) {
+export function CsvTable({ csv, stickyHeader }: { csv: string; stickyHeader?: boolean }) {
   const [header = [], ...rows] = csvParseRows(csv.trim());
 
   return (
@@ -15,7 +16,7 @@ export function CsvTable({ csv }: { csv: string }) {
       <Text size="sm" c="dimmed">
         Total rows: {rows.length}
       </Text>
-      <Table withTableBorder withColumnBorders striped highlightOnHover>
+      <Table withTableBorder withColumnBorders striped highlightOnHover stickyHeader={stickyHeader}>
         <Table.Thead>
           <Table.Tr>
             <Table.Th w={48} />
