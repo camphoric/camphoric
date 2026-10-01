@@ -1228,14 +1228,17 @@ class RegisterView(APIView):
     @classmethod
     def validate_form_data(cls, event, form_data):
         (schema, _) = cls.get_form_schema(event)
+        # Draft 7, as the registration form validates in the browser: event
+        # schemas declare no $schema, and the newer drafts jsonschema would
+        # otherwise assume drop `dependencies`, which the schemas use for their
+        # conditional fields.
+        validator = jsonschema.Draft7Validator(
+            schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER)
         try:
-            jsonschema.validate(
-                form_data,
-                schema,
-                format_checker=jsonschema.Draft202012Validator.FORMAT_CHECKER,
-                )
+            validator.validate(form_data)
         except jsonschema.exceptions.ValidationError as e:
-            path = '.'.join(e.absolute_path)
+            # Array indexes come through as ints (campers.0.name).
+            path = '.'.join(str(part) for part in e.absolute_path)
             raise ValidationError({path: e.message})
 
     @classmethod

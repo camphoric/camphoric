@@ -3,13 +3,14 @@ import datetime
 import json
 import os.path
 
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
 import jsonschema  # Using Draft-7
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
 
-from camphoric import models
+from camphoric import models, serializers
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests.factories import set_email
@@ -865,6 +866,33 @@ Due now: $300""".lstrip())
         self.assertEqual(registration.payment_set.count(), 1)
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_post_enforces_dependencies(self):
+        # Event schemas are Draft 7, as the browser validates them; newer drafts
+        # drop `dependencies`, which events use for their conditional fields.
+        self.event.camper_schema = {
+            **self.event.camper_schema,
+            'dependencies': COOLNESS_DEPENDENCIES,
+        }
+        self.event.save()
+        first, *rest = self.valid_form_data['campers']
+
+        def post(camper):
+            return self.client.post(
+                f'/api/events/{self.event.id}/register',
+                {
+                    'formData': {**self.valid_form_data, 'campers': [camper, *rest]},
+                    'pricingResults': {},
+                },
+                format='json',
+            )
+
+        response = post({**first, 'is_really_cool': True})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('campers.0', response.data)
+
+        response = post({**first, 'is_really_cool': True, 'coolness': 11})
+        self.assertEqual(response.status_code, 200)
+
     def test_post_lodging(self):
         lodging_root = self.event.lodging_set.create(
             name='Lodging',
@@ -1545,6 +1573,40 @@ class LodgingSchemaTests(APITestCase):
 
 # TODO: it probably makes sense to subclass APITestCase and add this as a
 # method so that some of these fixures can be easily created and accessible
+# A conditional field: a really cool camper must say how cool.
+COOLNESS_DEPENDENCIES = {
+    'is_really_cool': {
+        'oneOf': [
+            {'properties': {'is_really_cool': {'enum': [False]}}},
+            {
+                'properties': {
+                    'is_really_cool': {'enum': [True]},
+                    'coolness': {'type': 'integer'},
+                },
+                'required': ['coolness'],
+            },
+        ],
+    },
+}
+
+
+class ValidateAttributesTests(SimpleTestCase):
+    '''Admin edits validate attributes as Draft 7, like the registration form.'''
+
+    SCHEMA = {
+        'type': 'object',
+        'properties': {'is_really_cool': {'type': 'boolean'}},
+        'dependencies': COOLNESS_DEPENDENCIES,
+    }
+
+    def test_enforces_dependencies(self):
+        with self.assertRaises(ValidationError):
+            serializers.validate_attributes({'attributes': {'is_really_cool': True}}, self.SCHEMA)
+
+        data = {'attributes': {'is_really_cool': True, 'coolness': 11}}
+        self.assertEqual(serializers.validate_attributes(data, self.SCHEMA), data)
+
+
 def create_standard_test_event(
     self,
     org_name='Test Organization',
