@@ -133,6 +133,7 @@ async function fixLodging() {
             visible: lodging.visible,
             capacity: lodging.capacity || 0,
             sharing_multiplier: 1,
+            notes: lodging.notes || '',
           }),
         }))
     )),

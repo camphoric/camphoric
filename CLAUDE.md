@@ -76,3 +76,5 @@ feat: implement my cool feature
 sample of a git commit description...
 ```
 
+Don't add a `Co-Authored-By:` trailer (or any other AI attribution line) to suggested commit messages.
+

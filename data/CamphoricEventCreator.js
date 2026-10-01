@@ -198,6 +198,7 @@ export default class CamphoricEventCreator extends Fetcher {
           capacity: lodging.capacity || 0,
           reserved: lodging.reserved || 0,
           sharing_multiplier: lodging.sharing_multiplier || 1,
+          notes: lodging.notes || '',
         };
         createdLodging = await this.fetch('POST', '/api/lodgings/', data);
 
