@@ -19,7 +19,7 @@
     "lodash": "^4.17.21",
     "luxon": "^3.7.2",
     "moment": "^2.31.0",
-    "ora": "^8.1.0"
+    "ora": "^9.4.1"
   },
   "devDependencies": {
     "eslint": "^9.11.0",
