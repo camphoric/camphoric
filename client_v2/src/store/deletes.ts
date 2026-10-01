@@ -1,7 +1,7 @@
 /**
  * Deletes, restores and change history (SPEC §5; §15 DR-53, DR-54, DR-55):
  * - what a delete would do, asked before confirming it (`useDeletePreview`);
- * - the deleted registrations, campers and payments, and restoring one;
+ * - the deleted registrations, campers, payments and promo codes, and restoring one;
  * - a registration's or camper's change history.
  *
  * Every entity mutation invalidates the `History` and `Deleted` namespaces
@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ApiDeletedCamper,
   ApiDeletedPayment,
+  ApiDeletedPromoCode,
   ApiDeletedRegistration,
   ApiDeletePreview,
   ApiHistoryEntry,
@@ -22,7 +23,7 @@ import { apiFetch } from 'utils/fetch';
 import { type ListParams, toQuery } from './createEntityHooks';
 
 /** The entities that are soft-deleted and can be restored. */
-export type RestorablePath = 'registrations' | 'campers' | 'payments';
+export type RestorablePath = 'registrations' | 'campers' | 'payments' | 'promocodes';
 
 /** The entities with a change history. */
 export type HistoryPath = 'registrations' | 'campers';
@@ -60,6 +61,9 @@ export const useDeletedCampers = (eventId: Scalar, enabled = true) =>
 export const useDeletedPayments = (params: ListParams, enabled = true) =>
   useDeleted<ApiDeletedPayment>('payments', params, enabled);
 
+export const useDeletedPromoCodes = (eventId: Scalar, enabled = true) =>
+  useDeleted<ApiDeletedPromoCode>('promocodes', { event: eventId }, enabled);
+
 // A restore brings back a registration's campers, payments and charges too, and
 // changes its totals and the lodging counts.
 const RESTORE_INVALIDATES = [
@@ -67,11 +71,12 @@ const RESTORE_INVALIDATES = [
   'Camper',
   'Payment',
   'CustomCharge',
+  'PromoCode',
   'Deleted',
   'History',
 ];
 
-/** Restore a deleted registration, camper or payment. */
+/** Restore a deleted registration, camper, payment or promo code. */
 export function useRestore(path: RestorablePath) {
   const client = useQueryClient();
   return useMutation({

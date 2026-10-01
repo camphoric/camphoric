@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dateStringToParts, eventDays } from '../dates';
+import { dateStringToParts, eventDays, isoToLocalDateTime, localDateTimeToIso } from '../dates';
 
 describe('dateStringToParts', () => {
   it('splits a YYYY-MM-DD string without local-zone drift', () => {
@@ -24,5 +24,14 @@ describe('eventDays', () => {
 
   it('returns empty for an inverted range', () => {
     expect(eventDays('2026-07-04', '2026-07-01')).toEqual([]);
+  });
+});
+
+describe('local date-times', () => {
+  it('round-trips an ISO instant through a DateTimePicker value', () => {
+    const iso = new Date(2026, 9, 1, 9, 30, 0).toISOString();
+    expect(isoToLocalDateTime(iso)).toBe('2026-10-01 09:30:00');
+    expect(localDateTimeToIso('2026-10-01 09:30:00')).toBe(iso);
+    expect(localDateTimeToIso('2026-10-01 09:30')).toBe(iso);
   });
 });

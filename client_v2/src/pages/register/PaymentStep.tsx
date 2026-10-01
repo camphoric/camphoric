@@ -22,6 +22,7 @@ export function PaymentStep() {
   const goToStep = useGoToStep();
   const paymentStep = useRegistrationStore((state) => state.paymentStep);
   const registration = useRegistrationStore((state) => state.registration);
+  const promo = useRegistrationStore((state) => state.promo);
   const { data: config } = useRegistrationConfig(eventId);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export function PaymentStep() {
           config={config}
           registration={registration}
           results={paymentStep.serverPricingResults}
+          promo={promo}
         />
       )}
       {total > 0 ? (

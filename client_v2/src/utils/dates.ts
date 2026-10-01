@@ -34,3 +34,13 @@ export function eventDays(start: string, end: string): string[] {
   }
   return days;
 }
+
+/** An ISO instant as a `DateTimePicker` value (`YYYY-MM-DD HH:mm:ss`, local time). */
+export function isoToLocalDateTime(iso: string): string {
+  return DateTime.fromISO(iso).toFormat('yyyy-MM-dd HH:mm:ss');
+}
+
+/** A `DateTimePicker` value (`YYYY-MM-DD HH:mm[:ss]`, local time) as an ISO instant. */
+export function localDateTimeToIso(value: string): string | null {
+  return DateTime.fromSQL(value).toUTC().toISO();
+}

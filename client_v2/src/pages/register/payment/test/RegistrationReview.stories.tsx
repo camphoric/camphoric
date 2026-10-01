@@ -211,3 +211,28 @@ export const Minimal: StoryFn = () => (
     />
   </Stack>
 );
+
+/** A per-camper promo code: its discount shows on each camper and on the registration. */
+export const WithPromoCode: StoryFn = () => (
+  <Stack maw={720} p="md">
+    <RegistrationReview
+      config={{
+        ...config,
+        pricingLogic: { registration: [], camper: [{ var: 'tuition', label: 'Tuition', exp: 1 }] },
+      }}
+      registration={{
+        registrant_email: 'pat@example.com',
+        campers: [{ first_name: 'Pat' }, { first_name: 'Sam' }],
+      }}
+      promo={{ code: 'SIBLING', label: 'Sibling discount', scope: 'camper', pricingLogic: 1 }}
+      results={{
+        total: 700,
+        promo: -100,
+        campers: [
+          { tuition: 400, promo: 0, total: 400 },
+          { tuition: 400, promo: -100, total: 300 },
+        ],
+      }}
+    />
+  </Stack>
+);

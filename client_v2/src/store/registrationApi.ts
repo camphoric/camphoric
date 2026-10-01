@@ -12,14 +12,14 @@ import type {
   ApiRegister,
   ApiRegisterConfirmationStep,
   ApiRegisterPaymentStep,
+  AppliedPromo,
   InitialPaymentBody,
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
 import { apiFetch } from 'utils/fetch';
 
-const registerUrl = (eventId: string, search = '') =>
-  `/api/events/${eventId}/register${search}`;
+const registerUrl = (eventId: string, search = '') => `/api/events/${eventId}/register${search}`;
 
 export function useRegistrationConfig(eventId: string, search = window.location.search) {
   // The query string may carry an invitation code, so it's part of the key.
@@ -49,6 +49,8 @@ export interface SubmitRegistrationBody {
   formData: RegistrationFormData;
   pricingResults: PricingResults;
   invitation?: ApiRegister['invitation'];
+  /** The applied promo code; one the registrant can't use is refused (400). */
+  promoCode?: string;
 }
 
 /** Step 1 submit: POST { step: 'registration', … } -> the payment-step payload. */
@@ -59,6 +61,22 @@ export function useSubmitRegistration(eventId: string) {
         method: 'POST',
         body: { step: 'registration', ...body },
       }),
+  });
+}
+
+/**
+ * Checks a promo code the registrant typed: POST /api/events/{id}/checkpromo
+ * `{code}` -> the code, or a 400 whose `detail` says it can't be used (§7.1).
+ * The form shows that message itself, so there's no error notification.
+ */
+export function useCheckPromoCode(eventId: string) {
+  return useMutation({
+    mutationFn: (code: string) =>
+      apiFetch<AppliedPromo>(`/api/events/${eventId}/checkpromo`, {
+        method: 'POST',
+        body: { code },
+      }),
+    meta: { suppressErrorNotification: true },
   });
 }
 

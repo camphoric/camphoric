@@ -269,4 +269,37 @@ describe('RegistrationReview', () => {
     expect(within(second).getByText('Camper total')).toBeInTheDocument();
     expect(within(second).getByText('$0.00')).toBeInTheDocument();
   });
+
+  it('labels the promo code’s discount with the code’s label', () => {
+    const config = makeRegisterConfig({
+      dataSchema: { definitions: { camper: { type: 'object', properties: {} } } },
+      pricingLogic: { registration: [], camper: [{ var: 'tuition', label: 'Tuition', exp: 1 }] },
+    });
+    const promo = {
+      code: 'SPRING',
+      label: 'Spring sale',
+      scope: 'camper' as const,
+      pricingLogic: 1,
+    };
+    renderWithProviders(
+      <RegistrationReview
+        config={config}
+        registration={{ campers: [{ first_name: 'Pat' }] }}
+        promo={promo}
+        results={{
+          total: 150,
+          promo: -50,
+          campers: [{ tuition: 200, promo: -50, total: 150 }],
+        }}
+      />,
+    );
+
+    const registrationSection = screen.getByRole('heading', { name: 'Registration' })
+      .parentElement as HTMLElement;
+    expect(within(registrationSection).getByText('Spring sale')).toBeInTheDocument();
+    expect(within(registrationSection).getByText('-$50.00')).toBeInTheDocument();
+    const camper = screen.getByRole('heading', { name: '1st Camper — Pat' })
+      .parentElement as HTMLElement;
+    expect(within(camper).getByText('Spring sale')).toBeInTheDocument();
+  });
 });

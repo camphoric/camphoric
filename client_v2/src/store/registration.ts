@@ -8,6 +8,7 @@
 import type {
   ApiRegisterConfirmationStep,
   ApiRegisterPaymentStep,
+  AppliedPromo,
   InitialPaymentBody,
   PricingResults,
   RegistrationFormData,
@@ -23,6 +24,8 @@ export interface RegistrationState {
   paymentStep?: ApiRegisterPaymentStep;
   paymentInfo?: InitialPaymentBody;
   confirmationStep?: ApiRegisterConfirmationStep;
+  /** The promo code the registrant has applied, checked with the server (§7.1). */
+  promo: AppliedPromo | null;
   updating: boolean;
 
   setRegistration: (registration: RegistrationFormData) => void;
@@ -31,12 +34,14 @@ export interface RegistrationState {
   setPaymentStep: (paymentStep: ApiRegisterPaymentStep) => void;
   setPaymentInfo: (paymentInfo: InitialPaymentBody) => void;
   setConfirmationStep: (confirmationStep: ApiRegisterConfirmationStep) => void;
+  setPromo: (promo: AppliedPromo | null) => void;
   reset: () => void;
 }
 
 export const useRegistrationStore = create<RegistrationState>((set) => ({
   registration: emptyRegistration,
   totals: emptyTotals,
+  promo: null,
   updating: false,
 
   setRegistration: (registration) => set({ registration }),
@@ -45,6 +50,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   setPaymentStep: (paymentStep) => set({ paymentStep }),
   setPaymentInfo: (paymentInfo) => set({ paymentInfo }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
+  setPromo: (promo) => set({ promo }),
   reset: () =>
     set({
       registration: emptyRegistration,
@@ -52,6 +58,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       paymentStep: undefined,
       paymentInfo: undefined,
       confirmationStep: undefined,
+      promo: null,
       updating: false,
     }),
 }));

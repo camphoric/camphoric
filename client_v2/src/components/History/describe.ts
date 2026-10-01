@@ -34,6 +34,7 @@ const TYPE_NAMES: Record<string, string> = {
 const FIELD_NAMES: Record<string, string> = {
   registrant_email: 'Registrant email',
   registration_type: 'Registration type',
+  promo_code: 'Promo code',
   payment_type: 'Payment type',
   completed: 'Finished registering',
   initial_payment: 'Initial payment',

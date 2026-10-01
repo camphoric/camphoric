@@ -14,12 +14,13 @@ import { Box, Divider, Paper, Stack, Text, Title } from '@mantine/core';
 import type { UiSchema } from '@rjsf/utils';
 import type {
   ApiRegister,
+  AppliedPromo,
   Hash,
   JsonLogicPricing,
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
-import { feeLabel } from 'components/FeeBreakdown';
+import { feeLabel, HANDLING, PROMO } from 'components/FeeBreakdown';
 import { isPlainObject, type ReviewItem, reviewItems } from 'components/form';
 import type { JSONSchema7 } from 'json-schema';
 import { formatMoney } from 'utils/money';
@@ -169,9 +170,16 @@ interface RegistrationReviewProps {
   config: ApiRegister;
   registration: RegistrationFormData;
   results: PricingResults;
+  /** The applied promo code, whose label names its discount line (§15, DR-67). */
+  promo?: AppliedPromo | null;
 }
 
-export function RegistrationReview({ config, registration, results }: RegistrationReviewProps) {
+export function RegistrationReview({
+  config,
+  registration,
+  results,
+  promo,
+}: RegistrationReviewProps) {
   const root = config.dataSchema;
   const uiSchema = config.uiSchema as UiSchema;
   const { registration: registrationLogic, camper: camperLogic } = config.pricingLogic;
@@ -183,13 +191,17 @@ export function RegistrationReview({ config, registration, results }: Registrati
   const camperUi = ((uiSchema.campers as UiSchema | undefined)?.items ?? {}) as UiSchema;
 
   // Registration-level components are the ones its pricing logic defines;
-  // `handling` is the server-added e-payment fee.
+  // then the promo code's discount and the server-added e-payment fee.
   const registrationKeys = [
     ...registrationLogic.map((component) => component.var).filter((key) => key !== 'total'),
-    'handling',
+    PROMO,
+    HANDLING,
   ];
+  const withPromoLabel = (fee: { key: string; label: string; value: number }) =>
+    fee.key === PROMO && promo ? { ...fee, label: promo.label } : fee;
   const registrationFees = feeLines(results, registrationKeys, registrationLogic, camperLogic).map(
-    (fee) => (fee.key === 'handling' ? { ...fee, label: 'Electronic payment handling' } : fee),
+    (fee) =>
+      fee.key === HANDLING ? { ...fee, label: 'Electronic payment handling' } : withPromoLabel(fee),
   );
 
   return (
@@ -210,7 +222,9 @@ export function RegistrationReview({ config, registration, results }: Registrati
             key={index}
             title={camperHeading(camper, index)}
             items={reviewItems(camperItemSchema, camperUi, camper, root)}
-            fees={feeLines(camperResults, camperKeys, camperLogic, registrationLogic)}
+            fees={feeLines(camperResults, camperKeys, camperLogic, registrationLogic).map(
+              withPromoLabel,
+            )}
             total={typeof camperResults?.total === 'number' ? camperResults.total : undefined}
             totalLabel="Camper total"
           />

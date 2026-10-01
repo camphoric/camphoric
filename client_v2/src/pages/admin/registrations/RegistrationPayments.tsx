@@ -72,6 +72,7 @@ export function RegistrationPayments({ event, registration }: RegistrationPaymen
         results={registration.server_pricing_results}
         logics={[event.registration_pricing_logic, event.camper_pricing_logic]}
         registrationId={registration.id}
+        promoLabel={registration.promo?.label}
       />
 
       <Stack gap={2} maw={360}>

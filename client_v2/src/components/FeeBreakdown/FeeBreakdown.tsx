@@ -18,6 +18,9 @@ import { formatMoney } from 'utils/money';
 /** The electronic-payment handling fee's line, added by the server after the rest. */
 export const HANDLING = 'handling';
 const HANDLING_LABEL = 'Electronic payment handling';
+/** A promo code's discount line (§15, DR-67); labelled with the code's label where known. */
+export const PROMO = 'promo';
+export const PROMO_LABEL = 'Promo code';
 
 /** Find a fee's label from the pricing-logic vars, falling back to the key. */
 export function feeLabel(key: string, ...logics: JsonLogicPricing[]): string {
@@ -25,7 +28,8 @@ export function feeLabel(key: string, ...logics: JsonLogicPricing[]): string {
     const found = logic.find((component) => component.var === key);
     if (found?.label) return found.label;
   }
-  return key === HANDLING ? HANDLING_LABEL : key;
+  if (key === HANDLING) return HANDLING_LABEL;
+  return key === PROMO ? PROMO_LABEL : key;
 }
 
 /** A line of the breakdown, as the override actions see it. */
@@ -41,6 +45,8 @@ export interface FeeLine {
 interface FeeBreakdownProps {
   results: PricingResults;
   logics: JsonLogicPricing[];
+  /** Labels the promo code's discount line: the code's own label. */
+  promoLabel?: string;
   /** Overrides of these results' lines. */
   overrides?: ApiPricingOverride[];
   /** The lines that can be overridden here. */
@@ -52,6 +58,7 @@ interface FeeBreakdownProps {
 export function FeeBreakdown({
   results,
   logics,
+  promoLabel,
   overrides = [],
   overridable = [],
   onOverride,
@@ -61,7 +68,7 @@ export function FeeBreakdown({
     .filter(([key, value]) => key !== 'total' && key !== 'campers' && typeof value === 'number')
     .map(([key, value]) => ({
       key,
-      label: feeLabel(key, ...logics),
+      label: key === PROMO && promoLabel ? promoLabel : feeLabel(key, ...logics),
       value: value as number,
       computed: results.overridden?.[key] ?? (value as number),
       override: overrides.find((o) => o.var === key && o.applied !== false),

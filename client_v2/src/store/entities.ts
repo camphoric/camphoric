@@ -21,6 +21,7 @@ import type {
   ApiOrganization,
   ApiPayment,
   ApiPricingOverride,
+  ApiPromoCode,
   ApiRegistration,
   ApiRegistrationType,
   ApiReport,
@@ -78,4 +79,10 @@ export const pricingOverrideHooks = createEntityHooks<ApiPricingOverride>({
 });
 export const customChargeTypeHooks = createEntityHooks<ApiCustomChargeType>({
   name: 'CustomChargeType',
+});
+// Registrations show their code's label, and whether it's been deleted (DR-67).
+export const promoCodeHooks = createEntityHooks<ApiPromoCode>({
+  name: 'PromoCode',
+  path: 'promocodes',
+  alsoInvalidate: ['Registration'],
 });

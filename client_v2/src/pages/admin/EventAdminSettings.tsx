@@ -4,9 +4,9 @@
  *   - Schemas: camper, registration, registration UI, deposit, payment.
  *   - Pricing logic: camper, registration.
  *   - Admin attribute schemas: registration, camper.
- * Registration types are also managed here (§8.4, §15 DR-32), as are the
- * registration form's custom validation messages (§15 DR-34) and the event's
- * email account (§15 DR-44). The open tab is URL-addressable via `?settingsTab`.
+ * Registration types are also managed here (§8.4, §15 DR-32), as are promo
+ * codes (§15 DR-67), the registration form's custom validation messages (§15
+ * DR-34) and the event's email account (§15 DR-44). The open tab is URL-addressable via `?settingsTab`.
  */
 
 import { Alert, Button, Container, Group, Stack, Tabs, Title } from '@mantine/core';
@@ -22,9 +22,11 @@ import { eventHooks } from 'store/entities';
 
 import { EmailSettings } from './EmailSettings';
 import { ErrorMessagesSettings } from './ErrorMessagesSettings';
+import { PromoCodesSettings } from './PromoCodesSettings';
 import { RegistrationTypesSettings } from './RegistrationTypesSettings';
 
 const REGISTRATION_TYPES = 'registration_types';
+const PROMO_CODES = 'promo_codes';
 const VALIDATION_MESSAGES = 'validation_messages';
 const EMAIL = 'email';
 
@@ -55,6 +57,7 @@ const EDITABLE_FIELDS: { field: EditableField; title: string }[] = [
 
 const TABS = [
   REGISTRATION_TYPES,
+  PROMO_CODES,
   VALIDATION_MESSAGES,
   EMAIL,
   ...EDITABLE_FIELDS.map(({ field }) => field),
@@ -117,6 +120,7 @@ export function EventAdminSettings() {
         <Tabs value={tab} onChange={setTab} orientation="vertical">
           <Tabs.List>
             <Tabs.Tab value={REGISTRATION_TYPES}>Registration types</Tabs.Tab>
+            <Tabs.Tab value={PROMO_CODES}>Promo codes</Tabs.Tab>
             <Tabs.Tab value={VALIDATION_MESSAGES}>Validation messages</Tabs.Tab>
             <Tabs.Tab value={EMAIL}>Email</Tabs.Tab>
             {EDITABLE_FIELDS.map(({ field, title }) => (
@@ -130,6 +134,9 @@ export function EventAdminSettings() {
               eventId={eventId}
               helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=invitation_email`}
             />
+          </Tabs.Panel>
+          <Tabs.Panel value={PROMO_CODES} pl="md">
+            <PromoCodesSettings eventId={eventId} />
           </Tabs.Panel>
           <Tabs.Panel value={VALIDATION_MESSAGES} pl="md">
             <ErrorMessagesSettings key={event.id} event={event} />

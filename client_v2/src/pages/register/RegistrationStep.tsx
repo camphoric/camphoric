@@ -2,13 +2,14 @@
  * Step 1 — the registration form (SPEC §7.1). Renders the data-driven form and,
  * on every change, saves the form data to the store, recomputes the live total
  * with `calculatePrice`, and persists to localStorage (debounced). On mount it
- * rehydrates any saved data. Submitting posts the registration and advances to
- * the payment step.
+ * rehydrates any saved data. When the event has promo codes, a field above the
+ * submit button applies one (repriced live); a code typed but not applied blocks
+ * submitting. Submitting posts the registration and advances to the payment step.
  */
 
 import { Alert, Button, Stack } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
-import type { RegistrationFormData } from 'api-types';
+import type { AppliedPromo, RegistrationFormData } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
 import { Template } from 'components/templating';
 import { useEventId } from 'hooks/useEventId';
@@ -21,6 +22,7 @@ import { debug } from 'utils/debug';
 import { formatMoney } from 'utils/money';
 
 import { PriceTicker } from './PriceTicker';
+import { PromoCodeEntry, usePromoCodeEntry } from './PromoCodeEntry';
 import {
   getRegistrationStorageKey,
   loadRegistrationFormData,
@@ -35,6 +37,7 @@ export function RegistrationStep() {
 
   const registration = useRegistrationStore((state) => state.registration);
   const totals = useRegistrationStore((state) => state.totals);
+  const promo = useRegistrationStore((state) => state.promo);
   const setRegistration = useRegistrationStore((state) => state.setRegistration);
   const setTotals = useRegistrationStore((state) => state.setTotals);
   const setUpdating = useRegistrationStore((state) => state.setUpdating);
@@ -54,9 +57,13 @@ export function RegistrationStep() {
     const saved = loadRegistrationFormData(getRegistrationStorageKey(config));
     if (saved) {
       setRegistration(saved);
-      setTotals(calculatePrice(config, saved));
+      setTotals(calculatePrice(config, saved, undefined, useRegistrationStore.getState().promo));
     }
   }, [config, setRegistration, setTotals]);
+
+  const promoEntry = usePromoCodeEntry(eventId, (applied: AppliedPromo | null) => {
+    if (config) setTotals(calculatePrice(config, registration, undefined, applied));
+  });
 
   if (!config) return null;
 
@@ -69,7 +76,7 @@ export function RegistrationStep() {
 
   const handleChange = (formData: unknown) => {
     const data = formData as RegistrationFormData;
-    const nextTotals = calculatePrice(config, data);
+    const nextTotals = calculatePrice(config, data, undefined, promo);
     debug('RegistrationStep onChange', { formData: data, totals: nextTotals });
     setUpdating(true);
     setRegistration(data);
@@ -82,11 +89,13 @@ export function RegistrationStep() {
   const handleError = (errors: unknown[]) => debug('RegistrationStep onError', errors);
 
   const handleSubmit = () => {
+    if (!promoEntry.readyToSubmit()) return;
     submit.mutate(
       {
         formData: registration,
         pricingResults: totals,
         ...(config.invitation ? { invitation: config.invitation } : {}),
+        ...(promo ? { promoCode: promo.code } : {}),
       },
       {
         onSuccess: (paymentStep) => {
@@ -126,6 +135,7 @@ export function RegistrationStep() {
             </Alert>
           ) : null}
           <Template markdown={config.preSubmitTemplate} templateVars={templateData} />
+          {config.hasPromoCodes && <PromoCodeEntry {...promoEntry.props} />}
           <Button type="submit" loading={submit.isPending}>
             Continue to payment
           </Button>

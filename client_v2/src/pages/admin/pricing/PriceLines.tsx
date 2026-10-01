@@ -39,9 +39,18 @@ interface PriceLinesProps {
   registrationId: Scalar;
   /** For a camper's lines; leave out for the registration's own. */
   camper?: ApiCamper;
+  /** Labels the promo code's discount line. */
+  promoLabel?: string;
 }
 
-export function PriceLines({ event, results, logics, registrationId, camper }: PriceLinesProps) {
+export function PriceLines({
+  event,
+  results,
+  logics,
+  registrationId,
+  camper,
+  promoLabel,
+}: PriceLinesProps) {
   const { canEdit } = usePermissions();
   const { data: overrides } = pricingOverrideHooks.useList(
     camper ? { camper: camper.id } : { registration: registrationId },
@@ -72,6 +81,7 @@ export function PriceLines({ event, results, logics, registrationId, camper }: P
       <FeeBreakdown
         results={results}
         logics={logics}
+        promoLabel={promoLabel}
         overrides={mine}
         overridable={overridableLines(event, !!camper)}
         onOverride={canEdit ? setEditing : undefined}
