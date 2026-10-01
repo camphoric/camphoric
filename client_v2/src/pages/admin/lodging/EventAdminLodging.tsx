@@ -4,11 +4,12 @@
  * event's days (assign/schedule/unassign). Persists assignment via PATCH camper
  * (`lodging`, `stay`); unassigning sets both to null.
  *
- * Two views (toggle): the "Hierarchy" (tree + node CRUD)
- * and the drag/resize "Timeline" (§8.6, DR-6), which lists the unassigned
- * campers and is where they're placed. Selecting a camper, or a lodging node by
- * its name, in either shows its details alongside without leaving the page;
- * the hierarchy's node details offer Edit. Each view keeps its own selections
+ * Two views (toggle): the hierarchy, labelled "Layout" (tree + node CRUD),
+ * and the drag/resize timeline, labelled "Assignments" (§8.6, DR-6, DR-74),
+ * which lists the unassigned campers and is where they're placed. Selecting a
+ * camper, or a lodging node by its name, in either shows its details alongside
+ * without leaving the page; the node details offer Edit on both (DR-75). Each
+ * view keeps its own selections
  * (§15, DR-71). Notes show by an icon on the hierarchy; on the timeline, a mark
  * flags the nodes that have them (§15, DR-70). URL-addressable: the view
  * (`?lodgingView`), the selected camper and node (`?camperId` / `?lodgingId` on
@@ -184,7 +185,7 @@ export function EventAdminLodging() {
       key={selectedLodging.id}
       node={selectedLodging}
       onClose={() => selectLodging(undefined)}
-      onEdit={view === 'hierarchy' ? editNode : undefined}
+      onEdit={editNode}
     />
   );
   const sidePanels = (lodgingInfo || camperInfo) && (
@@ -203,8 +204,8 @@ export function EventAdminLodging() {
             value={view}
             onChange={setView}
             data={[
-              { label: 'Hierarchy', value: 'hierarchy' },
-              { label: 'Timeline', value: 'timeline' },
+              { label: 'Layout', value: 'hierarchy' },
+              { label: 'Assignments', value: 'timeline' },
             ]}
           />
         </Group>

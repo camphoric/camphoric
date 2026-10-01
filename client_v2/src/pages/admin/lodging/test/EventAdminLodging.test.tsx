@@ -38,7 +38,12 @@ vi.mock('../camperLodgingDetails', () => ({
 }));
 vi.mock('../CamperLodgingInfo', () => ({ CamperLodgingInfo: () => <div>Camper details</div> }));
 vi.mock('../LodgingDetailsPanel', () => ({
-  LodgingDetailsPanel: () => <div>Lodging details</div>,
+  LodgingDetailsPanel: ({ onEdit }: { onEdit?: unknown }) => (
+    <div>
+      Lodging details
+      {onEdit ? <button type="button">Edit</button> : null}
+    </div>
+  ),
 }));
 vi.mock('../LodgingTree', () => ({ LodgingTree: () => <div>The tree</div> }));
 vi.mock('../LodgingNodeForm', () => ({ LodgingNodeForm: () => null }));
@@ -50,6 +55,22 @@ function setup(params: Record<string, string>) {
 }
 
 describe('EventAdminLodging', () => {
+  it('names the views Layout and Assignments', () => {
+    setup({});
+    expect(screen.getByText('Layout')).toBeInTheDocument();
+    expect(screen.getByText('Assignments')).toBeInTheDocument();
+  });
+
+  it('offers Edit in the lodging details on the hierarchy', () => {
+    setup({ lodgingId: '10' });
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
+
+  it('offers Edit in the lodging details on the timeline too', () => {
+    setup({ lodgingView: 'timeline', timelineLodgingId: '10' });
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
+
   it('shows the hierarchy’s selected camper and lodging on the hierarchy', () => {
     setup({ camperId: '5', lodgingId: '10' });
     expect(screen.getByText('Camper details')).toBeInTheDocument();
