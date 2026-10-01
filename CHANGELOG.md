@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.9.0](https://github.com/camphoric/camphoric/compare/v0.8.1...v0.9.0) (2026-10-01)
+
+
+### Features
+
+* **client_v2:** enter and manage promo codes ([36b9171](https://github.com/camphoric/camphoric/commit/36b9171a4b7fe043094369cc2344777aa03bb92f)), closes [#651](https://github.com/camphoric/camphoric/issues/651)
+* **client_v2:** rework lodging assignment for placing campers ([83294af](https://github.com/camphoric/camphoric/commit/83294af838b93b1dd502de925d1b9d576c05cc68)), closes [#705](https://github.com/camphoric/camphoric/issues/705)
+* **client_v2:** show the event in the admin header and keep tabs in the URL ([42af5b7](https://github.com/camphoric/camphoric/commit/42af5b78eb28cbc7896fd8e034d690da632cdc3f))
+* **server:** add promo codes for registration ([39eff1c](https://github.com/camphoric/camphoric/commit/39eff1cc3135e63b878e1f120f68ad35c913807a)), closes [#651](https://github.com/camphoric/camphoric/issues/651)
+
+
+### Bug Fixes
+
+* **ansible:** migrate before loading sample data ([da9ed7b](https://github.com/camphoric/camphoric/commit/da9ed7bc2d30f23551cdef6f6d87ce2be1b72150))
+* **client_v2:** list lodging units in tree order ([dfd1930](https://github.com/camphoric/camphoric/commit/dfd1930c9b82b63c0a1b5251746f5c89673aac98))
+* **client_v2:** never price a camper or registration below zero ([18b794d](https://github.com/camphoric/camphoric/commit/18b794d4be1e9bc5b975cf8c6491000e7d276d1a)), closes [#714](https://github.com/camphoric/camphoric/issues/714)
+* **client_v2:** save checkbox choices in option order ([e3d1555](https://github.com/camphoric/camphoric/commit/e3d155533f243515fed6ae433644caa10bd777e1)), closes [#708](https://github.com/camphoric/camphoric/issues/708)
+* **client_v2:** show the description on checkbox fields ([d9f5d7c](https://github.com/camphoric/camphoric/commit/d9f5d7c9b9219404d324d5a396c58f9e71d72a50))
+* **client_v2:** type the tab search reducer's params as strings ([8798f8d](https://github.com/camphoric/camphoric/commit/8798f8d07e683952033969f8859c2b08145f7d44))
+* **deps:** bump @tanstack/react-router ([778b007](https://github.com/camphoric/camphoric/commit/778b00712b7528f2cb3691321ff10e4d8571cac8))
+* **deps:** bump chalk in /data in the minor-and-patch group ([224928e](https://github.com/camphoric/camphoric/commit/224928ee154e921eee573dfaa4e0a48c12466a0a))
+* **deps:** bump inquirer from 12.11.1 to 14.2.2 in /data ([ce29b38](https://github.com/camphoric/camphoric/commit/ce29b382b9ee553e6d11fdb496d118ee82ebbbd8))
+* **deps:** bump ora from 8.1.0 to 9.4.1 in /data ([ef85db9](https://github.com/camphoric/camphoric/commit/ef85db90e7f88c1eb181c781627215190f5f2932))
+* **harmony:** change lodging description ([f53a326](https://github.com/camphoric/camphoric/commit/f53a326a4d8da5367a3ebcad628a7ff45bfb9556)), closes [#711](https://github.com/camphoric/camphoric/issues/711)
+* **harmony:** change title/desc for attendance ([1ad56ba](https://github.com/camphoric/camphoric/commit/1ad56ba5b8c86ac66d4ca21cd2736b2ae1d50021)), closes [#710](https://github.com/camphoric/camphoric/issues/710)
+* **harmony:** fix dates for Camp Harmony 2026 ([51a1cf9](https://github.com/camphoric/camphoric/commit/51a1cf998ef871a898b7acbec97146cb2e4d2377)), closes [#709](https://github.com/camphoric/camphoric/issues/709)
+* **harmony:** fix workshop form text ([f0acbb3](https://github.com/camphoric/camphoric/commit/f0acbb33114f2daae929134dfdd30e3267cbf0ba)), closes [#713](https://github.com/camphoric/camphoric/issues/713)
+* **harmony:** text changes to confirmation email ([dce5e5b](https://github.com/camphoric/camphoric/commit/dce5e5b1f5e675f1873e45535a62fd21de26fe93)), closes [#712](https://github.com/camphoric/camphoric/issues/712)
+* **server:** never price a camper or registration below zero ([881b7fd](https://github.com/camphoric/camphoric/commit/881b7fdc62f4ecde02552d522a4c9a25f1a64142)), closes [#714](https://github.com/camphoric/camphoric/issues/714)
+
 ## [0.8.1](https://github.com/camphoric/camphoric/compare/v0.8.0...v0.8.1) (2026-09-29)
 
 
