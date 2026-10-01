@@ -4,7 +4,8 @@
  * campers on the same registration); selecting one
  * (URL-addressable via `?camperId`) opens its editor.
  *
- * Admin-only attributes, lodging stay, and custom charges are later slices.
+ * The editor's Lodging tab is read-only; setting the lodging stay from here is
+ * a later slice.
  */
 
 import { Modal, Stack, Title } from '@mantine/core';
@@ -53,6 +54,14 @@ export function EventAdminCampers() {
     });
 
   const select = (id?: number) => goToCampers({ camperId: id ? String(id) : undefined });
+
+  /** The lodging screen's hierarchy, with the camper's details open (SPEC §8.6). */
+  const openLodging = (id: number) =>
+    void navigate({
+      to: '/admin/organization/$organizationId/event/$eventId/lodging',
+      params: { organizationId, eventId },
+      search: { camperId: String(id) },
+    });
 
   const tableState = useMemo(() => tableStateFromSearch(search, 'cam'), [search]);
 
@@ -122,7 +131,10 @@ export function EventAdminCampers() {
             event={event}
             camper={selected}
             name={camperName(selected)}
+            lodgingLookup={vars.lodgingLookup}
             onDeleted={() => select(undefined)}
+            onSelectCamper={select}
+            onOpenLodging={openLodging}
           />
         )}
       </Modal>

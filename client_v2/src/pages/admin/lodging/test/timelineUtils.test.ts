@@ -12,6 +12,7 @@ import {
   stayDayIndices,
   stayFrom,
   staySpan,
+  stayText,
   timelineDayUnits,
 } from '../timelineUtils';
 
@@ -129,6 +130,21 @@ describe('leavesUnder', () => {
   });
   it('combines several choices in the leaves’ order, without duplicates', () => {
     expect(leavesUnder(leaves, [offSite, cabins, cabinA])).toEqual([cabinA, cabinB, offSite]);
+  });
+});
+
+describe('stayText', () => {
+  it('counts the days and spans consecutive ones', () => {
+    expect(stayText(['2026-10-16', '2026-10-17', '2026-10-18'])).toBe(
+      '3 days: Fri 10/16 – Sun 10/18',
+    );
+  });
+  it('lists days that aren’t consecutive', () => {
+    expect(stayText(['2026-10-16', '2026-10-18'])).toBe('2 days: Fri 10/16, Sun 10/18');
+  });
+  it('names a single day, or none', () => {
+    expect(stayText(['2026-10-16'])).toBe('1 day: Fri 10/16');
+    expect(stayText([])).toBe('No days set');
   });
 });
 

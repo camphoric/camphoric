@@ -1,7 +1,8 @@
 /**
  * Edit a camper (SPEC §8.5), organized into tabbed sections — Attributes (the
- * schema-driven form), Admin attributes, Fees, History (Registrars and Admins;
- * DR-53), and a raw record for debugging — with a pinned action bar (Save /
+ * schema-driven form), Lodging (read-only: where they're placed and with whom),
+ * Admin attributes, Fees, History (Registrars and Admins; DR-53), and a raw
+ * record for debugging — with a pinned action bar (Save /
  * Delete) always visible below the scrolling section. Save persists the camper's
  * `attributes` and `admin_attributes` in a single PATCH; the camper can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55).
@@ -15,7 +16,7 @@
 
 import { Box, Button, Group, ScrollArea, Tabs } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import type { ApiCamper, ApiEvent, Hash } from 'api-types';
+import type { ApiCamper, ApiEvent, Hash, LodgingLookup } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { JsonSchemaForm } from 'components/form';
 import { HistoryPanel } from 'components/History';
@@ -28,15 +29,30 @@ import { camperHooks } from 'store/entities';
 
 import { CamperFees } from './CamperFees';
 import { useCamperForm } from './camperForm';
+import { CamperLodging } from './CamperLodging';
+import { camperLodgingSummary } from './camperLodgingSummary';
 
 interface CamperEditProps {
   event: ApiEvent;
   camper: ApiCamper;
   name: string;
+  lodgingLookup: LodgingLookup;
   onDeleted: () => void;
+  /** Opens another camper's record, from the Lodging tab. */
+  onSelectCamper: (camperId: number) => void;
+  /** Opens the lodging screen with this camper selected. */
+  onOpenLodging: (camperId: number) => void;
 }
 
-export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) {
+export function CamperEdit({
+  event,
+  camper,
+  name,
+  lodgingLookup,
+  onDeleted,
+  onSelectCamper,
+  onOpenLodging,
+}: CamperEditProps) {
   const update = camperHooks.useUpdate();
   const del = camperHooks.useDelete();
   const [attributes, setAttributes] = useState<Hash>(camper.attributes);
@@ -53,6 +69,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
   const hasAdmin = Object.keys(event.camper_admin_schema ?? {}).length > 0;
   const [tab, setTab] = useSearchTab('camperTab', [
     'attributes',
+    'lodging',
     ...(hasAdmin ? ['admin'] : []),
     'fees',
     ...(canEdit ? ['history'] : []),
@@ -83,6 +100,7 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
       >
         <Tabs.List>
           <Tabs.Tab value="attributes">Attributes</Tabs.Tab>
+          <Tabs.Tab value="lodging">Lodging</Tabs.Tab>
           {hasAdmin && <Tabs.Tab value="admin">Admin attributes</Tabs.Tab>}
           <Tabs.Tab value="fees">Fees</Tabs.Tab>
           {canEdit && <Tabs.Tab value="history">History</Tabs.Tab>}
@@ -112,6 +130,13 @@ export function CamperEdit({ event, camper, name, onDeleted }: CamperEditProps) 
               >
                 <></>
               </JsonSchemaForm>
+            </Tabs.Panel>
+            <Tabs.Panel value="lodging">
+              <CamperLodging
+                summary={camperLodgingSummary(camper, lodgingLookup)}
+                onSelectCamper={onSelectCamper}
+                onOpenLodging={() => onOpenLodging(camper.id)}
+              />
             </Tabs.Panel>
             {hasAdmin && (
               <Tabs.Panel value="admin">

@@ -477,6 +477,37 @@ test.describe('Lodging notes', () => {
   });
 });
 
+test.describe('Camper lodging tab', () => {
+  test('shows where the camper is placed, the unit’s notes, and who else is there', async ({
+    page,
+  }) => {
+    await page.goto(story('camper-lodging--placed'));
+    await expect(page.getByText('Camp 1 → Cabins → Cabin A')).toBeVisible();
+    await expect(page.getByText('3 days: Fri 10/16 – Sun 10/18')).toBeVisible();
+    await expect(page.getByText(/The ladder to the top bunk is broken/)).toBeVisible();
+    const others = page.getByRole('list', { name: 'Others in this unit' });
+    await expect(others.getByRole('listitem')).toHaveText([
+      /^Annie Ross1 day: Fri 10\/16$/,
+      /^Jane Ross2 days: Sat 10\/17 – Sun 10\/18$/,
+    ]);
+    await others.getByRole('button', { name: 'Jane Ross' }).click();
+    await expect(page.getByTestId('opened')).toHaveText('Opened: camper 2');
+    await page.getByRole('button', { name: 'Open in Lodging' }).click();
+    await expect(page.getByTestId('opened')).toHaveText('Opened: lodging');
+  });
+
+  test('says when no one else is in the unit', async ({ page }) => {
+    await page.goto(story('camper-lodging--alone'));
+    await expect(page.getByText('No one else')).toBeVisible();
+  });
+
+  test('a camper not yet placed reads as unassigned', async ({ page }) => {
+    await page.goto(story('camper-lodging--unassigned'));
+    await expect(page.getByText('Unassigned')).toBeVisible();
+    await expect(page.getByText('Others in this unit')).toHaveCount(0);
+  });
+});
+
 test.describe('Camper lodging info', () => {
   test('shows what an admin needs to place the camper', async ({ page }) => {
     await page.goto(story('camper-lodging-info--placed'));
