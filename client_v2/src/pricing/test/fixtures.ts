@@ -59,6 +59,33 @@ function makeConfig(epaymentHandling: number): ApiRegister {
 
 const twoCampers: RegistrationFormData = { campers: [{}, {}] };
 
+/**
+ * Pricing with credits, for the no-negative-totals cases (§15, DR-68):
+ *   - registration component `total` is the registration fee (50) less the
+ *     registration's `credit`;
+ *   - each camper's `tuition` is the camp fee (200), or 0 for a `free` camper,
+ *     and their `total` is that less a campership (100).
+ */
+function makeCreditConfig(epaymentHandling: number): ApiRegister {
+  return {
+    ...makeConfig(epaymentHandling),
+    pricing: { camp_fee: 200, registration_fee: 50, campership: 100 },
+    pricingLogic: {
+      registration: [
+        {
+          var: 'total',
+          exp: { '-': [{ var: 'pricing.registration_fee' }, { var: ['registration.credit', 0] }] },
+        },
+      ],
+      camper: [
+        { var: 'tuition', exp: { if: [{ var: 'camper.free' }, 0, { var: 'pricing.camp_fee' }] } },
+        { var: 'campership', exp: { var: 'pricing.campership' } },
+        { var: 'total', exp: { '-': [{ var: 'tuition' }, { var: 'campership' }] } },
+      ],
+    },
+  };
+}
+
 function promo(pricingLogic: unknown, scope: PromoScope = 'registration'): AppliedPromo {
   return { code: 'PROMO', label: 'Promo', scope, pricingLogic };
 }
@@ -153,6 +180,41 @@ export const pricingFixtures: PricingFixture[] = [
     expectedCampers: [
       { tuition: 200, total: 0, promo: -200 },
       { tuition: 200, total: 100, promo: -100 },
+    ],
+  },
+  // No negative totals (DR-68). The same cases are in server/tests/test_pricing.py
+  // (TestNoNegativeTotals); keep the two in step.
+  {
+    name: 'a camper’s total is never below 0',
+    config: makeCreditConfig(0),
+    formData: { campers: [{ free: true }, {}] },
+    // The free camper's campership leaves them at 0, not −100: 50 + 0 + 100.
+    expectedMoney: { total: 150, tuition: 200, campership: 200 },
+    expectedCampers: [
+      { tuition: 0, campership: 100, total: 0 },
+      { tuition: 200, campership: 100, total: 100 },
+    ],
+  },
+  {
+    name: 'the registration’s total is never below 0, nor is handling',
+    config: makeCreditConfig(3),
+    formData: { credit: 500, campers: [{}, {}] },
+    // 50 − 500 + 100 + 100 = −250, so 0; handling on 0 is 0.
+    expectedMoney: { total: 0, handling: 0 },
+    expectedCampers: [
+      { tuition: 200, campership: 100, total: 100 },
+      { tuition: 200, campership: 100, total: 100 },
+    ],
+  },
+  {
+    name: 'a registration-level credit still comes off the campers’ totals',
+    config: makeCreditConfig(0),
+    formData: { credit: 100, campers: [{}, {}] },
+    // Only the sum is floored, not the registration's own line: 50 − 100 + 200.
+    expectedMoney: { total: 150 },
+    expectedCampers: [
+      { tuition: 200, campership: 100, total: 100 },
+      { tuition: 200, campership: 100, total: 100 },
     ],
   },
 ];

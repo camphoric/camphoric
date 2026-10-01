@@ -90,9 +90,7 @@ export function calculatePrice(
   };
 
   const camperSchema = config.dataSchema.definitions?.camper;
-  const camperDateProps = getDateProps(
-    typeof camperSchema === 'object' ? camperSchema : undefined,
-  );
+  const camperDateProps = getDateProps(typeof camperSchema === 'object' ? camperSchema : undefined);
 
   // Registration-level components run once; each result feeds back into the
   // context so later components (and camper components) can reference it.
@@ -112,7 +110,8 @@ export function calculatePrice(
     data.camper = camperData;
 
     pricingLogic.camper.forEach((component) => {
-      const value: unknown = jsonLogic.apply(component.exp as RulesLogic, data);
+      const result: unknown = jsonLogic.apply(component.exp as RulesLogic, data);
+      const value = component.var === 'total' ? floored(result) : result;
       camperResults[component.var] = value;
       if (typeof value === 'number' || typeof value === 'boolean') {
         const subtotal = asNumber(results[component.var]) + Number(value);
@@ -125,7 +124,10 @@ export function calculatePrice(
     camperContexts.push(camperData);
   });
 
+  // No total is negative (§15, DR-68): a credit bigger than what it comes off
+  // (a campership for a camper who's free, say) can't leave the camp owing.
   delete data.camper;
+  results.total = floored(results.total);
   if (promo) applyPromo(promo, data, results, camperContexts);
 
   // Electronic-payment handling fee — added only when NOT paying by check.
@@ -191,6 +193,11 @@ function applyPromo(
 function promoDiscount(logic: unknown, data: Hash, cap: number): number {
   const value: unknown = jsonLogic.apply(logic as RulesLogic, data);
   return isAmount(value) ? Math.max(0, Math.min(value, cap)) : 0;
+}
+
+/** A total, never below zero (§15, DR-68); a non-number is left as it is. */
+function floored<T>(total: T): T | 0 {
+  return isAmount(total) && total < 0 ? 0 : total;
 }
 
 /** A discount as its (negative) price line, without a negative zero. */
