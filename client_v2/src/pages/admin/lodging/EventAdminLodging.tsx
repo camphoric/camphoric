@@ -1,15 +1,19 @@
 /**
  * Lodging (SPEC §8.6). Manages the event's lodging hierarchy (tree with
  * occupancy/capacity, node CRUD) and assigns campers to leaf units across the
- * event's days (assign/schedule/unassign), with the unassigned campers listed
- * alongside. Persists assignment via PATCH camper (`lodging`, `stay`);
- * unassigning sets both to null.
+ * event's days (assign/schedule/unassign). Persists assignment via PATCH camper
+ * (`lodging`, `stay`); unassigning sets both to null.
  *
- * Two views (toggle): the form-based "Hierarchy" (tree + node CRUD + per-leaf
- * assign/unassign) and the drag/resize "Timeline" (§8.6, DR-6). Selecting a
- * camper in either shows their lodging details alongside, without leaving the
- * page. URL-addressable: the view (`?lodgingView`), the selected camper
- * (`?camperId`), and the lodging the timeline is narrowed to (`?lodgingFilter`,
+ * Two views (toggle): the "Hierarchy" (tree + node CRUD + per-leaf unassign)
+ * and the drag/resize "Timeline" (§8.6, DR-6), which lists the unassigned
+ * campers and is where they're placed. Selecting a camper, or a lodging node by
+ * its name, in either shows its details alongside without leaving the page;
+ * the hierarchy's node details offer Edit. Each view keeps its own selections
+ * (§15, DR-71). Notes show by an icon on the hierarchy; on the timeline, a mark
+ * flags the nodes that have them (§15, DR-70). URL-addressable: the view
+ * (`?lodgingView`), the selected camper and node (`?camperId` / `?lodgingId` on
+ * the hierarchy, `?timelineCamperId` / `?timelineLodgingId` on the timeline),
+ * and the lodging the timeline is narrowed to (`?lodgingFilter`,
  * comma-separated node ids).
  */
 
@@ -36,21 +40,25 @@ import { useLodgingData } from 'hooks/useLodgingData';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { type ReactNode, useMemo, useState } from 'react';
 import { eventHooks, lodgingHooks, registrationHooks } from 'store/entities';
-import { camperName } from 'utils/camper';
 import { eventDays } from 'utils/dates';
 
-import { AssignCamperModal } from './AssignCamperModal';
 import { camperLodgingDetails } from './camperLodgingDetails';
 import { CamperLodgingInfo } from './CamperLodgingInfo';
+import { LodgingDetailsPanel } from './LodgingDetailsPanel';
 import { LodgingNodeForm } from './LodgingNodeForm';
 import { LodgingTimeline } from './LodgingTimeline';
 import { LodgingTree } from './LodgingTree';
-import { lodgingFilterNodes } from './timelineUtils';
-import { UnassignedCampers } from './UnassignedCampers';
+import { lodgingFilterNodes, ownCapacity } from './timelineUtils';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
 const VIEWS = ['hierarchy', 'timeline'] as const;
+
+/** Each view keeps its own selections, so a panel opened in one doesn't show in the other. */
+const SELECTION_PARAMS = {
+  hierarchy: { camper: 'camperId', lodging: 'lodgingId' },
+  timeline: { camper: 'timelineCamperId', lodging: 'timelineLodgingId' },
+} as const;
 
 interface NodeFormState {
   open: boolean;
@@ -83,14 +91,16 @@ export function EventAdminLodging() {
   const deleteNode = lodgingHooks.useDelete();
 
   const [nodeForm, setNodeForm] = useState<NodeFormState>({ open: false });
-  const [assigning, setAssigning] = useState<ApiCamper>();
   const [view, setView] = useSearchTab('lodgingView', VIEWS);
 
   const days = useMemo(() => (event ? eventDays(event.start, event.end) : []), [event]);
   const filterNodes = useMemo(() => lodgingFilterNodes(data?.tree), [data]);
   const shownLodgingIds = search.lodgingFilter?.split(',') ?? [];
 
-  const selectedCamper = data?.campers.find((c) => String(c.id) === search.camperId);
+  const params = SELECTION_PARAMS[view];
+  const lodgingId = search[params.lodging];
+  const selectedLodging = lodgingId ? data?.lodgingLookup[lodgingId] : undefined;
+  const selectedCamper = data?.campers.find((c) => String(c.id) === search[params.camper]);
   const details = useMemo(() => {
     if (!event || !data || !selectedCamper) return undefined;
     return camperLodgingDetails({
@@ -110,7 +120,15 @@ export function EventAdminLodging() {
     });
 
   const selectCamper = (camperId?: number) =>
-    setSearch({ camperId: camperId ? String(camperId) : undefined });
+    setSearch({ [params.camper]: camperId ? String(camperId) : undefined });
+
+  const selectLodging = (id?: number) =>
+    setSearch({ [params.lodging]: id ? String(id) : undefined });
+
+  // The form edits the capacity set on the node, not the tree's effective one (a
+  // node set to 0 shows its units' sum, which saving would otherwise fix in place).
+  const editNode = (node: AugmentedLodging) =>
+    setNodeForm({ open: true, node: { ...node, capacity: ownCapacity(node) } });
 
   const setShownLodging = (ids: string[]) =>
     setSearch({ lodgingFilter: ids.length ? ids.join(',') : undefined });
@@ -153,6 +171,21 @@ export function EventAdminLodging() {
     />
   );
 
+  const lodgingInfo: ReactNode = selectedLodging && (
+    <LodgingDetailsPanel
+      key={selectedLodging.id}
+      node={selectedLodging}
+      onClose={() => selectLodging(undefined)}
+      onEdit={view === 'hierarchy' ? editNode : undefined}
+    />
+  );
+  const sidePanels = (lodgingInfo || camperInfo) && (
+    <Stack>
+      {lodgingInfo}
+      {camperInfo}
+    </Stack>
+  );
+
   return (
     <Stack>
       <Group justify="space-between">
@@ -179,38 +212,30 @@ export function EventAdminLodging() {
 
       {view === 'hierarchy' ? (
         <Grid>
-          <Grid.Col span={{ base: 12, md: 8 }}>
+          <Grid.Col span={{ base: 12, md: sidePanels ? 8 : 12 }}>
             <Card withBorder>
               {data.tree ? (
                 <LodgingTree
                   node={data.tree}
                   depth={0}
                   onAddChild={(parentId) => setNodeForm({ open: true, parentId })}
-                  onEdit={(node) => setNodeForm({ open: true, node })}
+                  onEdit={editNode}
                   onDelete={confirmDeleteNode}
                   onUnassign={unassign}
                   onSelectCamper={selectCamper}
+                  selectedLodgingId={selectedLodging?.id}
+                  onSelectLodging={selectLodging}
                 />
               ) : (
                 <Text c="dimmed">No lodging hierarchy yet. Add a root lodging to begin.</Text>
               )}
             </Card>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Stack>
-              {camperInfo}
-              <UnassignedCampers
-                campers={data.unassigned}
-                lodgingLookup={data.lodgingLookup}
-                onAssign={(c) => setAssigning(c)}
-                onSelect={selectCamper}
-              />
-            </Stack>
-          </Grid.Col>
+          {sidePanels && <Grid.Col span={{ base: 12, md: 4 }}>{sidePanels}</Grid.Col>}
         </Grid>
       ) : (
         <Grid>
-          <Grid.Col span={{ base: 12, lg: camperInfo ? 9 : 12 }}>
+          <Grid.Col span={{ base: 12, lg: sidePanels ? 9 : 12 }}>
             <Card withBorder>
               <LodgingTimeline
                 days={days}
@@ -227,12 +252,14 @@ export function EventAdminLodging() {
                 onUnassign={unassignById}
                 selectedCamperId={selectedCamper?.id}
                 onSelectCamper={selectCamper}
+                selectedLodgingId={selectedLodging?.id}
+                onSelectLodging={selectLodging}
               />
             </Card>
           </Grid.Col>
-          {camperInfo && (
+          {sidePanels && (
             <Grid.Col span={{ base: 12, lg: 3 }}>
-              <Box style={stickyBesideTimeline}>{camperInfo}</Box>
+              <Box style={stickyBesideTimeline}>{sidePanels}</Box>
             </Grid.Col>
           )}
         </Grid>
@@ -246,18 +273,6 @@ export function EventAdminLodging() {
         opened={nodeForm.open}
         onClose={() => setNodeForm({ open: false })}
       />
-      {assigning && (
-        <AssignCamperModal
-          key={assigning.id}
-          event={event}
-          camper={assigning}
-          name={camperName(assigning)}
-          leaves={data.leaves}
-          opened
-          onAssign={(lodging, stay) => move.mutate({ camper: assigning, lodging, stay })}
-          onClose={() => setAssigning(undefined)}
-        />
-      )}
     </Stack>
   );
 }

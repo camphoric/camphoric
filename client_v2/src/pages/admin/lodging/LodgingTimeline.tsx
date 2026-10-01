@@ -9,7 +9,10 @@
  * resized from the right edge to change the stay length; dragging a bar back to
  * the sidebar unassigns. Clicking a camper selects them (their details show
  * beside the timeline) rather than leaving the page, so a click that falls short
- * of a drag costs nothing. The view can be narrowed to any set of lodging nodes.
+ * of a drag costs nothing. Clicking a unit's or section's name selects that
+ * lodging node the same way (its details, notes included, show beside the
+ * timeline); an icon marks the ones with notes. The view can be narrowed to any
+ * set of lodging nodes.
  * The days share the width available evenly, down to a minimum below which the
  * timeline scrolls sideways; departure day, the last, is shown as just its
  * morning, since everyone has left by midday.
@@ -54,6 +57,7 @@ import {
 } from 'react';
 import { camperName } from 'utils/camper';
 
+import { LodgingNameButton, NotesMarker } from './LodgingNameButton';
 import {
   dayLabel,
   leafSections,
@@ -96,6 +100,8 @@ interface LodgingTimelineProps {
   onUnassign: (camperId: number) => void;
   selectedCamperId?: number;
   onSelectCamper?: (camperId: number) => void;
+  selectedLodgingId?: number;
+  onSelectLodging?: (lodgingId: number) => void;
 }
 
 /** The pointer's latest viewport x during a drag. */
@@ -127,6 +133,8 @@ export function LodgingTimeline({
   onUnassign,
   selectedCamperId,
   onSelectCamper,
+  selectedLodgingId,
+  onSelectLodging,
 }: LodgingTimelineProps) {
   const [active, setActive] = useState<DragData | null>(null);
   const { ref: widthRef, width } = useElementSize();
@@ -142,9 +150,9 @@ export function LodgingTimeline({
 
   // Stable callbacks for the rows, so a render here (as a drag starts or ends)
   // skips the hundreds of unchanged rows instead of re-rendering them all.
-  const latest = useRef({ onAssign, onSelectCamper });
+  const latest = useRef({ onAssign, onSelectCamper, onSelectLodging });
   useLayoutEffect(() => {
-    latest.current = { onAssign, onSelectCamper };
+    latest.current = { onAssign, onSelectCamper, onSelectLodging };
   });
   const assignFromRow = useCallback<LodgingTimelineProps['onAssign']>(
     (camperId, lodgingId, stay) => latest.current.onAssign(camperId, lodgingId, stay),
@@ -154,6 +162,11 @@ export function LodgingTimeline({
     (camperId: number) => latest.current.onSelectCamper?.(camperId),
     [],
   );
+  const selectLodgingFromRow = useCallback(
+    (lodgingId: number) => latest.current.onSelectLodging?.(lodgingId),
+    [],
+  );
+  const canSelectLodging = Boolean(onSelectLodging);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   // Only someone who may change lodging can drag (DR-51); others can still open campers.
@@ -161,6 +174,7 @@ export function LodgingTimeline({
 
   const shownNodes = filterNodes.filter((n) => shownLodgingIds.includes(String(n.id)));
   const sections = leafSections(leavesUnder(leaves, shownNodes));
+  const nodeById = new Map(filterNodes.map((n) => [n.id, n]));
 
   const onDragStart = (e: DragStartEvent) => {
     if (e.activatorEvent instanceof PointerEvent) pointerX.current = e.activatorEvent.clientX;
@@ -262,7 +276,14 @@ export function LodgingTimeline({
               ) : (
                 sections.map((section) => (
                   <Box key={section.leaves[0].id}>
-                    <SectionHeading heading={section.heading} />
+                    <SectionHeading
+                      heading={section.heading}
+                      parent={nodeById.get(Number(section.parentId))}
+                      isSelected={
+                        section.parentId != null && Number(section.parentId) === selectedLodgingId
+                      }
+                      onSelectLodging={canSelectLodging ? selectLodgingFromRow : undefined}
+                    />
                     {section.leaves.map((leaf) => (
                       <LeafRow
                         key={leaf.id}
@@ -278,6 +299,8 @@ export function LodgingTimeline({
                         }
                         onSelectCamper={selectFromRow}
                         onAssign={assignFromRow}
+                        isSelected={leaf.id === selectedLodgingId}
+                        onSelectLodging={canSelectLodging ? selectLodgingFromRow : undefined}
                       />
                     ))}
                   </Box>
@@ -314,8 +337,19 @@ export function LodgingTimeline({
 const dragData = (active: Active): DragData | null =>
   (active.data.current as DragData | undefined) ?? null;
 
-/** Names where the units below it are, e.g. "Camp 1 → Cabin". */
-function SectionHeading({ heading }: { heading: string }) {
+/** Names where the units below it are, e.g. "Camp 1 → Cabin"; the name selects that parent node. */
+function SectionHeading({
+  heading,
+  parent,
+  isSelected,
+  onSelectLodging,
+}: {
+  heading: string;
+  /** The node the units share (none for the root's "Top level"). */
+  parent?: AugmentedLodging;
+  isSelected: boolean;
+  onSelectLodging?: (lodgingId: number) => void;
+}) {
   return (
     <Box
       px="xs"
@@ -327,15 +361,24 @@ function SectionHeading({ heading }: { heading: string }) {
       }}
     >
       {/* Sticks to the left edge so the heading stays in view when scrolled sideways. */}
-      <Text
-        size="sm"
-        fw={700}
-        role="heading"
-        aria-level={3}
-        style={{ position: 'sticky', left: 8, display: 'inline-block' }}
-      >
-        {heading}
-      </Text>
+      <Group gap={4} wrap="nowrap" style={{ position: 'sticky', left: 8, display: 'inline-flex' }}>
+        <Text size="sm" fw={700} role="heading" aria-level={3}>
+          {parent ? (
+            <LodgingNameButton
+              node={parent}
+              inherit
+              span
+              isSelected={isSelected}
+              onSelect={onSelectLodging}
+            >
+              {heading}
+            </LodgingNameButton>
+          ) : (
+            heading
+          )}
+        </Text>
+        {parent?.notes.trim() && <NotesMarker />}
+      </Group>
     </Box>
   );
 }
@@ -425,6 +468,8 @@ const LeafRow = memo(function LeafRow({
   selectedCamperId,
   onSelectCamper,
   onAssign,
+  isSelected,
+  onSelectLodging,
 }: {
   leaf: AugmentedLodging;
   days: string[];
@@ -433,9 +478,10 @@ const LeafRow = memo(function LeafRow({
   selectedCamperId?: number;
   onSelectCamper: (camperId: number) => void;
   onAssign: LodgingTimelineProps['onAssign'];
+  isSelected: boolean;
+  onSelectLodging?: (lodgingId: number) => void;
 }) {
   const rowHeight = ROW_PAD * 2 + Math.max(1, leaf.campers.length) * (BAR_HEIGHT + BAR_GAP);
-  const over = leaf.count > leaf.capacity && leaf.capacity > 0;
   const stayDayCount = stayableDays(days).length;
 
   return (
@@ -445,12 +491,17 @@ const LeafRow = memo(function LeafRow({
       style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
     >
       <Box w={LABEL_WIDTH} px="xs" py={4} style={{ flexShrink: 0 }}>
-        <Text size="sm" fw={500} lineClamp={1}>
-          {leaf.name}
-        </Text>
-        <Text size="xs" c={over ? 'red' : 'dimmed'}>
-          {leaf.count}/{leaf.capacity}
-        </Text>
+        <Group gap={4} wrap="nowrap">
+          <LodgingNameButton
+            node={leaf}
+            size="sm"
+            fw={500}
+            lineClamp={1}
+            isSelected={isSelected}
+            onSelect={onSelectLodging}
+          />
+          {leaf.notes.trim() && <NotesMarker />}
+        </Group>
       </Box>
       <Box
         style={{

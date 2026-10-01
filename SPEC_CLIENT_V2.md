@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-69)
+- §15 — Decision Records (DR-1…DR-71)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -210,9 +210,10 @@ queries derive it from `window.location` rather than props, through the routing 
   (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
   (`attributes` by default, `admin`, `fees`, `campers` for a registration, `history`, `raw`).
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
-  (default) or `timeline`; `?camperId` — the selected camper, whose lodging details show beside
-  either view (§8.6); `?lodgingFilter` — the lodging nodes the timeline is narrowed to, as
-  comma-separated ids (none: everything).
+  (default) or `timeline`; `?camperId` and `?lodgingId` — the camper and the lodging node
+  selected on the hierarchy, and `?timelineCamperId` and `?timelineLodgingId` — those selected on
+  the timeline, whose details show beside that view only (§8.6; §15, DR-71); `?lodgingFilter` —
+  the lodging nodes the timeline is narrowed to, as comma-separated ids (none: everything).
 - `/admin/organization/:organizationId/event/:eventId/settings` — `?settingsTab`: the open
   settings section (`registration_types` by default, `validation_messages`, `email`, or the
   event field being edited, e.g. `camper_schema`).
@@ -1029,12 +1030,15 @@ across date ranges**, with capacity visibility. Required capabilities:
   sets a camper's `lodging` to the node they requested, often a non-leaf (e.g. "Cabins"), so a
   camper whose `lodging` is null *or* a non-leaf node counts as unassigned.
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
-  (and reserved count), and create/edit/delete nodes (deleting one unassigns the campers in it and
+  (and reserved count), each node's children listed by name in natural order, as the timeline
+  lists units ("Cabin 2" before "Cabin 10"; §15, DR-63), and create/edit/delete nodes (deleting one unassigns the campers in it and
   in anything under it; §15, DR-54). A node has: parent, name, a title for its
   children, capacity (0 ⇒ auto-sum of children), reserved count, visibility, **availability**
   on the registration form — `auto` (by capacity, the default), `full` (always shown full) or
   `open` (never shown full; §15, DR-57) — and notes; for a non-leaf node the calculated capacity
-  is shown, and a node marked full or open says so.
+  is shown, and a node marked full or open says so. A node with notes says so, and its notes can
+  be read from the hierarchy without opening its edit form (e.g. an icon beside the node that
+  opens them; §15, DR-70).
 - **Assign and schedule campers** — place a camper into a leaf unit and set the **days they're
   present** (`stay`), and later move, reschedule, or unassign them. Assigning/scheduling persists
   via PATCH camper (`lodging`, `stay`); unassigning sets `lodging: null, stay: null`. A new
@@ -1051,7 +1055,17 @@ across date ranges**, with capacity visibility. Required capabilities:
   those its form renders as a textarea (§15, DR-60) — and the camper's answers in readable form
   (as in the registration review, §7.2). From there the admin can open the camper's record (§8.5)
   or unassign them. Selecting a camper never navigates away; a click that falls short of a drag
-  just selects (§15, DR-61). The selection is URL-addressable (`?camperId`, §4).
+  just selects (§15, DR-61). Each view keeps its own selection, so details opened in one don't
+  show in the other (§15, DR-71); it's URL-addressable (`?camperId`, `?timelineCamperId`, §4).
+- **Inspect a lodging node in place** — selecting a node by its name in the hierarchy, or a
+  unit or the node a group sits under on the timeline, shows that node's details beside the view,
+  alongside any selected camper's: its path, occupancy vs. capacity (flagged when over), and every
+  value its form sets — capacity (saying when it's the sum of the units under it), reserved
+  count, sharing multiplier, the title for its children, visibility, availability on the
+  registration form, and notes — plus, for a non-leaf, how many units are under it. From the
+  hierarchy's details the admin can edit the node. On the timeline, units and groups whose node
+  has notes are marked. Selecting a node never navigates away; each view keeps its own selection
+  (§15, DR-71), URL-addressable as `?lodgingId` and `?timelineLodgingId` (§4; §15, DR-70).
 
 These must work efficiently across a whole event's campers and the event's date range. A
 productive realization is a **calendar/timeline assignment view** — a column per event day,
@@ -3217,6 +3231,40 @@ components makes pricing fail outright.
 **Alternatives:** Check it in the client's Settings editor — the data loader and other API
 callers would still get through. Treat a missing `total` as the sum of the other lines — not
 every line is money (some are counts or rates), so the sum would be wrong.
+
+### DR-70 — Lodging notes: an icon on the hierarchy, a details panel on the timeline
+
+**Decision:** On the hierarchy, a node with notes has an icon beside it that opens them on
+click. On the timeline, units and groups whose node has notes are marked with an icon, and a
+unit's or group's name selects that node (`?timelineLodgingId`), showing its details, notes
+included, beside the timeline (§8.6). A node's name in the hierarchy selects it the same way
+(`?lodgingId`), and its details there offer Edit. A unit's row label on the timeline is just its
+name: its occupancy is in those details, and in the hierarchy. Notes are still edited in the
+node's form.
+**Context:** Organizers' notes on lodging (e.g. "1 bunk, 1 single - ADA") could be edited but
+were shown only as the selected camper's unit notes, so they weren't in view while placing
+campers (#520). The hierarchy has room beside each node for an icon; the timeline's unit labels
+are narrow and its rows are packed with bars, so a side panel suits it, matching how a selected
+camper's details show there (DR-61). Four ways were built and tried on real data before
+choosing.
+**Alternatives:** Each note's text under its node in the hierarchy, with an icon on the timeline
+— long notes push the tree apart. Icons with popovers everywhere — a popover over the timeline
+covers the bars being placed. A "Show notes" switch putting the text everywhere — timeline rows
+grow to fit and the grid gets hard to scan. Hover popovers — no equivalent on touch screens, and
+they fought with dragging (DR-61).
+
+### DR-71 — Each lodging view keeps its own selection
+
+**Decision:** The hierarchy and the timeline each have their own selected camper and lodging
+node — `?camperId` and `?lodgingId` on the hierarchy, `?timelineCamperId` and
+`?timelineLodgingId` on the timeline (§4, §8.6). Details opened in one view don't show in the
+other, and each view's selections are still there on switching back.
+**Context:** One `?camperId` served both views (DR-61), so a camper's details opened while
+placing campers on the timeline followed the admin to the hierarchy, where they were working on
+something else. The hierarchy keeps the original name, so a link to the lodging screen with a
+camper selected opens on its default view as before.
+**Alternatives:** Clear the selection whenever the view changes — one parameter, but switching
+back and forth loses the camper being placed. Keep one shared selection, as before.
 
 ---
 

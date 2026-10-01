@@ -77,6 +77,11 @@ export interface AdminSearch {
   lodgingView?: string;
   lodgingFilter?: string;
   settingsTab?: string;
+  // The lodging node selected on the Lodging hierarchy, and the camper and
+  // node selected on its timeline (the hierarchy's camper is `camperId`; SPEC §8.6).
+  lodgingId?: string;
+  timelineCamperId?: string;
+  timelineLodgingId?: string;
   // Email (SPEC §8.9): the tab, the template being edited, the open message,
   // and the history's filters.
   emailTab?: string;
