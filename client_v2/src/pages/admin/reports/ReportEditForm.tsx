@@ -159,6 +159,7 @@ export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEdit
             context="report"
             output={output === 'hbs' ? 'md' : output}
             helpHref={helpHref}
+            title={title.trim() || 'Report template'}
           />
         ) : (
           <JsonEditor

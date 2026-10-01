@@ -2,16 +2,35 @@
  * The Jinja template editor (SPEC §9.6, DR-36): Monaco with Jinja
  * highlighting, autocomplete and hover docs for the variables this kind of
  * template receives, problems underlined in the text, and a live preview
- * rendered by the server against the event's real data.
+ * rendered by the server against the event's real data. The preview can be
+ * hidden to give the editor the full width, and the whole editor can be
+ * expanded to fill the screen.
  *
  * `TemplateEditor` fetches the variable spec and the preview;
  * `TemplateEditorView` takes them as props (for stories and tests).
  */
 
-import { Anchor, Button, Drawer, Group, SimpleGrid, Stack } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import {
+  Anchor,
+  Box,
+  Button,
+  Drawer,
+  getDefaultZIndex,
+  Group,
+  Modal,
+  SimpleGrid,
+  Stack,
+  Text,
+} from '@mantine/core';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import type { OnMount } from '@monaco-editor/react';
-import { IconExternalLink, IconHelp } from '@tabler/icons-react';
+import {
+  IconArrowsMaximize,
+  IconExternalLink,
+  IconEye,
+  IconEyeOff,
+  IconHelp,
+} from '@tabler/icons-react';
 import type {
   TemplateContextName,
   TemplateDescription,
@@ -64,6 +83,8 @@ export interface TemplateEditorViewProps {
   /** The standalone Template Help page, linked from the help panel. */
   helpHref?: string;
   height?: number | string;
+  /** Names the template in the expanded view. */
+  title?: string;
 }
 
 interface Mounted {
@@ -84,10 +105,16 @@ export function TemplateEditorView({
   showHelp = true,
   helpHref,
   height = 360,
+  title = 'Template',
 }: TemplateEditorViewProps) {
   const [helpOpen, help] = useDisclosure(false);
+  const [expanded, expand] = useDisclosure(false);
+  const [previewHidden, setPreviewHidden] = useState(false);
+  const previewShown = showPreview && !previewHidden;
+  const sideBySide = useMediaQuery('(min-width: 62em)');
   const id = useId().replace(/\W/g, '');
   const path = `camphoric-template/${context}/${id}.jinja`;
+  const expandedPath = `camphoric-template/${context}/${id}-expanded.jinja`;
   const [mounted, setMounted] = useState<Mounted | null>(null);
 
   const onMount = useCallback<OnMount>(
@@ -144,16 +171,43 @@ export function TemplateEditorView({
     [mounted],
   );
 
-  const helpButton = showHelp && (
-    <Group justify="flex-end">
-      <Button
-        variant="subtle"
-        size="compact-sm"
-        leftSection={<IconHelp size={16} />}
-        onClick={help.toggle}
-      >
-        Template help
-      </Button>
+  // Problems stay underlined while the preview is hidden; say how many there are.
+  const problems = preview?.diagnostics.length ?? 0;
+
+  const toolbar = (inExpandedView: boolean) => (
+    <Group justify="flex-end" gap="xs">
+      {showPreview && (
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          leftSection={previewHidden ? <IconEye size={16} /> : <IconEyeOff size={16} />}
+          onClick={() => setPreviewHidden((hidden) => !hidden)}
+        >
+          {previewHidden
+            ? `Show preview${problems ? ` (${problems} ${problems === 1 ? 'problem' : 'problems'})` : ''}`
+            : 'Hide preview'}
+        </Button>
+      )}
+      {!inExpandedView && (
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          leftSection={<IconArrowsMaximize size={16} />}
+          onClick={expand.open}
+        >
+          Expand
+        </Button>
+      )}
+      {showHelp && (
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          leftSection={<IconHelp size={16} />}
+          onClick={help.toggle}
+        >
+          Template help
+        </Button>
+      )}
     </Group>
   );
 
@@ -164,6 +218,8 @@ export function TemplateEditorView({
       position="right"
       size="lg"
       title="Template help"
+      // Above the expanded view (and any modal the editor sits in).
+      zIndex={getDefaultZIndex('modal') + 1}
       // Keep the editor usable while help is open, so entries can be inserted.
       withOverlay={false}
       lockScroll={false}
@@ -183,36 +239,90 @@ export function TemplateEditorView({
     </Drawer>
   );
 
-  const editor = (
+  // Inline or expanded, whichever was mounted last is the one `mounted` drives.
+  // Each has its own model (and path): the expanded one stays mounted while
+  // its modal closes, and unmounting disposes its model.
+  const editor = (editorHeight: number | string, editorPath: string) => (
     <JsonEditor
       value={value}
       onChange={onChange}
       language={LANGUAGE_ID}
-      path={path}
-      height={height}
+      path={editorPath}
+      height={editorHeight}
       beforeMount={(monaco) => ensureJinjaSupport(monaco)}
       onMount={onMount}
       options={EDITOR_OPTIONS}
     />
   );
 
+  const previewPanel = (
+    <TemplatePreviewPanel
+      output={output}
+      preview={preview}
+      rendering={rendering}
+      error={previewError}
+      onJump={jump}
+    />
+  );
+
+  // The same tree whether or not the preview shows, so toggling it doesn't
+  // remount Monaco (losing the cursor and undo history).
+  const inline = (
+    <SimpleGrid cols={previewShown ? { base: 1, xl: 2 } : 1} spacing="md">
+      <Stack gap={0}>{editor(height, path)}</Stack>
+      {previewShown && previewPanel}
+    </SimpleGrid>
+  );
+
+  const splitColumns = previewShown && sideBySide;
+  const splitRows = previewShown && !sideBySide;
+
   return (
     <Stack gap="xs">
-      {helpButton}
-      {showPreview ? (
-        <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
-          <Stack gap={0}>{editor}</Stack>
-          <TemplatePreviewPanel
-            output={output}
-            preview={preview}
-            rendering={rendering}
-            error={previewError}
-            onJump={jump}
-          />
-        </SimpleGrid>
+      {expanded ? (
+        <Text size="sm" c="dimmed">
+          Editing in the expanded view.
+        </Text>
       ) : (
-        editor
+        <>
+          {toolbar(false)}
+          {inline}
+        </>
       )}
+      <Modal
+        opened={expanded}
+        onClose={expand.close}
+        closeButtonProps={{ 'aria-label': 'Close' }}
+        title={title}
+        fullScreen
+        // Escape belongs to Monaco (dismissing suggestions and hovers).
+        closeOnEscape={false}
+        styles={{
+          content: { display: 'flex', flexDirection: 'column' },
+          body: {
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--mantine-spacing-xs)',
+          },
+        }}
+      >
+        {toolbar(true)}
+        <Box
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'grid',
+            gap: 'var(--mantine-spacing-md)',
+            gridTemplateColumns: splitColumns ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)',
+            gridTemplateRows: splitRows ? 'minmax(0, 3fr) minmax(0, 2fr)' : 'minmax(0, 1fr)',
+          }}
+        >
+          <Box h="100%">{editor('100%', expandedPath)}</Box>
+          {previewShown && <Box style={{ overflow: 'auto' }}>{previewPanel}</Box>}
+        </Box>
+      </Modal>
       {helpDrawer}
     </Stack>
   );
@@ -251,6 +361,8 @@ export interface TemplateEditorProps {
   showHelp?: boolean;
   helpHref?: string;
   height?: number | string;
+  /** Names the template in the expanded view. */
+  title?: string;
 }
 
 export function TemplateEditor({
@@ -265,6 +377,7 @@ export function TemplateEditor({
   showHelp,
   helpHref,
   height,
+  title,
 }: TemplateEditorProps) {
   const description = useTemplateDescription(eventId);
   // Callers often pass a fresh `sample` object; key on its contents so the
@@ -299,6 +412,7 @@ export function TemplateEditor({
       showHelp={showHelp}
       helpHref={helpHref}
       height={height}
+      title={title}
     />
   );
 }
