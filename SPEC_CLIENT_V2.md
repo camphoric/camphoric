@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-67)
+- §15 — Decision Records (DR-1…DR-68)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1009,7 +1009,7 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
-  discount or credit) and remove them.
+  discount or credit, which can't take the camper's total below 0, §9.2) and remove them.
 - **Override a price line** (Registrars and Admins; §15, DR-56) — as for a registration, for
   the camper's lines (from `camper_pricing_logic`): tuition, meals and so on.
 - **See its change history** (Registrars and Admins) — as for a registration, for the camper and
@@ -1443,8 +1443,11 @@ Algorithm:
 4. **Camper-level:** for each camper, set `data.camper = { ...camper, index }` (converting its
    date props), then for each `{ var, exp }` component evaluate and store per-camper results;
    when the value is numeric/boolean, **accumulate** it into the registration-level
-   `results[var]` (running total across campers) and feed back into `data[var]`. Append the
-   per-camper breakdown to `results.campers[]`.
+   `results[var]` (running total across campers) and feed back into `data[var]`. A camper's
+   `total` below 0 is 0, both in its breakdown and in what it adds to `results.total`. Append
+   the per-camper breakdown to `results.campers[]`. Once every camper is in, a `results.total`
+   below 0 is 0 (§15, DR-68); only that sum is floored, not the registration-level `total`
+   component on its own, so a registration-level credit still comes off the campers' totals.
 5. **Promo code** (only when one is applied; §15, DR-67): its `pricingLogic` works out a
    discount, as a positive amount, after every other line. A result that isn't a number, or is
    negative, is 0; the discount never takes a total below 0.
@@ -3176,6 +3179,26 @@ code add a charge and needs care to cap. Ignoring an invalid code at submit — 
 pay full price without noticing. Several codes per registration, or usage limits — not needed
 yet. Hard delete that clears the code from registrations (SET_NULL) — would silently reprice
 them; blocking the delete instead would leave unwanted codes in the list.
+
+### DR-68 — No total is negative
+
+**Decision:** The pricing engines (client and server) floor every camper's `total`, and the
+registration's total once all campers are summed, at 0 (§9.2). Only the totals are floored: the
+lines that make them up are shown as worked out, so a credit larger than what it comes off
+still shows its full amount. The floor is applied before the promo code and the handling fee,
+and holds whatever produced the negative amount — the event's logic, a negative custom charge,
+or a registrar's override.
+**Context:** Camp Harmony's campership was a credit taken off each camper's lodging; a
+registrant gave a campership to an infant, whose lodging is free, and the infant's negative total
+was taken off the adult's, doubling the adult's campership (#714). The form can't stop every
+such combination, and the event's logic would need a floor on every credit, so the engine
+guarantees it instead. A registration never has a negative amount owing; money owed back to a
+registrant is a refund, not a price.
+**Alternatives:** Hide the campership request for campers who pay nothing — Harmony-specific,
+and the question shows before the price is known. Floor each credit at what it comes off in the
+event's logic — every event's logic must remember to, and a forgotten one is the same bug.
+Floor only the registration's total — one camper's credit would still come off another's
+charges, which was the bug.
 
 ---
 
