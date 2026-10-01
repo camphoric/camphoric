@@ -9,13 +9,21 @@
  * any pricing change updates these fixtures and both engines.
  */
 
-import type { ApiRegister, PaymentType, RegistrationFormData } from 'api-types';
+import type {
+  ApiRegister,
+  AppliedPromo,
+  PaymentType,
+  PromoScope,
+  RegistrationFormData,
+} from 'api-types';
 
 export interface PricingFixture {
   name: string;
   config: ApiRegister;
   formData: RegistrationFormData;
   paymentType?: PaymentType;
+  /** An applied promo code (§15, DR-67). */
+  promo?: AppliedPromo;
   /** Expected money fields (compared with 2-decimal tolerance). */
   expectedMoney: { total: number; handling?: number; [subtotal: string]: number | undefined };
   /** Expected per-camper breakdown (compared exactly). */
@@ -51,6 +59,15 @@ function makeConfig(epaymentHandling: number): ApiRegister {
 
 const twoCampers: RegistrationFormData = { campers: [{}, {}] };
 
+function promo(pricingLogic: unknown, scope: PromoScope = 'registration'): AppliedPromo {
+  return { code: 'PROMO', label: 'Promo', scope, pricingLogic };
+}
+
+const undiscountedCampers = [
+  { tuition: 200, total: 200 },
+  { tuition: 200, total: 200 },
+];
+
 export const pricingFixtures: PricingFixture[] = [
   {
     name: 'electronic payment adds the handling fee (3%)',
@@ -80,5 +97,62 @@ export const pricingFixtures: PricingFixture[] = [
     formData: { campers: [] },
     expectedMoney: { total: 50 },
     expectedCampers: [],
+  },
+  // Promo codes (DR-67). The same cases are in server/tests/test_pricing.py
+  // (TestPromoCodePricing); keep the two in step.
+  {
+    name: 'promo: a flat discount comes off the total',
+    config: makeConfig(0),
+    formData: twoCampers,
+    promo: promo(30),
+    expectedMoney: { total: 420, promo: -30, tuition: 400 },
+    expectedCampers: undiscountedCampers,
+  },
+  {
+    name: 'promo: a percentage of a summed line',
+    config: makeConfig(0),
+    formData: twoCampers,
+    promo: promo({ '*': [{ var: 'tuition' }, 0.4] }),
+    expectedMoney: { total: 290, promo: -160 },
+    expectedCampers: undiscountedCampers,
+  },
+  {
+    name: 'promo: the discount is capped at the total',
+    config: makeConfig(0),
+    formData: twoCampers,
+    promo: promo(1000),
+    expectedMoney: { total: 0, promo: -450 },
+    expectedCampers: undiscountedCampers,
+  },
+  {
+    name: 'promo: a negative discount is none',
+    config: makeConfig(0),
+    formData: twoCampers,
+    promo: promo({ '-': [0, 10] }),
+    expectedMoney: { total: 450, promo: 0 },
+    expectedCampers: undiscountedCampers,
+  },
+  {
+    name: 'promo: handling is on the discounted total',
+    config: makeConfig(3),
+    formData: twoCampers,
+    promo: promo(30),
+    // 450 − 30 = 420; handling = 420·3% = 12.6
+    expectedMoney: { total: 432.6, promo: -30, handling: 12.6 },
+    expectedCampers: undiscountedCampers,
+  },
+  {
+    name: 'promo: a per-camper discount, capped at each camper’s total',
+    config: makeConfig(0),
+    formData: twoCampers,
+    promo: promo(
+      { if: [{ '==': [{ var: 'camper.index' }, 0] }, 1000, { '*': [{ var: 'tuition' }, 0.5] }] },
+      'camper',
+    ),
+    expectedMoney: { total: 150, promo: -300 },
+    expectedCampers: [
+      { tuition: 200, total: 0, promo: -200 },
+      { tuition: 200, total: 100, promo: -100 },
+    ],
   },
 ];

@@ -40,6 +40,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const { data: config } = useRegistrationConfig(eventId);
   const submit = useSubmitPayment(eventId);
   const registration = useRegistrationStore((state) => state.registration);
+  const promo = useRegistrationStore((state) => state.promo);
   const setPaymentInfo = useRegistrationStore((state) => state.setPaymentInfo);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
 
@@ -80,7 +81,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
 
   const payByCheck = () => {
     // Recompute without the handling fee (Check is fee-free) — SPEC §7.2, §12.
-    const checkTotals = config ? calculatePrice(config, registration, 'Check') : totals;
+    const checkTotals = config ? calculatePrice(config, registration, 'Check', promo) : totals;
     const deposit = parseDeposit(depositValue);
     const finalTotal = hasDeposits ? applyDeposit(deposit, checkTotals) : (checkTotals.total ?? 0);
     processResult({

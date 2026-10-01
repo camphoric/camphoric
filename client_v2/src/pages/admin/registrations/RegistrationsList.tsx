@@ -67,6 +67,7 @@ export function RegistrationsList() {
     () => [
       { id: 'camper', header: 'Primary camper', accessorFn: (r) => camperName(r.campers[0]) },
       { id: 'type', header: 'Type', accessorFn: (r) => r.registrationType?.label ?? '—' },
+      { id: 'promo', header: 'Promo code', accessorFn: (r) => r.promo?.code ?? '—' },
       { accessorKey: 'registrant_email', header: 'Email' },
       {
         id: 'owed',

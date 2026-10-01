@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-65)
+- §15 — Decision Records (DR-1…DR-67)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -291,17 +291,21 @@ consistently:
   invitation email; deleting a deposit leaves its payments; a custom charge type campers still
   have, an organization with events, and an email account an event or sent email uses can't be
   deleted; only Admins delete events, and only before anyone has registered.
-- **Soft delete** (registrations, campers and payments; §15, DR-55): `DELETE` marks one deleted
-  (its `delete-preview` has `restorable: true`, and lists under `deletes` what goes out of sight
-  with it: a registration's campers, payments and custom charges, a camper's charges). A deleted
+- **Soft delete** (registrations, campers, payments and promo codes; §15, DR-55, DR-67): `DELETE`
+  marks one deleted (its `delete-preview` has `restorable: true`, and lists under `deletes` what
+  goes out of sight with it: a registration's campers, payments and custom charges, a camper's
+  charges; a promo code's lists under `changes` the registrations that keep it). A deleted
   one — and a deleted registration's campers, payments and charges — is gone from every list,
-  detail (404), total, lodging count, report and recipient list, until it's restored. Its
-  `deleted_at` is read-only everywhere (set only by these endpoints).
-  - `POST /api/{registrations|campers|payments}/{id}/restore/` (Registrars and Admins) → 200
-    with the object; 409 `{ detail }` if it isn't deleted, or for a camper or payment whose
-    registration is deleted ("Restore the registration first."). Restoring a registration
-    brings back its campers and payments, except ones deleted on their own before it.
-  - `GET /api/registrations/deleted/?event=`, `GET /api/campers/deleted/?event=` and
+  detail (404), total, lodging count, report and recipient list, until it's restored. A deleted
+  promo code is gone from the list and can't be applied, but registrations that have it keep it
+  and its discount. Its `deleted_at` is read-only everywhere (set only by these endpoints).
+  - `POST /api/{registrations|campers|payments|promocodes}/{id}/restore/` (Registrars and
+    Admins) → 200 with the object; 409 `{ detail }` if it isn't deleted, for a camper or payment
+    whose registration is deleted ("Restore the registration first."), or for a promo code
+    whose code a live one of the event now uses. Restoring a registration brings back its
+    campers and payments, except ones deleted on their own before it.
+  - `GET /api/registrations/deleted/?event=`, `GET /api/campers/deleted/?event=`,
+    `GET /api/promocodes/deleted/?event=` and
     `GET /api/payments/deleted/?event=|registration=` (Registrars and Admins; 400 without a
     filter) → the deleted ones, most recently deleted first, as the usual entity plus
     `deleted_at` and `deleted_by` (`{ id, username, name }`, or `null`); registrations also have
@@ -317,7 +321,7 @@ derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must als
 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
-`Payment`, `CustomCharge`, `CustomChargeType`, `EmailAccount`, `EmailTemplate`,
+`Payment`, `CustomCharge`, `CustomChargeType`, `PromoCode`, `EmailAccount`, `EmailTemplate`,
 `EmailUnsubscribe` (no update), `User` (as ManagedUser, Admins only).
 
 Non-CRUD admin endpoints:
@@ -484,17 +488,24 @@ Non-CRUD admin endpoints:
 
 - `GET /api/events/{eventId}/register{?invitation/query}` → `ApiRegister` config bundle
   (schemas, ui schema, pricing logic, pricing vars, template vars, event subset, optional
-  invitation/registration-type info, PayPal options, pre-submit template, and
+  invitation/registration-type info, PayPal options, pre-submit template,
   `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
-  §7.1).
+  §7.1 — and `hasPromoCodes`, whether the event has a promo code a registrant could use now).
+- `POST /api/events/{eventId}/checkpromo` with `{ code }` (anyone; throttled per client) → 200
+  `{ code, label, scope, pricingLogic }` for a code of the event that's enabled, not expired and
+  not deleted — matched without regard to case or surrounding space — or 400 `{ detail }`
+  ("That promo code isn't valid for this event."), shown to the registrant (§7.1; §15, DR-67).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
-  pricingResults, invitation? }` → payment-step payload
+  pricingResults, invitation?, promoCode? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, deposit }`). While the event isn't open (before
   `registration_start` or from `registration_end`), it's refused — 409 `{ detail: 'Registration
   for this event is closed.' }`, shown to the registrant — unless it carries a valid invitation
   for this event, so special registration types can still register. An invitation that isn't
   found, has been redeemed, has expired or is for another event is a 400 `{ detail }` saying
-  which, shown to the registrant (the `GET` reports the same as `invitationError`).
+  which, shown to the registrant (the `GET` reports the same as `invitationError`). A
+  non-blank `promoCode` the `checkpromo` check would refuse is a 400 with the same `{ detail }`
+  and nothing is saved; a usable one is recorded on the registration and priced (§9.2). The code
+  travels outside `formData`, so it's never one of the registration's `attributes`.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
   paymentType, paymentData, payPalResponse? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where
@@ -551,7 +562,12 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
-  `registration_type`, `payment_type`, `paypal_response`, `uuid`, timestamps.
+  `registration_type`, `promo_code` (the id of its promo code, or null), read-only `promo`
+  (`{ id, code, label, scope, deleted }` of that code, or null — present even once the code is
+  deleted, to label its discount), `payment_type`, `paypal_response`, `uuid`, timestamps. A
+  Registrar or Admin may set `promo_code` to any live code of the registration's event, usable
+  by registrants or not, or clear it (400 on `promo_code` otherwise); a deleted code the
+  registration already has may be sent back unchanged. Changing it reprices the registration.
 - **Camper:** `id`, `attributes`, `admin_attributes`, `registration`, `lodging` (assigned),
   `lodging_requested`, `lodging_shared`/`lodging_shared_with`/`lodging_comments`,
   `server_pricing_results`, `sequence` (order within a registration), `stay` (array of ISO
@@ -615,6 +631,13 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount`, `notes`.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
+- **PromoCode** (`/api/promocodes/`, filter `event`; soft-deleted; §15, DR-67): `id`, `event`,
+  `label` (names the discount's price line), `code` (what the registrant enters; stored trimmed,
+  not blank, and unique among the event's live codes regardless of case — a 400 on `code`
+  otherwise), `pricing_logic` (one JsonLogic expression for the discount, a positive amount),
+  `scope` (`registration` | `camper`: worked out once, or for each camper; §9.2), `enabled`,
+  `expiration_date` (ISO datetime or null; registrants can't use the code after it), timestamps.
+  Any role reads; Registrars and Admins write.
 - **PricingOverride** (`/api/pricingoverrides/`, filter `registration`, `camper`,
   `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
   the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
@@ -752,8 +775,16 @@ Before any step renders, the app loads the registration config (`GET …/registe
   handling-charge notice (computed from `epayment_handling`) and the server-provided
   `preSubmitTemplate` (rendered through the template engine). An action advances the registrant
   to payment.
-- **Submit:** posts `{ step: 'registration', formData, pricingResults, invitation? }`. On
-  success it stores the returned payment-step payload and advances to the payment step.
+- **Promo code** (§15, DR-67): when the config's `hasPromoCodes` is true, the registrant can
+  enter a promo code just before advancing to payment. Applying it checks it with
+  `checkpromo`: a usable code is shown as applied (with its label), kept in the registration
+  store and priced live (§9.2); a refused one shows the server's message by the field. An
+  applied code stays applied only while the field still holds it, and can be removed. A code
+  that has been typed but not applied blocks advancing, with a message by the field, until it's
+  applied or cleared. Pressing Enter in the field applies the code; it doesn't submit the form.
+- **Submit:** posts `{ step: 'registration', formData, pricingResults, invitation?, promoCode? }`
+  (`promoCode` only when one is applied). On success it stores the returned payment-step payload
+  and advances to the payment step.
 
 ### 7.2 Step 2 — Payment
 
@@ -766,10 +797,12 @@ indented groups, a requested lodging by its name — following `ui:order`, skipp
 and empty values, and resolving conditional fields (`$ref`, `dependencies`, `if/then`) against
 the entered data so the review lists exactly the fields the form showed. Each section ends with
 its share of `serverPricingResults`: the registration section lists the registration-level
-pricing components (plus the e-payment handling fee when present) and the grand total; each
-camper section lists that camper's components and its total. Components that come to exactly
-$0 are left out; negative ones (discounts, credits) are listed, and the totals are always shown,
-even at $0 (§15, DR-33). Labels come from the pricing logic's `label`s (§11).
+pricing components (plus the promo code's discount and the e-payment handling fee when present)
+and the grand total; each camper section lists that camper's components (with a per-camper
+promo discount) and its total. The discount is labelled with the applied code's label.
+Components that come to exactly $0 are left out; negative ones (discounts, credits) are listed,
+and the totals are always shown, even at $0 (§15, DR-33). Labels come from the pricing logic's
+`label`s (§11).
 
 Then reads the payment-step payload's `serverPricingResults.total`:
 
@@ -780,7 +813,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     recomputes the amount due by applying that logic to the pricing results (so the displayed
     total updates live). The default deposit option is pre-selected.
   - **Pay by check:** recomputes totals with payment type `Check` (i.e. **without** the
-    e-payment handling fee), applies the chosen deposit logic, and posts the payment.
+    e-payment handling fee) and the applied promo code, applies the chosen deposit logic, and
+    posts the payment.
   - **PayPal / credit card:** offer PayPal / credit-card payment via the PayPal SDK. The order's
     amount is the current total; the chosen deposit name is embedded in the order's `custom_id`
     (the only reliable way to recover the deposit choice in the approve callback). On approval it
@@ -886,19 +920,22 @@ This function covers two areas of work: managing existing registrations, and man
 invitation-based ("special") registration.
 
 **Managing a registration.** The admin finds a registration (the registrations list is a
-sortable/filterable table — columns such as primary camper, registration type, balance, payment
-status) and works with it. For the selected registration they can:
+sortable/filterable table — columns such as primary camper, registration type, promo code,
+balance, payment status) and works with it. For the selected registration they can:
 
-- **Edit core fields and attributes** — registration type, registrant email, and the
-  schema-driven `registration_schema` attributes (rendered in admin mode, §9.5). Persists via
-  PATCH `{ registrant_email, registration_type, attributes }`. The registration can be deleted
+- **Edit core fields and attributes** — registration type, promo code (any of the event's live
+  codes, or none; a deleted code the registration has is shown as deleted; §15, DR-67),
+  registrant email, and the schema-driven `registration_schema` attributes (rendered in admin
+  mode, §9.5). Persists via PATCH `{ registrant_email, registration_type, promo_code,
+  attributes }`. The registration can be deleted
   after confirming (the confirmation shows the delete preview: its campers, payments and charges
   go with it, and it can be restored — §5; §15, DR-54, DR-55).
 - **Edit admin-only attributes** — assembled from `registration_admin_schema` (a map of named
   `{ data, ui }` schema pairs combined, ordered by title). Persists via PATCH `admin_attributes`.
 - **Review fees and manage payments** — see the fee breakdown from `server_pricing_results`
-  (labels from the pricing-logic vars) and Total Owed / Total Payments / Balance Due; see payment
-  history (type, date, amount, `payment_schema` fields, notes); and record a payment
+  (labels from the pricing-logic vars; a promo discount labelled with the code's label) and
+  Total Owed / Total Payments / Balance Due; see payment history (type, date, amount,
+  `payment_schema` fields, notes); and record a payment
   (`registration`, `payment_type` ∈ Check/PayPal/Card/Voucher, `paid_on`, `amount`, dynamic
   attributes, optional `deposit`, `notes`). Registrars and Admins can delete a payment (after
   confirming) and see the registration's deleted payments, with who deleted each and when, to
@@ -1099,6 +1136,13 @@ confirmation email (§8.3) with the `invitation_email` context and a preview for
 invitations. A new type starts with a standard invitation, editable once the type exists. Types
 persist via POST (new) / PATCH (edit) on `registrationtypes` (see §15, DR-32); the invitation via
 PATCH of its template.
+
+Promo codes are managed here too (§15, DR-67): the event's codes with their label, code, scope,
+expiry and whether registrants can use one now (enabled and not expired); add or edit a code's
+`label`, `code`, `scope`, `pricing_logic` (JSON, edited like the pricing logic; invalid JSON
+can't be saved), `enabled` and `expiration_date` (POST / PATCH on `promocodes`); and delete one
+after the usual preview. Registrars and Admins also see the deleted codes, with who deleted each
+and when, and restore them. Any role can view a code.
 
 **Validation messages** (the event's `registration_error_messages`, §7.1; §15, DR-34) are also
 managed here. Admins can:
@@ -1385,8 +1429,8 @@ meets one and the client engine ignores them.
 
 Inputs: `config.event` (notably `epayment_handling`), `config.pricingLogic`
 (`{ registration: [...], camper: [...] }`), `config.pricing` (named numeric vars),
-`config.dataSchema` (to find camper date properties), the `formData`, and an optional payment
-type.
+`config.dataSchema` (to find camper date properties), the `formData`, an optional payment
+type, and the applied promo code, if any (`{ code, label, scope, pricingLogic }`, §7.1).
 
 Algorithm:
 1. Build a logic context `data = { event, registration: { ...formData, registration_type,
@@ -1401,12 +1445,24 @@ Algorithm:
    when the value is numeric/boolean, **accumulate** it into the registration-level
    `results[var]` (running total across campers) and feed back into `data[var]`. Append the
    per-camper breakdown to `results.campers[]`.
-5. **Handling fee:** if `event.epayment_handling` is set and payment type is **not** `Check`,
+5. **Promo code** (only when one is applied; §15, DR-67): its `pricingLogic` works out a
+   discount, as a positive amount, after every other line. A result that isn't a number, or is
+   negative, is 0; the discount never takes a total below 0.
+   - `registration` scope: evaluated once against `data` without `camper`, with every
+     registration-level result fed in (camper lines as their sums across campers, and
+     `total`); capped at `results.total`.
+   - `camper` scope: evaluated for each camper against `data` with that camper's `camper` (as
+     in step 4) and that camper's own results fed in; capped at that camper's `total` (when it
+     has a numeric one) and at what's left of `results.total`. Each camper's discount is stored
+     as `promo: -discount` in its breakdown and taken off its `total`.
+   The discount (for `camper` scope, the sum) is stored as `results.promo = -discount` and
+   taken off `results.total`.
+6. **Handling fee:** if `event.epayment_handling` is set and payment type is **not** `Check`,
    add `results.total * epayment_handling/100` as `results.handling` and to `results.total`.
 
-`PricingResults` is an open object (`total`, named subtotals, etc.) plus `campers: [...]` and
-optional `handling`. All amounts are whole-dollar by convention (switch to cents if sub-dollar
-precision is ever needed).
+`PricingResults` is an open object (`total`, named subtotals, etc.) plus `campers: [...]`,
+optional `promo` and optional `handling`. All amounts are whole-dollar by convention (switch to
+cents if sub-dollar precision is ever needed).
 
 > **TODO (future):** `calculatePrice` (client, `json-logic-js`) and `calculate_price` (server,
 > `json-logic-qubit`) are a dual implementation kept in lockstep by tests (DR-14). Keep
@@ -2893,6 +2949,8 @@ just to preview it.
 
 ### DR-55 — Soft delete for registrations, campers and payments
 
+*Promo codes were later made soft-deleted too (DR-67).*
+
 **Decision:** Deleting a registration, camper or payment through the admin marks it deleted
 instead of removing it; Registrars and Admins can list what's deleted, with who deleted it, and
 restore it. Only these three are soft-deleted — everything else is deleted for real (DR-54),
@@ -3090,6 +3148,35 @@ Jinja templates don't have the schema's option order to sort by. Sort on the ser
 doesn't otherwise interpret form fields. Neither reorders registrations already saved; those keep
 their stored order.
 
+### DR-67 — Promo codes carry their own discount logic
+
+**Decision:** An event's promo codes are records of their own (§5, §8.8): a label, the code
+registrants type (matched without regard to case), whether it's enabled, an optional expiry, and
+a JsonLogic expression for the discount with a scope — once for the registration, or for each
+camper. A registration has at most one code. The discount is worked out after every other price
+line and before the e-payment handling fee, as a positive amount, never more than the total (or
+the camper's total) it comes off, so a code can't add a charge (§9.2). The event's own pricing
+logic doesn't see the code. Registrants enter a code in the form just above advancing to
+payment; the server checks it (`checkpromo`) as it's applied, and a code that's been typed but
+not applied, or that the server refuses at submit, stops the registration from going through
+(§7.1). Whether a code is usable is decided when it's applied: afterwards the registration keeps
+it — through expiry, being turned off, or being deleted — and its discount is recomputed with
+the code's current logic whenever the registration is repriced. Codes are soft-deleted (DR-55)
+so deleting one never reprices a registration. Registrars can set or clear any registration's
+code.
+**Context:** Camps wanted discounts registrants unlock by typing a code (#651). An early server
+attempt exposed the code's name to the event's pricing logic, which would have spread each
+code's rules through the event-wide logic; keeping the logic on the code puts everything about a
+code in one place that organizers manage in Settings. A per-camper scope is needed for discounts
+like "half off each child's tuition".
+**Alternatives:** Expose `promo.name` to the event's pricing logic — every code's rule would live
+in the event logic, far from the code. A list of `{ var, label, exp }` components per code —
+more to write for the common single-discount case. A signed amount added like any line — lets a
+code add a charge and needs care to cap. Ignoring an invalid code at submit — registrants would
+pay full price without noticing. Several codes per registration, or usage limits — not needed
+yet. Hard delete that clears the code from registrations (SET_NULL) — would silently reprice
+them; blocking the delete instead would leave unwanted codes in the list.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -3112,8 +3199,11 @@ must be coordinated with the backend. Grouped by status.
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Invitations and campers:** `register_link` on invitations, and creating a camper on an
   existing registration (`POST /api/campers/`), with the shapes in §5 and §8.4.
-- **Soft delete:** the restore and deleted-list endpoints for registrations, campers and
-  payments, and `registration_deleted` on invitations, with the shapes in §5 (DR-55).
+- **Soft delete:** the restore and deleted-list endpoints for registrations, campers, payments
+  and promo codes, and `registration_deleted` on invitations, with the shapes in §5 (DR-55).
+- **Promo codes:** `/api/promocodes/`, `POST /api/events/{id}/checkpromo`, `hasPromoCodes` and
+  `promoCode` on the register endpoint, `promo_code`/`promo` on registrations, and the `promo`
+  pricing line, with the shapes in §5 and §9.2 (DR-67).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,

@@ -14,6 +14,7 @@
 
 import type {
   ApiRegister,
+  AppliedPromo,
   Hash,
   JsonLogicPricing,
   PaymentType,
@@ -63,10 +64,14 @@ function getDateProps(schema: JSONSchema7 | undefined): string[] {
     .map(([propName]) => propName);
 }
 
+/** A promo code's discount line (§9.2; §15, DR-67), labelled with the code's label. */
+export const PROMO_LINE = 'promo';
+
 export function calculatePrice(
   config: ApiRegister,
   formData: RegistrationFormData,
   paymentType?: PaymentType,
+  promo?: AppliedPromo | null,
 ): PricingResults {
   const { event, pricingLogic, pricing } = config;
 
@@ -95,6 +100,7 @@ export function calculatePrice(
 
   // Camper-level components run per camper; numeric/boolean results accumulate
   // into the registration-level totals (a running total across campers).
+  const camperContexts: Hash[] = [];
   formData.campers.forEach((camper, index) => {
     const camperResults: Hash = {};
     const camperData: Hash = { ...camper, index };
@@ -116,7 +122,11 @@ export function calculatePrice(
     });
 
     results.campers.push(camperResults);
+    camperContexts.push(camperData);
   });
+
+  delete data.camper;
+  if (promo) applyPromo(promo, data, results, camperContexts);
 
   // Electronic-payment handling fee — added only when NOT paying by check.
   if (event.epayment_handling && paymentType !== 'Check') {
@@ -138,6 +148,58 @@ function applyRegistrationComponents(
     results[component.var] = typeof value === 'number' && Number.isNaN(value) ? 0 : asNumber(value);
     data[component.var] = value;
   });
+}
+
+/**
+ * Subtracts the promo code's discount from the total (§9.2; §15, DR-67). MUST
+ * match `_apply_promo` in server/camphoric/pricing.py. A registration-scoped
+ * code sees the registration's lines (camper lines summed); a camper-scoped one
+ * is worked out in each camper's context, with that camper's own lines, and
+ * shows on the camper's breakdown too.
+ */
+function applyPromo(
+  promo: AppliedPromo,
+  data: PricingContext,
+  results: PricingResults,
+  camperContexts: Hash[],
+): void {
+  let remaining = Math.max(0, asNumber(results.total));
+  let discount = 0;
+  if (promo.scope === 'camper') {
+    results.campers.forEach((camperResults, index) => {
+      const camperTotal = camperResults.total;
+      const cap = isAmount(camperTotal) ? Math.min(camperTotal, remaining) : remaining;
+      const camperDiscount = promoDiscount(
+        promo.pricingLogic,
+        { ...data, ...camperResults, camper: camperContexts[index] },
+        Math.max(0, cap),
+      );
+      camperResults[PROMO_LINE] = negated(camperDiscount);
+      if (isAmount(camperTotal)) camperResults.total = camperTotal - camperDiscount;
+      remaining -= camperDiscount;
+      discount += camperDiscount;
+    });
+  } else {
+    const { campers: _campers, ...lines } = results;
+    discount = promoDiscount(promo.pricingLogic, { ...data, ...lines }, remaining);
+  }
+  results[PROMO_LINE] = negated(discount);
+  results.total = asNumber(results.total) - discount;
+}
+
+/** The discount the logic works out: never negative, and never more than `cap`. */
+function promoDiscount(logic: unknown, data: Hash, cap: number): number {
+  const value: unknown = jsonLogic.apply(logic as RulesLogic, data);
+  return isAmount(value) ? Math.max(0, Math.min(value, cap)) : 0;
+}
+
+/** A discount as its (negative) price line, without a negative zero. */
+function negated(discount: number): number {
+  return discount ? -discount : 0;
+}
+
+function isAmount(value: unknown): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
 }
 
 function asNumber(value: unknown): number {

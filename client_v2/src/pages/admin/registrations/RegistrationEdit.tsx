@@ -1,11 +1,11 @@
 /**
  * Edit a registration (SPEC §8.4), organized into tabbed sections — Attributes
- * (registration type, registrant email, and the schema-driven form), Admin
+ * (registration type, promo code, registrant email, and the schema-driven form), Admin
  * attributes, Fees & payments, Campers, History (Registrars and Admins; its
  * changes and its campers', payments' and charges', DR-53), and a raw record for
  * debugging — with a pinned action bar (Save / Delete) always visible below the
  * scrolling section. Save persists `{ registrant_email, registration_type,
- * attributes, admin_attributes }` in a single PATCH; the registration can be
+ * promo_code, attributes, admin_attributes }` in a single PATCH; the registration can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55). The
  * attributes form is rendered in admin mode (§9.5). The open section is
  * URL-addressable via `?regTab`.
@@ -22,12 +22,15 @@ import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
-import { registrationHooks } from 'store/entities';
+import { promoCodeHooks, registrationHooks } from 'store/entities';
 
 import { RegistrationCampers } from './RegistrationCampers';
 import { RegistrationPayments } from './RegistrationPayments';
 
 const NONE = 'none';
+
+const promoCodeValue = (registration: AugmentedRegistration) =>
+  registration.promo_code == null ? NONE : String(registration.promo_code);
 
 interface RegistrationEditProps {
   event: ApiEvent;
@@ -49,6 +52,7 @@ export function RegistrationEdit({
   const [regType, setRegType] = useState<string>(
     registration.registration_type == null ? NONE : String(registration.registration_type),
   );
+  const [promoCode, setPromoCode] = useState<string>(promoCodeValue(registration));
   const [attributes, setAttributes] = useState<Hash>(registration.attributes);
   const [adminAttributes, setAdminAttributes] = useState<Hash>(registration.admin_attributes);
   const { canEdit } = usePermissions();
@@ -59,9 +63,12 @@ export function RegistrationEdit({
     setRegType(
       registration.registration_type == null ? NONE : String(registration.registration_type),
     );
+    setPromoCode(promoCodeValue(registration));
     setAttributes(registration.attributes);
     setAdminAttributes(registration.admin_attributes);
   }, [registration]);
+
+  const { data: promoCodes } = promoCodeHooks.useList({ event: event.id });
 
   const adminUiSchema = useMemo(
     () => deriveAdminUiSchema(event.registration_ui_schema),
@@ -83,12 +90,24 @@ export function RegistrationEdit({
     ...Object.values(registrationTypes).map((rt) => ({ value: String(rt.id), label: rt.label })),
   ];
 
+  // Any of the event's codes, usable by registrants or not (§15, DR-67); a
+  // deleted one the registration already has stays on it.
+  const current = registration.promo;
+  const promoOptions = [
+    { value: NONE, label: 'None' },
+    ...(promoCodes ?? []).map((p) => ({ value: String(p.id), label: `${p.label} (${p.code})` })),
+    ...(current?.deleted
+      ? [{ value: String(current.id), label: `${current.label} (${current.code}, deleted)` }]
+      : []),
+  ];
+
   const save = () =>
     update.mutate(
       {
         id: registration.id,
         registrant_email: email,
         registration_type: regType === NONE ? null : Number(regType),
+        promo_code: promoCode === NONE ? null : Number(promoCode),
         attributes,
         admin_attributes: adminAttributes,
       },
@@ -130,6 +149,15 @@ export function RegistrationEdit({
                       data={typeOptions}
                       value={regType}
                       onChange={(value) => setRegType(value ?? NONE)}
+                      allowDeselect={false}
+                      maw={320}
+                    />
+                    <Select
+                      label="Promo code"
+                      description="Changing it reprices the registration."
+                      data={promoOptions}
+                      value={promoCode}
+                      onChange={(value) => setPromoCode(value ?? NONE)}
                       allowDeselect={false}
                       maw={320}
                     />

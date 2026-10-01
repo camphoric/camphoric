@@ -7,7 +7,12 @@ import { pricingFixtures } from './fixtures';
 describe('calculatePrice — golden parity fixtures', () => {
   pricingFixtures.forEach((fixture) => {
     it(fixture.name, () => {
-      const results = calculatePrice(fixture.config, fixture.formData, fixture.paymentType);
+      const results = calculatePrice(
+        fixture.config,
+        fixture.formData,
+        fixture.paymentType,
+        fixture.promo,
+      );
 
       // Per-camper breakdown is exact.
       expect(results.campers).toEqual(fixture.expectedCampers);
@@ -20,6 +25,10 @@ describe('calculatePrice — golden parity fixtures', () => {
       // The handling fee must be absent unless the fixture expects it.
       if (fixture.expectedMoney.handling === undefined) {
         expect(results.handling).toBeUndefined();
+      }
+      // Likewise the promo line, without a promo code.
+      if (fixture.promo === undefined) {
+        expect(results.promo).toBeUndefined();
       }
     });
   });

@@ -15,8 +15,13 @@ import type { ApiEvent, ApiHistoryEntry, Scalar } from 'api-types';
 import { InlineLoading } from 'components/Loading';
 import type { JSONSchema7 } from 'json-schema';
 import { useMemo } from 'react';
-import { type HistoryPath, useHistory } from 'store/deletes';
-import { customChargeTypeHooks, lodgingHooks, registrationTypeHooks } from 'store/entities';
+import { type HistoryPath, useDeletedPromoCodes, useHistory } from 'store/deletes';
+import {
+  customChargeTypeHooks,
+  lodgingHooks,
+  promoCodeHooks,
+  registrationTypeHooks,
+} from 'store/entities';
 import { apiErrorMessage } from 'utils/fetch';
 
 import {
@@ -108,6 +113,9 @@ export function HistoryPanel({
   const { data: lodgings } = lodgingHooks.useList({ event: event.id });
   const { data: types } = registrationTypeHooks.useList({ event: event.id });
   const { data: chargeTypes } = customChargeTypeHooks.useList({ event: event.id });
+  // A registration keeps a deleted promo code, so its history can name one (DR-67).
+  const { data: promoCodes } = promoCodeHooks.useList({ event: event.id });
+  const { data: deletedPromoCodes } = useDeletedPromoCodes(event.id);
 
   const options = useMemo<DescribeOptions>(() => {
     const definitions = (event.registration_schema as JSONSchema7 | undefined)?.definitions;
@@ -123,9 +131,18 @@ export function HistoryPanel({
         lodging_requested: lodgingNames,
         registration_type: byId(types, (t) => t.label),
         custom_charge_type: byId(chargeTypes, (t) => t.label),
+        promo_code: byId([...(promoCodes ?? []), ...(deletedPromoCodes ?? [])], (p) => p.label),
       },
     };
-  }, [event.registration_schema, event.camper_schema, lodgings, types, chargeTypes]);
+  }, [
+    event.registration_schema,
+    event.camper_schema,
+    lodgings,
+    types,
+    chargeTypes,
+    promoCodes,
+    deletedPromoCodes,
+  ]);
 
   if (history.error) {
     return (

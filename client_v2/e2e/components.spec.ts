@@ -411,3 +411,45 @@ test.describe('Camper lodging info', () => {
     await expect(page.getByRole('button', { name: 'Unassign' })).toHaveCount(0);
   });
 });
+
+test.describe('Promo codes', () => {
+  test('a registrant applies a code, and can’t continue with one left unapplied', async ({
+    page,
+  }) => {
+    await page.goto(story('promo-code-entry--working'));
+    const field = page.getByRole('textbox', { name: 'Promo code' });
+    await field.fill('winter');
+    await field.press('Enter');
+    await expect(page.getByRole('alert')).toHaveText(/isn’t valid for this event/);
+
+    await field.fill('spring');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByText('Applied: Spring sale — $20 off')).toBeVisible();
+    await page.getByRole('button', { name: 'Continue to payment' }).click();
+    await expect(page.getByText('Submitted.')).toBeVisible();
+
+    await field.fill('springtime');
+    await page.getByRole('button', { name: 'Continue to payment' }).click();
+    await expect(page.getByRole('alert')).toHaveText(/Apply this promo code, or clear it/);
+    await expect(page.getByText('Submitted.')).toHaveCount(0);
+  });
+
+  test('the review names a per-camper discount on each camper it applies to', async ({ page }) => {
+    await page.goto(story('registration-review--with-promo-code'));
+    // The registration's discount and the second camper's; the first's is $0.
+    await expect(page.getByText('Sibling discount')).toHaveCount(2);
+    await expect(page.getByText('-$100.00')).toHaveCount(2);
+  });
+
+  test('an admin edits a code', async ({ page }) => {
+    await page.goto(story('promo-code-form--per-camper-expiring'));
+    await expect(page.getByRole('radio', { name: 'For each camper' })).toBeChecked();
+    await page.getByRole('textbox', { name: 'Label' }).fill('Siblings');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('#storybook-root pre')).toContainText('"label": "Siblings"');
+    await expect(page.locator('#storybook-root pre')).toContainText('"scope": "camper"');
+    await expect(page.locator('#storybook-root pre')).toContainText(
+      '"expiration_date": "2026-12-01T08:00:00.000Z"',
+    );
+  });
+});

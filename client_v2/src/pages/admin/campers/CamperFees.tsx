@@ -12,7 +12,7 @@ import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit } from 'hooks/permissions';
 import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
-import { customChargeHooks, customChargeTypeHooks } from 'store/entities';
+import { customChargeHooks, customChargeTypeHooks, registrationHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
 import { AddCustomChargeModal } from './AddCustomChargeModal';
@@ -20,6 +20,8 @@ import { AddCustomChargeModal } from './AddCustomChargeModal';
 export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamper }) {
   const { data: charges } = customChargeHooks.useList({ camper: camper.id });
   const { data: types } = customChargeTypeHooks.useList({ event: event.id });
+  // Its registration's promo code labels a per-camper discount (DR-67).
+  const { data: registration } = registrationHooks.useById(camper.registration);
   const del = customChargeHooks.useDelete();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -48,6 +50,7 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
         logics={[event.camper_pricing_logic]}
         registrationId={camper.registration}
         camper={camper}
+        promoLabel={registration?.promo?.label}
       />
       <Group justify="space-between" maw={360}>
         <Text fw={600}>Total</Text>

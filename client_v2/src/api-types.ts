@@ -103,9 +103,21 @@ export interface ApiRegistration extends TimeStamped {
   client_reported_pricing: PricingResults;
   event: Scalar;
   registration_type?: Scalar | null;
+  /** The promo code the registration uses (§15, DR-67). */
+  promo_code?: number | null;
+  /** That code (read-only), even once it's deleted, to label its discount line. */
+  promo?: ApiRegistrationPromo | null;
   payment_type: string;
   paypal_response: Hash;
   uuid: string;
+}
+
+export interface ApiRegistrationPromo {
+  id: number;
+  code: string;
+  label: string;
+  scope: PromoScope;
+  deleted: boolean;
 }
 
 export interface ApiCamper extends TimeStamped {
@@ -122,6 +134,25 @@ export interface ApiCamper extends TimeStamped {
   sequence: number;
   /** ISO YYYY-MM-DD strings for each day the camper is present. */
   stay?: string[] | null;
+}
+
+/** Whether a promo code's discount is worked out once, or for each camper (DR-67). */
+export type PromoScope = 'registration' | 'camper';
+
+/** An event's promo code (§8.8; §15, DR-67). Soft-deleted, like registrations. */
+export interface ApiPromoCode extends TimeStamped {
+  id: number;
+  event: Scalar;
+  /** Labels the discount's price line. */
+  label: string;
+  /** What the registrant enters (matched without regard to case). */
+  code: string;
+  /** One JsonLogic expression → the discount amount (a positive number). */
+  pricing_logic: unknown;
+  scope: PromoScope;
+  enabled: boolean;
+  /** ISO datetime; registrants can't use the code after it. */
+  expiration_date: string | null;
 }
 
 export interface ApiRegistrationType extends TimeStamped {
@@ -502,6 +533,7 @@ export type ApiDeleted<T> = T & { deleted_at: string; deleted_by: ApiActor | nul
 export type ApiDeletedRegistration = ApiDeleted<ApiRegistration> & { camper_count: number };
 export type ApiDeletedCamper = ApiDeleted<ApiCamper>;
 export type ApiDeletedPayment = ApiDeleted<ApiPayment>;
+export type ApiDeletedPromoCode = ApiDeleted<ApiPromoCode>;
 
 export type HistoryAction = 'create' | 'update' | 'delete' | 'restore';
 
@@ -598,7 +630,20 @@ export interface ApiRegister {
   };
   invitationError?: string;
   registrationType?: { name: string; label: string };
+  /** Whether the event has a promo code a registrant could use now (§7.1). */
+  hasPromoCodes?: boolean;
   payPalOptions?: Hash;
+}
+
+/**
+ * A promo code the registrant has applied: POST /api/events/{id}/checkpromo's
+ * answer, with what the form needs to price the discount live (§9.2).
+ */
+export interface AppliedPromo {
+  code: string;
+  label: string;
+  scope: PromoScope;
+  pricingLogic: unknown;
 }
 
 export interface ApiRegisterPaymentStep {
