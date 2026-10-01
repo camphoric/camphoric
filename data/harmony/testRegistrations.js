@@ -102,10 +102,8 @@ function makeRegistration(reg, lodgingMap) {
         'state_or_province': 'CA',
         'zip_code': '94703',
       },
-      'payment_type': 'Check',
       'is_member': true,
       'comments': '',
-      'read_etiquette': true,
     },
     'pricingResults': {
       'campers': reg.campers.map(() => ({
@@ -114,7 +112,11 @@ function makeRegistration(reg, lodgingMap) {
       })),
       'total': 0,
       'tuition': 0,
-    }
+    },
+    // The payment step's type; it isn't part of the registration form.
+    'paymentData': {
+      paymentType: 'Check',
+    },
   };
 }
 
