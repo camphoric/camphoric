@@ -6,6 +6,10 @@
  *
  * The global failure toast (DR-10) is suppressed here — this mutation owns its
  * own progress/finish/error toast.
+ *
+ * Campers are refetched only once the last move in flight settles. Refetching
+ * after each one let an earlier move's refetch land while a later move was
+ * still saving, briefly putting back that camper's old lodging or stay.
  */
 
 import { notifications } from '@mantine/notifications';
@@ -21,6 +25,8 @@ interface MoveVars {
   stay: string[] | null;
 }
 
+const LODGING_MOVE = ['lodging-move'];
+
 interface MoveContext {
   snapshot: [QueryKey, ApiCamper[] | undefined][];
   toastId: string;
@@ -31,6 +37,7 @@ export function useLodgingAssignment() {
   const client = useQueryClient();
 
   return useMutation<ApiCamper, Error, MoveVars, MoveContext>({
+    mutationKey: LODGING_MOVE,
     meta: { suppressErrorNotification: true },
     mutationFn: ({ camper, lodging, stay }) =>
       apiFetch<ApiCamper>(`/api/campers/${camper.id}/`, {
@@ -87,6 +94,8 @@ export function useLodgingAssignment() {
     },
 
     onSettled: () => {
+      // This move still counts as in flight here, so 1 means it's the last.
+      if (client.isMutating({ mutationKey: LODGING_MOVE }) > 1) return;
       void client.invalidateQueries({ queryKey: ['Camper'] });
       void client.invalidateQueries({ queryKey: ['Registration'] });
     },
