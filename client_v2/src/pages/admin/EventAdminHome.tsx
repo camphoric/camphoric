@@ -153,6 +153,7 @@ export function EventAdminHome() {
             context="confirmation_page"
             output="md"
             height={240}
+            title="Confirmation page message"
             helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_page`}
           />
         </Stack>

@@ -284,6 +284,9 @@ export function EmailTemplates({
         size="80rem"
         fullScreen={narrow}
         closeOnClickOutside={false}
+        // Escape belongs to the template editor (dismissing suggestions);
+        // closing here would discard the draft.
+        closeOnEscape={false}
       >
         {editorOpen && (
           <GroupTemplateEditor

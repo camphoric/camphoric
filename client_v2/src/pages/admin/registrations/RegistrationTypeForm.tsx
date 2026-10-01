@@ -87,6 +87,10 @@ export function RegistrationTypeForm({
         regType ? (canEdit ? 'Edit registration type' : regType.label) : 'New registration type'
       }
       size="90%"
+      closeOnClickOutside={false}
+      // Escape belongs to the template editor (dismissing suggestions);
+      // closing here would discard the edits.
+      closeOnEscape={false}
     >
       <Stack>
         <ReadOnlyFieldset>

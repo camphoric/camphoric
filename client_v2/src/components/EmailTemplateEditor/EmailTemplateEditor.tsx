@@ -81,6 +81,7 @@ export function EmailTemplateEditor({
           subject={subject}
           sample={{ ...baseSample, ...chosen?.sample }}
           helpHref={helpHref}
+          title="Email body"
         />
       </Stack>
     </Stack>

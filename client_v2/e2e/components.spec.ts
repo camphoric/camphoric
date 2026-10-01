@@ -111,6 +111,33 @@ test.describe('Template editor', () => {
     await expect(suggestions).toContainText('first_name');
     await expect(suggestions).toContainText('linens');
   });
+
+  test('hides the preview and edits in an expanded view', async ({ page }) => {
+    await page.goto(story('template-editor--with-problems'));
+    const preview = page.getByRole('region', { name: 'Template preview' });
+    await expect(preview).toBeVisible();
+
+    // Hidden, the preview's problems are still counted (and underlined).
+    await page.getByRole('button', { name: 'Hide preview' }).click();
+    await expect(preview).toHaveCount(0);
+    await page.getByRole('button', { name: 'Show preview (2 problems)' }).click();
+    await expect(preview).toBeVisible();
+
+    // What's typed in the expanded view is there when it closes.
+    await page.getByRole('button', { name: 'Expand' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Template' });
+    const expanded = dialog.locator('.monaco-editor');
+    await expect(expanded).toBeVisible();
+    await expect(dialog.getByRole('region', { name: 'Template preview' })).toBeVisible();
+    const box = await expanded.boundingBox();
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height - 20);
+    await page.keyboard.type('Total');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText('Total');
+  });
 });
 
 test.describe('Template help', () => {
