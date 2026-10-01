@@ -4,7 +4,7 @@
  * columns.
  */
 
-import type { AugmentedLodging } from 'api-types';
+import type { AugmentedLodging, Scalar } from 'api-types';
 import { DateTime } from 'luxon';
 import { listLodgingTree } from 'store/augmented';
 
@@ -103,6 +103,16 @@ export function leavesUnder(
   return leaves.filter((leaf) => shown.has(leaf.id));
 }
 
+/**
+ * The capacity set on the node itself, as its form edits it. The tree's
+ * `capacity` is the effective one — a node set to 0 takes its children's sum —
+ * and `maxCapacity` is the node's own plus its children's, so the difference
+ * recovers what was set.
+ */
+export function ownCapacity(node: AugmentedLodging): number {
+  return node.maxCapacity - node.children.reduce((sum, child) => sum + child.capacity, 0);
+}
+
 /** A path for display, e.g. "Camp 1 → Cabin". */
 export function lodgingPathLabel(pathParts: string[]): string {
   return pathParts.join(' → ');
@@ -111,11 +121,13 @@ export function lodgingPathLabel(pathParts: string[]): string {
 export interface LeafSection {
   /** The parent's path, or "Top level" for units directly under the root. */
   heading: string;
+  /** The parent node the units share. */
+  parentId: Scalar | null;
   leaves: AugmentedLodging[];
 }
 
 /** Natural name order, so "Cabin 2" comes before "Cabin 10". */
-const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
+export const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
 
 /**
  * Group leaves by parent, so each section of the timeline can be headed by
@@ -133,6 +145,7 @@ export function leafSections(leaves: AugmentedLodging[]): LeafSection[] {
       const parentPath = leaf.pathParts.slice(0, -1);
       byParent.set(leaf.parent, {
         heading: parentPath.length ? lodgingPathLabel(parentPath) : 'Top level',
+        parentId: leaf.parent ?? null,
         leaves: [leaf],
       });
     }

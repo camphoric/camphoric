@@ -9,9 +9,9 @@
 import { Button, CloseButton, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import type { ReviewItem } from 'components/form';
 import { CanEdit } from 'hooks/permissions';
-import type { ReactNode } from 'react';
 
 import type { CamperLodgingDetails } from './camperLodgingDetails';
+import { Field } from './Field';
 import { areConsecutiveDays, dayLabel } from './timelineUtils';
 
 interface CamperLodgingInfoProps {
@@ -29,19 +29,6 @@ function stayText(stay: string[]): string {
   return areConsecutiveDays(stay)
     ? `${count}: ${dayLabel(stay[0])} – ${dayLabel(stay[stay.length - 1])}`
     : `${count}: ${stay.map((day) => dayLabel(day)).join(', ')}`;
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <Text size="xs" c="dimmed">
-        {label}
-      </Text>
-      <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-        {children}
-      </Text>
-    </div>
-  );
 }
 
 /** Answers as label/value pairs, nested groups indented under their heading. */

@@ -7,6 +7,7 @@ import {
   leafSections,
   leavesUnder,
   lodgingFilterNodes,
+  ownCapacity,
   stayableDays,
   stayDayIndices,
   stayFrom,
@@ -131,6 +132,25 @@ describe('leavesUnder', () => {
   });
 });
 
+describe('ownCapacity', () => {
+  const node = (capacity: number, maxCapacity: number, children: number[] = []) =>
+    ({
+      capacity,
+      maxCapacity,
+      children: children.map((c) => ({ capacity: c })),
+    }) as unknown as AugmentedLodging;
+
+  it('is a unit’s capacity', () => {
+    expect(ownCapacity(node(4, 4))).toBe(4);
+  });
+  it('is 0 for a node that takes its units’ sum', () => {
+    expect(ownCapacity(node(6, 6, [2, 4]))).toBe(0);
+  });
+  it('is the capacity set on a node with units', () => {
+    expect(ownCapacity(node(5, 11, [2, 4]))).toBe(5);
+  });
+});
+
 describe('leafSections', () => {
   const unit = (id: number, parent: number, pathParts: string[]): AugmentedLodging =>
     ({
@@ -146,9 +166,9 @@ describe('leafSections', () => {
     const offSite = unit(13, 1, ['Off Site']);
     const cabin2 = unit(11, 2, ['Camp 1', 'Cabin', 'Cabin 02']);
     expect(leafSections([spot, cabin1, offSite, cabin2])).toEqual([
-      { heading: 'Camp 1 → Cabin', leaves: [cabin1, cabin2] },
-      { heading: 'Camp 1 → Tent → Area A', leaves: [spot] },
-      { heading: 'Top level', leaves: [offSite] },
+      { heading: 'Camp 1 → Cabin', parentId: 2, leaves: [cabin1, cabin2] },
+      { heading: 'Camp 1 → Tent → Area A', parentId: 3, leaves: [spot] },
+      { heading: 'Top level', parentId: 1, leaves: [offSite] },
     ]);
   });
   it('sorts the units in a section by name, numbers numerically', () => {

@@ -393,6 +393,60 @@ test.describe('Lodging timeline', () => {
   });
 });
 
+test.describe('Lodging hierarchy', () => {
+  test('lists each node’s children by name', async ({ page }) => {
+    await page.goto(story('lodging-tree--hierarchy'));
+    const names = page.locator('#storybook-root').getByText(/^(Camp 1|Off Site|Cabin [AB])$/);
+    await expect(names).toHaveText(['Camp 1', 'Cabin A', 'Cabin B', 'Off Site']);
+  });
+
+  test('a node’s name shows all its details, with Edit', async ({ page }) => {
+    await page.goto(story('lodging-tree--hierarchy'));
+    await page.getByRole('button', { name: 'Cabins', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Details for Cabins' });
+    await expect(panel.getByText('3 of 4')).toBeVisible();
+    await expect(panel.getByText('4 (the sum of the units under it)')).toBeVisible();
+    await expect(panel.getByText('Choose one')).toBeVisible();
+    await expect(panel.getByText(/remind campers to bring warm sleeping bags/)).toBeVisible();
+    await panel.getByRole('button', { name: 'Edit' }).click();
+    await expect(page.getByTestId('editing')).toHaveText('Editing: Cabins');
+  });
+
+  test('a Reporter sees a node’s details but can’t edit it', async ({ page }) => {
+    await page.goto(story('lodging-tree--as-reporter'));
+    await page.getByRole('button', { name: 'Cabin A', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Details for Cabin A' });
+    await expect(panel.getByText('2 of 2')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+  });
+});
+
+test.describe('Lodging notes', () => {
+  test('the hierarchy opens a node’s notes from its icon', async ({ page }) => {
+    await page.goto(story('lodging-tree--hierarchy'));
+    await expect(page.getByRole('button', { name: 'Notes for Cabin B' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Notes for Cabin A' }).click();
+    await expect(page.getByText(/The ladder to the top bunk is broken/)).toBeVisible();
+  });
+
+  test('selecting a unit on the timeline shows its details and notes', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    // Cabins, Cabin A and Tent 1 have notes.
+    await expect(page.getByRole('img', { name: 'Has notes' })).toHaveCount(3);
+    await page.getByRole('button', { name: 'Cabin A', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Details for Cabin A' });
+    await expect(panel.getByText('2 of 2')).toBeVisible();
+    await expect(panel.getByText(/The ladder to the top bunk is broken/)).toBeVisible();
+  });
+
+  test('selecting a section on the timeline shows its parent’s notes', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    await page.getByRole('button', { name: 'Camp 1 → Cabins' }).click();
+    const panel = page.getByRole('region', { name: 'Details for Cabins' });
+    await expect(panel.getByText(/remind campers to bring warm sleeping bags/)).toBeVisible();
+  });
+});
+
 test.describe('Camper lodging info', () => {
   test('shows what an admin needs to place the camper', async ({ page }) => {
     await page.goto(story('camper-lodging-info--placed'));

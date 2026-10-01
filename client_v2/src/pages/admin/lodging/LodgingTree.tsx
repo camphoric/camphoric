@@ -2,14 +2,20 @@
  * The lodging hierarchy as a tree (SPEC §8.6). Each node shows its occupancy vs.
  * capacity (and reserved count, visibility), with create-child / edit / delete
  * actions. Campers attach only to leaf nodes; a leaf lists its assigned campers,
- * each with a quick unassign.
+ * each with a quick unassign. A node's name selects it, so its details show
+ * alongside; an icon beside a node with notes opens them. Siblings are listed
+ * by name, as on the timeline.
  */
 
-import { ActionIcon, Anchor, Badge, Button, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Group, Stack } from '@mantine/core';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
 import { CanEdit } from 'hooks/permissions';
 import { camperName } from 'utils/camper';
+
+import { LodgingNameButton } from './LodgingNameButton';
+import { NoteIndicator } from './NoteIndicator';
+import { byName } from './timelineUtils';
 
 interface LodgingTreeProps {
   node: AugmentedLodging;
@@ -19,6 +25,8 @@ interface LodgingTreeProps {
   onDelete: (node: AugmentedLodging) => void;
   onUnassign: (camper: ApiCamper) => void;
   onSelectCamper: (camperId: number) => void;
+  selectedLodgingId?: number;
+  onSelectLodging?: (lodgingId: number) => void;
 }
 
 export function LodgingTree({
@@ -29,6 +37,8 @@ export function LodgingTree({
   onDelete,
   onUnassign,
   onSelectCamper,
+  selectedLodgingId,
+  onSelectLodging,
 }: LodgingTreeProps) {
   const overCapacity = node.capacity > 0 && node.count > node.capacity;
 
@@ -36,7 +46,12 @@ export function LodgingTree({
     <Stack gap={4}>
       <Group justify="space-between" pl={depth * 20} wrap="nowrap">
         <Group gap="xs" wrap="nowrap">
-          <Text fw={500}>{node.name}</Text>
+          <LodgingNameButton
+            node={node}
+            fw={500}
+            isSelected={node.id === selectedLodgingId}
+            onSelect={onSelectLodging}
+          />
           <Badge variant="light" color={overCapacity ? 'red' : 'blue'}>
             {node.count}/{node.capacity}
           </Badge>
@@ -56,6 +71,7 @@ export function LodgingTree({
               marked open
             </Badge>
           )}
+          {node.notes.trim() && <NoteIndicator name={node.name} notes={node.notes.trim()} />}
         </Group>
         <CanEdit>
           <Group gap={2} wrap="nowrap">
@@ -104,18 +120,22 @@ export function LodgingTree({
         </Stack>
       )}
 
-      {node.children.map((child) => (
-        <LodgingTree
-          key={child.id}
-          node={child}
-          depth={depth + 1}
-          onAddChild={onAddChild}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onUnassign={onUnassign}
-          onSelectCamper={onSelectCamper}
-        />
-      ))}
+      {[...node.children]
+        .sort((a, b) => byName(a.name, b.name))
+        .map((child) => (
+          <LodgingTree
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            onAddChild={onAddChild}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onUnassign={onUnassign}
+            onSelectCamper={onSelectCamper}
+            selectedLodgingId={selectedLodgingId}
+            onSelectLodging={onSelectLodging}
+          />
+        ))}
     </Stack>
   );
 }
