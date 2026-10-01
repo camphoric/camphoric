@@ -4,7 +4,7 @@
  * event's days (assign/schedule/unassign). Persists assignment via PATCH camper
  * (`lodging`, `stay`); unassigning sets both to null.
  *
- * Two views (toggle): the "Hierarchy" (tree + node CRUD + per-leaf unassign)
+ * Two views (toggle): the "Hierarchy" (tree + node CRUD)
  * and the drag/resize "Timeline" (§8.6, DR-6), which lists the unassigned
  * campers and is where they're placed. Selecting a camper, or a lodging node by
  * its name, in either shows its details alongside without leaving the page;
@@ -30,7 +30,7 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import type { ApiCamper, ApiLodging, AugmentedLodging, Scalar } from 'api-types';
+import type { ApiLodging, AugmentedLodging, Scalar } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { FullScreenLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
@@ -67,11 +67,11 @@ interface NodeFormState {
 }
 
 /**
- * Keeps the camper's details beside the timeline in view while the page
- * scrolls; details taller than the window scroll on their own.
+ * Keeps the details panels beside either view in view while the page scrolls;
+ * panels taller than the window scroll on their own.
  */
 const STICKY_TOP = 'calc(var(--app-shell-header-height, 0px) + var(--mantine-spacing-md))';
-const stickyBesideTimeline = {
+const stickyBesideView = {
   position: 'sticky',
   top: STICKY_TOP,
   maxHeight: `calc(100vh - ${STICKY_TOP} - var(--mantine-spacing-md))`,
@@ -140,10 +140,9 @@ export function EventAdminLodging() {
       search: { camperId: String(camperId) },
     });
 
-  const unassign = (c: ApiCamper) => move.mutate({ camper: c, lodging: null, stay: null });
   const unassignById = (camperId: number) => {
     const c = data?.campers.find((x) => x.id === camperId);
-    if (c) unassign(c);
+    if (c) move.mutate({ camper: c, lodging: null, stay: null });
   };
 
   const confirmDeleteNode = (node: AugmentedLodging) =>
@@ -221,7 +220,6 @@ export function EventAdminLodging() {
                   onAddChild={(parentId) => setNodeForm({ open: true, parentId })}
                   onEdit={editNode}
                   onDelete={confirmDeleteNode}
-                  onUnassign={unassign}
                   onSelectCamper={selectCamper}
                   selectedLodgingId={selectedLodging?.id}
                   onSelectLodging={selectLodging}
@@ -231,7 +229,11 @@ export function EventAdminLodging() {
               )}
             </Card>
           </Grid.Col>
-          {sidePanels && <Grid.Col span={{ base: 12, md: 4 }}>{sidePanels}</Grid.Col>}
+          {sidePanels && (
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Box style={stickyBesideView}>{sidePanels}</Box>
+            </Grid.Col>
+          )}
         </Grid>
       ) : (
         <Grid>
@@ -259,7 +261,7 @@ export function EventAdminLodging() {
           </Grid.Col>
           {sidePanels && (
             <Grid.Col span={{ base: 12, lg: 3 }}>
-              <Box style={stickyBesideTimeline}>{sidePanels}</Box>
+              <Box style={stickyBesideView}>{sidePanels}</Box>
             </Grid.Col>
           )}
         </Grid>

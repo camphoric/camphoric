@@ -1,16 +1,18 @@
 /**
  * The lodging hierarchy as a tree (SPEC §8.6). Each node shows its occupancy vs.
  * capacity (and reserved count, visibility), with create-child / edit / delete
- * actions. Campers attach only to leaf nodes; a leaf lists its assigned campers,
- * each with a quick unassign. A node's name selects it, so its details show
+ * actions. Campers attach only to leaf nodes; a leaf lists its assigned campers
+ * on one line, each name selecting the camper (whose details offer Unassign).
+ * A node's name selects it, so its details show
  * alongside; an icon beside a node with notes opens them. Siblings are listed
  * by name, as on the timeline.
  */
 
-import { ActionIcon, Anchor, Badge, Button, Group, Stack } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Stack, Text } from '@mantine/core';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
-import type { ApiCamper, AugmentedLodging } from 'api-types';
+import type { AugmentedLodging } from 'api-types';
 import { CanEdit } from 'hooks/permissions';
+import { Fragment } from 'react';
 import { camperName } from 'utils/camper';
 
 import { LodgingNameButton } from './LodgingNameButton';
@@ -23,7 +25,6 @@ interface LodgingTreeProps {
   onAddChild: (parentId: number) => void;
   onEdit: (node: AugmentedLodging) => void;
   onDelete: (node: AugmentedLodging) => void;
-  onUnassign: (camper: ApiCamper) => void;
   onSelectCamper: (camperId: number) => void;
   selectedLodgingId?: number;
   onSelectLodging?: (lodgingId: number) => void;
@@ -35,7 +36,6 @@ export function LodgingTree({
   onAddChild,
   onEdit,
   onDelete,
-  onUnassign,
   onSelectCamper,
   selectedLodgingId,
   onSelectLodging,
@@ -94,30 +94,16 @@ export function LodgingTree({
       </Group>
 
       {node.isLeaf && node.campers.length > 0 && (
-        <Stack gap={2} pl={(depth + 1) * 20}>
-          {node.campers.map((c) => (
-            <Group key={c.id} justify="space-between" maw={420} wrap="nowrap">
-              <Anchor
-                component="button"
-                type="button"
-                size="sm"
-                onClick={() => onSelectCamper(c.id)}
-              >
+        <Text size="sm" pl={(depth + 1) * 20}>
+          {node.campers.map((c, index) => (
+            <Fragment key={c.id}>
+              {index > 0 && ', '}
+              <Anchor component="button" type="button" inherit onClick={() => onSelectCamper(c.id)}>
                 {camperName(c)}
               </Anchor>
-              <CanEdit>
-                <Button
-                  size="compact-xs"
-                  variant="subtle"
-                  color="red"
-                  onClick={() => onUnassign(c)}
-                >
-                  Unassign
-                </Button>
-              </CanEdit>
-            </Group>
+            </Fragment>
           ))}
-        </Stack>
+        </Text>
       )}
 
       {[...node.children]
@@ -130,7 +116,6 @@ export function LodgingTree({
             onAddChild={onAddChild}
             onEdit={onEdit}
             onDelete={onDelete}
-            onUnassign={onUnassign}
             onSelectCamper={onSelectCamper}
             selectedLodgingId={selectedLodgingId}
             onSelectLodging={onSelectLodging}
