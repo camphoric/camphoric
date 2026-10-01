@@ -712,3 +712,56 @@ class TestPromoCodePricing(unittest.TestCase):
         results = self.price(50, scope=models.PromoCodeScope.CAMPER, campers=0)
         self.assertEqual(results['promo'], 0)
         self.assertEqual(results['total'], 50)
+
+
+class TestNoNegativeTotals(unittest.TestCase):
+    '''
+    No total is negative (SPEC §9.2, DR-68). The same cases, with the same
+    inputs and results, are in client_v2/src/pricing/test/fixtures.ts.
+    '''
+
+    def setUp(self):
+        # The registration's total is its fee (50) less its `credit`; each
+        # camper's is their tuition (200, or 0 if `free`) less a campership (100).
+        self.event = models.Event(
+            name='Credit Camp',
+            pricing={'camp_fee': 200, 'registration_fee': 50, 'campership': 100},
+            registration_pricing_logic=[
+                {'var': 'total', 'exp': {'-': [
+                    {'var': 'pricing.registration_fee'}, {'var': ['registration.credit', 0]}]}},
+            ],
+            camper_pricing_logic=[
+                {'var': 'tuition', 'exp': {'if': [
+                    {'var': 'camper.free'}, 0, {'var': 'pricing.camp_fee'}]}},
+                {'var': 'campership', 'exp': {'var': 'pricing.campership'}},
+                {'var': 'total', 'exp': {'-': [{'var': 'tuition'}, {'var': 'campership'}]}},
+            ],
+        )
+
+    def price(self, campers, attributes=None, payment_type='Check'):
+        registration = models.Registration(
+            event=self.event, attributes=attributes or {}, payment_type=payment_type)
+        return pricing.calculate_price(
+            registration,
+            [models.Camper(registration=registration, attributes=a) for a in campers])
+
+    def test_a_campers_total_is_never_below_zero(self):
+        # The free camper's campership leaves them at 0, not -100: 50 + 0 + 100.
+        results = self.price([{'free': True}, {}])
+        self.assertEqual(results['campers'], [
+            {'tuition': 0, 'campership': 100, 'total': 0},
+            {'tuition': 200, 'campership': 100, 'total': 100},
+        ])
+        self.assertEqual(
+            (results['total'], results['tuition'], results['campership']), (150, 200, 200))
+
+    def test_the_registrations_total_is_never_below_zero_nor_is_handling(self):
+        # 50 - 500 + 100 + 100 = -250, so 0; handling on 0 is 0.
+        self.event.epayment_handling = 3
+        results = self.price([{}, {}], {'credit': 500}, payment_type='PayPal')
+        self.assertEqual((results['total'], results['handling']), (0, 0))
+
+    def test_a_registration_level_credit_still_comes_off_the_campers_totals(self):
+        # Only the sum is floored, not the registration's own line: 50 - 100 + 200.
+        results = self.price([{}, {}], {'credit': 100})
+        self.assertEqual(results['total'], 150)

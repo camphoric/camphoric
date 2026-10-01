@@ -72,6 +72,11 @@ def _is_amount(value):
     return isinstance(value, numbers.Number) and not isinstance(value, bool)
 
 
+def _floored(total):
+    '''A total, never below zero (SPEC §9.2, DR-68); a non-number is left as it is.'''
+    return 0 if _is_amount(total) and total < 0 else total
+
+
 def promo_discount(logic, data, cap):
     '''
     The discount a promo code's logic works out: a positive amount, never more
@@ -146,6 +151,11 @@ def calculate_price(registration, campers):
     A registrar's overrides (models.PricingOverride, SPEC DR-56) replace a line
     right after it's worked out, so later lines use the new amount; the values
     they replaced are under `overridden`, for the admin only.
+
+    No total is negative (SPEC DR-68): each camper's `total` is floored at
+    zero as it's worked out, and so is the registration's once every camper's
+    total is in, so a credit bigger than what it comes off (a campership for a
+    camper who's free, say) can't leave the camp owing the registrant.
 
     The registration's promo code, if any, then takes its discount off the
     total as a negative `promo` line (and on each camper's breakdown, for a
@@ -243,6 +253,8 @@ def calculate_price(registration, campers):
             var = camper_component["var"]
             value = jsonLogic(camper_component["exp"], data)
             value = _override(overrides, camper.pk, var, value, camper_overridden)
+            if var == 'total':
+                value = _floored(value)
             camper_results[var] = value
             if isinstance(value, numbers.Number):
                 results[var] = money_fmt((results[var] or 0) + value)
@@ -254,6 +266,8 @@ def calculate_price(registration, campers):
         camper_contexts.append(data["camper"])
 
     data.pop("camper", None)
+    if 'total' in results:
+        results['total'] = _floored(results['total'])
     if registration.promo_code is not None:
         _apply_promo(registration.promo_code, data, results, camper_contexts)
 
