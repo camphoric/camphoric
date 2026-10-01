@@ -7,12 +7,15 @@
  *   - html → a sandboxed frame (with a download).
  *   - txt  → preformatted text (with a download).
  *
+ * The output scrolls on its own, both ways, so a wide or long report doesn't
+ * widen or stretch the page (a CSV table keeps its header row in view).
+ *
  * Reports with Camphoric variables render from the server's data and show
  * their problems with template line numbers. Legacy reports (and Handlebars)
  * first assemble the browser's variable bundle.
  */
 
-import { Alert, Button, Code, Group, Stack } from '@mantine/core';
+import { Alert, Box, Button, Code, Group, Stack } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import type { ApiRenderedReport, ApiReport } from 'api-types';
 import { CsvTable } from 'components/CsvTable';
@@ -21,6 +24,7 @@ import { InlineLoading } from 'components/Loading';
 import { TemplateDiagnostics } from 'components/TemplateEditor';
 import { markdownToHtml, Template } from 'components/templating';
 import { useReportTemplateVars } from 'hooks/useReportData';
+import type { ReactNode } from 'react';
 import { useRenderedReport, useServerRenderedReport } from 'store/reportRender';
 import { downloadTextFile } from 'utils/download';
 
@@ -30,6 +34,21 @@ const MIME: Record<string, string> = {
   txt: 'text/plain',
   html: 'text/html',
 };
+
+/** The report's own scrolling area, at most about a window tall. */
+function OutputScroll({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      role="region"
+      aria-label="Report output"
+      // Focusable, so the keyboard can scroll it.
+      tabIndex={0}
+      style={{ overflow: 'auto', maxHeight: 'max(20rem, calc(100dvh - 16rem))' }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 interface RenderedReportProps {
   report: ApiReport;
@@ -70,13 +89,20 @@ function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedRe
           Download {report.output.toUpperCase()}
         </Button>
       </Group>
-      {report.output === 'csv' && <CsvTable csv={output} />}
-      {report.output === 'md' && (
-        // Safe: markdownToHtml sanitizes via rehype-sanitize (§11).
-        <div className="md-template" dangerouslySetInnerHTML={{ __html: markdownToHtml(output) }} />
-      )}
-      {report.output === 'html' && <HtmlFrame title={report.title} html={output} minHeight={400} />}
-      {report.output === 'txt' && <Code block>{output}</Code>}
+      <OutputScroll>
+        {report.output === 'csv' && <CsvTable csv={output} stickyHeader />}
+        {report.output === 'md' && (
+          // Safe: markdownToHtml sanitizes via rehype-sanitize (§11).
+          <div
+            className="md-template"
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(output) }}
+          />
+        )}
+        {report.output === 'html' && (
+          <HtmlFrame title={report.title} html={output} minHeight={400} />
+        )}
+        {report.output === 'txt' && <Code block>{output}</Code>}
+      </OutputScroll>
     </Stack>
   );
 }
@@ -96,7 +122,11 @@ function LegacyReport({ report, eventId }: RenderedReportProps) {
 
 function HandlebarsReport({ report, eventId }: RenderedReportProps) {
   const templateVars = useReportTemplateVars(eventId);
-  return <Template markdown={report.template} templateVars={templateVars} />;
+  return (
+    <OutputScroll>
+      <Template markdown={report.template} templateVars={templateVars} />
+    </OutputScroll>
+  );
 }
 
 export function RenderedReport({ report, eventId }: RenderedReportProps) {

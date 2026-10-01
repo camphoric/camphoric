@@ -1140,6 +1140,9 @@ DR-41); only reports saved in existing events before then still use the browser 
   - A `server` report's problems are listed with their template line and column (warnings, such
     as a misspelled field, appear above a successful render). A legacy report's render error is
     shown as its raw text.
+  - The output, in every format, scrolls within its own area in both directions, at most about
+    a window tall, so a wide or long report never widens or stretches the page; a CSV table's
+    header row stays in view as it scrolls.
 
 **Legacy report template variables** (the bundle assembled client-side and passed to
 render/Template): `event`, `registrations` (augmented) + `registrationLookup`, `campers` +
