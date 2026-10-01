@@ -64,7 +64,6 @@ function makeRegistration(reg, lodgingMap) {
   return {
     'formData': {
       'payment': {
-        'payment_type': reg.payment_type || 'Check',
         'payer_billing_address': {
           'country': 'United States',
           'street_address': reg.address[0],
@@ -72,20 +71,15 @@ function makeRegistration(reg, lodgingMap) {
           'state_or_province': reg.address[2],
           'zip_code': reg.address[3],
         },
-        'payment_full_or_deposit': 'Full Payment',
         'payer_first_name': reg.campers[0][2],
         'payer_last_name': reg.campers[0][3],
         'payer_number': '+15555555555',
-        'paypal_email': reg.email,
       },
-      'parking_passes': Array.apply(reg.parking_passes || 0).map(
-        () => ({ 'holder': `${reg.campers[0][2]} ${reg.campers[0][3]}` })
-      ),
       'campers': reg.campers.map((c) => ({
         'age': ageLookup[c[0]],
         'meals': {
           ...(
-            !c[7].length ? { meal_plan: '' } : {
+            !c[7].length ? { meal_plan: 'No meals' } : {
               meal_plan: mealsLookup[c[7].split('|')[0]],
               meal_type: mealTypeLookup[c[7].split('|')[1]],
             }
@@ -99,7 +93,7 @@ function makeRegistration(reg, lodgingMap) {
             'id': lodgingMap[c[6]].id,
             'name': 'Something',
           },
-          ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8].id } : {})
+          ...(c[8] ?  { lodging_shared: true, lodging_shared_with: c[8] } : {})
         },
         'first_name': c[2],
         'last_name': c[3],

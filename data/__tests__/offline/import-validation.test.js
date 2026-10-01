@@ -4,7 +4,9 @@
  * For each event: the module must load (a SyntaxError or an error thrown while
  * the module evaluates fails just that event), the exported object must satisfy
  * eventImportObjectSchema (the same Ajv check CamphoricEventCreator runs before
- * importing) and every JSON Schema it carries must be well-formed.
+ * importing) and every JSON Schema it carries must be well-formed. Its sample
+ * registrations must satisfy the registration form's schema without any field
+ * the schema doesn't declare.
  *
  * Runs under native ESM (jest.config.cjs: transform: {}) because the event
  * modules use import.meta.url and ESM-only dependencies.
@@ -12,6 +14,7 @@
 
 import { beforeAll, describe, expect, test } from '@jest/globals';
 import Ajv from 'ajv';
+import Ajv2019 from 'ajv/dist/2019.js';
 import addFormats from 'ajv-formats';
 
 import eventImportObjectSchema from '../../eventImportObjectSchema.js';
@@ -40,6 +43,65 @@ const importAjv = () => {
 // strict: false mirrors Django's Draft7Validator.check_schema (rjsf keywords such
 // as enumNames are allowed); only the schema's structure is checked, not formats.
 const schemaAjv = () => new Ajv({ strict: false, allowUnionTypes: true, validateFormats: false });
+
+// Applicators whose subschemas describe the same object as their parent, so the
+// parent's unevaluatedProperties already sees the properties they declare.
+const BRANCH_KEYWORDS = ['oneOf', 'anyOf', 'allOf', 'not', 'if', 'then', 'else', 'dependencies'];
+
+/**
+ * A copy of `schema` in which every object that declares properties rejects
+ * any other. unevaluatedProperties (not additionalProperties) so that fields
+ * declared only in a dependencies/oneOf branch, such as Lark's meals, count as
+ * declared.
+ */
+function disallowUndeclared(schema, isBranch = false) {
+  if (Array.isArray(schema)) return schema.map((s) => disallowUndeclared(s, isBranch));
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === 'enum' || key === 'const' || key === 'default' || key === 'examples') {
+      out[key] = value;
+    } else if (key === 'properties' || key === 'definitions' || key === 'dependencies') {
+      out[key] = Object.fromEntries(Object.entries(value).map(([k, v]) => [
+        k,
+        // A dependencies entry is a branch of this object (or a list of required names).
+        disallowUndeclared(v, key === 'dependencies'),
+      ]));
+    } else {
+      out[key] = disallowUndeclared(value, BRANCH_KEYWORDS.includes(key));
+    }
+  }
+  if (out.properties && !isBranch) out.unevaluatedProperties = false;
+  return out;
+}
+
+/**
+ * The registration form's schema as the server builds it (get_form_schema in
+ * server/camphoric/views.py): the camper schema as a definition, the campers
+ * list and registrant_email added. The server supplies the lodging field, so
+ * any value passes here.
+ */
+function formSchema({ registration_schema = {}, camper_schema = {} }) {
+  return {
+    ...registration_schema,
+    definitions: {
+      ...(registration_schema.definitions ?? {}),
+      camper: {
+        ...camper_schema,
+        properties: { ...(camper_schema.properties ?? {}), lodging: {} },
+      },
+    },
+    required: [...(registration_schema.required ?? []), 'registrant_email'],
+    properties: {
+      registrant_email: { type: 'string', format: 'email' },
+      ...(registration_schema.properties ?? {}),
+      campers: { type: 'array', minItems: 1, items: { $ref: '#/definitions/camper' } },
+    },
+  };
+}
+
+// Stands in for the importer's lodging lookup (key → saved lodging).
+const fakeLodgingLookup = () => new Proxy({}, { get: () => ({ id: 1 }) });
 
 describe.each(EVENTS)('data/%s', (name) => {
   let mod;
@@ -93,6 +155,22 @@ describe.each(EVENTS)('data/%s', (name) => {
       const ajv = schemaAjv();
       expect({ key, valid: ajv.validateSchema(entry.data) }).toEqual({ key, valid: true });
     }
+  });
+
+  // The server validates registrations against the schema but allows fields it
+  // doesn't declare, so a sample registration can drift from its event (as
+  // Lark's vaccination_status did) without the import failing.
+  test('sample registrations fit the form schema, with no undeclared fields', async () => {
+    const { data, sampleRegGenerator } = mod.default;
+    if (!sampleRegGenerator) return;
+    const regs = await sampleRegGenerator(undefined, { lodging: fakeLodgingLookup() });
+    const ajv = new Ajv2019({ strict: false, allowUnionTypes: true, allErrors: true });
+    addFormats(ajv);
+    const validate = ajv.compile(disallowUndeclared(formSchema(data.event)));
+    regs.forEach(({ formData }, index) => {
+      validate(formData);
+      expect({ index, errors: validate.errors ?? [] }).toEqual({ index, errors: [] });
+    });
   });
 
   test('overrides and sampleRegGenerator are functions', () => {
