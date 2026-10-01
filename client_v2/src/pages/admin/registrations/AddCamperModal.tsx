@@ -11,6 +11,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiCamper, ApiEvent, Hash, Scalar } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
 import { useCamperForm } from 'pages/admin/campers/camperForm';
+import { EDITOR_MODAL_SIZE } from 'pages/admin/editorModalStyles';
 import { useState } from 'react';
 import type { CreateBody } from 'store/createEntityHooks';
 import { camperHooks } from 'store/entities';
@@ -26,7 +27,7 @@ interface AddCamperModalProps {
 
 export function AddCamperModal({ opened, onClose, ...props }: AddCamperModalProps) {
   return (
-    <Modal opened={opened} onClose={onClose} title="Add camper" size="xl">
+    <Modal opened={opened} onClose={onClose} title="Add camper" size={EDITOR_MODAL_SIZE}>
       {/* Mounted only while open, so each camper starts from a blank form. */}
       {opened && <AddCamperForm {...props} onClose={onClose} />}
     </Modal>
