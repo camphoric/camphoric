@@ -15,7 +15,7 @@ import type { ApiCamper, Hash } from 'api-types';
 import { DataTable } from 'components/DataTable';
 import { FullScreenLoading } from 'components/Loading';
 import { useReportTemplateVars } from 'hooks/useReportData';
-import { editorModalStyles } from 'pages/admin/editorModalStyles';
+import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
 import { useMemo } from 'react';
 import { eventHooks } from 'store/entities';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
@@ -122,7 +122,7 @@ export function EventAdminCampers() {
         opened={!!selected}
         onClose={() => select(undefined)}
         title={selected ? camperName(selected) || 'Camper' : ''}
-        size="xl"
+        size={EDITOR_MODAL_SIZE}
         styles={editorModalStyles}
       >
         {selected && (
