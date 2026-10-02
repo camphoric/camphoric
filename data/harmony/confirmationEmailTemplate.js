@@ -20,6 +20,7 @@ Meals: {{ camper.attributes.meal_type }}{% for exception in camper.attributes.me
 Registered for {{ (camper.attributes.attendance or []) | join(', ') }}    
 (You must arrive after 2pm on your first day)    
 Housing: {{ camper.lodging.path_names | join(', ') if camper.lodging else 'none' }}    
+Private room: {{ 'Yes' if camper.pricing.private_room_fee else 'No' }}    
 Linens rental: {{ 'Yes' if camper.attributes.linens else 'No' }}    
 Campership: {{ camper.pricing.campership | money }}    
 
