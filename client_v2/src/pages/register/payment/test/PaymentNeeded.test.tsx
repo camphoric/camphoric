@@ -111,7 +111,7 @@ describe('PaymentNeeded', () => {
       const props = renderButtons();
       const create = vi.fn().mockResolvedValue('order-1');
       await click(props, 'card');
-      await act(() => props.createOrder!({}, { order: { create } }));
+      await act(() => props.createOrder!({ paymentSource: 'card' }, { order: { create } }));
 
       expect(create).toHaveBeenCalled();
       expect(overlay()).not.toBeInTheDocument();
