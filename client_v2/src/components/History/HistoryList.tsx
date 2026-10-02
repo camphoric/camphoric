@@ -1,10 +1,10 @@
 /**
  * A registration's or camper's change history (SPEC §8.4, §8.5; §15, DR-53):
- * newest first, each change with when, who (or that no one was signed in, e.g.
- * an online registration), what it was about and each changed field's old and
- * new value — the old reddish, the new greenish. A long value is cut short
- * with a button to see the rest; long JSON or multi-line text shows a diff of
- * just the lines that changed. The entries one save made — an edit and the
+ * newest first, each change with when, who ("Anonymous User" when no one was
+ * signed in, e.g. an online registration), what it was about and each changed
+ * field's old and new value — the old reddish, the new greenish. A long value is
+ * cut short with a button to see the rest; long JSON or multi-line text shows a
+ * diff of just the lines that changed. The entries one save made — an edit and the
  * pricing it recalculated — are shown together.
  *
  * `HistoryList` shows entries it's given; `HistoryPanel` fetches them for a
@@ -62,7 +62,7 @@ export function HistoryList({
           <Group justify="space-between" mb="xs" wrap="wrap" gap="xs">
             {showActor && (
               <Text size="sm" fw={600}>
-                {group[0].actor?.name ?? 'No one signed in'}
+                {group[0].actor?.name ?? 'Anonymous User'}
               </Text>
             )}
             <Text size="sm" c="dimmed">

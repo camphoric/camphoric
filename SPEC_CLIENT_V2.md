@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -983,10 +983,10 @@ balance, payment status) and works with it. For the selected registration they c
   paid online), set the override to that fee in one action. The fee is then kept at the new
   amount; the override's reason becomes "Recalculated from the total".
 - **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
-  its campers', payments' and custom charges', newest first: when, who (or that no one was
-  signed in, e.g. the online registration; a user since deleted by their email), what it was
-  about, and each changed field's old and new value — attributes by their schema titles and only
-  the keys that changed, ids by name (registration type, lodging, charge type), a price as its
+  its campers', payments' and custom charges', newest first: when, who ("Anonymous User" when
+  no one was signed in, e.g. the online registration; a user since deleted by their email), what
+  it was about, and each changed field's old and new value — attributes by their schema titles
+  and only the keys that changed, ids by name (registration type, lodging, charge type), a price as its
   total. The changes one save made (an edit and the pricing it recalculated) are shown together.
   Old values are marked reddish and new ones greenish (the order also reads old → new, so color
   isn't the only cue). A value longer than 120 characters is cut short, with a way to see the
