@@ -235,9 +235,6 @@ def event_types(event):
         *[{**f, 'doc': f"{f['doc']} (all campers)"} for f in camper_pricing],
         {'name': 'total', 'type': 'number', 'doc': 'Total charged.', 'title': 'Total',
          'identifier': True},
-        {'name': 'handling', 'type': 'number', 'doc': 'Electronic payment handling charge '
-         '(when paying electronically).', 'title': 'Handling', 'identifier': True,
-         'nullable': True},
     ])
     types['pricing:registration'] = {'doc': "A registration's pricing results.",
                                      'fields': registration_pricing, 'base': 'dict'}

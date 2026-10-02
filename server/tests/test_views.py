@@ -1,8 +1,6 @@
-import copy
 import datetime
 from decimal import Decimal
 import json
-import os.path
 
 from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
@@ -11,9 +9,10 @@ import jsonschema  # Using Draft-7
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
 
-from camphoric import models, pricing, serializers
+from camphoric import models, serializers
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
+from tests import paypal_mocks
 from tests.factories import set_email
 
 
@@ -710,13 +709,6 @@ class RegisterPostTests(APITestCase):
             'total': 300,
         }
 
-        with open(os.path.join(
-            os.path.dirname(__file__),
-            'data',
-            'paypal_sample_order_details_response.json'
-        )) as f:
-            sample_order_details_response = json.load(f)
-
         #
         # registration step
         #
@@ -749,57 +741,99 @@ class RegisterPostTests(APITestCase):
         self.assertFalse(registration.completed)
 
         self.assertEqual({
-            'deposit': self.event.registration_deposit_schema,
             'registrationUUID': registration.uuid,
             'serverPricingResults': expected_pricing_results,
+            'paymentOptions': {
+                'title': 'Deposit',
+                'description': '',
+                'default': 'Full Payment',
+                'options': [
+                    {'name': 'Full Payment', 'title': 'Full Payment', 'amount': 300.0,
+                     'handling': 0.0},
+                    {'name': '50% Deposit', 'title': '50% Deposit', 'amount': 200.0,
+                     'handling': 0.0},
+                ],
+            },
+            'handlingPercent': None,
         }, response.data)
 
         #
-        # payment step
+        # The PayPal button: the registration is completed, unpaid, and the
+        # server creates the PayPal order for its invoice (SPEC DR-90, DR-91).
         #
 
-        paypal_response_from_client = sample_order_details_response
-        paypal_order_details = copy.deepcopy(sample_order_details_response)
-        paypal_order_details['purchase_units'][0]['reference_id'] = str(registration.uuid)
-        paypal_order_details['purchase_units'][0]['amount']['value'] = '300.00'
-        paypal_order_details['purchase_units'][0]['custom_id'] = 'All of it'
-        paypal_order_details['status'] = 'COMPLETED'
-        self.paypal_server.add_mock_response(200, {}, paypal_order_details)
+        self.paypal_server.add_mock_response(200, {}, paypal_mocks.created())
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {
+                'registrationUUID': registration.uuid,
+                'step': 'paypal-order',
+                'paymentType': 'PayPal',
+                'paymentOption': 'Full Payment',
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['orderID'], paypal_mocks.ORDER_ID)
+        self.assertEqual((response.data['total'], response.data['handling']), (300.0, 0.0))
+        registration.refresh_from_db()
+        self.assertTrue(registration.completed)
+        self.assertIsNotNone(registration.completed_at)
+        invoice = registration.invoices.get()
+        self.assertEqual((invoice.origin, invoice.description, invoice.amount),
+                         ('registration', 'Full Payment', Decimal('300.00')))
+        self.assertEqual(invoice.pending_paypal_order_id, paypal_mocks.ORDER_ID)
+        [create] = self.paypal_server.requests
+        self.assertEqual(create['path_query'], '/v2/checkout/orders')
+        unit = create['json']['purchase_units'][0]
+        text = f'Total for Invoice #{invoice.id} for Test Registration Event'
+        self.assertEqual(unit['description'], text)
+        self.assertEqual(unit['items'], [{
+            'name': text, 'quantity': '1',
+            'unit_amount': {'currency_code': 'USD', 'value': '300.00'}}])
+        self.assertEqual(unit['amount']['value'], '300.00')
+        self.assertEqual(unit['reference_id'], str(registration.uuid))
+        self.assertEqual(unit['custom_id'], f'invoice:{invoice.id}')
+        self.assertEqual(mail.outbox, [])  # not until the flow ends
 
+        #
+        # Approved: the server checks the order and captures it.
+        #
+
+        self.paypal_server.reset()
+        self.paypal_server.add_mock_response(
+            200, {}, paypal_mocks.order(registration, invoice, 300))
+        captured = paypal_mocks.captured(registration, invoice, 300)
+        self.paypal_server.add_mock_response(201, {}, captured)
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': 'PayPal',
-                'paymentData': {
-                    'type': 'Full',
-                    'total': 300,
-                },
-                'payPalResponse': paypal_response_from_client,
+                'paypalOrderId': paypal_mocks.ORDER_ID,
             },
             format='json'
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['confirmationPage'],
+                         '# Thanks! You owe $300.00, paid by PayPal.')
+        self.assertFalse(response.data['emailError'])
+        self.assertEqual(response.data['serverPricingResults'], expected_pricing_results)
+        self.assertEqual(response.data['invoice']['status'], 'paid')
+        self.assertEqual(response.data['ledger']['balance'], 0)
+        self.assertEqual(self.paypal_server.requests[1]['path_query'],
+                         f'/v2/checkout/orders/{paypal_mocks.ORDER_ID}/capture')
 
-        self.assertEqual(response.data, {
-            'confirmationPage': '# Thanks! You owe $300.00, paid by PayPal.',
-            'initialPayment': {'balance': 0, 'total': 300, 'type': 'Full'},
-            'emailError': False,
-            'serverPricingResults': expected_pricing_results,
-        })
-
-        registration.refresh_from_db()
-        self.assertTrue(registration.completed)
-        self.assertEqual(registration.payment_type, 'PayPal')
-        self.assertEqual(registration.paypal_response, paypal_response_from_client)
-
-        payments = registration.payment_set.all()
-        self.assertEqual(len(payments), 1)
-        payment = payments[0]
-        self.assertEqual(payment.paypal_order_details, paypal_order_details)
+        [payment] = registration.payment_set.all()
+        self.assertEqual(payment.invoice, invoice)
+        self.assertEqual(payment.paypal_response, captured)
+        self.assertEqual(payment.paypal_transaction_id, paypal_mocks.CAPTURE_ID)
         self.assertEqual(payment.amount, 300)
-        self.assertEqual(payment.notes, 'Initial payment: All of it')
+        self.assertEqual(payment.payment_type, 'PayPal')
+        self.assertEqual(payment.notes, 'Initial payment')
+        invoice.refresh_from_db()
+        self.assertIsNone(invoice.pending_paypal_order_id)
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
@@ -817,52 +851,30 @@ Campers:
 Total: $300
 
 
-Due now: $300""".lstrip())
+Due now: $300.00""".lstrip())
         self.assertEqual(len(message.alternatives), 1)
         self.assertIsInstance(message.alternatives[0], tuple)
         self.assertEqual(message.alternatives[0][1], "text/html")
-        self.assertEqual(message.alternatives[0][0], """
-<p>Thanks for registering, Testi McTesterton!</p>
-<p>Campers:</p>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Total</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Testi McTesterton</td>
-<td>100</td>
-</tr>
-<tr>
-<td>Testi McTesterton Junior</td>
-<td>100</td>
-</tr>
-</tbody>
-</table>
-<p>Total: $300</p>
-<p>Due now: $300</p>
-""".lstrip())
+        self.assertIn("<p>Due now: $300.00</p>", message.alternatives[0][0])
 
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.to, ['testi-test@mctesterson.com'])
 
         # A repeated payment step (a retry, a double click) records no second
-        # payment and sends no second confirmation.
+        # payment and sends no second confirmation: PayPal says it's captured.
+        self.paypal_server.reset()
+        self.paypal_server.add_mock_response(200, {}, captured)
         repeat = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': 'PayPal',
-                'paymentData': {'type': 'Full', 'total': 300},
-                'payPalResponse': paypal_response_from_client,
+                'paypalOrderId': paypal_mocks.ORDER_ID,
             },
             format='json'
         )
-        self.assertEqual(repeat.status_code, 200)
+        self.assertEqual(repeat.status_code, 200, repeat.data)
         self.assertEqual(repeat.data['confirmationPage'], response.data['confirmationPage'])
         self.assertEqual(registration.payment_set.count(), 1)
         self.assertEqual(len(mail.outbox), 1)
@@ -1066,14 +1078,10 @@ Due now: $300""".lstrip())
         registrations = models.Registration.objects.all()
         self.assertEqual(len(registrations), 1)
         registration = registrations[0]
-        self.assertEqual({
-            'deposit': self.event.registration_deposit_schema,
-            'registrationUUID': registration.uuid,
-            'serverPricingResults': expected_pricing_results,
-            }, response.data)
+        self.assertEqual(response.data['paymentOptions']['options'][1]['amount'], 200)
 
         #
-        # payment step
+        # payment step: by check, the deposit. The invoice waits for the check.
         #
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
@@ -1081,14 +1089,16 @@ Due now: $300""".lstrip())
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': 'Check',
-                'paymentData': {
-                    'type': '50% Deposit',
-                    'total': 200,
-                },
+                'paymentOption': '50% Deposit',
             },
             format='json'
         )
         self.assertEqual(response.status_code, 200)
+        invoice = registration.invoices.get()
+        self.assertEqual((invoice.description, invoice.amount, invoice.payment_type,
+                          invoice.status), ('50% Deposit', Decimal('200.00'), 'Check', 'open'))
+        self.assertFalse(registration.payment_set.exists())
+        self.assertEqual(response.data['ledger']['balance'], 300)
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
 
@@ -1104,7 +1114,7 @@ Campers:
 Total: $300
 
 
-Due now: $200""".lstrip())
+Due now: $200.00""".lstrip())
         self.assertEqual(len(message.alternatives), 1)
         self.assertIsInstance(message.alternatives[0], tuple)
         self.assertEqual(message.alternatives[0][1], "text/html")
@@ -1130,7 +1140,7 @@ Due now: $200""".lstrip())
 </tbody>
 </table>
 <p>Total: $300</p>
-<p>Due now: $200</p>
+<p>Due now: $200.00</p>
 """.lstrip())
 
     def test_post_email_templates(self):
@@ -1182,10 +1192,9 @@ Due now: $200""".lstrip())
         self.maxDiff = None
         expected_pricing_results = {
             "campers": [{}],
-            "handling": 2.56,
             "cabins": 102.27,
             "random": "bobby flay",
-            "total": 104.83,
+            "total": 102.27,
         }
 
         #
@@ -1204,11 +1213,14 @@ Due now: $200""".lstrip())
         registrations = models.Registration.objects.all()
         self.assertEqual(len(registrations), 1)
         registration = registrations[0]
-        self.assertEqual({
-            'deposit': event.registration_deposit_schema,
-            'registrationUUID': registration.uuid,
-            'serverPricingResults': expected_pricing_results,
-            }, response.data)
+        self.assertEqual(response.data['registrationUUID'], registration.uuid)
+        self.assertEqual(response.data['serverPricingResults'], expected_pricing_results)
+        # The fee if paid online, on each option's own amount (SPEC DR-88).
+        self.assertEqual(response.data['handlingPercent'], 2.5)
+        self.assertEqual(
+            [(o['name'], o['amount'], o['handling'])
+             for o in response.data['paymentOptions']['options']],
+            [('Full Payment', 102.27, 2.56), ('50% Deposit', 102.27, 2.56)])
 
         #
         # payment step
@@ -1219,10 +1231,7 @@ Due now: $200""".lstrip())
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': 'Check',
-                'paymentData': {
-                    'type': '50% Deposit',
-                    'total': 50.25,
-                },
+                'paymentOption': '50% Deposit',
             },
             format='json'
         )
@@ -1230,14 +1239,14 @@ Due now: $200""".lstrip())
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
 
-        # Not sure why handling isn't showing up
+        # The fee isn't part of the price any more: paying by check, there's none.
         self.assertEqual("""
 - handling:
 - cabins: 102.27
 - total: 102.27
 - Initial Payment: 50% Deposit
-- **Amount you are paying now: 50.25**
-- Due by June 20th: 52.02
+- **Amount you are paying now: 102.27**
+- Due by June 20th: 0.00
 - Your total: 102.27""".lstrip(), message.body)
 
 
@@ -1404,35 +1413,33 @@ class PriceAutoUpdateTests(APITestCase):
         self.assertEqual(len(registrations), 1)
         registration = registrations[0]
         self.registration = registration
-        with open(os.path.join(
-            os.path.dirname(__file__),
-            'data',
-            'paypal_sample_order_details_response.json'
-        )) as f:
-            sample_order_details_response = json.load(f)
-
-        paypal_response_from_client = sample_order_details_response
-        paypal_order_details = copy.deepcopy(sample_order_details_response)
-        paypal_order_details['purchase_units'][0]['reference_id'] = str(registration.uuid)
-        paypal_order_details['purchase_units'][0]['amount']['value'] = '300.00'
-        paypal_order_details['status'] = 'COMPLETED'
         if payment_type == 'PayPal':
-            self.paypal_server.add_mock_response(200, {}, paypal_order_details)
-
+            self.paypal_server.reset()
+            self.paypal_server.add_mock_response(200, {}, paypal_mocks.created())
+            response = self.client.post(f'/api/events/{self.event.id}/register', {
+                'registrationUUID': registration.uuid, 'step': 'paypal-order',
+                'paymentType': payment_type}, format='json')
+            self.assertEqual(response.status_code, 200, msg=response.data)
+            invoice = registration.invoices.get()
+            value = response.data['total']
+            self.paypal_server.add_mock_response(
+                200, {}, paypal_mocks.order(registration, invoice, value))
+            self.paypal_server.add_mock_response(
+                201, {}, paypal_mocks.captured(registration, invoice, value))
+            body = {'paypalOrderId': paypal_mocks.ORDER_ID}
+        else:
+            body = {}
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
                 'paymentType': payment_type,
-                'paymentData': {
-                    'type': 'Full',
-                    'total': 300,
-                },
-                'payPalResponse': paypal_response_from_client,
+                **body,
             },
             format='json'
         )
+        self.assertEqual(response.status_code, 200, msg=response.data)
         self.registration.refresh_from_db()
         self.campers = models.Camper.objects.all() \
             .filter(registration=self.registration.id)
@@ -1524,28 +1531,37 @@ class PriceAutoUpdateTests(APITestCase):
         self.registration.refresh_from_db()
         return self.registration.server_pricing_results
 
-    def test_the_handling_fee_paid_online_stays_as_it_was(self):
-        # SPEC DR-78, GitHub #622.
+    def test_the_handling_fee_paid_online_stays_on_its_invoice(self):
+        # SPEC DR-88: the fee is the invoice's, so later price changes leave it be.
         self.event.epayment_handling = 2.5
         self.event.save()
         self.createRegistration()
         results = self.registration.server_pricing_results
-        self.assertEqual((results['handling'], results['total']), (7.5, 307.5))
-        override = self.registration.pricing_overrides.get()
-        self.assertEqual((override.var, override.amount), ('handling', Decimal('7.50')))
-        self.assertEqual(override.reason, pricing.HANDLING_FIXED_REASON)
+        self.assertNotIn('handling', results)
+        self.assertEqual(results['total'], 300)
+        invoice = self.registration.invoices.get()
+        self.assertEqual((invoice.amount, invoice.handling), (Decimal('300.00'),
+                                                              Decimal('7.50')))
+        self.assertFalse(self.registration.pricing_overrides.exists())
 
-        # A discount later leaves the fee as it was charged.
+        # A discount later leaves the fee as it was charged; the registration
+        # is now owed back what it overpaid.
         results = self.make_cool()
-        self.assertEqual((results['handling'], results['total']), (7.5, 107.5))
-        self.assertEqual(results['overridden'], {'handling': 2.5})
+        self.assertEqual(results['total'], 100)
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.handling, Decimal('7.50'))
+        from camphoric import invoices
+        ledger = invoices.ledger(self.registration)
+        self.assertEqual((ledger.total_owed, ledger.total_paid, ledger.balance),
+                         (Decimal('107.50'), Decimal('307.50'), Decimal('-200.00')))
 
-    def test_paying_by_check_has_no_fee_to_keep(self):
+    def test_paying_by_check_has_no_fee(self):
         self.event.epayment_handling = 2.5
         self.event.save()
         self.createRegistration(payment_type='Check')
         self.assertFalse(self.registration.pricing_overrides.exists())
         self.assertNotIn('handling', self.registration.server_pricing_results)
+        self.assertEqual(self.registration.invoices.get().handling, Decimal('0.00'))
 
 
 class EventTests(APITestCase):
@@ -1728,6 +1744,7 @@ def create_standard_test_event(
             '# Thanks! You owe {{ pricing.total | money }}, '
             'paid by {{ registration.payment_type }}.'),
         confirmation_email_from='reg@camp.org',
+        paypal_client_id='test-client-id',
     )
     set_email(self.event.confirmation_template, 'Registration confirmation', ''.join([
         'Thanks for registering, {{ registration.attributes.billing_name }}!\n',

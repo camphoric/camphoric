@@ -63,7 +63,7 @@ class RegistrationTests(SoftDeleteTestCase):
         # The registrant can't pay for it either.
         response = self.client.post(f'/api/events/{event}/register', {
             'registrationUUID': str(made.r1.uuid), 'step': 'payment', 'paymentType': 'Check',
-            'paymentData': {'type': 'Full', 'total': 100}}, format='json')
+            }, format='json')
         self.assertEqual(response.status_code, 404)
 
     def test_restoring_brings_it_all_back_but_not_a_camper_deleted_before(self):
@@ -93,6 +93,7 @@ class RegistrationTests(SoftDeleteTestCase):
         hidden = {entry['type']: entry['items'] for entry in preview['deletes']}
         self.assertEqual(hidden, {
             'camper': ['Pat Alpha', 'Sam Alpha'],
+            'invoice': [f'Invoice #{self.made.i1.id} (Full Payment)'],
             'payment': ['Check payment $100.00'],
             'customcharge': ['Linens $25.00'],
         })
@@ -158,11 +159,21 @@ class CamperTests(SoftDeleteTestCase):
 
 
 class PaymentTests(SoftDeleteTestCase):
+    '''Only Admins delete payments (SPEC DR-93); Registrars may restore them.'''
+
+    def setUp(self):
+        super().setUp()
+        self.admin = make_user(roles.ADMIN, 'boss')
+
     def test_a_deleted_payment_is_gone_until_restored(self):
         made = self.made
         payment = models.Payment.objects.filter(registration=made.r2).first()
 
+        response = self.client.delete(f'/api/payments/{payment.id}/')
+        self.assertEqual(response.status_code, 403)
+        self.client.force_authenticate(self.admin)
         self.delete(f'/api/payments/{payment.id}/')
+        self.client.force_authenticate(self.registrar)
         self.assertEqual(self.report_counts(), '3 2')
         self.assertEqual(len(self.listed('/api/payments/', registration=made.r2.id)), 1)
         deleted = self.listed('/api/payments/deleted/', registration=made.r2.id)
@@ -172,6 +183,7 @@ class PaymentTests(SoftDeleteTestCase):
         self.assertEqual(self.report_counts(), '3 3')
 
     def test_the_preview_says_it_can_be_restored(self):
+        self.client.force_authenticate(self.admin)
         payment = models.Payment.objects.filter(registration=self.made.r1).get()
         preview = self.client.get(f'/api/payments/{payment.id}/delete-preview/').data
         self.assertEqual((preview['restorable'], preview['deletes']), (True, []))

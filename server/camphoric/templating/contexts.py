@@ -21,6 +21,7 @@ def report_context(graph):
         'incomplete_registrations': graph.incomplete_registrations,
         'campers': graph.campers,
         'payments': graph.payments,
+        'invoices': graph.invoices,
         'lodging': graph.lodging_root,
         'lodgings': graph.lodgings,
         'registration_types': graph.registration_types,
@@ -37,6 +38,7 @@ def confirmation_email_context(graph, registration):
         'registration': registration,
         'campers': registration['campers'] if registration else ReadOnlyList(),
         'pricing': registration['pricing'] if registration else None,
+        'invoice': registration['invoice'] if registration else None,
         'initial_payment': registration['initial_payment'] if registration else None,
     }
 

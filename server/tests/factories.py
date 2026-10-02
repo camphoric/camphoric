@@ -120,7 +120,7 @@ def create_template_event():
     made.tent_1 = lodging.create(name='Tent 1', parent=made.tents, capacity=2, visible=True)
 
     made.r1 = models.Registration.objects.create(
-        event=event, registrant_email='pat@example.com', completed=True, payment_type='Check',
+        event=event, registrant_email='pat@example.com', completed=True,
         attributes={'comments': 'Hi', 'campership_donation': 25,
                     'address': {'street': '1 Main St', 'city': 'Berkeley'}},
     )
@@ -135,6 +135,7 @@ def create_template_event():
         sequence=1, lodging=made.cabin_a, stay=['2026-12-31'],
         attributes={'first_name': 'Sam', 'last_name': 'Alpha'},
     )
+    made.i1 = registration_invoice(made.r1, 'Check', Decimal('825.00'))
     models.Payment.objects.create(
         registration=made.r1, amount=Decimal('100.00'), paid_on=datetime.date(2026, 10, 1),
         payment_type='Check')
@@ -142,13 +143,14 @@ def create_template_event():
         custom_charge_type=made.linens, camper=made.c1, amount=Decimal('25.00'), notes='Sheets')
 
     made.r2 = models.Registration.objects.create(
-        event=event, registrant_email='lee@example.com', completed=True, payment_type='PayPal',
+        event=event, registrant_email='lee@example.com', completed=True,
         registration_type=made.staff, attributes={'staff_role': 'Cook'},
     )
     made.c3 = made.r2.campers.create(
         sequence=0, lodging=made.tent_1, stay=['2026-12-30', '2026-12-31', '2027-01-01'],
         attributes={'first_name': 'Lee', 'last_name': 'Beta'},
     )
+    made.i2 = registration_invoice(made.r2, 'PayPal', Decimal('400.00'))
     for amount, day in (('200.00', 2), ('250.50', 3)):
         models.Payment.objects.create(
             registration=made.r2, amount=Decimal(amount),
@@ -172,6 +174,14 @@ def create_template_event():
         registration.refresh_from_db()
 
     return made
+
+
+def registration_invoice(registration, payment_type, amount, description='Full Payment',
+                         handling=Decimal('0.00')):
+    '''The invoice a registration's payment step makes, for the option chosen.'''
+    return models.Invoice.objects.create(
+        registration=registration, origin=models.InvoiceOrigin.REGISTRATION,
+        description=description, amount=amount, handling=handling, payment_type=payment_type)
 
 
 def set_email(template, subject=None, body=None):

@@ -123,7 +123,6 @@ class RegistrationDatesTests(APITestCase):
             'registrationUUID': uuid,
             'step': 'payment',
             'paymentType': 'Check',
-            'paymentData': {'type': 'Full', 'total': 100},
         }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertTrue(models.Registration.objects.get(uuid=uuid).completed)

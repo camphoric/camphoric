@@ -126,6 +126,10 @@ DICT_DOC = (
     "`items`, write `camper.attributes['items']`."
 )
 
+PAYMENT_DOC = 'A payment received for a registration, or a refund (a negative amount).'
+INVOICE_DOC = ('A request for part of what a registration owes: an amount, plus the electronic '
+               'payment handling fee once it is paid online.')
+
 TYPES = (
     TypeSpec('event', 'The event (camp) the template belongs to.', (
         ID,
@@ -160,12 +164,14 @@ TYPES = (
         F('created_at', 'datetime', 'When the registration was started.',
           "{{ registration.created_at | datetime('%b %-d, %Y') }}"),
         F('updated_at', 'datetime', 'When it was last changed.'),
-        F('completed', 'bool', 'Whether the registrant finished registering.'),
+        F('completed', 'bool', 'Whether the registrant finished registering (pressed a '
+          'payment button).'),
+        F('completed_at', 'datetime', 'When they finished registering.', nullable=True),
         F('registrant_email', 'string', "The registrant's email address."),
-        F('payment_type', 'string', 'How they chose to pay (Check, PayPal, Card …).',
-          nullable=True),
-        F('paypal_response', 'dict', "PayPal's record of an online payment (PayPal or Card), "
-          'e.g. the payer: `payer.name.given_name`, `payer.email_address`.',
+        F('payment_type', 'string', 'How they chose to pay when registering (Check, PayPal, '
+          "Card …): their registration invoice's payment type.", nullable=True),
+        F('paypal_response', 'dict', "PayPal's record of their online payment (PayPal or Card) "
+          'when registering, e.g. the payer: `payer.name.given_name`, `payer.email_address`.',
           "{{ registration.paypal_response.payer.email_address }}", nullable=True),
         F('attributes', 'attributes:registration', 'Answers to the registration form.',
           '{{ registration.attributes.comments }}'),
@@ -174,15 +180,23 @@ TYPES = (
           nullable=True),
         F('campers', 'list<camper>', 'The campers on this registration, in form order.',
           '{% for camper in registration.campers %}…{% endfor %}'),
-        F('payments', 'list<payment>', 'Payments received, oldest first.'),
+        F('payments', 'list<payment>', 'Payments received (and refunds, as negative amounts), '
+          'oldest first.'),
+        F('invoices', 'list<invoice>', 'Invoices: each asks for a part of what is owed, oldest '
+          'first.', '{% for invoice in registration.invoices %}…{% endfor %}'),
+        F('invoice', 'invoice', 'The invoice made when they registered (the payment option '
+          'they chose).', '{{ registration.invoice.amount_due | money }}', nullable=True),
         F('invitation', 'invitation', 'The invitation used to register, if any.', nullable=True),
         F('pricing', 'pricing:registration', 'Pricing results (totals by component).',
           '{{ registration.pricing.total | money }}'),
-        F('total_owed', 'money', 'Total charged.', '{{ registration.total_owed | money }}'),
-        F('total_paid', 'money', 'Total of the payments received.'),
-        F('balance', 'money', 'Still owed: total_owed − total_paid.',
+        F('total_owed', 'money', 'Total charged: the price plus any handling fees on its '
+          'invoices.', '{{ registration.total_owed | money }}'),
+        F('total_paid', 'money', 'Total of the payments received, less refunds.'),
+        F('balance', 'money', 'Still owed: total_owed − total_paid (negative: a refund is due).',
           "{% if registration.balance > 0 %}Owes {{ registration.balance | money }}{% endif %}"),
-        F('initial_payment', 'dict', 'The payment choice made when registering.', nullable=True),
+        F('initial_payment', 'dict', 'For older templates: the payment choice made when '
+          'registering — `type`, `total` and `balance`. Prefer `registration.invoice`.',
+          nullable=True),
         F('camper_count', 'number', 'Number of campers.'),
     ), values.RegistrationVar, base='dict'),
 
@@ -237,16 +251,46 @@ TYPES = (
         F('camper_count', 'number', 'Number of campers here or below.'),
     ), values.LodgingVar, base='dict'),
 
-    TypeSpec('payment', 'A payment received for a registration.', (
+    TypeSpec('payment', PAYMENT_DOC, (
         ID,
-        F('amount', 'money', 'Amount paid.', '{{ payment.amount | money }}'),
+        F('amount', 'money', 'Amount paid (negative for a refund).',
+          '{{ payment.amount | money }}'),
         F('paid_on', 'date', 'Date paid.', nullable=True),
         F('payment_type', 'string', 'Check, PayPal, Card, Voucher …'),
         F('notes', 'string', 'Admin notes.'),
         F('attributes', 'attributes:payment', 'Extra payment details.'),
         F('registration', 'registration', 'The registration it pays for.'),
+        F('invoice', 'invoice', 'The invoice it pays.', nullable=True),
+        F('is_refund', 'bool', 'Whether it is a refund.'),
+        F('refund_of', 'payment', 'For a refund: the payment it gives money back from.',
+          nullable=True),
+        F('paypal_response', 'dict', "PayPal's record of it, for a PayPal or Card payment.",
+          '{{ payment.paypal_response.payer.email_address }}', nullable=True),
         F('created_at', 'datetime', 'When it was recorded.'),
     ), values.PaymentVar, base='dict'),
+
+    TypeSpec('invoice', INVOICE_DOC, (
+        ID,
+        F('registration', 'registration', 'The registration it bills.'),
+        F('origin', 'string', 'Where it came from: `registration` (the payment option chosen '
+          'when registering), `payment_received` (made for a payment recorded without one), '
+          '`admin` (made by a registrar) or `migrated`.'),
+        F('status', 'string', '`open`, `partially_paid`, `paid`, `overpaid` or `cancelled`.',
+          "{% if invoice.status == 'paid' %}Paid in full{% endif %}"),
+        F('description', 'string', 'What it is for, e.g. "50% Deposit".'),
+        F('payment_type', 'string', 'How the payer chose to pay it.', nullable=True),
+        F('amount', 'money', 'What it asks toward the registration.'),
+        F('handling', 'money', 'Electronic payment handling added to it.'),
+        F('total', 'money', 'amount + handling.', '{{ invoice.total | money }}'),
+        F('amount_paid', 'money', 'Paid on it so far, less refunds.'),
+        F('amount_due', 'money', 'Still due on it.', '{{ invoice.amount_due | money }}'),
+        F('overpaid', 'money', 'Paid beyond its total (a refund is due).'),
+        F('due_on', 'date', 'When it is due.', nullable=True),
+        F('memo', 'string', 'A message for the payer.'),
+        F('payments', 'list<payment>', 'Payments and refunds on it, oldest first.'),
+        F('created_at', 'datetime', 'When it was made.'),
+        F('cancelled_at', 'datetime', 'When it was cancelled.', nullable=True),
+    ), values.InvoiceVar, base='dict'),
 
     TypeSpec('registration_type', 'A kind of invitation-based registration (e.g. Staff).', (
         ID,
@@ -421,6 +465,7 @@ CONTEXTS = (
                     F('campers', 'list<camper>', 'Campers of completed registrations.',
                       "{% for camper in campers | sort(attribute='attributes.last_name') %}"),
                     F('payments', 'list<payment>', 'Payments on completed registrations.'),
+                    F('invoices', 'list<invoice>', 'Invoices of completed registrations.'),
                     F('lodging', 'lodging', 'The root of the lodging tree.', nullable=True),
                     F('lodgings', 'list<lodging>', 'Every lodging node, parents first.'),
                     F('registration_types', 'list<registration_type>', 'Registration types.'),
@@ -439,8 +484,12 @@ CONTEXTS = (
                       '{% endfor %}'),
                     F('pricing', 'pricing:registration', 'Its pricing results.',
                       '{{ pricing.total | money }}', nullable=True),
-                    F('initial_payment', 'dict', 'The payment choice made when registering.',
-                      nullable=True),
+                    F('invoice', 'invoice', 'The invoice for the payment option they chose: '
+                      "what it asks, and what's been paid on it.",
+                      "{% if invoice.status != 'paid' %}Due: {{ invoice.amount_due | money }}"
+                      '{% endif %}', nullable=True),
+                    F('initial_payment', 'dict', 'For older templates: the payment choice made '
+                      'when registering. Prefer `invoice`.', nullable=True),
                 ), sample='registration'),
     ContextSpec('confirmation_page', 'Confirmation page', 'Shown to the registrant when they '
                 'finish registering (markdown).', (
@@ -452,8 +501,11 @@ CONTEXTS = (
                       '{% endfor %}'),
                     F('pricing', 'pricing:registration', 'Its pricing results.',
                       '{{ pricing.total | money }}', nullable=True),
-                    F('initial_payment', 'dict', 'The payment choice made when registering: '
-                      '`type`, `total` (paid now) and `balance`.',
+                    F('invoice', 'invoice', 'The invoice for the payment option they chose: '
+                      "what it asks, and what's been paid on it.",
+                      '{{ invoice.total | money }}', nullable=True),
+                    F('initial_payment', 'dict', 'For older templates: the payment choice made '
+                      'when registering — `type`, `total` and `balance`. Prefer `invoice`.',
                       '{{ initial_payment.total | money }}', nullable=True),
                 ), sample='registration'),
     ContextSpec('invitation_email', 'Invitation email', 'Sent when an admin invites someone to '

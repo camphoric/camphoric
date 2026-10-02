@@ -113,9 +113,6 @@ function makeRegistration(reg, lodgingMap) {
       'tuition': 0,
       'meals': 0
     },
-    'paymentData': {
-      paymentType: reg.payment_type || 'Check',
-    }
   };
 }
 

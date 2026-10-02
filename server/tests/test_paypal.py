@@ -2,7 +2,7 @@ import json
 import os.path
 import unittest
 
-from camphoric.paypal import PayPalClient
+from camphoric.paypal import PayPalClient, PayPalError
 from camphoric.test.mock_server import MockServer
 
 
@@ -39,3 +39,38 @@ class PayPalClientTests(unittest.TestCase):
         self.assertRegex(request['headers']['Authorization'], r'^Basic .+')
 
         self.assertEqual(details, self.order_details_response)
+
+    def test_create_capture_and_refund_send_request_ids(self):
+        client = PayPalClient(self.base_url, client_id='123', secret='abc')
+        self.server.add_mock_response(201, {}, json={'id': 'ORDER'})
+        self.server.add_mock_response(201, {}, json={'id': 'ORDER', 'status': 'COMPLETED'})
+        self.server.add_mock_response(201, {}, json={'id': 'REFUND', 'status': 'COMPLETED'})
+
+        self.assertEqual(client.create_order({'intent': 'CAPTURE'}, 'create-1'), {'id': 'ORDER'})
+        client.capture_order('ORDER', 'capture-ORDER')
+        client.refund_capture('CAPTURE', '10.00', 'Sorry', 'refund-1')
+
+        create, capture, refund = self.server.requests
+        self.assertEqual((create['method'], create['path_query']), ('POST', '/v2/checkout/orders'))
+        self.assertEqual(create['json'], {'intent': 'CAPTURE'})
+        self.assertEqual(create['headers']['PayPal-Request-Id'], 'create-1')
+        self.assertEqual(capture['path_query'], '/v2/checkout/orders/ORDER/capture')
+        self.assertEqual(capture['headers']['PayPal-Request-Id'], 'capture-ORDER')
+        self.assertEqual(refund['path_query'], '/v2/payments/captures/CAPTURE/refund')
+        self.assertEqual(refund['json'], {'amount': {'value': '10.00', 'currency_code': 'USD'},
+                                          'note_to_payer': 'Sorry'})
+
+    def test_errors_say_whether_money_may_have_moved(self):
+        client = PayPalClient(self.base_url, client_id='123', secret='abc')
+        self.server.add_mock_response(422, {}, json={
+            'message': 'Declined', 'details': [{'issue': 'INSTRUMENT_DECLINED'}]})
+        with self.assertRaises(PayPalError) as refused:
+            client.capture_order('ORDER', 'capture-ORDER')
+        error = refused.exception
+        self.assertEqual((error.unknown, error.issue, str(error)),
+                         (False, 'INSTRUMENT_DECLINED', 'Declined'))
+
+        self.server.add_mock_response(503, {}, json={})
+        with self.assertRaises(PayPalError) as unknown:
+            client.capture_order('ORDER', 'capture-ORDER')
+        self.assertTrue(unknown.exception.unknown)

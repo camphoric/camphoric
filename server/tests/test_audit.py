@@ -87,14 +87,25 @@ class WhatIsRecordedTests(APITestCase):
 
     def test_paypal_replies_are_left_out_and_pricing_kept(self):
         registration = self.made.r1
-        registration.paypal_response = {'payer': {'name': 'Pat'}}
         registration.attributes = {**registration.attributes, 'campership_donation': 75}
         registration.save()
+        payment = models.Payment.objects.create(
+            registration=registration, amount=1, payment_type='PayPal',
+            paypal_response={'payer': {'name': 'Pat'}})
 
         changed = set().union(*(entry.changes for entry in entries_for(registration)))
-        self.assertNotIn('paypal_response', changed)
         self.assertIn('server_pricing_results', changed)
         self.assertNotIn('updated_at', changed)
+        changed = set().union(*(entry.changes for entry in entries_for(payment)))
+        self.assertIn('amount', changed)
+        self.assertNotIn('paypal_response', changed)
+
+    def test_an_invoices_link_code_is_left_out(self):
+        invoice = models.Invoice.objects.create(
+            registration=self.made.r1, origin='admin', amount=10)
+        changed = set().union(*(entry.changes for entry in entries_for(invoice)))
+        self.assertIn('amount', changed)
+        self.assertNotIn('token', changed)
 
     def test_role_changes_are_recorded_and_passwords_never(self):
         admin = make_user(roles.ADMIN, 'boss')
@@ -130,7 +141,7 @@ class HistoryTests(APITestCase):
 
         entries = self.history(f'/api/registrations/{self.made.r1.id}/history/')
         types = {entry['object']['type'] for entry in entries}
-        self.assertEqual(types, {'registration', 'camper', 'payment', 'customcharge'})
+        self.assertEqual(types, {'registration', 'camper', 'invoice', 'payment', 'customcharge'})
         labels = {entry['object']['label'] for entry in entries}
         self.assertIn('Sam Alpha', labels)
         self.assertIn('Check payment $100.00', labels)

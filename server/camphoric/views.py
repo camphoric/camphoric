@@ -5,9 +5,7 @@ import logging
 import traceback
 
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal
 from deepmerge import always_merger
-from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -36,7 +34,9 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from camphoric import (
     accounts,
     audit,
+    confirmations,
     deletes,
+    invoices,
     models,
     pricing,
     roles,
@@ -45,11 +45,9 @@ from camphoric import (
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
 from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
-from camphoric.paypal import PayPalClient
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
-from camphoric.templating.emails import (
-    confirmation_failure_report, render_confirmation_email, render_invitation_email)
+from camphoric.templating.emails import render_invitation_email
 from camphoric.templating.pages import (
     FALLBACK_PAGE, page_failure_report, render_confirmation_page)
 from camphoric.templating.env import LEGACY_REPORT_ENV
@@ -601,10 +599,118 @@ class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
     filterset_fields = ['event']
 
 
+def payment_problem_response(problem):
+    return Response({'detail': problem.message, 'code': problem.code},
+                    status=problem.http_status)
+
+
+class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
+    '''
+    A registration's invoices (SPEC §9.7, DR-87). Any role reads them; Registrars
+    and Admins edit, cancel and reopen them and check a pending PayPal order;
+    only Admins delete one, and only one nothing was ever paid on (DR-93).
+    Invoices are made by the payment step and by recording payments.
+    '''
+    queryset = models.Invoice.objects.select_related('created_by', 'registration__event') \
+        .prefetch_related('payments')
+    serializer_class = serializers.InvoiceSerializer
+    filterset_fields = ['registration', 'registration__event', 'registration__completed']
+    delete_permission_classes = [AdminOnly]
+
+    def create(self, request, *args, **kwargs):
+        return Response({'detail': 'Invoices are made by the payment step and by recording '
+                         'payments.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def delete_checks(self):
+        return (deletes.invoice_has_no_payments,)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        invoice = self.get_object()
+        if invoice.cancelled_at is not None:
+            raise serializers.Conflict('This invoice is already cancelled.')
+        if invoice.amount_paid != 0:
+            raise serializers.Conflict(
+                'This invoice still holds money. Refund or move its payments first.')
+        invoice.cancelled_at = timezone.now()
+        invoice.cancel_reason = (request.data.get('reason') or '').strip()
+        invoice.save()
+        return Response(self.get_serializer(invoice).data)
+
+    @action(detail=True, methods=['post'])
+    def reopen(self, request, pk=None):
+        invoice = self.get_object()
+        if invoice.cancelled_at is None:
+            raise serializers.Conflict('This invoice isn\'t cancelled.')
+        invoice.cancelled_at = None
+        invoice.cancel_reason = ''
+        invoice.save()
+        return Response(self.get_serializer(invoice).data)
+
+    @action(detail=True, methods=['post'], url_path='check-paypal')
+    def check_paypal(self, request, pk=None):
+        '''Ask PayPal about the invoice's pending order: record it if captured, else clear it.'''
+        try:
+            result, payment = invoices.check_paypal_order(self.get_object())
+        except invoices.PaymentProblem as problem:
+            return payment_problem_response(problem)
+        invoice = self.get_queryset().get(pk=pk)
+        return Response({
+            'result': result,
+            'payment': serializers.PaymentSerializer(payment).data if payment else None,
+            'invoice': self.get_serializer(invoice).data,
+        })
+
+
 class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Payment.objects.all()
+    '''
+    Payments and refunds (SPEC §9.7, DR-87, DR-94). Registrars and Admins record
+    them and refund through PayPal; only Admins delete one (DR-93). A payment
+    on a "Payment received" invoice keeps that invoice matching it.
+    '''
+    queryset = models.Payment.objects.select_related('invoice', 'registration__event')
     serializer_class = serializers.PaymentSerializer
-    filterset_fields = ['registration', 'registration__event']
+    filterset_fields = ['registration', 'registration__event', 'invoice']
+    delete_permission_classes = [AdminOnly]
+
+    def delete_checks(self):
+        return (deletes.payment_has_no_refunds, deletes.paypal_refund_stays_refunded)
+
+    def destroy(self, request, *args, **kwargs):
+        invoice = self.get_object().invoice
+        with transaction.atomic():
+            response = super().destroy(request, *args, **kwargs)
+            invoices.match_received_invoice(invoice)
+        return response
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        with transaction.atomic():
+            response = super().restore(request, pk)
+            invoices.match_received_invoice(self.get_any_object().invoice)
+        return response
+
+    @action(detail=True, methods=['post'], url_path='refund-paypal')
+    def refund_paypal(self, request, pk=None):
+        '''
+        Refund some or all of a PayPal or card payment through PayPal: `{amount,
+        reason, request_id}`. The refund is recorded as a negative payment.
+        '''
+        payment = self.get_object()
+        request_id = request.data.get('request_id')
+        if not request_id:
+            raise ValidationError({'request_id': 'This field is required.'})
+        try:
+            amount = invoices.money(request.data.get('amount'))
+        except Exception:
+            raise ValidationError({'amount': 'A number is required.'})
+        try:
+            refund = invoices.refund_paypal_payment(
+                payment, amount, (request.data.get('reason') or '').strip(), str(request_id),
+                request=request)
+        except invoices.PaymentProblem as problem:
+            return payment_problem_response(problem)
+        return Response(self.get_serializer(refund).data, status=status.HTTP_201_CREATED)
 
 
 class PromoCodeViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
@@ -827,14 +933,6 @@ class InvitationRejected(APIException):
     default_code = 'invitation'
 
 
-class PaymentError(Exception):
-    def __init__(self, message):
-        self.message = message
-
-    def __str__(self):
-        return f'PaymentError: {self.message}'
-
-
 class EventList(APIView):
     permission_classes = [permissions.AllowAny]
     filterset_fields = ['organization']
@@ -869,39 +967,8 @@ class EventList(APIView):
         return Response(response_data)
 
 
-def template_sender(template, event):
-    '''
-    Who an email template's email comes from: its own sender, reply-to and
-    account where set, else the event's address and account.
-    '''
-    sender = {'from_email': event.confirmation_email_from}
-    if template:
-        sender['from_email'] = template.sender
-        if template.reply_to:
-            sender['reply_to'] = template.reply_to
-        if template.account_id:
-            sender['account'] = template.account
-    return sender
-
-
-def queue_report(registration, kind, subject, body):
-    '''
-    Queue a template problem report to the event's "from" address, at most once
-    per registration and kind.
-    '''
-    event = registration.event
-    if not event.confirmation_email_from:
-        return
-    outbox.enqueue(
-        event=event,
-        kind=kind,
-        registration=registration,
-        from_email=event.confirmation_email_from,
-        to=event.confirmation_email_from,
-        subject=subject,
-        text=body,
-        dedupe_key=f'{kind}:{registration.id}',
-    )
+template_sender = confirmations.template_sender
+queue_report = confirmations.queue_report
 
 
 class RegisterView(APIView):
@@ -969,16 +1036,33 @@ class RegisterView(APIView):
 
         return Response(response_data)
 
+    STEPS = ('registration', 'paypal-order', 'payment', 'finish')
+
     def post(self, request, event_id=None, format=None):
+        '''
+        The registration flow (SPEC §7, §9.7):
+
+        - `registration`: the form; makes the (started) registration and returns
+          its price and payment options.
+        - `paypal-order`: the PayPal or Card button. Completes the registration,
+          makes or updates its invoice, and creates the PayPal order.
+        - `payment`: pay by check (or complete a $0 registration), or capture an
+          approved PayPal order.
+        - `finish`: finish without paying now, after a PayPal attempt didn't go
+          through.
+        '''
         event = get_object_or_404(models.Event, id=event_id)
         step = request.data.get('step', 'registration')
         if step == 'registration':
             return self.post_registration(request, event)
-        elif step == 'payment':
+        if step == 'paypal-order':
+            return self.post_paypal_order(request, event)
+        if step == 'payment':
             return self.post_payment(request, event)
-        else:
-            raise ValidationError(
-                {'step': 'Invalid value: must be "registration" or "payment"'})
+        if step == 'finish':
+            return self.post_finish(request, event)
+        raise ValidationError(
+            {'step': 'Invalid value: must be one of ' + ', '.join(f'"{s}"' for s in self.STEPS)})
 
     def post_registration(self, request, event):
         form_data = request.data.get('formData')
@@ -1026,8 +1110,18 @@ class RegisterView(APIView):
         return Response({
             'registrationUUID': registration.uuid,
             'serverPricingResults': server_pricing_results,
-            'deposit': registration.event.registration_deposit_schema,
+            **self.payment_options(event, server_pricing_results),
         })
+
+    @staticmethod
+    def payment_options(event, server_pricing_results):
+        '''The payment options, worked out on the server (#675), and the handling percent.'''
+        meta, options = invoices.payment_options(event, server_pricing_results)
+        online = event.paypal_enabled and event.epayment_handling
+        return {
+            'paymentOptions': {**meta, 'options': [option.as_dict() for option in options]},
+            'handlingPercent': float(event.epayment_handling) if online else None,
+        }
 
     def find_promo_code(self, request, event):
         '''The promo code the registrant entered, if any; one they can't use is refused.'''
@@ -1039,101 +1133,173 @@ class RegisterView(APIView):
             raise PromoCodeRejected()
         return promo_code
 
-    def post_payment(self, request, event):
+    @staticmethod
+    def locked_registration(request):
+        '''
+        The registration the request names, locked: a repeated or concurrent POST
+        (a retry, a double click) waits for the first, then sees what it did.
+        '''
         registration_uuid = request.data.get('registrationUUID')
         if registration_uuid is None:
             raise ValidationError({'registrationUUID': 'This field is required.'})
-
-        payment_type = request.data.get('paymentType')
-        if payment_type is None:
-            raise ValidationError({'paymentType': 'This field is required'})
-        if payment_type not in event.valid_payment_types:
-            raise ValidationError({
-                'paymentType': 'Invalid value: must be one of ' +
-                               ', '.join(event.valid_payment_types)
-            })
-
-        # The lock makes a repeated or concurrent POST (a retry, a double click)
-        # wait for the first; it then finds the registration completed and gets
-        # the same result, without a second payment or confirmation email.
-        with transaction.atomic():
-            registration = get_object_or_404(
-                models.Registration.objects.select_for_update(), uuid=registration_uuid)
-            if not registration.completed:
-                self.complete_registration(request, registration, payment_type)
-            return Response(self.payment_result(request, registration))
-
-    def complete_registration(self, request, registration, payment_type):
-        # Do a save here because payment type could affect pricing
-        registration.payment_type = payment_type
-        registration.save()
-        registration.refresh_from_db()
-
-        is_paypal_captured_payment = (
-            payment_type == models.PaymentType.PAYPAL or
-            payment_type == models.PaymentType.CARD
-        )
-        if is_paypal_captured_payment:
-            self.fix_handling_fee(registration)
-
-        registration.initial_payment = request.data.get('paymentData')
-        registration.initial_payment['balance'] = pricing.money_fmt(
-            Decimal(registration.server_pricing_results['total'])
-            - Decimal(registration.initial_payment['total'])
-        )
-
-        if is_paypal_captured_payment:
-            paypal_response = request.data.get('payPalResponse')
-            if paypal_response is None:
-                raise ValidationError({'payPalResponse': 'This field is required.'})
-            registration.paypal_response = paypal_response
-
-        registration.completed = True
-        registration.save()
-
-        if is_paypal_captured_payment:
-            try:
-                self.verify_and_save_paypal_payment(registration)
-            except Exception as e:
-                # fail open
-                traceback.print_exc()
-                message = 'verify_and_save_paypal_payment failed for registration ' \
-                          f'{registration.id}: {e}'
-                logger.error(message)
-
-        email_error = self.queue_confirmation_email(request, registration)
-        if email_error:
-            logger.error(f'confirmation email not queued: {email_error}')
+        return get_object_or_404(
+            models.Registration.objects.select_for_update(), uuid=registration_uuid)
 
     @staticmethod
-    def fix_handling_fee(registration):
+    def payment_type(request, event, online=None):
+        payment_type = request.data.get('paymentType')
+        if payment_type is None and online is False:
+            return models.PaymentType.CHECK  # e.g. completing a $0 registration
+        if payment_type is None:
+            raise ValidationError({'paymentType': 'This field is required'})
+        allowed = event.valid_payment_types
+        if online is not None:
+            allowed = [t for t in allowed if (t in invoices.ONLINE_TYPES) == online]
+        if payment_type not in allowed:
+            raise ValidationError({
+                'paymentType': 'Invalid value: must be one of ' + ', '.join(allowed)
+            })
+        return payment_type
+
+    @staticmethod
+    def chosen_option(request, registration):
         '''
-        Keep the handling fee charged online as it is (SPEC DR-78): an override
-        of it at its amount now, so later changes to the registration (a
-        discount, a camper added) don't change it. A registrar can recalculate,
-        change or remove it.
+        The payment option the registrant chose, by name (the default if none).
+        A browser loaded before options moved to the server sends the old shape:
+        it's asked to reload rather than trusted (its PayPal order, if any, was
+        never captured by the server, so no money moved).
         '''
-        handling = registration.server_pricing_results.get(pricing.HANDLING)
-        if not handling or registration.pricing_overrides.filter(
-                camper=None, var=pricing.HANDLING).exists():
+        if 'paymentData' in request.data or 'payPalResponse' in request.data:
+            raise serializers.Conflict(
+                'This page is out of date. Please reload it and try again.')
+        name = request.data.get('paymentOption')
+        option = invoices.find_option(
+            registration.event, registration.server_pricing_results, name)
+        if option is None:
+            raise ValidationError({'paymentOption': f'There\'s no payment option "{name}".'})
+        return option
+
+    @staticmethod
+    def payable(registration):
+        '''The registration invoice can still change: nothing has been paid on it.'''
+        return not invoices.has_payments(invoices.registration_invoice(registration))
+
+    @staticmethod
+    def complete(registration):
+        '''A payment button was pressed: the registration is completed, unpaid (DR-91).'''
+        if registration.completed:
             return
-        models.PricingOverride.objects.create(
-            registration=registration,
-            var=pricing.HANDLING,
-            amount=pricing.money_fmt(Decimal(repr(handling))),
-            reason=pricing.HANDLING_FIXED_REASON,
-        )
-        registration.refresh_from_db()
+        registration.completed = True
+        registration.completed_at = timezone.now()
+        registration.save()
+
+    def problem_response(self, request, registration, problem):
+        return Response({
+            'detail': problem.message,
+            'code': problem.code,
+            'invoice': self.invoice_data(invoices.registration_invoice(registration)),
+        }, status=problem.http_status)
+
+    @staticmethod
+    def invoice_data(invoice):
+        return serializers.InvoiceSerializer(invoice).data if invoice is not None else None
+
+    def post_paypal_order(self, request, event):
+        '''
+        The PayPal or Card button: complete the registration, make or rewrite its
+        invoice for the chosen option, and create the PayPal order for it, with
+        the handling fee (DR-90, DR-91). Returns `{orderID, total, handling}`.
+        '''
+        payment_type = self.payment_type(request, event, online=True)
+        if not event.paypal_client_id:
+            raise serializers.Conflict('This event doesn\'t take payments online.')
+        with transaction.atomic():
+            registration = self.locked_registration(request)
+            option = self.chosen_option(request, registration)
+            if not self.payable(registration):
+                raise serializers.Conflict('This registration has already been paid.')
+            if option.amount <= 0:
+                raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
+            self.complete(registration)
+            invoice = invoices.prepare_registration_invoice(registration, option, payment_type)
+            try:
+                order_id = invoices.create_paypal_order(invoice, payment_type)
+            except invoices.PaymentProblem as problem:
+                return self.problem_response(request, registration, problem)
+            return Response({
+                'orderID': order_id,
+                'total': float(option.amount + option.handling),
+                'handling': float(option.handling),
+                'invoice': self.invoice_data(invoice),
+            })
+
+    def post_payment(self, request, event):
+        '''
+        Pay by check (the chosen option; nothing to choose for a $0 registration),
+        or capture the PayPal order the registrant approved. Either way the
+        registration is completed and its confirmation sent; a PayPal payment
+        that doesn't go through leaves it completed and unpaid, and says why.
+        '''
+        payment_type = request.data.get('paymentType') or models.PaymentType.CHECK
+        with transaction.atomic():
+            registration = self.locked_registration(request)
+            if payment_type in invoices.ONLINE_TYPES:
+                self.payment_type(request, event, online=True)
+                return self.capture(request, registration, payment_type)
+            self.payment_type(request, event, online=False)
+            if registration.completed and not self.payable(registration):
+                # Already paid: the same result again, without a second email.
+                return Response(self.payment_result(request, registration))
+            total = invoices.money((registration.server_pricing_results or {}).get('total'))
+            if total > 0 or 'paymentOption' in request.data:
+                option = self.chosen_option(request, registration)
+                invoices.prepare_registration_invoice(registration, option, payment_type)
+            self.complete(registration)
+            confirmations.send_confirmation(registration, request)
+            return Response(self.payment_result(request, registration))
+
+    def capture(self, request, registration, payment_type):
+        order_id = request.data.get('paypalOrderId')
+        if not order_id:
+            if 'payPalResponse' in request.data:
+                raise serializers.Conflict(
+                    'This page is out of date. Please reload it and try again.')
+            raise ValidationError({'paypalOrderId': 'This field is required.'})
+        invoice = invoices.registration_invoice(registration)
+        if invoice is None or not registration.completed:
+            raise serializers.Conflict('There\'s no PayPal payment waiting for this registration.')
+        try:
+            invoices.capture_paypal_order(
+                invoice, order_id, payment_type, notes='Initial payment', request=request)
+        except invoices.PaymentProblem as problem:
+            if problem.code == 'unknown':
+                # Money may have moved: the registrant is told not to pay again,
+                # and gets their confirmation now.
+                confirmations.send_confirmation(registration, request)
+            return self.problem_response(request, registration, problem)
+        confirmations.send_confirmation(registration, request)
+        return Response(self.payment_result(request, registration))
+
+    def post_finish(self, request, event):
+        '''Finish without paying now: the confirmation says what's still due.'''
+        with transaction.atomic():
+            registration = self.locked_registration(request)
+            if not registration.completed:
+                raise serializers.Conflict('Choose how to pay first.')
+            confirmations.send_confirmation(registration, request)
+            return Response(self.payment_result(request, registration))
 
     def payment_result(self, request, registration):
+        registration.refresh_from_db()
         return {
             # Rendered on the server (markdown); the client only displays it (SPEC §7.3).
             'confirmationPage': self.confirmation_page(request, registration),
             'serverPricingResults': registration.server_pricing_results,
             # The confirmation couldn't be queued. Delivery happens later, so a
             # delivery failure shows in the email history, not here.
-            'emailError': self.confirmation_email_problem(registration),
-            'initialPayment': registration.initial_payment,
+            'emailError': confirmations.confirmation_email_problem(registration),
+            'invoice': self.invoice_data(invoices.registration_invoice(registration)),
+            'ledger': invoices.ledger(registration).as_dict(),
         }
 
     @staticmethod
@@ -1150,45 +1316,6 @@ class RegisterView(APIView):
         logger.error(f'{subject}\n{body}')
         queue_report(registration, models.EmailMessageKind.PAGE_REPORT, subject, body)
         return FALLBACK_PAGE
-
-    @staticmethod
-    def queue_confirmation_email(request, registration):
-        '''
-        Queue the registrant's confirmation; returns why it couldn't be, or None.
-        If a Jinja template can't be rendered, the registrant is sent nothing and
-        a report goes to the event's "from" address instead (SPEC §8.3, DR-38).
-        '''
-        event = registration.event
-        rendered = render_confirmation_email(registration, request=request)
-        if not rendered.ok:
-            subject, body = confirmation_failure_report(registration, rendered, request=request)
-            logger.error(f'{subject}\n{body}')
-            queue_report(registration, models.EmailMessageKind.CONFIRMATION_REPORT, subject, body)
-            return 'the confirmation email template could not be rendered'
-
-        message = outbox.enqueue(
-            event=event,
-            kind=models.EmailMessageKind.CONFIRMATION,
-            registration=registration,
-            **template_sender(event.confirmation_template, event),
-            to=registration.registrant_email,
-            subject=rendered.subject,
-            text=rendered.text,
-            html=rendered.html,
-            dedupe_key=f'confirmation:{registration.id}',
-        )
-        if message.status in (models.EmailMessageStatus.FAILED,
-                              models.EmailMessageStatus.CANCELLED):
-            return message.last_error
-        return None
-
-    @staticmethod
-    def confirmation_email_problem(registration):
-        '''Whether the registration's confirmation email couldn't be queued.'''
-        message = models.EmailMessage.objects.filter(
-            dedupe_key=f'confirmation:{registration.id}').first()
-        return message is None or message.status in (
-            models.EmailMessageStatus.FAILED, models.EmailMessageStatus.CANCELLED)
 
     @classmethod
     def get_form_schema(cls, event):
@@ -1371,51 +1498,6 @@ class RegisterView(APIView):
             raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
-
-    @classmethod
-    def verify_and_save_paypal_payment(cls, registration):
-        order_details_from_client = registration.paypal_response
-        order_id = order_details_from_client['id']
-        paypal_client = PayPalClient(
-            settings.PAYPAL_BASE_URL,
-            registration.event.paypal_client_id,
-            # TODO: need to move this to DB so that events can have different
-            # PayPal accounts on the same server
-            settings.PAYPAL_SECRET,
-        )
-
-        notes = "Initial payment"
-        order_details = paypal_client.fetch_order_details(order_id)
-
-        if order_details['status'] != 'COMPLETED':
-            raise PaymentError('order incomplete')
-        registration_uuid_found = False
-        total = 0
-        for unit in order_details['purchase_units']:
-            if unit['reference_id'] == str(registration.uuid):
-                registration_uuid_found = True
-            amount = unit['amount']
-            if amount['currency_code'] != 'USD':
-                raise PaymentError(f'unexpected currency code {amount["currency_code"]}')
-            total += pricing.money_fmt(float(amount['value']))
-            if 'custom_id' in unit and unit['custom_id'] != '':
-                notes = notes+": "+unit['custom_id']
-
-        if not registration_uuid_found:
-            raise PaymentError('registration.uuid not found in order')
-        # This is commented out for now until we refactor the deposit code
-        # total_due = registration.server_pricing_results['total']
-        # if total != total_due:
-        #     raise PaymentError(f'incorrect payment total {total} (amount due: {total_due})')
-
-        # everything looks good
-        registration.payment_set.create(
-            payment_type=registration.payment_type,
-            paid_on=timezone.now(),
-            amount=pricing.money_fmt(total),
-            paypal_order_details=order_details,
-            notes=notes
-        )
 
 
 class CheckPromoCodeView(APIView):

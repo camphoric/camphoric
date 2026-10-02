@@ -363,29 +363,16 @@ export default class CamphoricEventCreator extends Fetcher {
     };
 
     const postPayment = async (testData) => {
-      const paymentType =
-        lodash.get(testData, 'paymentData.paymentType') ||
-        lodash.get(testData, 'formData.payment_type');
-
-      const total =
-        lodash.get(testData, 'paymentData.total') ||
-        lodash.get(testData, 'response.serverPricingResults.total');
-
-      const payPalResponse =
-        lodash.get(testData, 'paymentData.payPalResponse') || undefined;
-
-      const otherPaymentData = 
-        lodash.get(testData, 'paymentData.otherPaymentData') || {};
+      // Test registrations pay by check: a PayPal payment needs a payer to
+      // approve it in PayPal's window (SPEC §7.2). The server works out the
+      // amount from the payment option (the event's default when none is given).
+      const paymentOption = lodash.get(testData, 'paymentData.paymentOption');
 
       const body = {
         step: 'payment',
         registrationUUID: testData.response.registrationUUID,
-        paymentType,
-        payPalResponse,
-        paymentData: {
-          total,
-          ...otherPaymentData,
-        },
+        paymentType: 'Check',
+        ...(paymentOption ? { paymentOption } : {}),
       };
 
       const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {

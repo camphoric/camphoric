@@ -1,7 +1,8 @@
 '''
 A registrar's amount for one price line (models.PricingOverride, SPEC DR-56):
-applied right after that line, so the totals follow; never the total; the
-handling fee too; hidden from registrants' templates.
+applied right after that line, so the totals follow; never the total; hidden
+from registrants' templates. The handling fee isn't a price line any more: it's
+on invoices (SPEC DR-88).
 '''
 
 from decimal import Decimal
@@ -82,27 +83,13 @@ class RegistrationLineTests(OverrideTestCase):
         self.assertEqual((results['donation'], results['total']), (0, 800))
         self.assertEqual(results['overridden'], {'donation': 50})
 
-    def test_the_handling_fee_is_a_line_too(self):
+    def test_the_handling_fee_is_not_a_line(self):
         made = self.made
         made.event.epayment_handling = Decimal('10')
         made.event.save()
-        made.r1.payment_type = 'PayPal'
-        made.r1.save()
-        self.assertEqual(self.prices(made.r1)['handling'], 82.5)
-
-        data = self.override(registration=made.r1.id, var='handling', amount='0')
-        results = self.prices(made.r1)
-        self.assertEqual((results['handling'], results['total']), (0, 825))
-        self.assertEqual(results['overridden'], {'handling': 82.5})
-
-        # Paying by check has no handling fee to replace.
-        made.r1.payment_type = 'Check'
         made.r1.save()
         self.assertNotIn('handling', self.prices(made.r1))
-        self.assertFalse(self.client.get(f'/api/pricingoverrides/{data["id"]}/').data['applied'])
-
-    def test_no_handling_fee_no_handling_override(self):
-        self.override(status=400, registration=self.made.r1.id, var='handling', amount='0')
+        self.override(status=400, registration=made.r1.id, var='handling', amount='0')
 
 
 class RulesTests(OverrideTestCase):
