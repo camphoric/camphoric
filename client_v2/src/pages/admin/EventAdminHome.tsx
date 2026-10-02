@@ -4,7 +4,7 @@
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
  * The confirmation email is the event's email template (§15 DR-45), edited in
  * Jinja with a preview for any completed registration, and saved with the rest.
- * Leaving with either template changed and unsaved asks first.
+ * Leaving with anything changed and unsaved asks first.
  */
 
 import {
@@ -36,6 +36,25 @@ import { useTemplateDraft } from 'store/emailTemplates';
 import { eventHooks, registrationHooks } from 'store/entities';
 import { apiErrorMessage } from 'utils/fetch';
 
+/** What Home edits and saves; leaving with any of them changed asks first. */
+const EDITABLE = [
+  'name',
+  'start',
+  'end',
+  'registration_start',
+  'registration_end',
+  'default_stay_length',
+  'confirmation_page_template',
+  'confirmation_email_from',
+  'paypal_enabled',
+  'paypal_client_id',
+  'epayment_handling',
+  'pricing',
+  'registration_template_vars',
+] as const satisfies readonly (keyof ApiEvent)[];
+
+const editable = (event: ApiEvent) => JSON.stringify(EDITABLE.map((field) => event[field]));
+
 export function EventAdminHome() {
   const { organizationId, eventId } = useParams({
     from: '/admin/organization/$organizationId/event/$eventId',
@@ -54,15 +73,19 @@ export function EventAdminHome() {
   const update = eventHooks.useUpdate();
   const confirmation = useTemplateDraft(event?.confirmation_template);
   const [form, setForm] = useState<ApiEvent | null>(null);
+  // The event as last loaded or saved, to tell what's changed since.
+  const [saved, setSaved] = useState<ApiEvent | null>(null);
   const [showRaw, { toggle: toggleRaw }] = useDisclosure(false);
 
   useEffect(() => {
-    if (event && !form) setForm(event);
+    if (event && !form) {
+      setForm(event);
+      setSaved(event);
+    }
   }, [event, form]);
 
   useUnsavedChanges(
-    confirmation.changed ||
-      (!!event && !!form && form.confirmation_page_template !== event.confirmation_page_template),
+    confirmation.changed || (!!form && !!saved && editable(form) !== editable(saved)),
   );
 
   if (!event || !form || !confirmation.loaded) return <FullScreenLoading />;
@@ -72,22 +95,14 @@ export function EventAdminHome() {
 
   const save = async () => {
     try {
-      await update.mutateAsync({
+      const updated = await update.mutateAsync({
         id: event.id,
-        name: form.name,
-        start: form.start,
-        end: form.end,
-        registration_start: form.registration_start,
-        registration_end: form.registration_end,
-        default_stay_length: form.default_stay_length,
-        confirmation_page_template: form.confirmation_page_template,
-        confirmation_email_from: form.confirmation_email_from,
-        paypal_enabled: form.paypal_enabled,
-        paypal_client_id: form.paypal_client_id,
-        epayment_handling: form.epayment_handling,
-        pricing: form.pricing,
-        registration_template_vars: form.registration_template_vars,
+        ...Object.fromEntries(EDITABLE.map((field) => [field, form[field]])),
       });
+      // Follow what the server kept (it may write a date differently), so
+      // the page reads as saved.
+      setForm(updated);
+      setSaved(updated);
       await confirmation.save();
       notifications.show({ color: 'green', message: 'Event saved' });
     } catch (error) {

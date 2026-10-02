@@ -1,10 +1,11 @@
 /**
- * Ask before unsaved template edits are lost (SPEC §9.6). While `dirty`,
- * leaving the page — a link, back/forward, any URL change, reloading or closing
- * the tab — first asks whether to discard the changes; `confirmDiscard` asks the
- * same before the page's own ways of dropping them (Cancel, closing a dialog,
- * choosing something else). Call `release` once the edits are saved, so the
- * navigation that follows a save isn't questioned.
+ * Ask before unsaved edits are lost (SPEC §9.6): templates, and Home's
+ * settings. While `dirty`, leaving the page — a link, back/forward, any URL
+ * change, reloading or closing the tab — first asks whether to discard the
+ * changes; `confirmDiscard` asks the same before the page's own ways of
+ * dropping them (Cancel, closing a dialog, choosing something else). Call
+ * `release` once the edits are saved, so the navigation that follows a save
+ * isn't questioned.
  *
  * Opening or closing an overlay (Users) isn't leaving: the page stays as it
  * is underneath. Works through the router's history, so outside a router (unit
@@ -24,7 +25,7 @@ export function confirmDiscardChanges(): Promise<boolean> {
       title: 'Discard unsaved changes?',
       children: (
         <Text size="sm">
-          You’ve changed this template without saving it. If you go on, your changes will be lost.
+          You’ve made changes here without saving them. If you go on, your changes will be lost.
         </Text>
       ),
       labels: { confirm: 'Discard changes', cancel: 'Keep editing' },
