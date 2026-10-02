@@ -148,6 +148,10 @@ test.describe('Template help', () => {
     await page.getByRole('button', { name: 'Insert nights' }).click();
     await expect(page.getByText('Inserted:')).toContainText('.nights');
 
+    await page.getByRole('tab', { name: 'Markdown' }).click();
+    await page.getByLabel('Search help').fill('table');
+    await expect(page.getByRole('table')).toBeVisible();
+
     await page.getByRole('tab', { name: 'Guides' }).click();
     await expect(page.getByRole('heading', { name: 'Jinja basics' })).toBeVisible();
   });

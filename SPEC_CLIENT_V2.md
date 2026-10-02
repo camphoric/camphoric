@@ -228,8 +228,8 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
   `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
-  default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags) or
-  `guide`; `?topic` — the guide topic id; `?q` — the search text. Defaults are left out of the
+  default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags),
+  `markdown` or `guide`; `?topic` — the guide topic id; `?q` — the search text. Defaults are left out of the
   URL.
 
 All admin routes are wrapped by a guard that fetches the current user and renders a login
@@ -1589,16 +1589,24 @@ and linked from the editor's help. Both offer, for one kind of template:
   marked as such. Generated entirely from the variable spec (§5; §15, DR-36).
 - **Filters, tests and tags** — each with its signature, description and example; Camphoric's
   own filters are listed first.
-- **Search** across both, by name, title, type or description; a type whose name matches is
-  shown whole.
+- **Markdown** — the GitHub-flavored Markdown that emails, the confirmation page and Markdown
+  reports are written in: paragraphs and line breaks (a single line break is joined unless the
+  line ends with `\` or two spaces), headings, emphasis, lists, links, images, tables (with
+  `md_cell` for values in cells), dividing lines, quotes, code, escaping, and HTML (allowed in
+  sanitized form on pages, dropped from emails). Each construct has an example and, except
+  images, its rendered result; an opening line says how the chosen kind of template's output is
+  used (an email's body becomes its HTML and is sent as is as its plain text).
+- **Search** across the variables, the filters, tests and tags, and the Markdown reference, by
+  name, title, type, description or example; a type whose name matches is shown whole.
 - **Guides** — short topics: Jinja basics; loops, sorting and grouping; computed values (own
   lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; common errors;
   moving from legacy reports (a mapping from the bundle's lookups to the linked variables);
   moving emails from Mustache (a mapping of each email's variables); and the Handlebars helpers
   (from the helpers' own help text).
 
-Beside the editor, choosing a variable, field, filter, test or tag inserts it at the cursor
-(`name`, `.field` or `['key']`, `| filter`, `is test`, or a tag snippet). The standalone page
+Beside the editor, choosing a variable, field, filter, test, tag or Markdown example inserts it
+at the cursor (`name`, `.field` or `['key']`, `| filter`, `is test`, a tag snippet, or the
+example). The standalone page
 lets the admin choose the kind of template, keeps its state in the URL (§4), and offers
 **Download sample variables**: the chosen context's variables rendered as JSON from the event's
 real data through the preview endpoint (§5), using the template

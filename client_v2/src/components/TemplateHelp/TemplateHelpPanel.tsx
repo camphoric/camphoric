@@ -1,6 +1,7 @@
 /**
  * Template Help (SPEC §9.3): the variables a kind of template receives, the
- * filters/tests/tags, and the guides, with a search over the first two. Used
+ * filters/tests/tags, Markdown, and the guides, with a search over the first
+ * three. Used
  * beside the template editor (where entries can be inserted) and on the
  * standalone help page (which keeps the tab, topic and search in the URL).
  * Each piece of state is controlled when its props are given.
@@ -13,13 +14,14 @@ import { InlineLoading } from 'components/Loading';
 import { useState } from 'react';
 
 import { DEFAULT_TOPIC } from './guides';
+import { MarkdownReference } from './MarkdownReference';
 import { TemplateGuide } from './TemplateGuide';
 import { type InsertHandler, TemplateReference } from './TemplateReference';
 import { TemplateSyntaxReference } from './TemplateSyntaxReference';
 
-export type HelpTab = 'variables' | 'syntax' | 'guide';
+export type HelpTab = 'variables' | 'syntax' | 'markdown' | 'guide';
 
-export const HELP_TABS: HelpTab[] = ['variables', 'syntax', 'guide'];
+export const HELP_TABS: HelpTab[] = ['variables', 'syntax', 'markdown', 'guide'];
 
 interface TemplateHelpPanelProps {
   description?: TemplateDescription;
@@ -72,6 +74,7 @@ export function TemplateHelpPanel({
       <Tabs.List>
         <Tabs.Tab value="variables">Variables</Tabs.Tab>
         <Tabs.Tab value="syntax">Filters, tests and tags</Tabs.Tab>
+        <Tabs.Tab value="markdown">Markdown</Tabs.Tab>
         <Tabs.Tab value="guide">Guides</Tabs.Tab>
       </Tabs.List>
 
@@ -98,6 +101,12 @@ export function TemplateHelpPanel({
           ) : (
             <InlineLoading message="Loading…" />
           )}
+        </Stack>
+      </Tabs.Panel>
+      <Tabs.Panel value="markdown" pt="md">
+        <Stack>
+          {search}
+          <MarkdownReference context={context} query={query} onInsert={onInsert} />
         </Stack>
       </Tabs.Panel>
       <Tabs.Panel value="guide" pt="md">
