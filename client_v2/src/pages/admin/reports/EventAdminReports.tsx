@@ -2,7 +2,9 @@
  * Reports (SPEC §8.7). Browse the event's reports (selection is URL-addressable
  * via `?reportId`), view a report's rendered output, and create / edit / delete
  * report definitions. Legacy reports assemble the browser's variable bundle when
- * one is shown; reports with Camphoric variables don't need it.
+ * one is shown; reports with Camphoric variables don't need it. Leaving a
+ * report form with unsaved changes — choosing another report, starting a new
+ * one, Cancel, or leaving the page — asks first.
  */
 
 import { Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
@@ -11,6 +13,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit } from 'hooks/permissions';
+import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useState } from 'react';
 import { reportHooks } from 'store/entities';
 
@@ -28,6 +31,8 @@ export function EventAdminReports() {
   const { data: reports } = reportHooks.useList({ event: eventId });
   const del = reportHooks.useDelete();
   const [mode, setMode] = useState<Mode>('view');
+  const [formDirty, setFormDirty] = useState(false);
+  const { confirmDiscard, release } = useUnsavedChanges(mode !== 'view' && formDirty);
 
   const selected = reports?.find((r) => String(r.id) === reportId);
   const helpHref = `/admin/organization/${organizationId}/event/${eventId}/template-help?context=report`;
@@ -60,10 +65,12 @@ export function EventAdminReports() {
         <CanEdit>
           <Button
             leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              select(undefined);
-              setMode('create');
-            }}
+            onClick={() =>
+              confirmDiscard(() => {
+                select(undefined);
+                setMode('create');
+              })
+            }
           >
             New report
           </Button>
@@ -79,7 +86,7 @@ export function EventAdminReports() {
                   key={report.id}
                   variant={selected?.id === report.id && mode !== 'create' ? 'light' : 'subtle'}
                   justify="flex-start"
-                  onClick={() => select(report.id)}
+                  onClick={() => confirmDiscard(() => select(report.id))}
                 >
                   {report.title}
                 </Button>
@@ -95,7 +102,16 @@ export function EventAdminReports() {
         <Grid.Col span={{ base: 12, sm: 8, md: 9 }}>
           {mode === 'create' && (
             <Card withBorder>
-              <ReportEditForm eventId={eventId} helpHref={helpHref} onDone={(id) => select(id)} />
+              <ReportEditForm
+                eventId={eventId}
+                helpHref={helpHref}
+                onDirtyChange={setFormDirty}
+                onSaved={(id) => {
+                  release();
+                  select(id);
+                }}
+                onCancel={() => confirmDiscard(() => select(undefined))}
+              />
             </Card>
           )}
 
@@ -105,7 +121,9 @@ export function EventAdminReports() {
                 eventId={eventId}
                 report={selected}
                 helpHref={helpHref}
-                onDone={() => setMode('view')}
+                onDirtyChange={setFormDirty}
+                onSaved={() => setMode('view')}
+                onCancel={() => confirmDiscard(() => setMode('view'))}
               />
             </Card>
           )}

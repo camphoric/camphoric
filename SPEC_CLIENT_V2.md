@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-78)
+- §15 — Decision Records (DR-1…DR-79)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1675,6 +1675,16 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
     (dismissing suggestions), not to closing it (§15, DR-73).
 
   Several template editors can be open at once, each with its own context.
+- **Unsaved template changes** — where a template is edited (Home's confirmation page and
+  email, §8.3; a registration type's invitation email, §8.4; a report, §8.7; a group email,
+  §8.9), leaving with changes not yet saved asks first, warning that the changes will be lost,
+  and offers to keep editing or discard them. Leaving is any navigation — a link, back or
+  forward, a change of the URL-addressable state that closes the editor (choosing another
+  report, closing a group email's editor) — as well as reloading or closing the tab (the
+  browser's own prompt), and the page's own ways of dropping the edits: Cancel, closing the
+  dialog, starting a new report. Saving, and leaving an editor whose text is unchanged, don't
+  ask. For a report or group email, any field of the form counts as a change; on Home, only the
+  two templates do (§15, DR-79).
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation
   context, report rendering); shows detail in dev, fails quietly in prod. (This one *is*
   architectural, not just visual.)
@@ -3415,6 +3425,23 @@ already possible, and what Lark found confusing. Charging the fee on each electr
 rather than on the total — closer to what PayPal charges, and it would cover a second payment
 or switching from check (#623), but it reworks payments, balances and reports. Pricing only on
 the server (#675) would remove the second rounding, but is a larger change.
+
+### DR-79 — Ask before leaving unsaved template changes, through the router's history
+
+**Decision:** A page editing a template registers a blocker with the router's history while its
+edits are unsaved, so every navigation — links, back/forward, search-param changes, and
+`beforeunload` — waits on a confirm dialog; the same dialog guards the page's own Cancel and
+close actions. A blocker is released once its edits are saved, so the navigation that follows
+a save isn't questioned. Where the editor unmounts on a page's own selection (Reports), the
+page owns the guard and the form reports whether it has changed.
+**Context:** Template text is long and was lost silently by clicking another report, closing a
+dialog, or following the sidebar. The router's `useBlocker` needs a router in context, which
+the components' unit tests and stories don't have; registering with `history.block` directly
+does the same, and is skipped outside a router.
+**Alternatives:** TanStack's `useBlocker` (needs a router in every test and story). A
+`beforeunload` handler alone (misses in-app navigation, which is most of it). Autosaving drafts
+(a larger change, and a saved template takes effect at once). Guarding every admin form, not
+just templates — left for when it's asked for.
 
 ---
 

@@ -15,6 +15,7 @@ const { create, update, draft } = vi.hoisted(() => ({
     setSubject: vi.fn(),
     setBody: vi.fn(),
     changed: false,
+    discard: vi.fn(),
     save: vi.fn(),
     saving: false,
   },
@@ -93,5 +94,24 @@ describe('RegistrationTypeForm', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(update).toHaveBeenCalledWith({ id: 3, name: 'staff', label: 'Staff' });
     expect(draft.save).toHaveBeenCalled();
+  });
+
+  it('asks before closing with the invitation email changed, then discards it', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    draft.changed = true;
+    renderWithProviders(
+      <RegistrationTypeForm eventId="4" regType={REG_TYPE} opened onClose={onClose} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Keep editing' }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard changes' }));
+    expect(draft.discard).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+    draft.changed = false;
   });
 });

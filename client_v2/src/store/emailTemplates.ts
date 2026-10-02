@@ -28,6 +28,8 @@ export function useTemplateDraft(templateId: number | null | undefined) {
     setSubject: (value: string) => setDraft({ subject: value, body }),
     setBody: (value: string) => setDraft({ subject, body: value }),
     changed: draft !== null,
+    /** Drop the edits: follow the saved text again. */
+    discard: () => setDraft(null),
     /** Save the edits (if any) to the template, then follow the saved text again. */
     save: async (id: number | null | undefined = templateId) => {
       if (!draft || !id) return;

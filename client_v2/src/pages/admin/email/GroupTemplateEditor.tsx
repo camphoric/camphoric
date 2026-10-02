@@ -4,6 +4,7 @@
  * account, from and reply-to; blank uses the event's), and its subject and
  * body in Jinja, previewed for the recipients the audience reaches. The
  * server checks the Jinja, the expressions and the conditions when it's saved.
+ * Closing it with unsaved changes asks first.
  */
 
 import { Alert, Button, Group, Select, Stack, Text, TextInput, Title } from '@mantine/core';
@@ -12,6 +13,7 @@ import type { ApiEmailTemplate, EmailAudience } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { completeFilter, unfinishedRules } from 'components/RecipientFilterBuilder';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
 import { emailAccountHooks, emailTemplateHooks } from 'store/entities';
 import { useAudience, useRecipientFields } from 'store/groupEmail';
@@ -70,6 +72,10 @@ export function GroupTemplateEditor({
   const [subject, setSubject] = useState(template?.subject ?? '');
   const [body, setBody] = useState(template?.body ?? '');
 
+  const edits = JSON.stringify({ name, audience, account, fromEmail, replyTo, subject, body });
+  const [initialEdits] = useState(edits);
+  const { confirmDiscard, release } = useUnsavedChanges(edits !== initialEdits);
+
   const source = audience.recipient_source;
   const { data: fields } = useRecipientFields(eventId, source);
   // Count with the finished conditions only, so a half-built one doesn't blank the count.
@@ -122,6 +128,7 @@ export function GroupTemplateEditor({
     };
     const onSuccess = (saved: ApiEmailTemplate) => {
       notifications.show({ color: 'green', message: 'Template saved' });
+      release();
       onDone(saved);
     };
     if (template) update.mutate({ id: template.id, ...fields }, { onSuccess });
@@ -229,7 +236,7 @@ export function GroupTemplateEditor({
             Save
           </Button>
         </CanEdit>
-        <Button variant="default" onClick={() => onDone()}>
+        <Button variant="default" onClick={() => confirmDiscard(() => onDone())}>
           {canEdit ? 'Cancel' : 'Close'}
         </Button>
       </Group>
