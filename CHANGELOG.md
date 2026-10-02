@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/camphoric/camphoric/compare/v0.10.0...v0.10.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **harmony:** show the camper fees total in confirmation email ([e9a5950](https://github.com/camphoric/camphoric/commit/e9a59507d386defd67972fe695a5d1cf680f4253))
+
 ## [0.10.0](https://github.com/camphoric/camphoric/compare/v0.9.0...v0.10.0) (2026-10-02)
 
 
