@@ -1,4 +1,5 @@
 from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 import numbers
 import math
 from datetime import datetime, date, time
@@ -7,15 +8,42 @@ from json_logic import jsonLogic
 from camphoric import models
 
 
+CENT = Decimal('0.01')
+
+
 def money_fmt(amt):
+    '''
+    An amount rounded to the cent, a half cent up (away from zero), going by
+    the amount as written: 2.675 is 2.68, though the float stored for it is
+    just under (SPEC §9.2). Not a number: left as it is.
+    '''
+    if isinstance(amt, float):
+        if not math.isfinite(amt):
+            return amt
+        return float(Decimal(repr(amt)).quantize(CENT, ROUND_HALF_UP))
+    if isinstance(amt, Decimal):
+        return amt.quantize(CENT, ROUND_HALF_UP) if amt.is_finite() else amt
     if isinstance(amt, numbers.Number):
         return round(amt, 2)
     return amt
 
 
+def handling_fee(total, percent):
+    '''
+    The e-payment handling fee: `percent` of `total`, to the cent, a half cent
+    up (SPEC §9.2). It's worked out in cents (total × percent), where a fee of
+    exactly half a cent (2.5% of an odd number of dollars) is exact, so this
+    and `handlingFee` in client_v2/src/pricing/calculatePrice.ts round alike.
+    '''
+    cents = Decimal(repr(float(total) * float(percent))).quantize(Decimal(1), ROUND_HALF_UP)
+    return float(cents / 100)
+
+
 # The e-payment handling fee's line, worked out after everything else.
 HANDLING = 'handling'
 HANDLING_LABEL = 'Electronic payment handling'
+# The reason on the override that keeps the fee charged online as it was (SPEC DR-78).
+HANDLING_FIXED_REASON = 'Kept at the amount when paid online'
 
 # A promo code's discount line, worked out after every other line but handling
 # (SPEC DR-67), labelled with the code's own label.
@@ -272,10 +300,10 @@ def calculate_price(registration, campers):
         _apply_promo(registration.promo_code, data, results, camper_contexts)
 
     if event.epayment_handling and registration.payment_type != 'Check':
-        handling = money_fmt(results['total'] * (float(event.epayment_handling) / 100))
+        handling = handling_fee(results['total'], event.epayment_handling)
         handling = _override(overrides, None, HANDLING, handling, overridden)
         results[HANDLING] = handling
-        results['total'] = results['total'] + handling
+        results['total'] = money_fmt(results['total'] + handling)
 
     if overridden:
         results['overridden'] = overridden

@@ -7,11 +7,13 @@
  * With a registrar's overrides (SPEC §15, DR-56), an overridden line shows what
  * the pricing worked out, the reason and who set it. Lines in `overridable` get
  * Override / Change / Remove actions when the callbacks are given (leave them
- * out for someone who can't change pricing). An override that isn't in effect
- * (its line is gone, or there's no handling fee) is listed after the lines.
+ * out for someone who can't change pricing). An overridden line in
+ * `recalculable` whose pricing now works out differently also gets Recalculate,
+ * to set the override to that amount (§15, DR-78). An override that isn't in
+ * effect (its line is gone, or there's no handling fee) is listed after the lines.
  */
 
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
 import type { ApiPricingOverride, JsonLogicPricing, PricingResults } from 'api-types';
 import { formatMoney } from 'utils/money';
 
@@ -53,6 +55,9 @@ interface FeeBreakdownProps {
   overridable?: string[];
   onOverride?: (line: FeeLine) => void;
   onRemoveOverride?: (override: ApiPricingOverride) => void;
+  /** Overridden lines that can be set to what the pricing works out now. */
+  recalculable?: string[];
+  onRecalculate?: (line: FeeLine) => void;
 }
 
 export function FeeBreakdown({
@@ -63,6 +68,8 @@ export function FeeBreakdown({
   overridable = [],
   onOverride,
   onRemoveOverride,
+  recalculable = [],
+  onRecalculate,
 }: FeeBreakdownProps) {
   const lines: FeeLine[] = Object.entries(results)
     .filter(([key, value]) => key !== 'total' && key !== 'campers' && typeof value === 'number')
@@ -110,7 +117,18 @@ export function FeeBreakdown({
               </Text>
             </Group>
           </Group>
-          {line.override && <OverrideNote override={line.override} computed={line.computed} />}
+          {line.override && (
+            <OverrideNote
+              override={line.override}
+              computed={line.computed}
+              onRecalculate={
+                onRecalculate && recalculable.includes(line.key) && line.computed !== line.value
+                  ? () => onRecalculate(line)
+                  : undefined
+              }
+              label={line.label}
+            />
+          )}
         </div>
       ))}
       {notApplied.map((override) => (
@@ -136,11 +154,36 @@ export function FeeBreakdown({
   );
 }
 
-function OverrideNote({ override, computed }: { override: ApiPricingOverride; computed: number }) {
+function OverrideNote({
+  override,
+  computed,
+  label,
+  onRecalculate,
+}: {
+  override: ApiPricingOverride;
+  computed: number;
+  label: string;
+  /** Sets the override to what the pricing works out now. */
+  onRecalculate?: () => void;
+}) {
   return (
     <Text size="xs" c="dimmed">
       Overridden (the pricing works out {formatMoney(computed)}): {override.reason}
       {override.created_by_name ? ` — ${override.created_by_name}` : ''}
+      {onRecalculate && (
+        <>
+          {' '}
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            aria-label={`Recalculate ${label}`}
+            onClick={onRecalculate}
+          >
+            Recalculate
+          </Anchor>
+        </>
+      )}
     </Text>
   );
 }

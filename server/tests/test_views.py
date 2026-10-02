@@ -1,5 +1,6 @@
 import copy
 import datetime
+from decimal import Decimal
 import json
 import os.path
 
@@ -10,7 +11,7 @@ import jsonschema  # Using Draft-7
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
 
-from camphoric import models, serializers
+from camphoric import models, pricing, serializers
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests.factories import set_email
@@ -1377,7 +1378,7 @@ class PriceAutoUpdateTests(APITestCase):
         self.client.login(username='tom', password='password')
         create_standard_test_event(self, 'Test Registration Org', 'Test Registration Event')
 
-    def createRegistration(self, invitation=None):
+    def createRegistration(self, invitation=None, payment_type='PayPal'):
         invitation_info = {}
 
         if invitation:
@@ -1415,14 +1416,15 @@ class PriceAutoUpdateTests(APITestCase):
         paypal_order_details['purchase_units'][0]['reference_id'] = str(registration.uuid)
         paypal_order_details['purchase_units'][0]['amount']['value'] = '300.00'
         paypal_order_details['status'] = 'COMPLETED'
-        self.paypal_server.add_mock_response(200, {}, paypal_order_details)
+        if payment_type == 'PayPal':
+            self.paypal_server.add_mock_response(200, {}, paypal_order_details)
 
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
                 'registrationUUID': registration.uuid,
                 'step': 'payment',
-                'paymentType': 'PayPal',
+                'paymentType': payment_type,
                 'paymentData': {
                     'type': 'Full',
                     'total': 300,
@@ -1431,6 +1433,7 @@ class PriceAutoUpdateTests(APITestCase):
             },
             format='json'
         )
+        self.registration.refresh_from_db()
         self.campers = models.Camper.objects.all() \
             .filter(registration=self.registration.id)
 
@@ -1511,6 +1514,38 @@ class PriceAutoUpdateTests(APITestCase):
             200,
             'pricing after should be ok',
         )
+
+    def make_cool(self):
+        for camper in self.campers:
+            response = self.client.patch(
+                f'/api/campers/{camper.id}/', {'attributes': {'is_really_cool': True}},
+                format='json')
+            self.assertEqual(response.status_code, 200)
+        self.registration.refresh_from_db()
+        return self.registration.server_pricing_results
+
+    def test_the_handling_fee_paid_online_stays_as_it_was(self):
+        # SPEC DR-78, GitHub #622.
+        self.event.epayment_handling = 2.5
+        self.event.save()
+        self.createRegistration()
+        results = self.registration.server_pricing_results
+        self.assertEqual((results['handling'], results['total']), (7.5, 307.5))
+        override = self.registration.pricing_overrides.get()
+        self.assertEqual((override.var, override.amount), ('handling', Decimal('7.50')))
+        self.assertEqual(override.reason, pricing.HANDLING_FIXED_REASON)
+
+        # A discount later leaves the fee as it was charged.
+        results = self.make_cool()
+        self.assertEqual((results['handling'], results['total']), (7.5, 107.5))
+        self.assertEqual(results['overridden'], {'handling': 2.5})
+
+    def test_paying_by_check_has_no_fee_to_keep(self):
+        self.event.epayment_handling = 2.5
+        self.event.save()
+        self.createRegistration(payment_type='Check')
+        self.assertFalse(self.registration.pricing_overrides.exists())
+        self.assertNotIn('handling', self.registration.server_pricing_results)
 
 
 class EventTests(APITestCase):
