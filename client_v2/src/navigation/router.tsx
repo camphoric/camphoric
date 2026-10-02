@@ -26,7 +26,6 @@ import { Splash } from 'pages/Splash';
 // router shell are the only eager UI.
 const AdminShell = lazyRouteComponent(() => import('navigation/AdminShell'), 'AdminShell');
 const AdminFrame = lazyRouteComponent(() => import('navigation/AdminFrame'), 'AdminFrame');
-const UsersPage = lazyRouteComponent(() => import('pages/admin/users/UsersPage'), 'UsersPage');
 const SetPasswordPage = lazyRouteComponent(
   () => import('pages/account/SetPasswordPage'),
   'SetPasswordPage',
@@ -223,21 +222,16 @@ const eventChooserRoute = createRoute({
   component: EventChooser,
 });
 
-// User management, for Admins only (SPEC §8.10). `?userId` is the user being
-// edited: an id, or `new`; `?historyUserId` is the user whose changes are shown.
+// Users opens over the page it's chosen from (`?overlay=users`, SPEC §4, §8.10;
+// DR-84); this keeps `/admin/users` links working, with their `?userId` and
+// `?historyUserId`.
 const usersRoute = createRoute({
   getParentRoute: () => adminFrameRoute,
   path: 'users',
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): { userId?: string; historyUserId?: string } => ({
-    userId: typeof search.userId === 'string' && search.userId ? search.userId : undefined,
-    historyUserId:
-      typeof search.historyUserId === 'string' && search.historyUserId
-        ? search.historyUserId
-        : undefined,
-  }),
-  component: UsersPage,
+  beforeLoad: ({ search }) => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({ to: '/admin', search: { ...search, overlay: 'users' } as never });
+  },
 });
 
 // --- Account (public: reached before signing in) --------------------------------

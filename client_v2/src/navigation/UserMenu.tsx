@@ -1,13 +1,14 @@
 /**
  * Who's signed in and their Camphoric permission group (SPEC §6, §8.2), with the
- * account actions: Users (Admins), change password, sign out.
+ * account actions: Users (Admins; it opens over the current page), change
+ * password, sign out.
  */
 
 import { Badge, Button, Group, Menu, Text } from '@mantine/core';
 import { IconChevronDown, IconKey, IconLogout, IconUsers } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import { useCurrentUser, useLogout } from 'hooks/auth';
 import { ROLE_LABEL, usePermissions } from 'hooks/permissions';
+import { useOpenOverlay } from 'navigation/overlay';
 import { ChangePasswordModal } from 'pages/account/ChangePasswordModal';
 import { useState } from 'react';
 
@@ -15,6 +16,7 @@ export function UserMenu() {
   const { data: user } = useCurrentUser();
   const { canManageUsers } = usePermissions();
   const logout = useLogout();
+  const openOverlay = useOpenOverlay();
   const [changing, setChanging] = useState(false);
   if (!user?.username) return null;
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username;
@@ -42,7 +44,7 @@ export function UserMenu() {
             {user.role ? ` · ${ROLE_LABEL[user.role]}` : ''}
           </Menu.Label>
           {canManageUsers && (
-            <Menu.Item component={Link} to="/admin/users" leftSection={<IconUsers size={16} />}>
+            <Menu.Item leftSection={<IconUsers size={16} />} onClick={() => openOverlay('users')}>
               Users
             </Menu.Item>
           )}

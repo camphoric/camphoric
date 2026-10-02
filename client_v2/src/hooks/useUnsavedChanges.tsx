@@ -6,13 +6,15 @@
  * choosing something else). Call `release` once the edits are saved, so the
  * navigation that follows a save isn't questioned.
  *
- * Works through the router's history, so outside a router (unit tests and
- * stories) only `confirmDiscard` asks.
+ * Opening or closing an overlay (Users) isn't leaving: the page stays as it
+ * is underneath. Works through the router's history, so outside a router (unit
+ * tests and stories) only `confirmDiscard` asks.
  */
 
 import { Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { type RouterHistory, useRouter } from '@tanstack/react-router';
+import { onlyOverlayChanged } from 'navigation/overlay';
 import { useEffect, useRef } from 'react';
 
 /** Resolves true when the user chooses to discard their changes. */
@@ -50,8 +52,8 @@ export function useUnsavedChanges(dirty: boolean) {
     const blocking = () => dirtyRef.current && !released.current;
     return router.history.block({
       // true blocks the navigation.
-      blockerFn: async () => {
-        if (!blocking()) return false;
+      blockerFn: async ({ currentLocation, nextLocation }) => {
+        if (!blocking() || onlyOverlayChanged(currentLocation, nextLocation)) return false;
         if (!(await confirmDiscardChanges())) return true;
         released.current = true;
         return false;

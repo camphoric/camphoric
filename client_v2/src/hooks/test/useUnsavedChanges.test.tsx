@@ -39,7 +39,11 @@ function renderInRouter() {
   });
   renderWithProviders(<RouterProvider router={router} />);
   // A link or the back button goes through the history, as this does.
-  return { leave: () => act(() => void router.history.push('/other')) };
+  return {
+    leave: () => act(() => void router.history.push('/other')),
+    openOverlay: () => act(() => void router.history.push('/?overlay=users')),
+    router,
+  };
 }
 
 describe('useUnsavedChanges', () => {
@@ -82,5 +86,16 @@ describe('useUnsavedChanges', () => {
     leave();
     await user.click(await screen.findByRole('button', { name: 'Discard changes' }));
     expect(await screen.findByText('Elsewhere')).toBeInTheDocument();
+  });
+
+  it('lets an overlay open over the page without asking', async () => {
+    const user = userEvent.setup();
+    const { openOverlay, router } = renderInRouter();
+    await user.type(await screen.findByLabelText('Template'), 'x');
+
+    openOverlay();
+    await vi.waitFor(() => expect(router.state.location.search).toEqual({ overlay: 'users' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Template')).toHaveValue('x');
   });
 });
