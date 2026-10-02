@@ -4,7 +4,7 @@
  * the upper right that returns to that page as it was. Only Admins see it.
  */
 
-import { Modal, Title } from '@mantine/core';
+import { Modal } from '@mantine/core';
 import { usePermissions } from 'hooks/permissions';
 import { useOverlay } from 'navigation/overlay';
 
@@ -19,7 +19,9 @@ export function UsersOverlay() {
       opened={opened}
       onClose={close}
       fullScreen
-      title={<Title order={2}>Users</Title>}
+      // The modal's title is its heading already; sized as a page title.
+      title="Users"
+      styles={{ title: { fontSize: 'var(--mantine-h2-font-size)', fontWeight: 700 } }}
       closeButtonProps={{ 'aria-label': 'Close users' }}
       // Escape belongs to the dialogs opened inside it (editing a user, …),
       // which would otherwise close along with it; the close button leaves.
