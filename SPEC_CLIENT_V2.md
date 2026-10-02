@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-81)
+- §15 — Decision Records (DR-1…DR-82)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -54,6 +54,8 @@ document names a specific widget (a "tab", "modal", "list", "table", "button"), 
 acceptable realization, not a mandate. What is **not** a UI choice and **is** binding: API
 request/response shapes, URL routes and which state is URL-addressable, pricing and validation
 rules, and the data written to each endpoint — these are called out as requirements throughout.
+One placement is also a house convention rather than a free choice: where a screen's way back
+goes (§9.6, *Way back*).
 
 ---
 
@@ -867,7 +869,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 
 - **Organization chooser:** lists organizations; selecting one navigates to its event chooser.
 - **Event chooser:** lists events for the org; selecting one navigates into the Event Admin
-  container for that event. It offers a way back to organization selection.
+  container for that event. It offers a way back to organization selection (placed as in §9.6,
+  *Way back*).
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
 - **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
   rename one, and delete one after confirming — refused, with the reason, while it still has
@@ -1704,6 +1707,11 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   dialog, starting a new report. Saving, and leaving an editor whose text is unchanged, don't
   ask. For a report or group email, any field of the form counts as a change; on Home, only the
   two templates do (§15, DR-79).
+- **Way back** — a screen that offers a way back up to where it was reached from (the event
+  chooser back to organization selection, the Event Admin back to event selection) puts it in the
+  app header, at the far left, immediately before the "Camphoric Admin" title, as a back-arrow
+  icon button whose accessible name says where it goes ("Back to event selection"). It isn't
+  repeated in the page body. Every new way back follows this placement (§15, DR-82).
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation
   context, report rendering); shows detail in dev, fails quietly in prod. (This one *is*
   architectural, not just visual.)
@@ -3493,6 +3501,19 @@ skim and hid what had changed.
 A structural JSON diff by key path — exact for objects, but JsonLogic is mostly arrays, where an
 insertion shifts every later index. Always cutting values short — shorter, but doesn't show
 what changed.
+
+### DR-82 — A way back sits at the far left of the header, before the title
+
+**Decision:** A screen's way back up to where it was reached from is a back-arrow icon button in
+the app header, at the far left, immediately before the "Camphoric Admin" title, named for where
+it goes, and not repeated in the page body. New ways back follow the same placement. This is one
+of the few placements the spec fixes rather than leaving to the implementer.
+**Context:** The Event Admin had its arrow in the header, left of the title, while the event
+chooser had one in the page body next to its heading — two places for the same thing. Putting
+every way back in one spot means it's always where the user looks for it.
+**Alternatives:** Leaving placement to each screen, as the spec does for layout generally — what
+let the two drift apart. Breadcrumbs — more than two levels of choosers don't exist to justify
+them. A back link in the page body — scrolls away, and sits in a different place on each screen.
 
 ---
 
