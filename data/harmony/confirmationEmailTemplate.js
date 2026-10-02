@@ -27,7 +27,7 @@ Campership: {{ camper.pricing.campership | money }}
 ------
 {%- endfor %}
 
-Total fees: {{ pricing.tuition | money }}    
+Total fees: {{ campers | sum(attribute='pricing.total') | money }}    
 Total campership donation: {{ pricing.campership_donation | money }}    
 
 TOTAL FOR THIS REGISTRATION: {{ pricing.total | money }}    
