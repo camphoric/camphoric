@@ -61,6 +61,36 @@ describe('resolveType', () => {
     expect(resolveType('event.start.strftime("%a")', scope, description)).toBe('string');
   });
 
+  it('follows methods of Python values and the dict methods objects inherit', () => {
+    expect(resolveType("event.name.split(' ')", scope, description)).toBe('list<string>');
+    expect(resolveType('campers.count(x)', scope, description)).toBe('number');
+    expect(resolveType('campers[0].attributes.keys()', scope, description)).toBe('list<string>');
+    expect(resolveType('registrations[0].balance.copy_abs()', scope, description)).toBe('money');
+    // `.get('key')` is the key's value; any other `.get(…)` could be anything.
+    expect(resolveType("campers[0].attributes.get('linens')", scope, description)).toBe('bool');
+    expect(resolveType('campers[0].attributes.get(name)', scope, description)).toBe('any');
+  });
+
+  it('finds a method before a key of the same name, as Jinja does', () => {
+    const attributes = description.types['attributes:registration'];
+    const withItems = {
+      ...description,
+      types: {
+        ...description.types,
+        'attributes:registration': {
+          ...attributes,
+          fields: [
+            ...attributes.fields,
+            { name: 'items', type: 'list<string>', doc: 'Items', identifier: false },
+          ],
+        },
+      },
+    };
+    const base = 'registrations[0].attributes';
+    expect(resolveType(`${base}.items`, scope, withItems)).toBe('list<any>');
+    expect(resolveType(`${base}['items']`, scope, withItems)).toBe('list<string>');
+  });
+
   it('carries types through list filters', () => {
     expect(resolveType('campers | first', scope, description)).toBe('camper');
     expect(resolveType("campers | sort(attribute='id') | last", scope, description)).toBe('camper');
@@ -150,6 +180,23 @@ describe('completionEntries', () => {
     const forTag = entry('{% ', 'for');
     expect(forTag?.snippet).toBe(true);
     expect(forTag?.insertText.startsWith('for ')).toBe(true);
+  });
+
+  it('lists the methods of Python values', () => {
+    expect(labels('{{ event.name.')).toEqual(expect.arrayContaining(['split', 'startswith']));
+    expect(labels('{{ campers.')).toEqual(['count', 'index', 'copy']);
+    expect(entry('{{ registrations[0].balance.', 'is_zero')).toMatchObject({
+      kind: 'method',
+      detail: 'is_zero()',
+    });
+  });
+
+  it('lists the dict methods after an object’s own fields', () => {
+    const fields = labels('{{ event.');
+    expect(fields).toEqual(expect.arrayContaining(['name', 'get', 'items']));
+    expect(entry('{{ event.', 'name')?.sortPrefix).toBe('1');
+    expect(entry('{{ event.', 'get')).toMatchObject({ kind: 'method', sortPrefix: '2' });
+    expect(labels('{% for c in campers %}{{ c.attributes.')).toContain('get');
   });
 
   it('offers nothing for an unknown object', () => {

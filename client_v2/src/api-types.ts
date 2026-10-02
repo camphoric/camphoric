@@ -323,7 +323,7 @@ export type TemplateContextName =
 /**
  * One variable or field. `type` is `string`, `number`, `bool`, `money`,
  * `date`, `datetime`, `dict`, `any`, `list<T>`, or the name of a type in
- * `TemplateDescription.types`.
+ * `TemplateDescription.types`. A `list<T>` has the methods of the `list` type.
  */
 export interface TemplateFieldDescription {
   name: string;
@@ -345,6 +345,10 @@ export interface TemplateFieldDescription {
 export interface TemplateTypeDescription {
   doc: string;
   fields: TemplateFieldDescription[];
+  /** The type whose methods this one also has: `dict` for Camphoric objects. */
+  base?: string;
+  /** A Python value type (`string`, `money`, `dict`, `list` …) rather than an object. */
+  builtin?: boolean;
 }
 
 export interface TemplateContextDescription {

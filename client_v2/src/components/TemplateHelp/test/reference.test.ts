@@ -27,6 +27,16 @@ describe('reachableTypes', () => {
     expect(types).not.toContain('recipient');
   });
 
+  it('ends with the Python value types those variables have', () => {
+    const types = reachableTypes(description, 'report');
+    const builtins = types.filter((type) => description.types[type].builtin);
+    // `list` (from list fields) and `dict` (the objects' base) included.
+    expect(builtins).toEqual(
+      expect.arrayContaining(['string', 'number', 'money', 'date', 'datetime', 'dict', 'list']),
+    );
+    expect(types.slice(-builtins.length)).toEqual(builtins);
+  });
+
   it('depends on the kind of template', () => {
     const types = reachableTypes(description, 'invitation_email');
     expect(types).toEqual(expect.arrayContaining(['invitation', 'registration_type']));
@@ -46,6 +56,12 @@ describe('variableSections', () => {
     const camper = sections.find((s) => s.id === 'attributes:camper');
     expect(camper?.fields.map((f) => f.name)).toEqual(['linens']);
     expect(sections.every((s) => s.fields.length > 0)).toBe(true);
+  });
+
+  it('names the type whose methods a type also has', () => {
+    const sections = variableSections(description, 'report');
+    expect(sections.find((s) => s.id === 'camper')?.base).toBe('dict');
+    expect(sections.find((s) => s.id === 'string')?.base).toBeUndefined();
   });
 
   it('keeps a whole type when its name matches', () => {

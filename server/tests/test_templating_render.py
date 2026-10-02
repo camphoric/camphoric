@@ -8,6 +8,7 @@ from camphoric.templating import filters
 from camphoric.templating.contexts import report_context
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import RenderLimits, render_template
+from camphoric.templating.values import freeze
 
 from tests.factories import create_template_event
 
@@ -68,6 +69,32 @@ class RenderTests(TestCase):
         self.assertEqual(warning.severity, 'warning')
         self.assertEqual(warning.message, "camper has no field 'frist_name'")
         self.assertEqual(warning.line, 1)
+
+    def test_printed_methods_are_warnings(self):
+        result = self.render('{{ event.start.isoformat }}\n{{ event.start.isoformat() }}')
+        [warning] = result.diagnostics
+        self.assertEqual(warning.severity, 'warning')
+        self.assertEqual(warning.message,
+                         "'isoformat' is a method, so it printed as text — call it: isoformat()")
+        self.assertEqual(warning.line, 1)
+        self.assertEqual(warning.column, len('{{ event.start.') + 1)
+
+    def test_keys_hidden_by_dict_methods_are_warnings(self):
+        context = {'answers': freeze({'items': 'Tent, stove'})}
+        result = render_template("{{ answers.items }}\n{{ answers['items'] }}", context)
+        [warning] = result.diagnostics
+        self.assertEqual(warning.message, "'items' here is the dict method, not the key 'items' "
+                                          "— write ['items'] to get its value")
+        self.assertEqual(warning.line, 1)
+        self.assertTrue(result.output.endswith('\nTent, stove'))
+
+    def test_builtin_methods_work(self):
+        result = self.render(
+            "{{ campers[0].registration.registrant_email.split('@') | last }} "
+            "{{ campers[0].attributes.get('nope', '–') }} "
+            "{{ campers[0].registration.balance.copy_abs() | money }}")
+        self.assertEqual(self.errors(result), [])
+        self.assertTrue(result.output.startswith('example.com – $'), result.output)
 
     def test_missing_form_answers_are_not_typos(self):
         result = self.render('{{ campers[1].attributes.linens }}')

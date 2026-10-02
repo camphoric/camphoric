@@ -322,7 +322,8 @@
      "type": "list<lodging>",
      "doc": "Every lodging node, parents before children."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "registration": {
    "doc": "One registration: the registrant and their campers.",
@@ -362,6 +363,13 @@
      "name": "payment_type",
      "type": "string",
      "doc": "How they chose to pay (Check, PayPal, Card …).",
+     "nullable": true
+    },
+    {
+     "name": "paypal_response",
+     "type": "dict",
+     "doc": "PayPal's record of an online payment (PayPal or Card), e.g. the payer: `payer.name.given_name`, `payer.email_address`.",
+     "example": "{{ registration.paypal_response.payer.email_address }}",
      "nullable": true
     },
     {
@@ -432,7 +440,8 @@
      "type": "number",
      "doc": "Number of campers."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "camper": {
    "doc": "One camper.",
@@ -531,7 +540,8 @@
      "type": "datetime",
      "doc": "When the camper was added."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "lodging": {
    "doc": "A node in the lodging tree (the camp, an area, a cabin …).",
@@ -646,7 +656,8 @@
      "type": "number",
      "doc": "Number of campers here or below."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "payment": {
    "doc": "A payment received for a registration.",
@@ -693,7 +704,8 @@
      "type": "datetime",
      "doc": "When it was recorded."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "registration_type": {
    "doc": "A kind of invitation-based registration (e.g. Staff).",
@@ -713,7 +725,8 @@
      "type": "string",
      "doc": "Human-readable name."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "custom_charge": {
    "doc": "A charge (or credit) an admin added to a camper.",
@@ -754,7 +767,8 @@
      "type": "camper",
      "doc": "The camper charged."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "custom_charge_type": {
    "doc": "A kind of custom charge.",
@@ -774,7 +788,8 @@
      "type": "string",
      "doc": "Label."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "invitation": {
    "doc": "An invitation to register with a registration type.",
@@ -834,7 +849,8 @@
      "type": "bool",
      "doc": "Whether it has been used to register."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "recipient": {
    "doc": "Who a bulk email is going to.",
@@ -854,7 +870,8 @@
      "type": "string",
      "doc": "Name, when known."
     }
-   ]
+   ],
+   "base": "dict"
   },
   "loop": {
    "doc": "The current loop, available inside `{% for %}`.",
@@ -911,6 +928,191 @@
     }
    ]
   },
+  "string": {
+   "doc": "Text. Filters such as `upper`, `trim` and `replace` do similar jobs.",
+   "fields": [
+    {
+     "name": "upper",
+     "type": "string",
+     "doc": "In upper case.",
+     "callable": true,
+     "signature": "upper()"
+    },
+    {
+     "name": "lower",
+     "type": "string",
+     "doc": "In lower case.",
+     "callable": true,
+     "signature": "lower()"
+    },
+    {
+     "name": "title",
+     "type": "string",
+     "doc": "In Title Case.",
+     "callable": true,
+     "signature": "title()"
+    },
+    {
+     "name": "capitalize",
+     "type": "string",
+     "doc": "With only the first letter capitalized.",
+     "callable": true,
+     "signature": "capitalize()"
+    },
+    {
+     "name": "strip",
+     "type": "string",
+     "doc": "Without whitespace (or the given characters) at either end.",
+     "example": "{{ camper.attributes.first_name.strip() }}",
+     "callable": true,
+     "signature": "strip(chars=None)"
+    },
+    {
+     "name": "lstrip",
+     "type": "string",
+     "doc": "Without whitespace (or the given characters) at the start.",
+     "callable": true,
+     "signature": "lstrip(chars=None)"
+    },
+    {
+     "name": "rstrip",
+     "type": "string",
+     "doc": "Without whitespace (or the given characters) at the end.",
+     "callable": true,
+     "signature": "rstrip(chars=None)"
+    },
+    {
+     "name": "split",
+     "type": "list<string>",
+     "doc": "The pieces between each `sep` (or between runs of whitespace).",
+     "example": "{{ registration.registrant_email.split('@') | last }}",
+     "callable": true,
+     "signature": "split(sep=None, maxsplit=-1)"
+    },
+    {
+     "name": "splitlines",
+     "type": "list<string>",
+     "doc": "The lines.",
+     "callable": true,
+     "signature": "splitlines()"
+    },
+    {
+     "name": "startswith",
+     "type": "bool",
+     "doc": "Whether it starts with `prefix` (or any of a list of them).",
+     "callable": true,
+     "signature": "startswith(prefix)"
+    },
+    {
+     "name": "endswith",
+     "type": "bool",
+     "doc": "Whether it ends with `suffix` (or any of a list of them).",
+     "example": "{% if registration.registrant_email.endswith('.edu') %}",
+     "callable": true,
+     "signature": "endswith(suffix)"
+    },
+    {
+     "name": "replace",
+     "type": "string",
+     "doc": "With each `old` replaced by `new`.",
+     "callable": true,
+     "signature": "replace(old, new, count=-1)"
+    },
+    {
+     "name": "find",
+     "type": "number",
+     "doc": "Where `sub` first appears, counting from 0; -1 when it doesn't.",
+     "callable": true,
+     "signature": "find(sub)"
+    },
+    {
+     "name": "count",
+     "type": "number",
+     "doc": "How many times `sub` appears.",
+     "callable": true,
+     "signature": "count(sub)"
+    },
+    {
+     "name": "zfill",
+     "type": "string",
+     "doc": "Padded with zeros on the left to `width` characters.",
+     "example": "{{ (camper.id | string).zfill(5) }}",
+     "callable": true,
+     "signature": "zfill(width)"
+    },
+    {
+     "name": "ljust",
+     "type": "string",
+     "doc": "Padded on the right to `width` characters — for lining up plain text columns.",
+     "callable": true,
+     "signature": "ljust(width, fillchar=' ')"
+    },
+    {
+     "name": "rjust",
+     "type": "string",
+     "doc": "Padded on the left to `width` characters.",
+     "callable": true,
+     "signature": "rjust(width, fillchar=' ')"
+    },
+    {
+     "name": "isdigit",
+     "type": "bool",
+     "doc": "Whether it is all digits (and not empty).",
+     "callable": true,
+     "signature": "isdigit()"
+    }
+   ],
+   "builtin": true
+  },
+  "number": {
+   "doc": "A whole or decimal number; format it with `round`, `int` or `money`.",
+   "fields": [
+    {
+     "name": "is_integer",
+     "type": "bool",
+     "doc": "Whether it has no fractional part.",
+     "callable": true,
+     "signature": "is_integer()"
+    }
+   ],
+   "builtin": true
+  },
+  "money": {
+   "doc": "Money: a two-place decimal. Show it with `money`; compare it as a number.",
+   "fields": [
+    {
+     "name": "is_zero",
+     "type": "bool",
+     "doc": "Whether it is zero.",
+     "example": "{% if registration.balance.is_zero() %}Paid in full{% endif %}",
+     "callable": true,
+     "signature": "is_zero()"
+    },
+    {
+     "name": "is_signed",
+     "type": "bool",
+     "doc": "Whether it is negative (a credit).",
+     "callable": true,
+     "signature": "is_signed()"
+    },
+    {
+     "name": "copy_abs",
+     "type": "money",
+     "doc": "Without its sign.",
+     "example": "{{ registration.balance.copy_abs() | money }}",
+     "callable": true,
+     "signature": "copy_abs()"
+    },
+    {
+     "name": "to_integral_value",
+     "type": "money",
+     "doc": "Rounded to a whole amount (halves go to the even neighbor).",
+     "callable": true,
+     "signature": "to_integral_value()"
+    }
+   ],
+   "builtin": true
+  },
   "date": {
    "doc": "A calendar date.",
    "fields": [
@@ -950,8 +1152,24 @@
      "doc": "Day of the week, Monday = 0.",
      "callable": true,
      "signature": "weekday()"
+    },
+    {
+     "name": "isoweekday",
+     "type": "number",
+     "doc": "Day of the week, Monday = 1 … Sunday = 7.",
+     "callable": true,
+     "signature": "isoweekday()"
+    },
+    {
+     "name": "replace",
+     "type": "date",
+     "doc": "The same date with some parts changed.",
+     "example": "{{ event.start.replace(day=1) | date('%B %Y') }}",
+     "callable": true,
+     "signature": "replace(year=…, month=…, day=…)"
     }
-   ]
+   ],
+   "builtin": true
   },
   "datetime": {
    "doc": "A date and time, in the event time zone.",
@@ -982,6 +1200,11 @@
      "doc": "Minute."
     },
     {
+     "name": "second",
+     "type": "number",
+     "doc": "Second."
+    },
+    {
      "name": "strftime",
      "type": "string",
      "doc": "Format with strftime codes.",
@@ -1002,8 +1225,104 @@
      "doc": "ISO 8601 text.",
      "callable": true,
      "signature": "isoformat()"
+    },
+    {
+     "name": "weekday",
+     "type": "number",
+     "doc": "Day of the week, Monday = 0.",
+     "callable": true,
+     "signature": "weekday()"
+    },
+    {
+     "name": "isoweekday",
+     "type": "number",
+     "doc": "Day of the week, Monday = 1 … Sunday = 7.",
+     "callable": true,
+     "signature": "isoweekday()"
+    },
+    {
+     "name": "replace",
+     "type": "datetime",
+     "doc": "The same moment with some parts changed.",
+     "callable": true,
+     "signature": "replace(year=…, month=…, day=…, hour=…, minute=…)"
     }
-   ]
+   ],
+   "builtin": true
+  },
+  "dict": {
+   "doc": "Keys and their values. Camphoric's objects, form answers and pricing results are dicts, so they have these methods too. A method hides a key with the same name: for a question named `items`, write `camper.attributes['items']`.",
+   "fields": [
+    {
+     "name": "get",
+     "type": "any",
+     "doc": "The value for `key`, or `default` when there isn't one.",
+     "example": "{{ camper.attributes.get('nickname', camper.attributes.first_name) }}",
+     "callable": true,
+     "signature": "get(key, default=None)"
+    },
+    {
+     "name": "keys",
+     "type": "list<string>",
+     "doc": "The keys.",
+     "callable": true,
+     "signature": "keys()"
+    },
+    {
+     "name": "values",
+     "type": "list<any>",
+     "doc": "The values.",
+     "callable": true,
+     "signature": "values()"
+    },
+    {
+     "name": "items",
+     "type": "list<any>",
+     "doc": "(key, value) pairs.",
+     "example": "{% for key, value in camper.attributes.items() %}",
+     "callable": true,
+     "signature": "items()"
+    },
+    {
+     "name": "copy",
+     "type": "dict",
+     "doc": "A copy you can change — for building your own rows.",
+     "example": "{% set row = camper.attributes.copy() %}{% do row.update(nights=camper.stay | length) %}",
+     "callable": true,
+     "signature": "copy()"
+    }
+   ],
+   "builtin": true
+  },
+  "list": {
+   "doc": "Items in order. Camphoric's are read-only; `copy()` gives one to change.",
+   "fields": [
+    {
+     "name": "count",
+     "type": "number",
+     "doc": "How many items equal `value`.",
+     "example": "{{ ['a', 'b', 'a'].count('a') }} → 2",
+     "callable": true,
+     "signature": "count(value)"
+    },
+    {
+     "name": "index",
+     "type": "number",
+     "doc": "Where the first item equal to `value` is, counting from 0 (an error when there isn't one).",
+     "example": "{% if camper.first_day %}Night {{ event.nights.index(camper.first_day) + 1 }}{% endif %}",
+     "callable": true,
+     "signature": "index(value)"
+    },
+    {
+     "name": "copy",
+     "type": "list<any>",
+     "doc": "A copy you can change.",
+     "example": "{% set rows = registrations.copy() %}",
+     "callable": true,
+     "signature": "copy()"
+    }
+   ],
+   "builtin": true
   },
   "attributes:registration.address": {
    "doc": "Main Address",
@@ -1036,7 +1355,8 @@
      "title": "State or Province",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "attributes:registration": {
    "doc": "Answers to the registration form.",
@@ -1076,7 +1396,8 @@
      "title": "Donation note",
      "identifier": false
     }
-   ]
+   ],
+   "base": "dict"
   },
   "attributes:camper.emergency_contact": {
    "doc": "Emergency Contact",
@@ -1095,7 +1416,8 @@
      "title": "Phone number",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "attributes:camper.address": {
    "doc": "Address",
@@ -1128,7 +1450,8 @@
      "title": "State or Province",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "attributes:camper": {
    "doc": "Answers to the camper form.",
@@ -1202,19 +1525,23 @@
      "title": "Address",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "admin_attributes:registration": {
    "doc": "Admin-only fields for a registration.",
-   "fields": []
+   "fields": [],
+   "base": "dict"
   },
   "admin_attributes:camper": {
    "doc": "Admin-only fields for a camper.",
-   "fields": []
+   "fields": [],
+   "base": "dict"
   },
   "attributes:payment": {
    "doc": "Extra payment details.",
-   "fields": []
+   "fields": [],
+   "base": "dict"
   },
   "pricing:camper": {
    "doc": "A camper's pricing results.",
@@ -1261,7 +1588,8 @@
      "title": "Total",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "pricing:registration": {
    "doc": "A registration's pricing results.",
@@ -1323,7 +1651,8 @@
      "identifier": true,
      "nullable": true
     }
-   ]
+   ],
+   "base": "dict"
   },
   "pricing:event": {
    "doc": "The event's pricing variables.",
@@ -1629,7 +1958,8 @@
      "title": "Yadult lodge regular perday",
      "identifier": true
     }
-   ]
+   ],
+   "base": "dict"
   }
  },
  "filters": [

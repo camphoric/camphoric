@@ -12,7 +12,8 @@ types built from this event's own forms and pricing:
 Nested objects get their own types (`attributes:camper.emergency_contact`),
 array items too (`attributes:camper.parking_passes.*`). A field whose key isn't
 a valid Jinja name (or clashes with a dict method) is marked
-`identifier: false`, so the editor writes `camper.attributes['key']`.
+`identifier: false`, so the editor writes `camper.attributes['key']`. These
+values are dicts, so each type's `base` is `dict` (it has dict's methods).
 '''
 
 import re
@@ -87,7 +88,7 @@ class SchemaWalker:
             if key in exclude:
                 continue
             fields.append(self.field(name, key, child, depth))
-        self.types[name] = {'doc': doc, 'fields': fields}
+        self.types[name] = {'doc': doc, 'fields': fields, 'base': 'dict'}
 
     def field(self, owner, key, schema, depth):
         schema = self.deref(schema)
@@ -227,7 +228,8 @@ def event_types(event):
         'attributes:payment', 'Extra payment details.', payment_schema)
 
     camper_pricing = _pricing_fields(event.camper_pricing_logic, 'Camper pricing')
-    types['pricing:camper'] = {'doc': "A camper's pricing results.", 'fields': camper_pricing}
+    types['pricing:camper'] = {'doc': "A camper's pricing results.", 'fields': camper_pricing,
+                               'base': 'dict'}
     registration_pricing = _unique([
         *_pricing_fields(event.registration_pricing_logic, 'Registration pricing'),
         *[{**f, 'doc': f"{f['doc']} (all campers)"} for f in camper_pricing],
@@ -238,7 +240,7 @@ def event_types(event):
          'nullable': True},
     ])
     types['pricing:registration'] = {'doc': "A registration's pricing results.",
-                                     'fields': registration_pricing}
+                                     'fields': registration_pricing, 'base': 'dict'}
     types['pricing:event'] = {
         'doc': "The event's pricing variables.",
         'fields': [
@@ -247,6 +249,7 @@ def event_types(event):
              'identifier': is_identifier(key)}
             for key, value in (event.pricing or {}).items()
         ],
+        'base': 'dict',
     }
     return types
 

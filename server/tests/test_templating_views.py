@@ -38,6 +38,12 @@ class TemplateDescribeTests(APITestCase):
         self.assertIn('money', {f['name'] for f in payload['filters']})
         date_fields = fields_of(payload, 'date')
         self.assertTrue(date_fields['strftime']['callable'])
+        # Python values' methods, and the dict methods Camphoric objects inherit.
+        self.assertEqual(fields_of(payload, 'string')['split']['type'], 'list<string>')
+        self.assertTrue(payload['types']['string']['builtin'])
+        self.assertIn('get', fields_of(payload, 'dict'))
+        self.assertEqual(payload['types']['camper']['base'], 'dict')
+        self.assertNotIn('base', payload['types']['loop'])
 
     def test_describes_the_events_own_forms(self):
         payload = self.client.get(self.url).json()
@@ -65,6 +71,9 @@ class TemplateDescribeTests(APITestCase):
         pricing = fields_of(payload, 'pricing:registration')
         self.assertEqual(set(pricing), {'donation', 'tuition', 'total', 'handling'})
         self.assertEqual(set(fields_of(payload, 'pricing:event')), {'adult', 'linen_rate'})
+        for type_name, described in payload['types'].items():
+            if ':' in type_name:
+                self.assertEqual(described['base'], 'dict', type_name)
 
 
 class TemplatePreviewTests(APITestCase):

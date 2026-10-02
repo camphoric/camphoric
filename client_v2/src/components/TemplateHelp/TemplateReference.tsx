@@ -1,7 +1,8 @@
 /**
  * The variables reference (SPEC §9.3): a kind of template's variables and
- * every type they lead to, each field with its type, description and
- * example, from the server's variable spec. Types link to their own section.
+ * every type they lead to — then the Python value types, with their methods —
+ * each field with its type, description and example, from the server's
+ * variable spec. Types link to their own section.
  * Given `onInsert`, each entry can be inserted into the editor.
  */
 
@@ -19,10 +20,11 @@ import {
 } from '@mantine/core';
 import { IconCornerDownLeft } from '@tabler/icons-react';
 import type { TemplateContextName, TemplateDescription, TemplateFieldDescription } from 'api-types';
+import { elementType } from 'components/TemplateEditor/completion';
 import { Fragment, useId } from 'react';
 
 import { InlineDoc } from './InlineDoc';
-import { isEventType, referencedType, variableSections } from './reference';
+import { isEventType, variableSections } from './reference';
 
 export type InsertHandler = (text: string, options?: { snippet?: boolean }) => void;
 
@@ -37,7 +39,50 @@ function anchorId(prefix: string, type: string) {
   return `${prefix}-${type.replace(/[^\w-]/g, '_')}`;
 }
 
-function TypeLabel({
+/**
+ * A section's header — title, doc and base — set apart from the fields below
+ * it: a tinted band with an accent bar, its title in the accent colour.
+ */
+const SECTION_HEADER_STYLE = {
+  background: 'var(--mantine-primary-color-light)',
+  borderLeft: '4px solid var(--mantine-primary-color-filled)',
+  borderRadius: 'var(--mantine-radius-sm)',
+};
+
+/** Space left above a section's heading when a link scrolls to it. */
+const SECTION_GAP = 8;
+
+/** The nearest ancestor that scrolls, or the page. */
+function scrollParent(element: HTMLElement): Element {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const { overflowY } = getComputedStyle(parent);
+    if (/auto|scroll/.test(overflowY) && parent.scrollHeight > parent.clientHeight) return parent;
+  }
+  return document.scrollingElement ?? document.documentElement;
+}
+
+/**
+ * Scroll a section to the top of what can be seen: below a fixed header (the
+ * admin frame's) or a sticky one (the help drawer's), which would otherwise
+ * cover its heading.
+ */
+function scrollToSection(section: HTMLElement) {
+  section.scrollIntoView({ block: 'start' });
+  const { left, top } = section.getBoundingClientRect();
+  const coveredTo = Math.max(
+    0,
+    ...document
+      .elementsFromPoint(left + 1, Math.max(top, 0) + 1)
+      .filter((element) => !element.contains(section))
+      .filter((element) => ['fixed', 'sticky'].includes(getComputedStyle(element).position))
+      .map((element) => element.getBoundingClientRect().bottom),
+  );
+  const hidden = coveredTo + SECTION_GAP - top;
+  if (hidden > 0) scrollParent(section).scrollBy({ top: -hidden });
+}
+
+/** A type's name, a link to its section when it has one. */
+function TypeName({
   description,
   type,
   prefix,
@@ -46,19 +91,50 @@ function TypeLabel({
   type: string;
   prefix: string;
 }) {
-  const target = referencedType(description, type);
-  if (!target) return <Code>{type}</Code>;
+  if (!description.types[type]) return type;
   return (
     <Anchor
       component="button"
       type="button"
-      size="sm"
-      onClick={() =>
-        document.getElementById(anchorId(prefix, target))?.scrollIntoView({ block: 'start' })
-      }
+      inherit
+      onClick={() => {
+        const section = document.getElementById(anchorId(prefix, type));
+        if (section) scrollToSection(section);
+      }}
     >
-      <Code>{type}</Code>
+      {type}
     </Anchor>
+  );
+}
+
+/** A field's type; in `list<camper>`, `list` and `camper` each link to their own section. */
+function TypeParts({
+  description,
+  type,
+  prefix,
+}: {
+  description: TemplateDescription;
+  type: string;
+  prefix: string;
+}) {
+  const element = elementType(type);
+  if (element === undefined)
+    return <TypeName description={description} type={type} prefix={prefix} />;
+  return (
+    <>
+      <TypeName description={description} type="list" prefix={prefix} />
+      {'<'}
+      <TypeParts description={description} type={element} prefix={prefix} />
+      {'>'}
+    </>
+  );
+}
+
+function TypeLabel(props: { description: TemplateDescription; type: string; prefix: string }) {
+  return (
+    <Code>
+      <TypeParts {...props} />
+    </Code>
   );
 }
 
@@ -153,20 +229,31 @@ export function TemplateReference({
           key={section.id}
           gap="sm"
           id={anchorId(prefix, section.id)}
-          style={{ scrollMarginTop: 8 }}
+          style={{ scrollMarginTop: SECTION_GAP }}
         >
-          <Stack gap={2}>
+          <Stack gap={2} px="sm" py="xs" style={SECTION_HEADER_STYLE}>
             <Group gap="xs">
-              <Title order={4} ff={section.id === 'variables' ? undefined : 'monospace'}>
+              <Title
+                order={3}
+                c="var(--mantine-primary-color-light-color)"
+                ff={section.id === 'variables' ? undefined : 'monospace'}
+              >
                 {section.title}
               </Title>
               {isEventType(section.id) && (
-                <Badge size="sm" variant="light">
+                <Badge size="sm" variant="outline">
                   this event
                 </Badge>
               )}
             </Group>
-            {section.doc && <InlineDoc>{section.doc}</InlineDoc>}
+            {/* Full-strength text: dimmed grey is too faint on the band. */}
+            {section.doc && <InlineDoc c="var(--mantine-color-text)">{section.doc}</InlineDoc>}
+            {section.base && (
+              <Text size="sm">
+                Also has the methods of{' '}
+                <TypeLabel description={description} type={section.base} prefix={prefix} />.
+              </Text>
+            )}
           </Stack>
           {section.fields.length ? (
             section.fields.map((field, index) => (

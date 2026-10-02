@@ -216,6 +216,12 @@ Problems are listed under the preview and underlined in the template; choose one
   (\`{% if camper.lodging %}\`) or use \`default\`.
 - **"Camphoric's objects are read-only …"** — \`.update()\` or \`.append()\` on a Camphoric
   object. Build your own list or dict (*Computed values*).
+- **"'isoformat' is a method, so it printed as text …"** (a warning) — a method without its
+  parentheses: write \`event.start.isoformat()\`.
+- **"'items' here is the dict method, not the key 'items' …"** (a warning) — a form question or
+  pricing value named like a dict method (\`items\`, \`keys\`, \`values\`, \`get\`, \`copy\`):
+  \`camper.attributes.items\` is the method, so write \`camper.attributes['items']\`. The same
+  goes for \`{% if %}\`, where the method is always true and no warning appears.
 - **"Unexpected end of template …"** / **"Encountered unknown tag …"** — an \`{% if %}\` or
   \`{% for %}\` without its \`{% endif %}\` / \`{% endfor %}\`, or a misspelled tag.
 - **"expected token …"** — a syntax slip inside \`{{ }}\`/\`{% %}\`: a missing quote,

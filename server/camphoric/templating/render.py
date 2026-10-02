@@ -8,7 +8,10 @@ can tell, the column), for the editor to mark. Python tracebacks are logged,
 never returned.
 
 Typos are reported as warnings: using a field a Camphoric object doesn't have
-(`camper.frist_name`) renders blank, as in plain Jinja, but is flagged.
+(`camper.frist_name`) renders blank, as in plain Jinja, but is flagged. So is
+printing a method instead of calling it (`{{ day.isoformat }}`), which is also
+what a key named like a dict method gives (`camper.attributes.items` is the
+method; `camper.attributes['items']` is the answer).
 '''
 
 from contextlib import contextmanager
@@ -25,7 +28,7 @@ from jinja2 import Undefined
 from jinja2.exceptions import SecurityError, TemplateSyntaxError, UndefinedError
 
 from . import registry
-from .env import make_env
+from .env import blank_none, make_env
 from .values import ReadOnlyDict, TemplateObject
 
 logger = logging.getLogger(__name__)
@@ -82,7 +85,7 @@ class RenderResult:
         }
 
 
-# Warnings collected by TrackingUndefined during the current render.
+# Warnings collected during the current render.
 _render_state = threading.local()
 
 FIELDS_BY_TYPE = {
@@ -102,6 +105,19 @@ def _template_line():
                 return None
         frame = frame.f_back
     return None
+
+
+def _warn(key, message):
+    '''Note a warning on the line being rendered, once per line and `key`.'''
+    warnings = getattr(_render_state, 'warnings', None)
+    if warnings is None or len(warnings) >= MAX_WARNINGS:
+        return
+    line = _template_line()
+    if (line, *key) in _render_state.seen:
+        return
+    _render_state.seen.add((line, *key))
+    warnings.append(Diagnostic(severity='warning', kind='undefined', line=line,
+                               message=message, column=None))
 
 
 class TrackingUndefined(Undefined):
@@ -124,23 +140,32 @@ class TrackingUndefined(Undefined):
 
     def __init__(self, hint=None, obj=None, name=None, exc=UndefinedError):
         super().__init__(hint=hint, obj=obj, name=name, exc=exc)
-        warnings = getattr(_render_state, 'warnings', None)
-        if warnings is None or hint is not None or not isinstance(obj, TemplateObject):
+        if hint is not None or not isinstance(obj, TemplateObject) or not isinstance(name, str):
             return
-        known = FIELDS_BY_TYPE.get(obj.type_name, set())
-        if isinstance(name, str) and name not in known and len(warnings) < MAX_WARNINGS:
-            line = _template_line()
-            key = (line, obj.type_name, name)
-            if key not in _render_state.seen:
-                _render_state.seen.add(key)
-                warnings.append(Diagnostic(
-                    severity='warning', kind='undefined', line=line,
-                    message=f"{obj.type_name} has no field '{name}'",
-                    column=None))
+        if name not in FIELDS_BY_TYPE.get(obj.type_name, set()):
+            _warn((obj.type_name, name), f"{obj.type_name} has no field '{name}'")
 
 
-TEXT_ENV = make_env(autoescape=False, undefined=TrackingUndefined)
-HTML_ENV = make_env(autoescape=True, undefined=TrackingUndefined)
+def _printed_method_message(value):
+    name = getattr(value, '__name__', None)
+    if not isinstance(name, str):
+        return 'A function printed as text — call it with ()'
+    owner = getattr(value, '__self__', None)
+    if isinstance(owner, dict) and name in owner:
+        return (f"'{name}' here is the dict method, not the key '{name}' — "
+                f"write ['{name}'] to get its value")
+    return f"'{name}' is a method, so it printed as text — call it: {name}()"
+
+
+def _finalize(value):
+    '''Blank for None, and a warning for a method printed instead of called.'''
+    if callable(value) and not isinstance(value, Undefined):
+        _warn(('method', getattr(value, '__name__', None)), _printed_method_message(value))
+    return blank_none(value)
+
+
+TEXT_ENV = make_env(autoescape=False, undefined=TrackingUndefined, finalize=_finalize)
+HTML_ENV = make_env(autoescape=True, undefined=TrackingUndefined, finalize=_finalize)
 
 
 class RenderTimeout(Exception):

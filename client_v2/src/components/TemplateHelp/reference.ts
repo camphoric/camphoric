@@ -15,7 +15,8 @@ export function referencedType(description: TemplateDescription, type: string): 
 
 /**
  * Every type reachable from a context's variables, in the order a reader
- * meets them (breadth first, fields in spec order).
+ * meets them (breadth first, fields in spec order), then the Python value
+ * types (`string`, `dict`, `list` …) whose methods those values have.
  */
 export function reachableTypes(
   description: TemplateDescription,
@@ -25,12 +26,17 @@ export function reachableTypes(
   const seen: string[] = [];
   const queue = roots.map((root) => root.type);
   while (queue.length) {
-    const type = referencedType(description, queue.shift()!);
+    const next = queue.shift()!;
+    if (next.startsWith('list<')) queue.push('list');
+    const type = referencedType(description, next);
     if (!type || seen.includes(type)) continue;
     seen.push(type);
-    for (const field of description.types[type].fields) queue.push(field.type);
+    const described = description.types[type];
+    if (described.base) queue.push(described.base);
+    for (const field of described.fields) queue.push(field.type);
   }
-  return seen;
+  const builtin = (type: string) => !!description.types[type].builtin;
+  return [...seen.filter((type) => !builtin(type)), ...seen.filter(builtin)];
 }
 
 /** Event-specific types (the event's own form questions and pricing). */
@@ -52,6 +58,8 @@ export interface ReferenceSection {
   title: string;
   doc: string;
   fields: TemplateFieldDescription[];
+  /** The type whose methods this one also has (`dict`). */
+  base?: string;
 }
 
 /**
@@ -78,6 +86,7 @@ export function variableSections(
       title: type,
       doc: description.types[type].doc,
       fields: description.types[type].fields,
+      base: description.types[type].base,
     })),
   ];
   if (!q) return sections;
