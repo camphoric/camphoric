@@ -251,6 +251,9 @@ Camphoric variables get linked objects instead:
 | \`camperLookup[id]\` | \`registration.campers\`, or the camper itself |
 | \`registration.server_pricing_results.total\` | \`registration.pricing.total\` or \`registration.total_owed\` |
 | \`registration.total_payments\` / \`total_balance\` | \`registration.total_paid\` / \`balance\` |
+| \`registration.payment_type\` | \`registration.invoice.payment_type\` (how they chose to pay) |
+| \`registration.initial_payment.total\` | \`registration.invoice.total\` |
+| \`registration.server_pricing_results.handling\` | \`registration.invoice.handling\` (the fee is on invoices now) |
 | \`camper.server_pricing_results\` | \`camper.pricing\` |
 | \`camper.sequence\` | \`camper.index\` (0 for the first camper) |
 | \`camper.stay\` (text dates) | \`camper.stay\` (real dates) |

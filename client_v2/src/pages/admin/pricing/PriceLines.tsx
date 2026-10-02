@@ -2,9 +2,8 @@
  * A registration's or camper's price lines with their overrides (SPEC §8.4,
  * §8.5; §15, DR-56): the fee breakdown, and for Registrars and Admins, setting,
  * changing or removing a line's amount. A registration's own lines (its
- * donation, the handling fee) are overridden here; its campers' lines on each
- * camper. A handling fee kept at what was charged online can be recalculated
- * from the total as it is now, and is then kept at that (§15, DR-78).
+ * donation, say) are overridden here; its campers' lines on each camper. The
+ * e-payment handling fee isn't a price line: it's edited on its invoice (§9.7).
  */
 
 import { Stack, Text } from '@mantine/core';
@@ -17,22 +16,17 @@ import type {
   Scalar,
 } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { FeeBreakdown, feeLabel, type FeeLine, HANDLING } from 'components/FeeBreakdown';
+import { FeeBreakdown, feeLabel, type FeeLine } from 'components/FeeBreakdown';
 import { usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { pricingOverrideHooks } from 'store/entities';
 
 import { OverrideModal } from './OverrideModal';
 
-/** The reason recorded when a kept handling fee is set to what the total gives now. */
-export const RECALCULATED_REASON = 'Recalculated from the total';
-
-/** The lines a registrar may override: all but the total (and the handling fee, if charged). */
+/** The lines a registrar may override: all but the total. */
 export function overridableLines(event: ApiEvent, camper: boolean): string[] {
   const logic = camper ? event.camper_pricing_logic : event.registration_pricing_logic;
-  const lines = (logic ?? []).map((c) => c.var).filter((v) => v && v !== 'total');
-  if (!camper && Number(event.epayment_handling) > 0) lines.push(HANDLING);
-  return lines;
+  return (logic ?? []).map((c) => c.var).filter((v) => v && v !== 'total');
 }
 
 interface PriceLinesProps {
@@ -60,7 +54,6 @@ export function PriceLines({
     camper ? { camper: camper.id } : { registration: registrationId },
   );
   const remove = pricingOverrideHooks.useDelete();
-  const update = pricingOverrideHooks.useUpdate();
   const [editing, setEditing] = useState<FeeLine | null>(null);
 
   // A registration's list also has its campers' overrides; those belong to each camper.
@@ -81,11 +74,6 @@ export function PriceLines({
       onConfirm: () => remove.mutate({ id: override.id }),
     });
 
-  const recalculate = (line: FeeLine) => {
-    if (line.override)
-      update.mutate({ id: line.override.id, amount: line.computed, reason: RECALCULATED_REASON });
-  };
-
   return (
     <Stack gap="xs">
       <FeeBreakdown
@@ -96,8 +84,6 @@ export function PriceLines({
         overridable={overridableLines(event, !!camper)}
         onOverride={canEdit ? setEditing : undefined}
         onRemoveOverride={canEdit ? confirmRemove : undefined}
-        recalculable={[HANDLING]}
-        onRecalculate={canEdit ? recalculate : undefined}
       />
       {!camper && canEdit && (
         <Text size="xs" c="dimmed">

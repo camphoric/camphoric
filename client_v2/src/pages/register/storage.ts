@@ -1,11 +1,14 @@
 /**
- * localStorage persistence for the in-progress registration (SPEC §7.1, §12).
- * The key is derived from the schema title and the event start date so a
+ * localStorage persistence for the in-progress registration (SPEC §7.1, §7.2,
+ * §12). The key is derived from the schema title and the event start date so a
  * registrant's progress survives a reload — but stale data doesn't bleed across
- * events. Cleared after confirmation unless the KEEP_REG_DATA debug flag is set.
+ * events. Once the form is submitted the payment step is saved too, so a reload
+ * (or a return after closing a PayPal window) resumes paying for the same
+ * registration instead of starting a second one. Both are cleared after
+ * confirmation unless the KEEP_REG_DATA debug flag is set.
  */
 
-import type { ApiRegister, RegistrationFormData } from 'api-types';
+import type { ApiRegister, ApiRegisterPaymentStep, RegistrationFormData } from 'api-types';
 
 export function getRegistrationStorageKey(config: ApiRegister): string {
   const title = config.dataSchema.title ?? 'formData';
@@ -39,5 +42,36 @@ export function clearRegistrationFormData(key: string): void {
     window.localStorage.removeItem(key);
   } catch (error) {
     console.error('Failed to clear registration form data', error);
+  }
+}
+
+const paymentStepKey = (key: string) => `${key} (payment)`;
+
+export function savePaymentStep(key: string, paymentStep: ApiRegisterPaymentStep): void {
+  try {
+    window.localStorage.setItem(paymentStepKey(key), JSON.stringify(paymentStep));
+  } catch (error) {
+    console.error('Failed to save the payment step', error);
+  }
+}
+
+export function loadPaymentStep(key: string): ApiRegisterPaymentStep | null {
+  try {
+    const saved = window.localStorage.getItem(paymentStepKey(key));
+    const parsed = saved ? (JSON.parse(saved) as ApiRegisterPaymentStep) : null;
+    // One saved before payment options moved to the server can't be resumed.
+    return parsed?.paymentOptions ? parsed : null;
+  } catch (error) {
+    console.error('Failed to read the saved payment step', error);
+    return null;
+  }
+}
+
+export function clearPaymentStep(key: string): void {
+  if (window.localStorage.getItem('KEEP_REG_DATA')) return;
+  try {
+    window.localStorage.removeItem(paymentStepKey(key));
+  } catch (error) {
+    console.error('Failed to clear the saved payment step', error);
   }
 }

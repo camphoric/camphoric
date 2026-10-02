@@ -8,8 +8,9 @@
  * edits the form. Any change here must mirror the server (and vice versa), and
  * is guarded by the shared parity fixtures (DR-14, see ./fixtures.ts).
  *
- * Pricing rules work in whole dollars by convention; the handling fee is to
- * the cent, rounded a half cent up like the server (`roundMoney`).
+ * Pricing rules work in whole dollars by convention. The e-payment handling
+ * fee isn't part of the price: it's charged on each invoice paid online, by
+ * the server (§9.7; §15, DR-88).
  */
 
 import type {
@@ -17,14 +18,12 @@ import type {
   AppliedPromo,
   Hash,
   JsonLogicPricing,
-  PaymentType,
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
 import jsonLogic, { type RulesLogic } from 'json-logic-js';
 import type { JSONSchema7 } from 'json-schema';
 import { dateStringToParts } from 'utils/dates';
-import { roundHalfUp, roundMoney } from 'utils/money';
 
 /** The mutable json-logic evaluation context shared across components. */
 interface PricingContext extends Hash {
@@ -71,7 +70,6 @@ export const PROMO_LINE = 'promo';
 export function calculatePrice(
   config: ApiRegister,
   formData: RegistrationFormData,
-  paymentType?: PaymentType,
   promo?: AppliedPromo | null,
 ): PricingResults {
   const { event, pricingLogic, pricing } = config;
@@ -131,24 +129,7 @@ export function calculatePrice(
   results.total = floored(results.total);
   if (promo) applyPromo(promo, data, results, camperContexts);
 
-  // Electronic-payment handling fee — added only when NOT paying by check.
-  if (event.epayment_handling && paymentType !== 'Check') {
-    const handling = handlingFee(asNumber(results.total), event.epayment_handling);
-    results.handling = handling;
-    results.total = roundMoney(asNumber(results.total) + handling);
-  }
-
   return results;
-}
-
-/**
- * The e-payment handling fee: `percent` of `total`, to the cent, a half cent up
- * (§9.2). It's worked out in cents (total × percent), where a fee of exactly
- * half a cent (2.5% of an odd number of dollars) is exact. MUST match
- * `handling_fee` in server/camphoric/pricing.py.
- */
-export function handlingFee(total: number, percent: number): number {
-  return roundHalfUp(total * percent, 0) / 100;
 }
 
 function applyRegistrationComponents(

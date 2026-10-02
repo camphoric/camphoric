@@ -51,6 +51,7 @@ const TYPE_NAMES: Record<string, string> = {
   registration: 'Registration',
   camper: 'Camper',
   payment: 'Payment',
+  invoice: 'Invoice',
   customcharge: 'Custom charge',
   pricingoverride: 'Price override',
   organization: 'Organization',
@@ -79,7 +80,21 @@ const FIELD_NAMES: Record<string, string> = {
   promo_code: 'Promo code',
   payment_type: 'Payment type',
   completed: 'Finished registering',
+  completed_at: 'Finished registering at',
+  confirmation_sent_at: 'Confirmation sent',
+  // Older entries: the first payment was on the registration then (§15, DR-92).
   initial_payment: 'Initial payment',
+  invoice: 'Invoice',
+  description: 'Description',
+  handling: 'Electronic payment handling',
+  origin: 'Made by',
+  due_on: 'Due on',
+  memo: 'Memo',
+  cancelled_at: 'Cancelled',
+  cancel_reason: 'Cancel reason',
+  pending_paypal_order_id: 'Pending PayPal order',
+  paypal_transaction_id: 'PayPal transaction',
+  refund_of: 'Refund of payment',
   lodging: 'Lodging',
   lodging_requested: 'Requested lodging',
   lodging_reserved: 'Reserved spot',
@@ -100,7 +115,7 @@ const FIELD_NAMES: Record<string, string> = {
 // Recorded but not worth showing: the action says it, or it never changes by hand.
 const HIDDEN = new Set(['id', 'uuid', 'event', 'registration', 'camper', 'deleted_at']);
 const PRICES = new Set(['server_pricing_results', 'client_reported_pricing']);
-const MONEY = new Set(['amount']);
+const MONEY = new Set(['amount', 'handling']);
 // JSON fields shown key by key, and what their keys are prefixed with.
 const ATTRIBUTE_FIELDS: Record<string, string> = { attributes: '', admin_attributes: 'Admin: ' };
 

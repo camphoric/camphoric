@@ -31,26 +31,33 @@ describe('ConfirmationStep', () => {
     store.setPaymentStep({
       registrationUUID: 'u',
       serverPricingResults: { total: 100, campers: [] },
-    });
-    store.setPaymentInfo({
-      registrationUUID: 'u',
-      paymentType: 'Check',
-      paymentData: { type: 'none', total: 100 },
+      paymentOptions: { title: '', description: '', default: 'Full', options: [] },
+      handlingPercent: null,
     });
     store.setConfirmationStep({
       confirmationPage: 'Thanks, **paid by Check**! <img src=x onerror="alert(1)">',
       serverPricingResults: { total: 100, campers: [] },
-      initialPayment: {},
+      invoice: null,
+      ledger: {
+        price: 100,
+        handling_charges: 0,
+        total_owed: 100,
+        total_paid: 0,
+        balance: 100,
+        uninvoiced_balance: 0,
+      },
     });
     localStorage.setItem('Camp, 2026-7-1', '{"campers":[{}]}');
+    localStorage.setItem('Camp, 2026-7-1 (payment)', '{"paymentOptions":{}}');
 
     renderWithProviders(<ConfirmationStep />);
 
     // The server's markdown is shown as sanitized HTML.
     expect(screen.getByText('paid by Check').tagName).toBe('STRONG');
     expect(document.querySelector('[onerror]')).toBeNull();
-    // Saved form data is cleared.
+    // Saved form data, and the saved payment step, are cleared.
     expect(localStorage.getItem('Camp, 2026-7-1')).toBeNull();
+    expect(localStorage.getItem('Camp, 2026-7-1 (payment)')).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
   });
 
