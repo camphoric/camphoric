@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-83)
+- §15 — Decision Records (DR-1…DR-84)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -208,9 +208,11 @@ queries derive it from `window.location` rather than props, through the routing 
 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
-- `/admin/users` — Users (§8.10), for Admins only; anyone else is sent to `/admin`. Search
-  params `?userId` — the user being edited: an id, or `new` for a new one; `?historyUserId` —
-  the user whose change history is shown.
+- **Users** (§8.10), for Admins only, opens over whatever admin page is showing, as search
+  params on that page's URL: `?overlay=users` — Users is open; `?userId` — the user being
+  edited: an id, or `new` for a new one; `?historyUserId` — the user whose change history is
+  shown. For anyone else the overlay doesn't open. `/admin/users` (earlier links) redirects to
+  `/admin` with the overlay open, keeping its `?userId` and `?historyUserId` (§15, DR-84).
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/registrations` and `…/campers` — search
@@ -1374,9 +1376,12 @@ reach them. The admin can add an address (e.g. someone who asked by replying) an
 
 ### 8.10 Users
 
-Admins manage who can sign in (URL-addressable, `/admin/users`, §4; §15, DR-50, DR-52); the
-screen and its API are hidden from everyone else, and the way there (the user menu's **Users**)
-only appears for Admins.
+Admins manage who can sign in (§15, DR-50, DR-52); the screen and its API are hidden from
+everyone else, and the way there (the user menu's **Users**) only appears for Admins. Users
+opens over whatever admin page the Admin is on, filling the screen, and closing it returns to
+that page exactly as it was — not reloaded, with its selection, scroll and any unsaved work
+intact (URL-addressable, `?overlay=users`, §4; §15, DR-84). Escape closes the dialogs opened
+within Users (editing a user, …), not Users itself.
 
 - **The list** — every user: username and name, email, **Camphoric permission group** (Admin,
   Registrar, Reporter, or No access), whether they're deactivated, whether they've chosen a
@@ -1709,9 +1714,10 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   forward, a change of the URL-addressable state that closes the editor (choosing another
   report, closing a group email's editor) — as well as reloading or closing the tab (the
   browser's own prompt), and the page's own ways of dropping the edits: Cancel, closing the
-  dialog, starting a new report. Saving, and leaving an editor whose text is unchanged, don't
-  ask. For a report or group email, any field of the form counts as a change; on Home, only the
-  two templates do (§15, DR-79).
+  dialog, starting a new report. Saving, leaving an editor whose text is unchanged, and opening
+  or closing Users over the page (§8.10, which leaves the page as it is) don't ask. For a report
+  or group email, any field of the form counts as a change; on Home, only the two templates do
+  (§15, DR-79).
 - **Way back** — a screen that offers a way back up to where it was reached from (the event
   chooser back to organization selection, the Event Admin back to event selection) puts it in the
   app header, at the far left, immediately before the "Camphoric Admin" title, as a back-arrow
@@ -3534,6 +3540,23 @@ address bar's query string to the server as is, where a quoted invitation code w
 fixes reading, but URLs stay quoted. Storing ids as numbers in search — typed better, but every
 selection, tab and table param is a string by contract (DR-2), and the quoting would remain for
 string values like `new`.
+
+### DR-84 — Users opens over the current page, kept in that page's URL
+
+**Decision:** Users is an overlay over whichever admin page is showing — drawn full-screen with
+a close button in the upper right, like the template editor's expanded view — rather than a
+page of its own. Its state rides on the underlying page's URL (`?overlay=users`, `?userId`,
+`?historyUserId`), so it's linkable, back/forward open and close it, and closing it only drops
+those params: the page underneath was never left, so nothing reloads and unsaved work survives.
+Opening or closing it therefore doesn't trip the unsaved-changes guard (DR-79). `/admin/users`
+redirects to the overlay so earlier links work.
+**Context:** Users is reached from the user menu on every admin page, usually for a quick look
+or change, after which the Admin wants to be back where they were. As its own route it replaced
+the page — losing scroll and in-progress edits, and returning only by the browser's back.
+**Alternatives:** Keeping `/admin/users` as a route drawn as an overlay, with close going back —
+simpler, but the page underneath reloads (losing scroll and edits, and asking to discard unsaved
+template changes on the way in). Overlay state outside the URL — not linkable, and back
+wouldn't close it.
 
 ---
 

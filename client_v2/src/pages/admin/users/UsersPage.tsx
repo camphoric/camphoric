@@ -1,9 +1,10 @@
 /**
- * Users (SPEC §8.10; §15 DR-50, DR-52), for Admins only — anyone else is sent
- * to the organization chooser. Lists everyone who can sign in; add a user
+ * Users (SPEC §8.10; §15 DR-50, DR-52), for Admins only, shown in the Users
+ * overlay (UsersOverlay). Lists everyone who can sign in; add a user
  * (`?userId=new`) or edit one (`?userId=<id>`); email or copy a set-password
  * link; deactivate, reactivate or delete; and, for superusers, set a password.
  * Choosing a user shows what they changed beside the list (`?historyUserId`).
+ * Its search params ride on the URL of the page under the overlay.
  */
 
 import {
@@ -16,18 +17,17 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
-import { Navigate, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ApiManagedUser, NewUserRequest } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { InlineLoading } from 'components/Loading';
 import { useCurrentUser } from 'hooks/auth';
 import { usePermissions } from 'hooks/permissions';
+import { useOverlay } from 'navigation/overlay';
 import { useState } from 'react';
 import {
   useCopyPasswordLink,
@@ -70,8 +70,8 @@ function requestFor(values: UserFormValues, isSuperuser: boolean, creating: bool
 export function UsersPage() {
   const { canManageUsers } = usePermissions();
   const { data: me } = useCurrentUser();
-  const { userId, historyUserId } = useSearch({ from: '/admin/frame/users' });
-  const navigate = useNavigate();
+  const { search, setSearch } = useOverlay();
+  const { userId, historyUserId } = search;
   const narrow = useMediaQuery('(max-width: 48em)');
   const { data: users } = userHooks.useList(undefined, canManageUsers);
   const historyUser = users?.find((u) => String(u.id) === historyUserId);
@@ -87,21 +87,16 @@ export function UsersPage() {
     null,
   );
 
-  // Hidden from everyone but Admins: they're sent back to the start.
-  if (!canManageUsers) return <Navigate to="/admin" replace />;
+  // Hidden from everyone but Admins.
+  if (!canManageUsers) return null;
 
   const isSuperuser = !!me?.is_superuser;
   const editing =
     userId && userId !== 'new' ? users?.find((u) => String(u.id) === userId) : undefined;
   const formOpen = userId === 'new' || !!editing;
   // Each keeps the other: editing doesn't close the history, nor the reverse.
-  const openForm = (id?: string) =>
-    void navigate({ to: '/admin/users', search: (prev) => ({ ...prev, userId: id }) });
-  const showHistory = (id?: number) =>
-    void navigate({
-      to: '/admin/users',
-      search: (prev) => ({ ...prev, historyUserId: id ? String(id) : undefined }),
-    });
+  const openForm = (id?: string) => setSearch({ userId: id });
+  const showHistory = (id?: number) => setSearch({ historyUserId: id ? String(id) : undefined });
   const fail = (error: Error) =>
     notifications.show({ color: 'red', message: apiErrorMessage(error) });
 
@@ -176,14 +171,13 @@ export function UsersPage() {
     <Container size={historyUser ? 'xl' : 'lg'}>
       <Stack>
         <Group justify="space-between">
-          <Title order={2}>Users</Title>
+          <Text size="sm" c="dimmed">
+            Everyone who can sign in to the Camphoric admin, and their permission group.
+          </Text>
           <Button leftSection={<IconPlus size={16} />} onClick={() => openForm('new')}>
             Add user
           </Button>
         </Group>
-        <Text size="sm" c="dimmed">
-          Everyone who can sign in to the Camphoric admin, and their permission group.
-        </Text>
         {users ? (
           <Grid>
             <Grid.Col span={{ base: 12, md: historyUser ? 7 : 12 }}>
