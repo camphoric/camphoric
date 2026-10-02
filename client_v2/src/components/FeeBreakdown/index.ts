@@ -1,1 +1,1 @@
-export { FeeBreakdown, feeLabel, type FeeLine, HANDLING, PROMO, PROMO_LABEL } from './FeeBreakdown';
+export { FeeBreakdown, feeLabel, type FeeLine, PROMO, PROMO_LABEL } from './FeeBreakdown';

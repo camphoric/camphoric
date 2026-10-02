@@ -2,7 +2,7 @@ import { year } from './dates.js';
 
 const subject = 'Family Week registration confirmation';
 
-// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `invoice` and
 // `event` are the server's template variables. `{%-` swallows the tag's line,
 // as Mustache did for a tag alone on its line.
 const template = `

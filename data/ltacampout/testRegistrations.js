@@ -101,10 +101,6 @@ function makeRegistration(reg, lodgingMap) {
       'total': 0,
       'tuition': 0,
     },
-    // The payment step's type; it isn't part of the registration form.
-    'paymentData': {
-      paymentType: 'Check',
-    },
   };
 }
 

@@ -358,7 +358,7 @@ test.describe('Deletes and history', () => {
     await page.goto(story('history-list--registration'));
     await expect(page.getByText('Main address › City')).toBeVisible();
     await expect(page.getByText('Berkeley → Oakland')).toBeVisible();
-    await expect(page.getByText('No one signed in')).toBeVisible();
+    await expect(page.getByText('Anonymous User')).toBeVisible();
   });
 
   test('a user’s history names each change in full, with older ones to load', async ({ page }) => {
@@ -603,6 +603,39 @@ test.describe('Promo codes', () => {
     await expect(page.locator('#storybook-root pre')).toContainText('"scope": "camper"');
     await expect(page.locator('#storybook-root pre')).toContainText(
       '"expiration_date": "2026-12-01T08:00:00.000Z"',
+    );
+  });
+});
+
+test.describe('Payments and invoices', () => {
+  test('a registrant chooses a payment option and sees what it costs each way', async ({
+    page,
+  }) => {
+    await page.goto(story('payment-options--deposit-choice'));
+    await page.getByRole('radio', { name: '50% Deposit: $550.00' }).check();
+    await expect(page.getByText('$563.75')).toBeVisible();
+    await expect(page.getByText(/includes \$13\.75 handling/)).toBeVisible();
+  });
+
+  test('an invoice lists each refund under the payment it gives back from', async ({ page }) => {
+    await page.goto(story('invoice-card--pay-pal-with-refund'));
+    await expect(page.getByText('↳ Refund (PayPal)')).toBeVisible();
+    await expect(page.getByText('Electronic payment handling')).toBeVisible();
+  });
+
+  test('a Reporter sees an invoice’s notes but no actions', async ({ page }) => {
+    await page.goto(story('invoice-card--as-a-reporter'));
+    await expect(page.getByText('Invoice #2: Full Payment')).toBeVisible();
+    await expect(page.locator('#storybook-root button')).toHaveCount(0);
+  });
+
+  test('editing an invoice fills in the balance and the handling fee', async ({ page }) => {
+    await page.goto(story('edit-invoice-modal--with-uninvoiced-balance'));
+    await page.getByRole('button', { name: 'Use the balance' }).click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.getByRole('textbox', { name: 'Amount' })).toHaveValue('$1000');
+    await expect(page.getByRole('textbox', { name: 'Electronic payment handling' })).toHaveValue(
+      '$25',
     );
   });
 });

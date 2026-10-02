@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-86)
+- §15 — Decision Records (DR-1…DR-94)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -67,7 +67,8 @@ goes (§9.6, *Way back*).
   server-provided pricing logic, while keeping the result identical to the server's
   authoritative calculation.
 - Support multiple payment methods (pay-by-check and PayPal/credit card) with optional
-  deposit options and electronic-payment handling fees.
+  deposit options and electronic-payment handling fees, keeping every payment on an invoice
+  (§9.7).
 - Provide a complete admin back-office driven by the same JSON Schema engine, where event
   configuration (schemas, pricing, templates, email) is itself editable as data.
 - Let organizers define **reports** as templates (Jinja-on-server or Handlebars-on-client)
@@ -302,11 +303,13 @@ consistently:
   registration type leaves its registrations with no type, and deletes its invitations and its
   invitation email; deleting a deposit leaves its payments; a custom charge type campers still
   have, an organization with events, and an email account an event or sent email uses can't be
-  deleted; only Admins delete events, and only before anyone has registered.
+  deleted; only Admins delete events, and only before anyone has registered; only Admins delete
+  payments and invoices, not a payment that has been refunded nor an invoice anything was paid on
+  (§15, DR-93).
 - **Soft delete** (registrations, campers, payments and promo codes; §15, DR-55, DR-67): `DELETE`
   marks one deleted (its `delete-preview` has `restorable: true`, and lists under `deletes` what
-  goes out of sight with it: a registration's campers, payments and custom charges, a camper's
-  charges; a promo code's lists under `changes` the registrations that keep it). A deleted
+  goes out of sight with it: a registration's campers, invoices, payments and custom charges, a
+  camper's charges; a promo code's lists under `changes` the registrations that keep it). A deleted
   one — and a deleted registration's campers, payments and charges — is gone from every list,
   detail (404), total, lodging count, report and recipient list, until it's restored. A deleted
   promo code is gone from the list and can't be applied, but registrations that have it keep it
@@ -328,12 +331,13 @@ consistently:
 Caching/invalidation uses query keys (one key namespace per entity, parameterized by the
 filter params). Mutations invalidate the relevant entity key(s) so dependent lists refetch
 automatically. Some mutations must invalidate **multiple** namespaces because they affect
-derived data — e.g. updating a `Camper`, `CustomCharge`, or `Payment` must also invalidate
-`Registration` queries (because totals/augmented data change).
+derived data — e.g. updating a `Camper`, `CustomCharge`, `Payment` or `Invoice` must also
+invalidate `Registration` queries (because totals/augmented data change), and a `Payment` and an
+`Invoice` invalidate each other (an invoice's status comes from its payments).
 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
-`Payment`, `CustomCharge`, `CustomChargeType`, `PromoCode`, `EmailAccount`, `EmailTemplate`,
+`Invoice` (no create, §9.7), `Payment`, `CustomCharge`, `CustomChargeType`, `PromoCode`, `EmailAccount`, `EmailTemplate`,
 `EmailUnsubscribe` (no update), `User` (as ManagedUser, Admins only).
 
 Non-CRUD admin endpoints:
@@ -517,7 +521,13 @@ Non-CRUD admin endpoints:
   ("That promo code isn't valid for this event."), shown to the registrant (§7.1; §15, DR-67).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, invitation?, promoCode? }` → payment-step payload
-  (`{ registrationUUID, serverPricingResults, deposit }`). While the event isn't open (before
+  (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent }`). The
+  registration is *started*: saved, but not yet in the admin lists (§9.7). `paymentOptions` is
+  `{ title, description, default, options: [{ name, title, amount, handling }] }`: the event's
+  deposit choices worked out on the server against `serverPricingResults` (§15, DR-89) — each
+  option's `amount` by check and the `handling` fee added when it's paid online — or a single
+  "Full payment" option when the event has none. `handlingPercent` is the event's percent on
+  online payments, or `null`. While the event isn't open (before
   `registration_start` or from `registration_end`), it's refused — 409 `{ detail: 'Registration
   for this event is closed.' }`, shown to the registrant — unless it carries a valid invitation
   for this event, so special registration types can still register. An invitation that isn't
@@ -526,19 +536,49 @@ Non-CRUD admin endpoints:
   non-blank `promoCode` the `checkpromo` check would refuse is a 400 with the same `{ detail }`
   and nothing is saved; a usable one is recorded on the registration and priced (§9.2). The code
   travels outside `formData`, so it's never one of the registration's `attributes`.
+- `POST /api/events/{eventId}/register` with `{ step: 'paypal-order', registrationUUID,
+  paymentOption, paymentType }` (`PayPal` | `Card`) — what the PayPal or card button calls
+  (§7.2; §15, DR-90, DR-91). It **completes** the registration (unpaid until money arrives),
+  makes or rewrites its registration invoice for the chosen option, and creates the PayPal order
+  for it → `{ orderID, total, handling, invoice }`. The order has a single item, "Total for
+  Invoice #{id} for {Event Name}", for the option's amount plus the handling fee; the fee isn't
+  added to the invoice until the order is captured. 409 `{ detail }` if the event doesn't take
+  payments online, or the registration invoice has already been paid on; 400 on
+  `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
-  paymentType, paymentData, payPalResponse? }` → confirmation-step payload
-  (`{ confirmationPage, serverPricingResults, initialPayment, emailError }`), where
-  `confirmationPage` is the event's confirmation page already rendered on the server, as
-  markdown (§7.3). The confirmation email is queued, not sent, before the response (§15, DR-44):
-  `emailError` is true only when it couldn't be queued (its template can't be rendered, or the
-  address can't be emailed). Repeating the payment step for a registration that's already
-  complete returns the same payload and records no second payment or email. The payment step
-  isn't limited by the registration dates: a registration accepted before closing can still
-  pay.
+  paymentType?, paymentOption?, paypalOrderId? }` → confirmation-step payload
+  (`{ confirmationPage, serverPricingResults, invoice, ledger, emailError }`):
+  - **By check** (`paymentType: 'Check'`, the default): completes the registration and makes or
+    rewrites its registration invoice for `paymentOption` (the default option when left out),
+    waiting for the check. A registration with nothing to pay is completed without an invoice.
+  - **PayPal or card** (`paypalOrderId`): the server fetches the approved order, checks it's for
+    this registration's invoice and for what the invoice asks now, and captures it — the money
+    moves only here. Repeating it after a capture returns the same payload (the order is found
+    captured), with no second payment or email. When it doesn't go through, the registration
+    stays completed and unpaid, and the response is an error `{ detail, code, invoice }`:
+    `amount_changed` (409: the invoice changed since the order was made; nothing was captured),
+    `declined` (402: PayPal refused; nothing was captured), or `unknown` (502: PayPal's answer
+    was lost, so money may have moved — the order is kept pending on the invoice, the event is
+    emailed the details, and the confirmation is sent).
+  - `confirmationPage` is the event's confirmation page already rendered on the server, as
+    markdown (§7.3); `invoice` is the registration invoice (or `null`) and `ledger` the
+    registration's `{ price, handling_charges, total_owed, total_paid, balance,
+    uninvoiced_balance }` (§9.7). The confirmation email is queued, not sent, before the
+    response (§15, DR-44): `emailError` is true only when it couldn't be queued.
+  - The option and method can change until something is paid on the registration invoice;
+    after that, repeating the step returns the same payload and changes nothing. The payment
+    step isn't limited by the registration dates: a registration accepted before closing can
+    still pay.
+  - A request in the old shape (with `paymentData` or `payPalResponse`) is refused with a 409
+    asking the registrant to reload the page.
+- `POST /api/events/{eventId}/register` with `{ step: 'finish', registrationUUID }` — finish
+  without paying now, after a PayPal attempt that didn't go through: sends the confirmation
+  (once) and returns the confirmation-step payload. 409 for a registration not yet completed.
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
-> server recomputes and returns `serverPricingResults`, which the client uses thereafter.
+> server recomputes and returns `serverPricingResults`, which the client uses thereafter. Every
+> amount on the payment step — each option's amount and handling fee, and what PayPal is asked
+> to capture — comes from the server; the client never computes one (§15, DR-89, DR-90).
 
 ### Data model (entity shapes the client relies on)
 
@@ -586,10 +626,16 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
   `registration_type`, `promo_code` (the id of its promo code, or null), read-only `promo`
   (`{ id, code, label, scope, deleted }` of that code, or null — present even once the code is
-  deleted, to label its discount), `payment_type`, `paypal_response`, `uuid`, timestamps. A
-  Registrar or Admin may set `promo_code` to any live code of the registration's event, usable
-  by registrants or not, or clear it (400 on `promo_code` otherwise); a deleted code the
-  registration already has may be sent back unchanged. Changing it reprices the registration.
+  deleted, to label its discount), `uuid`, `completed` (a payment button was pressed; §15,
+  DR-91), read-only `completed_at` and `confirmation_sent_at`, timestamps; and its ledger
+  (§9.7), read-only numbers: `total_owed` (the price plus the handling fees on its invoices),
+  `total_paid` (its payments less refunds), `balance` (`total_owed − total_paid`; negative when
+  a refund is due), `handling_charges`, and `uninvoiced_balance` (the balance no open invoice asks
+  for yet, never below 0). A Registrar or Admin may set `promo_code` to any live code of the
+  registration's event, usable by registrants or not, or clear it (400 on `promo_code`
+  otherwise); a deleted code the registration already has may be sent back unchanged. Changing
+  it reprices the registration. How the registrant chose to pay lives on its registration
+  invoice, not on the registration (§15, DR-87).
 - **Camper:** `id`, `attributes`, `admin_attributes`, `registration`, `lodging` (assigned),
   `lodging_requested`, `lodging_shared`/`lodging_shared_with`/`lodging_comments`,
   `server_pricing_results`, `sequence` (order within a registration), `stay` (array of ISO
@@ -642,15 +688,53 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
   changed, so it must be entered again).
 - **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
-  `page_report` | `invitation` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
+  `page_report` | `payment_report` | `invitation` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
   `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
   (`queued` | `sending` | `sent` | `failed` | `cancelled`), `attempts`, `next_attempt_at`,
   `last_error`, `sent_at?`, `smtp_message_id`, `created_by?`, `created_by_name?`, timestamps.
 - **Lodging:** `id`, `event`, `parent`, `name`, `children_title`, `capacity`, `reserved`,
   `visible`, `sharing_multiplier`, `notes`.
 - **Deposit:** `id`, `event`, `deposited_on`, `attributes`, `amount`.
-- **Payment:** `id`, `registration`, `deposit?`, `payment_type`, `paid_on`, `attributes`,
-  `amount`, `notes`.
+- **Invoice** (`/api/invoices/`, filter `registration`, `registration__event`,
+  `registration__completed`; §9.7, §15, DR-87): a request for one chunk of a registration's
+  balance. `id`, `registration`, `origin` (`registration` | `payment_received` | `admin` |
+  `migrated`, §9.7), `description`, `amount` (toward the registration), `handling` (the
+  e-payment handling fee on it; adds to what's owed), `payment_type` (how the payer chose to pay
+  it), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
+  `pending_paypal_order_id`, `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`,
+  timestamps; and, worked out from its live payments, read-only `total` (`amount + handling`),
+  `amount_paid` (net of refunds), `amount_due`, `overpaid`, `status` (`open` |
+  `partially_paid` | `paid` | `overpaid` | `cancelled`) and `payments` (ids). Money fields are
+  decimal strings. Any role reads, notes included; Registrars and Admins edit `description`,
+  `amount`, `handling`, `memo`, `notes` and `due_on` (neither amount may be negative). Invoices
+  are made by the payment step and by recording payments; a `POST` here is a 405.
+  - `POST /api/invoices/{id}/cancel/` `{ reason }` and `/reopen/` (Registrars and Admins) → the
+    invoice. Cancelling one that still holds money (its payments don't net to 0) is a 409
+    `{ detail }`; a cancelled invoice charges no handling.
+  - `POST /api/invoices/{id}/check-paypal/` (Registrars and Admins): asks PayPal about the
+    invoice's pending order → `{ result: 'recorded' | 'not_captured', payment, invoice }`: a
+    captured order is recorded as a payment (once), one never captured is cleared.
+  - `DELETE` (Admins only; §15, DR-93): only an invoice nothing was ever paid on (deleted payments
+    count) — a 409 otherwise; a hard delete.
+- **Payment:** `id`, `registration`, `invoice` (every payment belongs to one; §15, DR-87),
+  `deposit?` (a bank deposit), `payment_type`, `paid_on`, `attributes`, `amount` (negative for a
+  refund; §15, DR-94), `notes`, `refund_of` (for a refund: the payment it gives money back
+  from), read-only `paypal_response` (PayPal's reply) and `paypal_transaction_id` (PayPal's
+  capture id, or refund id — unique, so one PayPal transaction is recorded once), `refunded`
+  (how much of a payment has been refunded) and `paypal_refundable`; write-only `new_invoice`.
+  Recording one (Registrars and Admins) without `invoice` puts it on the registration's oldest
+  invoice with money due, or — with none, or `new_invoice` — on a new `payment_received` invoice
+  for exactly it (§9.7). A refund names `refund_of` (its invoice is that payment's) or at least
+  `invoice`, and can't give back more than is left of the payment (400 otherwise). A payment
+  can't go on another registration's invoice or a cancelled one. Only Admins delete a payment
+  (§15, DR-93), and not one that has been refunded (409); restoring stays with Registrars and
+  Admins.
+  - `POST /api/payments/{id}/refund-paypal/` `{ amount, reason, request_id }` (Registrars and
+    Admins): refunds some or all of a PayPal or card payment through PayPal and records the
+    refund → 201 with the refund payment. `request_id` is made once per refund attempt, so a
+    retry refunds once. 409 `{ detail, code: 'refused' }` when it can't (not a PayPal payment,
+    more than is left, or PayPal refused); 502 `{ code: 'unknown' }` when PayPal's answer was
+    lost (nothing is recorded, and the event is emailed the details).
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
 - **PromoCode** (`/api/promocodes/`, filter `event`; soft-deleted; §15, DR-67): `id`, `event`,
@@ -664,24 +748,19 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
   the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
   registration itself), `var` (the line), `amount`, `reason`, read-only `created_by`,
-  `created_by_name`, `applied` (whether it's in effect: the event's pricing still has that line,
-  and for the handling fee, there is one), timestamps. Any role reads; Registrars and Admins
-  write. Rules (a 400 on `var` otherwise):
+  `created_by_name`, `applied` (whether it's in effect: the event's pricing still has that
+  line), timestamps. Any role reads; Registrars and Admins write. Rules (a 400 on `var`
+  otherwise):
   - `var` is one of the event's camper pricing lines (for a camper) or registration pricing
-    lines or `handling` (for the registration; `handling` only when the event charges one);
-    never `total`, which is always the sum.
+    lines (for the registration); never `total`, which is always the sum. The e-payment
+    handling fee isn't a price line: it's edited on its invoice (§9.7; §15, DR-88).
   - One per line; `reason` can't be blank. A camper's override takes its registration from the
     camper.
   - It applies right after its line is worked out, so everything after it — the totals, a
-    deposit — follows. The handling fee is worked out last, on the total; an override of it
-    only applies when there is a handling fee (not when paying by check).
+    deposit — follows.
   - The pricing results record the amounts overrides replaced as `overridden`
     (`{ var: computed }`, on the registration's results and each camper's). It's for the admin:
     templates, emails and the registrant never see it, only the new amounts.
-  - When the payment step completes a PayPal or card payment that carries a handling fee, the
-    server records a `handling` override at that fee (reason "Kept at the amount when paid
-    online", no `created_by`), unless the registration already has one, so later changes don't
-    change the fee charged (§15, DR-78).
 - **User** (whoami): `id`, `username`, `email`, `first_name`, `last_name`, `is_staff`,
   `is_superuser`, `is_active`, `last_login`, `date_joined`, `role` and `must_change_password`; an
   anonymous user has `username: ''`, `id: null` and `role: null`.
@@ -690,8 +769,9 @@ The client also derives **augmented** view models that a V2 should reproduce (in
 hooks):
 
 - **AugmentedRegistration** = registration + `campers[]` (its campers) + resolved
-  `registrationType` + `total_owed` (from `server_pricing_results.total`) + `total_payments`
-  (sum of its payments) + `total_balance`.
+  `registrationType` + `total_payments` and `total_balance` (the server's `total_paid` and
+  `balance`, under the names older Handlebars reports use; `total_owed` is the server's too,
+  §9.7).
 - **AugmentedLodging** = lodging + `children[]` (nested) + `isLeaf` + `campers[]` (assigned
   here) + `count` (campers in subtree) + `capacity` (explicit, or sum of children) +
   `maxCapacity` + `fullPath` (e.g. `Building A→Room 101`) + `pathParts`.
@@ -746,7 +826,7 @@ hooks):
 ## 7. Registration Flow (Public)
 
 The registration client store (Zustand; see §5) holds: `registration` (form data, initialized
-to `{ campers: [{}] }`), `totals` (PricingResults), optional `paymentStep`, `paymentInfo`,
+to `{ campers: [{}] }`), `totals` (PricingResults), optional `paymentStep`,
 `confirmationStep`, and an `updating` flag.
 
 Before any step renders, the app loads the registration config (`GET …/register`) and:
@@ -798,9 +878,10 @@ Before any step renders, the app loads the registration config (`GET …/registe
     ("must match exactly one schema") beside the real one; those are hidden, and exact
     duplicates are shown once. Hidden errors still block submission.
 - **Pre-submit content:** before the registrant proceeds, optionally show an electronic-payment
-  handling-charge notice (computed from `epayment_handling`) and the server-provided
-  `preSubmitTemplate` (rendered through the template engine). An action advances the registrant
-  to payment.
+  handling-charge notice — the event's `epayment_handling` percent, added to what's paid online,
+  when the event takes payments online (no amount: the fee is worked out on what's paid; §15,
+  DR-88) — and the server-provided `preSubmitTemplate` (rendered through the template engine).
+  An action advances the registrant to payment.
 - **Promo code** (§15, DR-67): when the config's `hasPromoCodes` is true, the registrant can
   enter a promo code just before advancing to payment. Applying it checks it with
   `checkpromo`: a usable code is shown as applied (with its label), kept in the registration
@@ -810,7 +891,12 @@ Before any step renders, the app loads the registration config (`GET …/registe
   applied or cleared. Pressing Enter in the field applies the code; it doesn't submit the form.
 - **Submit:** posts `{ step: 'registration', formData, pricingResults, invitation?, promoCode? }`
   (`promoCode` only when one is applied). On success it stores the returned payment-step payload
-  and advances to the payment step.
+  — in the store and in localStorage beside the form data — and advances to the payment step.
+- **Already sent:** when this browser has a saved payment step for the event (the form was sent,
+  and the registrant hasn't reached the confirmation), the step says so and offers to continue
+  to payment for that registration, or to start a new one (which clears what's saved). A reload
+  of the payment step resumes from what's saved the same way, so leaving PayPal's window or
+  closing the tab doesn't lead to a second registration from the same browser.
 
 ### 7.2 Step 2 — Payment
 
@@ -823,40 +909,51 @@ indented groups, a requested lodging by its name — following `ui:order`, skipp
 and empty values, and resolving conditional fields (`$ref`, `dependencies`, `if/then`) against
 the entered data so the review lists exactly the fields the form showed. Each section ends with
 its share of `serverPricingResults`: the registration section lists the registration-level
-pricing components (plus the promo code's discount and the e-payment handling fee when present)
-and the grand total; each camper section lists that camper's components (with a per-camper
-promo discount) and its total. The discount is labelled with the applied code's label.
+pricing components (plus the promo code's discount) and the grand total — the e-payment
+handling fee isn't part of the price; the payment options show it (§9.7); each camper section
+lists that camper's components (with a per-camper promo discount) and its total. The discount is labelled with the applied code's label.
 Components that come to exactly $0 are left out; negative ones (discounts, credits) are listed,
 and the totals are always shown, even at $0 (§15, DR-33). Labels come from the pricing logic's
 `label`s (§11).
 
 Then reads the payment-step payload's `serverPricingResults.total`:
 
-- **No payment needed** (total ≤ 0): complete the flow without collecting payment.
-- **Payment needed** (total > 0): the registrant chooses how to pay; the surface must support:
-  - **Deposit options:** if the payment step includes a `deposit` schema, let the registrant
-    choose among deposit options. Each choice carries a JSON Logic expression; selecting one
-    recomputes the amount due by applying that logic to the pricing results (so the displayed
-    total updates live). The default deposit option is pre-selected.
-  - **Pay by check:** recomputes totals with payment type `Check` (i.e. **without** the
-    e-payment handling fee) and the applied promo code, applies the chosen deposit logic, and
-    posts the payment.
-  - **PayPal / credit card:** offer PayPal / credit-card payment via the PayPal SDK. Card payment
-    is PayPal's own Debit or Credit Card button, which stays enabled; any guidance shown with the
-    buttons matches the buttons PayPal shows (§15, DR-77). The order's amount is the current
-    total; the chosen deposit name is embedded in the order's `custom_id` (the only reliable way
-    to recover the deposit choice in the approve callback). On approval it captures the order,
-    derives payment type (`PayPal` vs `Card` from the funding source of the button clicked),
-    reads the captured amount and deposit, and posts the payment.
+- **No payment needed** (total ≤ 0): an action completes the registration without collecting
+  payment (posts `{ step: 'payment', registrationUUID }`; no invoice is made).
+- **Payment needed** (total > 0): the registrant chooses a payment option and how to pay
+  (§9.7). Every amount comes from the server (§15, DR-89, DR-90):
+  - **Payment options:** the payload's `paymentOptions` (the event's deposit choices — "Full
+    Payment", "50% Deposit" …) with its title and description; the default is pre-chosen. For
+    the chosen option the step shows what paying by check costs (its `amount`) and, when the
+    event takes payments online, what paying online costs (`amount + handling`, naming the fee).
+    With a single option there's nothing to choose.
+  - **Pay by check:** posts `{ step: 'payment', registrationUUID, paymentType: 'Check',
+    paymentOption }`. The server completes the registration and makes its invoice, which waits
+    for the check.
+  - **PayPal / credit card:** PayPal's buttons (its account button, and its own Debit or Credit
+    Card button, which stays enabled; any guidance shown with the buttons matches the buttons
+    PayPal shows — §15, DR-77). Pressing one posts `{ step: 'paypal-order', registrationUUID,
+    paymentOption, paymentType }` (`Card` or `PayPal`, from the button clicked); the server
+    completes the registration and creates the PayPal order, whose id goes to PayPal's
+    checkout. On the payer's approval the step posts `{ step: 'payment', registrationUUID,
+    paymentType, paypalOrderId }` and the server captures it. The browser never creates or
+    captures an order (§15, DR-90).
+  - **When a PayPal payment doesn't go through** — the payer closes PayPal's window, PayPal
+    declines, or the amount changed — the registrant is told they're registered, that the
+    option's amount is still due, and why (the server's message) when there is one. They can
+    try again (perhaps with another option), pay by check, or **finish and pay later** (posts
+    `{ step: 'finish', registrationUUID }`), which sends the confirmation and shows the
+    confirmation page (§15, DR-91).
+  - **When PayPal's answer was lost** (the `unknown` code): money may have moved, so the
+    registrant is asked not to pay again — the organizers will check — and offered only to
+    finish; the payment options and buttons aren't shown.
   - While a payment is in flight, block further interaction and indicate progress (and prevent
     double submission). For PayPal, the payment is in flight from the payer's approval, not
     while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
-    checkout, an SDK error, or a failed capture releases the block; an error or failed capture
-    also tells the registrant that the payment didn't go through (§15, DR-77).
-- **Posting a payment:** `{ step: 'payment', registrationUUID, paymentType, paymentData:{ type
-  (deposit name), total }, payPalResponse? }`. On success it stores the confirmation-step
-  payload and navigates to the confirmation step. If the payment step data is missing, it
-  redirects back to step 1.
+    checkout, an SDK error, or a failed capture releases the block; an error also tells the
+    registrant that the payment didn't go through (§15, DR-77).
+- On success the step stores the confirmation-step payload and navigates to the confirmation
+  step. If the payment step data is missing and none is saved, it redirects back to step 1.
 
 ### 7.3 Step 3 — Confirmation
 
@@ -865,11 +962,18 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   (§9.3). The client does no templating here (§15, DR-42).
 - The page is the event's `confirmation_page_template`, a Jinja template rendered on the server
   when the payment step completes, with the confirmation email's variables (the
-  `confirmation_page` context: `event`, `registration`, its `campers`, `pricing`,
-  `initial_payment`). If it can't be rendered, the registration still completes, the registrant
-  sees a short generic thank-you, and a report with each problem is emailed to the event's
-  `confirmation_email_from` address.
-- Clears the saved localStorage form data (unless the keep-data debug flag is set).
+  `confirmation_page` context: `event`, `registration`, its `campers`, `pricing`, `invoice` —
+  the registration invoice, with what's been paid on it and what's due — and, for older
+  templates, `initial_payment`). It must read well when nothing has been paid yet (a check to
+  send, or a PayPal payment that didn't go through). If it can't be rendered, the registration
+  still completes, the registrant sees a short generic thank-you, and a report with each problem
+  is emailed to the event's `confirmation_email_from` address.
+- **When the confirmation email goes out** (§15, DR-91): when the flow reaches a result — they
+  chose to pay by check, PayPal captured their payment, they finished to pay later, or there was
+  nothing to pay — and otherwise half an hour after the registration was completed, by the
+  worker (for someone who closed the page with PayPal's window open). It's sent once.
+- Clears the saved localStorage form data and payment step (unless the keep-data debug flag is
+  set).
 - If there's no confirmation data (e.g. direct navigation/refresh), redirects to step 1.
 
 ---
@@ -921,7 +1025,8 @@ the event:
   (§7.3).
 - **Confirmation email** — `from` (the event's sending address), and the email's subject and body
   (its email template, edited as described below and saved with the rest).
-- PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling`.
+- PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling` (the percent added to each
+  payment made online, on the amount paid; §9.7).
 - `pricing` (a freely editable set of named integer values) and `registration_template_vars`
   (named string values).
 
@@ -932,7 +1037,8 @@ debugging aid.)
 email templates (§5; §15, DR-45), written in Jinja: the subject and the markdown body render on the
 server against the event's variables (§9.3). The body is edited in the template editor (§9.6) with
 the email's context (`confirmation_email`: `event`, `registration`, `campers`, `pricing`,
-`initial_payment`; `invitation_email`: `event`, `invitation`, `registration_type`), and the
+`invoice`, and `initial_payment` for older templates; `invitation_email`: `event`, `invitation`,
+`registration_type`), and the
 preview renders subject and body exactly as they'd be sent, for a sample the admin can choose (any
 completed registration; any of the type's invitations, or an example invitation when there are
 none). Subject problems are listed with the body's; a template that doesn't parse can't be saved
@@ -953,40 +1059,66 @@ invitation-based ("special") registration.
 
 **Managing a registration.** The admin finds a registration (the registrations list is a
 sortable/filterable table — columns such as primary camper, registration type, promo code,
-balance, payment status) and works with it. For the selected registration they can:
+balance, payment status) and works with it. The list holds every completed registration — one
+is completed once its registrant pressed a payment button, paid or not (§15, DR-91). Payment
+status is Paid (balance 0), Partial (some paid), Unpaid, or Refund due (balance below 0); a
+registration whose registrant chose to pay online and it didn't go through (its registration
+invoice is to be paid by PayPal or card, and is open) says so. For the selected registration
+they can:
 
 - **Edit core fields and attributes** — registration type, promo code (any of the event's live
   codes, or none; a deleted code the registration has is shown as deleted; §15, DR-67),
   registrant email, and the schema-driven `registration_schema` attributes (rendered in admin
   mode, §9.5). Persists via PATCH `{ registrant_email, registration_type, promo_code,
   attributes }`. The registration can be deleted
-  after confirming (the confirmation shows the delete preview: its campers, payments and charges
-  go with it, and it can be restored — §5; §15, DR-54, DR-55).
+  after confirming (the confirmation shows the delete preview: its campers, invoices, payments
+  and charges go with it, and it can be restored — §5; §15, DR-54, DR-55).
 - **Edit admin-only attributes** — assembled from `registration_admin_schema` (a map of named
   `{ data, ui }` schema pairs combined, ordered by title). Persists via PATCH `admin_attributes`.
-- **Review fees and manage payments** — see the fee breakdown from `server_pricing_results`
-  (labels from the pricing-logic vars; a promo discount labelled with the code's label) and
-  Total Owed / Total Payments / Balance Due; see payment history (type, date, amount,
-  `payment_schema` fields, notes); and record a payment
-  (`registration`, `payment_type` ∈ Check/PayPal/Card/Voucher, `paid_on`, `amount`, dynamic
-  attributes, optional `deposit`, `notes`). Registrars and Admins can delete a payment (after
-  confirming) and see the registration's deleted payments, with who deleted each and when, to
-  restore them (§15, DR-55).
+- **Review fees, invoices and payments** (§9.7) — every role sees the fee breakdown from
+  `server_pricing_results` (labels from the pricing-logic vars; a promo discount labelled with
+  the code's label), the ledger (the price; the handling fees on its invoices, when there are
+  any; total owed; total paid; the balance due, or the refund due; and how much of the balance
+  no invoice asks for yet), and each invoice: its description, where it came from (from
+  registration, payment received, created by a registrar, converted), how it's to be paid, its
+  due date, amount, handling fee, total, paid and due (or overpaid), status, memo and internal
+  notes, and its payments — type, date, amount, `payment_schema` fields, notes — with each
+  refund under the payment it gives money back from and how much of a payment has been
+  refunded. An invoice with a PayPal order that wasn't confirmed says so.
+- **Record a payment** (Registrars and Admins) — `payment_type` ∈ Check/PayPal/Card/Voucher,
+  `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
+  money due to start with (filling in what's due on it), any other open one, or "on its own" (a
+  new "Payment received" invoice). An invoice can take more than one payment — a second check
+  for the rest, say.
+- **Edit an invoice** (Registrars and Admins) — its description, amount, handling fee, due date,
+  memo and notes. **Use the balance** fills the amount with what it asks plus the balance no
+  invoice asks for yet; **Calculate** fills the handling fee the way the server charges it when
+  the invoice is paid online — the event's percent of the amount less what's been paid on it,
+  to the cent, a half cent up (§15, DR-88).
+- **Cancel or reopen an invoice** (Registrars and Admins) — with a reason; nothing is owed on a
+  cancelled one. One that still holds money (its payments don't net to 0) can't be cancelled.
+- **Check a PayPal order** (Registrars and Admins) — for an invoice whose PayPal order wasn't
+  confirmed: the server asks PayPal, and records the payment if it was captured, or clears the
+  order if it wasn't (no money was taken).
+- **Refund** (Registrars and Admins; §15, DR-94) — from a payment, give back some or all of
+  what's left of it: through PayPal for a PayPal or card payment (PayPal returns the money and
+  the refund is recorded), or record one made outside Camphoric (a check mailed back). An
+  overpaid invoice offers to **refund the difference**, starting with the overpayment.
+- **Delete** (Admins only; §15, DR-93) — a payment (after confirming; not one that has been
+  refunded), or an invoice nothing was ever paid on. Registrars and Admins see the
+  registration's deleted payments, with who deleted each and when, to restore them (§15,
+  DR-55).
 - **Override a price line** (Registrars and Admins; §15, DR-56) — set the amount of one of the
-  registration's own lines (from `registration_pricing_logic`, e.g. a donation, and the
-  electronic-payment handling fee when there is one) with a reason, change it, or remove it
-  (after confirming). Its campers' lines are overridden on each camper. An overridden line shows
-  what the pricing works out for it, the reason and who set it — to every role; an override that
-  isn't in effect is listed as such. The handling fee is labelled "Electronic payment handling".
-- **Recalculate a kept handling fee** (Registrars and Admins; §15, DR-78) — when the handling fee
-  is overridden and the pricing now works out a different fee (the total changed since it was
-  paid online), set the override to that fee in one action. The fee is then kept at the new
-  amount; the override's reason becomes "Recalculated from the total".
+  registration's own lines (from `registration_pricing_logic`, e.g. a donation) with a reason,
+  change it, or remove it (after confirming). Its campers' lines are overridden on each camper.
+  An overridden line shows what the pricing works out for it, the reason and who set it — to
+  every role; an override that isn't in effect is listed as such. The handling fee isn't a price
+  line: it's edited on its invoice.
 - **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
-  its campers', payments' and custom charges', newest first: when, who (or that no one was
-  signed in, e.g. the online registration; a user since deleted by their email), what it was
-  about, and each changed field's old and new value — attributes by their schema titles and only
-  the keys that changed, ids by name (registration type, lodging, charge type), a price as its
+  its campers', invoices', payments' and custom charges', newest first: when, who ("Anonymous User" when
+  no one was signed in, e.g. the online registration; a user since deleted by their email), what
+  it was about, and each changed field's old and new value — attributes by their schema titles
+  and only the keys that changed, ids by name (registration type, lodging, charge type), a price as its
   total. The changes one save made (an edit and the pricing it recalculated) are shown together.
   Old values are marked reddish and new ones greenish (the order also reads old → new, so color
   isn't the only cue). A value longer than 120 characters is cut short, with a way to see the
@@ -1508,10 +1640,11 @@ server remains authoritative; this is for live UX only). The server also applies
 price overrides (DR-56); those only exist on registrations already submitted, so the form never
 meets one and the client engine ignores them.
 
-Inputs: `config.event` (notably `epayment_handling`), `config.pricingLogic`
-(`{ registration: [...], camper: [...] }`), `config.pricing` (named numeric vars),
-`config.dataSchema` (to find camper date properties), the `formData`, an optional payment
-type, and the applied promo code, if any (`{ code, label, scope, pricingLogic }`, §7.1).
+Inputs: `config.event`, `config.pricingLogic` (`{ registration: [...], camper: [...] }`),
+`config.pricing` (named numeric vars), `config.dataSchema` (to find camper date properties), the
+`formData`, and the applied promo code, if any (`{ code, label, scope, pricingLogic }`, §7.1).
+The e-payment handling fee isn't part of the price: it's charged on each invoice paid online
+(§9.7; §15, DR-88).
 
 Algorithm:
 1. Build a logic context `data = { event, registration: { ...formData, registration_type,
@@ -1541,20 +1674,14 @@ Algorithm:
      as `promo: -discount` in its breakdown and taken off its `total`.
    The discount (for `camper` scope, the sum) is stored as `results.promo = -discount` and
    taken off `results.total`.
-6. **Handling fee:** if `event.epayment_handling` is set and payment type is **not** `Check`,
-   the fee is `results.total × epayment_handling` cents, rounded to a whole cent, a half cent
-   up. It's stored as `results.handling` and added to `results.total`, which is rounded to the
-   cent too. Working in cents keeps a fee of exactly half a cent (2.5% of an odd number of
-   dollars) exact, so both engines round it the same way.
 
 **Rounding money:** to the cent, a half cent up (away from zero), going by the amount as
 written in its shortest decimal form, not the binary float under it: 2.675 rounds to 2.68. The
 server's `money_fmt` and the client's `roundMoney` both work this way; `toFixed` and
 `Math.round(x * 100) / 100` don't, and aren't used for amounts the two sides compare.
 
-`PricingResults` is an open object (`total`, named subtotals, etc.) plus `campers: [...]`,
-optional `promo` and optional `handling`. Pricing rules work in whole dollars by convention; the
-handling fee is to the cent.
+`PricingResults` is an open object (`total`, named subtotals, etc.) plus `campers: [...]` and
+optional `promo`. Pricing rules work in whole dollars by convention.
 
 > **TODO (future):** `calculatePrice` (client, `json-logic-js`) and `calculate_price` (server,
 > `json-logic-qubit`) are a dual implementation kept in lockstep by tests (DR-14). Keep
@@ -1588,15 +1715,17 @@ example and its result.
 (§15, DR-35):
 
 - **Variables** — each kind of template (a *context*) has its own root variables; a report gets
-  `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `lodging` (the
-  root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`, `today` and
-  `now`. `registrations`, `campers` and `payments` are those of completed registrations;
+  `event`, `registrations`, `incomplete_registrations`, `campers`, `payments`, `invoices`,
+  `lodging` (the root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`,
+  `today` and `now`. `registrations`, `campers`, `payments` and `invoices` are those of
+  completed registrations;
   `incomplete_registrations` are those started but never finished, which the server deletes,
   for real and with their campers, once nobody has changed one in 30 days, unless it has a
   payment (§15, DR-76). A
   confirmation email — and the confirmation page — gets the one registration it's for
-  (`registration`, its `campers`, `pricing`, `initial_payment`) and `event`; an invitation email gets `invitation`,
-  `registration_type` and `event`; a group email's copy gets its recipient's registration or
+  (`registration`, its `campers`, `pricing`, `invoice`, and `initial_payment` for older
+  templates) and `event`; an invitation email gets `invitation`, `registration_type` and
+  `event`; a group email's copy gets its recipient's registration or
   camper and `recipient` (§8.9).
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
   `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
@@ -1755,6 +1884,73 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
 - **Registration chrome** — the live price total, the per-step page framing, and the
   closed-registration / invitation context described in §7.
 
+### 9.7 Invoices, payments and balance
+
+Money a registration owes, pays and gets back is kept in **invoices** and **payments**, on the
+server (§15, DR-87). The developer guide `doc/payments.md` walks through it with diagrams; this
+section is the contract.
+
+- **A registration's states.** *Started*: the form was sent, not yet a payment button
+  (invisible in the admin lists; deleted after 30 untouched days, §15, DR-76). *Completed*: a
+  payment button was pressed — Pay by check, PayPal or Card, or Finish registration when nothing
+  is owed (§15, DR-91). From then on it's in every admin list, unpaid until a payment arrives.
+- **Invoice.** A request for one chunk of the balance: `amount` toward the registration, plus
+  `handling` — the e-payment handling fee, added only when it's paid online. Every payment
+  belongs to exactly one invoice, and an invoice holds any number of payments and refunds.
+  Its `origin` says where it came from (informational only):
+
+  | Origin | Made by | When | Typical description | Special behavior |
+  |---|---|---|---|---|
+  | `registration` | the payment step | the registrant pressed a payment button for an option that asks for money (at most one per registration) | the option's title ("50% Deposit") | rewritten by the payment step while nothing is paid on it (a changed option or method); templates call it `registration.invoice` |
+  | `payment_received` | recording a payment | a payment recorded with no invoice that has money due, or "on its own" | "Payment received" ("Refund given" for a refund converted from before invoices) | its amount always equals what its live payments net to, so it never shows money owed; cancelled when its payments are deleted, reopened on restore |
+  | `admin` | a registrar | made by hand (with the invoice pay link of #670) | what the registrar types | none |
+  | `migrated` | the conversion to invoices | an old handling fee with nowhere else to go | "Electronic payment handling" | amount 0, only `handling` |
+
+- **Status** is worked out from the invoice and its live payments, never stored: `cancelled`;
+  `overpaid` (paid more than its total); `paid`; `partially_paid`; `open`.
+- **The ledger.** `total_owed` = the priced `total` + the `handling` of the invoices that aren't
+  cancelled. `total_paid` = the live payments, refunds subtracted. `balance` = `total_owed −
+  total_paid`; negative means a refund is due. `uninvoiced_balance` = the balance no open or
+  partially paid invoice asks for yet (never below 0). Templates (`registration.total_owed`,
+  `total_paid`, `balance`) and the API agree.
+- **Where a payment goes.** Recorded with an invoice, on it (same registration, not cancelled).
+  Without one, on the registration's oldest invoice that still has money due; with none, on a
+  new `payment_received` invoice for exactly it. A registrar's payment never adds a fee.
+- **Payment options** (#675; §15, DR-89): the event's deposit choices (`registration_deposit_schema`,
+  `oneOf` of `{ const, title }` or `enum` + `enumNames`, each const the JSON of `{ name, logic }`)
+  are evaluated on the server against the registration's stored pricing results — a result that
+  isn't a number is the total, and it's kept within 0 and the total. With no choices there's one
+  "Full payment" option. Each option's `handling` is the fee on its amount when the event takes
+  payments online.
+- **The handling fee** (§15, DR-88) is the event's `epayment_handling` percent of the invoice's
+  amount still due, to the cent, a half cent up, added to the invoice when it's paid online —
+  never part of the price. Paying by check adds none; a deposit paid online carries a fee on the
+  deposit only. Registrars and Admins can change it on the invoice.
+- **PayPal** (§15, DR-90). The server creates each order — for the invoice's amount due plus
+  the fee, with one item "Total for Invoice #{id} for {Event Name}", `reference_id` the
+  registration's uuid and `custom_id` `invoice:{id}` — and keeps it as the invoice's pending
+  order; nothing is owed for it until it's captured. On approval it fetches the order, checks it
+  belongs to the invoice, and captures it only if it's still for what the invoice asks now. A
+  capture is recorded as a payment with PayPal's capture id as `paypal_transaction_id` (unique);
+  an order found already captured is recorded (or returned) rather than captured again. Outcomes
+  that don't record a payment: *amount changed* and *declined* (no money taken), and *unknown*
+  (PayPal's answer was lost; money may have moved) — the order stays pending, and a **PayPal
+  problem email** goes to the event's `confirmation_email_from`: what happened, who
+  (registration, registrant, campers, an admin link), what for (invoice, amounts, payment type),
+  PayPal's references and error, what the registrant was told, and what to do ("Check PayPal
+  order"). It's sent once per order and always logged.
+- **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
+  invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
+  through PayPal's refund API on its capture (with a request id made once per attempt, so a
+  retry refunds once; the refund's id is its `paypal_transaction_id`); a lost answer sends the
+  PayPal problem email. Others are recorded by hand. A refunded payment can't be deleted.
+- **Cancel and delete.** Registrars and Admins cancel and reopen invoices; one that still holds
+  money can't be cancelled. Only Admins delete a payment or an invoice (§15, DR-93): not a
+  refunded payment, nor an invoice anything was ever paid on.
+- **Confirmation email timing** (§15, DR-91): sent when the payment flow reaches a result, or by
+  the worker 30 minutes after completion when nothing did; once (`confirmation_sent_at`, and its
+  dedupe key).
+
 ---
 
 ## 10. Cross-Cutting Concerns
@@ -1854,11 +2050,14 @@ a V2 may implement them more cleanly.
 
 - **Client/server pricing parity** is a hard requirement — divergence shows the registrant a
   different total than they're charged. Any change to `calculatePrice` must mirror the server.
-- **Deposit choice round-trip through PayPal `custom_id`** — PayPal's flow loses the local
-  deposit selection, so it's embedded in the order and recovered on approval. Keep a reliable
-  mechanism for this.
-- **Check vs. electronic totals differ** — paying by check omits the `epayment_handling` fee;
-  recompute on payment-method choice, don't reuse the registration-step total blindly.
+- **The server decides every amount on the payment step** — each payment option's amount and
+  handling fee come from the server, and the payment step posts the option's *name*. Never
+  compute a deposit or a handling fee in the browser (§15, DR-89).
+- **The browser never creates or captures a PayPal order** — PayPal's buttons ask the server
+  for the order and hand the approved order back for the server to capture (§15, DR-90).
+- **A payment button completes the registration** — after a cancelled or declined PayPal
+  payment the registrant is registered and unpaid; say so, and let them try again, pay by check
+  or finish and pay later (§15, DR-91).
 - **Separate server-state from client-state** — server data lives in TanStack Query (keyed by
   entity + filter params, across the two API roots `/api` and `/api/events`); the only global
   client store is the small Zustand store for the in-progress registration. Don't push cached
@@ -1867,7 +2066,7 @@ a V2 may implement them more cleanly.
 - **localStorage rehydration keyed on schema title + event start** — clear it after
   confirmation; beware stale data across events.
 - **Multi-key invalidation** for mutations that affect derived totals (`Camper`, `Payment`,
-  `CustomCharge` → also invalidate `Registration` queries).
+  `Invoice`, `CustomCharge` → also invalidate `Registration` queries; `Payment` ↔ `Invoice`).
 - **Admin UI schema derivation** (stripping `enumDisabled`, injecting `definitions`) keeps one
   schema source for two audiences — retain a single source of truth.
 - Several form/focus workarounds exist (phone-field focus, Enter-suppression in address
@@ -1883,10 +2082,16 @@ that is out of scope for this pass.
 
 ### A. Deferred product decisions
 
-- **Deposits admin UI.** The `Deposit` entity and `deposit_schema` exist and deposits appear in
-  the registration payment flow, but there's no admin screen to view/manage `Deposit` records.
-  Deferred for V1 (deposits are created server-side on payment); revisit if organizers need to
-  view/reconcile/batch deposits.
+- **Bank deposits admin UI.** The `Deposit` entity and `deposit_schema` describe a *bank
+  deposit* that groups payments (not the registrant's deposit option, which is a payment
+  option, §9.7). There's no admin screen to view/manage `Deposit` records; revisit if organizers
+  need to view/reconcile/batch deposits.
+- **Receipts for payments made later.** A registrant gets one confirmation email; a payment a
+  registrar records, or one found by "Check PayPal order", sends nothing. Decide whether
+  payments (and refunds) after the confirmation should email a receipt.
+- **What a public invoice page shows** (with the invoice pay link of #670): how much of the
+  registration — campers' names, the registrant's email — a page reachable by an unguessable
+  link should show.
 
 ### B. Deferred with the plugin system (§14)
 
@@ -3130,6 +3335,8 @@ Overriding the total — the breakdown would no longer add up. Custom charges on
 line rather than correcting one, and can't touch registration lines or the handling fee.
 Replacing JsonLogic now (structured rules, Python pricing, an expression language) — a large
 migration that doesn't address adjustments (#674).
+**Amended by DR-88:** the electronic-payment handling fee is no longer a price line, so it can't
+be overridden here; it's edited on its invoice.
 
 ### DR-57 — Organizers can mark lodging full or open
 
@@ -3453,6 +3660,8 @@ with someone who stopped, using the incomplete registrations a report or group e
 nobody wants back. Counting from when the registration was started — would sweep one a
 registrant came back to recently. A few days — too short to follow up. Deleting ones with a
 payment too — money is never deleted by a background job.
+**Note (DR-91):** a registrant who presses PayPal and doesn't finish is completed now, so they're
+in the admin lists rather than left as an incomplete registration.
 
 ### DR-77 — Keep PayPal's card button; block the page only after approval
 
@@ -3472,6 +3681,8 @@ consider.
 
 ### DR-78 — The handling fee paid online is kept; registrars can recalculate it
 
+**Superseded by DR-88.** (Original decision: keep the handling fee charged online as a pricing
+override of the registration's `handling` line, which a registrar could recalculate.)
 **Decision:** When a registrant pays by PayPal or card, the server records the handling fee as a
 pricing override (DR-56) at the amount charged. Later changes to the registration — a discount,
 an adjustment, a camper added — leave the fee as it was. A registrar can recalculate it, which
@@ -3618,6 +3829,132 @@ repeated for every object type, where one `base` says it once. Warning on any us
 method name as a key — the method is sometimes what's meant; printing it never is. Flagging
 calls to methods the spec doesn't list — they work, so a warning would be noise.
 
+### DR-87 — Every payment belongs to an invoice
+
+**Decision:** Money owed, paid and given back is kept as invoices and payments (§9.7). An invoice
+asks for one chunk of a registration's balance: an `amount`, plus a `handling` fee once it's paid
+online — one amount, not line items. Every payment belongs to exactly one invoice, which can
+hold several payments and refunds; a payment recorded without one goes on the oldest invoice with
+money due, or a new "Payment received" invoice for exactly it, whose amount follows its payments.
+An invoice's status is worked out from its payments, never stored. The registration's own payment
+fields (`initial_payment`, `payment_type`, `paypal_response`) are gone; templates still get them,
+worked out from the registration invoice, so older templates keep working.
+**Context:** The first payment was split between the registration (the amount the registrant
+chose, in a JSON field) and the payments (only for PayPal, only when verifying it worked), and
+admin balances read only payments, so a check registrant's balance and `initial_payment`
+disagreed. Billing someone after the fact (#670), a second payment or a meal plan added later
+(#353) and switching from check to PayPal (#623) all need a "this is what's asked" record apart
+from "this is what was paid".
+**Alternatives:** Line items on each invoice — every real invoice is "Registration balance" or "50%
+Deposit" plus at most the fee, so a table of lines was overhead; charges belong on the price
+(custom charges, overrides). A stored status — drifts when a payment is deleted or restored.
+Payments optionally on an invoice — two kinds of payment, and the fee would have nowhere to go.
+Keeping `initial_payment` alongside invoices — two records of the same thing.
+
+### DR-88 — The handling fee is charged on each payment made online
+
+**Decision:** The e-payment handling fee isn't part of the price. It's the event's percent of
+an invoice's amount still due, to the cent, a half cent up, added to that invoice when it's paid
+online (by the server, when it captures the PayPal order); paying by check adds none, and a
+deposit paid online carries a fee on the deposit only. Registrars change it on the invoice, and
+the admin's "Calculate" suggests it the same way (a small client `handlingFee` kept in step with
+the server by shared rounding cases). Supersedes DR-78 and amends DR-56.
+**Context:** On the total, the fee was charged in full on a deposit paid online and couldn't be
+charged on a second payment, nor added when a check registrant paid by PayPal after all (#623);
+it was also decided before the payment method was known (#675). DR-78 had rejected per-payment
+fees as "closer to what PayPal charges, but it reworks payments" — invoices (DR-87) are that
+rework.
+**Alternatives:** Keeping the fee in the price with an override (DR-78) — the problems above.
+A fee per payment rather than per invoice — a second online payment on one invoice would need
+its own fee; one fee per invoice, on what it asks, is what the payer sees.
+
+### DR-89 — The server works out the payment options
+
+**Decision:** The registration step returns the event's deposit choices as payment options with
+amounts worked out on the server (json-logic over the stored pricing results, within 0 and the
+total), each with its online handling fee. The payment step posts the option's name; the
+browser never computes an amount. Closes the gaps of #675 together with DR-90.
+**Context:** The deposit was computed only in the browser and its total stored unchecked as
+`initial_payment.total`; the check total was a second client pricing run (#675).
+**Alternatives:** Evaluating in the browser and checking on the server — two evaluators to keep in
+step for no gain, since the browser only displays the result.
+
+### DR-90 — The server creates and captures PayPal orders
+
+**Decision:** PayPal's buttons ask our server to create the order (the `paypal-order` step) and,
+on approval, hand the order id back; the server checks the order is for this invoice and for
+what it asks now, and captures it. Each order has one item, "Total for Invoice #{id} for {Event
+Name}". A capture is recorded by its PayPal capture id (`paypal_transaction_id`, unique); an order
+found already captured is recorded or returned, never captured twice. When PayPal's answer is
+lost, the order stays pending on the invoice, the event's address gets the details, and
+"Check PayPal order" settles it. Amends DR-77 only in where the order comes from: PayPal's card
+button stays.
+**Context:** The browser created the order for an amount it computed and captured it itself; the
+server checked afterwards and, when the amount was wrong or PayPal unreachable, could only log
+it ("fail open") — money was taken that the server couldn't confirm (#675). The order's item has
+to name the invoice, which must exist first.
+**Alternatives:** The browser creating the order after the server prepares the invoice — less
+change, but the browser still sets the amount and captures, so mismatches and unverifiable
+captures remain. A server-side webhook from PayPal — more setup, and still needs the capture
+on approval.
+
+### DR-91 — A payment button completes the registration
+
+**Decision:** Pressing a payment button — Pay by check, PayPal or Card, or Finish registration
+when nothing is owed — completes the registration: it's in the admin lists from then on, unpaid
+until money arrives. A PayPal payment that doesn't go through leaves it completed and unpaid; the
+registrant can try again (with another option, too), pay by check, or finish and pay later. The
+confirmation email goes out when the flow reaches a result (check chosen, payment captured,
+finished to pay later, nothing to pay) or, failing that, from the worker half an hour after
+completion; once. The browser saves the payment step, so a reload resumes paying for the same
+registration.
+**Context:** A registrant who abandoned PayPal stayed incomplete — invisible to registrars, and
+deleted after a month (DR-76), though they meant to register. Sending the email at the button
+press would tell a PayPal payer "amount due" moments before their payment; sending it only on
+success would leave someone who closed the tab with nothing.
+**Alternatives:** Completing only once paid (as before). Emailing at the button press. Emailing
+only when the flow succeeds.
+
+### DR-92 — Existing payments become invoices, balances unchanged
+
+**Decision:** Migration 0076 builds invoices from what's there: each completed registration's
+`initial_payment` becomes its registration invoice (from its first payment, or its price, for a
+registration from before `initial_payment` was kept), with a PayPal or card payer's handling fee
+moved onto it from the price and the matching payment linked; every other payment goes where a
+payment recorded now would — the registration invoice while it has money due, else an invoice of
+its own (a "Refund given" one for a refund recorded as a negative payment); a fee with nowhere
+else to go gets a `migrated` invoice. The fee leaves the stored price without repricing. It then
+checks every completed registration's balance is what it was, and aborts if one isn't. Going back
+rebuilds the old fields (`initial_payment` recomputed, not byte-identical).
+**Context:** Lark's live data (2,076 completed registrations, 1,846 payments, $3,695.58 of kept
+handling fees) converted with every balance unchanged, also after migrating back and forward.
+**Alternatives:** Converting only new registrations — two payment models in the code until old
+events are gone. Repricing every registration — date-based rules would drift.
+
+### DR-93 — Only Admins delete payments and invoices
+
+**Decision:** Deleting a payment or an invoice is for Admins. Registrars record payments and
+refunds, edit, cancel and reopen invoices, and restore deleted payments. An invoice anything was
+ever paid on can't be deleted, and a refunded payment can't be. Every role reads invoices,
+internal notes included; Reporters change nothing.
+**Context:** A payment is a record of money received; deleting one changes a balance without a
+trace in the ledger. Cancelling an invoice is the everyday way to stop asking for money.
+**Alternatives:** Registrars deleting too (as before) — the risk the rule addresses. Hiding notes
+from Reporters — they read everything else.
+
+### DR-94 — Refunds are negative payments, through PayPal when paid online
+
+**Decision:** A refund is a payment with a negative amount on the invoice of the payment it gives
+money back from (`refund_of`), never more than is left of it. A PayPal or card payment is
+refunded through PayPal's refund API by Registrars and Admins — all or part — and recorded with
+PayPal's refund id; a request id made once per attempt makes a retry refund once. Others are
+recorded by hand. An overpaid invoice offers to refund the difference.
+**Context:** Registrars refund overpayments and lowered invoices (a dropped meal plan), and paid
+more than once by check; refunds were already being recorded as negative payments by hand,
+untied to what they refunded, and PayPal refunds were made in PayPal's dashboard.
+**Alternatives:** A separate refund model — a second kind of money record the ledger would sum
+too. Recording only, with refunds still made in PayPal's dashboard — the two drift apart.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -3655,8 +3992,13 @@ must be coordinated with the backend. Grouped by status.
   (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field
   shapes in §5 must stay in sync with the serializers and the client's API types (§5, DR-27).
 - **Registration/payment:** `GET`/`POST /api/events/{id}/register` — the `ApiRegister` config
-  bundle (including `registrationErrorMessages`) and the `step: 'registration' | 'payment'`
-  posts (§5, §7).
+  bundle (including `registrationErrorMessages`) and the `step: 'registration' |
+  'paypal-order' | 'payment' | 'finish'` posts, with `paymentOptions`, the payment problem codes
+  and the confirmation's `invoice` and `ledger` (§5, §7; DR-89, DR-90, DR-91).
+- **Invoices, payments and refunds:** `/api/invoices/` with `cancel`, `reopen` and
+  `check-paypal`, payments' `invoice`, `refund_of` and `new_invoice`,
+  `POST /api/payments/{id}/refund-paypal/`, and the registration's ledger fields, with the
+  shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94).
 - **Validation messages:** the Event's `registration_error_messages` field, validated by the
   events serializer as `{ path: { keyword: message } }` with non-empty strings (§7.1, §8.8,
   DR-34).

@@ -19,7 +19,7 @@ describe('HistoryList', () => {
       <HistoryList entries={ENTRIES} options={{ titles: TITLES, lookups: LOOKUPS }} />,
     );
     expect(screen.getByText('Camper “Sam Alpha”: restored')).toBeInTheDocument();
-    expect(screen.getByText('No one signed in')).toBeInTheDocument();
+    expect(screen.getByText('Anonymous User')).toBeInTheDocument();
 
     const save = screen
       .getByText('Main address › City')

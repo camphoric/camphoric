@@ -20,7 +20,7 @@ import type {
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
-import { feeLabel, HANDLING, PROMO } from 'components/FeeBreakdown';
+import { feeLabel, PROMO } from 'components/FeeBreakdown';
 import { isPlainObject, type ReviewItem, reviewItems } from 'components/form';
 import type { JSONSchema7 } from 'json-schema';
 import { formatMoney } from 'utils/money';
@@ -191,17 +191,16 @@ export function RegistrationReview({
   const camperUi = ((uiSchema.campers as UiSchema | undefined)?.items ?? {}) as UiSchema;
 
   // Registration-level components are the ones its pricing logic defines;
-  // then the promo code's discount and the server-added e-payment fee.
+  // then the promo code's discount. The e-payment handling fee isn't part of
+  // the price: the payment options show it (§9.7; §15, DR-88).
   const registrationKeys = [
     ...registrationLogic.map((component) => component.var).filter((key) => key !== 'total'),
     PROMO,
-    HANDLING,
   ];
   const withPromoLabel = (fee: { key: string; label: string; value: number }) =>
     fee.key === PROMO && promo ? { ...fee, label: promo.label } : fee;
   const registrationFees = feeLines(results, registrationKeys, registrationLogic, camperLogic).map(
-    (fee) =>
-      fee.key === HANDLING ? { ...fee, label: 'Electronic payment handling' } : withPromoLabel(fee),
+    withPromoLabel,
   );
 
   return (

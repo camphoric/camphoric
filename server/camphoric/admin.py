@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 from . import roles
 from .models import (
-    Camper, Deposit, EmailMessage, Event, Lodging, Payment, PromoCode, Registration,
+    Camper, Deposit, EmailMessage, Event, Invoice, Lodging, Payment, PromoCode, Registration,
     WorkerHeartbeat,
 )
 
@@ -43,6 +43,17 @@ admin.site.register(Registration, SoftDeletedAdmin)
 admin.site.register(Camper, SoftDeletedAdmin)
 admin.site.register(Payment, SoftDeletedAdmin)
 admin.site.register(PromoCode, SoftDeletedAdmin)
+
+
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    '''Invoices, including those of deleted registrations.'''
+    list_display = ['__str__', 'registration', 'origin', 'amount', 'handling', 'cancelled_at']
+    list_filter = ['origin']
+    readonly_fields = ['token']
+
+    def get_queryset(self, request):
+        return Invoice.all_objects.all()
 
 
 @admin.register(EmailMessage)

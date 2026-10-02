@@ -1,7 +1,7 @@
 import { year } from './dates.js'
 
 const subject = `Jughandle Campout ${year} Registration Confirmation`;
-// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `invoice` and
 // `event` are the server's template variables. `{%-` swallows the tag's line,
 // as Mustache did for a tag alone on its line.
 const template = `
@@ -23,11 +23,11 @@ You chose *Lodging Off site - Single Day*.  You may attend on either Saturday or
 {% endif %}
 Donation to Lark Traditional Arts - {{ pricing.donation | money }}
 
-TOTAL DUE: {{ pricing.total | money }}
+TOTAL DUE: {{ registration.total_owed | money }}
 
-You chose to pay by {{ registration.payment_type }}
+You chose to pay by {{ invoice.payment_type if invoice else 'check' }}
 
-If you're paying by check, please make it for {{ pricing.total | money }} payable to "Lark Traditional Arts", and mail it to:
+If you're paying by check, please make it for {{ registration.balance | money }} payable to "Lark Traditional Arts", and mail it to:
 
 Lark Traditional Arts    
 PO Box 1724    

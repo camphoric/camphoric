@@ -28,33 +28,26 @@ def money_fmt(amt):
     return amt
 
 
-def handling_fee(total, percent):
+def handling_fee(amount, percent):
     '''
-    The e-payment handling fee: `percent` of `total`, to the cent, a half cent
-    up (SPEC §9.2). It's worked out in cents (total × percent), where a fee of
-    exactly half a cent (2.5% of an odd number of dollars) is exact, so this
-    and `handlingFee` in client_v2/src/pricing/calculatePrice.ts round alike.
+    The e-payment handling fee on an invoice paid online: `percent` of
+    `amount`, to the cent, a half cent up (SPEC §9.7, DR-88). It's worked out
+    in cents (amount × percent), where a fee of exactly half a cent (2.5% of
+    an odd number of dollars) is exact, so this and `handlingFee` in
+    client_v2/src/pricing/handlingFee.ts round alike.
     '''
-    cents = Decimal(repr(float(total) * float(percent))).quantize(Decimal(1), ROUND_HALF_UP)
-    return float(cents / 100)
+    cents = Decimal(repr(float(amount) * float(percent))).quantize(Decimal(1), ROUND_HALF_UP)
+    return (cents / 100).quantize(CENT)
 
 
-# The e-payment handling fee's line, worked out after everything else.
-HANDLING = 'handling'
-HANDLING_LABEL = 'Electronic payment handling'
-# The reason on the override that keeps the fee charged online as it was (SPEC DR-78).
-HANDLING_FIXED_REASON = 'Kept at the amount when paid online'
-
-# A promo code's discount line, worked out after every other line but handling
-# (SPEC DR-67), labelled with the code's own label.
+# A promo code's discount line, worked out after every other line (SPEC
+# DR-67), labelled with the code's own label.
 PROMO = 'promo'
 PROMO_LABEL = 'Promo code'
 
 
 def line_label(event, var, camper=False):
     '''A pricing line's label, from the event's logic (or the var itself).'''
-    if var == HANDLING and not camper:
-        return HANDLING_LABEL
     if var == PROMO:
         return PROMO_LABEL
     logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
@@ -67,10 +60,7 @@ def line_label(event, var, camper=False):
 def overridable_lines(event, camper=False):
     '''The vars a registrar may override (SPEC DR-56): every line but the total.'''
     logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
-    lines = [c['var'] for c in logic or [] if c.get('var') and c['var'] != 'total']
-    if not camper and event.epayment_handling:
-        lines.append(HANDLING)
-    return lines
+    return [c['var'] for c in logic or [] if c.get('var') and c['var'] != 'total']
 
 
 def _load_overrides(registration):
@@ -187,7 +177,8 @@ def calculate_price(registration, campers):
 
     The registration's promo code, if any, then takes its discount off the
     total as a negative `promo` line (and on each camper's breakdown, for a
-    per-camper code), before the e-payment handling fee (SPEC DR-67).
+    per-camper code) (SPEC DR-67). The e-payment handling fee isn't part of
+    the price: it's charged on each invoice paid online (SPEC DR-88).
 
     See server/tests/test_pricing.py for examples.
 
@@ -298,12 +289,6 @@ def calculate_price(registration, campers):
         results['total'] = _floored(results['total'])
     if registration.promo_code is not None:
         _apply_promo(registration.promo_code, data, results, camper_contexts)
-
-    if event.epayment_handling and registration.payment_type != 'Check':
-        handling = handling_fee(results['total'], event.epayment_handling)
-        handling = _override(overrides, None, HANDLING, handling, overridden)
-        results[HANDLING] = handling
-        results['total'] = money_fmt(results['total'] + handling)
 
     if overridden:
         results['overridden'] = overridden

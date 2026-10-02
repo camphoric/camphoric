@@ -18,7 +18,6 @@ import {
   camperHooks,
   eventHooks,
   lodgingHooks,
-  paymentHooks,
   registrationHooks,
   registrationTypeHooks,
 } from 'store/entities';
@@ -36,15 +35,11 @@ export function useReportTemplateVars(eventId: string): ReportTemplateVars | und
     registration__completed: 1,
     registration__event: eventId,
   });
-  const { data: payments } = paymentHooks.useList({
-    registration__completed: 1,
-    registration__event: eventId,
-  });
   const { data: lodgings } = lodgingHooks.useList({ event: eventId });
   const { data: registrationTypes } = registrationTypeHooks.useList({ event: eventId });
 
   return useMemo(() => {
-    if (!event || !registrations || !campers || !payments || !lodgings || !registrationTypes) {
+    if (!event || !registrations || !campers || !lodgings || !registrationTypes) {
       return undefined;
     }
 
@@ -52,7 +47,6 @@ export function useReportTemplateVars(eventId: string): ReportTemplateVars | und
     const registrationLookup = buildRegistrationLookup(
       registrations,
       campers,
-      payments,
       registrationTypeLookup,
       eventId,
     );
@@ -68,5 +62,5 @@ export function useReportTemplateVars(eventId: string): ReportTemplateVars | und
       lodgingLookup,
       registrationTypeLookup,
     };
-  }, [event, registrations, campers, payments, lodgings, registrationTypes, eventId]);
+  }, [event, registrations, campers, lodgings, registrationTypes, eventId]);
 }

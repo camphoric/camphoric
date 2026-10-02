@@ -43,7 +43,6 @@ class JinjaConfirmationEmailTests(APITestCase):
             'registrationUUID': response.data['registrationUUID'],
             'step': 'payment',
             'paymentType': 'Check',
-            'paymentData': {'type': 'Full', 'total': 100},
         }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         return response
@@ -60,7 +59,7 @@ class JinjaConfirmationEmailTests(APITestCase):
         self.assertEqual(message.from_email, 'reg@camp.org')
         self.assertEqual(message.subject, 'Welcome, Pat')
         self.assertEqual(message.body,
-                         '# Thanks!\n* Pat: $100.00\n* Sam: $100.00\nPaying now: $100.00')
+                         '# Thanks!\n* Pat: $100.00\n* Sam: $100.00\nPaying now: $200.00')
         self.assertIn('<h1>Thanks!</h1>', message.alternatives[0][0])
 
     def test_a_broken_template_reports_to_the_from_address(self):

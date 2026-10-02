@@ -180,8 +180,7 @@ const registration = {
 // The $0 lines (the first camper's campership, the second's linens) are left out
 // of the summary; the negative campership is shown (#666).
 const results = {
-  total: 660.5,
-  handling: 19.5,
+  total: 641,
   campership_donation: 25,
   tuition: 700,
   linens: 16,

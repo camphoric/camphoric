@@ -15,6 +15,8 @@ export interface Permissions {
   role: Role | null;
   /** Create, edit, delete and send (Registrars and Admins). */
   canEdit: boolean;
+  /** Delete payments and invoices (Admins; §15, DR-93). Registrars cancel invoices. */
+  canDeletePayments: boolean;
   /** The Users screen (Admins). */
   canManageUsers: boolean;
   /** Create, rename and delete organizations (Admins). */
@@ -31,6 +33,7 @@ export function permissionsFor(role: Role | null): Permissions {
   return {
     role,
     canEdit: role === 'admin' || role === 'registrar',
+    canDeletePayments: role === 'admin',
     canManageUsers: role === 'admin',
     canManageOrganizations: role === 'admin',
   };

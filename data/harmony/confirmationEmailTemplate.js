@@ -1,7 +1,7 @@
 import { yearDisplay } from './dates.js';
 
 const subject = `Camp Harmony ${yearDisplay} Registration Confirmation`;
-// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `invoice` and
 // `event` are the server's template variables. `{%-` swallows the tag's line,
 // as Mustache did for a tag alone on its line.
 const template = `
@@ -32,9 +32,9 @@ Total campership donation: {{ pricing.campership_donation | money }}
 
 TOTAL FOR THIS REGISTRATION: {{ pricing.total | money }}    
 
-You have elected to pay by {{ registration.payment_type }}.
+You have elected to pay by {{ invoice.payment_type if invoice else 'check' }}.
 
-If you are paying by check, make your check for **{{ pricing.total | money }}**
+If you are paying by check, make your check for **{{ registration.balance | money }}**
 payable to SFFMC and mail to:
 
 SFFMC, c/o Ellen Eagan

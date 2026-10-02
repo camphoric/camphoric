@@ -107,9 +107,21 @@ export interface ApiRegistration extends TimeStamped {
   promo_code?: number | null;
   /** That code (read-only), even once it's deleted, to label its discount line. */
   promo?: ApiRegistrationPromo | null;
-  payment_type: string;
-  paypal_response: Hash;
   uuid: string;
+  /** Pressed a payment button (§7.2; §15, DR-91); only completed ones are listed. */
+  completed?: boolean;
+  completed_at?: string | null;
+  confirmation_sent_at?: string | null;
+  // The ledger (§9.7), worked out on the server; read-only numbers.
+  /** The price plus the handling fees on its invoices. */
+  total_owed: number;
+  /** Payments less refunds. */
+  total_paid: number;
+  /** total_owed − total_paid; negative when a refund is due. */
+  balance: number;
+  handling_charges: number;
+  /** What no open invoice asks for yet (never below 0). */
+  uninvoiced_balance: number;
 }
 
 export interface ApiRegistrationPromo {
@@ -217,14 +229,68 @@ export type PaymentType = 'Check' | 'PayPal' | 'Card' | 'Voucher';
 export interface ApiPayment extends TimeStamped {
   id: number;
   registration: Scalar;
+  /** Every payment belongs to an invoice (§9.7; §15, DR-87). */
+  invoice: Scalar;
   deposit?: Scalar | null;
   payment_type: PaymentType;
   paid_on?: string | null;
   attributes: Hash | null;
   // DRF `DecimalField` serializes to a string on read (e.g. `"675.00"`); writes
   // accept a number. Coerce with `Number(...)` / format with `formatMoney`.
+  /** Negative for a refund (§15, DR-94). */
   amount: number | string;
   notes: string;
+  /** For a refund: the payment it gives money back from. */
+  refund_of?: Scalar | null;
+  /** PayPal's capture id (a payment) or refund id (a refund). Read-only. */
+  paypal_transaction_id?: string | null;
+  /** PayPal's reply (read-only). */
+  paypal_response?: Hash | null;
+  /** How much of it has been refunded (read-only, a decimal string). */
+  refunded?: string;
+  /** Whether it can be refunded through PayPal (read-only). */
+  paypal_refundable?: boolean;
+  /** Write-only: put it on a new "Payment received" invoice of its own. */
+  new_invoice?: boolean;
+}
+
+export type InvoiceStatus = 'open' | 'partially_paid' | 'paid' | 'overpaid' | 'cancelled';
+
+/** Who or what made an invoice (§9.7); informational only. */
+export type InvoiceOrigin = 'registration' | 'payment_received' | 'admin' | 'migrated';
+
+/**
+ * A request for one chunk of a registration's balance (`/api/invoices/`; §9.7,
+ * DR-87): an amount toward the registration plus, once it's paid online, the
+ * handling fee. Money fields are DRF decimal strings.
+ */
+export interface ApiInvoice extends TimeStamped {
+  id: number;
+  registration: Scalar;
+  origin: InvoiceOrigin;
+  description: string;
+  amount: string;
+  handling: string;
+  /** How the payer chose to pay it; each payment keeps how it was actually paid. */
+  payment_type: PaymentType | null;
+  due_on: string | null;
+  /** Shown to the payer. */
+  memo: string;
+  /** Internal; every signed-in role reads it. */
+  notes: string;
+  /** A PayPal order made for it and not yet captured. */
+  pending_paypal_order_id: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string;
+  created_by: number | null;
+  created_by_name: string | null;
+  // Worked out from its payments (read-only).
+  total: string;
+  amount_paid: string;
+  amount_due: string;
+  overpaid: string;
+  status: InvoiceStatus;
+  payments: number[];
 }
 
 export interface ApiCustomCharge extends TimeStamped {
@@ -240,16 +306,16 @@ export interface ApiCustomCharge extends TimeStamped {
 export interface ApiPricingOverride extends TimeStamped {
   id: number;
   registration: Scalar;
-  /** Null: a line of the registration itself (a donation, the handling fee). */
+  /** Null: a line of the registration itself (a donation, say). */
   camper: Scalar | null;
-  /** The pricing line's var, e.g. `tuition` or `handling`. */
+  /** The pricing line's var, e.g. `tuition`. */
   var: string;
   // A string on read (DRF decimal), a number on write.
   amount: number | string;
   reason: string;
   created_by?: number | null;
   created_by_name?: string | null;
-  /** In effect: the event's pricing still has the line (and a handling fee, for `handling`). */
+  /** In effect: the event's pricing still has the line. */
   applied?: boolean;
 }
 
@@ -537,6 +603,7 @@ export type ApiDeleted<T> = T & { deleted_at: string; deleted_by: ApiActor | nul
 export type ApiDeletedRegistration = ApiDeleted<ApiRegistration> & { camper_count: number };
 export type ApiDeletedCamper = ApiDeleted<ApiCamper>;
 export type ApiDeletedPayment = ApiDeleted<ApiPayment>;
+export type ApiDeletedInvoice = ApiDeleted<ApiInvoice>;
 export type ApiDeletedPromoCode = ApiDeleted<ApiPromoCode>;
 
 export type HistoryAction = 'create' | 'update' | 'delete' | 'restore';
@@ -566,13 +633,13 @@ export interface ApiHistoryEntry {
 // ---------------------------------------------------------------------------
 
 /**
- * Open result object: `total`, named subtotals, a per-camper breakdown, and an
- * optional electronic-payment handling fee. Whole-dollar amounts by convention.
+ * Open result object: `total`, named subtotals and a per-camper breakdown.
+ * Whole-dollar amounts by convention. The e-payment handling fee isn't part of
+ * the price: it's on invoices (§9.7; §15, DR-88).
  */
 export interface PricingResults {
   total: number;
   campers: Hash[];
-  handling?: number;
   /**
    * The computed amounts a registrar's overrides replaced, by line (admin only;
    * SPEC DR-56). Each camper's results can have its own.
@@ -650,11 +717,39 @@ export interface AppliedPromo {
   pricingLogic: unknown;
 }
 
+/** One way to pay: what it asks, and the fee if it's paid online (§7.2, §9.7). */
+export interface ApiPaymentOption {
+  name: string;
+  title: string;
+  amount: number;
+  handling: number;
+}
+
+/** The payment options, worked out on the server from the event's deposit choices (#675). */
+export interface ApiPaymentOptions {
+  title: string;
+  description: string;
+  /** The option chosen to start with. */
+  default: string;
+  options: ApiPaymentOption[];
+}
+
 export interface ApiRegisterPaymentStep {
   registrationUUID: string;
   serverPricingResults: PricingResults;
-  /** Optional deposit-options schema; present when the event offers deposits. */
-  deposit?: JSONSchema7;
+  paymentOptions: ApiPaymentOptions;
+  /** The handling percent on online payments; null without one. */
+  handlingPercent: number | null;
+}
+
+/** The registration's ledger, as numbers (§9.7). */
+export interface ApiLedger {
+  price: number;
+  handling_charges: number;
+  total_owed: number;
+  total_paid: number;
+  balance: number;
+  uninvoiced_balance: number;
 }
 
 export interface ApiRegisterConfirmationStep {
@@ -663,21 +758,49 @@ export interface ApiRegisterConfirmationStep {
   /** Whether the confirmation email couldn't be sent. */
   emailError?: boolean;
   serverPricingResults: PricingResults;
-  initialPayment: Hash;
+  /** The invoice for the option they chose; none when nothing was owed. */
+  invoice: ApiInvoice | null;
+  ledger: ApiLedger;
 }
 
-/** The deposit choice name embedded in / recovered from PayPal's custom_id. */
-export type DepositType = string;
+/**
+ * The payment step: pay by check (with the chosen option), capture an
+ * approved PayPal order, or complete a $0 registration (§7.2).
+ */
+export interface PaymentStepBody {
+  registrationUUID: string;
+  paymentType?: PaymentType;
+  paymentOption?: string;
+  paypalOrderId?: string;
+}
 
-export interface InitialPaymentBody {
+/** The PayPal or Card button: complete the registration and create the order (DR-90). */
+export interface PayPalOrderBody {
   registrationUUID: string;
   paymentType: PaymentType;
-  paymentData: {
-    type: DepositType;
-    total: number;
-  };
-  payPalResponse?: Hash;
+  paymentOption: string;
 }
+
+export interface ApiPayPalOrder {
+  orderID: string;
+  total: number;
+  handling: number;
+  invoice: ApiInvoice | null;
+}
+
+/**
+ * Why a payment didn't go through: `amount_changed`, `declined` and
+ * `not_payable` took no money; `unknown` may have (the event has been told).
+ */
+export type PaymentProblemCode =
+  | 'amount_changed'
+  | 'declined'
+  | 'not_payable'
+  | 'not_approved'
+  | 'mismatch'
+  | 'unknown'
+  | 'refused'
+  | 'not_configured';
 
 // ---------------------------------------------------------------------------
 // Augmented view models — domain logic derived from cached query data (SPEC §5)
@@ -686,8 +809,9 @@ export interface InitialPaymentBody {
 export interface AugmentedRegistration extends ApiRegistration {
   campers: ApiCamper[];
   registrationType?: ApiRegistrationType;
-  total_owed: number;
+  /** The server's `total_paid` (named for older Handlebars reports). */
   total_payments: number;
+  /** The server's `balance` (named for older Handlebars reports). */
   total_balance: number;
 }
 

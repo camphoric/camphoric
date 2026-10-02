@@ -1,7 +1,8 @@
 /**
  * Data layer for the public registration flow (SPEC §5, §7) — the bespoke
- * `/api/events/{eventId}/register` endpoint. The config is a query; the two
- * steps (registration, payment) are POST mutations distinguished by `step`.
+ * `/api/events/{eventId}/register` endpoint. The config is a query; the steps
+ * (registration, paypal-order, payment, finish) are POST mutations
+ * distinguished by `step`.
  *
  * The config is server-authoritative and must not refetch mid-edit, so it uses
  * an infinite staleTime and no refetch-on-focus (DR-16).
@@ -9,15 +10,18 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
+  ApiPayPalOrder,
   ApiRegister,
   ApiRegisterConfirmationStep,
   ApiRegisterPaymentStep,
   AppliedPromo,
-  InitialPaymentBody,
+  PaymentProblemCode,
+  PaymentStepBody,
+  PayPalOrderBody,
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
-import { apiFetch } from 'utils/fetch';
+import { ApiError, apiFetch } from 'utils/fetch';
 
 const registerUrl = (eventId: string, search = '') => `/api/events/${eventId}/register${search}`;
 
@@ -80,13 +84,54 @@ export function useCheckPromoCode(eventId: string) {
   });
 }
 
-/** Step 2 submit: POST { step: 'payment', … } -> the confirmation-step payload. */
+/**
+ * Step 2: pay by check (the chosen option), complete a $0 registration, or
+ * capture the PayPal order the registrant approved (§7.2; §15, DR-90) ->
+ * the confirmation-step payload. A payment that doesn't go through is an
+ * error with a {@link paymentProblem} code; the page says what happened.
+ */
 export function useSubmitPayment(eventId: string) {
   return useMutation({
-    mutationFn: (body: InitialPaymentBody) =>
+    mutationFn: (body: PaymentStepBody) =>
       apiFetch<ApiRegisterConfirmationStep>(registerUrl(eventId), {
         method: 'POST',
         body: { step: 'payment', ...body },
       }),
+    meta: { suppressErrorNotification: true },
   });
+}
+
+/**
+ * The PayPal or Card button: the server completes the registration (unpaid
+ * until captured; DR-91), makes its invoice and creates the PayPal order.
+ */
+export function useCreatePayPalOrder(eventId: string) {
+  return useMutation({
+    mutationFn: (body: PayPalOrderBody) =>
+      apiFetch<ApiPayPalOrder>(registerUrl(eventId), {
+        method: 'POST',
+        body: { step: 'paypal-order', ...body },
+      }),
+    meta: { suppressErrorNotification: true },
+  });
+}
+
+/** Finish without paying now, after a PayPal attempt didn't go through. */
+export function useFinishRegistration(eventId: string) {
+  return useMutation({
+    mutationFn: (registrationUUID: string) =>
+      apiFetch<ApiRegisterConfirmationStep>(registerUrl(eventId), {
+        method: 'POST',
+        body: { step: 'finish', registrationUUID },
+      }),
+  });
+}
+
+/** Why a payment step failed: the server's code and message, if it said. */
+export function paymentProblem(error: unknown): { code?: PaymentProblemCode; message: string } {
+  if (error instanceof ApiError && error.body && typeof error.body === 'object') {
+    const body = error.body as { code?: PaymentProblemCode; detail?: string };
+    return { code: body.code, message: body.detail ?? error.message };
+  }
+  return { message: error instanceof Error ? error.message : String(error) };
 }

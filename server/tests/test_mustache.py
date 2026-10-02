@@ -9,6 +9,7 @@ way emails are rendered now, and compare.
 
 from contextlib import redirect_stdout
 from io import StringIO
+from types import SimpleNamespace
 
 import chevron
 from django.db import connection
@@ -56,7 +57,15 @@ Code {{invitation_code}}: [register]({{register_link}}) {{{register_link}}}
 
 
 def legacy_confirmation(registration, template):
-    '''The Mustache confirmation email, as it used to be rendered.'''
+    '''
+    The Mustache confirmation email, as it used to be rendered — from the
+    registration's payment fields, which its registration invoice holds now.
+    '''
+    invoice = registration.invoices.get(origin='registration')
+    legacy_registration = SimpleNamespace(
+        id=registration.id, payment_type=invoice.payment_type,
+        registration_type=registration.registration_type, attributes=registration.attributes)
+    initial_payment = {'type': invoice.description, 'total': f'{invoice.total:.2f}'}
     pricing_results = registration.server_pricing_results
     campers = [{
         **camper.attributes,
@@ -67,8 +76,8 @@ def legacy_confirmation(registration, template):
                          if camper.lodging else 'none'),
     } for index, camper in enumerate(registration.campers.all())]
     return chevron.render(template, {
-        'registration': registration, 'campers': campers,
-        'pricing_results': pricing_results, 'initial_payment': registration.initial_payment,
+        'registration': legacy_registration, 'campers': campers,
+        'pricing_results': pricing_results, 'initial_payment': initial_payment,
     })
 
 

@@ -75,10 +75,12 @@ def register_models():
     ):
         auditlog.register(model, exclude_fields=TIMESTAMPS)
     auditlog.register(models.UserAccount)
+    auditlog.register(models.Registration, exclude_fields=TIMESTAMPS)
+    # An invoice's link code is a secret (anyone with it may pay).
+    auditlog.register(models.Invoice, exclude_fields=TIMESTAMPS + ['token'])
     # PayPal's replies carry the payer's details, and are written once by the
     # payment flow rather than edited.
-    auditlog.register(models.Registration, exclude_fields=TIMESTAMPS + ['paypal_response'])
-    auditlog.register(models.Payment, exclude_fields=TIMESTAMPS + ['paypal_order_details'])
+    auditlog.register(models.Payment, exclude_fields=TIMESTAMPS + ['paypal_response'])
     auditlog.register(
         get_user_model(), exclude_fields=['password', 'last_login'], m2m_fields={'groups'})
 

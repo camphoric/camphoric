@@ -70,6 +70,48 @@ class EventGraphTests(TestCase):
         self.assertNotIn('campers', pat['pricing'])
         self.assertEqual(self.camper(self.made.c1)['pricing']['tuition'], 400)
 
+    def test_invoices(self):
+        pat = self.graph.get('registration', self.made.r1.id)
+        invoice = pat['invoice']
+        self.assertEqual(pat['invoices'], [invoice])
+        self.assertEqual(invoice['status'], 'partially_paid')
+        self.assertEqual(invoice['amount_due'], Decimal('725.00'))
+        self.assertEqual([p['id'] for p in invoice['payments']],
+                         [p['id'] for p in pat['payments']])
+        self.assertIs(pat['payments'][0]['invoice'], invoice)
+        lee = self.graph.get('registration', self.made.r2.id)
+        self.assertEqual(lee['invoice']['status'], 'overpaid')
+        self.assertEqual(lee['invoice']['overpaid'], Decimal('50.50'))
+        self.assertEqual(len(self.graph.invoices), 2)
+
+    def test_handling_and_refunds(self):
+        self.made.i2.handling = Decimal('10.00')
+        self.made.i2.save()
+        paid = models.Payment.objects.filter(registration=self.made.r2).order_by('id').first()
+        models.Payment.objects.create(
+            registration=self.made.r2, invoice=self.made.i2, amount=Decimal('-60.50'),
+            payment_type='PayPal', refund_of=paid)
+        graph = build_event_graph(self.made.event)
+        lee = graph.get('registration', self.made.r2.id)
+        self.assertEqual(lee['total_owed'], Decimal('410.00'))
+        self.assertEqual(lee['total_paid'], Decimal('390.00'))
+        self.assertEqual(lee['balance'], Decimal('20.00'))
+        refund = lee['payments'][-1]
+        self.assertTrue(refund['is_refund'])
+        self.assertEqual(refund['refund_of']['id'], paid.id)
+        self.assertEqual(lee['invoice']['status'], 'partially_paid')
+
+    def test_older_templates_payment_fields(self):
+        pat = self.graph.get('registration', self.made.r1.id)
+        self.assertEqual(pat['payment_type'], 'Check')
+        self.assertEqual(dict(pat['initial_payment']), {
+            'type': 'Full Payment', 'total': Decimal('825.00'), 'balance': Decimal('0.00')})
+        lee = self.graph.get('registration', self.made.r2.id)
+        self.assertEqual(lee['payment_type'], 'PayPal')
+        drew = self.graph.get('registration', self.made.r3.id)
+        self.assertIsNone(drew['payment_type'])
+        self.assertIsNone(drew['initial_payment'])
+
     def test_pricing_numbers_print_as_they_did_in_json(self):
         from camphoric.templating.graph import number
         self.assertEqual(repr(number(825.0)), '825')
@@ -130,7 +172,7 @@ class EventGraphTests(TestCase):
         for n in range(5):
             registration = models.Registration.objects.create(
                 event=self.made.event, registrant_email=f'extra{n}@example.com',
-                completed=True, payment_type='Check')
+                completed=True)
             for m in range(3):
                 registration.campers.create(sequence=m, lodging=self.made.cabin_b,
                                             attributes={'first_name': f'E{n}{m}'})
@@ -140,4 +182,4 @@ class EventGraphTests(TestCase):
             build_event_graph(self.made.event)
 
         self.assertEqual(len(large.captured_queries), len(small.captured_queries))
-        self.assertLessEqual(len(small.captured_queries), 12)
+        self.assertLessEqual(len(small.captured_queries), 13)

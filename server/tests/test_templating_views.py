@@ -69,7 +69,7 @@ class TemplateDescribeTests(APITestCase):
 
         self.assertIn('checked_in', fields_of(payload, 'admin_attributes:camper'))
         pricing = fields_of(payload, 'pricing:registration')
-        self.assertEqual(set(pricing), {'donation', 'tuition', 'total', 'handling'})
+        self.assertEqual(set(pricing), {'donation', 'tuition', 'total'})
         self.assertEqual(set(fields_of(payload, 'pricing:event')), {'adult', 'linen_rate'})
         for type_name, described in payload['types'].items():
             if ':' in type_name:

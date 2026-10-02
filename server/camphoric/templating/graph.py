@@ -35,6 +35,7 @@ from .values import (
     CustomChargeVar,
     EventVar,
     InvitationVar,
+    InvoiceVar,
     LodgingVar,
     PaymentVar,
     ReadOnlyList,
@@ -108,6 +109,47 @@ def pricing_results(results):
     })
 
 
+def invoice_status(invoice):
+    '''The invoice's status, as `models.Invoice.status` works it out.'''
+    if invoice['cancelled_at'] is not None:
+        return models.InvoiceStatus.CANCELLED.value
+    paid, total = invoice['amount_paid'], invoice['total']
+    if paid > total:
+        return models.InvoiceStatus.OVERPAID.value
+    if paid == total and (total > 0 or invoice['payments']):
+        return models.InvoiceStatus.PAID.value
+    if paid > 0:
+        return models.InvoiceStatus.PARTIALLY_PAID.value
+    return models.InvoiceStatus.OPEN.value
+
+
+ONLINE_TYPES = (models.PaymentType.PAYPAL, models.PaymentType.CARD)
+
+
+def derive_old_payment_fields(registration):
+    '''
+    What older templates read on a registration, worked out from its invoice
+    (SPEC DR-87): how they chose to pay, PayPal's record of their payment, and
+    `initial_payment` — the payment choice made when registering.
+    '''
+    invoice = registration['invoice']
+    if invoice is None:
+        if registration['completed']:
+            registration['initial_payment'] = freeze({
+                'type': 'None', 'total': Decimal('0.00'), 'balance': registration['total_owed']})
+        return
+    registration['payment_type'] = invoice['payment_type']
+    online = next((p for p in invoice['payments']
+                   if p['payment_type'] in ONLINE_TYPES and not p['is_refund']), None)
+    if online is not None:
+        registration['paypal_response'] = online['paypal_response']
+    registration['initial_payment'] = freeze({
+        'type': invoice['description'],
+        'total': invoice['total'],
+        'balance': money(registration['total_owed'] - invoice['total']),
+    })
+
+
 @dataclass
 class EventGraph:
     event: EventVar
@@ -115,6 +157,7 @@ class EventGraph:
     incomplete_registrations: ReadOnlyList
     campers: ReadOnlyList                   # of completed registrations
     payments: ReadOnlyList                  # of completed registrations
+    invoices: ReadOnlyList                  # of completed registrations
     lodgings: ReadOnlyList
     lodging_root: LodgingVar | None
     registration_types: ReadOnlyList
@@ -237,20 +280,23 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             created_at=local_datetime(row.created_at),
             updated_at=local_datetime(row.updated_at),
             completed=row.completed,
+            completed_at=local_datetime(row.completed_at),
             registrant_email=row.registrant_email,
-            payment_type=row.payment_type,
-            paypal_response=freeze(row.paypal_response) if row.paypal_response else None,
+            payment_type=None,
+            paypal_response=None,
             attributes=freeze(row.attributes or {}),
             admin_attributes=freeze(row.admin_attributes or {}),
             registration_type=registration_types.get(row.registration_type_id),
             campers=ReadOnlyList(),
             payments=ReadOnlyList(),
+            invoices=ReadOnlyList(),
+            invoice=None,
             invitation=None,
             pricing=pricing_results(pricing),
             total_owed=money(pricing.get('total', 0)),
             total_paid=Decimal('0.00'),
             balance=money(pricing.get('total', 0)),
-            initial_payment=freeze(row.initial_payment) if row.initial_payment else None,
+            initial_payment=None,
             camper_count=0,
         ))
 
@@ -286,9 +332,43 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         registration['campers'].append(camper)
         registration['camper_count'] += 1
 
+    # Invoices and their payments (SPEC §9.7): what a registration owes is its
+    # price plus the handling on its invoices; refunds are negative payments.
+    invoices = {}
+    for row in live(models.Invoice.all_objects.filter(registration_id__in=registration_row_ids)) \
+            .order_by('created_at', 'id'):
+        registration = registrations[row.registration_id]
+        invoice = keep(InvoiceVar(
+            id=row.id,
+            registration=registration,
+            origin=row.origin,
+            status=None,
+            description=row.description,
+            payment_type=row.payment_type,
+            amount=money(row.amount),
+            handling=money(row.handling),
+            total=money(row.amount + row.handling),
+            amount_paid=Decimal('0.00'),
+            amount_due=Decimal('0.00'),
+            overpaid=Decimal('0.00'),
+            due_on=row.due_on,
+            memo=row.memo,
+            payments=ReadOnlyList(),
+            created_at=local_datetime(row.created_at),
+            cancelled_at=local_datetime(row.cancelled_at),
+        ))
+        invoices[row.id] = invoice
+        registration['invoices'].append(invoice)
+        if row.cancelled_at is None:
+            registration['total_owed'] = money(registration['total_owed'] + invoice['handling'])
+        if row.origin == models.InvoiceOrigin.REGISTRATION and registration['invoice'] is None:
+            registration['invoice'] = invoice
+
+    payments = {}
     for row in live(models.Payment.objects.filter(registration_id__in=registration_row_ids)) \
             .order_by('paid_on', 'id'):
         registration = registrations[row.registration_id]
+        invoice = invoices.get(row.invoice_id)
         payment = keep(PaymentVar(
             id=row.id,
             amount=money(row.amount),
@@ -297,13 +377,32 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             notes=row.notes,
             attributes=freeze(row.attributes or {}),
             registration=registration,
+            invoice=invoice,
+            is_refund=row.amount < 0,
+            refund_of=None,
+            paypal_response=freeze(row.paypal_response) if row.paypal_response else None,
             created_at=local_datetime(row.created_at),
         ))
+        payments[row.id] = (payment, row.refund_of_id)
         registration['payments'].append(payment)
+        if invoice is not None:
+            invoice['payments'].append(payment)
+    for payment, refund_of_id in payments.values():
+        if refund_of_id in payments:
+            payment['refund_of'] = payments[refund_of_id][0]
+
+    for invoice in invoices.values():
+        paid = sum((p['amount'] for p in invoice['payments']), Decimal('0.00'))
+        invoice['amount_paid'] = money(paid)
+        invoice['amount_due'] = money(max(Decimal('0'), invoice['total'] - paid))
+        invoice['overpaid'] = money(max(Decimal('0'), paid - invoice['total']))
+        invoice['status'] = invoice_status(invoice)
+
     for registration in registrations.values():
         paid = sum((p['amount'] or Decimal('0')) for p in registration['payments'])
         registration['total_paid'] = money(paid)
         registration['balance'] = money((registration['total_owed'] or Decimal('0')) - paid)
+        derive_old_payment_fields(registration)
 
     for row in live(models.CustomCharge.objects.filter(camper_id__in=list(campers))) \
             .order_by('id'):
@@ -344,6 +443,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
     incomplete = ReadOnlyList(r for r in registrations.values() if not r['completed'])
     completed_campers = ReadOnlyList(c for r in completed for c in r['campers'])
     completed_payments = ReadOnlyList(p for r in completed for p in r['payments'])
+    completed_invoices = ReadOnlyList(i for r in completed for i in r['invoices'])
 
     for camper in completed_campers:
         if camper['lodging'] is not None:
@@ -397,6 +497,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         incomplete_registrations=incomplete,
         campers=completed_campers,
         payments=completed_payments,
+        invoices=completed_invoices,
         lodgings=ordered_lodgings,
         lodging_root=lodging_root,
         registration_types=ReadOnlyList(registration_types.values()),

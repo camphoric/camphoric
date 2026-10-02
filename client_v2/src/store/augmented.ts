@@ -6,14 +6,14 @@
  *
  * Behavior mirrors the v1 client (`client/src/hooks/api.ts`) exactly, since the
  * Handlebars helpers and reports depend on these shapes (DR-27): registration
- * totals (owed/payments/balance), camper filtering to completed registrations,
- * and the lodging tree with counts/capacity/full paths.
+ * totals (owed/payments/balance, from the server's ledger — §9.7), camper
+ * filtering to completed registrations, and the lodging tree with
+ * counts/capacity/full paths.
  */
 
 import type {
   ApiCamper,
   ApiLodging,
-  ApiPayment,
   ApiRegistration,
   ApiRegistrationType,
   AugmentedLodging,
@@ -37,13 +37,13 @@ export function buildRegistrationTypeLookup(
 
 /**
  * Augment each (event-scoped) registration with its campers, registration type,
- * and money totals, keyed by id. `total_owed` is the server's authoritative
- * price; `total_payments` sums the registration's payments.
+ * and money totals, keyed by id. The totals are the server's ledger (§9.7):
+ * `total_owed` is the price plus its invoices' handling fees, `total_payments`
+ * what's been paid less refunds, and `total_balance` the difference.
  */
 export function buildRegistrationLookup(
   registrations: ApiRegistration[],
   campers: ApiCamper[],
-  payments: ApiPayment[],
   registrationTypeLookup: RegistrationTypeLookup,
   eventId: string,
 ): RegistrationLookup {
@@ -52,16 +52,10 @@ export function buildRegistrationLookup(
   registrations
     .filter((r) => sameId(r.event, eventId))
     .forEach((r) => {
-      const total_owed = r.server_pricing_results.total;
-      const total_payments = payments
-        .filter((p) => p.registration === r.id)
-        .reduce((acc, p) => Number(p.amount) + acc, 0);
-
       const augmented: AugmentedRegistration = {
         ...r,
-        total_owed,
-        total_payments,
-        total_balance: total_owed - total_payments,
+        total_payments: r.total_paid,
+        total_balance: r.balance,
         registrationType:
           r.registration_type == null ? undefined : registrationTypeLookup[r.registration_type],
         campers: campers.filter((c) => sameId(c.registration, r.id)),
@@ -73,10 +67,7 @@ export function buildRegistrationLookup(
   return lookup;
 }
 
-/**
- * Campers belonging to completed registrations for the event (a registration is
- * completed once it has a `payment_type`), keyed by id.
- */
+/** Campers belonging to completed registrations for the event, keyed by id. */
 export function buildCamperLookup(
   registrations: ApiRegistration[],
   campers: ApiCamper[],
@@ -84,7 +75,7 @@ export function buildCamperLookup(
 ): CamperLookup {
   const completedIds = new Set(
     registrations
-      .filter((r) => sameId(r.event, eventId) && !!r.payment_type)
+      .filter((r) => sameId(r.event, eventId) && r.completed !== false)
       .map((r) => r.id.toString()),
   );
 
