@@ -1,6 +1,7 @@
 /**
  * Payment step when payment is owed (total > 0) — SPEC §7.2. Offers pay-by-check
- * and PayPal/credit-card, with optional deposit options.
+ * and PayPal's buttons (its own account button and its Debit or Credit Card
+ * button), with optional deposit options.
  *
  * Load-bearing behaviors (SPEC §12):
  *  - Check omits the e-payment handling fee, so the total is recomputed with
@@ -9,10 +10,17 @@
  *    results to get the amount due.
  *  - PayPal loses the local deposit selection, so it's embedded in the order's
  *    `custom_id` and recovered on capture.
+ *  - The page is blocked only once PayPal approves, never while PayPal's own
+ *    popup or inline card form is open (§15, DR-77).
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
-import { type PayPalButtonCreateOrder, type PayPalButtonOnApprove } from '@paypal/paypal-js';
+import type {
+  PayPalButtonCreateOrder,
+  PayPalButtonOnApprove,
+  PayPalButtonOnClick,
+  PayPalButtonOnError,
+} from '@paypal/paypal-js';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import type { ApiRegisterPaymentStep, InitialPaymentBody, PaymentType } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
@@ -53,6 +61,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     hasDeposits ? applyDeposit(parseDeposit(defaultDeposit), totals) : (totals.total ?? 0),
   );
   const [loading, setLoading] = useState(false);
+  const [payPalError, setPayPalError] = useState<string | null>(null);
 
   // PayPal reads the latest values through refs (its buttons close over the
   // values from their first render).
@@ -60,6 +69,8 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   totalRef.current = total;
   const depositRef = useRef(depositValue);
   depositRef.current = depositValue;
+  // Which PayPal button was clicked ('paypal', 'card', 'venmo', …).
+  const fundingSourceRef = useRef<string | undefined>(undefined);
 
   const processResult = (initialPayment: InitialPaymentBody) => {
     setLoading(true);
@@ -91,9 +102,15 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     });
   };
 
-  const createOrder: PayPalButtonCreateOrder = (_data, actions) => {
-    setLoading(true);
-    return actions.order.create({
+  const onClick: PayPalButtonOnClick = (data) => {
+    fundingSourceRef.current = data.fundingSource as string | undefined;
+    setPayPalError(null);
+  };
+
+  // No overlay here: PayPal's popup or inline card form is open from now
+  // until approval, and the card form sits under the overlay (#646).
+  const createOrder: PayPalButtonCreateOrder = (_data, actions) =>
+    actions.order.create({
       intent: 'CAPTURE',
       purchase_units: [
         {
@@ -105,7 +122,6 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         },
       ],
     });
-  };
 
   const onApprove: PayPalButtonOnApprove = async (_data, actions) => {
     if (!actions.order) return;
@@ -115,9 +131,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       const unit = details.purchase_units?.[0];
       const amount = parseFloat(unit?.amount?.value ?? '0');
       const depositType = hasDeposits ? (unit?.custom_id ?? 'None') : 'None';
-      // The default PayPal button reports a PayPal payment; distinguishing a
-      // card funding source can be refined against the sandbox capture response.
-      const paymentType: PaymentType = 'PayPal';
+      const paymentType: PaymentType = fundingSourceRef.current === 'card' ? 'Card' : 'PayPal';
       processResult({
         registrationUUID: paymentStep.registrationUUID,
         paymentType,
@@ -127,7 +141,16 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     } catch (error) {
       setLoading(false);
       console.error('PayPal capture failed', error);
+      setPayPalError('Your payment couldn’t be completed. Please try again or pay by check.');
     }
+  };
+
+  const onCancel = () => setLoading(false);
+
+  const onError: PayPalButtonOnError = (error) => {
+    setLoading(false);
+    console.error('PayPal error', error);
+    setPayPalError('PayPal ran into a problem. Please try again or pay by check.');
   };
 
   const clientId = config?.payPalOptions?.clientId as string | undefined;
@@ -168,8 +191,14 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         {clientId ? (
           <Stack gap="xs">
             <Text size="sm" c="dimmed">
-              To pay by credit card, choose PayPal, then “Pay with debit or credit card”.
+              Pay with your PayPal account, or choose “Debit or Credit Card” to pay by card without
+              one.
             </Text>
+            {payPalError && (
+              <Alert color="red" variant="light">
+                {payPalError}
+              </Alert>
+            )}
             {/*
               The PayPal buttons live in a cross-origin iframe whose document is
               light-scheme. Browsers paint an iframe opaque white when its color
@@ -184,8 +213,11 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
               <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
                 <PayPalButtons
                   style={{ tagline: false, height: PAYMENT_BUTTON_HEIGHT }}
+                  onClick={onClick}
                   createOrder={createOrder}
                   onApprove={onApprove}
+                  onCancel={onCancel}
+                  onError={onError}
                 />
               </PayPalScriptProvider>
             </Box>

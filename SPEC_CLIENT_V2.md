@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-76)
+- §15 — Decision Records (DR-1…DR-77)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -819,13 +819,18 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   - **Pay by check:** recomputes totals with payment type `Check` (i.e. **without** the
     e-payment handling fee) and the applied promo code, applies the chosen deposit logic, and
     posts the payment.
-  - **PayPal / credit card:** offer PayPal / credit-card payment via the PayPal SDK. The order's
-    amount is the current total; the chosen deposit name is embedded in the order's `custom_id`
-    (the only reliable way to recover the deposit choice in the approve callback). On approval it
-    captures the order, derives payment type (`PayPal` vs `Card` from the funding source), reads
-    the captured amount and deposit, and posts the payment.
+  - **PayPal / credit card:** offer PayPal / credit-card payment via the PayPal SDK. Card payment
+    is PayPal's own Debit or Credit Card button, which stays enabled; any guidance shown with the
+    buttons matches the buttons PayPal shows (§15, DR-77). The order's amount is the current
+    total; the chosen deposit name is embedded in the order's `custom_id` (the only reliable way
+    to recover the deposit choice in the approve callback). On approval it captures the order,
+    derives payment type (`PayPal` vs `Card` from the funding source of the button clicked),
+    reads the captured amount and deposit, and posts the payment.
   - While a payment is in flight, block further interaction and indicate progress (and prevent
-    double submission).
+    double submission). For PayPal, the payment is in flight from the payer's approval, not
+    while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
+    checkout, an SDK error, or a failed capture releases the block; an error or failed capture
+    also tells the registrant that the payment didn't go through (§15, DR-77).
 - **Posting a payment:** `{ step: 'payment', registrationUUID, paymentType, paymentData:{ type
   (deposit name), total }, payPalResponse? }`. On success it stores the confirmation-step
   payload and navigates to the confirmation step. If the payment step data is missing, it
@@ -3353,6 +3358,22 @@ with someone who stopped, using the incomplete registrations a report or group e
 nobody wants back. Counting from when the registration was started — would sweep one a
 registrant came back to recently. A few days — too short to follow up. Deleting ones with a
 payment too — money is never deleted by a background job.
+
+### DR-77 — Keep PayPal's card button; block the page only after approval
+
+**Decision:** Card payment uses PayPal's own Debit or Credit Card button, left enabled. The
+payment page blocks interaction only once the payer approves (while the order is captured and
+the payment posted), never while PayPal's popup or inline card form is open. Cancelling, an SDK
+error, or a failed capture lifts the block. The button the payer clicked decides whether the
+payment is recorded as `Card` or `PayPal`.
+**Context:** Camp Harmony registrants (GitHub #646) were told to pay by card through the PayPal
+button, though PayPal also showed a card button. Clicking that card button opens its form inline,
+under the page, and the in-flight overlay, shown as soon as the order was created, covered the
+form so it couldn't be filled in. Nothing lifted it short of leaving the page.
+**Alternatives:** Hiding the card button (`disable-funding=card`) — PayPal advises against it,
+since it's the way to pay without a PayPal account, and card payers would be pushed through the
+PayPal popup. A separately hosted card-fields integration — more work, and more PCI scope to
+consider.
 
 ---
 
