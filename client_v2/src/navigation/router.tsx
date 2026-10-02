@@ -17,6 +17,7 @@ import {
 } from '@tanstack/react-router';
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { FullScreenLoading } from 'components/Loading';
+import { parseSearch, stringifySearch } from 'navigation/search';
 import { Splash } from 'pages/Splash';
 
 // Feature screens are lazy-loaded so the registration entry bundle stays lean and
@@ -358,6 +359,9 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
+  // Plain string values: `?reportId=71` (SPEC §4).
+  parseSearch,
+  stringifySearch,
   trailingSlash: 'never',
   defaultPreload: 'intent',
   // Shown while a lazy route chunk loads (and `intent` preloading on hover keeps

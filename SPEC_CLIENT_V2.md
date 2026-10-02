@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-82)
+- §15 — Decision Records (DR-1…DR-83)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -181,6 +181,11 @@ Settings' `?settingsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and h
 filters, and
 Template Help's `?context`, `?helpTab`, `?topic`, `?q`) is typed and
 centrally defined. (Rationale: §15, DR-2.)
+
+Search-param values are plain strings in the URL: `?reportId=71`, never a JSON-quoted
+`?reportId=%2271%22`, and a value is read as the string it is (`71` is the string `"71"`, not a
+number), so a typed or pasted link selects what it names. Empty values are left out. Links whose
+values were written JSON-quoted still read the same (§15, DR-83).
 
 The router defines two top-level branches. A trailing-slash normalizer redirects any URL
 ending in `/` to the non-slash form.
@@ -3514,6 +3519,21 @@ every way back in one spot means it's always where the user looks for it.
 **Alternatives:** Leaving placement to each screen, as the spec does for layout generally — what
 let the two drift apart. Breadcrumbs — more than two levels of choosers don't exist to justify
 them. A back link in the page body — scrolls away, and sits in a different place on each screen.
+
+### DR-83 — Search params are written and read as plain strings
+
+**Decision:** The router is given its own search parser and serializer: every value is written
+as-is (URL-encoded) and read back as a string, with empty values left out; a value written
+JSON-quoted (`"71"`) is unquoted on reading, so earlier links still work.
+**Context:** TanStack Router's default serializer JSON-quotes any string that looks like a
+number or boolean, so selecting report 71 wrote `?reportId=%2271%22`; its parser reads an
+unquoted `71` as a number, which the admin routes' string-only search (`AdminSearch`) dropped —
+so a typed or pasted `?reportId=71` selected nothing. The registration flow also sends the
+address bar's query string to the server as is, where a quoted invitation code wouldn't match.
+**Alternatives:** Keeping the default and accepting numbers in each route's `validateSearch` —
+fixes reading, but URLs stay quoted. Storing ids as numbers in search — typed better, but every
+selection, tab and table param is a string by contract (DR-2), and the quoting would remain for
+string values like `new`.
 
 ---
 
