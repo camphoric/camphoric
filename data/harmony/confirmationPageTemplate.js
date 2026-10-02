@@ -1,7 +1,7 @@
 import { yearDisplay } from './dates.js';
 
 // Jinja markdown, rendered on the server when registration completes (SPEC §7.3):
-// `registration`, `campers`, `pricing`, `initial_payment` and `event`.
+// `registration`, `campers`, `pricing`, `invoice` and `event`.
 
 export default `
 # Your registration is confirmed!

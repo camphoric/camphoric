@@ -1,7 +1,7 @@
 import { year } from './dates.js';
 
 const subject = `Lark Camp ${year} Registration Confirmation`;
-// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `initial_payment` and
+// Jinja (SPEC §8.3): `campers`, `registration`, `pricing`, `invoice` and
 // `event` are the server's template variables. `{%-` / `-%}` swallow a tag's
 // line, as Mustache did for a tag alone on its line; `-%}` is used after lines
 // ending in a markdown line break (trailing spaces), which `{%-` would eat.
@@ -56,10 +56,17 @@ please contact the registrar to have it added to your registration.
 {% endif %}
 Payment info:
 
-- Initial Payment: {{ initial_payment.type }}
-- **Amount you are paying now: {{ initial_payment.total | money }}**
-- Due by June 20th: {{ initial_payment.balance | money }}
-- Your total: {{ pricing.total | money }}
+{% if invoice -%}
+- Payment option: {{ invoice.description }}
+- **Amount you are paying now: {{ invoice.total | money }}**{% if invoice.handling %} (including {{ invoice.handling | money }} electronic payment handling){% endif %}
+- Due by June 20th: {{ (registration.total_owed - invoice.total) | money }}
+{% endif -%}
+- Your total: {{ registration.total_owed | money }}
+{% if invoice and invoice.amount_due and invoice.payment_type in ['PayPal', 'Card'] %}
+
+Your online payment hasn't gone through, so {{ invoice.amount_due | money }} is still due now.
+You can mail a check instead, or contact the registrar.
+{% endif %}
 
 
 Registration Number: ${year}-{{ registration.id }}

@@ -83,7 +83,7 @@ class ReconcileTests(WorkerTestCase):
         models.WorkerHeartbeat.objects.create(worker_id='old', hostname='h', pid=1,
                                               started_at=old, seen_at=old)
         self.assertEqual(worker.reconcile.call(),
-                         {'requeued': 1, 'rewoken': 0, 'abandoned': 0})
+                         {'requeued': 1, 'rewoken': 0, 'abandoned': 0, 'confirmations': 0})
         self.assertFalse(models.WorkerHeartbeat.objects.exists())
 
     def test_without_the_database_queue_nothing_is_scheduled(self):

@@ -1,15 +1,18 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import (
-    BooleanField, CharField, ChoiceField, ModelSerializer as BaseModelSerializer,
-    PrimaryKeyRelatedField, SerializerMethodField, ValidationError,
+    BooleanField, CharField, ChoiceField, DecimalField, ListSerializer,
+    ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField, SerializerMethodField,
+    ValidationError,
 )
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 import jsonschema  # Using Draft-7
 from camphoric import (
     accounts,
+    invoices,
     models,
     pricing,
     roles,
@@ -114,6 +117,20 @@ class EventSerializer(ModelSerializer):
         return template
 
 
+class RegistrationListSerializer(ListSerializer):
+    '''Works out every listed registration's ledger at once (two queries, not two each).'''
+
+    def to_representation(self, data):
+        items = list(data.all() if hasattr(data, 'all') else data)
+        self.child.context['ledgers'] = invoices.ledgers(items)
+        return super().to_representation(items)
+
+
+# The registration's money, worked out from its price, invoices and payments
+# (SPEC §9.7): read-only numbers.
+LEDGER_FIELDS = ('total_owed', 'total_paid', 'balance', 'handling_charges', 'uninvoiced_balance')
+
+
 class RegistrationSerializer(ModelSerializer):
     # A deleted promo code stays on the registrations that have it (SPEC DR-67).
     promo_code = PrimaryKeyRelatedField(
@@ -124,6 +141,15 @@ class RegistrationSerializer(ModelSerializer):
     class Meta:
         model = models.Registration
         fields = '__all__'
+        read_only_fields = ['completed_at', 'confirmation_sent_at']
+        list_serializer_class = RegistrationListSerializer
+
+    def to_representation(self, registration):
+        data = super().to_representation(registration)
+        ledger = (self.context.get('ledgers') or {}).get(registration.id) \
+            or invoices.ledger(registration)
+        data.update({name: float(getattr(ledger, name)) for name in LEDGER_FIELDS})
+        return data
 
     def get_promo(self, registration):
         promo_code = registration.promo_code
@@ -324,7 +350,7 @@ class PricingOverrideSerializer(ModelSerializer):
     '''
     A registrar's amount for one price line (SPEC DR-56). For a camper's line the
     registration is the camper's. `applied` says whether it's in effect: the event's
-    pricing still has that line (and, for the handling fee, there is one).
+    pricing still has that line.
     '''
     registration = PrimaryKeyRelatedField(
         queryset=models.Registration.objects.all(), required=False)
@@ -345,11 +371,8 @@ class PricingOverrideSerializer(ModelSerializer):
         return (user.get_full_name() or user.username) if user else None
 
     def get_applied(self, override):
-        registration = override.registration
-        if override.var == pricing.HANDLING and registration.payment_type == 'Check':
-            return False
         return override.var in pricing.overridable_lines(
-            registration.event, camper=override.camper_id is not None)
+            override.registration.event, camper=override.camper_id is not None)
 
     def validate(self, data):
         instance = self.instance
@@ -464,16 +487,143 @@ class DepositSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class InvoiceSerializer(ModelSerializer):
+    '''
+    An invoice (SPEC §9.7): what it asks, what's been paid on it, and its status,
+    worked out from its payments. Any role reads it, notes included; Registrars
+    and Admins change its description, amount, handling fee, memo, notes and
+    due date. Its link code is never shown here.
+    '''
+    total = DecimalField(max_digits=9, decimal_places=2, read_only=True)
+    amount_paid = DecimalField(max_digits=9, decimal_places=2, read_only=True)
+    amount_due = DecimalField(max_digits=9, decimal_places=2, read_only=True)
+    overpaid = DecimalField(max_digits=9, decimal_places=2, read_only=True)
+    status = CharField(read_only=True)
+    payments = PrimaryKeyRelatedField(many=True, read_only=True)
+    created_by_name = SerializerMethodField()
+
+    class Meta:
+        model = models.Invoice
+        exclude = ['token']
+        read_only_fields = ['registration', 'origin', 'payment_type', 'pending_paypal_order_id',
+                            'cancelled_at', 'cancel_reason', 'created_by', 'created_at',
+                            'updated_at']
+
+    def get_created_by_name(self, invoice):
+        user = invoice.created_by
+        return (user.get_full_name() or user.username) if user else None
+
+    def validate_amount(self, amount):
+        if amount < 0:
+            raise ValidationError('An invoice can\'t ask for less than nothing.')
+        return amount
+
+    def validate_handling(self, handling):
+        if handling < 0:
+            raise ValidationError('The handling fee can\'t be negative.')
+        return handling
+
+
 class PaymentSerializer(ModelSerializer):
+    '''
+    A payment, or a refund (a negative amount, SPEC DR-94). Every payment
+    belongs to an invoice (DR-87): given none, it goes on the registration's
+    oldest invoice with money due, or a new "Payment received" invoice
+    (`new_invoice` asks for that directly). A refund names the payment it
+    gives money back from, or at least its invoice.
+    '''
+    registration = PrimaryKeyRelatedField(
+        queryset=models.Registration.objects.all(), required=False)
+    invoice = PrimaryKeyRelatedField(queryset=models.Invoice.objects.all(), required=False)
+    refund_of = PrimaryKeyRelatedField(
+        queryset=models.Payment.objects.all(), required=False, allow_null=True)
+    new_invoice = BooleanField(write_only=True, required=False, default=False)
+    refunded = SerializerMethodField()
+    paypal_refundable = SerializerMethodField()
+
     class Meta:
         model = models.Payment
         fields = '__all__'
+        read_only_fields = ['paypal_response', 'paypal_transaction_id']
+
+    def get_refunded(self, payment):
+        if payment.amount <= 0:
+            return '0.00'
+        return f'{invoices.money(payment.amount) - invoices.refundable(payment):.2f}'
+
+    def get_paypal_refundable(self, payment):
+        return (payment.amount > 0 and payment.payment_type in invoices.ONLINE_TYPES
+                and bool(invoices.capture_id_of(payment))
+                and invoices.refundable(payment) > 0)
 
     def validate(self, data):
-        if self.partial and 'registration' not in data:
-            return data
+        instance = self.instance
+        current = (lambda name: data[name] if name in data else getattr(instance, name, None))
+        amount = invoices.money(current('amount'))
+        invoice = current('invoice')
+        refund_of = current('refund_of')
+        registration = (data.get('registration') or (invoice.registration if invoice else None)
+                        or (refund_of.registration if refund_of else None)
+                        or getattr(instance, 'registration', None))
+        if registration is None:
+            raise ValidationError({'registration': 'This field is required.'})
+        if invoice is not None and invoice.registration_id != registration.id:
+            raise ValidationError({'invoice': 'That invoice is on another registration.'})
 
-        return validate_attributes(data, data['registration'].event.payment_schema)
+        if refund_of is not None:
+            if amount >= 0:
+                raise ValidationError({'amount': 'A refund\'s amount is negative.'})
+            if refund_of.amount <= 0:
+                raise ValidationError({'refund_of': 'Only a payment can be refunded.'})
+            if refund_of.registration_id != registration.id:
+                raise ValidationError({'refund_of': 'That payment is on another registration.'})
+            if invoice is None:
+                invoice = refund_of.invoice
+            elif invoice.id != refund_of.invoice_id:
+                raise ValidationError(
+                    {'invoice': 'A refund goes on the invoice of the payment it refunds.'})
+            limit = invoices.refundable(refund_of)
+            if instance is not None and instance.refund_of_id == refund_of.id:
+                limit -= invoices.money(instance.amount)
+            if -amount > limit:
+                raise ValidationError(
+                    {'amount': f'You can refund up to ${limit:.2f} of that payment.'})
+        if amount < 0 and invoice is None:
+            raise ValidationError({'invoice': 'A refund must name its invoice.'})
+        moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
+        if moving_to and invoice.cancelled_at is not None:
+            raise ValidationError({'invoice': 'That invoice is cancelled.'})
+
+        if not self.partial or 'attributes' in data:
+            validate_attributes({'attributes': data.get('attributes')},
+                                registration.event.payment_schema)
+        data['registration'] = registration
+        if invoice is not None:
+            data['invoice'] = invoice
+        return data
+
+    def create(self, validated_data):
+        new_invoice = validated_data.pop('new_invoice', False)
+        with transaction.atomic():
+            if validated_data.get('invoice') is None:
+                request = self.context.get('request')
+                validated_data['invoice'] = invoices.invoice_for_payment(
+                    validated_data['registration'], validated_data.get('amount'),
+                    validated_data.get('payment_type', models.PaymentType.CHECK),
+                    new_invoice=new_invoice, user=getattr(request, 'user', None))
+            payment = super().create(validated_data)
+            invoices.match_received_invoice(payment.invoice)
+        return payment
+
+    def update(self, instance, validated_data):
+        validated_data.pop('new_invoice', None)
+        with transaction.atomic():
+            old_invoice = instance.invoice
+            payment = super().update(instance, validated_data)
+            invoices.match_received_invoice(old_invoice)
+            if payment.invoice_id != old_invoice.id:
+                invoices.match_received_invoice(payment.invoice)
+        return payment
 
 
 class CurrentUserSerializer(ModelSerializer):
@@ -680,7 +830,7 @@ def validate_error_messages(messages):
 
 
 def validate_attributes(data, schema):
-    decoded_json = data['attributes']
+    decoded_json = data.get('attributes')
     try:
         # Draft 7, as the forms validate in the browser (see
         # RegisterView.validate_form_data).

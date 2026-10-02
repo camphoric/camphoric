@@ -38,6 +38,8 @@ BLOCKED_BECAUSE = {
         'Events still send with this account. Choose another account for them first.'),
     ('emailmessage', 'account'): 'Email has been sent with this account.',
     ('emailbatch', 'account'): 'Group email has been sent with this account.',
+    ('payment', 'invoice'): 'It has payments. Only an invoice with none can be deleted.',
+    ('payment', 'refund_of'): 'It has been refunded. Delete its refunds first.',
     ('customcharge', 'custom_charge_type'): 'Campers still have this charge.',
 }
 
@@ -153,6 +155,7 @@ def _hide(instance, result):
     if isinstance(instance, models.Registration):
         hidden = [
             (models.Camper, instance.campers.all()),
+            (models.Invoice, models.Invoice.objects.filter(registration=instance)),
             (models.Payment, models.Payment.objects.filter(registration=instance)),
             (models.CustomCharge,
              models.CustomCharge.objects.filter(camper__registration=instance)),
@@ -283,3 +286,26 @@ def unassign_campers(lodging, result):
 def not_yourself(user, instance, result):
     if instance.pk == user.pk:
         result.block('You can\'t delete your own account.')
+
+
+def payment_has_no_refunds(payment, result):
+    '''A payment that has been refunded can't go while its refunds stay (DR-94).'''
+    refunds = models.Payment.all_objects.filter(
+        refund_of=payment, deleted_at__isnull=True).order_by('id')
+    if refunds.exists():
+        result.block('It has been refunded. Delete its refunds first.', refunds)
+
+
+def paypal_refund_stays_refunded(payment, result):
+    '''Deleting the record of a PayPal refund doesn't take the money back from the payer.'''
+    if payment.amount < 0 and payment.paypal_transaction_id:
+        result.change(models.Payment, [payment],
+                      'stays refunded in PayPal: deleting this record doesn\'t undo the refund')
+
+
+def invoice_has_no_payments(invoice, result):
+    '''Only an invoice nothing was ever paid on can be deleted (deleted payments count).'''
+    payments = models.Payment.all_objects.filter(invoice=invoice).order_by('id')
+    if payments.exists():
+        result.block('It has payments. Only an invoice with none can be deleted; '
+                     'cancel it instead.', payments)

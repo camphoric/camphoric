@@ -46,7 +46,6 @@ class ConfirmationTests(APITestCase):
             'registrationUUID': uuid,
             'step': 'payment',
             'paymentType': 'Check',
-            'paymentData': {'type': 'Full', 'total': 100},
         }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         return response
@@ -70,9 +69,6 @@ class ConfirmationTests(APITestCase):
         first = self.pay(uuid)
         second = self.pay(uuid)
         first, second = first.json(), second.json()
-        # The balance is a number the first time and the stored string after.
-        self.assertEqual(float(first['initialPayment'].pop('balance')),
-                         float(second['initialPayment'].pop('balance')))
         self.assertEqual(first, second)
         self.assertEqual(models.EmailMessage.objects.count(), 1)
         self.assertEqual(len(mail.outbox), 1)

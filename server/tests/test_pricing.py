@@ -368,12 +368,12 @@ class TestCalculatePrice(unittest.TestCase):
             attributes={},
         )
         price_components = pricing.calculate_price(registration, [])
+        # The handling fee isn't part of the price (SPEC DR-88).
         self.assertEqual(price_components, {
             "campers": [],
-            "handling": 0.03,  # test rounding
             "cabins": 102.27,  # test rounding
             "random": "bobby flay",  # test non-numeric data
-            "total": 102.3,  # test rounding
+            "total": 102.27,  # test rounding
         })
 
         # Test after database save
@@ -382,10 +382,9 @@ class TestCalculatePrice(unittest.TestCase):
         registration.refresh_from_db()
         self.assertEqual(registration.server_pricing_results, {
             "campers": [],
-            "handling": 0.03,  # test rounding
             "cabins": 102.27,  # test rounding
             "random": "bobby flay",  # test non-numeric data
-            "total": 102.3,  # test rounding
+            "total": 102.27,  # test rounding
         })
 
     def test_calculate_registration(self):
@@ -633,36 +632,21 @@ class TestCalculatePrice(unittest.TestCase):
 
 class TestHandlingFeeRounding(unittest.TestCase):
     '''
-    Money rounds to the cent a half cent up, and the handling fee is rounded
-    before it's added (SPEC §9.2; GitHub #622). The fee cases are in
-    client_v2/src/pricing/test/fixtures.ts too; keep the two in step.
+    Money rounds to the cent a half cent up, and so does the handling fee on an
+    invoice paid online (SPEC §9.7; GitHub #622). The fee cases are in
+    client_v2/src/pricing/test/handlingFee.fixtures.ts too; keep the two in step.
     '''
-
-    def price(self, registration_fee, percent=2.5):
-        event = models.Event(
-            name='Fee Camp',
-            epayment_handling=percent,
-            pricing={'registration_fee': registration_fee},
-            registration_pricing_logic=[
-                {'var': 'total', 'exp': {'var': 'pricing.registration_fee'}},
-            ],
-            camper_pricing_logic=[],
-        )
-        registration = models.Registration(event=event, attributes={}, payment_type='PayPal')
-        return pricing.calculate_price(registration, [])
 
     def test_a_half_cent_fee_rounds_up(self):
         # 2.5% of an odd number of dollars is exactly half a cent.
-        for fee, handling, total in [
-            (1, 0.03, 1.03), (5, 0.13, 5.13), (7, 0.18, 7.18), (25, 0.63, 25.63),
-        ]:
-            with self.subTest(fee=fee):
-                results = self.price(fee)
-                self.assertEqual((results['handling'], results['total']), (handling, total))
+        for amount, fee in [(1, '0.03'), (5, '0.13'), (7, '0.18'), (25, '0.63')]:
+            with self.subTest(amount=amount):
+                self.assertEqual(pricing.handling_fee(amount, 2.5), Decimal(fee))
 
-    def test_the_total_is_to_the_cent(self):
-        results = self.price(102.27)
-        self.assertEqual((results['handling'], results['total']), (2.56, 104.83))
+    def test_the_fee_is_to_the_cent(self):
+        self.assertEqual(pricing.handling_fee(102.27, 2.5), Decimal('2.56'))
+        self.assertEqual(pricing.handling_fee(Decimal('420.00'), 3), Decimal('12.60'))
+        self.assertEqual(pricing.handling_fee(0, 3), Decimal('0.00'))
 
     def test_money_fmt_rounds_a_half_cent_up_as_written(self):
         self.assertEqual(pricing.money_fmt(2.675), 2.68)
@@ -693,12 +677,11 @@ class TestPromoCodePricing(unittest.TestCase):
             ],
         )
 
-    def price(self, logic=None, scope=models.PromoCodeScope.REGISTRATION,
-              payment_type='Check', campers=2):
+    def price(self, logic=None, scope=models.PromoCodeScope.REGISTRATION, campers=2):
         promo_code = None if logic is None else models.PromoCode(
             event=self.event, label='Promo', code='PROMO', pricing_logic=logic, scope=scope)
         registration = models.Registration(
-            event=self.event, attributes={}, payment_type=payment_type, promo_code=promo_code)
+            event=self.event, attributes={}, promo_code=promo_code)
         return pricing.calculate_price(
             registration, [models.Camper(registration=registration) for _ in range(campers)])
 
@@ -730,13 +713,6 @@ class TestPromoCodePricing(unittest.TestCase):
                 results = self.price(logic)
                 self.assertEqual(results['promo'], 0)
                 self.assertEqual(results['total'], 450)
-
-    def test_handling_is_on_the_discounted_total(self):
-        self.event.epayment_handling = 3
-        results = self.price(30, payment_type='PayPal')
-        self.assertEqual(results['promo'], -30)
-        self.assertAlmostEqual(results['handling'], 12.6)
-        self.assertAlmostEqual(results['total'], 432.6)
 
     def test_per_camper_discount(self):
         # The first camper's is capped at their own total.
@@ -781,9 +757,8 @@ class TestNoNegativeTotals(unittest.TestCase):
             ],
         )
 
-    def price(self, campers, attributes=None, payment_type='Check'):
-        registration = models.Registration(
-            event=self.event, attributes=attributes or {}, payment_type=payment_type)
+    def price(self, campers, attributes=None):
+        registration = models.Registration(event=self.event, attributes=attributes or {})
         return pricing.calculate_price(
             registration,
             [models.Camper(registration=registration, attributes=a) for a in campers])
@@ -798,11 +773,11 @@ class TestNoNegativeTotals(unittest.TestCase):
         self.assertEqual(
             (results['total'], results['tuition'], results['campership']), (150, 200, 200))
 
-    def test_the_registrations_total_is_never_below_zero_nor_is_handling(self):
-        # 50 - 500 + 100 + 100 = -250, so 0; handling on 0 is 0.
-        self.event.epayment_handling = 3
-        results = self.price([{}, {}], {'credit': 500}, payment_type='PayPal')
-        self.assertEqual((results['total'], results['handling']), (0, 0))
+    def test_the_registrations_total_is_never_below_zero(self):
+        # 50 - 500 + 100 + 100 = -250, so 0.
+        results = self.price([{}, {}], {'credit': 500})
+        self.assertEqual(results['total'], 0)
+        self.assertNotIn('handling', results)
 
     def test_a_registration_level_credit_still_comes_off_the_campers_totals(self):
         # Only the sum is floored, not the registration's own line: 50 - 100 + 200.

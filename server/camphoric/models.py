@@ -2,6 +2,7 @@ from decimal import Decimal
 import datetime
 import logging
 import random
+import secrets
 import uuid
 
 from django.conf import settings
@@ -256,7 +257,7 @@ class Event(TimeStampedModel):
             null=True,
             max_digits=4,
             decimal_places=2,
-            help_text="a handling charge added to all payments, but discounted if you pay by check")
+            help_text="a percent added to each electronic payment, on the amount paid")
     paypal_client_id = models.CharField(null=True, blank=True, max_length=255)
 
     pre_submit_template = models.TextField(
@@ -407,7 +408,10 @@ class Registration(TimeStampedModel):
     - Is owned by one Event
     - Has many attributes (probably in JSON form) that are custom added
     - Has many Campers
-    - Has many Payments
+    - Has many Invoices, and Payments on them
+
+    It's completed once the registrant presses a payment button (SPEC DR-91):
+    from then on it's in the admin lists, unpaid until a payment arrives.
     '''
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
@@ -425,17 +429,14 @@ class Registration(TimeStampedModel):
     registrant_email = models.EmailField()
     server_pricing_results = CustomJSONField(null=True)
     client_reported_pricing = CustomJSONField(null=True)
-    initial_payment = CustomJSONField(null=True)
-    payment_type = models.CharField(
-        max_length=255,
-        null=True,
-        choices=PaymentType.choices,
-    )
-    paypal_response = CustomJSONField(null=True)
     completed = models.BooleanField(
         default=False,
-        help_text="True if the user has made it to the end of the registration process",
+        help_text="True once the registrant has pressed a payment button",
     )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    # When the confirmation email was queued; a worker sweep sends any still
+    # unsent half an hour after completion (SPEC DR-91).
+    confirmation_sent_at = models.DateTimeField(null=True, blank=True)
 
     objects = LiveRegistrations()
     all_objects = models.Manager()
@@ -720,13 +721,119 @@ class Deposit(TimeStampedModel):
             self.amount, f' on {self.deposited_on}' if self.deposited_on else '')
 
 
+class InvoiceOrigin(models.TextChoices):
+    '''Who or what made an invoice (SPEC §9.7). Informational: it never changes the ledger.'''
+    # The registrant's payment step: the payment option they chose.
+    REGISTRATION = 'registration', 'From registration'
+    # A payment recorded with no invoice to go on; it stands for a bill never sent.
+    PAYMENT_RECEIVED = 'payment_received', 'Payment received'
+    # A registrar's, by hand.
+    ADMIN = 'admin', 'Created by a registrar'
+    # The conversion of payments to invoices (migration 0076) only.
+    MIGRATED = 'migrated', 'Converted'
+
+
+class InvoiceStatus(models.TextChoices):
+    '''Worked out from the invoice and its payments, never stored.'''
+    OPEN = 'open', 'Open'
+    PARTIALLY_PAID = 'partially_paid', 'Partially paid'
+    PAID = 'paid', 'Paid'
+    OVERPAID = 'overpaid', 'Overpaid'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+def invoice_token():
+    '''An invoice's unguessable link code (module level: migrations reference it).'''
+    return secrets.token_urlsafe(24)
+
+
+class Invoice(TimeStampedModel):
+    '''
+    A request for one chunk of a registration's balance (SPEC §9.7, DR-87): an
+    amount toward the registration, plus the e-payment handling fee once it's
+    paid online (DR-88). Every payment belongs to one; it holds any number of
+    payments and refunds, and its status comes from their net sum.
+    '''
+    registration = models.ForeignKey(
+        Registration, on_delete=models.CASCADE, related_name='invoices')
+    origin = models.CharField(max_length=20, choices=InvoiceOrigin.choices)
+    description = models.CharField(max_length=255, blank=True, default='')
+    amount = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal('0.00'),
+        help_text='Toward the registration')
+    handling = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal('0.00'),
+        help_text='E-payment handling: adds to what is owed')
+    # How the payer chose to pay it; each payment keeps how it was actually paid.
+    payment_type = models.CharField(
+        max_length=255, null=True, blank=True, choices=PaymentType.choices)
+    token = models.CharField(max_length=64, unique=True, default=invoice_token, editable=False)
+    due_on = models.DateField(null=True, blank=True)
+    memo = models.TextField(blank=True, default='', help_text='Shown to the payer')
+    notes = models.TextField(blank=True, default='', help_text='Internal')
+    # A PayPal order made for it and not yet captured.
+    pending_paypal_order_id = models.CharField(max_length=64, null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+')
+
+    objects = LiveUnderRegistration()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ('created_at', 'id')
+
+    def __str__(self):
+        return f'Invoice #{self.id}' + (f' ({self.description})' if self.description else '')
+
+    def get_additional_data(self):
+        # Tags audit entries for the registration's history (camphoric.audit).
+        return {'registration': self.registration_id}
+
+    @property
+    def total(self):
+        return Decimal(self.amount) + Decimal(self.handling)
+
+    @property
+    def amount_paid(self):
+        '''The net of its live payments: refunds count against it.'''
+        return sum((Decimal(p.amount) for p in self.payments.all()), Decimal('0.00'))
+
+    @property
+    def amount_due(self):
+        return max(Decimal('0.00'), self.total - self.amount_paid)
+
+    @property
+    def overpaid(self):
+        return max(Decimal('0.00'), self.amount_paid - self.total)
+
+    @property
+    def status(self):
+        if self.cancelled_at is not None:
+            return InvoiceStatus.CANCELLED
+        paid = self.amount_paid
+        total = self.total
+        if paid > total:
+            return InvoiceStatus.OVERPAID
+        if paid == total and (total > 0 or self.payments.exists()):
+            return InvoiceStatus.PAID
+        if paid > 0:
+            return InvoiceStatus.PARTIALLY_PAID
+        return InvoiceStatus.OPEN
+
+
 class Payment(TimeStampedModel):
     '''
     - Owned by 0 or 1 Deposits
-    - Owned also by 1 Registration
-    - Has an amount and type
+    - Owned also by 1 Registration, and 1 of its Invoices
+    - Has an amount and type; a negative amount is a refund (SPEC DR-94)
     '''
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE)
+    # Every payment belongs to an invoice (SPEC DR-87); an invoice with
+    # payments can't be deleted.
+    invoice = models.ForeignKey(Invoice, on_delete=models.RESTRICT, related_name='payments')
     payment_type = models.CharField(
         max_length=255,
         default=PaymentType.CHECK,
@@ -737,14 +844,35 @@ class Payment(TimeStampedModel):
     paid_on = models.DateField(null=True)
     attributes = CustomJSONField(null=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
-    paypal_order_details = CustomJSONField(null=True)
+    # PayPal's reply: the capture's for a payment, the refund's for a refund.
+    paypal_response = CustomJSONField(null=True)
+    # PayPal's transaction id: the capture id of a payment, the refund id of a
+    # refund — so one PayPal transaction is recorded once.
+    paypal_transaction_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    # The payment a refund gives money back from.
+    refund_of = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.RESTRICT, related_name='refunds')
     notes = models.TextField(blank=True, default='')
 
     objects = LiveUnderRegistration()
     all_objects = models.Manager()
 
     def __str__(self):
-        return "{} payment ${}".format(self.get_payment_type_display(), self.amount)
+        kind = 'refund' if self.is_refund else 'payment'
+        return "{} {} ${}".format(self.get_payment_type_display(), kind, abs(self.amount))
+
+    @property
+    def is_refund(self):
+        return Decimal(self.amount) < 0
+
+    def save(self, **kwargs):
+        # Every payment belongs to an invoice (SPEC DR-87): one saved without
+        # one goes on the oldest invoice with money due, or a new one for it.
+        if self.invoice_id is None:
+            from camphoric import invoices
+            self.invoice = invoices.invoice_for_payment(
+                self.registration, self.amount, self.payment_type)
+        super().save(**kwargs)
 
     def get_additional_data(self):
         # Tags audit entries for the registration's history (camphoric.audit).
@@ -807,6 +935,8 @@ class EmailMessageKind(models.TextChoices):
     CONFIRMATION = 'confirmation', 'Registration confirmation'
     CONFIRMATION_REPORT = 'confirmation_report', 'Confirmation email problem report'
     PAGE_REPORT = 'page_report', 'Confirmation page problem report'
+    # A PayPal capture or refund whose outcome is unknown (SPEC §9.7).
+    PAYMENT_REPORT = 'payment_report', 'PayPal problem report'
     INVITATION = 'invitation', 'Invitation'
     BULK = 'bulk', 'Group email'
     TEST = 'test', 'Test email'
@@ -921,7 +1051,9 @@ DEFAULT_CONFIRMATION_BODY = (
     'Thanks for registering for {{ event.name }}!\n\n'
     '{% for camper in campers %}- {{ camper.attributes.first_name }} '
     '{{ camper.attributes.last_name }}\n{% endfor %}\n'
-    'Total: {{ pricing.total | money }}\n')
+    'Total: {{ registration.total_owed | money }}\n'
+    '{% if registration.balance > 0 %}Still due: {{ registration.balance | money }}\n'
+    '{% endif %}')
 DEFAULT_INVITATION_SUBJECT = 'Register for {{ event.name }}'
 DEFAULT_INVITATION_BODY = (
     'Dear {{ invitation.recipient_name or invitation.recipient_email }},\n\n'
