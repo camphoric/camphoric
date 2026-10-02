@@ -3,8 +3,8 @@
  * hooks they need from here.
  *
  * `alsoInvalidate` encodes the multi-key invalidation the spec calls out:
- * mutating a Camper, Payment, or CustomCharge changes a Registration's derived
- * totals, so those mutations also invalidate Registration queries.
+ * mutating a Camper, Payment, Invoice or CustomCharge changes a Registration's
+ * derived totals, so those mutations also invalidate Registration queries.
  */
 
 import type {
@@ -17,6 +17,7 @@ import type {
   ApiEmailUnsubscribe,
   ApiEvent,
   ApiInvitation,
+  ApiInvoice,
   ApiLodging,
   ApiOrganization,
   ApiPayment,
@@ -63,9 +64,15 @@ export const camperHooks = createEntityHooks<ApiCamper>({
   alsoInvalidate: ['Registration'],
 });
 export const depositHooks = createEntityHooks<ApiDeposit>({ name: 'Deposit' });
+// A payment changes its invoice's status and the registration's ledger (§9.7).
 export const paymentHooks = createEntityHooks<ApiPayment>({
   name: 'Payment',
-  alsoInvalidate: ['Registration'],
+  alsoInvalidate: ['Registration', 'Invoice'],
+});
+// An invoice's handling fee is part of what the registration owes (§9.7).
+export const invoiceHooks = createEntityHooks<ApiInvoice>({
+  name: 'Invoice',
+  alsoInvalidate: ['Registration', 'Payment'],
 });
 export const customChargeHooks = createEntityHooks<ApiCustomCharge>({
   name: 'CustomCharge',

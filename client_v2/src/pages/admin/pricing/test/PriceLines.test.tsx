@@ -2,9 +2,6 @@ import userEvent from '@testing-library/user-event';
 import type { ApiCamper, ApiEvent, Role } from 'api-types';
 import {
   CAMPER_LOGIC,
-  HANDLING_KEPT,
-  HANDLING_KEPT_OVERRIDE,
-  HANDLING_WAIVED,
   OVERRIDDEN,
   REGISTRATION_LOGIC,
   TUITION_OVERRIDE,
@@ -13,7 +10,7 @@ import { PermissionsProvider } from 'hooks/permissions';
 import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { overridableLines, PriceLines, RECALCULATED_REASON } from '../PriceLines';
+import { overridableLines, PriceLines } from '../PriceLines';
 
 const { create, update, remove, overrides } = vi.hoisted(() => ({
   create: vi.fn(),
@@ -104,65 +101,27 @@ describe('PriceLines', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('recalculates a kept handling fee from the total as it is now', async () => {
-    overrides.current = [HANDLING_KEPT_OVERRIDE];
-    renderWithProviders(
-      <PermissionsProvider userRole="registrar">
-        <PriceLines
-          event={event}
-          results={HANDLING_KEPT}
-          logics={[REGISTRATION_LOGIC]}
-          registrationId={5}
-        />
-      </PermissionsProvider>,
-    );
-    expect(
-      screen.getByText(/Overridden \(the pricing works out \$2\.50\): Kept at the amount/),
-    ).toBeInTheDocument();
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Recalculate Electronic payment handling' }));
-    expect(update).toHaveBeenCalledWith({ id: 6, amount: 2.5, reason: RECALCULATED_REASON });
-  });
-
-  it('offers no recalculation once the fee is what the total gives', () => {
-    overrides.current = [HANDLING_KEPT_OVERRIDE];
-    renderWithProviders(
-      <PermissionsProvider userRole="registrar">
-        <PriceLines
-          event={event}
-          results={{ ...HANDLING_KEPT, handling: 2.5, total: 102.5 }}
-          logics={[REGISTRATION_LOGIC]}
-          registrationId={5}
-        />
-      </PermissionsProvider>,
-    );
-    expect(screen.queryByRole('button', { name: /^Recalculate/ })).toBeNull();
-  });
-
   it('overrides only the registration’s own lines on the registration', () => {
     overrides.current = [];
     renderWithProviders(
       <PriceLines
         event={event}
-        results={{ ...HANDLING_WAIVED, tuition: 1840 }}
+        results={{ donation: 25, tuition: 1840, total: 2455, campers: [] }}
         logics={[REGISTRATION_LOGIC, CAMPER_LOGIC]}
         registrationId={5}
       />,
     );
     expect(screen.getByRole('button', { name: 'Override Donation' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Override Electronic payment handling' }),
-    ).toBeInTheDocument();
+    // The handling fee is on invoices, not a price line (§15, DR-88).
+    expect(screen.queryByRole('button', { name: /handling/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Override Tuition' })).toBeNull();
     expect(screen.getByText(/overridden on each camper’s Fees tab/)).toBeInTheDocument();
   });
 });
 
 describe('overridableLines', () => {
-  it('is every line but the total, and the handling fee when there is one', () => {
+  it('is every line but the total', () => {
     expect(overridableLines(event, true)).toEqual(['tuition', 'meals', 'parking']);
-    expect(overridableLines(event, false)).toEqual(['donation', 'handling']);
-    expect(overridableLines({ ...event, epayment_handling: 0 }, false)).toEqual(['donation']);
+    expect(overridableLines(event, false)).toEqual(['donation']);
   });
 });

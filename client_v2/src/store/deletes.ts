@@ -70,6 +70,7 @@ const RESTORE_INVALIDATES = [
   'Registration',
   'Camper',
   'Payment',
+  'Invoice',
   'CustomCharge',
   'PromoCode',
   'Deleted',

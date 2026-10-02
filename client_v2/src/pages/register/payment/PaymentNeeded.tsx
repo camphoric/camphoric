@@ -1,180 +1,180 @@
 /**
- * Payment step when payment is owed (total > 0) — SPEC §7.2. Offers pay-by-check
- * and PayPal's buttons (its own account button and its Debit or Credit Card
- * button), with optional deposit options.
+ * Payment step when payment is owed (total > 0) — SPEC §7.2. The registrant
+ * chooses a payment option (the server works out each one's amount, #675) and
+ * pays by check, or with PayPal's buttons (its own account button and its
+ * Debit or Credit Card button).
  *
  * Load-bearing behaviors (SPEC §12):
- *  - Check omits the e-payment handling fee, so the total is recomputed with
- *    payment type 'Check' rather than reusing the registration-step total.
- *  - A deposit choice carries a JSON-logic expression applied to the pricing
- *    results to get the amount due.
- *  - PayPal loses the local deposit selection, so it's embedded in the order's
- *    `custom_id` and recovered on capture.
+ *  - Amounts come from the server: the browser never computes a deposit or a
+ *    handling fee, and never creates or captures a PayPal order (§15, DR-89,
+ *    DR-90). It posts the option's name; PayPal's buttons ask our server for
+ *    the order, and hand the approved order back for the server to capture.
+ *  - Pressing a payment button completes the registration (DR-91): after a
+ *    cancelled or declined PayPal payment the registrant is registered and
+ *    unpaid, and can try again, pay by check, or finish and pay later.
  *  - The page is blocked only once PayPal approves, never while PayPal's own
- *    popup or inline card form is open (§15, DR-77).
+ *    popup or inline card form is open (DR-77).
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
-import type {
-  PayPalButtonCreateOrder,
-  PayPalButtonOnApprove,
-  PayPalButtonOnClick,
-  PayPalButtonOnError,
-} from '@paypal/paypal-js';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import type { ApiRegisterPaymentStep, InitialPaymentBody, PaymentType } from 'api-types';
-import { JsonSchemaForm } from 'components/form';
+import type { ApiRegisterConfirmationStep, ApiRegisterPaymentStep, PaymentType } from 'api-types';
+import { PAYMENT_BUTTON_WIDTH, PayPalCheckout } from 'components/PayPalCheckout';
 import { useGoToStep } from 'hooks/useGoToStep';
-import { calculatePrice } from 'pricing';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
-import { useRegistrationConfig, useSubmitPayment } from 'store/registrationApi';
-import { formatMoney, roundMoney } from 'utils/money';
+import {
+  paymentProblem,
+  useCreatePayPalOrder,
+  useFinishRegistration,
+  useRegistrationConfig,
+  useSubmitPayment,
+} from 'store/registrationApi';
+import { formatMoney } from 'utils/money';
 
-import { applyDeposit, parseDeposit } from './deposits';
-
-/** PayPal caps its buttons at 750px wide; every payment button shares that cap. */
-const PAYMENT_BUTTON_WIDTH = 750;
-/** PayPal's button height (25–55); 50 matches Mantine's `lg` button. */
-const PAYMENT_BUTTON_HEIGHT = 50;
+import { PaymentNotFinished } from './PaymentNotFinished';
+import { PaymentOptions } from './PaymentOptions';
 
 interface PaymentNeededProps {
   eventId: string;
   paymentStep: ApiRegisterPaymentStep;
 }
 
+/** Where things stand after a PayPal attempt that didn't go through. */
+interface NotFinished {
+  reason?: string;
+  unknown?: boolean;
+}
+
 export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const goToStep = useGoToStep();
   const { data: config } = useRegistrationConfig(eventId);
   const submit = useSubmitPayment(eventId);
-  const registration = useRegistrationStore((state) => state.registration);
-  const promo = useRegistrationStore((state) => state.promo);
-  const setPaymentInfo = useRegistrationStore((state) => state.setPaymentInfo);
+  const createOrder = useCreatePayPalOrder(eventId);
+  const finish = useFinishRegistration(eventId);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
 
-  const totals = paymentStep.serverPricingResults;
-  const hasDeposits = Boolean(paymentStep.deposit);
-  const defaultDeposit = (paymentStep.deposit?.default as string | undefined) ?? '';
-
-  const [depositValue, setDepositValue] = useState(defaultDeposit);
-  const [total, setTotal] = useState(() =>
-    hasDeposits ? applyDeposit(parseDeposit(defaultDeposit), totals) : (totals.total ?? 0),
-  );
+  const { paymentOptions, handlingPercent, registrationUUID } = paymentStep;
+  const [selected, setSelected] = useState(paymentOptions.default);
+  const option =
+    paymentOptions.options.find((o) => o.name === selected) ?? paymentOptions.options[0];
   const [loading, setLoading] = useState(false);
-  const [payPalError, setPayPalError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Set once a PayPal button has completed the registration and it isn't paid.
+  const [notFinished, setNotFinished] = useState<NotFinished | null>(null);
 
-  // PayPal reads the latest values through refs (its buttons close over the
-  // values from their first render).
-  const totalRef = useRef(total);
-  totalRef.current = total;
-  const depositRef = useRef(depositValue);
-  depositRef.current = depositValue;
-  // Which PayPal button was clicked ('paypal', 'card', 'venmo', …).
-  const fundingSourceRef = useRef<string | undefined>(undefined);
+  const clientId = config?.payPalOptions?.clientId as string | undefined;
 
-  const processResult = (initialPayment: InitialPaymentBody) => {
-    setLoading(true);
-    setPaymentInfo(initialPayment);
-    submit.mutate(initialPayment, {
-      onSuccess: (confirmation) => {
-        setConfirmationStep(confirmation);
-        goToStep('finished');
-      },
-      onError: () => setLoading(false),
-    });
-  };
-
-  const handleDepositChange = (formData: unknown) => {
-    const value = (formData as { deposit?: string }).deposit ?? '';
-    setDepositValue(value);
-    setTotal(hasDeposits ? applyDeposit(parseDeposit(value), totals) : (totals.total ?? 0));
+  const confirmed = (confirmation: ApiRegisterConfirmationStep) => {
+    setConfirmationStep(confirmation);
+    goToStep('finished');
   };
 
   const payByCheck = () => {
-    // Recompute without the handling fee (Check is fee-free) — SPEC §7.2, §12.
-    const checkTotals = config ? calculatePrice(config, registration, 'Check', promo) : totals;
-    const deposit = parseDeposit(depositValue);
-    const finalTotal = hasDeposits ? applyDeposit(deposit, checkTotals) : (checkTotals.total ?? 0);
-    processResult({
-      registrationUUID: paymentStep.registrationUUID,
-      paymentType: 'Check',
-      paymentData: { type: hasDeposits ? deposit.name : 'None', total: finalTotal },
-    });
-  };
-
-  const onClick: PayPalButtonOnClick = (data) => {
-    fundingSourceRef.current = data.fundingSource as string | undefined;
-    setPayPalError(null);
+    setError(null);
+    setLoading(true);
+    submit.mutate(
+      { registrationUUID, paymentType: 'Check', paymentOption: option.name },
+      {
+        onSuccess: confirmed,
+        onError: (e) => {
+          setLoading(false);
+          setError(paymentProblem(e).message);
+        },
+      },
+    );
   };
 
   // No overlay here: PayPal's popup or inline card form is open from now
   // until approval, and the card form sits under the overlay (#646).
-  const createOrder: PayPalButtonCreateOrder = (_data, actions) =>
-    actions.order.create({
-      intent: 'CAPTURE',
-      purchase_units: [
-        {
-          amount: { currency_code: 'USD', value: roundMoney(totalRef.current).toFixed(2) },
-          description: `${config?.dataSchema.title ?? 'Registration'} payment`,
-          // Embed the deposit choice; PayPal loses it otherwise (SPEC §12).
-          custom_id: parseDeposit(depositRef.current).name,
-          reference_id: paymentStep.registrationUUID,
-        },
-      ],
-    });
-
-  const onApprove: PayPalButtonOnApprove = async (_data, actions) => {
-    if (!actions.order) return;
-    setLoading(true);
+  const createPayPalOrder = async (paymentType: PaymentType) => {
+    setError(null);
     try {
-      const details = await actions.order.capture();
-      const unit = details.purchase_units?.[0];
-      const amount = parseFloat(unit?.amount?.value ?? '0');
-      const depositType = hasDeposits ? (unit?.custom_id ?? 'None') : 'None';
-      const paymentType: PaymentType = fundingSourceRef.current === 'card' ? 'Card' : 'PayPal';
-      processResult({
-        registrationUUID: paymentStep.registrationUUID,
+      const order = await createOrder.mutateAsync({
+        registrationUUID,
         paymentType,
-        paymentData: { type: depositType, total: amount },
-        payPalResponse: details,
+        paymentOption: option.name,
       });
-    } catch (error) {
-      setLoading(false);
-      console.error('PayPal capture failed', error);
-      setPayPalError('Your payment couldn’t be completed. Please try again or pay by check.');
+      return order.orderID;
+    } catch (e) {
+      setError(paymentProblem(e).message);
+      throw e;
     }
   };
 
-  const onCancel = () => setLoading(false);
-
-  const onError: PayPalButtonOnError = (error) => {
-    setLoading(false);
-    console.error('PayPal error', error);
-    setPayPalError('PayPal ran into a problem. Please try again or pay by check.');
+  const capture = (orderId: string, paymentType: PaymentType) => {
+    setLoading(true);
+    submit.mutate(
+      { registrationUUID, paymentType, paypalOrderId: orderId },
+      {
+        onSuccess: confirmed,
+        onError: (e) => {
+          setLoading(false);
+          const problem = paymentProblem(e);
+          setNotFinished({ reason: problem.message, unknown: problem.code === 'unknown' });
+        },
+      },
+    );
   };
 
-  const clientId = config?.payPalOptions?.clientId as string | undefined;
+  const cancelled = () => {
+    setLoading(false);
+    // The button completed the registration (DR-91), unpaid.
+    if (createOrder.isSuccess) setNotFinished({});
+  };
+
+  const payPalFailed = (e: unknown) => {
+    setLoading(false);
+    console.error('PayPal error', e);
+    setError(
+      (current) => current ?? 'PayPal ran into a problem. Please try again or pay by check.',
+    );
+  };
+
+  const finishNow = () =>
+    finish.mutate(registrationUUID, {
+      onSuccess: confirmed,
+    });
+
+  if (notFinished?.unknown) {
+    return (
+      <PaymentNotFinished
+        amountDue={option.amount}
+        unknown
+        onFinish={finishNow}
+        finishing={finish.isPending}
+      />
+    );
+  }
 
   return (
     <Box pos="relative">
       <LoadingOverlay visible={loading} />
       <Stack>
         <Title order={3}>Choose your payment option</Title>
-        <Text fw={600}>Total: {formatMoney(total)}</Text>
 
-        {paymentStep.deposit ? (
-          <JsonSchemaForm
-            schema={{
-              type: 'object',
-              properties: { deposit: { type: 'string', ...paymentStep.deposit } },
-            }}
-            uiSchema={{ deposit: { 'ui:placeholder': 'Choose an option' } }}
-            formData={{ deposit: depositValue }}
-            onChange={handleDepositChange}
-          >
-            <></>
-          </JsonSchemaForm>
-        ) : null}
+        {notFinished && (
+          <PaymentNotFinished
+            amountDue={option.amount}
+            reason={notFinished.reason}
+            onFinish={finishNow}
+            finishing={finish.isPending}
+          />
+        )}
+
+        <PaymentOptions
+          paymentOptions={paymentOptions}
+          selected={option.name}
+          onSelect={setSelected}
+          online={Boolean(clientId)}
+          handlingPercent={handlingPercent}
+          disabled={loading}
+        />
+
+        {error && (
+          <Alert color="red" variant="light">
+            {error}
+          </Alert>
+        )}
 
         {/* Sized and capped like the PayPal buttons below so the options read as one set. */}
         <Button
@@ -183,44 +183,26 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
           maw={PAYMENT_BUTTON_WIDTH}
           mx="auto"
           onClick={payByCheck}
-          loading={submit.isPending}
+          loading={submit.isPending && !notFinished}
         >
-          Pay by check
+          Pay {formatMoney(option.amount)} by check
         </Button>
 
         {clientId ? (
           <Stack gap="xs">
             <Text size="sm" c="dimmed">
-              Pay with your PayPal account, or choose “Debit or Credit Card” to pay by card without
-              one.
+              Pay {formatMoney(option.amount + option.handling)} online with your PayPal account, or
+              choose “Debit or Credit Card” to pay by card without one.
             </Text>
-            {payPalError && (
-              <Alert color="red" variant="light">
-                {payPalError}
-              </Alert>
-            )}
-            {/*
-              The PayPal buttons live in a cross-origin iframe whose document is
-              light-scheme. Browsers paint an iframe opaque white when its color
-              scheme differs from the embedding element's, so under Mantine's
-              dark scheme the whole button block turns white. Matching the
-              wrapper to the iframe keeps it transparent. The tagline is dropped
-              because its grey text is unreadable on a dark background. PayPal
-              caps the buttons at 750px, so the wrapper is capped and centred
-              to match.
-            */}
-            <Box style={{ colorScheme: 'light' }} w="100%" maw={PAYMENT_BUTTON_WIDTH} mx="auto">
-              <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
-                <PayPalButtons
-                  style={{ tagline: false, height: PAYMENT_BUTTON_HEIGHT }}
-                  onClick={onClick}
-                  createOrder={createOrder}
-                  onApprove={onApprove}
-                  onCancel={onCancel}
-                  onError={onError}
-                />
-              </PayPalScriptProvider>
-            </Box>
+            <PayPalCheckout
+              clientId={clientId}
+              createOrder={createPayPalOrder}
+              onApprove={capture}
+              onCancel={cancelled}
+              onError={payPalFailed}
+              onStart={() => setError(null)}
+              disabled={loading}
+            />
           </Stack>
         ) : (
           <Alert color="gray" variant="light">

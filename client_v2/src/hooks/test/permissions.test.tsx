@@ -8,11 +8,13 @@ describe('permissionsFor', () => {
     expect(permissionsFor('admin')).toEqual({
       role: 'admin',
       canEdit: true,
+      canDeletePayments: true,
       canManageUsers: true,
       canManageOrganizations: true,
     });
     expect(permissionsFor('registrar')).toMatchObject({
       canEdit: true,
+      canDeletePayments: false,
       canManageUsers: false,
       canManageOrganizations: false,
     });

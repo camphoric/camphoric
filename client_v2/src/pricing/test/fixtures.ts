@@ -9,23 +9,16 @@
  * any pricing change updates these fixtures and both engines.
  */
 
-import type {
-  ApiRegister,
-  AppliedPromo,
-  PaymentType,
-  PromoScope,
-  RegistrationFormData,
-} from 'api-types';
+import type { ApiRegister, AppliedPromo, PromoScope, RegistrationFormData } from 'api-types';
 
 export interface PricingFixture {
   name: string;
   config: ApiRegister;
   formData: RegistrationFormData;
-  paymentType?: PaymentType;
   /** An applied promo code (§15, DR-67). */
   promo?: AppliedPromo;
   /** Expected money fields (compared with 2-decimal tolerance). */
-  expectedMoney: { total: number; handling?: number; [subtotal: string]: number | undefined };
+  expectedMoney: { total: number; [subtotal: string]: number | undefined };
   /** Expected per-camper breakdown (compared exactly). */
   expectedCampers: Record<string, unknown>[];
 }
@@ -58,23 +51,6 @@ function makeConfig(epaymentHandling: number): ApiRegister {
 }
 
 const twoCampers: RegistrationFormData = { campers: [{}, {}] };
-
-/** Just a registration fee of `fee`, with a 2.5% handling fee: for rounding the fee. */
-function makeFeeConfig(fee: number): ApiRegister {
-  const config = makeConfig(2.5);
-  return { ...config, pricing: { ...config.pricing, registration_fee: fee } };
-}
-
-/** 2.5% of an odd number of dollars is exactly half a cent, which rounds up (§9.2). */
-function halfCentFixture(fee: number, handling: number): PricingFixture {
-  return {
-    name: `handling: a half-cent fee rounds up ($${fee} at 2.5%)`,
-    config: makeFeeConfig(fee),
-    formData: { campers: [] },
-    expectedMoney: { total: fee + handling, handling },
-    expectedCampers: [],
-  };
-}
 
 /**
  * Pricing with credits, for the no-negative-totals cases (§15, DR-68):
@@ -114,21 +90,9 @@ const undiscountedCampers = [
 
 export const pricingFixtures: PricingFixture[] = [
   {
-    name: 'electronic payment adds the handling fee (3%)',
+    name: 'the handling fee isn’t part of the price (§15, DR-88)',
     config: makeConfig(3),
     formData: twoCampers,
-    // total = 50 + 200·2 = 450; handling = 450·3% = 13.5; total = 463.5
-    expectedMoney: { total: 463.5, handling: 13.5, tuition: 400 },
-    expectedCampers: [
-      { tuition: 200, total: 200 },
-      { tuition: 200, total: 200 },
-    ],
-  },
-  {
-    name: 'paying by check omits the handling fee',
-    config: makeConfig(3),
-    formData: twoCampers,
-    paymentType: 'Check',
     expectedMoney: { total: 450, tuition: 400 },
     expectedCampers: [
       { tuition: 200, total: 200 },
@@ -177,15 +141,6 @@ export const pricingFixtures: PricingFixture[] = [
     expectedCampers: undiscountedCampers,
   },
   {
-    name: 'promo: handling is on the discounted total',
-    config: makeConfig(3),
-    formData: twoCampers,
-    promo: promo(30),
-    // 450 − 30 = 420; handling = 420·3% = 12.6
-    expectedMoney: { total: 432.6, promo: -30, handling: 12.6 },
-    expectedCampers: undiscountedCampers,
-  },
-  {
     name: 'promo: a per-camper discount, capped at each camper’s total',
     config: makeConfig(0),
     formData: twoCampers,
@@ -213,11 +168,11 @@ export const pricingFixtures: PricingFixture[] = [
     ],
   },
   {
-    name: 'the registration’s total is never below 0, nor is handling',
+    name: 'the registration’s total is never below 0',
     config: makeCreditConfig(3),
     formData: { credit: 500, campers: [{}, {}] },
-    // 50 − 500 + 100 + 100 = −250, so 0; handling on 0 is 0.
-    expectedMoney: { total: 0, handling: 0 },
+    // 50 − 500 + 100 + 100 = −250, so 0.
+    expectedMoney: { total: 0 },
     expectedCampers: [
       { tuition: 200, campership: 100, total: 100 },
       { tuition: 200, campership: 100, total: 100 },
@@ -233,19 +188,5 @@ export const pricingFixtures: PricingFixture[] = [
       { tuition: 200, campership: 100, total: 100 },
       { tuition: 200, campership: 100, total: 100 },
     ],
-  },
-  // Rounding the handling fee (GitHub #622). The same cases are in
-  // server/tests/test_pricing.py (TestHandlingFeeRounding); keep the two in step.
-  halfCentFixture(1, 0.03),
-  halfCentFixture(5, 0.13),
-  halfCentFixture(7, 0.18),
-  halfCentFixture(25, 0.63),
-  {
-    name: 'handling: the fee and the total are to the cent',
-    config: makeFeeConfig(102.27),
-    formData: { campers: [] },
-    // 102.27 × 2.5% = 2.55675, so 2.56.
-    expectedMoney: { total: 104.83, handling: 2.56 },
-    expectedCampers: [],
   },
 ];

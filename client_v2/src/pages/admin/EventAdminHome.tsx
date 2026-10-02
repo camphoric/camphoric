@@ -215,7 +215,8 @@ export function EventAdminHome() {
                 onChange={(e) => set('paypal_client_id', e.currentTarget.value)}
               />
               <NumberInput
-                label="E-payment handling (%)"
+                label="Electronic payment handling (%)"
+                description="Added to each online payment, on the amount paid"
                 value={form.epayment_handling}
                 min={0}
                 onChange={(value) => set('epayment_handling', Number(value) || 0)}

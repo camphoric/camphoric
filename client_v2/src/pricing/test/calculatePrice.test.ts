@@ -7,12 +7,7 @@ import { pricingFixtures } from './fixtures';
 describe('calculatePrice — golden parity fixtures', () => {
   pricingFixtures.forEach((fixture) => {
     it(fixture.name, () => {
-      const results = calculatePrice(
-        fixture.config,
-        fixture.formData,
-        fixture.paymentType,
-        fixture.promo,
-      );
+      const results = calculatePrice(fixture.config, fixture.formData, fixture.promo);
 
       // Per-camper breakdown is exact.
       expect(results.campers).toEqual(fixture.expectedCampers);
@@ -22,10 +17,8 @@ describe('calculatePrice — golden parity fixtures', () => {
         expect(results[key]).toBeCloseTo(value as number, 2);
       });
 
-      // The handling fee must be absent unless the fixture expects it.
-      if (fixture.expectedMoney.handling === undefined) {
-        expect(results.handling).toBeUndefined();
-      }
+      // The handling fee is never a price line (§15, DR-88).
+      expect(results.handling).toBeUndefined();
       // Likewise the promo line, without a promo code.
       if (fixture.promo === undefined) {
         expect(results.promo).toBeUndefined();

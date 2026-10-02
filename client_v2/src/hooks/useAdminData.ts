@@ -8,12 +8,7 @@
 import type { AugmentedRegistration, RegistrationTypeLookup } from 'api-types';
 import { useMemo } from 'react';
 import { buildRegistrationLookup, buildRegistrationTypeLookup } from 'store/augmented';
-import {
-  camperHooks,
-  paymentHooks,
-  registrationHooks,
-  registrationTypeHooks,
-} from 'store/entities';
+import { camperHooks, registrationHooks, registrationTypeHooks } from 'store/entities';
 
 /** The event's registration types, keyed by id. */
 export function useRegistrationTypeLookup(eventId: string): RegistrationTypeLookup | undefined {
@@ -34,21 +29,11 @@ export function useAugmentedRegistrations(eventId: string): AugmentedRegistratio
     registration__completed: 1,
     registration__event: eventId,
   });
-  const { data: payments } = paymentHooks.useList({
-    registration__completed: 1,
-    registration__event: eventId,
-  });
   const registrationTypeLookup = useRegistrationTypeLookup(eventId);
 
   return useMemo(() => {
-    if (!registrations || !campers || !payments || !registrationTypeLookup) return undefined;
-    const lookup = buildRegistrationLookup(
-      registrations,
-      campers,
-      payments,
-      registrationTypeLookup,
-      eventId,
-    );
+    if (!registrations || !campers || !registrationTypeLookup) return undefined;
+    const lookup = buildRegistrationLookup(registrations, campers, registrationTypeLookup, eventId);
     return Object.values(lookup);
-  }, [registrations, campers, payments, registrationTypeLookup, eventId]);
+  }, [registrations, campers, registrationTypeLookup, eventId]);
 }

@@ -1,10 +1,4 @@
-import type {
-  ApiCamper,
-  ApiLodging,
-  ApiPayment,
-  ApiRegistration,
-  ApiRegistrationType,
-} from 'api-types';
+import type { ApiCamper, ApiLodging, ApiRegistration, ApiRegistrationType } from 'api-types';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,7 +14,7 @@ const reg = (over: Partial<ApiRegistration> & { id: number }): ApiRegistration =
   ({
     event: 1,
     registration_type: 0,
-    payment_type: 'PayPal',
+    completed: true,
     server_pricing_results: { total: 0, campers: [] },
     ...over,
   }) as ApiRegistration;
@@ -28,38 +22,44 @@ const reg = (over: Partial<ApiRegistration> & { id: number }): ApiRegistration =
 const camper = (over: Partial<ApiCamper> & { id: number }): ApiCamper =>
   ({ registration: 1, attributes: {}, ...over }) as ApiCamper;
 
-const payment = (over: Partial<ApiPayment>): ApiPayment => ({ registration: 1, ...over }) as ApiPayment;
-
 const lodging = (over: Partial<ApiLodging> & { id: number; name: string }): ApiLodging =>
   ({ event: 1, parent: null, capacity: 0, ...over }) as ApiLodging;
 
 describe('buildRegistrationTypeLookup', () => {
   it('keys registration types by stringified id', () => {
-    const types = [{ id: 4, name: 'a' }, { id: 7, name: 'b' }] as ApiRegistrationType[];
+    const types = [
+      { id: 4, name: 'a' },
+      { id: 7, name: 'b' },
+    ] as ApiRegistrationType[];
     expect(buildRegistrationTypeLookup(types)['7'].name).toBe('b');
   });
 });
 
 describe('buildRegistrationLookup', () => {
-  it('augments event registrations with campers, type, and money totals', () => {
+  it('augments event registrations with campers, type, and the server’s money totals', () => {
     const registrations = [
-      reg({ id: 1, registration_type: 4, server_pricing_results: { total: 300, campers: [] } }),
+      reg({
+        id: 1,
+        registration_type: 4,
+        server_pricing_results: { total: 300, campers: [] },
+        total_owed: 307.5,
+        total_paid: 150,
+        balance: 157.5,
+      }),
       reg({ id: 2, event: 999 }), // different event — excluded
     ];
     const campers = [camper({ id: 10, registration: 1 }), camper({ id: 11, registration: 2 })];
-    const payments = [
-      payment({ registration: 1, amount: 100 }),
-      payment({ registration: 1, amount: 50 }),
-    ];
-    const typeLookup = buildRegistrationTypeLookup([{ id: 4, name: 'Full' } as ApiRegistrationType]);
+    const typeLookup = buildRegistrationTypeLookup([
+      { id: 4, name: 'Full' } as ApiRegistrationType,
+    ]);
 
-    const lookup = buildRegistrationLookup(registrations, campers, payments, typeLookup, '1');
+    const lookup = buildRegistrationLookup(registrations, campers, typeLookup, '1');
 
     expect(Object.keys(lookup)).toEqual(['1']);
     const r = lookup['1'];
-    expect(r.total_owed).toBe(300);
+    expect(r.total_owed).toBe(307.5);
     expect(r.total_payments).toBe(150);
-    expect(r.total_balance).toBe(150);
+    expect(r.total_balance).toBe(157.5);
     expect(r.registrationType?.name).toBe('Full');
     expect(r.campers.map((c) => c.id)).toEqual([10]);
   });
@@ -68,9 +68,9 @@ describe('buildRegistrationLookup', () => {
 describe('buildCamperLookup', () => {
   it('includes only campers of completed registrations for the event', () => {
     const registrations = [
-      reg({ id: 1, payment_type: 'Check' }),
-      reg({ id: 2, payment_type: undefined }), // incomplete — campers excluded
-      reg({ id: 3, event: 999, payment_type: 'PayPal' }), // other event
+      reg({ id: 1, completed: true }),
+      reg({ id: 2, completed: false }), // incomplete — campers excluded
+      reg({ id: 3, event: 999, completed: true }), // other event
     ];
     const campers = [
       camper({ id: 10, registration: 1 }),

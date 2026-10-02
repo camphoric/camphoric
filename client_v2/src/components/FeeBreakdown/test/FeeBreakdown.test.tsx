@@ -2,16 +2,8 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
-import { FeeBreakdown, feeLabel } from '../FeeBreakdown';
-import {
-  CAMPER_LOGIC,
-  HANDLING_OVERRIDE,
-  HANDLING_WAIVED,
-  OVERRIDDEN,
-  REGISTRATION_LOGIC,
-  STALE_OVERRIDE,
-  TUITION_OVERRIDE,
-} from './fixtures';
+import { FeeBreakdown } from '../FeeBreakdown';
+import { CAMPER_LOGIC, OVERRIDDEN, STALE_OVERRIDE, TUITION_OVERRIDE } from './fixtures';
 
 describe('FeeBreakdown', () => {
   it('lists the lines, without actions when none are given', () => {
@@ -66,18 +58,5 @@ describe('FeeBreakdown', () => {
       <FeeBreakdown results={OVERRIDDEN} logics={[CAMPER_LOGIC]} overrides={[STALE_OVERRIDE]} />,
     );
     expect(screen.getByText(/Not in effect: name_badge set to \$0\.00/)).toBeInTheDocument();
-  });
-
-  it('names the handling fee', () => {
-    renderWithProviders(
-      <FeeBreakdown
-        results={HANDLING_WAIVED}
-        logics={[REGISTRATION_LOGIC]}
-        overrides={[HANDLING_OVERRIDE]}
-      />,
-    );
-    expect(screen.getByText('Electronic payment handling')).toBeInTheDocument();
-    expect(screen.getByText(/works out \$60\.75/)).toBeInTheDocument();
-    expect(feeLabel('handling')).toBe('Electronic payment handling');
   });
 });

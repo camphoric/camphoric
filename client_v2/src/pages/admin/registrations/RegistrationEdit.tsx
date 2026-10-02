@@ -24,8 +24,8 @@ import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { useEffect, useMemo, useState } from 'react';
 import { promoCodeHooks, registrationHooks } from 'store/entities';
 
+import { RegistrationInvoices } from './invoices';
 import { RegistrationCampers } from './RegistrationCampers';
-import { RegistrationPayments } from './RegistrationPayments';
 
 const NONE = 'none';
 
@@ -199,7 +199,7 @@ export function RegistrationEdit({
               </Tabs.Panel>
             )}
             <Tabs.Panel value="fees">
-              <RegistrationPayments event={event} registration={registration} />
+              <RegistrationInvoices event={event} registration={registration} />
             </Tabs.Panel>
             <Tabs.Panel value="campers">
               <RegistrationCampers event={event} registration={registration} />

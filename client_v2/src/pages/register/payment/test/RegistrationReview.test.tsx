@@ -240,7 +240,6 @@ describe('RegistrationReview', () => {
         results={{
           total: 250,
           donation: 0,
-          handling: 0,
           campers: [
             { tuition: 300, linens: 0, discount: -50, total: 250 },
             { tuition: 0, linens: 0, discount: 0, total: 0 },
@@ -251,9 +250,8 @@ describe('RegistrationReview', () => {
 
     const registrationSection = screen.getByRole('heading', { name: 'Registration' })
       .parentElement as HTMLElement;
-    // The $0 donation and handling fee aren't listed; the total is.
+    // The $0 donation isn't listed; the total is.
     expect(within(registrationSection).queryByText('$0.00')).not.toBeInTheDocument();
-    expect(within(registrationSection).queryByText('Electronic payment handling')).toBeNull();
     expect(within(registrationSection).getByText('$250.00')).toBeInTheDocument();
 
     const first = screen.getByRole('heading', { name: '1st Camper — Pat Camper' })
