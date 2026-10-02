@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-84)
+- §15 — Decision Records (DR-1…DR-85)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1707,17 +1707,16 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
     (dismissing suggestions), not to closing it (§15, DR-73).
 
   Several template editors can be open at once, each with its own context.
-- **Unsaved template changes** — where a template is edited (Home's confirmation page and
-  email, §8.3; a registration type's invitation email, §8.4; a report, §8.7; a group email,
-  §8.9), leaving with changes not yet saved asks first, warning that the changes will be lost,
+- **Unsaved changes** — where a template is edited (Home, §8.3; a registration type's
+  invitation email, §8.4; a report, §8.7; a group email, §8.9), leaving with changes not yet saved asks first, warning that the changes will be lost,
   and offers to keep editing or discard them. Leaving is any navigation — a link, back or
   forward, a change of the URL-addressable state that closes the editor (choosing another
   report, closing a group email's editor) — as well as reloading or closing the tab (the
   browser's own prompt), and the page's own ways of dropping the edits: Cancel, closing the
   dialog, starting a new report. Saving, leaving an editor whose text is unchanged, and opening
-  or closing Users over the page (§8.10, which leaves the page as it is) don't ask. For a report
-  or group email, any field of the form counts as a change; on Home, only the two templates do
-  (§15, DR-79).
+  or closing Users over the page (§8.10, which leaves the page as it is) don't ask. Any field of
+  the form counts as a change — on Home, every setting it saves, not only its two templates; a
+  value changed and changed back doesn't count (§15, DR-79, DR-85).
 - **Way back** — a screen that offers a way back up to where it was reached from (the event
   chooser back to organization selection, the Event Admin back to event selection) puts it in the
   app header, at the far left, immediately before the "Camphoric Admin" title, as a back-arrow
@@ -3557,6 +3556,19 @@ the page — losing scroll and in-progress edits, and returning only by the brow
 simpler, but the page underneath reloads (losing scroll and edits, and asking to discard unsaved
 template changes on the way in). Overlay state outside the URL — not linkable, and back
 wouldn't close it.
+
+### DR-85 — Home asks before any of its unsaved settings are lost
+
+**Decision:** Home's unsaved-changes guard (DR-79) covers every setting Home saves — name, dates,
+payments, pricing, template values and both templates — compared with the event as last loaded
+or saved. After a save, the page takes the saved event from the server's reply, so a value the
+server writes differently (a date) doesn't read as changed.
+**Context:** DR-79 guarded only Home's two templates and left the other fields "for when it's
+asked for"; it was asked for. Home's settings sit on one form with one Save, so losing a date
+change is as easy as losing a template edit.
+**Alternatives:** Keeping the guard to templates (DR-79) — what let other edits be lost silently.
+Saving Home's fields as they change — no draft to lose, but a half-typed date or price would
+take effect at once.
 
 ---
 
