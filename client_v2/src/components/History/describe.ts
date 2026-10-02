@@ -2,7 +2,8 @@
  * Turning audit entries (SPEC §5; §15, DR-53) into words: what happened to what,
  * and each changed field as "Title: old → new". JSON fields (attributes, stay,
  * …) are compared key by key, so only what changed is shown; a price shows as
- * its total before and after.
+ * its total before and after. A structured or multi-line value too long to read
+ * whole comes with a line-by-line diff of what changed.
  */
 
 import type { ApiHistoryEntry, Hash } from 'api-types';
@@ -13,9 +14,27 @@ export interface ChangeLine {
   field: string;
   from: string;
   to: string;
+  /** For long JSON or multi-line text: what changed, line by line. */
+  diff?: DiffLine[];
 }
 
+/** A line of a diff, or a run of unchanged lines left out. */
+export type DiffLine =
+  { kind: 'same' | 'removed' | 'added'; text: string } | { kind: 'skip'; count: number };
+
+/** Values longer than this (as text) are cut short, or diffed if they're structured. */
+export const VALUE_LIMIT = 120;
+/** Unchanged lines kept around each change in a diff. */
+const CONTEXT = 2;
+/** Past this many line pairs, the changed middle is shown as removed then added. */
+const MAX_DIFF_CELLS = 4_000_000;
+
 export interface DescribeOptions {
+  /**
+   * Name every object in full, the registration too — for a list that spans
+   * registrations and events (a user's changes) rather than one registration's.
+   */
+  nameEveryObject?: boolean;
   /** Field titles by object type, then by attribute path (`address.city`). */
   titles?: Record<string, Record<string, string>>;
   /** Names for ids, by field: `lodging`, `registration_type`, … */
@@ -28,7 +47,24 @@ const TYPE_NAMES: Record<string, string> = {
   payment: 'Payment',
   customcharge: 'Custom charge',
   pricingoverride: 'Price override',
+  organization: 'Organization',
+  event: 'Event',
+  registrationtype: 'Registration type',
+  report: 'Report',
+  invitation: 'Invitation',
+  lodging: 'Lodging',
+  customchargetype: 'Charge type',
+  deposit: 'Deposit',
+  promocode: 'Promo code',
+  emailaccount: 'Email account',
+  emailtemplate: 'Email template',
+  emailunsubscribe: 'Unsubscribe',
+  user: 'User',
+  useraccount: 'User account',
 };
+
+// Labels that already say what they are: "Registration #5 (Lark Camp)".
+const SELF_NAMED = new Set(['registration', 'report']);
 
 // Model fields by what they're called; attributes are named by their schema.
 const FIELD_NAMES: Record<string, string> = {
@@ -62,10 +98,15 @@ const MONEY = new Set(['amount']);
 // JSON fields shown key by key, and what their keys are prefixed with.
 const ATTRIBUTE_FIELDS: Record<string, string> = { attributes: '', admin_attributes: 'Admin: ' };
 
-/** "Camper “Pat Alpha”", or just "Registration" for the registration itself. */
-export function objectName(entry: ApiHistoryEntry): string {
-  const type = TYPE_NAMES[entry.object.type] ?? humanize(entry.object.type);
-  return entry.object.type === 'registration' ? type : `${type} “${entry.object.label}”`;
+/**
+ * "Camper “Pat Alpha”", or just "Registration" for the registration itself —
+ * unless every object is named, when it's "Registration #5 (Lark Camp)".
+ */
+export function objectName(entry: ApiHistoryEntry, options: DescribeOptions = {}): string {
+  const { type: model, label } = entry.object;
+  if (options.nameEveryObject && SELF_NAMED.has(model)) return label;
+  const type = TYPE_NAMES[model] ?? humanize(model);
+  return model === 'registration' ? type : `${type} “${label}”`;
 }
 
 export function actionName(entry: ApiHistoryEntry): string {
@@ -86,24 +127,115 @@ export function changeLines(entry: ApiHistoryEntry, options: DescribeOptions = {
     } else if (field in ATTRIBUTE_FIELDS) {
       const titles = options.titles?.[entry.object.type] ?? {};
       for (const [path, before, after] of changedPaths(asHash(from), asHash(to))) {
-        lines.push({
-          field: ATTRIBUTE_FIELDS[field] + pathTitle(path, titles),
-          from: show(before),
-          to: show(after),
-        });
+        lines.push(valueLine(ATTRIBUTE_FIELDS[field] + pathTitle(path, titles), before, after));
       }
     } else if (MONEY.has(field)) {
       lines.push({ field: FIELD_NAMES[field], from: money(from), to: money(to) });
     } else {
       const names = options.lookups?.[field];
-      lines.push({
-        field: FIELD_NAMES[field] ?? humanize(field),
-        from: show(from, names),
-        to: show(to, names),
-      });
+      lines.push(valueLine(FIELD_NAMES[field] ?? humanize(field), from, to, names));
     }
   }
   return lines;
+}
+
+function valueLine(
+  field: string,
+  before: unknown,
+  after: unknown,
+  names?: Record<string, string>,
+): ChangeLine {
+  const line = { field, from: show(before, names), to: show(after, names) };
+  const long = line.from.length > VALUE_LIMIT || line.to.length > VALUE_LIMIT;
+  const structured = isStructured(before) || isStructured(after);
+  const multiline = [before, after].some((v) => typeof v === 'string' && v.includes('\n'));
+  if (!long || !(structured || multiline)) return line;
+  const text = (value: unknown) =>
+    value === null || value === undefined
+      ? ''
+      : structured
+        ? JSON.stringify(value, null, 2)
+        : typeof value === 'string'
+          ? value
+          : show(value);
+  return { ...line, diff: diffLines(text(before), text(after)) };
+}
+
+const isStructured = (value: unknown) => value !== null && typeof value === 'object';
+
+/**
+ * `before` and `after` compared line by line: each changed line, with CONTEXT
+ * unchanged lines around it, and the unchanged runs between left out.
+ */
+export function diffLines(before: string, after: string): DiffLine[] {
+  const a = before ? before.split('\n') : [];
+  const b = after ? after.split('\n') : [];
+  // Most edits are local: match the common start and end first.
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let endA = a.length;
+  let endB = b.length;
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+    endA--;
+    endB--;
+  }
+  const same = (text: string): DiffLine => ({ kind: 'same', text });
+  return collapse([
+    ...a.slice(0, start).map(same),
+    ...diffMiddle(a.slice(start, endA), b.slice(start, endB)),
+    ...a.slice(endA).map(same),
+  ]);
+}
+
+/** The least-change line diff (by longest common subsequence). */
+function diffMiddle(a: string[], b: string[]): DiffLine[] {
+  const removed = (text: string): DiffLine => ({ kind: 'removed', text });
+  const added = (text: string): DiffLine => ({ kind: 'added', text });
+  if (a.length * b.length > MAX_DIFF_CELLS) return [...a.map(removed), ...b.map(added)];
+  // common[i * width + j]: the longest common run of a[i:] and b[j:].
+  const width = b.length + 1;
+  const common = new Uint16Array((a.length + 1) * width);
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      common[i * width + j] =
+        a[i] === b[j]
+          ? common[(i + 1) * width + j + 1] + 1
+          : Math.max(common[(i + 1) * width + j], common[i * width + j + 1]);
+    }
+  }
+  const out: DiffLine[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      out.push({ kind: 'same', text: a[i] });
+      i++;
+      j++;
+    } else if (common[(i + 1) * width + j] >= common[i * width + j + 1]) {
+      out.push(removed(a[i++]));
+    } else {
+      out.push(added(b[j++]));
+    }
+  }
+  return [...out, ...a.slice(i).map(removed), ...b.slice(j).map(added)];
+}
+
+/** Keep CONTEXT unchanged lines either side of each change; count the rest. */
+function collapse(lines: DiffLine[]): DiffLine[] {
+  const changed = lines.map((line) => line.kind !== 'same');
+  const near = (index: number) =>
+    changed.slice(Math.max(0, index - CONTEXT), index + CONTEXT + 1).some(Boolean);
+  const out: DiffLine[] = [];
+  lines.forEach((line, index) => {
+    if (near(index)) {
+      out.push(line);
+      return;
+    }
+    const last = out[out.length - 1];
+    if (last?.kind === 'skip') last.count++;
+    else out.push({ kind: 'skip', count: 1 });
+  });
+  return out;
 }
 
 const money = (value: unknown) =>

@@ -7,6 +7,7 @@ import { SAMPLE_USERS } from './userFixtures';
 
 function setup(withSetPassword: boolean) {
   const actions = {
+    onShowHistory: vi.fn(),
     onEdit: vi.fn(),
     onSendLink: vi.fn(),
     onCopyLink: vi.fn(),
@@ -66,5 +67,40 @@ describe('UsersTable', () => {
     expect(
       within(kimMenu).queryByRole('menuitem', { name: /set-password link/, hidden: true }),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows a user’s history when their row or menu item is chosen, not their menu', async () => {
+    const { user, actions } = setup(false);
+    await user.click(screen.getByText('pat@example.com'));
+    expect(actions.onShowHistory).toHaveBeenLastCalledWith(
+      expect.objectContaining({ username: 'pat' }),
+    );
+
+    actions.onShowHistory.mockClear();
+    const menu = await openMenu(user, 'root');
+    expect(actions.onShowHistory).not.toHaveBeenCalled();
+    await user.click(within(menu).getByRole('menuitem', { name: 'Change history', hidden: true }));
+    expect(actions.onShowHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ username: 'root' }),
+    );
+  });
+
+  it('marks the user whose history is shown', () => {
+    renderWithProviders(
+      <UsersTable
+        users={SAMPLE_USERS}
+        currentUserId={1}
+        selectedUserId={2}
+        onShowHistory={vi.fn()}
+        onEdit={vi.fn()}
+        onSendLink={vi.fn()}
+        onCopyLink={vi.fn()}
+        onToggleActive={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    const selected = screen.getAllByRole('row').filter((row) => row.ariaSelected === 'true');
+    expect(selected).toHaveLength(1);
+    expect(within(selected[0]).getByText('pat')).toBeInTheDocument();
   });
 });

@@ -360,6 +360,13 @@ test.describe('Deletes and history', () => {
     await expect(page.getByText('Berkeley → Oakland')).toBeVisible();
     await expect(page.getByText('No one signed in')).toBeVisible();
   });
+
+  test('a user’s history names each change in full, with older ones to load', async ({ page }) => {
+    await page.goto(story('user-history-panel--with-more'));
+    await expect(page.getByRole('heading', { name: 'Changes by Reggie Registrar' })).toBeVisible();
+    await expect(page.getByText(/^Registration #5 \(Lark Camp\): /).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show older changes' })).toBeVisible();
+  });
 });
 
 test.describe('Pricing overrides', () => {

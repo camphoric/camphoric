@@ -190,3 +190,60 @@ class HistoryTests(APITestCase):
         self.client.force_authenticate(User.objects.create_superuser('root', 'r@x.org', 'pw'))
         self.assertEqual(self.client.get(f'/api/campers/{self.made.c1.id}/history/').status_code,
                          200)
+
+
+class UserHistoryTests(APITestCase):
+    def setUp(self):
+        self.made = create_template_event()
+        self.registrar = make_user(roles.REGISTRAR, 'reggie')
+        self.admin = make_user(roles.ADMIN, 'boss')
+
+    def edit_as(self, user, comments):
+        self.client.force_authenticate(user)
+        response = self.client.patch(
+            f'/api/registrations/{self.made.r1.id}/',
+            {'attributes': {**self.made.r1.attributes, 'comments': comments}}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def history(self, user, query=''):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(f'/api/users/{user.id}/history/{query}')
+        self.assertEqual(response.status_code, 200, response.data)
+        return response.data
+
+    def test_lists_what_the_user_changed_newest_first(self):
+        self.edit_as(self.registrar, 'First')
+        self.edit_as(self.admin, 'Not reggie')
+        self.edit_as(self.registrar, 'Second')
+
+        page = self.history(self.registrar)
+        entries = page['results']
+        self.assertEqual({e['actor']['username'] for e in entries}, {'reggie'})
+        comments = [e['changes']['attributes'][1]['comments'] for e in entries
+                    if e['object']['type'] == 'registration' and 'attributes' in e['changes']]
+        self.assertEqual(comments, ['Second', 'First'])
+        timestamps = [e['timestamp'] for e in entries]
+        self.assertEqual(timestamps, sorted(timestamps, reverse=True))
+
+    def test_pages_by_fifty(self):
+        LogEntry.objects.bulk_create([
+            LogEntry(actor=self.registrar, content_type=entries_for(self.made.r1)[0].content_type,
+                     object_id=self.made.r1.id, object_repr='r1', action=LogEntry.Action.UPDATE,
+                     changes={})
+            for _ in range(55)])
+        first = self.history(self.registrar)
+        self.assertEqual(first['count'], 55)
+        self.assertEqual(len(first['results']), 50)
+        self.assertIsNotNone(first['next'])
+        self.assertEqual(len(self.history(self.registrar, '?page=2')['results']), 5)
+
+    def test_someone_who_changed_nothing_has_an_empty_history(self):
+        self.assertEqual(self.history(self.registrar)['results'], [])
+
+    def test_hidden_from_everyone_but_admins(self):
+        path = f'/api/users/{self.registrar.id}/history/'
+        self.assertEqual(self.client.get(path).status_code, 404)
+        for role in (roles.REGISTRAR, roles.REPORTER):
+            with self.subTest(role=role):
+                self.client.force_authenticate(make_user(role, f'user-{role}'))
+                self.assertEqual(self.client.get(path).status_code, 404)

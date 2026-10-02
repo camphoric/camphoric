@@ -5,6 +5,7 @@ import {
   actionName,
   changedPaths,
   changeLines,
+  diffLines,
   groupByRequest,
   objectName,
   schemaTitles,
@@ -115,4 +116,89 @@ describe('schemaTitles', () => {
 it('the fixture is newest first', () => {
   const times = ENTRIES.map((e: ApiHistoryEntry) => e.timestamp);
   expect(times).toEqual([...times].sort().reverse());
+});
+
+describe('diffLines', () => {
+  const lines = (count: number, prefix = 'line') =>
+    Array.from({ length: count }, (_, i) => `${prefix} ${i + 1}`);
+
+  it('shows what changed with two lines either side, and counts the rest', () => {
+    const before = lines(12);
+    const after = [...before];
+    after[5] = 'six, changed';
+    expect(diffLines(before.join('\n'), after.join('\n'))).toEqual([
+      { kind: 'skip', count: 3 },
+      { kind: 'same', text: 'line 4' },
+      { kind: 'same', text: 'line 5' },
+      { kind: 'removed', text: 'line 6' },
+      { kind: 'added', text: 'six, changed' },
+      { kind: 'same', text: 'line 7' },
+      { kind: 'same', text: 'line 8' },
+      { kind: 'skip', count: 4 },
+    ]);
+  });
+
+  it('finds lines inserted and removed, not just replaced', () => {
+    const diff = diffLines(['a', 'b', 'c'].join('\n'), ['a', 'x', 'b', 'c'].join('\n'));
+    expect(diff.filter((line) => line.kind !== 'same')).toEqual([{ kind: 'added', text: 'x' }]);
+    const gone = diffLines(['a', 'b', 'c'].join('\n'), ['a', 'c'].join('\n'));
+    expect(gone.filter((line) => line.kind !== 'same')).toEqual([{ kind: 'removed', text: 'b' }]);
+  });
+
+  it('treats nothing as no lines', () => {
+    expect(diffLines('', 'a\nb')).toEqual([
+      { kind: 'added', text: 'a' },
+      { kind: 'added', text: 'b' },
+    ]);
+  });
+});
+
+describe('long structured and multi-line values', () => {
+  const update = (changes: ApiHistoryEntry['changes']): ApiHistoryEntry => ({
+    ...edit,
+    object: { type: 'event', id: 7, label: 'Lark Camp' },
+    changes,
+  });
+  const logic = (rate: number) => ({
+    var: 'tuition',
+    exp: { if: [{ '<': [{ var: 'camper.age' }, 13] }, rate / 2, rate] },
+    label: 'Tuition, half price for children under thirteen years of age',
+  });
+
+  it('diffs long JSON by line, as pretty JSON', () => {
+    const [line] = changeLines(update({ camper_pricing_logic: [logic(450), logic(475)] }));
+    expect(line.field).toBe('Camper pricing logic');
+    const changed = line.diff!.filter((d) => d.kind === 'removed' || d.kind === 'added');
+    expect(changed).toEqual([
+      { kind: 'removed', text: '      225,' },
+      { kind: 'removed', text: '      450' },
+      { kind: 'added', text: '      237.5,' },
+      { kind: 'added', text: '      475' },
+    ]);
+  });
+
+  it('diffs long multi-line text', () => {
+    const body = (greeting: string) =>
+      [
+        greeting,
+        '',
+        'Thank you for registering for camp this year.',
+        'Your registration number and balance are below.',
+        'See you soon!',
+      ].join('\n');
+    const [line] = changeLines(update({ body: [body('Dear camper,'), body('Hello there,')] }));
+    expect(line.diff).toEqual([
+      { kind: 'removed', text: 'Dear camper,' },
+      { kind: 'added', text: 'Hello there,' },
+      { kind: 'same', text: '' },
+      { kind: 'same', text: 'Thank you for registering for camp this year.' },
+      { kind: 'skip', count: 2 },
+    ]);
+  });
+
+  it('leaves short values whole', () => {
+    const [line] = changeLines(update({ tags: [['a'], ['a', 'b']] }));
+    expect(line.diff).toBeUndefined();
+    expect([line.from, line.to]).toEqual(['a', 'a, b']);
+  });
 });

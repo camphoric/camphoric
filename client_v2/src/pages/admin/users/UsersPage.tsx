@@ -3,12 +3,14 @@
  * to the organization chooser. Lists everyone who can sign in; add a user
  * (`?userId=new`) or edit one (`?userId=<id>`); email or copy a set-password
  * link; deactivate, reactivate or delete; and, for superusers, set a password.
+ * Choosing a user shows what they changed beside the list (`?historyUserId`).
  */
 
 import {
   Button,
   Container,
   CopyButton,
+  Grid,
   Group,
   Modal,
   Stack,
@@ -34,12 +36,14 @@ import {
   useSendPasswordLink,
   useSetUserPassword,
   useUpdateUser,
+  useUserHistory,
 } from 'store/users';
 import { apiErrorMessage } from 'utils/fetch';
 
 import { formatTime } from '../email/emailLabels';
 import { SetUserPasswordModal } from './SetUserPasswordModal';
 import { UserForm, type UserFormValues } from './UserForm';
+import { UserHistoryPanel } from './UserHistoryPanel';
 import { UsersTable } from './UsersTable';
 
 function requestFor(values: UserFormValues, isSuperuser: boolean, creating: boolean) {
@@ -66,10 +70,12 @@ function requestFor(values: UserFormValues, isSuperuser: boolean, creating: bool
 export function UsersPage() {
   const { canManageUsers } = usePermissions();
   const { data: me } = useCurrentUser();
-  const { userId } = useSearch({ from: '/admin/frame/users' });
+  const { userId, historyUserId } = useSearch({ from: '/admin/frame/users' });
   const navigate = useNavigate();
   const narrow = useMediaQuery('(max-width: 48em)');
   const { data: users } = userHooks.useList(undefined, canManageUsers);
+  const historyUser = users?.find((u) => String(u.id) === historyUserId);
+  const history = useUserHistory(historyUser?.id);
   const create = useCreateUser();
   const update = useUpdateUser();
   const remove = userHooks.useDelete();
@@ -88,8 +94,14 @@ export function UsersPage() {
   const editing =
     userId && userId !== 'new' ? users?.find((u) => String(u.id) === userId) : undefined;
   const formOpen = userId === 'new' || !!editing;
+  // Each keeps the other: editing doesn't close the history, nor the reverse.
   const openForm = (id?: string) =>
-    void navigate({ to: '/admin/users', search: id ? { userId: id } : {} });
+    void navigate({ to: '/admin/users', search: (prev) => ({ ...prev, userId: id }) });
+  const showHistory = (id?: number) =>
+    void navigate({
+      to: '/admin/users',
+      search: (prev) => ({ ...prev, historyUserId: id ? String(id) : undefined }),
+    });
   const fail = (error: Error) =>
     notifications.show({ color: 'red', message: apiErrorMessage(error) });
 
@@ -111,6 +123,7 @@ export function UsersPage() {
   };
 
   const actions = {
+    onShowHistory: (user: ApiManagedUser) => showHistory(user.id),
     onEdit: (user: ApiManagedUser) => openForm(String(user.id)),
     onSendLink: (user: ApiManagedUser) =>
       modals.openConfirmModal({
@@ -160,7 +173,7 @@ export function UsersPage() {
   };
 
   return (
-    <Container size="lg">
+    <Container size={historyUser ? 'xl' : 'lg'}>
       <Stack>
         <Group justify="space-between">
           <Title order={2}>Users</Title>
@@ -172,7 +185,31 @@ export function UsersPage() {
           Everyone who can sign in to the Camphoric admin, and their permission group.
         </Text>
         {users ? (
-          <UsersTable users={users} currentUserId={me?.id ?? null} {...actions} />
+          <Grid>
+            <Grid.Col span={{ base: 12, md: historyUser ? 7 : 12 }}>
+              <UsersTable
+                users={users}
+                currentUserId={me?.id ?? null}
+                selectedUserId={historyUser?.id}
+                {...actions}
+              />
+            </Grid.Col>
+            {historyUser && (
+              <Grid.Col span={{ base: 12, md: 5 }}>
+                <UserHistoryPanel
+                  key={historyUser.id}
+                  user={historyUser}
+                  entries={history.data?.pages.flatMap((page) => page.results)}
+                  total={history.data?.pages[0]?.count}
+                  error={history.error ? apiErrorMessage(history.error) : undefined}
+                  hasMore={history.hasNextPage}
+                  loadingMore={history.isFetchingNextPage}
+                  onLoadMore={() => void history.fetchNextPage()}
+                  onClose={() => showHistory(undefined)}
+                />
+              </Grid.Col>
+            )}
+          </Grid>
         ) : (
           <InlineLoading message="Loading users…" />
         )}

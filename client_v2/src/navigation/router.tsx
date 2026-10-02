@@ -39,7 +39,10 @@ const OrganizationChooser = lazyRouteComponent(
   'OrganizationChooser',
 );
 const EventChooser = lazyRouteComponent(() => import('pages/admin/EventChooser'), 'EventChooser');
-const EventAdminHome = lazyRouteComponent(() => import('pages/admin/EventAdminHome'), 'EventAdminHome');
+const EventAdminHome = lazyRouteComponent(
+  () => import('pages/admin/EventAdminHome'),
+  'EventAdminHome',
+);
 const EventAdminSettings = lazyRouteComponent(
   () => import('pages/admin/EventAdminSettings'),
   'EventAdminSettings',
@@ -48,9 +51,18 @@ const EventAdminRegistrations = lazyRouteComponent(
   () => import('pages/admin/registrations'),
   'EventAdminRegistrations',
 );
-const EventAdminCampers = lazyRouteComponent(() => import('pages/admin/campers'), 'EventAdminCampers');
-const EventAdminLodging = lazyRouteComponent(() => import('pages/admin/lodging'), 'EventAdminLodging');
-const EventAdminReports = lazyRouteComponent(() => import('pages/admin/reports'), 'EventAdminReports');
+const EventAdminCampers = lazyRouteComponent(
+  () => import('pages/admin/campers'),
+  'EventAdminCampers',
+);
+const EventAdminLodging = lazyRouteComponent(
+  () => import('pages/admin/lodging'),
+  'EventAdminLodging',
+);
+const EventAdminReports = lazyRouteComponent(
+  () => import('pages/admin/reports'),
+  'EventAdminReports',
+);
 const EventAdminEmail = lazyRouteComponent(() => import('pages/admin/email'), 'EventAdminEmail');
 const EventAdminTemplateHelp = lazyRouteComponent(
   () => import('pages/admin/templateHelp'),
@@ -211,12 +223,18 @@ const eventChooserRoute = createRoute({
 });
 
 // User management, for Admins only (SPEC §8.10). `?userId` is the user being
-// edited: an id, or `new`.
+// edited: an id, or `new`; `?historyUserId` is the user whose changes are shown.
 const usersRoute = createRoute({
   getParentRoute: () => adminFrameRoute,
   path: 'users',
-  validateSearch: (search: Record<string, unknown>): { userId?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { userId?: string; historyUserId?: string } => ({
     userId: typeof search.userId === 'string' && search.userId ? search.userId : undefined,
+    historyUserId:
+      typeof search.historyUserId === 'string' && search.historyUserId
+        ? search.historyUserId
+        : undefined,
   }),
   component: UsersPage,
 });
