@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/camphoric/camphoric/compare/v0.10.1...v0.11.0) (2026-10-02)
+
+
+### Features
+
+* **client_v2:** add a Markdown tab to Template Help ([fbe82a4](https://github.com/camphoric/camphoric/commit/fbe82a45370b655627bcd071b10787764668cfa7))
+* **client_v2:** ask before leaving Home with any unsaved change ([73f3995](https://github.com/camphoric/camphoric/commit/73f399530e158acfcc703501c7b22aa3a4f7769e))
+* **client_v2:** ask before leaving unsaved template changes ([637f083](https://github.com/camphoric/camphoric/commit/637f083d36105abbe8d21a6ce6c3e79518ff0db6))
+* **client_v2:** head each section of a JSON diff with where it is ([6fd0f8d](https://github.com/camphoric/camphoric/commit/6fd0f8dc6ca97a9bbb693471c6f0718424f224a5))
+* **client_v2:** open Users as an overlay over the current page ([dd3d49d](https://github.com/camphoric/camphoric/commit/dd3d49d5981d196872f4f0494608d0fa3776f079))
+* document the methods of Python values in Jinja templates ([aa85c39](https://github.com/camphoric/camphoric/commit/aa85c396da5ed0b74abd915e750132c12392319e)), closes [#738](https://github.com/camphoric/camphoric/issues/738)
+* show a user's change history in Users, with diffs of long changes ([4f97fec](https://github.com/camphoric/camphoric/commit/4f97fec6ddeb6b587dcc935c540794ed5838d097))
+
+
+### Bug Fixes
+
+* **client_v2:** don't nest a heading in the Users overlay's title ([58e0954](https://github.com/camphoric/camphoric/commit/58e0954e72224d52b4de0cc4876f0500fc75afb6))
+* **client_v2:** label the registrations list's amount column "Total" ([d926a84](https://github.com/camphoric/camphoric/commit/d926a84ff727cf93706ad39509cf5fed4e922e12))
+* **client_v2:** put the event chooser's back arrow left of the title ([feef422](https://github.com/camphoric/camphoric/commit/feef4225e35e3adadc2f9d1b1d36d5339ead5b26))
+* **client_v2:** write and read search params as plain strings ([6a3711e](https://github.com/camphoric/camphoric/commit/6a3711edf86cf2ea34f06b12a633c8471eb5ce26))
+* **harmony:** show tuition in the Camperships Awarded report ([f7da741](https://github.com/camphoric/camphoric/commit/f7da741479077cec0faf2f48a23880afde6be07c))
+
 ## [0.10.1](https://github.com/camphoric/camphoric/compare/v0.10.0...v0.10.1) (2026-10-02)
 
 
