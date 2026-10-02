@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.10.0](https://github.com/camphoric/camphoric/compare/v0.9.0...v0.10.0) (2026-10-02)
+
+
+### Features
+
+* **client_v2:** collapse sections of the lodging hierarchy ([f89f9ef](https://github.com/camphoric/camphoric/commit/f89f9ef3d3b105b38ff4044e15a1e7a8d3b5f033))
+* **client_v2:** give the template editor room to write ([9767d49](https://github.com/camphoric/camphoric/commit/9767d494bf5eafd1035d9335043465120aceba58))
+* **client_v2:** go back to organization selection from the event chooser ([991079c](https://github.com/camphoric/camphoric/commit/991079c70313f9f75448bb9eb6bf4e22d099683d))
+* **client_v2:** list a unit's campers on one line in the lodging hierarchy ([4539b56](https://github.com/camphoric/camphoric/commit/4539b569bd685add64897b3cb7330ba819f8758e))
+* **client_v2:** lodging notes and node details on the hierarchy and timeline ([c8c27d9](https://github.com/camphoric/camphoric/commit/c8c27d961e61e7265fa9b8a991c274727cd947a9))
+* **client_v2:** rename the lodging views and offer Edit on both ([f1d1b9c](https://github.com/camphoric/camphoric/commit/f1d1b9c1804f45f466c2a959aedb03be0136122f))
+* **client_v2:** show a camper's lodging in the camper editor ([34898f0](https://github.com/camphoric/camphoric/commit/34898f09a3a0f0de562487f545ba79ab53c113e5))
+* **client_v2:** widen the camper and registration editors ([0ec08c1](https://github.com/camphoric/camphoric/commit/0ec08c172dba7609178afad584db6f275369d308))
+* keep the handling fee paid online, and round it alike everywhere ([c56e87c](https://github.com/camphoric/camphoric/commit/c56e87c21b15959fb798aa934dd0c1ea5dc47596)), closes [#622](https://github.com/camphoric/camphoric/issues/622)
+* **server:** delete abandoned registrations nightly ([b036d9c](https://github.com/camphoric/camphoric/commit/b036d9c18672bb1df5990bb41fab8fa0ddc8925e)), closes [#339](https://github.com/camphoric/camphoric/issues/339)
+* **server:** require a total in camper and registration pricing logic ([4dbec71](https://github.com/camphoric/camphoric/commit/4dbec71e1d7179c77a40d574c4682c3ed0b40ca3))
+
+
+### Bug Fixes
+
+* **client_v2:** keep PayPal's card form usable on the payment page ([0ec2402](https://github.com/camphoric/camphoric/commit/0ec24023154a17b5430aee07db0b9f252681211a)), closes [#646](https://github.com/camphoric/camphoric/issues/646)
+* **client_v2:** scroll rendered reports in their own area ([7cb03dc](https://github.com/camphoric/camphoric/commit/7cb03dc4a85b16933dd43a170724191a167a4c22))
+* **client_v2:** stop timeline stays flashing back after a change ([abb63db](https://github.com/camphoric/camphoric/commit/abb63db0fb30e9c09b065d089a800cc8bae611fc))
+* **data:** import lodging notes ([fb6e31b](https://github.com/camphoric/camphoric/commit/fb6e31b051b3ffab5dd994ed03ecc2e216db09b4))
+* **docker:** make the postgres healthcheck work on Alpine ([07d3755](https://github.com/camphoric/camphoric/commit/07d3755942f11427a6eeb1a0a5ea85aba5640d08))
+* **harmony:** show private room request in confirmation email ([b32be25](https://github.com/camphoric/camphoric/commit/b32be2521ced9fdf6c8a4e1f5b5410bcff880a4b)), closes [#733](https://github.com/camphoric/camphoric/issues/733)
+* **server:** validate registrations as JSON Schema draft 7 ([426dfcd](https://github.com/camphoric/camphoric/commit/426dfcdf2e17cfc49dfe9dd8342f4c32c8e438d7))
+
 ## [0.9.0](https://github.com/camphoric/camphoric/compare/v0.8.1...v0.9.0) (2026-10-01)
 
 
