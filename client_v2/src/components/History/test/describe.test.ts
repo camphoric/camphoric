@@ -8,6 +8,7 @@ import {
   diffLines,
   groupByRequest,
   objectName,
+  prettyLines,
   schemaTitles,
   show,
 } from '../describe';
@@ -200,5 +201,82 @@ describe('long structured and multi-line values', () => {
     const [line] = changeLines(update({ tags: [['a'], ['a', 'b']] }));
     expect(line.diff).toBeUndefined();
     expect([line.from, line.to]).toEqual(['a', 'a, b']);
+  });
+});
+
+describe('prettyLines', () => {
+  it('writes values exactly as JSON.stringify does', () => {
+    const values = [
+      { a: 1, b: [1, 'two', null, true], c: {}, d: [], e: { f: { g: 'say "hi"' } }, h: undefined },
+      [[], [{}], [1, [2, [3]]], undefined],
+      'plain',
+      42,
+      [],
+      {},
+    ];
+    for (const value of values) {
+      expect(
+        prettyLines(value)
+          .map((line) => line.text)
+          .join('\n'),
+      ).toBe(JSON.stringify(value, null, 2));
+    }
+    expect(prettyLines(null)).toEqual([]);
+  });
+
+  it('gives each line its path, naming items by what they call themselves', () => {
+    const lines = prettyLines([
+      { var: 'tuition', exp: { if: [{ var: 'camper.age' }, 225, 450] } },
+      [1, 2],
+    ]);
+    const pathOf = (text: string) => lines.find((line) => line.text.trim() === text)?.path;
+    expect(pathOf('"var": "tuition",')).toBe('tuition › var');
+    expect(pathOf('225,')).toBe('tuition › exp › if › item 2');
+    // One field isn't a name: a JsonLogic `{ var }` is an expression, not an item.
+    expect(pathOf('"var": "camper.age"')).toBe('tuition › exp › if › item 1 › var');
+    expect(pathOf('2')).toBe('item 2 › item 2');
+  });
+});
+
+describe('where a JSON change is', () => {
+  const logic = (rate: number, linens: number) => [
+    {
+      var: 'tuition',
+      label: 'Tuition',
+      exp: { if: [{ '<': [{ var: 'camper.age' }, 13] }, rate / 2, rate] },
+    },
+    { var: 'linens', label: 'Linens', exp: { if: [{ var: 'camper.linens' }, linens, 0] } },
+    ...Array.from({ length: 6 }, (_, i) => ({ var: `line${i}`, label: `Line ${i}`, exp: i })),
+  ];
+
+  it('heads each section of a JSON diff with where its first change is', () => {
+    const [line] = changeLines({
+      ...edit,
+      object: { type: 'event', id: 7, label: 'Lark Camp' },
+      changes: { camper_pricing_logic: [logic(450, 25), logic(475, 25)] },
+    });
+    const wheres = line.diff!.filter((d) => d.kind === 'where');
+    expect(wheres).toEqual([{ kind: 'where', path: 'tuition › exp › if › item 2' }]);
+    const at = line.diff!.findIndex((d) => d.kind === 'where');
+    expect(line.diff![at + 1]).toMatchObject({ kind: 'same' });
+  });
+
+  it('heads each separate section on its own', () => {
+    const before = logic(450, 25);
+    const after = logic(450, 30);
+    after[7] = { ...after[7], exp: 99 };
+    const [line] = changeLines({
+      ...edit,
+      object: { type: 'event', id: 7, label: 'Lark Camp' },
+      changes: { camper_pricing_logic: [before, after] },
+    });
+    expect(line.diff!.filter((d) => d.kind === 'where')).toEqual([
+      { kind: 'where', path: 'linens › exp › if › item 2' },
+      { kind: 'where', path: 'line5 › exp' },
+    ]);
+  });
+
+  it('leaves text diffs without headings', () => {
+    expect(diffLines('a\nb', 'a\nc').some((d) => d.kind === 'where')).toBe(false);
   });
 });

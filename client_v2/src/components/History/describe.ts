@@ -20,7 +20,13 @@ export interface ChangeLine {
 
 /** A line of a diff, or a run of unchanged lines left out. */
 export type DiffLine =
-  { kind: 'same' | 'removed' | 'added'; text: string } | { kind: 'skip'; count: number };
+  | { kind: 'same' | 'removed' | 'added'; text: string }
+  | { kind: 'skip'; count: number }
+  /** Where in a JSON value the section that follows is: "tuition › exp › if". */
+  | { kind: 'where'; path: string };
+
+/** A diff line before collapsing, with its index in its side's lines. */
+type Marked = { kind: 'same' | 'removed' | 'added'; text: string; at: number };
 
 /** Values longer than this (as text) are cut short, or diffed if they're structured. */
 export const VALUE_LIMIT = 120;
@@ -150,24 +156,92 @@ function valueLine(
   const structured = isStructured(before) || isStructured(after);
   const multiline = [before, after].some((v) => typeof v === 'string' && v.includes('\n'));
   if (!long || !(structured || multiline)) return line;
+  if (structured) {
+    const [a, b] = [prettyLines(before), prettyLines(after)];
+    const text = (lines: PrettyLine[]) => lines.map((l) => l.text).join('\n');
+    const paths = { before: a.map((l) => l.path), after: b.map((l) => l.path) };
+    return { ...line, diff: diffLines(text(a), text(b), paths) };
+  }
   const text = (value: unknown) =>
-    value === null || value === undefined
-      ? ''
-      : structured
-        ? JSON.stringify(value, null, 2)
-        : typeof value === 'string'
-          ? value
-          : show(value);
+    value === null || value === undefined ? '' : typeof value === 'string' ? value : show(value);
   return { ...line, diff: diffLines(text(before), text(after)) };
+}
+
+interface PrettyLine {
+  text: string;
+  /** Where the line is in the value: "tuition › exp › if" ('' at the top). */
+  path: string;
+}
+
+// Fields that name a list item (a pricing line by its `var`).
+const ITEM_NAMES = ['var', 'name', 'label', 'title', 'key', 'id'];
+
+/** A list item by what it's called when it says (an object with fields), else its position. */
+function itemName(item: unknown, index: number): string {
+  if (isPlainObject(item) && Object.keys(item as Hash).length > 1) {
+    for (const key of ITEM_NAMES) {
+      const value = (item as Hash)[key];
+      if (typeof value === 'string' || typeof value === 'number') return String(value);
+    }
+  }
+  return `item ${index + 1}`;
+}
+
+/**
+ * A value as `JSON.stringify(value, null, 2)` writes it, line by line, each
+ * line with the path to where it is in the value.
+ */
+export function prettyLines(value: unknown): PrettyLine[] {
+  const out: PrettyLine[] = [];
+  const walk = (v: unknown, indent: string, prefix: string, path: string[], last: boolean) => {
+    const comma = last ? '' : ',';
+    const at = path.join(' › ');
+    const nested = (open: string, close: string, children: [string, unknown, string][]) => {
+      if (!children.length) {
+        out.push({ text: `${indent}${prefix}${open}${close}${comma}`, path: at });
+        return;
+      }
+      out.push({ text: `${indent}${prefix}${open}`, path: at });
+      children.forEach(([key, child, name], i) =>
+        walk(child, `${indent}  `, key, [...path, name], i === children.length - 1),
+      );
+      out.push({ text: `${indent}${close}${comma}`, path: at });
+    };
+    if (Array.isArray(v)) {
+      nested(
+        '[',
+        ']',
+        v.map((item, i) => ['', item === undefined ? null : item, itemName(item, i)]),
+      );
+    } else if (isPlainObject(v)) {
+      nested(
+        '{',
+        '}',
+        Object.entries(v as Hash)
+          .filter(([, child]) => child !== undefined)
+          .map(([key, child]) => [`${JSON.stringify(key)}: `, child, key]),
+      );
+    } else {
+      out.push({ text: `${indent}${prefix}${JSON.stringify(v) ?? 'null'}${comma}`, path: at });
+    }
+  };
+  if (value !== null && value !== undefined) walk(value, '', '', [], true);
+  return out;
 }
 
 const isStructured = (value: unknown) => value !== null && typeof value === 'object';
 
 /**
  * `before` and `after` compared line by line: each changed line, with CONTEXT
- * unchanged lines around it, and the unchanged runs between left out.
+ * unchanged lines around it, and the unchanged runs between left out. Given
+ * each line's path in a JSON value, each section is headed with where its
+ * first change is.
  */
-export function diffLines(before: string, after: string): DiffLine[] {
+export function diffLines(
+  before: string,
+  after: string,
+  paths?: { before: string[]; after: string[] },
+): DiffLine[] {
   const a = before ? before.split('\n') : [];
   const b = after ? after.split('\n') : [];
   // Most edits are local: match the common start and end first.
@@ -179,19 +253,32 @@ export function diffLines(before: string, after: string): DiffLine[] {
     endA--;
     endB--;
   }
-  const same = (text: string): DiffLine => ({ kind: 'same', text });
-  return collapse([
-    ...a.slice(0, start).map(same),
-    ...diffMiddle(a.slice(start, endA), b.slice(start, endB)),
-    ...a.slice(endA).map(same),
-  ]);
+  const same =
+    (offset: number) =>
+    (text: string, i: number): Marked => ({
+      kind: 'same',
+      text,
+      at: offset + i,
+    });
+  const middle = diffMiddle(a.slice(start, endA), b.slice(start, endB)).map((line) => ({
+    ...line,
+    at: line.at + start,
+  }));
+  return collapse(
+    [...a.slice(0, start).map(same(0)), ...middle, ...a.slice(endA).map(same(endA))],
+    paths,
+  );
 }
 
 /** The least-change line diff (by longest common subsequence). */
-function diffMiddle(a: string[], b: string[]): DiffLine[] {
-  const removed = (text: string): DiffLine => ({ kind: 'removed', text });
-  const added = (text: string): DiffLine => ({ kind: 'added', text });
-  if (a.length * b.length > MAX_DIFF_CELLS) return [...a.map(removed), ...b.map(added)];
+function diffMiddle(a: string[], b: string[]): Marked[] {
+  const removed = (text: string, at: number): Marked => ({ kind: 'removed', text, at });
+  const added = (text: string, at: number): Marked => ({ kind: 'added', text, at });
+  const rest = (i: number, j: number) => [
+    ...a.slice(i).map((text, k) => removed(text, i + k)),
+    ...b.slice(j).map((text, k) => added(text, j + k)),
+  ];
+  if (a.length * b.length > MAX_DIFF_CELLS) return rest(0, 0);
   // common[i * width + j]: the longest common run of a[i:] and b[j:].
   const width = b.length + 1;
   const common = new Uint16Array((a.length + 1) * width);
@@ -203,32 +290,45 @@ function diffMiddle(a: string[], b: string[]): DiffLine[] {
           : Math.max(common[(i + 1) * width + j], common[i * width + j + 1]);
     }
   }
-  const out: DiffLine[] = [];
+  const out: Marked[] = [];
   let i = 0;
   let j = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) {
-      out.push({ kind: 'same', text: a[i] });
+      out.push({ kind: 'same', text: a[i], at: i });
       i++;
       j++;
     } else if (common[(i + 1) * width + j] >= common[i * width + j + 1]) {
-      out.push(removed(a[i++]));
+      out.push(removed(a[i], i));
+      i++;
     } else {
-      out.push(added(b[j++]));
+      out.push(added(b[j], j));
+      j++;
     }
   }
-  return [...out, ...a.slice(i).map(removed), ...b.slice(j).map(added)];
+  return [...out, ...rest(i, j)];
 }
 
-/** Keep CONTEXT unchanged lines either side of each change; count the rest. */
-function collapse(lines: DiffLine[]): DiffLine[] {
+/**
+ * Keep CONTEXT unchanged lines either side of each change; count the rest.
+ * Given paths, head each kept section with where its first change is.
+ */
+function collapse(lines: Marked[], paths?: { before: string[]; after: string[] }): DiffLine[] {
   const changed = lines.map((line) => line.kind !== 'same');
   const near = (index: number) =>
     changed.slice(Math.max(0, index - CONTEXT), index + CONTEXT + 1).some(Boolean);
+  const where = (index: number) => {
+    const first = lines[changed.indexOf(true, index)];
+    if (!paths || !first) return '';
+    return (first.kind === 'added' ? paths.after : paths.before)[first.at] ?? '';
+  };
   const out: DiffLine[] = [];
-  lines.forEach((line, index) => {
+  lines.forEach(({ kind, text }, index) => {
     if (near(index)) {
-      out.push(line);
+      const starting = !out.length || out[out.length - 1].kind === 'skip';
+      const path = starting ? where(index) : '';
+      if (path) out.push({ kind: 'where', path });
+      out.push({ kind, text });
       return;
     }
     const last = out[out.length - 1];
