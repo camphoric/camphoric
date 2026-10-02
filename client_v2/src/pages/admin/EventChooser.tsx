@@ -1,11 +1,10 @@
 /**
  * Event chooser (SPEC §8.1). Lists the organization's events; selecting one
- * navigates into the Event Admin container for that event. A back arrow
- * returns to organization selection.
+ * navigates into the Event Admin container for that event. The way back to
+ * organization selection is in the frame's header (AdminFrame).
  */
 
-import { ActionIcon, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { Card, Container, Stack, Text, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 import { InlineLoading } from 'components/Loading';
 import { eventHooks } from 'store/entities';
@@ -18,19 +17,9 @@ export function EventChooser() {
 
   return (
     <Container size="sm" py="lg">
-      <Group gap="xs" mb="md" wrap="nowrap">
-        <ActionIcon
-          component={Link}
-          to="/admin/organization"
-          variant="subtle"
-          color="gray"
-          aria-label="Back to organization selection"
-          title="Back to organization selection"
-        >
-          <IconArrowLeft size={18} />
-        </ActionIcon>
-        <Title order={3}>Choose an event</Title>
-      </Group>
+      <Title order={3} mb="md">
+        Choose an event
+      </Title>
       <Stack>
         {(events ?? []).map((event) => (
           <Link

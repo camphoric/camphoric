@@ -23,12 +23,4 @@ describe('EventChooser', () => {
     renderWithProviders(<EventChooser />);
     expect(screen.getByText('Lark Camp 2027')).toBeInTheDocument();
   });
-
-  it('goes back to organization selection', () => {
-    renderWithProviders(<EventChooser />);
-    expect(screen.getByRole('link', { name: 'Back to organization selection' })).toHaveAttribute(
-      'href',
-      '/admin/organization',
-    );
-  });
 });
