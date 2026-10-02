@@ -46,6 +46,14 @@ When making a change, mirror it in all the relevant places at once: the body sta
 Decision Record, the open-questions list, the Contents list, the "Last updated" date, and any
 cross-references — so the document never contradicts itself.
 
+## Payments Guide
+
+[`doc/payments.md`](./doc/payments.md) explains, with mermaid diagrams, how money moves: invoices,
+payments, refunds, the handling fee, PayPal, and the registration's payment flow. Keep it in step
+with any change to payments (server `invoices.py`, `paypal.py`, `confirmations.py`, the register
+steps, or the client's payment step and invoice screens) — the spec (§9.7) stays the contract,
+and the guide must not contradict it.
+
 ## Coding Standards
 
 Abide by all principles in the [CONTRIBUTING.md](./CONTRIBUTING.md) document.
