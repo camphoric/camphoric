@@ -71,7 +71,7 @@ export function RegistrationsList() {
       { accessorKey: 'registrant_email', header: 'Email' },
       {
         id: 'owed',
-        header: 'Owed',
+        header: 'Total',
         accessorFn: (r) => r.total_owed,
         cell: (info) => formatMoney(info.getValue<number>()),
       },
