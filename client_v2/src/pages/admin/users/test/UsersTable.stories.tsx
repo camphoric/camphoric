@@ -1,7 +1,8 @@
 /**
  * Stories for the users list (SPEC §8.10): a superuser's view (with
  * Django access and Set password) and an Admin's. The last action taken is
- * shown under the table. Run `npm run storybook`.
+ * shown under the table; choosing a row marks it as the one whose history is
+ * shown. Run `npm run storybook`.
  */
 
 import { Code, Stack } from '@mantine/core';
@@ -14,6 +15,7 @@ import { SAMPLE_USERS } from './userFixtures';
 
 function Harness({ superuser }: { superuser: boolean }) {
   const [last, setLast] = useState('');
+  const [selected, setSelected] = useState<number>();
   const act = (name: string) => (user: ApiManagedUser) => setLast(`${name}: ${user.username}`);
   const users = superuser
     ? SAMPLE_USERS
@@ -23,6 +25,11 @@ function Harness({ superuser }: { superuser: boolean }) {
       <UsersTable
         users={users}
         currentUserId={superuser ? 1 : 2}
+        selectedUserId={selected}
+        onShowHistory={(user) => {
+          setSelected(user.id);
+          act('History')(user);
+        }}
         onEdit={act('Edit')}
         onSendLink={act('Email link')}
         onCopyLink={act('Copy link')}

@@ -166,6 +166,14 @@ def history(**tag):
     return [describe(entry) for entry in entries]
 
 
+def changes_by(user):
+    '''Entries for what `user` changed, anywhere, newest first (a queryset, to page).'''
+    return (LogEntry.objects
+            .filter(actor=user)
+            .select_related('actor', 'content_type')
+            .order_by('-timestamp', '-id'))
+
+
 def deleted_by(instances):
     '''Who deleted each of these soft-deleted instances, by id (None: no one signed in).'''
     if not instances:

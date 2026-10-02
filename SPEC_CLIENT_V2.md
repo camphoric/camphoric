@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-79)
+- §15 — Decision Records (DR-1…DR-81)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -202,7 +202,8 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/users` — Users (§8.10), for Admins only; anyone else is sent to `/admin`. Search
-  param `?userId` — the user being edited: an id, or `new` for a new one.
+  params `?userId` — the user being edited: an id, or `new` for a new one; `?historyUserId` —
+  the user whose change history is shown.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/registrations` and `…/campers` — search
@@ -484,6 +485,10 @@ Non-CRUD admin endpoints:
       with `null` for none. A create lists every field's first value, a delete its last.
     - `request_id` is the same for every entry one request caused, e.g. an edit and the pricing it
       recalculated.
+  - `GET /api/users/{id}/history/?page=` (Admins only; 404 for everyone else; §15, DR-80) — what
+    the user changed, in every event and organization, newest first: entries of the same shape,
+    `object.type` any audited model (`event`, `report`, `lodging`, `user`, …), paginated 50 a
+    page as `{ count, next, previous, results }`.
 - `GET /api/eventlist` — public list of events for the splash page.
 
 ### Registration API (public)
@@ -969,6 +974,13 @@ balance, payment status) and works with it. For the selected registration they c
   about, and each changed field's old and new value — attributes by their schema titles and only
   the keys that changed, ids by name (registration type, lodging, charge type), a price as its
   total. The changes one save made (an edit and the pricing it recalculated) are shown together.
+  Old values are marked reddish and new ones greenish (the order also reads old → new, so color
+  isn't the only cue). A value longer than 120 characters is cut short, with a way to see the
+  rest. A long JSON value (an event's pricing logic or schema) or long multi-line text (an email
+  template) is shown as a diff instead: both sides pretty-printed and compared line by line,
+  with removed lines red (−), added lines green (+), two unchanged lines of context around each
+  change and the other unchanged runs counted rather than shown; a long diff shows its first 12
+  lines, with a way to see it all (§15, DR-81).
 - **See and reorder its campers** — listed by `sequence`, each linking to the camper function,
   with the ability to change their order (PATCH `sequence`).
 - **Add a camper** (Registrars and Admins) — e.g. after registration has closed. The event's
@@ -1374,6 +1386,13 @@ only appears for Admins.
   confirming — deactivating keeps the account and its history instead); and, for superusers,
   **set their password** (twice, with "Require a password change at next sign-in", on by
   default), which signs them out everywhere.
+- **A user's change history** — choosing a user (their row, or *Change history* in their menu)
+  shows, beside the list, what they changed (§15, DR-80): in every event, newest first, the
+  changes one save made together, each named in full (which registration, event, report, …)
+  with each field's old and new value as in a registration's history (§8.4: colored, long values
+  cut short, long JSON and text diffed), and how many there are in all. Older changes load a page
+  at a time. It stays open while the list is used, and the user is marked in the list; closing
+  it, or choosing another user, is URL-addressable (`?historyUserId`, §4).
 - **Guard rails** — nobody changes their own group or Django access, or deactivates or deletes
   their own account, so there's always an active Admin. Refusals from the server are shown.
 
@@ -3443,6 +3462,38 @@ does the same, and is skipped outside a router.
 (a larger change, and a saved template takes effect at once). Guarding every admin form, not
 just templates — left for when it's asked for.
 
+### DR-80 — A user's change history is what they changed, paged, for Admins
+
+**Decision:** Users (§8.10) shows, for a chosen user, the audit entries crediting them as the
+actor — every change they made, in every event — newest first, served 50 a page from
+`/api/users/{id}/history/` with the user API's Admin-only permission. Entries keep the §5 shape
+and its rendering, naming every object in full since the list spans registrations and events.
+**Context:** Admins asked to see what a given person has been changing. The registration and
+camper histories (DR-53) find entries by their registration/camper tags, which events, reports,
+lodging and users don't carry, so a user's history is found by actor instead. One person's
+changes over seasons run to thousands of entries (the dev admin had 858), so they're paged.
+**Alternatives:** Changes made *to* the user's account (role, active, email) — a short list,
+but not what was asked; it can be added as its own section. Showing every entry at once (the
+registration histories do) — too many for one response. Tagging every entry with its event,
+to show which event a change was in — needs a new tag on every audited model and old entries
+wouldn't have it.
+
+### DR-81 — Long changes are diffed line by line, with a small built-in diff
+
+**Decision:** In change histories, a long structured or multi-line value is pretty-printed and
+compared line by line — the changed lines with a little context, unchanged runs counted — rather
+than shown whole; other long values are cut short with a way to see the rest; old values are
+reddish and new ones greenish. The line diff is the client's own (a longest-common-subsequence
+diff after matching the common start and end, which keeps typical edits cheap; past four
+million line pairs the changed middle is shown as removed then added).
+**Context:** A user's history (DR-80) and an event's own changes include whole pricing logic and
+schemas — thousands of lines of JSON for a one-number edit — which made the lists too long to
+skim and hid what had changed.
+**Alternatives:** The `diff` (jsdiff) package — robust and fast, but a dependency for one view.
+A structural JSON diff by key path — exact for objects, but JsonLogic is mostly arrays, where an
+insertion shifts every later index. Always cutting values short — shorter, but doesn't show
+what changed.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -3471,7 +3522,8 @@ must be coordinated with the backend. Grouped by status.
   `promoCode` on the register endpoint, `promo_code`/`promo` on registrations, and the `promo`
   pricing line, with the shapes in §5 and §9.2 (DR-67).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
-  with the shape in §5 (DR-53).
+  with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
+  (DR-80).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
   `POST /api/logout` (§3, §6; DR-9, DR-26).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`
@@ -3536,6 +3588,7 @@ must be coordinated with the backend. Grouped by status.
 > Measured at **~60 KB gzipped for 497 campers** (≈ **~85 KB at 700**) — comfortably fine. Only
 > if events ever grew an order of magnitude larger would a lighter backend list projection
 > (preferred over pagination) be worth it.
+
 
 ---
 

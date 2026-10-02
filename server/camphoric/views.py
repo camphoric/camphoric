@@ -641,6 +641,10 @@ class CustomChargeViewSet(PlannedDeleteMixin, ModelViewSet):
     filterset_fields = ['camper', 'custom_charge_type__event']
 
 
+class UserHistoryPagination(PageNumberPagination):
+    page_size = 50
+
+
 class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     User management: Admins only, and a 404 for everyone else (SPEC DR-50,
@@ -662,6 +666,16 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
                     user, request=self.request, created_by=self.request.user)
             except accounts.AccountError as error:
                 logger.warning(f'set-password link for {user.username} not sent: {error}')
+
+    @action(detail=True, methods=['get'])
+    def history(self, request, pk=None):
+        '''
+        What the user changed, in every event, newest first: the change-history
+        entries (SPEC §5) they're credited with, 50 a page (`?page=`).
+        '''
+        paginator = UserHistoryPagination()
+        page = paginator.paginate_queryset(audit.changes_by(self.get_object()), request, view=self)
+        return paginator.get_paginated_response([audit.describe(entry) for entry in page])
 
     @action(detail=True, methods=['post'], url_path='send-password-link')
     def send_password_link(self, request, pk=None):

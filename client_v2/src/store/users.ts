@@ -1,11 +1,12 @@
 /**
  * User management for Admins (SPEC §8.10; §15 DR-50, DR-52): the users list,
  * editing and deleting (`userHooks`), creating, emailing or copying a
- * set-password link, and — superusers only — setting a password.
+ * set-password link, and — superusers only — setting a password; and a
+ * user's change history (what they changed, a page at a time).
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiManagedUser, NewUserRequest } from 'api-types';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ApiHistoryEntry, ApiManagedUser, NewUserRequest, Paginated } from 'api-types';
 import { apiFetch } from 'utils/fetch';
 
 import { createEntityHooks } from './createEntityHooks';
@@ -84,5 +85,22 @@ export function useSetUserPassword() {
       }),
     meta: { suppressErrorNotification: true },
     onSuccess: invalidate,
+  });
+}
+
+/**
+ * What a user changed, in every event, newest first: 50 entries a page, more
+ * with `fetchNextPage`. In the `History` namespace, so edits refresh it.
+ */
+export function useUserHistory(userId: number | undefined) {
+  return useInfiniteQuery({
+    queryKey: ['History', 'users', userId],
+    queryFn: ({ pageParam, signal }) =>
+      apiFetch<Paginated<ApiHistoryEntry>>(`/api/users/${userId}/history/?page=${pageParam}`, {
+        signal,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),
+    enabled: userId !== undefined,
   });
 }

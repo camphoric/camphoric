@@ -3,12 +3,14 @@
  * group, Django access (when it's more than a regular user's), whether they're
  * active and have a password, and when they last signed in — with a menu of
  * what an Admin can do to them. Your own row can't be deactivated or deleted.
+ * Choosing a row (or "Change history" in its menu) shows what that user changed.
  */
 
 import { ActionIcon, Badge, Group, Menu, Table, Text } from '@mantine/core';
 import {
   IconCopy,
   IconDots,
+  IconHistory,
   IconKey,
   IconMail,
   IconPencil,
@@ -22,6 +24,7 @@ import { formatTime } from '../email/emailLabels';
 import { DJANGO_ACCESS_LABEL, groupLabel } from './userLabels';
 
 export interface UserActions {
+  onShowHistory: (user: ApiManagedUser) => void;
   onEdit: (user: ApiManagedUser) => void;
   onSendLink: (user: ApiManagedUser) => void;
   onCopyLink: (user: ApiManagedUser) => void;
@@ -35,13 +38,15 @@ interface UsersTableProps extends UserActions {
   users: ApiManagedUser[];
   /** The signed-in Admin. */
   currentUserId: number | null;
+  /** Whose history is shown, if anyone's. */
+  selectedUserId?: number;
 }
 
 export function fullName(user: Pick<ApiManagedUser, 'first_name' | 'last_name'>) {
   return [user.first_name, user.last_name].filter(Boolean).join(' ');
 }
 
-export function UsersTable({ users, currentUserId, ...actions }: UsersTableProps) {
+export function UsersTable({ users, currentUserId, selectedUserId, ...actions }: UsersTableProps) {
   return (
     <Table.ScrollContainer minWidth={760}>
       <Table striped highlightOnHover>
@@ -57,8 +62,16 @@ export function UsersTable({ users, currentUserId, ...actions }: UsersTableProps
         <Table.Tbody>
           {users.map((user) => {
             const self = user.id === currentUserId;
+            const selected = user.id === selectedUserId;
             return (
-              <Table.Tr key={user.id} opacity={user.is_active ? 1 : 0.6}>
+              <Table.Tr
+                key={user.id}
+                opacity={user.is_active ? 1 : 0.6}
+                aria-selected={selected}
+                bg={selected ? 'var(--mantine-primary-color-light)' : undefined}
+                style={{ cursor: 'pointer' }}
+                onClick={() => actions.onShowHistory(user)}
+              >
                 <Table.Td>
                   <Text size="sm" fw={500}>
                     {user.username}
@@ -90,7 +103,8 @@ export function UsersTable({ users, currentUserId, ...actions }: UsersTableProps
                   </Group>
                 </Table.Td>
                 <Table.Td>{user.last_login ? formatTime(user.last_login) : 'Never'}</Table.Td>
-                <Table.Td>
+                {/* The menu's own clicks aren't a choice of the row. */}
+                <Table.Td onClick={(e) => e.stopPropagation()}>
                   <Menu position="bottom-end" withinPortal>
                     <Menu.Target>
                       <ActionIcon variant="subtle" aria-label={`Actions for ${user.username}`}>
@@ -98,6 +112,12 @@ export function UsersTable({ users, currentUserId, ...actions }: UsersTableProps
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconHistory size={16} />}
+                        onClick={() => actions.onShowHistory(user)}
+                      >
+                        Change history
+                      </Menu.Item>
                       <Menu.Item
                         leftSection={<IconPencil size={16} />}
                         onClick={() => actions.onEdit(user)}
