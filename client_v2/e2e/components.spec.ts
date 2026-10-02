@@ -358,7 +358,7 @@ test.describe('Deletes and history', () => {
     await page.goto(story('history-list--registration'));
     await expect(page.getByText('Main address › City')).toBeVisible();
     await expect(page.getByText('Berkeley → Oakland')).toBeVisible();
-    await expect(page.getByText('No one signed in')).toBeVisible();
+    await expect(page.getByText('Anonymous User')).toBeVisible();
   });
 
   test('a user’s history names each change in full, with older ones to load', async ({ page }) => {
