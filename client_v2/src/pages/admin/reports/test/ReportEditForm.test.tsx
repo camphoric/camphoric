@@ -56,7 +56,7 @@ beforeEach(() => {
 describe('ReportEditForm', () => {
   it('creates new reports with Camphoric variables and the template editor', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ReportEditForm eventId="7" onDone={vi.fn()} />);
+    renderWithProviders(<ReportEditForm eventId="7" onSaved={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.queryByText('Variables schema')).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('Title'), 'Cabins');
@@ -77,7 +77,9 @@ describe('ReportEditForm', () => {
 
   it('keeps legacy reports on the plain editor with the variables schema', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ReportEditForm eventId="7" report={legacyReport} onDone={vi.fn()} />);
+    renderWithProviders(
+      <ReportEditForm eventId="7" report={legacyReport} onSaved={vi.fn()} onCancel={vi.fn()} />,
+    );
 
     expect(screen.getByText('Variables schema')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Jinja template/)).not.toBeInTheDocument();
@@ -90,7 +92,9 @@ describe('ReportEditForm', () => {
 
   it('confirms before switching a saved template to Camphoric variables', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ReportEditForm eventId="7" report={legacyReport} onDone={vi.fn()} />);
+    renderWithProviders(
+      <ReportEditForm eventId="7" report={legacyReport} onSaved={vi.fn()} onCancel={vi.fn()} />,
+    );
 
     await user.click(screen.getByRole('textbox', { name: 'Variables' }));
     await user.click(
@@ -103,5 +107,25 @@ describe('ReportEditForm', () => {
     // Handlebars isn't available with server variables.
     expect(await screen.findByLabelText('Jinja template (csv)')).toBeInTheDocument();
     expect(screen.queryByText('Variables schema')).not.toBeInTheDocument();
+  });
+
+  it('tells the page whether it differs from the saved report', async () => {
+    const onDirtyChange = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        report={legacyReport}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    await user.type(screen.getByLabelText('Title'), '!');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.type(screen.getByLabelText('Title'), '{Backspace}');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });

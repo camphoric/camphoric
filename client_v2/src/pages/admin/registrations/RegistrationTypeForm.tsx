@@ -3,7 +3,8 @@
  * — once it exists — its invitation email, the type's email template (§15
  * DR-45), edited in Jinja and previewed for one of the type's invitations (or an
  * example one). A new type starts with a standard invitation. Persists via POST
- * (new) or PATCH (edit), and the template via its own PATCH.
+ * (new) or PATCH (edit), and the template via its own PATCH. Closing it with
+ * the invitation email changed and unsaved asks first, and discards the edits.
  */
 
 import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
@@ -11,6 +12,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
 import type { CreateBody } from 'store/createEntityHooks';
 import { useTemplateDraft } from 'store/emailTemplates';
@@ -41,6 +43,12 @@ export function RegistrationTypeForm({
   const [label, setLabel] = useState(regType?.label ?? '');
   const { canEdit } = usePermissions();
   const invitationEmail = useTemplateDraft(regType?.invitation_template);
+  const { confirmDiscard } = useUnsavedChanges(opened && invitationEmail.changed);
+  const close = () =>
+    confirmDiscard(() => {
+      invitationEmail.discard();
+      onClose();
+    });
 
   const { data: invitations } = invitationHooks.useList(
     { registration_type__event: eventId },
@@ -82,7 +90,7 @@ export function RegistrationTypeForm({
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={close}
       title={
         regType ? (canEdit ? 'Edit registration type' : regType.label) : 'New registration type'
       }
@@ -127,7 +135,7 @@ export function RegistrationTypeForm({
           </Text>
         )}
         <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
+          <Button variant="default" onClick={close}>
             {canEdit ? 'Cancel' : 'Close'}
           </Button>
           <CanEdit>

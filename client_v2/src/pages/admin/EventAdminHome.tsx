@@ -4,6 +4,7 @@
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
  * The confirmation email is the event's email template (§15 DR-45), edited in
  * Jinja with a preview for any completed registration, and saved with the rest.
+ * Leaving with either template changed and unsaved asks first.
  */
 
 import {
@@ -29,6 +30,7 @@ import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
 import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
+import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useEffect, useMemo, useState } from 'react';
 import { useTemplateDraft } from 'store/emailTemplates';
 import { eventHooks, registrationHooks } from 'store/entities';
@@ -57,6 +59,11 @@ export function EventAdminHome() {
   useEffect(() => {
     if (event && !form) setForm(event);
   }, [event, form]);
+
+  useUnsavedChanges(
+    confirmation.changed ||
+      (!!event && !!form && form.confirmation_page_template !== event.confirmation_page_template),
+  );
 
   if (!event || !form || !confirmation.loaded) return <FullScreenLoading />;
 

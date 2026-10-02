@@ -8,6 +8,9 @@
  *   preview (§9.6).
  * - **Browser bundle** (`client`, legacy): the template plus a variables JSON
  *   schema, which must parse. Handlebars reports are always legacy.
+ *
+ * The page owns leaving: it's told whether anything differs from the saved
+ * report (`onDirtyChange`), and Cancel goes through `onCancel`.
  */
 
 import { Alert, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
@@ -16,7 +19,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiReport, Hash, ReportOutputType, ReportVariablesSource } from 'api-types';
 import { JsonEditor } from 'components/JsonEditor';
 import { TemplateEditor } from 'components/TemplateEditor';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { reportHooks } from 'store/entities';
 
 const SOURCE_OPTIONS: { value: ReportVariablesSource; label: string }[] = [
@@ -47,10 +50,20 @@ interface ReportEditFormProps {
   report?: ApiReport;
   /** The Template Help page, linked from the editor's help. */
   helpHref?: string;
-  onDone: (reportId?: number) => void;
+  onSaved: (reportId: number) => void;
+  onCancel: () => void;
+  /** Whether the form differs from the saved report (a new one: from blank). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEditFormProps) {
+export function ReportEditForm({
+  eventId,
+  report,
+  helpHref,
+  onSaved,
+  onCancel,
+  onDirtyChange,
+}: ReportEditFormProps) {
   const create = reportHooks.useCreate();
   const update = reportHooks.useUpdate();
 
@@ -58,9 +71,25 @@ export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEdit
   const [source, setSource] = useState<ReportVariablesSource>(report?.variables_source ?? 'server');
   const [output, setOutput] = useState<ReportOutputType>(report?.output ?? 'csv');
   const [template, setTemplate] = useState(report?.template ?? '');
-  const [schemaText, setSchemaText] = useState(
-    JSON.stringify(report?.variables_schema ?? {}, null, 2),
-  );
+  const [initial] = useState(() => ({
+    title,
+    source,
+    output,
+    template,
+    schemaText: JSON.stringify(report?.variables_schema ?? {}, null, 2),
+  }));
+  const [schemaText, setSchemaText] = useState(initial.schemaText);
+
+  const dirty =
+    title !== initial.title ||
+    source !== initial.source ||
+    output !== initial.output ||
+    template !== initial.template ||
+    schemaText !== initial.schemaText;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const isServer = source === 'server';
 
@@ -109,7 +138,7 @@ export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEdit
     const fields = { title, output, template, variables_schema, variables_source: source };
     const onSuccess = (saved: ApiReport) => {
       notifications.show({ color: 'green', message: 'Report saved' });
-      onDone(saved.id);
+      onSaved(saved.id);
     };
 
     if (report) {
@@ -187,7 +216,7 @@ export function ReportEditForm({ eventId, report, helpHref, onDone }: ReportEdit
         <Button onClick={save} disabled={!canSave} loading={create.isPending || update.isPending}>
           Save
         </Button>
-        <Button variant="default" onClick={() => onDone(report?.id)}>
+        <Button variant="default" onClick={onCancel}>
           Cancel
         </Button>
       </Group>
