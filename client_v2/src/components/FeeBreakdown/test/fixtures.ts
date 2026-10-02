@@ -64,3 +64,23 @@ export const HANDLING_OVERRIDE: ApiPricingOverride = {
   amount: '0.00',
   reason: 'Paid by check after all',
 };
+
+/**
+ * A handling fee kept at what was charged online ($7.50 on $300), after a
+ * discount brought the total down so the pricing now works out $2.50.
+ */
+export const HANDLING_KEPT: PricingResults = {
+  donation: 0,
+  handling: 7.5,
+  total: 107.5,
+  campers: [],
+  overridden: { handling: 2.5 },
+};
+
+export const HANDLING_KEPT_OVERRIDE: ApiPricingOverride = {
+  ...HANDLING_OVERRIDE,
+  id: 6,
+  amount: '7.50',
+  reason: 'Kept at the amount when paid online',
+  created_by_name: null,
+};

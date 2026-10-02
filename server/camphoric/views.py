@@ -1055,15 +1055,17 @@ class RegisterView(APIView):
         registration.save()
         registration.refresh_from_db()
 
+        is_paypal_captured_payment = (
+            payment_type == models.PaymentType.PAYPAL or
+            payment_type == models.PaymentType.CARD
+        )
+        if is_paypal_captured_payment:
+            self.fix_handling_fee(registration)
+
         registration.initial_payment = request.data.get('paymentData')
         registration.initial_payment['balance'] = pricing.money_fmt(
             Decimal(registration.server_pricing_results['total'])
             - Decimal(registration.initial_payment['total'])
-        )
-
-        is_paypal_captured_payment = (
-            payment_type == models.PaymentType.PAYPAL or
-            payment_type == models.PaymentType.CARD
         )
 
         if is_paypal_captured_payment:
@@ -1088,6 +1090,26 @@ class RegisterView(APIView):
         email_error = self.queue_confirmation_email(request, registration)
         if email_error:
             logger.error(f'confirmation email not queued: {email_error}')
+
+    @staticmethod
+    def fix_handling_fee(registration):
+        '''
+        Keep the handling fee charged online as it is (SPEC DR-78): an override
+        of it at its amount now, so later changes to the registration (a
+        discount, a camper added) don't change it. A registrar can recalculate,
+        change or remove it.
+        '''
+        handling = registration.server_pricing_results.get(pricing.HANDLING)
+        if not handling or registration.pricing_overrides.filter(
+                camper=None, var=pricing.HANDLING).exists():
+            return
+        models.PricingOverride.objects.create(
+            registration=registration,
+            var=pricing.HANDLING,
+            amount=pricing.money_fmt(Decimal(repr(handling))),
+            reason=pricing.HANDLING_FIXED_REASON,
+        )
+        registration.refresh_from_db()
 
     def payment_result(self, request, registration):
         return {

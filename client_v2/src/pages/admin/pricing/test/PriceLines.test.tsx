@@ -2,6 +2,8 @@ import userEvent from '@testing-library/user-event';
 import type { ApiCamper, ApiEvent, Role } from 'api-types';
 import {
   CAMPER_LOGIC,
+  HANDLING_KEPT,
+  HANDLING_KEPT_OVERRIDE,
   HANDLING_WAIVED,
   OVERRIDDEN,
   REGISTRATION_LOGIC,
@@ -11,7 +13,7 @@ import { PermissionsProvider } from 'hooks/permissions';
 import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { overridableLines, PriceLines } from '../PriceLines';
+import { overridableLines, PriceLines, RECALCULATED_REASON } from '../PriceLines';
 
 const { create, update, remove, overrides } = vi.hoisted(() => ({
   create: vi.fn(),
@@ -100,6 +102,42 @@ describe('PriceLines', () => {
     setupCamper('reporter');
     expect(screen.getByText(/Overridden \(the pricing works out \$920\.00\)/)).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('recalculates a kept handling fee from the total as it is now', async () => {
+    overrides.current = [HANDLING_KEPT_OVERRIDE];
+    renderWithProviders(
+      <PermissionsProvider userRole="registrar">
+        <PriceLines
+          event={event}
+          results={HANDLING_KEPT}
+          logics={[REGISTRATION_LOGIC]}
+          registrationId={5}
+        />
+      </PermissionsProvider>,
+    );
+    expect(
+      screen.getByText(/Overridden \(the pricing works out \$2\.50\): Kept at the amount/),
+    ).toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Recalculate Electronic payment handling' }));
+    expect(update).toHaveBeenCalledWith({ id: 6, amount: 2.5, reason: RECALCULATED_REASON });
+  });
+
+  it('offers no recalculation once the fee is what the total gives', () => {
+    overrides.current = [HANDLING_KEPT_OVERRIDE];
+    renderWithProviders(
+      <PermissionsProvider userRole="registrar">
+        <PriceLines
+          event={event}
+          results={{ ...HANDLING_KEPT, handling: 2.5, total: 102.5 }}
+          logics={[REGISTRATION_LOGIC]}
+          registrationId={5}
+        />
+      </PermissionsProvider>,
+    );
+    expect(screen.queryByRole('button', { name: /^Recalculate/ })).toBeNull();
   });
 
   it('overrides only the registration’s own lines on the registration', () => {

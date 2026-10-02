@@ -1,8 +1,9 @@
 /**
  * Stories for the fee breakdown (SPEC §8.4, §8.5; §15, DR-56): plain,
  * with an overridden line as a Registrar sees it (with actions) and as a
- * Reporter does (without), an override that isn't in effect, and a waived
- * handling fee. Run `npm run storybook`.
+ * Reporter does (without), an override that isn't in effect, a waived
+ * handling fee, and one kept at what was charged online, which can be
+ * recalculated. Run `npm run storybook`.
  */
 
 import { Box } from '@mantine/core';
@@ -11,6 +12,8 @@ import type { Meta, StoryFn } from '@storybook/react-vite';
 import { FeeBreakdown } from '../FeeBreakdown';
 import {
   CAMPER_LOGIC,
+  HANDLING_KEPT,
+  HANDLING_KEPT_OVERRIDE,
   HANDLING_OVERRIDE,
   HANDLING_WAIVED,
   OVERRIDDEN,
@@ -60,6 +63,21 @@ export const HandlingWaived: StoryFn = () => (
       overridable={['donation', 'handling']}
       onOverride={noop}
       onRemoveOverride={noop}
+    />
+  </Box>
+);
+
+export const HandlingKept: StoryFn = () => (
+  <Box p="md">
+    <FeeBreakdown
+      results={HANDLING_KEPT}
+      logics={[REGISTRATION_LOGIC]}
+      overrides={[HANDLING_KEPT_OVERRIDE]}
+      overridable={['donation', 'handling']}
+      onOverride={noop}
+      onRemoveOverride={noop}
+      recalculable={['handling']}
+      onRecalculate={noop}
     />
   </Box>
 );

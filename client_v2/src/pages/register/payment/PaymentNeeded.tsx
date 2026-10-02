@@ -29,7 +29,7 @@ import { calculatePrice } from 'pricing';
 import { useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import { useRegistrationConfig, useSubmitPayment } from 'store/registrationApi';
-import { formatMoney } from 'utils/money';
+import { formatMoney, roundMoney } from 'utils/money';
 
 import { applyDeposit, parseDeposit } from './deposits';
 
@@ -114,7 +114,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       intent: 'CAPTURE',
       purchase_units: [
         {
-          amount: { currency_code: 'USD', value: totalRef.current.toFixed(2) },
+          amount: { currency_code: 'USD', value: roundMoney(totalRef.current).toFixed(2) },
           description: `${config?.dataSchema.title ?? 'Registration'} payment`,
           // Embed the deposit choice; PayPal loses it otherwise (SPEC §12).
           custom_id: parseDeposit(depositRef.current).name,

@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-77)
+- §15 — Decision Records (DR-1…DR-78)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -660,6 +660,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   - The pricing results record the amounts overrides replaced as `overridden`
     (`{ var: computed }`, on the registration's results and each camper's). It's for the admin:
     templates, emails and the registrant never see it, only the new amounts.
+  - When the payment step completes a PayPal or card payment that carries a handling fee, the
+    server records a `handling` override at that fee (reason "Kept at the amount when paid
+    online", no `created_by`), unless the registration already has one, so later changes don't
+    change the fee charged (§15, DR-78).
 - **User** (whoami): `id`, `username`, `email`, `first_name`, `last_name`, `is_staff`,
   `is_superuser`, `is_active`, `last_login`, `date_joined`, `role` and `must_change_password`; an
   anonymous user has `username: ''`, `id: null` and `role: null`.
@@ -955,6 +959,10 @@ balance, payment status) and works with it. For the selected registration they c
   (after confirming). Its campers' lines are overridden on each camper. An overridden line shows
   what the pricing works out for it, the reason and who set it — to every role; an override that
   isn't in effect is listed as such. The handling fee is labelled "Electronic payment handling".
+- **Recalculate a kept handling fee** (Registrars and Admins; §15, DR-78) — when the handling fee
+  is overridden and the pricing now works out a different fee (the total changed since it was
+  paid online), set the override to that fee in one action. The fee is then kept at the new
+  amount; the override's reason becomes "Recalculated from the total".
 - **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
   its campers', payments' and custom charges', newest first: when, who (or that no one was
   signed in, e.g. the online registration; a user since deleted by their email), what it was
@@ -1495,11 +1503,19 @@ Algorithm:
    The discount (for `camper` scope, the sum) is stored as `results.promo = -discount` and
    taken off `results.total`.
 6. **Handling fee:** if `event.epayment_handling` is set and payment type is **not** `Check`,
-   add `results.total * epayment_handling/100` as `results.handling` and to `results.total`.
+   the fee is `results.total × epayment_handling` cents, rounded to a whole cent, a half cent
+   up. It's stored as `results.handling` and added to `results.total`, which is rounded to the
+   cent too. Working in cents keeps a fee of exactly half a cent (2.5% of an odd number of
+   dollars) exact, so both engines round it the same way.
+
+**Rounding money:** to the cent, a half cent up (away from zero), going by the amount as
+written in its shortest decimal form, not the binary float under it: 2.675 rounds to 2.68. The
+server's `money_fmt` and the client's `roundMoney` both work this way; `toFixed` and
+`Math.round(x * 100) / 100` don't, and aren't used for amounts the two sides compare.
 
 `PricingResults` is an open object (`total`, named subtotals, etc.) plus `campers: [...]`,
-optional `promo` and optional `handling`. All amounts are whole-dollar by convention (switch to
-cents if sub-dollar precision is ever needed).
+optional `promo` and optional `handling`. Pricing rules work in whole dollars by convention; the
+handling fee is to the cent.
 
 > **TODO (future):** `calculatePrice` (client, `json-logic-js`) and `calculate_price` (server,
 > `json-logic-qubit`) are a dual implementation kept in lockstep by tests (DR-14). Keep
@@ -3374,6 +3390,23 @@ form so it couldn't be filled in. Nothing lifted it short of leaving the page.
 since it's the way to pay without a PayPal account, and card payers would be pushed through the
 PayPal popup. A separately hosted card-fields integration — more work, and more PCI scope to
 consider.
+
+### DR-78 — The handling fee paid online is kept; registrars can recalculate it
+
+**Decision:** When a registrant pays by PayPal or card, the server records the handling fee as a
+pricing override (DR-56) at the amount charged. Later changes to the registration — a discount,
+an adjustment, a camper added — leave the fee as it was. A registrar can recalculate it, which
+sets the override to the fee the total works out now and keeps that; or change or remove it like
+any override. Both engines round the fee in cents, a half cent up.
+**Context:** The fee is a percentage of the total, so every adjustment after payment changed it,
+which Lark found confusing (GitHub #622). Separately, the client and server rounded a half-cent
+fee in opposite directions (the server's float `round`, the browser's `toFixed`), so a PayPal
+payment of the client's amount often left a balance of ±$0.01.
+**Alternatives:** Leaving the fee to recompute, with registrars overriding it by hand — what was
+already possible, and what Lark found confusing. Charging the fee on each electronic payment
+rather than on the total — closer to what PayPal charges, and it would cover a second payment
+or switching from check (#623), but it reworks payments, balances and reports. Pricing only on
+the server (#675) would remove the second rounding, but is a larger change.
 
 ---
 

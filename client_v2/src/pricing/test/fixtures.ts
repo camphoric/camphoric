@@ -59,6 +59,23 @@ function makeConfig(epaymentHandling: number): ApiRegister {
 
 const twoCampers: RegistrationFormData = { campers: [{}, {}] };
 
+/** Just a registration fee of `fee`, with a 2.5% handling fee: for rounding the fee. */
+function makeFeeConfig(fee: number): ApiRegister {
+  const config = makeConfig(2.5);
+  return { ...config, pricing: { ...config.pricing, registration_fee: fee } };
+}
+
+/** 2.5% of an odd number of dollars is exactly half a cent, which rounds up (§9.2). */
+function halfCentFixture(fee: number, handling: number): PricingFixture {
+  return {
+    name: `handling: a half-cent fee rounds up ($${fee} at 2.5%)`,
+    config: makeFeeConfig(fee),
+    formData: { campers: [] },
+    expectedMoney: { total: fee + handling, handling },
+    expectedCampers: [],
+  };
+}
+
 /**
  * Pricing with credits, for the no-negative-totals cases (§15, DR-68):
  *   - registration component `total` is the registration fee (50) less the
@@ -216,5 +233,19 @@ export const pricingFixtures: PricingFixture[] = [
       { tuition: 200, campership: 100, total: 100 },
       { tuition: 200, campership: 100, total: 100 },
     ],
+  },
+  // Rounding the handling fee (GitHub #622). The same cases are in
+  // server/tests/test_pricing.py (TestHandlingFeeRounding); keep the two in step.
+  halfCentFixture(1, 0.03),
+  halfCentFixture(5, 0.13),
+  halfCentFixture(7, 0.18),
+  halfCentFixture(25, 0.63),
+  {
+    name: 'handling: the fee and the total are to the cent',
+    config: makeFeeConfig(102.27),
+    formData: { campers: [] },
+    // 102.27 × 2.5% = 2.55675, so 2.56.
+    expectedMoney: { total: 104.83, handling: 2.56 },
+    expectedCampers: [],
   },
 ];

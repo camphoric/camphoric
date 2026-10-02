@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 import unittest
 import math
 
@@ -628,6 +629,48 @@ class TestCalculatePrice(unittest.TestCase):
             price_components["campers"][0]["housing"],
             event.pricing["offsite"]
         )
+
+
+class TestHandlingFeeRounding(unittest.TestCase):
+    '''
+    Money rounds to the cent a half cent up, and the handling fee is rounded
+    before it's added (SPEC §9.2; GitHub #622). The fee cases are in
+    client_v2/src/pricing/test/fixtures.ts too; keep the two in step.
+    '''
+
+    def price(self, registration_fee, percent=2.5):
+        event = models.Event(
+            name='Fee Camp',
+            epayment_handling=percent,
+            pricing={'registration_fee': registration_fee},
+            registration_pricing_logic=[
+                {'var': 'total', 'exp': {'var': 'pricing.registration_fee'}},
+            ],
+            camper_pricing_logic=[],
+        )
+        registration = models.Registration(event=event, attributes={}, payment_type='PayPal')
+        return pricing.calculate_price(registration, [])
+
+    def test_a_half_cent_fee_rounds_up(self):
+        # 2.5% of an odd number of dollars is exactly half a cent.
+        for fee, handling, total in [
+            (1, 0.03, 1.03), (5, 0.13, 5.13), (7, 0.18, 7.18), (25, 0.63, 25.63),
+        ]:
+            with self.subTest(fee=fee):
+                results = self.price(fee)
+                self.assertEqual((results['handling'], results['total']), (handling, total))
+
+    def test_the_total_is_to_the_cent(self):
+        results = self.price(102.27)
+        self.assertEqual((results['handling'], results['total']), (2.56, 104.83))
+
+    def test_money_fmt_rounds_a_half_cent_up_as_written(self):
+        self.assertEqual(pricing.money_fmt(2.675), 2.68)
+        self.assertEqual(pricing.money_fmt(1.005), 1.01)
+        self.assertEqual(pricing.money_fmt(-2.675), -2.68)
+        self.assertEqual(pricing.money_fmt(Decimal('0.125')), Decimal('0.13'))
+        self.assertEqual(pricing.money_fmt(7), 7)
+        self.assertEqual(pricing.money_fmt('free'), 'free')
 
 
 class TestPromoCodePricing(unittest.TestCase):
