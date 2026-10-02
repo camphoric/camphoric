@@ -34,6 +34,26 @@ describe('TemplateHelpPanel', () => {
     expect(onInsert).toHaveBeenLastCalledWith(' | money', { snippet: undefined });
   });
 
+  it('shows Markdown examples, and inserts one', async () => {
+    const onInsert = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <TemplateHelpPanel
+        description={description}
+        context="confirmation_email"
+        onInsert={onInsert}
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Markdown' }));
+    expect(screen.getByText(/HTML tags in it are dropped/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Search help'), 'table');
+    expect(screen.queryByText('Headings')).not.toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Insert Tables' }));
+    expect(onInsert).toHaveBeenCalledWith(expect.stringMatching(/^\| Camper \| Nights \| Fee \|/));
+  });
+
   it('shows a guide topic', async () => {
     const user = userEvent.setup();
     renderWithProviders(
