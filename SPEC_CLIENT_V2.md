@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-85)
+- §15 — Decision Records (DR-1…DR-86)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -359,7 +359,11 @@ Non-CRUD admin endpoints:
     `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`) to `{ title, doc, roots, sample }`, where `roots`
     are its variables and `sample` names the kind of record a preview renders for
     (`registration` | `camper` | `invitation` | null). `types` maps a type name to
-    `{ doc, fields }`. A field (and a root or global) is `{ name, type, doc, example?,
+    `{ doc, fields, base?, builtin? }`. `builtin: true` marks a Python value type — `string`,
+    `number`, `money`, `date`, `datetime`, `dict`, `list` — whose fields are a selection of
+    that value's read-only methods; a `list<T>` has the methods of `list`. `base` names a type
+    whose methods this one also has: `dict` for every Camphoric object and event-specific
+    type (§15, DR-86). A field (and a root or global) is `{ name, type, doc, example?,
     nullable?, callable?, signature?, title?, identifier?, enum?, format? }`. `type` is
     `string`, `number`, `bool`, `money`, `date`, `datetime`, `dict`, `any`, `list<T>`, or a
     type name — including event-specific types built from the event's own forms and pricing
@@ -1602,6 +1606,13 @@ example and its result.
   type's fields (with docs and examples, including the event's own form questions and pricing),
   and the filters, tests and tags. It is the single source for the editor's autocomplete and
   hover (§9.6) and for help.
+- **Methods of values** — the values are plain Python data, so templates can call their
+  read-only methods (`registrant_email.split('@')`, `balance.is_zero()`,
+  `camper.attributes.get('nickname')`). The variable spec lists a useful selection for text,
+  numbers, money, dates, dicts and lists; Camphoric objects, form answers and pricing results
+  are dicts and have the dict methods (§15, DR-86). Written with a dot, a method comes before a
+  key of the same name: for a form question named `items`, `camper.attributes.items` is the
+  method and `camper.attributes['items']` the answer.
 - **Read-only** — templates can't change Camphoric objects (no `.update()`/`.append()` on them),
   but can build their own lists and dicts (`{% set rows = [] %}`, `namespace`, `merge`).
 - **Sandboxed, with limits** — templates run in Jinja's sandbox (no Python internals, no model
@@ -1610,7 +1621,9 @@ example and its result.
 - **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
   sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
-  such as `camper.frist_name`) renders blank and is reported as a warning. The read-only
+  such as `camper.frist_name`) renders blank and is reported as a warning, and so is printing a
+  method instead of calling it (`{{ event.start.isoformat }}`, or `camper.attributes.items` for
+  a question named `items`), with a message that says which. The read-only
   refusal's message points authors to the *Computed values* guide, so that topic keeps its
   title.
 
@@ -1619,9 +1632,12 @@ example and its result.
 and linked from the editor's help. Both offer, for one kind of template:
 
 - **Variables** — the context's variables, then every type reachable from them (nearest first),
-  each field with its type, description, example, allowed values and whether it may be empty.
-  Types link to their own entry; the event's own types (its form questions and pricing) are
-  marked as such. Generated entirely from the variable spec (§5; §15, DR-36).
+  then the Python value types those variables have (text, money, dates, `dict`, `list` …) with
+  their methods; each field with its type, description, example, allowed values and whether it
+  may be empty. Types link to their own entry (in `list<T>`, `list` and `T` each link to
+  theirs); a type with a `base` says it also has that type's methods; the event's own types
+  (its form questions and pricing) are marked as such. Generated entirely from the variable
+  spec (§5; §15, DR-36, DR-86).
 - **Filters, tests and tags** — each with its signature, description and example; Camphoric's
   own filters are listed first.
 - **Markdown** — the GitHub-flavored Markdown that emails, the confirmation page and Markdown
@@ -1634,7 +1650,8 @@ and linked from the editor's help. Both offer, for one kind of template:
 - **Search** across the variables, the filters, tests and tags, and the Markdown reference, by
   name, title, type, description or example; a type whose name matches is shown whole.
 - **Guides** — short topics: Jinja basics; loops, sorting and grouping; computed values (own
-  lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; common errors;
+  lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; common errors
+  (including the printed-method warnings above);
   moving from legacy reports (a mapping from the bundle's lookups to the linked variables);
   moving emails from Mustache (a mapping of each email's variables); and the Handlebars helpers
   (from the helpers' own help text).
@@ -1685,13 +1702,17 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   - **Jinja highlighting** — delimiters, comments, tags, filters, strings, numbers — with
     `{{ }}`, `{% %}` and `{# #}` auto-closed.
   - **Autocomplete from the variable spec** (§5) inside `{{ }}`/`{% %}`: the context's
-    variables and globals; after `.`, the fields of the expression's type — following chains
-    (`campers[0].registration.`), keys (`['key']`), loop and assignment variables
-    (`{% for %}` with `loop`, `{% set %}`, `{% with %}`, macro parameters), and list filters
-    (`| first`, `| sort`, `| selectattr`, `| map(attribute=…)`); after `|`, filters; after `is`,
-    tests; after `{%`, tag snippets. Each suggestion shows its type and its doc/example. Keys
-    that aren't identifiers are inserted as `['key']`; methods are inserted with parentheses.
-    The event's own form questions sort first.
+    variables and globals; after `.`, the fields of the expression's type, then the methods it
+    inherits from its `base` (a camper's `get`, `items` …), and for a list the methods of `list`
+    — following chains (`campers[0].registration.`), keys (`['key']`, and `.get('key')`), method
+    calls (by their result type, e.g. `name.split(' ')` → `list<string>`), loop and assignment
+    variables (`{% for %}` with `loop`, `{% set %}`, `{% with %}`, macro parameters), and list
+    filters (`| first`, `| sort`, `| selectattr`, `| map(attribute=…)`); after `|`, filters;
+    after `is`, tests; after `{%`, tag snippets. A `.name` resolves to the base type's method
+    before a key of the same name, as Jinja does; `['name']` to the key. Each suggestion shows
+    its type and its doc/example. Keys that aren't identifiers are inserted as `['key']`;
+    methods are inserted with parentheses. The event's own form questions sort first, inherited
+    methods last.
   - **Hover docs** — the type, doc and example of the variable, field, filter, test or tag
     under the pointer.
   - **Live preview** — the unsaved text is rendered by the preview endpoint (§5), debounced,
@@ -3572,6 +3593,30 @@ change is as easy as losing a template edit.
 **Alternatives:** Keeping the guard to templates (DR-79) — what let other edits be lost silently.
 Saving Home's fields as they change — no draft to lose, but a half-typed date or price would
 take effect at once.
+
+### DR-86 — The variable spec documents the methods of Python values
+
+**Decision:** The variable spec (DR-36) describes the Python value types templates see —
+`string`, `number`, `money`, `date`, `datetime`, `dict` and `list` — as `builtin` types whose
+fields are a curated selection of their read-only methods, each with its signature and result
+type. A type may name a `base` whose methods it also has: every Camphoric object and
+event-specific type has `base: dict`, and a `list<T>` has the methods of `list`. The editor
+offers inherited methods after a type's own fields and resolves `.name` to a method before a
+key, as Jinja does. A rendered method — what a forgotten `()` or a key named like a dict method
+(`camper.attributes.items`) prints — is reported as a warning. Server tests check every listed
+method exists, is callable or not as described, and passes the sandbox on sample values, and
+that no Camphoric object field shares a name with a dict method.
+**Context:** Templates could call many methods (`.split()`, `.get()`, `.items()`,
+`.is_zero()`) that autocomplete, hover and Template Help never mentioned; typing `.` after text
+or a list suggested nothing, and type inference stopped at any method call. A form question
+named `items` silently printed `<built-in method items …>`.
+**Alternatives:** Listing every method Python offers — long, and most (`quantize`,
+`expandtabs`, `fromkeys`) are useless or confusing in a template. Copying the dict methods into
+each object type's fields — repeated in every type and the payload, and it breaks the drift
+test that each object's fields equal its graph keys. A separate `methods` list per type — still
+repeated for every object type, where one `base` says it once. Warning on any use of a dict
+method name as a key — the method is sometimes what's meant; printing it never is. Flagging
+calls to methods the spec doesn't list — they work, so a warning would be noise.
 
 ---
 

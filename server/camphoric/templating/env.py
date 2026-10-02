@@ -39,17 +39,17 @@ class CamphoricSandbox(SandboxedEnvironment):
         return super().unsafe_undefined(obj, attribute)
 
 
-def _finalize(value):
+def blank_none(value):
     return '' if value is None else value
 
 
-def make_env(*, autoescape, undefined=None):
+def make_env(*, autoescape, undefined=None, finalize=blank_none):
     options = {'undefined': undefined} if undefined is not None else {}
     env = CamphoricSandbox(
         extensions=EXTENSIONS,
         loader=BaseLoader(),
         autoescape=autoescape,
-        finalize=_finalize,
+        finalize=finalize,
         **options,
     )
     env.filters.update(FILTERS)

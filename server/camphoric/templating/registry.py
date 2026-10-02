@@ -13,6 +13,12 @@ Type strings: `string`, `number`, `bool`, `money` (a two-place Decimal),
 `date`, `datetime`, `dict`, `list<T>`, a type name (`camper`), or an
 event-specific type (`attributes:camper`, `pricing:registration`, …) that
 `describe.py` fills in from the event's own forms and pricing.
+
+The Python values templates see have methods of their own (`str.split`,
+`dict.get` …). The *builtin* types (`string`, `number`, `money`, `date`,
+`datetime`, `dict`, `list`) list a useful, read-only selection of them;
+Camphoric's objects are dicts, so their `base` is `dict` and they have its
+methods too. A `list<T>` has the methods of `list`.
 '''
 
 from dataclasses import asdict, dataclass
@@ -41,9 +47,18 @@ class TypeSpec:
     doc: str
     fields: tuple
     var_class: type | None = None  # the graph class, for the drift test
+    # The type whose methods this one also has: `dict` for Camphoric objects.
+    base: str | None = None
+    # A Python value type (text, money, dates …) rather than a Camphoric object.
+    builtin: bool = False
 
     def as_dict(self):
-        return {'doc': self.doc, 'fields': [f.as_dict() for f in self.fields]}
+        described = {'doc': self.doc, 'fields': [f.as_dict() for f in self.fields]}
+        if self.base:
+            described['base'] = self.base
+        if self.builtin:
+            described['builtin'] = True
+        return described
 
 
 @dataclass(frozen=True)
@@ -97,7 +112,19 @@ class TagSpec:
 
 F = FieldSpec
 
+
+def M(signature, type, doc, example=None):
+    '''A method, named by its signature: `M('split(sep=None)', …)`.'''
+    return F(signature.split('(')[0], type, doc, example, callable=True, signature=signature)
+
+
 ID = F('id', 'number', 'Database id.')
+
+DICT_DOC = (
+    "Keys and their values. Camphoric's objects, form answers and pricing results are dicts, so "
+    'they have these methods too. A method hides a key with the same name: for a question named '
+    "`items`, write `camper.attributes['items']`."
+)
 
 TYPES = (
     TypeSpec('event', 'The event (camp) the template belongs to.', (
@@ -125,7 +152,7 @@ TYPES = (
         F('custom_charge_types', 'list<custom_charge_type>', 'Kinds of custom charge.'),
         F('lodging', 'lodging', 'The root of the lodging tree (the camp itself).', nullable=True),
         F('lodgings', 'list<lodging>', 'Every lodging node, parents before children.'),
-    ), values.EventVar),
+    ), values.EventVar, base='dict'),
 
     TypeSpec('registration', 'One registration: the registrant and their campers.', (
         ID,
@@ -157,7 +184,7 @@ TYPES = (
           "{% if registration.balance > 0 %}Owes {{ registration.balance | money }}{% endif %}"),
         F('initial_payment', 'dict', 'The payment choice made when registering.', nullable=True),
         F('camper_count', 'number', 'Number of campers.'),
-    ), values.RegistrationVar),
+    ), values.RegistrationVar, base='dict'),
 
     TypeSpec('camper', 'One camper.', (
         ID,
@@ -182,7 +209,7 @@ TYPES = (
           '{{ camper.pricing.tuition | money }}'),
         F('custom_charges', 'list<custom_charge>', 'Custom charges added by admins.'),
         F('created_at', 'datetime', 'When the camper was added.'),
-    ), values.CamperVar),
+    ), values.CamperVar, base='dict'),
 
     TypeSpec('lodging', 'A node in the lodging tree (the camp, an area, a cabin …).', (
         ID,
@@ -208,7 +235,7 @@ TYPES = (
         F('campers', 'list<camper>', 'Campers assigned directly to this node.'),
         F('all_campers', 'list<camper>', 'Campers assigned here or anywhere below.'),
         F('camper_count', 'number', 'Number of campers here or below.'),
-    ), values.LodgingVar),
+    ), values.LodgingVar, base='dict'),
 
     TypeSpec('payment', 'A payment received for a registration.', (
         ID,
@@ -219,13 +246,13 @@ TYPES = (
         F('attributes', 'attributes:payment', 'Extra payment details.'),
         F('registration', 'registration', 'The registration it pays for.'),
         F('created_at', 'datetime', 'When it was recorded.'),
-    ), values.PaymentVar),
+    ), values.PaymentVar, base='dict'),
 
     TypeSpec('registration_type', 'A kind of invitation-based registration (e.g. Staff).', (
         ID,
         F('name', 'string', 'Machine name, as used in pricing logic.'),
         F('label', 'string', 'Human-readable name.'),
-    ), values.RegistrationTypeVar),
+    ), values.RegistrationTypeVar, base='dict'),
 
     TypeSpec('custom_charge', 'A charge (or credit) an admin added to a camper.', (
         ID,
@@ -235,13 +262,13 @@ TYPES = (
         F('amount', 'money', 'Amount.'),
         F('notes', 'string', 'Admin notes.'),
         F('camper', 'camper', 'The camper charged.'),
-    ), values.CustomChargeVar),
+    ), values.CustomChargeVar, base='dict'),
 
     TypeSpec('custom_charge_type', 'A kind of custom charge.', (
         ID,
         F('name', 'string', 'Machine name.'),
         F('label', 'string', 'Label.'),
-    ), values.CustomChargeTypeVar),
+    ), values.CustomChargeTypeVar, base='dict'),
 
     TypeSpec('invitation', 'An invitation to register with a registration type.', (
         ID,
@@ -257,13 +284,13 @@ TYPES = (
         F('register_url', 'string', 'Link to register with this invitation.',
           '[Register]({{ invitation.register_url }})'),
         F('redeemed', 'bool', 'Whether it has been used to register.'),
-    ), values.InvitationVar),
+    ), values.InvitationVar, base='dict'),
 
     TypeSpec('recipient', 'Who a bulk email is going to.', (
         F('id', 'string', 'Same as the email address.'),
         F('email', 'string', 'Email address.'),
         F('name', 'string', 'Name, when known.'),
-    ), values.RecipientVar),
+    ), values.RecipientVar, base='dict'),
 
     TypeSpec('loop', 'The current loop, available inside `{% for %}`.', (
         F('index', 'number', 'Iteration, counting from 1.'),
@@ -278,16 +305,64 @@ TYPES = (
           callable=True, signature="cycle(*values)"),
     )),
 
+    # Python value types, with a read-only selection of their methods.
+
+    TypeSpec('string', 'Text. Filters such as `upper`, `trim` and `replace` do similar jobs.', (
+        M('upper()', 'string', 'In upper case.'),
+        M('lower()', 'string', 'In lower case.'),
+        M('title()', 'string', 'In Title Case.'),
+        M('capitalize()', 'string', 'With only the first letter capitalized.'),
+        M('strip(chars=None)', 'string', 'Without whitespace (or the given characters) at '
+          'either end.', '{{ camper.attributes.first_name.strip() }}'),
+        M('lstrip(chars=None)', 'string', 'Without whitespace (or the given characters) at the '
+          'start.'),
+        M('rstrip(chars=None)', 'string', 'Without whitespace (or the given characters) at the '
+          'end.'),
+        M('split(sep=None, maxsplit=-1)', 'list<string>', 'The pieces between each `sep` (or '
+          'between runs of whitespace).', "{{ registration.registrant_email.split('@') | last }}"),
+        M('splitlines()', 'list<string>', 'The lines.'),
+        M('startswith(prefix)', 'bool', 'Whether it starts with `prefix` (or any of a list of '
+          'them).'),
+        M('endswith(suffix)', 'bool', 'Whether it ends with `suffix` (or any of a list of them).',
+          "{% if registration.registrant_email.endswith('.edu') %}"),
+        M('replace(old, new, count=-1)', 'string', 'With each `old` replaced by `new`.'),
+        M('find(sub)', 'number', 'Where `sub` first appears, counting from 0; -1 when it '
+          "doesn't."),
+        M('count(sub)', 'number', 'How many times `sub` appears.'),
+        M('zfill(width)', 'string', 'Padded with zeros on the left to `width` characters.',
+          '{{ (camper.id | string).zfill(5) }}'),
+        M("ljust(width, fillchar=' ')", 'string', 'Padded on the right to `width` characters — '
+          'for lining up plain text columns.'),
+        M("rjust(width, fillchar=' ')", 'string', 'Padded on the left to `width` characters.'),
+        M('isdigit()', 'bool', 'Whether it is all digits (and not empty).'),
+    ), builtin=True),
+
+    TypeSpec('number', 'A whole or decimal number; format it with `round`, `int` or `money`.', (
+        M('is_integer()', 'bool', 'Whether it has no fractional part.'),
+    ), builtin=True),
+
+    TypeSpec('money', 'Money: a two-place decimal. Show it with `money`; compare it as a number.', (
+        M('is_zero()', 'bool', 'Whether it is zero.',
+          '{% if registration.balance.is_zero() %}Paid in full{% endif %}'),
+        M('is_signed()', 'bool', 'Whether it is negative (a credit).'),
+        M('copy_abs()', 'money', 'Without its sign.',
+          '{{ registration.balance.copy_abs() | money }}'),
+        M('to_integral_value()', 'money', 'Rounded to a whole amount (halves go to the even '
+          'neighbor).'),
+    ), builtin=True),
+
     TypeSpec('date', 'A calendar date.', (
         F('year', 'number', 'Year.'),
         F('month', 'number', 'Month, 1–12.'),
         F('day', 'number', 'Day of the month.'),
-        F('strftime', 'string', 'Format with strftime codes.', "{{ day.strftime('%a %b %-d') }}",
-          callable=True, signature='strftime(format)'),
-        F('isoformat', 'string', 'YYYY-MM-DD.', callable=True, signature='isoformat()'),
-        F('weekday', 'number', 'Day of the week, Monday = 0.', callable=True,
-          signature='weekday()'),
-    )),
+        M('strftime(format)', 'string', 'Format with strftime codes.',
+          "{{ day.strftime('%a %b %-d') }}"),
+        M('isoformat()', 'string', 'YYYY-MM-DD.'),
+        M('weekday()', 'number', 'Day of the week, Monday = 0.'),
+        M('isoweekday()', 'number', 'Day of the week, Monday = 1 … Sunday = 7.'),
+        M('replace(year=…, month=…, day=…)', 'date', 'The same date with some parts changed.',
+          "{{ event.start.replace(day=1) | date('%B %Y') }}"),
+    ), builtin=True),
 
     TypeSpec('datetime', 'A date and time, in the event time zone.', (
         F('year', 'number', 'Year.'),
@@ -295,12 +370,39 @@ TYPES = (
         F('day', 'number', 'Day of the month.'),
         F('hour', 'number', 'Hour, 0–23.'),
         F('minute', 'number', 'Minute.'),
-        F('strftime', 'string', 'Format with strftime codes.',
-          "{{ registration.created_at.strftime('%b %-d %H:%M') }}",
-          callable=True, signature='strftime(format)'),
-        F('date', 'date', 'Just the date.', callable=True, signature='date()'),
-        F('isoformat', 'string', 'ISO 8601 text.', callable=True, signature='isoformat()'),
-    )),
+        F('second', 'number', 'Second.'),
+        M('strftime(format)', 'string', 'Format with strftime codes.',
+          "{{ registration.created_at.strftime('%b %-d %H:%M') }}"),
+        M('date()', 'date', 'Just the date.'),
+        M('isoformat()', 'string', 'ISO 8601 text.'),
+        M('weekday()', 'number', 'Day of the week, Monday = 0.'),
+        M('isoweekday()', 'number', 'Day of the week, Monday = 1 … Sunday = 7.'),
+        M('replace(year=…, month=…, day=…, hour=…, minute=…)', 'datetime',
+          'The same moment with some parts changed.'),
+    ), builtin=True),
+
+    TypeSpec('dict', DICT_DOC, (
+        M('get(key, default=None)', 'any', "The value for `key`, or `default` when there isn't "
+          'one.', "{{ camper.attributes.get('nickname', camper.attributes.first_name) }}"),
+        M('keys()', 'list<string>', 'The keys.'),
+        M('values()', 'list<any>', 'The values.'),
+        M('items()', 'list<any>', '(key, value) pairs.',
+          '{% for key, value in camper.attributes.items() %}'),
+        M('copy()', 'dict', 'A copy you can change — for building your own rows.',
+          "{% set row = camper.attributes.copy() %}"
+          "{% do row.update(nights=camper.stay | length) %}"),
+    ), builtin=True),
+
+    TypeSpec('list', "Items in order. Camphoric's are read-only; `copy()` gives one to change.", (
+        M('count(value)', 'number', 'How many items equal `value`.',
+          "{{ ['a', 'b', 'a'].count('a') }} → 2"),
+        M('index(value)', 'number', 'Where the first item equal to `value` is, counting from 0 '
+          "(an error when there isn't one).",
+          '{% if camper.first_day %}Night {{ event.nights.index(camper.first_day) + 1 }}'
+          '{% endif %}'),
+        M('copy()', 'list<any>', 'A copy you can change.',
+          '{% set rows = registrations.copy() %}'),
+    ), builtin=True),
 )
 
 TYPES_BY_NAME = {t.name: t for t in TYPES}

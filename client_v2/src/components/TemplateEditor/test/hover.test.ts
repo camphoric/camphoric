@@ -18,6 +18,13 @@ describe('hoverMarkdown', () => {
     );
   });
 
+  it('describes methods, including those a type inherits', () => {
+    expect(hover('{{ event.name.split')).toContain('`string.split(sep=None, maxsplit=-1)`');
+    expect(hover('{{ campers[0].attributes.get')).toContain(
+      '`attributes:camper.get(key, default=None)` → `any`',
+    );
+  });
+
   it('describes roots, filters and tests', () => {
     expect(hover('{{ campers')).toContain('`campers`: `list<camper>`');
     expect(hover('{{ x | money')).toContain('**filter**');

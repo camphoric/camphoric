@@ -6,9 +6,11 @@
  * cursor, these pure functions work out what's being typed — a variable, a
  * field after `.`, a filter after `|`, a test after `is`, a tag after `{%` —
  * resolve the type of the expression to its left (following `.field`,
- * `[0]`/`['key']`, list filters, and names from `{% for %}` / `{% set %}` /
- * `{% with %}`), and list what fits. They know nothing about Monaco;
- * `languageServices.ts` adapts them.
+ * `[0]`/`['key']`, `.get('key')`, list filters, methods, and names from
+ * `{% for %}` / `{% set %}` / `{% with %}`), and list what fits. Values have
+ * their type's methods too: a `list<T>` those of `list`, and a type with a
+ * `base` (Camphoric objects, form answers: `dict`) its base's. They know
+ * nothing about Monaco; `languageServices.ts` adapts them.
  */
 
 import type { TemplateContextName, TemplateDescription, TemplateFieldDescription } from 'api-types';
@@ -86,24 +88,50 @@ export function elementType(type: string | undefined): string | undefined {
   return match ? match[1] : undefined;
 }
 
+/** The description of a value's type: a `list<T>` is described by `list`. */
+function describedType(description: TemplateDescription, type: string | undefined) {
+  if (!type) return undefined;
+  return description.types[elementType(type) === undefined ? type : 'list'];
+}
+
+/**
+ * What `name` is on a value of `type`. Written `.name`, Jinja looks for a
+ * method before a key, so a key named like a method of the base type
+ * (`items`, `get`) gives the method; written `['name']` (`'key'`), it's the key.
+ */
 export function fieldOf(
   description: TemplateDescription,
   type: string | undefined,
   name: string,
+  access: 'attribute' | 'key' = 'attribute',
 ): TemplateFieldDescription | undefined {
-  if (!type) return undefined;
-  return description.types[type]?.fields.find((field) => field.name === name);
+  const described = describedType(description, type);
+  if (!described) return undefined;
+  const inherited =
+    access === 'attribute' && described.base
+      ? fieldOf(description, described.base, name)
+      : undefined;
+  return inherited ?? described.fields.find((field) => field.name === name);
 }
 
-function fieldType(description: TemplateDescription, type: string | undefined, name: string) {
-  return fieldOf(description, type, name)?.type;
+function fieldType(
+  description: TemplateDescription,
+  type: string | undefined,
+  name: string,
+  access: 'attribute' | 'key' = 'attribute',
+) {
+  return fieldOf(description, type, name, access)?.type;
 }
 
-/** The type after a dotted path like `registration.campers`. */
+/** The type after an attribute path like `registration.campers` (as in `map`). */
 function pathType(description: TemplateDescription, type: string | undefined, path: string) {
+  // Filters look each part up as a key first.
   return path
     .split('.')
-    .reduce<string | undefined>((current, part) => fieldType(description, current, part), type);
+    .reduce<string | undefined>(
+      (current, part) => fieldType(description, current, part, 'key'),
+      type,
+    );
 }
 
 const SAME_TYPE_FILTERS = new Set([
@@ -204,13 +232,17 @@ export function resolveType(
     if (ch === '.') {
       const name = /^\.\s*([A-Za-z_]\w*)/.exec(text.slice(i));
       if (!name) return type;
-      type = fieldType(description, type, name[1]);
       i += name[0].length;
+      // `.get('key')` gives the key's value, as `['key']` does.
+      const key = name[1] === 'get' ? /^\s*\(\s*['"]([^'"]+)['"]/.exec(text.slice(i)) : null;
+      type =
+        (key && fieldType(description, type, key[1], 'key')) ??
+        fieldType(description, type, name[1]);
     } else if (ch === '[') {
       const end = skipBalanced(text, i);
       const inside = text.slice(i + 1, end - 1).trim();
       const key = /^['"](.+)['"]$/.exec(inside);
-      type = key ? fieldType(description, type, key[1]) : elementType(type);
+      type = key ? fieldType(description, type, key[1], 'key') : elementType(type);
       i = end;
     } else if (ch === '(') {
       i = skipBalanced(text, i); // a method call: its field type already applies
@@ -379,9 +411,13 @@ export function completionEntries(
 ): CompletionEntry[] {
   switch (cursor.kind) {
     case 'member': {
-      const type = resolveType(cursor.base, scope, description);
-      const fields = type ? (description.types[type]?.fields ?? []) : [];
-      return fields.map((field) => fieldEntry(field, 'field'));
+      const described = describedType(description, resolveType(cursor.base, scope, description));
+      // The base type's methods (a dict's `get`, `items` …) after the type's own fields.
+      const inherited = describedType(description, described?.base)?.fields ?? [];
+      return [
+        ...(described?.fields ?? []).map((field) => fieldEntry(field, 'field')),
+        ...inherited.map((field) => ({ ...fieldEntry(field, 'field'), sortPrefix: '2' })),
+      ];
     }
     case 'root': {
       const known = new Map(
