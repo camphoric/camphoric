@@ -989,8 +989,11 @@ balance, payment status) and works with it. For the selected registration they c
   rest. A long JSON value (an event's pricing logic or schema) or long multi-line text (an email
   template) is shown as a diff instead: both sides pretty-printed and compared line by line,
   with removed lines red (−), added lines green (+), two unchanged lines of context around each
-  change and the other unchanged runs counted rather than shown; a long diff shows its first 12
-  lines, with a way to see it all (§15, DR-81).
+  change and the other unchanged runs counted rather than shown. In JSON, each section is headed
+  with where in the value its first change is — keys and list items by name, an item named by
+  its `var`, `name`, `label`, `title`, `key` or `id` where it has one besides other fields, else
+  by position ("in tuition › exp › if › item 2"). A long diff shows its first 12 lines, with a
+  way to see it all (§15, DR-81).
 - **See and reorder its campers** — listed by `sequence`, each linking to the camper function,
   with the ability to change their order (PATCH `sequence`).
 - **Add a camper** (Registrars and Admins) — e.g. after registration has closed. The event's

@@ -139,7 +139,10 @@ function ShowAll({
 const DIFF_MARK = { same: ' ', removed: '−', added: '+' };
 const DIFF_TONE: Record<string, string | undefined> = { removed: 'red', added: 'green' };
 
-/** Changed lines red (−) and green (+), with a little unchanged context. */
+/**
+ * Changed lines red (−) and green (+), with a little unchanged context; in
+ * JSON, each section headed with where it is ("in tuition › exp").
+ */
 function Diff({ lines }: { lines: DiffLine[] }) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? lines : lines.slice(0, DIFF_LIMIT);
@@ -156,6 +159,13 @@ function Diff({ lines }: { lines: DiffLine[] }) {
             return (
               <Text key={index} c="dimmed" fz="xs" ff="monospace">
                 ⋯ {line.count} unchanged {line.count === 1 ? 'line' : 'lines'}
+              </Text>
+            );
+          }
+          if (line.kind === 'where') {
+            return (
+              <Text key={index} c="dimmed" fz="xs" fs="italic" mt={4} data-diff="where">
+                in {line.path}
               </Text>
             );
           }
