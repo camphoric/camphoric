@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-94)
+- §15 — Decision Records (DR-1…DR-96)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -199,6 +199,8 @@ ending in `/` to the non-slash form.
 - `/events/:eventId/register/registration` — Step 1, the registration form.
 - `/events/:eventId/register/payment` — Step 2, payment.
 - `/events/:eventId/register/finished` — Step 3, confirmation.
+- `/invoices/:token` — an invoice's public pay page, reached by its unguessable link (§9.7;
+  §15, DR-95). No sign-in.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
   (§6; §15, DR-52). Reached before signing in, so it isn't behind the admin guard.
 
@@ -238,8 +240,8 @@ queries derive it from `window.location` rather than props, through the routing 
   search text, page, and the group email send whose copies it shows.
 - `/admin/organization/:organizationId/event/:eventId/template-help` — Template Help (§9.3).
   Search params: `?context` — the kind of template (`report`, `confirmation_email`,
-  `confirmation_page`, `invitation_email`, `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`;
-  default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags),
+  `confirmation_page`, `invitation_email`, `invoice_email`, `bulk_email_registration`,
+  `bulk_email_camper`, `bulk_email_manual`; default `report`); `?helpTab` — `variables` (default), `syntax` (filters, tests and tags),
   `markdown` or `guide`; `?topic` — the guide topic id; `?q` — the search text. Defaults are left out of the
   URL.
 
@@ -359,10 +361,10 @@ Non-CRUD admin endpoints:
 - **Server-rendered templates** (§9.3, §9.6; all admin-only):
   - `GET /api/events/{id}/templates/describe` → the **variable spec** (§15, DR-36):
     `{ contexts, types, filters, tests, tags, globals }`. `contexts` maps each kind of template
-    (`report`, `confirmation_email`, `confirmation_page`, `invitation_email`,
+    (`report`, `confirmation_email`, `confirmation_page`, `invitation_email`, `invoice_email`,
     `bulk_email_registration`, `bulk_email_camper`, `bulk_email_manual`) to `{ title, doc, roots, sample }`, where `roots`
     are its variables and `sample` names the kind of record a preview renders for
-    (`registration` | `camper` | `invitation` | null). `types` maps a type name to
+    (`registration` | `camper` | `invitation` | `invoice` | null). `types` maps a type name to
     `{ doc, fields, base?, builtin? }`. `builtin: true` marks a Python value type — `string`,
     `number`, `money`, `date`, `datetime`, `dict`, `list` — whose fields are a selection of
     that value's read-only methods; a `list<T>` has the methods of `list`. `base` names a type
@@ -378,10 +380,10 @@ Non-CRUD admin endpoints:
     `{ name, doc, example }`, tags `{ name, doc, snippet }` (Monaco snippet syntax).
   - `POST /api/events/{id}/templates/preview` — renders **unsaved** text. Request:
     `{ context, template, output: 'csv' | 'md' | 'txt' | 'html' | 'email', subject?,
-    registration_id?, camper_id?, invitation_id?, registration_type_id? }`. Response:
+    registration_id?, camper_id?, invitation_id?, invoice_id?, registration_type_id? }`. Response:
     `{ output, subject?, html?, diagnostics, truncated, duration_ms, sample: { kind, id, label }
     | null }` (`html` is the `email` body rendered from markdown). Without a sample id, the first
-    completed registration/camper/invitation is used. An unknown context or output, or a sample
+    completed registration/camper/invitation/invoice is used. An unknown context or output, or a sample
     from another event, is a 400.
   - `GET /api/events/{id}/templates/check` → `{ ok, results: [{ kind, id, label, mode:
     'rendered' | 'parsed' | 'skipped', diagnostics }] }` — every saved template of the event,
@@ -580,6 +582,33 @@ Non-CRUD admin endpoints:
 > amount on the payment step — each option's amount and handling fee, and what PayPal is asked
 > to capture — comes from the server; the client never computes one (§15, DR-89, DR-90).
 
+### Invoice pay API (public)
+
+An invoice's pay page (§9.7; §15, DR-95) works from its link code (`token`), with no sign-in.
+Anyone may call these; they're throttled per client (scope `invoice_pay`), and a code that isn't
+an invoice of a completed registration is a 404.
+
+- `GET /api/invoices/pay/{token}` → `ApiInvoicePay`: `{ event: { id, name }, invoice: { id,
+  description, memo, due_on, amount, handling, total, amount_paid, amount_due, status, pending },
+  campers, online }`. Money fields of `invoice` are decimal strings; `pending` says a PayPal order
+  on it hasn't been confirmed. `campers` are the registration's campers as first name and last
+  initial ("Pat A."). It never carries the invoice's `notes`, the registrant's email or other
+  registration details. `online` is `{ clientId, handling, total, handlingPercent }` — the
+  PayPal client id, the handling fee paying online adds (0 when the invoice already carries one),
+  the total PayPal would be asked for, and the event's percent — or `null` when it can't be paid
+  online: nothing is due, it's cancelled, or the event doesn't take payments online.
+- `POST /api/invoices/pay/{token}/order` with `{ paymentType }` (`PayPal` | `Card`) →
+  `{ orderID, …ApiInvoicePay }`: the server creates the PayPal order for the amount due plus the
+  fee, as on the registration's payment step (§15, DR-90). 409 `{ detail, code: 'not_payable',
+  …ApiInvoicePay }` when nothing is due or it's cancelled; 400 on `paymentType` for any other
+  type.
+- `POST /api/invoices/pay/{token}/capture` with `{ orderID, paymentType }` → `ApiInvoicePay`
+  after the server has checked and captured the order (the payment's notes say "Paid online").
+  When it doesn't go through, the response is `{ detail, code, …ApiInvoicePay }` with the
+  registration payment step's codes and statuses — `amount_changed` (409), `declined` (402),
+  `unknown` (502; the order stays pending and the event is emailed), and `mismatch` (400: the
+  order isn't this invoice's).
+
 ### Data model (entity shapes the client relies on)
 
 These are the fields the client reads/writes. They must stay in sync with the backend
@@ -620,7 +649,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `confirmation_page_template` (a Jinja markdown template, §7.3; saving one that doesn't parse
   is refused with a 400 `{ confirmation_page_template: ['Line N: message'] }`);
   `confirmation_template` (read-only: the id of the confirmation email's `EmailTemplate`, created
-  with the event, §8.3) and `confirmation_email_from` (the event's sending address);
+  with the event, §8.3), `invoice_template` (read-only: the id of the invoice email's
+  `EmailTemplate`, likewise; §8.3, §15, DR-96) and `confirmation_email_from` (the event's
+  sending address);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
@@ -646,12 +677,13 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_template`
   (read-only: the id of its invitation email's `EmailTemplate`, created with the type, §8.4).
 - **EmailTemplate** (`/api/emailtemplates/`, filter `event`, `purpose`; §15, DR-45): `id`,
-  `event`, `purpose` (`confirmation` | `invitation` | `group`), `name`, `subject` and `body`
+  `event`, `purpose` (`confirmation` | `invoice` | `invitation` | `group`), `name`, `subject` and `body`
   (Jinja; the body is markdown), `from_email` (blank: the event's `confirmation_email_from`),
   `reply_to` (blank: the sending account's default), `account` (null: the event's account),
   timestamps. Saving one whose subject or body doesn't parse is refused with a 400
   `{ subject | body: ['Line N: message'] }`. Only `group` templates can be created or deleted
-  (the confirmation and invitations come with their event and types; deleting one is a 409), and a
+  (the confirmation, the invoice email and invitations come with their event and types; deleting
+  one is a 409), and a
   template's `purpose` and `event` can't change. A `group` template also has its default
   audience: `recipient_source` (`registrations` | `campers` | `manual`), `filter` (rules,
   `{ combinator: 'and' | 'or', rules: [{ field, op, value }] }` with `field` a recipient-fields
@@ -688,7 +720,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
   changed, so it must be entered again).
 - **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
-  `page_report` | `payment_report` | `invitation` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
+  `page_report` | `payment_report` | `invitation` | `invoice` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
   `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
   (`queued` | `sending` | `sent` | `failed` | `cancelled`), `attempts`, `next_attempt_at`,
   `last_error`, `sent_at?`, `smtp_message_id`, `created_by?`, `created_by_name?`, timestamps.
@@ -704,10 +736,24 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `pending_paypal_order_id`, `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`,
   timestamps; and, worked out from its live payments, read-only `total` (`amount + handling`),
   `amount_paid` (net of refunds), `amount_due`, `overpaid`, `status` (`open` |
-  `partially_paid` | `paid` | `overpaid` | `cancelled`) and `payments` (ids). Money fields are
-  decimal strings. Any role reads, notes included; Registrars and Admins edit `description`,
-  `amount`, `handling`, `memo`, `notes` and `due_on` (neither amount may be negative). Invoices
-  are made by the payment step and by recording payments; a `POST` here is a 405.
+  `partially_paid` | `paid` | `overpaid` | `cancelled`) and `payments` (ids); and read-only
+  `pay_url`, the invoice's public pay page (§9.7; §15, DR-95) — from `CAMPHORIC_PUBLIC_URL`, else
+  the request. Its link code itself isn't a field. Money fields are decimal strings. Any role
+  reads, notes included; Registrars and Admins edit `description`, `amount`, `handling`, `memo`,
+  `notes` and `due_on` (neither amount may be negative). An invoice stays on its registration
+  (400 on `registration` for a change).
+  - `POST /api/invoices/` (Registrars and Admins; §15, DR-96) `{ registration, description,
+    amount, handling?, memo?, notes?, due_on? }` → 201 with the invoice, origin `admin` and
+    `created_by` the user. (The payment step and recording payments make the others.)
+  - `POST /api/registrations/{id}/invoice-balance/` (Registrars and Admins) `{ description?,
+    memo?, notes?, due_on? }` → 201 with an `admin` invoice for the registration's
+    `uninvoiced_balance` (description "Registration balance" unless given); 409 `{ detail }` when
+    no balance is left to invoice.
+  - `POST /api/invoices/{id}/send/` (Registrars and Admins) → `{ messageId, status, to }`: queues
+    the event's invoice email (§8.3) for this invoice to the registrant's email (kind `invoice`).
+    A cancelled invoice is a 409 `{ detail }`; when the email can't be rendered, nothing is
+    queued and it's a 400 `{ detail, diagnostics }`; an address that can't be emailed is a 400
+    `{ detail }`.
   - `POST /api/invoices/{id}/cancel/` `{ reason }` and `/reopen/` (Registrars and Admins) → the
     invoice. Cancelling one that still holds money (its payments don't net to 0) is a 409
     `{ detail }`; a cancelled invoice charges no handling.
@@ -1025,6 +1071,9 @@ the event:
   (§7.3).
 - **Confirmation email** — `from` (the event's sending address), and the email's subject and body
   (its email template, edited as described below and saved with the rest).
+- **Invoice email** — the subject and body of the email an invoice is sent with (§8.4; §15,
+  DR-96), edited the same way and saved with the rest. It comes with the event, written to show
+  the invoice's memo, description, amount due and due date, and a link to its pay page.
 - PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling` (the percent added to each
   payment made online, on the amount paid; §9.7).
 - `pricing` (a freely editable set of named integer values) and `registration_template_vars`
@@ -1033,15 +1082,16 @@ the event:
 Datetime fields use explicit timezone handling. (Exposing the underlying JSON is a useful
 debugging aid.)
 
-**Email templates** (the confirmation email here, and invitation emails, §8.4) are the event's
+**Email templates** (the confirmation and invoice emails here, and invitation emails, §8.4) are the event's
 email templates (§5; §15, DR-45), written in Jinja: the subject and the markdown body render on the
 server against the event's variables (§9.3). The body is edited in the template editor (§9.6) with
 the email's context (`confirmation_email`: `event`, `registration`, `campers`, `pricing`,
-`invoice`, and `initial_payment` for older templates; `invitation_email`: `event`, `invitation`,
+`invoice`, and `initial_payment` for older templates; `invoice_email`: `event`, `invoice` (with
+its `pay_url`), `registration`, `campers`; `invitation_email`: `event`, `invitation`,
 `registration_type`), and the
 preview renders subject and body exactly as they'd be sent, for a sample the admin can choose (any
-completed registration; any of the type's invitations, or an example invitation when there are
-none). Subject problems are listed with the body's; a template that doesn't parse can't be saved
+completed registration; any invoice of a completed registration; any of the type's invitations, or
+an example invitation when there are none). Subject problems are listed with the body's; a template that doesn't parse can't be saved
 (§5). Emails once written in Mustache were converted to Jinja when the templates were introduced;
 Help's *From Mustache emails* guide still maps the old variables.
 
@@ -1090,6 +1140,14 @@ they can:
   money due to start with (filling in what's due on it), any other open one, or "on its own" (a
   new "Payment received" invoice). An invoice can take more than one payment — a second check
   for the rest, say.
+- **Make an invoice** (Registrars and Admins; §15, DR-96) — for more the registration owes (a
+  meal plan added later) or the rest of the balance: a description, amount, due date, memo and
+  notes. It starts as "Registration balance" for the balance no invoice asks for yet, and **Use
+  the balance** fills that amount again. Paying it online adds the handling fee then.
+- **Share an invoice's pay link** — every role can copy the pay link of an invoice with money
+  due (§9.7; §15, DR-95), to send another way; Registrars and Admins can **send the invoice**
+  (after confirming), emailing the registrant the event's invoice email (§8.3) for it. The email
+  shows in the registration's email history.
 - **Edit an invoice** (Registrars and Admins) — its description, amount, handling fee, due date,
   memo and notes. **Use the balance** fills the amount with what it asks plus the balance no
   invoice asks for yet; **Calculate** fills the handling fee the way the server charges it when
@@ -1391,8 +1449,9 @@ hold email back, and each is explained when it happens:
   which limit (e.g. 500 in 24 hours) and when sending resumes. The short waits of a normal send
   kept to a per-minute limit aren't called out.
 
-**History** — every email the event has queued, newest first: confirmations, invitations, group
-email, the problem reports sent to the organizer, and tests. Each shows when, what kind, to whom,
+**History** — every email the event has queued, newest first: confirmations, invoices,
+invitations, group email, the problem reports sent to the organizer (PayPal problems among them),
+and tests. Each shows when, what kind, to whom,
 the subject and its status (waiting, sending, sent, failed, not sent — e.g. a `@dontsend.com`
 address), marking one that's waiting to be tried again after a failure. The admin can filter by
 status and kind, search by recipient or subject, and page through (on the server; §5). Opening an
@@ -1903,7 +1962,7 @@ section is the contract.
   |---|---|---|---|---|
   | `registration` | the payment step | the registrant pressed a payment button for an option that asks for money (at most one per registration) | the option's title ("50% Deposit") | rewritten by the payment step while nothing is paid on it (a changed option or method); templates call it `registration.invoice` |
   | `payment_received` | recording a payment | a payment recorded with no invoice that has money due, or "on its own" | "Payment received" ("Refund given" for a refund converted from before invoices) | its amount always equals what its live payments net to, so it never shows money owed; cancelled when its payments are deleted, reopened on restore |
-  | `admin` | a registrar | made by hand (with the invoice pay link of #670) | what the registrar types | none |
+  | `admin` | a registrar | made by hand, for an amount or the balance no invoice asks for yet (§15, DR-96) | what the registrar types ("Registration balance") | none |
   | `migrated` | the conversion to invoices | an old handling fee with nowhere else to go | "Electronic payment handling" | amount 0, only `handling` |
 
 - **Status** is worked out from the invoice and its live payments, never stored: `cancelled`;
@@ -1939,6 +1998,16 @@ section is the contract.
   (registration, registrant, campers, an admin link), what for (invoice, amounts, payment type),
   PayPal's references and error, what the registrant was told, and what to do ("Check PayPal
   order"). It's sent once per order and always logged.
+- **The pay page** (#670, #623; §15, DR-95). Every invoice has an unguessable link code and a
+  public page at `/invoices/{code}` (its `pay_url`). Anyone with the link sees the event's name,
+  the invoice — number, description, memo, due date, amount, handling, paid and due, and its
+  status — and the campers as first name and last initial; never its notes or the registrant's
+  email. While money is due on it, it isn't cancelled and the event takes payments online, the
+  page offers PayPal's buttons for the amount due plus the handling fee (none when the invoice
+  already carries one); the server creates and captures the order as on the payment step, with
+  the same outcomes. So an invoice first meant for a check can be paid online, adding the fee
+  only then. Otherwise the page says the invoice is paid, cancelled, or can't be paid online;
+  and when a PayPal order on it hasn't been confirmed, it asks the payer not to pay again.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
   through PayPal's refund API on its capture (with a request id made once per attempt, so a
@@ -2089,9 +2158,6 @@ that is out of scope for this pass.
 - **Receipts for payments made later.** A registrant gets one confirmation email; a payment a
   registrar records, or one found by "Check PayPal order", sends nothing. Decide whether
   payments (and refunds) after the confirmation should email a receipt.
-- **What a public invoice page shows** (with the invoice pay link of #670): how much of the
-  registration — campers' names, the registrant's email — a page reachable by an unguessable
-  link should show.
 
 ### B. Deferred with the plugin system (§14)
 
@@ -3955,6 +4021,37 @@ untied to what they refunded, and PayPal refunds were made in PayPal's dashboard
 **Alternatives:** A separate refund model — a second kind of money record the ledger would sum
 too. Recording only, with refunds still made in PayPal's dashboard — the two drift apart.
 
+### DR-95 — Invoices are paid through an unguessable link
+
+**Decision:** Every invoice has a random link code (`secrets.token_urlsafe(24)`) and a public
+pay page at `/invoices/{code}`, with no sign-in. The page shows the event's name, the invoice and
+the campers as first name and last initial — never the invoice's notes, the registrant's email or
+the rest of the registration. It pays the invoice online through the same server-made PayPal
+orders as the payment step (DR-90), adding the handling fee only when it's paid (DR-88). Its API
+is open to anyone and throttled per client. A Registrar copies the link or sends it in the
+invoice email. Resolves #670 and #623 (switching from check to PayPal adds the fee then).
+**Context:** Registrants who chose a check, abandoned PayPal or owe more later had no way to pay
+online; registrars took card payments by hand. A link in an email is how payers expect to pay a
+bill. The link may be forwarded, so the page shows only what someone paying needs to recognize
+the bill.
+**Alternatives:** A registrant sign-in — Camphoric has no registrant accounts. The registration's
+uuid as the link — it's already in the payment step's API and would expose the whole
+registration. Showing the registrant's email and campers' full names — more than a forwarded link
+should reveal.
+
+### DR-96 — Registrars make and send invoices
+
+**Decision:** Registrars and Admins make invoices by hand (origin `admin`): any amount, or the
+balance no invoice asks for yet ("Registration balance"), with a memo for the payer and a due
+date. They send one to the registrant with the event's invoice email — an email template that
+comes with the event (purpose `invoice`, context `invoice_email`, with `invoice.pay_url`), edited
+on Home — and every role can copy its pay link.
+**Context:** Lark asks for a deposit at registration and the rest later, and registrars add
+charges after registering (a meal plan). Those amounts need an invoice to be paid online (DR-95).
+**Alternatives:** Only invoicing the whole balance automatically — registrars bill a part, or
+ahead of a price change. A fixed, built-in invoice email — every other email is an editable
+template (DR-45).
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -3998,7 +4095,11 @@ must be coordinated with the backend. Grouped by status.
 - **Invoices, payments and refunds:** `/api/invoices/` with `cancel`, `reopen` and
   `check-paypal`, payments' `invoice`, `refund_of` and `new_invoice`,
   `POST /api/payments/{id}/refund-paypal/`, and the registration's ledger fields, with the
-  shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94).
+  shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94). Making invoices (`POST /api/invoices/`,
+  `POST /api/registrations/{id}/invoice-balance/`), sending one (`POST /api/invoices/{id}/send/`),
+  `pay_url`, the event's `invoice_template` and the `invoice_email` context (§8.3, §8.4; DR-96).
+- **Invoice pay page:** `GET /api/invoices/pay/{token}` and its `order` and `capture` posts, open
+  to anyone and throttled (`invoice_pay`), with the shapes in §5 (§9.7; DR-95).
 - **Validation messages:** the Event's `registration_error_messages` field, validated by the
   events serializer as `{ path: { keyword: message } }` with non-empty strings (§7.1, §8.8,
   DR-34).
