@@ -133,6 +133,7 @@ export const MARKDOWN_ENTRIES: MarkdownEntry[] = [
 const EMAIL_CONTEXTS: TemplateContextName[] = [
   'confirmation_email',
   'invitation_email',
+  'invoice_email',
   'bulk_email_registration',
   'bulk_email_camper',
   'bulk_email_manual',

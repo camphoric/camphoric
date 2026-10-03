@@ -3,7 +3,9 @@
  * configuration; saving persists via PATCH to the event. (The schema-driven JSON
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
  * The confirmation email is the event's email template (§15 DR-45), edited in
- * Jinja with a preview for any completed registration, and saved with the rest.
+ * Jinja with a preview for any completed registration, and saved with the rest;
+ * so is the invoice email registrars send with an invoice's pay link (§9.7,
+ * DR-95), previewed for any of the event's invoices.
  * Leaving with anything changed and unsaved asks first.
  */
 
@@ -33,7 +35,7 @@ import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useEffect, useMemo, useState } from 'react';
 import { useTemplateDraft } from 'store/emailTemplates';
-import { eventHooks, registrationHooks } from 'store/entities';
+import { eventHooks, invoiceHooks, registrationHooks } from 'store/entities';
 import { apiErrorMessage } from 'utils/fetch';
 
 /** What Home edits and saves; leaving with any of them changed asks first. */
@@ -70,8 +72,22 @@ export function EventAdminHome() {
       })),
     [registrations],
   );
+  const { data: invoices } = invoiceHooks.useList({
+    registration__event: eventId,
+    registration__completed: 1,
+  });
+  const invoiceSamples = useMemo<EmailSample[]>(
+    () =>
+      (invoices ?? []).map((i) => ({
+        value: String(i.id),
+        label: `Invoice #${i.id}${i.description ? ` ${i.description}` : ''}`,
+        sample: { invoice_id: i.id },
+      })),
+    [invoices],
+  );
   const update = eventHooks.useUpdate();
   const confirmation = useTemplateDraft(event?.confirmation_template);
+  const invoiceEmail = useTemplateDraft(event?.invoice_template);
   const [form, setForm] = useState<ApiEvent | null>(null);
   // The event as last loaded or saved, to tell what's changed since.
   const [saved, setSaved] = useState<ApiEvent | null>(null);
@@ -85,10 +101,14 @@ export function EventAdminHome() {
   }, [event, form]);
 
   useUnsavedChanges(
-    confirmation.changed || (!!form && !!saved && editable(form) !== editable(saved)),
+    confirmation.changed ||
+      invoiceEmail.changed ||
+      (!!form && !!saved && editable(form) !== editable(saved)),
   );
 
-  if (!event || !form || !confirmation.loaded) return <FullScreenLoading />;
+  if (!event || !form || !confirmation.loaded || !invoiceEmail.loaded) {
+    return <FullScreenLoading />;
+  }
 
   const set = <K extends keyof ApiEvent>(field: K, value: ApiEvent[K]) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -104,6 +124,7 @@ export function EventAdminHome() {
       setForm(updated);
       setSaved(updated);
       await confirmation.save();
+      await invoiceEmail.save();
       notifications.show({ color: 'green', message: 'Event saved' });
     } catch (error) {
       notifications.show({ color: 'red', message: apiErrorMessage(error) });
@@ -198,6 +219,22 @@ export function EventAdminHome() {
           onBodyChange={confirmation.setBody}
           samples={samples}
           helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
+        />
+
+        <Divider label="Invoice email" />
+        <Text size="sm" c="dimmed">
+          Sent when a registrar sends an invoice, with its pay link (
+          <code>{'{{ invoice.pay_url }}'}</code>).
+        </Text>
+        <EmailTemplateEditor
+          eventId={eventId}
+          context="invoice_email"
+          subject={invoiceEmail.subject}
+          onSubjectChange={invoiceEmail.setSubject}
+          body={invoiceEmail.body}
+          onBodyChange={invoiceEmail.setBody}
+          samples={invoiceSamples}
+          helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=invoice_email`}
         />
 
         <ReadOnlyFieldset>

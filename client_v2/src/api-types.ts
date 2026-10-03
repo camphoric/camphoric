@@ -83,6 +83,8 @@ export interface ApiEvent extends TimeStamped {
   confirmation_page_template: string;
   /** The confirmation email's template (created with the event; read-only here). */
   confirmation_template: number | null;
+  /** The email sent with an invoice and its pay link (created with the event; read-only here). */
+  invoice_template: number | null;
   /** The event's sending address (the confirmation's, and its email's default). */
   confirmation_email_from: string;
   /** The event's sending account (null: the server's default mailer). */
@@ -291,6 +293,45 @@ export interface ApiInvoice extends TimeStamped {
   overpaid: string;
   status: InvoiceStatus;
   payments: number[];
+  /** Its public pay page: anyone with the link can see it and pay online (DR-95). */
+  pay_url: string;
+}
+
+/**
+ * An invoice's public pay page (`GET /api/invoices/pay/{token}`; §9.7, DR-95):
+ * what anyone with the link sees — never its notes or the registrant's details
+ * beyond the campers' first names and initials.
+ */
+export interface ApiInvoicePay {
+  event: { id: number; name: string };
+  invoice: {
+    id: number;
+    description: string;
+    memo: string;
+    due_on: string | null;
+    amount: string;
+    handling: string;
+    total: string;
+    amount_paid: string;
+    amount_due: string;
+    status: InvoiceStatus;
+    /** A PayPal payment on it is waiting to be confirmed. */
+    pending: boolean;
+  };
+  campers: string[];
+  /** What paying online costs now; null when it can't be paid online. */
+  online: {
+    clientId: string;
+    handling: number;
+    total: number;
+    handlingPercent: number | null;
+  } | null;
+}
+
+/** A pay-page step that didn't go through: the page as it is now, and why. */
+export interface ApiInvoicePayProblem extends ApiInvoicePay {
+  detail: string;
+  code: PaymentProblemCode;
 }
 
 export interface ApiCustomCharge extends TimeStamped {
@@ -382,6 +423,7 @@ export type TemplateContextName =
   | 'confirmation_email'
   | 'confirmation_page'
   | 'invitation_email'
+  | 'invoice_email'
   | 'bulk_email_registration'
   | 'bulk_email_camper'
   | 'bulk_email_manual';
@@ -469,6 +511,7 @@ export interface TemplatePreviewRequest {
   camper_id?: number;
   invitation_id?: number;
   registration_type_id?: number;
+  invoice_id?: number;
 }
 
 export interface TemplatePreviewResponse {
@@ -855,6 +898,8 @@ export type EmailMessageKind =
   | 'confirmation'
   | 'confirmation_report'
   | 'page_report'
+  | 'payment_report'
+  | 'invoice'
   | 'invitation'
   | 'bulk'
   | 'test'
@@ -934,7 +979,7 @@ export interface ApiEmailAccount extends TimeStamped {
   default_reply_to: string;
 }
 
-export type EmailTemplatePurpose = 'confirmation' | 'invitation' | 'group';
+export type EmailTemplatePurpose = 'confirmation' | 'invitation' | 'group' | 'invoice';
 
 /** An email the event sends, in Jinja markdown (SPEC §5; §15 DR-45). */
 export interface ApiEmailTemplate extends TimeStamped {

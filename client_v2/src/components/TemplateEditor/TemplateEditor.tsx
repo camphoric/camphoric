@@ -345,7 +345,7 @@ function requestErrorMessage(error: unknown): string {
 /** Which record a preview renders for (the server picks one when omitted). */
 export type PreviewSample = Pick<
   TemplatePreviewRequest,
-  'registration_id' | 'camper_id' | 'invitation_id' | 'registration_type_id'
+  'registration_id' | 'camper_id' | 'invitation_id' | 'registration_type_id' | 'invoice_id'
 >;
 
 export interface TemplateEditorProps {

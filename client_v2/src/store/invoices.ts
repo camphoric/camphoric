@@ -92,3 +92,34 @@ export function useRefundPayPal() {
     onSuccess: invalidate,
   });
 }
+
+export interface CreateInvoiceBody {
+  registration: Scalar;
+  description: string;
+  amount: string;
+  memo: string;
+  notes: string;
+  due_on: string | null;
+}
+
+/** A registrar's invoice (§9.7; §15, DR-96): a bill with a pay link, to send or share. */
+export function useCreateInvoice() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: CreateInvoiceBody) =>
+      apiFetch<ApiInvoice>('/api/invoices/', { method: 'POST', body }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Email the invoice and its pay link to the registrant (the event's invoice email). */
+export function useSendInvoice() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: Scalar) =>
+      apiFetch<{ messageId: number; status: string; to: string }>(`/api/invoices/${id}/send/`, {
+        method: 'POST',
+      }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['EmailMessage'] }),
+  });
+}

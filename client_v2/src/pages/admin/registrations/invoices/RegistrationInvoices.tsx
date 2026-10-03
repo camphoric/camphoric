@@ -2,10 +2,11 @@
  * A registration's fees, invoices and payments (SPEC §8.4, §9.7). The fee
  * breakdown from `server_pricing_results` (Registrars and Admins can override
  * the registration's own price lines; DR-56), the ledger, and each invoice
- * with its payments and refunds. Registrars and Admins record payments, edit,
- * cancel and reopen invoices, check a pending PayPal order and refund; only
- * Admins delete a payment or an invoice (§15, DR-93). Deleted payments can be
- * restored (DR-55). Every role sees everything, invoice notes included.
+ * with its payments and refunds. Registrars and Admins make invoices (DR-96),
+ * send them, record payments, edit, cancel and reopen invoices, check a pending
+ * PayPal order and refund; only Admins delete a payment or an invoice (§15,
+ * DR-93). Deleted payments can be restored (DR-55). Every role sees everything,
+ * invoice notes included, and can copy an invoice's pay link (DR-95).
  */
 
 import { Button, Group, Stack, Text, TextInput, Title } from '@mantine/core';
@@ -18,12 +19,13 @@ import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
 import { useDeletedPayments, useRestore } from 'store/deletes';
 import { invoiceHooks, paymentHooks } from 'store/entities';
-import { useCheckPayPalOrder, useInvoiceStatusAction } from 'store/invoices';
+import { useCheckPayPalOrder, useInvoiceStatusAction, useSendInvoice } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
 
 import { EditInvoiceModal } from './EditInvoiceModal';
 import { InvoiceCard, paymentName } from './InvoiceCard';
 import { LedgerSummary } from './LedgerSummary';
+import { NewInvoiceModal } from './NewInvoiceModal';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { RefundModal, type RefundTarget } from './RefundModal';
 
@@ -42,9 +44,11 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
   const cancel = useInvoiceStatusAction('cancel');
   const reopen = useInvoiceStatusAction('reopen');
   const checkPayPal = useCheckPayPalOrder();
+  const send = useSendInvoice();
   const restore = useRestore('payments');
 
   const [recording, setRecording] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ApiInvoice | null>(null);
   const [refunding, setRefunding] = useState<RefundTarget | null>(null);
 
@@ -91,6 +95,30 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       onConfirm: () => deletePayment.mutate({ id: p.id }),
     });
 
+  const copyLink = (invoice: ApiInvoice) =>
+    void navigator.clipboard.writeText(invoice.pay_url).then(
+      () => notifications.show({ color: 'green', message: 'Pay link copied' }),
+      () => notifications.show({ color: 'red', message: `Copy this link: ${invoice.pay_url}` }),
+    );
+
+  const confirmSend = (invoice: ApiInvoice) =>
+    modals.openConfirmModal({
+      title: `Send invoice #${invoice.id}`,
+      children: (
+        <Text size="sm">
+          Email it, with its pay link, to {registration.registrant_email}? The email is the event’s
+          invoice email (Home).
+        </Text>
+      ),
+      labels: { confirm: 'Send', cancel: 'Cancel' },
+      onConfirm: () =>
+        send.mutate(invoice.id, {
+          onSuccess: ({ to }) =>
+            notifications.show({ color: 'green', message: `Invoice queued to ${to}` }),
+          onError: failed,
+        }),
+    });
+
   const checkOrder = (invoice: ApiInvoice) =>
     checkPayPal.mutate(invoice.id, {
       onSuccess: ({ result }) =>
@@ -121,9 +149,14 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       <Group justify="space-between">
         <Text fw={600}>Invoices</Text>
         <CanEdit>
-          <Button variant="light" size="compact-md" onClick={() => setRecording(true)}>
-            Record payment
-          </Button>
+          <Group gap="xs">
+            <Button variant="subtle" size="compact-md" onClick={() => setCreating(true)}>
+              New invoice
+            </Button>
+            <Button variant="light" size="compact-md" onClick={() => setRecording(true)}>
+              Record payment
+            </Button>
+          </Group>
         </CanEdit>
       </Group>
 
@@ -151,6 +184,9 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
               })
             }
             onRefundDifference={() => setRefunding({ invoice, amount: Number(invoice.overpaid) })}
+            onCopyLink={() => copyLink(invoice)}
+            onSend={() => confirmSend(invoice)}
+            sending={send.isPending && send.variables === invoice.id}
           />
         ))
       ) : (
@@ -188,6 +224,12 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
         </Stack>
       )}
 
+      <NewInvoiceModal
+        registrationId={registration.id}
+        uninvoicedBalance={registration.uninvoiced_balance}
+        opened={creating}
+        onClose={() => setCreating(false)}
+      />
       <RecordPaymentModal
         event={event}
         registrationId={registration.id}
