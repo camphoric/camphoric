@@ -287,6 +287,8 @@ TYPES = (
         F('overpaid', 'money', 'Paid beyond its total (a refund is due).'),
         F('due_on', 'date', 'When it is due.', nullable=True),
         F('memo', 'string', 'A message for the payer.'),
+        F('pay_url', 'string', 'Its pay page: anyone with the link can see it and pay it online.',
+          '[Pay online]({{ invoice.pay_url }})'),
         F('payments', 'list<payment>', 'Payments and refunds on it, oldest first.'),
         F('created_at', 'datetime', 'When it was made.'),
         F('cancelled_at', 'datetime', 'When it was cancelled.', nullable=True),
@@ -508,6 +510,18 @@ CONTEXTS = (
                       'when registering — `type`, `total` and `balance`. Prefer `invoice`.',
                       '{{ initial_payment.total | money }}', nullable=True),
                 ), sample='registration'),
+    ContextSpec('invoice_email', 'Invoice email', 'Sent when a registrar sends an invoice, '
+                'with its pay link.', (
+                    EVENT,
+                    F('invoice', 'invoice', 'The invoice being sent.',
+                      '[Pay {{ invoice.amount_due | money }}]({{ invoice.pay_url }})',
+                      nullable=True),
+                    F('registration', 'registration', 'The registration it bills.',
+                      nullable=True),
+                    F('campers', 'list<camper>', "The registration's campers.",
+                      '{% for camper in campers %}{{ camper.attributes.first_name }} '
+                      '{% endfor %}'),
+                ), sample='invoice'),
     ContextSpec('invitation_email', 'Invitation email', 'Sent when an admin invites someone to '
                 'register with a registration type.', (
                     EVENT,

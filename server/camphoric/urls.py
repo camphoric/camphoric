@@ -30,7 +30,11 @@ router.register(
 router.register('users', views.UserViewSet, basename='user')
 
 
-urlpatterns = router.urls + [
+urlpatterns = [
+    # An invoice's public pay page (SPEC §9.7, DR-95), ahead of the router's invoice routes.
+    path('invoices/pay/<str:token>', views.InvoicePayView.as_view()),
+    path('invoices/pay/<str:token>/<str:action>', views.InvoicePayView.as_view()),
+] + router.urls + [
     path('set-csrf-cookie', views.SetCSRFCookieView.as_view()),
     path('login', views.LoginView.as_view()),
     path('user', views.UserView.as_view()),

@@ -244,11 +244,6 @@ class CancelAndDeleteTests(InvoiceTestCase):
                                      format='json')
         self.assertEqual(response.status_code, 400)
 
-    def test_invoices_are_made_by_payments_for_now(self):
-        response = self.client.post('/api/invoices/', {'registration': self.made.r1.id},
-                                    format='json')
-        self.assertEqual(response.status_code, 405)
-
 
 class PaymentOptionTests(APITestCase):
     def setUp(self):

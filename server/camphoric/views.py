@@ -47,7 +47,7 @@ from camphoric.mail import batches, outbox, unsubscribe
 from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
 from camphoric.templating import bulk, rules
 from camphoric.templating.contexts import report_context
-from camphoric.templating.emails import render_invitation_email
+from camphoric.templating.emails import render_invitation_email, render_invoice_email
 from camphoric.templating.pages import (
     FALLBACK_PAGE, page_failure_report, render_confirmation_page)
 from camphoric.templating.env import LEGACY_REPORT_ENV
@@ -541,6 +541,28 @@ class RegistrationViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         '''The registration's audit log, with its campers, payments and charges (DR-53).'''
         return Response(audit.history(registration=self.get_any_object().id))
 
+    @action(detail=True, methods=['post'], url_path='invoice-balance')
+    def invoice_balance(self, request, pk=None):
+        '''
+        Invoice what the registration owes that no open invoice asks for yet
+        (SPEC §9.7, DR-96): `{description?, memo?, notes?, due_on?}`.
+        '''
+        registration = self.get_object()
+        amount = invoices.ledger(registration).uninvoiced_balance
+        if amount <= 0:
+            raise serializers.Conflict('There\'s no balance left to invoice.')
+        serializer = serializers.InvoiceSerializer(data={
+            'registration': registration.id,
+            'description': request.data.get('description') or 'Registration balance',
+            'amount': f'{amount:.2f}',
+            'memo': request.data.get('memo') or '',
+            'notes': request.data.get('notes') or '',
+            'due_on': request.data.get('due_on') or None,
+        }, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(origin=models.InvoiceOrigin.ADMIN, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 class ReportViewSet(PlannedDeleteMixin, ModelViewSet):
     queryset = models.Report.objects.all()
@@ -607,9 +629,9 @@ def payment_problem_response(problem):
 class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     A registration's invoices (SPEC §9.7, DR-87). Any role reads them; Registrars
-    and Admins edit, cancel and reopen them and check a pending PayPal order;
-    only Admins delete one, and only one nothing was ever paid on (DR-93).
-    Invoices are made by the payment step and by recording payments.
+    and Admins create them (DR-96), edit, cancel and reopen them, send them, and
+    check a pending PayPal order; only Admins delete one, and only one nothing
+    was ever paid on (DR-93).
     '''
     queryset = models.Invoice.objects.select_related('created_by', 'registration__event') \
         .prefetch_related('payments')
@@ -617,9 +639,42 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
     filterset_fields = ['registration', 'registration__event', 'registration__completed']
     delete_permission_classes = [AdminOnly]
 
-    def create(self, request, *args, **kwargs):
-        return Response({'detail': 'Invoices are made by the payment step and by recording '
-                         'payments.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    def perform_create(self, serializer):
+        serializer.save(origin=models.InvoiceOrigin.ADMIN, created_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def send(self, request, pk=None):
+        '''
+        Email the invoice, with its pay link, to the registrant (the event's
+        invoice email; DR-95). Queued like any email; 400 if its template can't
+        be rendered, 409 for a cancelled invoice.
+        '''
+        invoice = self.get_object()
+        if invoice.cancelled_at is not None:
+            raise serializers.Conflict('This invoice is cancelled.')
+        event = invoice.registration.event
+        rendered = render_invoice_email(invoice, request=request)
+        if not rendered.ok:
+            return Response({
+                'detail': 'The invoice email template has problems; nothing was sent.',
+                'diagnostics': [d.as_dict() for d in rendered.diagnostics],
+            }, status=status.HTTP_400_BAD_REQUEST)
+        message = outbox.enqueue(
+            event=event,
+            kind=models.EmailMessageKind.INVOICE,
+            registration=invoice.registration,
+            **template_sender(event.invoice_template, event),
+            to=invoice.registration.registrant_email,
+            subject=rendered.subject,
+            text=rendered.text,
+            html=rendered.html,
+            created_by=request.user,
+        )
+        if message.status in (models.EmailMessageStatus.FAILED,
+                              models.EmailMessageStatus.CANCELLED):
+            return Response({'detail': message.last_error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'messageId': message.id, 'status': message.status,
+                         'to': message.to})
 
     def delete_checks(self):
         return (deletes.invoice_has_no_payments,)
@@ -1200,9 +1255,10 @@ class RegisterView(APIView):
             'invoice': self.invoice_data(invoices.registration_invoice(registration)),
         }, status=problem.http_status)
 
-    @staticmethod
-    def invoice_data(invoice):
-        return serializers.InvoiceSerializer(invoice).data if invoice is not None else None
+    def invoice_data(self, invoice):
+        if invoice is None:
+            return None
+        return serializers.InvoiceSerializer(invoice, context={'request': self.request}).data
 
     def post_paypal_order(self, request, event):
         '''
@@ -1498,6 +1554,99 @@ class RegisterView(APIView):
             raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
+
+
+class InvoicePayView(APIView):
+    '''
+    An invoice's public pay page (SPEC §9.7; §15, DR-95), by its unguessable link
+    code. Anyone with the link may see it and pay it online; throttled
+    (`invoice_pay`) so codes can't be guessed wholesale.
+
+    - `GET /api/invoices/pay/<token>`: the event, the invoice (never its notes),
+      the campers as "First L.", and `online`: what paying online costs, or null
+      when it can't be (paid, cancelled, or the event takes no payments online).
+    - `POST …/order` `{paymentType}`: create the PayPal order (DR-90).
+    - `POST …/capture` `{orderID, paymentType}`: check and capture it; the same
+      outcomes as the registration's payment step.
+    '''
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'invoice_pay'
+
+    def invoice(self, token):
+        return get_object_or_404(
+            models.Invoice.objects.select_related('registration__event'),
+            token=token, registration__completed=True)
+
+    @staticmethod
+    def first_letter(name):
+        name = (name or '').strip()
+        return f'{name[0]}.' if name else ''
+
+    def payload(self, invoice):
+        registration = invoice.registration
+        event = registration.event
+        campers = [
+            ' '.join(filter(None, [
+                ((c.attributes or {}).get('first_name') or '').strip(),
+                self.first_letter((c.attributes or {}).get('last_name')),
+            ])) for c in registration.campers.all()
+        ]
+        due = invoice.amount_due
+        status_ = invoice.status
+        online = None
+        payable = status_ in (models.InvoiceStatus.OPEN, models.InvoiceStatus.PARTIALLY_PAID)
+        if payable and due > 0 and event.paypal_enabled and event.paypal_client_id:
+            fee = invoices.online_fee(event, due) if invoices.money(invoice.handling) == 0 \
+                else invoices.ZERO
+            online = {
+                'clientId': event.paypal_client_id,
+                'handling': float(fee),
+                'total': float(due + fee),
+                'handlingPercent': float(event.epayment_handling or 0) or None,
+            }
+        return {
+            'event': {'id': event.id, 'name': event.name},
+            'invoice': {
+                'id': invoice.id,
+                'description': invoice.description,
+                'memo': invoice.memo,
+                'due_on': invoice.due_on,
+                'amount': f'{invoices.money(invoice.amount):.2f}',
+                'handling': f'{invoices.money(invoice.handling):.2f}',
+                'total': f'{invoice.total:.2f}',
+                'amount_paid': f'{invoice.amount_paid:.2f}',
+                'amount_due': f'{due:.2f}',
+                'status': status_,
+                'pending': bool(invoice.pending_paypal_order_id),
+            },
+            'campers': [c for c in campers if c],
+            'online': online,
+        }
+
+    def get(self, request, token=None):
+        return Response(self.payload(self.invoice(token)))
+
+    def post(self, request, token=None, action=None):
+        invoice = self.invoice(token)
+        payment_type = request.data.get('paymentType')
+        if payment_type not in invoices.ONLINE_TYPES:
+            raise ValidationError({'paymentType': 'Invalid value: must be PayPal or Card'})
+        try:
+            if action == 'order':
+                order_id = invoices.create_paypal_order(invoice, payment_type)
+                invoice.refresh_from_db()
+                return Response({'orderID': order_id, **self.payload(invoice)})
+            order_id = request.data.get('orderID')
+            if not order_id:
+                raise ValidationError({'orderID': 'This field is required.'})
+            invoices.capture_paypal_order(
+                invoice, order_id, payment_type, notes='Paid online', request=request)
+        except invoices.PaymentProblem as problem:
+            return Response({'detail': problem.message, 'code': problem.code,
+                             **self.payload(self.invoice(token))},
+                            status=problem.http_status)
+        return Response(self.payload(self.invoice(token)))
 
 
 class CheckPromoCodeView(APIView):

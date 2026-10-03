@@ -48,6 +48,16 @@ def confirmation_page_context(graph, registration):
     return confirmation_email_context(graph, registration)
 
 
+def invoice_email_context(graph, invoice):
+    registration = invoice['registration'] if invoice else None
+    return {
+        'event': graph.event,
+        'invoice': invoice,
+        'registration': registration,
+        'campers': registration['campers'] if registration else ReadOnlyList(),
+    }
+
+
 def invitation_email_context(graph, invitation):
     return {
         'event': graph.event,

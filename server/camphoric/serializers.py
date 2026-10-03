@@ -18,7 +18,7 @@ from camphoric import (
     roles,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
-from camphoric.templating.urls import register_url
+from camphoric.templating.urls import invoice_pay_url, register_url
 from camphoric.templating.rules import compile_rules
 from camphoric.templating.render import syntax_error
 
@@ -86,7 +86,7 @@ class EventSerializer(ModelSerializer):
         model = models.Event
         fields = '__all__'
         # Created with the event; edited as an email template.
-        read_only_fields = ['confirmation_template']
+        read_only_fields = ['confirmation_template', 'invoice_template']
 
     def validate_camper_schema(self, schema):
         return validate_schema(schema)
@@ -501,13 +501,23 @@ class InvoiceSerializer(ModelSerializer):
     status = CharField(read_only=True)
     payments = PrimaryKeyRelatedField(many=True, read_only=True)
     created_by_name = SerializerMethodField()
+    # Its pay page (DR-95); the link code itself is never shown on its own.
+    pay_url = SerializerMethodField()
 
     class Meta:
         model = models.Invoice
         exclude = ['token']
-        read_only_fields = ['registration', 'origin', 'payment_type', 'pending_paypal_order_id',
+        read_only_fields = ['origin', 'payment_type', 'pending_paypal_order_id',
                             'cancelled_at', 'cancel_reason', 'created_by', 'created_at',
                             'updated_at']
+
+    def get_pay_url(self, invoice):
+        return invoice_pay_url(invoice.token, self.context.get('request'))
+
+    def validate_registration(self, registration):
+        if self.instance is not None and registration != self.instance.registration:
+            raise ValidationError('An invoice can\'t move to another registration.')
+        return registration
 
     def get_created_by_name(self, invoice):
         user = invoice.created_by

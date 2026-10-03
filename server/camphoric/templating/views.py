@@ -7,7 +7,7 @@ Template endpoints for the admin (SPEC §5, §9.3):
 
 Preview request:
   {context, template, output: csv|md|txt|html|email, subject?,
-   registration_id?, camper_id?, invitation_id?, registration_type_id?}
+   registration_id?, camper_id?, invitation_id?, registration_type_id?, invoice_id?}
 Preview response:
   {output, subject?, html?, diagnostics: [...], truncated, duration_ms,
    sample: {kind, id, label} | null}
@@ -64,6 +64,9 @@ def _sample_label(kind, obj):
         return f"Camper #{obj['id']}" + (f' ({name})' if name else '')
     if kind == 'invitation':
         return f"Invitation to {obj['recipient_email']}"
+    if kind == 'invoice':
+        description = f" ({obj['description']})" if obj['description'] else ''
+        return f"Invoice #{obj['id']}{description}"
     return None
 
 
@@ -106,6 +109,9 @@ def build_preview_context(graph, name, data):
     if name == 'bulk_email_manual':
         return contexts.bulk_email_manual_context(
             graph, contexts.recipient('alex@example.com', 'Alex Sample')), None
+    if name == 'invoice_email':
+        invoice = _pick(graph, 'invoice', data.get('invoice_id'), graph.invoices)
+        return contexts.invoice_email_context(graph, invoice), ('invoice', invoice)
     if name == 'invitation_email':
         registration_type = None
         if data.get('registration_type_id') is not None:

@@ -19,6 +19,7 @@ from camphoric import models
 
 from .contexts import (
     confirmation_email_context, confirmation_page_context, example_invitation,
+    invoice_email_context,
     invitation_email_context, report_context)
 from .bulk import Criteria, candidate_context, resolve_recipients
 from .emails import render_jinja_email
@@ -81,6 +82,7 @@ def check_event_templates(event, *, request=None):
         graph = build_event_graph(event, request=request)
     results.append(_check_confirmation_email(event, graph))
     results.append(_check_confirmation_page(event, graph))
+    results.append(_check_invoice_email(event, graph))
     for registration_type in models.RegistrationType.objects.filter(
             event=event, deleted_at__isnull=True).order_by('id'):
         results.append(_check_invitation_email(registration_type, graph))
@@ -136,6 +138,16 @@ def _check_confirmation_page(event, graph):
     contexts_ = [confirmation_page_context(graph, r) for r in graph.registrations]
     return CheckResult('confirmation_page', event.id, label, 'rendered', _render_for_each(
         '', event.confirmation_page_template, contexts_))
+
+
+def _check_invoice_email(event, graph):
+    label = 'Invoice email'
+    subject, body = _texts(event.invoice_template)
+    if not graph.invoices:
+        return _parsed('invoice_email', event.id, label, subject, body)
+    contexts_ = [invoice_email_context(graph, i) for i in graph.invoices]
+    return CheckResult('invoice_email', event.id, label, 'rendered',
+                       _render_for_each(subject, body, contexts_))
 
 
 def _check_invitation_email(registration_type, graph):
