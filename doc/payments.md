@@ -4,7 +4,7 @@ This guide is for developers. It follows a registrant's money from the registrat
 admin's ledger: what the person sees, what the browser (`client_v2`) does, and what the server
 (and PayPal) do. The binding rules are in [`SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md): §5 (the API
 contracts), §7.2 (the payment step), §8.4 (the admin), §9.7 (invoices, payments and balance) and
-decision records DR-87 to DR-94. When the two disagree, the spec wins — and this guide should be
+decision records DR-87 to DR-96. When the two disagree, the spec wins — and this guide should be
 fixed.
 
 ## 1. Glossary
@@ -35,7 +35,7 @@ Every invoice records its `origin`. It's informational — it never changes the 
 |---|---|---|---|---|
 | `registration` | the payment step | the registrant presses a payment button for an option that asks for money (at most one per registration) | the option's title, e.g. "50% Deposit" | rewritten in place by the payment step while nothing is paid on it (they change option or method); templates call it `registration.invoice` |
 | `payment_received` | recording a payment | a registrar records a payment and no invoice has money due (a surprise check, an overpayment, a donation), or chooses "On its own" | "Payment received" ("Refund given" for a refund converted from before invoices) | its amount always equals what its live payments net to, so it never shows money owed; cancelled when its payments are deleted, reopened on restore (`match_received_invoice`) |
-| `admin` | a registrar, by hand | for a balance, or a meal plan added later (with the invoice pay link of #670) | whatever the registrar types | none: an ordinary bill |
+| `admin` | a registrar, by hand | "New invoice": for the balance no invoice asks for yet, or a meal plan added later (§15) | whatever the registrar types, "Registration balance" to start with | none: an ordinary bill, with a pay link that can be emailed |
 | `migrated` | migration 0076 only | an old registration's handling fee had nowhere else to go | "Electronic payment handling" | amount 0, only `handling`; no new ones are made |
 
 ## 2. Data model
@@ -373,6 +373,9 @@ flowchart LR
 | Check a PayPal order | ✓ | ✓ | |
 | Refund (through PayPal or recorded) | ✓ | ✓ | |
 | Restore a deleted payment | ✓ | ✓ | |
+| Make an invoice, or invoice the balance | ✓ | ✓ | |
+| Send an invoice (the invoice email) | ✓ | ✓ | |
+| Copy an invoice's pay link | ✓ | ✓ | ✓ |
 | Delete a payment | ✓ | | |
 | Delete an invoice (nothing ever paid on it) | ✓ | | |
 
@@ -387,6 +390,9 @@ flowchart LR
   `registration.payment_type` (its payment type), `initial_payment` (`type` = its description,
   `total` = its total, `balance` = `total_owed − total`) and `registration.paypal_response` (its
   PayPal payment's record). `pricing.handling` is gone.
+- `invoice.pay_url` is the invoice's public pay page (§15). The `invoice_email` context — the
+  event's invoice email — has `event`, `invoice`, `registration` and `campers`. A confirmation
+  email can link to `registration.invoice.pay_url` when something is still due.
 - Confirmation templates must read well when nothing is paid yet: a check to send, or an online
   payment that didn't go through (`invoice.amount_due`, `invoice.payment_type`).
 
@@ -401,12 +407,15 @@ flowchart LR
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
-  `InvoiceViewSet`, `PaymentViewSet` (with `refund-paypal`).
+  `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
+  `refund-paypal`), and `InvoicePayView`, the public pay page's API.
 - `serializers.py` — `InvoiceSerializer`, `PaymentSerializer`, the registration's ledger fields.
 - `models.py` — `Invoice`, `Payment` (`invoice`, `refund_of`, `paypal_transaction_id`), the
   registration's `completed_at` and `confirmation_sent_at`.
-- `templating/graph.py`, `templating/registry.py` — the template variables.
-- `migrations/0075`–`0077` — the schema, the conversion, and the clean-up.
+- `templating/graph.py`, `templating/registry.py` — the template variables;
+  `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
+- `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
+  email template.
 
 **Client** (`client_v2/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
@@ -414,10 +423,119 @@ flowchart LR
 - `pages/register/storage.ts` — the saved payment step.
 - `store/registrationApi.ts` — the register steps and `paymentProblem`.
 - `pages/admin/registrations/invoices/` — the admin's ledger, invoices, payments and refunds;
-  `store/invoices.ts` — their actions.
+  `store/invoices.ts` — their actions; `NewInvoiceModal.tsx` — making an invoice.
+- `pages/invoice/` — the public pay page (`InvoicePayPage`, `InvoiceSummary`);
+  `store/invoicePay.ts` — its API.
 - `store/augmented.ts` — the server's ledger under the older report names.
 
-## 15. The public pay page (#670)
+## 15. Invoicing later, and the public pay page (#670, #623)
 
-To be written with Phase 2: an invoice's unguessable pay link, paying it online (which adds the
-fee then — #623), and a registrar invoicing a balance and sending it.
+A registration can owe more after it registers: the rest after a deposit, a meal plan added
+later, or a check that never came. A registrar makes an **invoice** for it and sends the payer its
+**pay link**; the payer opens the link and pays online. The same page lets a check registrant
+switch to PayPal after all — the fee is added only then (#623). Spec: §8.3, §8.4, §9.7, DR-95 and
+DR-96.
+
+### Making and sending an invoice
+
+```mermaid
+sequenceDiagram
+    actor G as Registrar
+    participant B as Browser (admin)
+    participant S as Server
+    participant O as Outbox / worker
+    actor R as Payer
+    G->>B: New invoice
+    B->>B: description "Registration balance",<br/>amount = uninvoiced_balance
+    G->>B: edits, Make invoice
+    B->>S: POST /api/invoices/ {registration, description, amount, memo, due_on}
+    S->>S: origin admin, created_by, a random token
+    S-->>B: the invoice, with pay_url
+    alt Copy pay link (any role)
+        G->>B: Copy pay link
+        B->>B: pay_url to the clipboard
+        G->>R: sends it another way
+    else Send invoice (Registrars and Admins)
+        G->>B: Send invoice, confirms
+        B->>S: POST /api/invoices/{id}/send/
+        S->>S: render the event's invoice email (invoice_email context)
+        S->>O: enqueue kind invoice, to the registrant's email
+        S-->>B: {messageId, status, to}
+        O->>R: the email, with a Pay online link
+    end
+```
+
+- **What it asks for.** An `admin` invoice is an ordinary bill: its `amount` adds to what the
+  open invoices ask, and its status follows its payments like any other. "New invoice" starts
+  with the registration's `uninvoiced_balance` — what no open invoice asks for yet — so
+  invoicing the balance never asks twice for the same money. `POST
+  /api/registrations/{id}/invoice-balance/` does the same in one call (409 when there's nothing
+  left to invoice).
+- **The invoice email** is an email template that comes with the event (`Event.invoice_template`,
+  purpose `invoice`, made by migration 0078 for existing events), edited on Home beside the
+  confirmation email. Its `invoice_email` context has `event`, `invoice` (with `pay_url`),
+  `registration` and `campers`. The default shows the memo, the campers' first names, the
+  description, amount due and due date, and `[Pay online]({{ invoice.pay_url }})`. A template
+  that can't render sends nothing (400 with its diagnostics); a cancelled invoice can't be sent
+  (409). The email shows in the registration's email history, kind "Invoice".
+- **The link.** Every invoice gets `token = secrets.token_urlsafe(24)` when it's made — 32
+  characters nobody can guess. `pay_url` is `{CAMPHORIC_PUBLIC_URL}/invoices/{token}`, or the
+  request's host when that isn't set (port 8000 swapped for the dev server's 3000). The token
+  itself is never in the admin API; `pay_url` is.
+
+### Paying through the link
+
+```mermaid
+sequenceDiagram
+    actor R as Payer
+    participant B as Browser (/invoices/token)
+    participant S as Server
+    participant P as PayPal
+    R->>B: opens the link
+    B->>S: GET /api/invoices/pay/{token}
+    S-->>B: event, invoice (no notes), campers "Pat A.", online or null
+    alt online is null
+        B->>R: paid, cancelled, or "can't be paid online"
+    else money is due and PayPal is on
+        B->>R: invoice and "Pay $X online (includes $Y handling)"
+        R->>B: PayPal (or Debit or Credit Card)
+        B->>S: POST …/order {paymentType}
+        S->>P: create order: amount due + fee, one item<br/>"Total for Invoice no. N for Event"
+        S->>S: invoice.pending_paypal_order_id, payment_type
+        S-->>B: {orderID, …}
+        R->>P: approves
+        B->>S: POST …/capture {orderID, paymentType}
+        S->>P: GET the order, then capture (as in §6)
+        alt captured
+            S->>S: invoice.handling += fee,<br/>record the payment ("Paid online")
+            S-->>B: the invoice, now paid
+            B->>R: "Thank you — your payment is in."
+        else amount changed, declined, or another invoice's order
+            S-->>B: 409 / 402 / 400 {detail, code, …}
+            B->>R: the reason, and the buttons again
+        else no clear answer
+            S->>S: keep the pending order, email the event
+            S-->>B: 502 unknown
+            B->>R: "Please don't pay again"
+        end
+    end
+```
+
+- **The same machinery as registration.** `InvoicePayView` calls `create_paypal_order` and
+  `capture_paypal_order` (§6), so the checks, the single item, `paypal_transaction_id`, the
+  PayPal problem email and "Check PayPal order" all work the same. Only the token decides which
+  invoice; the order's `custom_id` must match it, or the capture is a `mismatch`.
+- **Check first, PayPal later (#623).** A `registration` invoice the registrant chose to pay by
+  check has `handling` 0. Paying it here adds `online_fee` on what's still due, at the capture —
+  never before, so an abandoned order still adds nothing. An invoice that already carries a fee
+  gets none added.
+- **What the page shows**, and doesn't (DR-95). The link may be forwarded, so: the event's name;
+  the invoice's number, description, memo, due date, amount, handling, paid and due, and status;
+  the campers as first name and last initial. Never the invoice's notes, the registrant's email
+  or the rest of the registration. A token of an incomplete registration's invoice is a 404, like
+  an unknown one.
+- **Abuse.** The endpoints are open to anyone, so they're throttled per client (scope
+  `invoice_pay`, `CAMPHORIC_INVOICE_PAY_RATE`, 60 a minute by default). Guessing a 32-character
+  random token isn't practical, and the throttle keeps anyone from trying wholesale.
+- **A pending order.** When an order on the invoice hasn't been confirmed (`pending`), the page
+  asks the payer not to pay again; a registrar settles it with "Check PayPal order".
