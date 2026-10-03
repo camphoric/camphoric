@@ -35,6 +35,8 @@ const actions = {
   onDeletePayment: noop,
   onRefund: noop,
   onRefundDifference: noop,
+  onCopyLink: noop,
+  onSend: noop,
 };
 
 export const Open: StoryFn = () => (
@@ -80,6 +82,7 @@ export const AsAReporter: StoryFn = () => (
       payments={PAYPAL_REFUNDED_PAYMENTS}
       canEdit={false}
       canDelete={false}
+      onCopyLink={noop}
     />
   </Box>
 );

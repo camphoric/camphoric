@@ -31,6 +31,7 @@ export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice 
     overpaid: '0.00',
     status: 'open',
     payments: [],
+    pay_url: `https://camp.example.org/invoices/token-${over.id}`,
     ...stamps,
     ...over,
   };

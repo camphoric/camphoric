@@ -2,13 +2,14 @@
  * One invoice (SPEC §8.4, §9.7): what it's for and where it came from, what it
  * asks (amount plus any handling fee), what's been paid on it and what's due,
  * its memo and internal notes, and its payments, with each refund under the
- * payment it gives money back from. Every role sees all of it; the actions are
- * for those who may take them: Registrars and Admins edit, cancel and reopen
- * it, check a pending PayPal order and refund; only Admins delete (§15, DR-93).
+ * payment it gives money back from. Every role sees all of it, and can copy an
+ * unpaid invoice's pay link (DR-95); the other actions are for those who may
+ * take them: Registrars and Admins send it, edit, cancel and reopen it, check a
+ * pending PayPal order and refund; only Admins delete (§15, DR-93).
  */
 
 import { ActionIcon, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
-import { IconArrowBackUp, IconTrash } from '@tabler/icons-react';
+import { IconArrowBackUp, IconCopy, IconMail, IconTrash } from '@tabler/icons-react';
 import type { ApiInvoice, ApiPayment, Hash, InvoiceOrigin } from 'api-types';
 import type { JSONSchema7 } from 'json-schema';
 import { formatMoney } from 'utils/money';
@@ -75,6 +76,11 @@ export interface InvoiceCardProps {
   onDeletePayment?: (payment: ApiPayment) => void;
   onRefund?: (payment: ApiPayment) => void;
   onRefundDifference?: () => void;
+  /** Copy its pay link (anyone may share it). */
+  onCopyLink?: () => void;
+  /** Email it, with its pay link, to the registrant. */
+  onSend?: () => void;
+  sending?: boolean;
 }
 
 export function InvoiceCard({
@@ -92,11 +98,17 @@ export function InvoiceCard({
   onDeletePayment,
   onRefund,
   onRefundDifference,
+  onCopyLink,
+  onSend,
+  sending,
 }: InvoiceCardProps) {
   const schemaKeys = Object.keys(paymentSchema?.properties ?? {}).sort();
   const cancelled = invoice.status === 'cancelled';
   const handling = Number(invoice.handling);
   const holdsMoney = Number(invoice.amount_paid) !== 0;
+  const payable =
+    (invoice.status === 'open' || invoice.status === 'partially_paid') &&
+    Number(invoice.amount_due) > 0;
 
   return (
     <Card withBorder padding="sm" aria-label={`Invoice #${invoice.id}`}>
@@ -215,6 +227,32 @@ export function InvoiceCard({
             </Text>{' '}
             {invoice.notes}
           </Text>
+        )}
+
+        {payable && (onCopyLink || (canEdit && onSend)) && (
+          <Group gap="xs">
+            {onCopyLink && (
+              <Button
+                size="compact-sm"
+                variant="subtle"
+                leftSection={<IconCopy size={14} />}
+                onClick={onCopyLink}
+              >
+                Copy pay link
+              </Button>
+            )}
+            {canEdit && onSend && (
+              <Button
+                size="compact-sm"
+                variant="subtle"
+                leftSection={<IconMail size={14} />}
+                onClick={onSend}
+                loading={sending}
+              >
+                Send invoice
+              </Button>
+            )}
+          </Group>
         )}
 
         {invoice.pending_paypal_order_id && (

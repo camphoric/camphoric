@@ -4,6 +4,7 @@ import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EditInvoiceModal } from '../EditInvoiceModal';
+import { NewInvoiceModal } from '../NewInvoiceModal';
 import { RecordPaymentModal } from '../RecordPaymentModal';
 import { RefundModal } from '../RefundModal';
 import {
@@ -16,8 +17,9 @@ import {
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
 
-const { update, record, refundPayPal, mutation } = vi.hoisted(() => ({
+const { update, record, refundPayPal, createInvoice, mutation } = vi.hoisted(() => ({
   update: vi.fn(),
+  createInvoice: vi.fn(),
   record: vi.fn(),
   refundPayPal: vi.fn(),
   mutation: (mutate: unknown) => ({
@@ -30,6 +32,7 @@ const { update, record, refundPayPal, mutation } = vi.hoisted(() => ({
 
 vi.mock('store/entities', () => ({ invoiceHooks: { useUpdate: () => mutation(update) } }));
 vi.mock('store/invoices', () => ({
+  useCreateInvoice: () => mutation(createInvoice),
   useRecordPayment: () => mutation(record),
   useRefundPayPal: () => mutation(refundPayPal),
 }));
@@ -40,6 +43,30 @@ beforeEach(() => {
   update.mockClear();
   record.mockClear();
   refundPayPal.mockClear();
+  createInvoice.mockClear();
+});
+
+describe('NewInvoiceModal', () => {
+  it('starts with the balance no invoice asks for yet', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <NewInvoiceModal registrationId={5} uninvoicedBalance={425} opened onClose={vi.fn()} />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue(
+      'Registration balance',
+    );
+    await user.type(screen.getByRole('textbox', { name: /Memo/ }), 'The rest');
+    await user.click(screen.getByRole('button', { name: 'Make invoice' }));
+    expect(createInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        registration: 5,
+        description: 'Registration balance',
+        amount: '425.00',
+        memo: 'The rest',
+      }),
+      expect.anything(),
+    );
+  });
 });
 
 describe('EditInvoiceModal', () => {

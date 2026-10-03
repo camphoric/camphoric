@@ -89,6 +89,24 @@ describe('InvoiceCard', () => {
     expect(onRefundDifference).toHaveBeenCalled();
   });
 
+  it('lets anyone copy an unpaid invoice’s pay link, and a Registrar send it', async () => {
+    const onCopyLink = vi.fn();
+    const onSend = vi.fn();
+    renderWithProviders(
+      <InvoiceCard
+        invoice={PENDING_PAYPAL}
+        payments={[]}
+        canEdit={false}
+        canDelete={false}
+        onCopyLink={onCopyLink}
+        onSend={onSend}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Copy pay link' }));
+    expect(onCopyLink).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Send invoice' })).toBeNull();
+  });
+
   it('offers to check a PayPal order that wasn’t confirmed, and to cancel or delete', async () => {
     const onCheckPayPal = vi.fn();
     const onCancel = vi.fn();

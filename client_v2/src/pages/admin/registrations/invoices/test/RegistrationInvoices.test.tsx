@@ -34,6 +34,8 @@ vi.mock('store/entities', () => ({
 vi.mock('store/invoices', () => ({
   useInvoiceStatusAction: mutation,
   useCheckPayPalOrder: mutation,
+  useSendInvoice: mutation,
+  useCreateInvoice: mutation,
   useRecordPayment: mutation,
   useRefundPayPal: mutation,
 }));
@@ -102,6 +104,14 @@ describe('RegistrationInvoices', () => {
     await user.click(screen.getByRole('button', { name: 'Restore' }));
     expect(restore).toHaveBeenCalledWith(4, expect.anything());
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New invoice' })).toBeInTheDocument();
+  });
+
+  it('offers to send an unpaid invoice and copy its link', () => {
+    setup('registrar');
+    // The fixture's invoice is paid, so there's nothing to send or copy.
+    expect(screen.queryByRole('button', { name: 'Send invoice' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Copy pay link' })).toBeNull();
   });
 
   it('offers a Reporter none of it', () => {

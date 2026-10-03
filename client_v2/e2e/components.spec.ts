@@ -623,10 +623,12 @@ test.describe('Payments and invoices', () => {
     await expect(page.getByText('Electronic payment handling')).toBeVisible();
   });
 
-  test('a Reporter sees an invoice’s notes but no actions', async ({ page }) => {
+  test('a Reporter sees an invoice’s notes and can only copy its link', async ({ page }) => {
     await page.goto(story('invoice-card--as-a-reporter'));
     await expect(page.getByText('Invoice #2: Full Payment')).toBeVisible();
-    await expect(page.locator('#storybook-root button')).toHaveCount(0);
+    // Only sharing its pay link; nothing that changes it.
+    await expect(page.getByRole('button', { name: 'Copy pay link' })).toBeVisible();
+    await expect(page.locator('#storybook-root button')).toHaveCount(1);
   });
 
   test('editing an invoice fills in the balance and the handling fee', async ({ page }) => {
@@ -637,5 +639,19 @@ test.describe('Payments and invoices', () => {
     await expect(page.getByRole('textbox', { name: 'Electronic payment handling' })).toHaveValue(
       '$25',
     );
+  });
+
+  test('an invoice’s pay page shows what’s due and who it’s for', async ({ page }) => {
+    await page.goto(story('invoice-summary--due'));
+    await expect(page.getByText('Bob R., Jane R.', { exact: false })).toBeVisible();
+    await expect(page.getByText('$1,425.00').first()).toBeVisible();
+  });
+
+  test('a registrar makes an invoice for the balance', async ({ page }) => {
+    await page.goto(story('new-invoice-modal--for-the-balance'));
+    await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue(
+      'Registration balance',
+    );
+    await expect(page.getByRole('textbox', { name: 'Amount' })).toHaveValue('$1425');
   });
 });
