@@ -1,5 +1,6 @@
 '''
-Links to the public registration page, for templates and emails.
+Links to the public registration page and invoice pay pages, for templates
+and emails.
 
 `CAMPHORIC_PUBLIC_URL` (e.g. https://harmonyreg.sffmc.org) makes links work
 where there is no request — bulk sends, template checks. Without it, the link
@@ -73,3 +74,19 @@ def admin_registration_url(registration, request=None):
     return admin_url(
         f'/admin/organization/{event.organization_id}/event/{event.id}'
         f'/registrations?registrationId={registration.id}', request)
+
+
+def invoice_pay_url(token, request=None):
+    '''
+    An invoice's public pay page (SPEC §9.7, DR-95): anyone with the link can see
+    the invoice and pay it online. Empty when there's neither a public URL nor a
+    request to derive one from.
+    '''
+    base = getattr(settings, 'CAMPHORIC_PUBLIC_URL', '')
+    if base:
+        return f'{base.rstrip("/")}/invoices/{token}'
+    if request is None:
+        return ''
+    url = request.build_absolute_uri(f'/invoices/{token}')
+    # The page is served by the client (the dev server's port, in development).
+    return re.sub(r':8000', ':3000', url, count=1)

@@ -76,6 +76,8 @@ class RegistryDriftTests(TestCase):
             'confirmation_email': contexts.confirmation_email_context(self.graph, registration),
             'confirmation_page': contexts.confirmation_page_context(self.graph, registration),
             'invitation_email': contexts.invitation_email_context(self.graph, invitation),
+            'invoice_email': contexts.invoice_email_context(
+                self.graph, self.graph.registrations[0]['invoice']),
             'bulk_email_registration': contexts.bulk_email_registration_context(
                 self.graph, registration, to),
             'bulk_email_camper': contexts.bulk_email_camper_context(self.graph, camper, to),

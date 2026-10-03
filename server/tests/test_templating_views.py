@@ -29,7 +29,8 @@ class TemplateDescribeTests(APITestCase):
         self.assertEqual(
             set(payload['contexts']),
             {'report', 'confirmation_email', 'confirmation_page', 'invitation_email',
-             'bulk_email_registration', 'bulk_email_camper', 'bulk_email_manual'})
+             'invoice_email', 'bulk_email_registration', 'bulk_email_camper',
+             'bulk_email_manual'})
         roots = {r['name']: r for r in payload['contexts']['report']['roots']}
         self.assertEqual(roots['campers']['type'], 'list<camper>')
         event = fields_of(payload, 'event')

@@ -1,10 +1,11 @@
 '''
-Rendering the confirmation and invitation emails (SPEC §8.3, §8.4, DR-45).
+Rendering the confirmation, invoice and invitation emails (SPEC §8.3, §8.4,
+§9.7, DR-45).
 
-Each is an email template (the event's confirmation, a registration type's
-invitation) in Jinja: the subject and body render against the event's variable
-graph (SPEC §9.3) in the sandbox, with the email limits; the body is markdown,
-sent as text and as HTML.
+Each is an email template (the event's confirmation and invoice email, a
+registration type's invitation) in Jinja: the subject and body render against
+the event's variable graph (SPEC §9.3) in the sandbox, with the email limits;
+the body is markdown, sent as text and as HTML.
 '''
 
 from dataclasses import dataclass, field
@@ -12,7 +13,8 @@ from dataclasses import dataclass, field
 import cmarkgfm
 
 
-from .contexts import confirmation_email_context, invitation_email_context
+from .contexts import (
+    confirmation_email_context, invitation_email_context, invoice_email_context)
 from .graph import build_event_graph
 from .render import EMAIL_LIMITS, render_template
 from .urls import admin_registration_url
@@ -62,6 +64,14 @@ def render_confirmation_email(registration, *, request=None):
     graph = build_event_graph(event, registration_ids=[registration.id], request=request)
     context = confirmation_email_context(graph, graph.get('registration', registration.id))
     return render_jinja_email(*_template(event.confirmation_template), context)
+
+
+def render_invoice_email(invoice, *, request=None):
+    '''The email sending an invoice and its pay link (the event's invoice template).'''
+    event = invoice.registration.event
+    graph = build_event_graph(event, registration_ids=[invoice.registration_id], request=request)
+    context = invoice_email_context(graph, graph.get('invoice', invoice.id))
+    return render_jinja_email(*_template(event.invoice_template), context)
 
 
 def render_invitation_email(invitation, *, request=None):

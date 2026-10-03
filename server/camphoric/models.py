@@ -271,6 +271,9 @@ class Event(TimeStampedModel):
     # The registration confirmation email (an EmailTemplate, created with the event).
     confirmation_template = models.OneToOneField(
         'EmailTemplate', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    # The email a registrar sends with an invoice (an EmailTemplate, created with the event).
+    invoice_template = models.OneToOneField(
+        'EmailTemplate', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     # The event's sending address: the confirmation's, and the default for its other email.
     confirmation_email_from = models.EmailField(blank=True, default='')
 
@@ -287,6 +290,11 @@ class Event(TimeStampedModel):
                 name='Registration confirmation', subject=DEFAULT_CONFIRMATION_SUBJECT,
                 body=DEFAULT_CONFIRMATION_BODY)
             super().save(update_fields=['confirmation_template'])
+        if self.invoice_template_id is None:
+            self.invoice_template = EmailTemplate.objects.create(
+                event=self, purpose=EmailTemplatePurpose.INVOICE, name='Invoice',
+                subject=DEFAULT_INVOICE_SUBJECT, body=DEFAULT_INVOICE_BODY)
+            super().save(update_fields=['invoice_template'])
 
     def is_open(self):
         open = False
@@ -937,6 +945,8 @@ class EmailMessageKind(models.TextChoices):
     PAGE_REPORT = 'page_report', 'Confirmation page problem report'
     # A PayPal capture or refund whose outcome is unknown (SPEC §9.7).
     PAYMENT_REPORT = 'payment_report', 'PayPal problem report'
+    # An invoice a registrar sent, with its pay link (SPEC §9.7, DR-95).
+    INVOICE = 'invoice', 'Invoice'
     INVITATION = 'invitation', 'Invitation'
     BULK = 'bulk', 'Group email'
     TEST = 'test', 'Test email'
@@ -1044,6 +1054,7 @@ class EmailTemplatePurpose(models.TextChoices):
     CONFIRMATION = 'confirmation', 'Registration confirmation'
     INVITATION = 'invitation', 'Invitation'
     GROUP = 'group', 'Group email'
+    INVOICE = 'invoice', 'Invoice'
 
 
 DEFAULT_CONFIRMATION_SUBJECT = 'Your registration for {{ event.name }}'
@@ -1054,6 +1065,16 @@ DEFAULT_CONFIRMATION_BODY = (
     'Total: {{ registration.total_owed | money }}\n'
     '{% if registration.balance > 0 %}Still due: {{ registration.balance | money }}\n'
     '{% endif %}')
+DEFAULT_INVOICE_SUBJECT = 'Invoice #{{ invoice.id }} for {{ event.name }}'
+DEFAULT_INVOICE_BODY = (
+    'Hello,\n\n'
+    '{% if invoice.memo %}{{ invoice.memo }}\n\n{% endif %}'
+    'Your invoice for {{ event.name }}'
+    '{% if campers %} ({% for camper in campers %}{{ camper.attributes.first_name }}'
+    '{{ ", " if not loop.last }}{% endfor %}){% endif %}:\n\n'
+    '**{{ invoice.description or "Registration" }}: {{ invoice.amount_due | money }} due**'
+    '{% if invoice.due_on %} by {{ invoice.due_on | date("%B %-d, %Y") }}{% endif %}\n\n'
+    '[Pay online]({{ invoice.pay_url }})\n')
 DEFAULT_INVITATION_SUBJECT = 'Register for {{ event.name }}'
 DEFAULT_INVITATION_BODY = (
     'Dear {{ invitation.recipient_name or invitation.recipient_email }},\n\n'

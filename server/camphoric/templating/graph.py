@@ -28,7 +28,7 @@ from django.utils import timezone
 from camphoric import models
 from camphoric.lodging import LodgingTree
 
-from .urls import register_url
+from .urls import invoice_pay_url, register_url
 from .values import (
     CamperVar,
     CustomChargeTypeVar,
@@ -353,6 +353,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             overpaid=Decimal('0.00'),
             due_on=row.due_on,
             memo=row.memo,
+            pay_url=invoice_pay_url(row.token, request),
             payments=ReadOnlyList(),
             created_at=local_datetime(row.created_at),
             cancelled_at=local_datetime(row.cancelled_at),
