@@ -70,9 +70,9 @@ class EventTests(TestCase):
 
     def test_is_open(self):
         one_day = datetime.timedelta(days=1)
-        long_ago = datetime.date(1979, 2, 25)
-        far_future = datetime.date(2479, 2, 25)
-        now = datetime.date.today()
+        long_ago = datetime.datetime(1979, 2, 25, tzinfo=datetime.timezone.utc)
+        far_future = datetime.datetime(2479, 2, 25, tzinfo=datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.timezone.utc)
 
         event = models.Event.objects.create(
                 organization=self.organization,
