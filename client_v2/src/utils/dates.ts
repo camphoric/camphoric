@@ -21,8 +21,12 @@ export function dateStringToParts(value: string): DateParts {
   return { year: dt.year, month: dt.month, day: dt.day };
 }
 
-/** The list of `YYYY-MM-DD` days spanning an event, inclusive of start and end. */
-export function eventDays(start: string, end: string): string[] {
+/**
+ * The list of `YYYY-MM-DD` days spanning an event, inclusive of start and end
+ * (none while either isn't set).
+ */
+export function eventDays(start: string | null, end: string | null): string[] {
+  if (!start || !end) return [];
   const startDt = DateTime.fromISO(start, { zone: 'utc' }).startOf('day');
   const endDt = DateTime.fromISO(end, { zone: 'utc' }).startOf('day');
   if (!startDt.isValid || !endDt.isValid || endDt < startDt) return [];
@@ -35,12 +39,43 @@ export function eventDays(start: string, end: string): string[] {
   return days;
 }
 
-/** An ISO instant as a `DateTimePicker` value (`YYYY-MM-DD HH:mm:ss`, local time). */
-export function isoToLocalDateTime(iso: string): string {
-  return DateTime.fromISO(iso).toFormat('yyyy-MM-dd HH:mm:ss');
+/**
+ * An ISO instant as a `DateTimePicker` value (`YYYY-MM-DD HH:mm:ss`): the clock
+ * time in `zone` (an IANA name), or in the browser's zone without one.
+ */
+export function isoToLocalDateTime(iso: string, zone?: string): string {
+  return DateTime.fromISO(iso, { zone }).toFormat('yyyy-MM-dd HH:mm:ss');
 }
 
-/** A `DateTimePicker` value (`YYYY-MM-DD HH:mm[:ss]`, local time) as an ISO instant. */
-export function localDateTimeToIso(value: string): string | null {
-  return DateTime.fromSQL(value).toUTC().toISO();
+/**
+ * A `DateTimePicker` value (`YYYY-MM-DD HH:mm[:ss]`), a clock time in `zone` (or
+ * the browser's zone), as an ISO instant in UTC (`…Z`).
+ */
+export function localDateTimeToIso(value: string, zone?: string): string | null {
+  return DateTime.fromSQL(value, { zone }).toUTC().toISO();
+}
+
+/**
+ * The instant with the same clock time in `toZone` as `iso` has in `fromZone`:
+ * 2 PM in Los Angeles becomes 2 PM in New York.
+ */
+export function keepClockTimeInZone(iso: string, fromZone: string, toZone: string): string | null {
+  return DateTime.fromISO(iso, { zone: fromZone })
+    .setZone(toZone, { keepLocalTime: true })
+    .toUTC()
+    .toISO();
+}
+
+/** A time zone's everyday name, e.g. "Pacific Time" for `America/Los_Angeles`. */
+export function timeZoneName(zone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      timeZoneName: 'longGeneric',
+    }).formatToParts(new Date());
+    return parts.find((part) => part.type === 'timeZoneName')?.value ?? zone;
+  } catch {
+    // Not a zone this browser knows.
+    return zone;
+  }
 }

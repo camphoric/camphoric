@@ -13,10 +13,10 @@ import { usePublicEvents } from 'store/publicEvents';
 /** The registration URL is `/events/<id>/register`; pull the id for a typed Link. */
 const eventIdFromUrl = (url: string) => url.match(/\/events\/(\d+)\/register/)?.[1];
 
-/** Human-friendly date for a registration-close date, e.g. "Oct 15, 2026". */
-const formatDate = (iso: string) => {
-  const dt = DateTime.fromISO(iso, { zone: 'utc' });
-  return dt.isValid ? dt.toFormat('LLL d, yyyy') : null;
+/** When registration closes, at camp: e.g. "Dec 13, 2026 at 2:00 PM PST". */
+const formatCloseTime = (iso: string, zone: string) => {
+  const dt = DateTime.fromISO(iso, { zone });
+  return dt.isValid ? dt.toFormat("LLL d, yyyy 'at' h:mm a ZZZZ") : null;
 };
 
 export function Splash() {
@@ -42,15 +42,16 @@ export function Splash() {
 
         {events?.map((event) => {
           const eventId = eventIdFromUrl(event.url);
-          const closeDate = event.registration_end && formatDate(event.registration_end);
+          const closeTime =
+            event.registration_end && formatCloseTime(event.registration_end, event.time_zone);
           return (
             <Card key={event.url} withBorder>
               <Group justify="space-between" wrap="nowrap">
                 <Stack gap={2}>
                   <Text fw={500}>{event.name}</Text>
-                  {closeDate && (
+                  {closeTime && (
                     <Text size="xs" c="dimmed">
-                      Registration {event.open ? 'closes' : 'closed'} {closeDate}
+                      Registration {event.open ? 'closes' : 'closed'} {closeTime}
                     </Text>
                   )}
                 </Stack>

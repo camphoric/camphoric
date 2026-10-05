@@ -21,7 +21,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { DateInput, DateTimePicker } from '@mantine/dates';
+import { DateInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
@@ -31,11 +31,13 @@ import { JsonViewer } from 'components/JsonViewer';
 import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
+import { TimeZoneSelect, ZonedDateTimePicker } from 'components/TimeZone';
 import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useEffect, useMemo, useState } from 'react';
 import { useTemplateDraft } from 'store/emailTemplates';
 import { eventHooks, invoiceHooks, registrationHooks } from 'store/entities';
+import { keepClockTimeInZone } from 'utils/dates';
 import { apiErrorMessage } from 'utils/fetch';
 
 /** What Home edits and saves; leaving with any of them changed asks first. */
@@ -45,6 +47,7 @@ const EDITABLE = [
   'end',
   'registration_start',
   'registration_end',
+  'time_zone',
   'default_stay_length',
   'confirmation_page_template',
   'confirmation_email_from',
@@ -113,6 +116,21 @@ export function EventAdminHome() {
   const set = <K extends keyof ApiEvent>(field: K, value: ApiEvent[K]) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
 
+  // The registration times keep their clock time in the new zone: they were
+  // entered as the camp's times, so a corrected zone shouldn't move them.
+  const setTimeZone = (zone: string) =>
+    setForm((prev) => {
+      if (!prev) return prev;
+      const rezone = (iso: string | null) =>
+        iso ? keepClockTimeInZone(iso, prev.time_zone, zone) : null;
+      return {
+        ...prev,
+        time_zone: zone,
+        registration_start: rezone(prev.registration_start),
+        registration_end: rezone(prev.registration_end),
+      };
+    });
+
   const save = async () => {
     try {
       const updated = await update.mutateAsync({
@@ -148,27 +166,33 @@ export function EventAdminHome() {
                 label="Event starts"
                 valueFormat="MM/DD/YYYY"
                 value={form.start || null}
-                onChange={(value) => set('start', value ?? '')}
+                onChange={(value) => set('start', value || null)}
               />
               <DateInput
                 label="Event ends"
                 valueFormat="MM/DD/YYYY"
                 value={form.end || null}
-                onChange={(value) => set('end', value ?? '')}
+                onChange={(value) => set('end', value || null)}
               />
             </Group>
+            <TimeZoneSelect
+              label="Time zone"
+              description="The camp’s; registration opens and closes at these times there."
+              value={form.time_zone}
+              onChange={setTimeZone}
+            />
             <Group grow>
-              <DateTimePicker
+              <ZonedDateTimePicker
                 label="Registration opens"
-                valueFormat="MM/DD/YYYY h:mm A"
-                value={form.registration_start || null}
-                onChange={(value) => set('registration_start', value ?? '')}
+                value={form.registration_start}
+                timeZone={form.time_zone}
+                onChange={(value) => set('registration_start', value)}
               />
-              <DateTimePicker
+              <ZonedDateTimePicker
                 label="Registration closes"
-                valueFormat="MM/DD/YYYY h:mm A"
-                value={form.registration_end || null}
-                onChange={(value) => set('registration_end', value ?? '')}
+                value={form.registration_end}
+                timeZone={form.time_zone}
+                onChange={(value) => set('registration_end', value)}
               />
             </Group>
             <NumberInput
