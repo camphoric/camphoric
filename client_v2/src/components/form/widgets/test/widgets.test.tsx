@@ -1,7 +1,7 @@
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import userEvent from '@testing-library/user-event';
 import { JsonSchemaForm } from 'components/form';
-import { renderWithProviders as renderForm, screen } from 'test/utils';
+import { fireEvent, renderWithProviders as renderForm, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('custom widgets', () => {
@@ -65,6 +65,82 @@ describe('custom widgets', () => {
     // Default country US: the reported value is E.164 (+1…).
     const reported = onChange.mock.calls.map(([data]) => (data as { phone?: string }).phone ?? '');
     expect(reported.some((phone) => phone.startsWith('+1'))).toBe(true);
+  });
+
+  describe('phone widget filled all at once, as autofill and paste do', () => {
+    const schema: RJSFSchema = {
+      type: 'object',
+      properties: { phone: { type: 'string', title: 'Phone' } },
+    };
+    const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
+
+    /** The phone the form last reported. */
+    const reportedPhone = (onChange: ReturnType<typeof vi.fn>) =>
+      (onChange.mock.lastCall?.[0] as { phone?: string } | undefined)?.phone;
+
+    function fill(value: string) {
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      fireEvent.change(screen.getByLabelText('Phone'), { target: { value } });
+      return reportedPhone(onChange);
+    }
+
+    /** The country the flag selector shows. */
+    const flag = () =>
+      document
+        .querySelector('.react-international-phone-country-selector-button')
+        ?.querySelector('img')
+        ?.getAttribute('data-country');
+
+    it.each([
+      '2025551234',
+      '(202) 555-1234',
+      '202-555-1234',
+      '1 (202) 555-1234',
+      '+1 202-555-1234',
+      '+1 202 555 1234',
+    ])('reads %s as a US number', (value) => {
+      expect(fill(value)).toBe('+12025551234');
+      expect(flag()).toBe('us');
+    });
+
+    it('reads a number inserted in one go, as some autofill does, as a US number', () => {
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      const value = '+1 (202) 555-1234';
+      fireEvent.input(screen.getByLabelText('Phone'), {
+        target: { value },
+        inputType: 'insertText',
+        data: value,
+      });
+      expect(reportedPhone(onChange)).toBe('+12025551234');
+      expect(flag()).toBe('us');
+      expect(screen.getByLabelText('Phone')).toHaveValue('+1 (202) 555-1234');
+    });
+
+    it('still keeps letters out when typing', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      await user.type(screen.getByLabelText('Phone'), '202x555');
+      expect(reportedPhone(onChange)).toBe('+1202555');
+    });
+
+    it('switches the country for a number with another country code', () => {
+      expect(fill('+44 20 7946 0958')).toBe('+442079460958');
+      expect(flag()).toBe('gb');
+    });
+
+    it('reads a pasted national number as a US number', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      const input = screen.getByLabelText('Phone');
+      await user.tripleClick(input);
+      await user.paste('(202) 555-1234');
+      expect(reportedPhone(onChange)).toBe('+12025551234');
+      expect(flag()).toBe('us');
+    });
   });
 
   it('select renders the field description', () => {
