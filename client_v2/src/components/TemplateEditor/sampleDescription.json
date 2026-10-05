@@ -248,14 +248,15 @@
     },
     {
      "name": "registration_start",
-     "type": "date",
+     "type": "datetime",
      "doc": "When registration opens.",
      "nullable": true
     },
     {
      "name": "registration_end",
-     "type": "date",
-     "doc": "When registration closes.",
+     "type": "datetime",
+     "doc": "When registration closes (it is closed from then on).",
+     "example": "{{ event.registration_end | datetime('%B %-d at %-I:%M %p') }}",
      "nullable": true
     },
     {
@@ -278,7 +279,7 @@
     {
      "name": "is_open",
      "type": "bool",
-     "doc": "Whether registration is open today."
+     "doc": "Whether registration is open now."
     },
     {
      "name": "pricing",

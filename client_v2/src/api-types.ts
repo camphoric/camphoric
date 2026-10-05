@@ -56,11 +56,17 @@ export interface ApiEvent extends TimeStamped {
   name: string;
   organization: number;
 
-  // Event + registration windows (ISO dates / datetimes).
-  start: string;
-  end: string;
-  registration_start: string;
-  registration_end: string;
+  // Event dates (`YYYY-MM-DD`), or null when not set.
+  start: string | null;
+  end: string | null;
+  /**
+   * The registration window: ISO instants (the server answers in UTC, `…Z`), or
+   * null when unbounded. Written with an offset; one without is refused.
+   */
+  registration_start: string | null;
+  registration_end: string | null;
+  /** The camp's IANA time zone; the registration window is entered and shown in it. */
+  time_zone: string;
   default_stay_length: number;
 
   // Data-driven schemas.
@@ -373,9 +379,11 @@ export interface ApiEventListItem {
   /** Front-end registration route, e.g. `/events/12/register`. */
   url: string;
   open: boolean;
-  /** Registration open/close dates (ISO `YYYY-MM-DD`), or null if unbounded. */
+  /** When registration opens/closes (ISO instants), or null if unbounded. */
   registration_start?: string | null;
   registration_end?: string | null;
+  /** The event's IANA time zone, to show those times in. */
+  time_zone: string;
 }
 
 export type ReportOutputType = 'csv' | 'md' | 'txt' | 'html' | 'hbs';
