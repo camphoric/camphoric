@@ -1681,7 +1681,12 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 including **Select** (enum with disabled options + value coercion), **Checkboxes** (inline +
 disabled options), and text inputs with integer and datalist-examples support — so only the
 genuinely additive widgets are layered on (§15, DR-29):
-- **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30).
+- **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30),
+  saved in E.164 form (`+12025551234`). It asks the browser for a whole number to autofill
+  (`autocomplete="tel"`). A value filled in all at once — by autofill or paste — without a
+  leading `+` is a number in the selected country, so `(202) 555-1234` saves as
+  `+12025551234`; a North American one that starts with `1` is read as giving its country
+  code. A value with `+` and another country code switches the country.
 - **NaturalNumberInput** — digits-only non-negative integer.
 - **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
   or pre-filled overflow).

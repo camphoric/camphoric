@@ -30,6 +30,20 @@ test.describe('Form engine', () => {
     const saved: unknown = JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}');
     expect(saved).toEqual({ attendance: ['Fri Jan 1', 'Sat Jan 2', 'Sun Jan 3'] });
   });
+
+  test('phone keeps the country when filled all at once, as autofill does', async ({ page }) => {
+    await page.goto(story('phone-input--empty'));
+    const phone = page.getByLabel('Phone');
+    const saved = async () =>
+      JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}') as unknown;
+
+    // fill() sets the whole value at once, replacing the +1 the field starts with.
+    await phone.fill('(202) 555-1234');
+    await expect.poll(saved).toEqual({ phone: '+12025551234' });
+
+    await phone.fill('+44 20 7946 0958');
+    await expect.poll(saved).toEqual({ phone: '+442079460958' });
+  });
 });
 
 test.describe('Data table', () => {
