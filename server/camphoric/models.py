@@ -1,9 +1,9 @@
 from decimal import Decimal
-import datetime
 import logging
 import random
 import secrets
 import uuid
+import zoneinfo
 
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
@@ -26,6 +26,11 @@ class CustomJSONField(models.JSONField):
     def __init__(self, *args, **kwargs):
         kwargs["encoder"] = DjangoJSONEncoder
         super().__init__(*args, **kwargs)
+
+
+def default_time_zone():
+    '''A new event's time zone: the server's template time zone.'''
+    return getattr(settings, 'CAMPHORIC_TEMPLATE_TIMEZONE', 'America/Los_Angeles')
 
 
 class EncryptedTextField(models.TextField):
@@ -207,8 +212,14 @@ class Event(TimeStampedModel):
     # An organization with events can't be deleted (SPEC DR-54).
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     name = models.CharField(max_length=255)
-    registration_start = models.DateField(null=True)
-    registration_end = models.DateField(null=True)
+    # The registration window: instants. Admins enter and read them in the
+    # event's time zone (SPEC §8.3, DR-97).
+    registration_start = models.DateTimeField(null=True)
+    registration_end = models.DateTimeField(null=True)
+    time_zone = models.CharField(
+        max_length=64,
+        default=default_time_zone,
+        help_text="The camp's IANA time zone (e.g. America/Los_Angeles)")
     start = models.DateField(null=True)
     end = models.DateField(null=True)
     default_stay_length = models.SmallIntegerField(
@@ -296,17 +307,19 @@ class Event(TimeStampedModel):
                 subject=DEFAULT_INVOICE_SUBJECT, body=DEFAULT_INVOICE_BODY)
             super().save(update_fields=['invoice_template'])
 
-    def is_open(self):
-        open = False
-        now = datetime.date.today()
-        long_ago = datetime.date(1979, 1, 1)
-        far_future = datetime.date(2400, 1, 1)
+    @property
+    def zone(self):
+        '''The event's time zone as a tzinfo.'''
+        return zoneinfo.ZoneInfo(self.time_zone)
 
-        registration_start = self.registration_start or long_ago
-        registration_end = self.registration_end or far_future
-        if (now >= registration_start and now < registration_end):
-            open = True
-        return open
+    def is_open(self):
+        '''Whether registration is open now: from its start (inclusive) until its end.'''
+        now = timezone.now()
+        if self.registration_start and now < self.registration_start:
+            return False
+        if self.registration_end and now >= self.registration_end:
+            return False
+        return True
 
     @property
     def valid_payment_types(self):

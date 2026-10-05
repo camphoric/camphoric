@@ -166,10 +166,11 @@ class EventListGetTests(APITestCase):
             'url': f'/events/{self.event.id}/register',
             'registration_start': None,
             'registration_end': None,
+            'time_zone': 'America/Los_Angeles',
         }])
 
     def test_excludes_events_closed_over_three_months_ago(self):
-        today = datetime.date.today()
+        today = datetime.datetime.now(datetime.timezone.utc)
         models.Event.objects.create(
             organization=self.organization,
             name='Recently Closed',
@@ -189,14 +190,16 @@ class EventListGetTests(APITestCase):
         self.assertIn('Recently Closed', names)
         self.assertNotIn('Long Closed', names)
 
-    def test_includes_registration_dates(self):
-        start = datetime.date.today() - datetime.timedelta(days=10)
-        end = datetime.date.today() + datetime.timedelta(days=20)
+    def test_includes_registration_times_and_the_time_zone(self):
+        now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+        start = now - datetime.timedelta(days=10)
+        end = now + datetime.timedelta(days=20)
         models.Event.objects.create(
             organization=self.organization,
             name='Dated Event',
             registration_start=start,
             registration_end=end,
+            time_zone='America/New_York',
         )
 
         response = self.client.get('/api/eventlist')
@@ -204,6 +207,7 @@ class EventListGetTests(APITestCase):
         dated = next(e for e in response.data if e['name'] == 'Dated Event')
         self.assertEqual(dated['registration_start'], start.isoformat())
         self.assertEqual(dated['registration_end'], end.isoformat())
+        self.assertEqual(dated['time_zone'], 'America/New_York')
 
 
 class RegisterGetTests(APITestCase):
@@ -214,7 +218,8 @@ class RegisterGetTests(APITestCase):
         event = models.Event.objects.create(
             organization=self.organization,
             name='Test Data Event',
-            registration_end=datetime.date.today() - datetime.timedelta(days=1),
+            registration_end=datetime.datetime.now(datetime.timezone.utc) -
+            datetime.timedelta(days=1),
         )
 
         response = self.client.get(f'/api/events/{event.id}/register')

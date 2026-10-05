@@ -332,7 +332,11 @@ def get_event_attributes(event):
     if (event.epayment_handling):
         attributes['epayment_handling'] = event.epayment_handling
 
-    for field in ["registration_start", "registration_end", "start", "end"]:
+    for field in ["start", "end"]:
         if getattr(event, field):
             attributes[field] = datetime_to_dict(getattr(event, field))
+    # The registration window is instants: give its day at camp, not in UTC.
+    for field in ["registration_start", "registration_end"]:
+        if getattr(event, field):
+            attributes[field] = datetime_to_dict(getattr(event, field).astimezone(event.zone))
     return attributes

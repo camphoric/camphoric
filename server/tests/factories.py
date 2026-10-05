@@ -6,8 +6,11 @@ registration type with a schema override, and invitations.
 
 import datetime
 from decimal import Decimal
+import zoneinfo
 
 from camphoric import models
+
+PACIFIC = zoneinfo.ZoneInfo('America/Los_Angeles')
 
 REGISTRATION_SCHEMA = {
     'type': 'object',
@@ -80,8 +83,8 @@ def create_template_event():
         name='Test Camp',
         start=datetime.date(2026, 12, 30),
         end=datetime.date(2027, 1, 4),
-        registration_start=datetime.date(2026, 1, 1),
-        registration_end=datetime.date(2026, 12, 15),
+        registration_start=datetime.datetime(2026, 1, 1, tzinfo=PACIFIC),
+        registration_end=datetime.datetime(2026, 12, 15, tzinfo=PACIFIC),
         registration_schema=REGISTRATION_SCHEMA,
         camper_schema=CAMPER_SCHEMA,
         camper_admin_schema={

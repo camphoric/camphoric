@@ -1,5 +1,4 @@
 from dataclasses import asdict
-import datetime
 from functools import partial
 import logging
 import traceback
@@ -998,13 +997,14 @@ class EventList(APIView):
         - name: event name
         - url: url to the registration form for the event
         - open: whether registration is open for this event
-        - registration_start: registration open date (ISO), or null
-        - registration_end: registration close date (ISO), or null
+        - registration_start: when registration opens (ISO, with offset), or null
+        - registration_end: when registration closes (ISO, with offset), or null
+        - time_zone: the event's time zone, to show those times in
 
         Events whose registration closed more than 3 months ago are omitted;
         events with no registration close date are always included.
         '''
-        cutoff = datetime.date.today() - relativedelta(months=3)
+        cutoff = timezone.now() - relativedelta(months=3)
         events = models.Event.objects.exclude(registration_end__lt=cutoff)
 
         def iso_or_none(value):
@@ -1017,6 +1017,7 @@ class EventList(APIView):
                 'open': event.is_open(),
                 'registration_start': iso_or_none(event.registration_start),
                 'registration_end': iso_or_none(event.registration_end),
+                'time_zone': event.time_zone,
             }
         response_data = list(map(map_event, events))
         return Response(response_data)

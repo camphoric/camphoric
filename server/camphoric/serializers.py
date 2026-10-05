@@ -1,7 +1,9 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
+import zoneinfo
+
 from rest_framework.serializers import (
-    BooleanField, CharField, ChoiceField, DecimalField, ListSerializer,
+    BooleanField, CharField, ChoiceField, DateTimeField, DecimalField, ListSerializer,
     ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField, SerializerMethodField,
     ValidationError,
 )
@@ -9,6 +11,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 import jsonschema  # Using Draft-7
 from camphoric import (
     accounts,
@@ -81,12 +84,36 @@ class EmailMessageDetailSerializer(EmailMessageSerializer):
         exclude = ['dedupe_key', 'lease_until', 'unsubscribe_url', 'deleted_at']
 
 
+class AwareDateTimeField(DateTimeField):
+    '''
+    A datetime that must give its offset (`…-08:00` or `…Z`). Without one,
+    DRF would read it as UTC, and a time meant for camp would silently move.
+    '''
+    default_error_messages = {
+        'naive': 'Datetime needs a UTC offset, e.g. 2026-12-13T14:00:00-08:00.',
+    }
+
+    def enforce_timezone(self, value):
+        if timezone.is_naive(value):
+            self.fail('naive')
+        return super().enforce_timezone(value)
+
+
 class EventSerializer(ModelSerializer):
+    registration_start = AwareDateTimeField(allow_null=True, required=False)
+    registration_end = AwareDateTimeField(allow_null=True, required=False)
+
     class Meta:
         model = models.Event
         fields = '__all__'
         # Created with the event; edited as an email template.
         read_only_fields = ['confirmation_template', 'invoice_template']
+
+    def validate_time_zone(self, name):
+        if name not in zoneinfo.available_timezones():
+            raise ValidationError(
+                f'"{name}" isn\'t a time zone (use one like America/Los_Angeles).')
+        return name
 
     def validate_camper_schema(self, schema):
         return validate_schema(schema)

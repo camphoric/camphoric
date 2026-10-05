@@ -12,9 +12,9 @@ from rest_framework.test import APITestCase
 
 from camphoric import models
 
-TODAY = datetime.date.today()
-CLOSED = {'registration_end': TODAY - datetime.timedelta(days=1)}
-NOT_YET = {'registration_start': TODAY + datetime.timedelta(days=1)}
+NOW = datetime.datetime.now(datetime.timezone.utc)
+CLOSED = {'registration_end': NOW - datetime.timedelta(days=1)}
+NOT_YET = {'registration_start': NOW + datetime.timedelta(days=1)}
 
 
 class RegistrationDatesTests(APITestCase):
