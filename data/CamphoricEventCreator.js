@@ -41,7 +41,7 @@ import cliProgress from 'cli-progress';
 import lodash from 'lodash';
 
 import { Organizations } from './organizations/index.js';
-import { formatDate } from './utils.js';
+import { formatDate, formatDateTime } from './utils.js';
 import eventImportObjectSchema from './eventImportObjectSchema.js';
 import Fetcher from './CamphoricFetcher.js';
 
@@ -124,12 +124,11 @@ export default class CamphoricEventCreator extends Fetcher {
     const event = {
       organization: org.id,
       ...eventData,
-      ...['registration_start', 'registration_end', 'start', 'end'].reduce(
-        (acc, k) => ({
-          ...acc,
-          [k]: formatDate(this.data.event[k]),
-        }), {},
-      )
+      // The event's dates are days; its registration window is instants.
+      start: formatDate(eventData.start),
+      end: formatDate(eventData.end),
+      registration_start: formatDateTime(eventData.registration_start),
+      registration_end: formatDateTime(eventData.registration_end),
     };
 
     if (existingEvent) {

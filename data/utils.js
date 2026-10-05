@@ -21,6 +21,15 @@ export function formatDate(arg) {
   return [year, month, day].join('-');
 }
 
+/**
+ * An instant (a Date, or an ISO string with an offset) as an ISO timestamp in
+ * UTC. The server refuses one without an offset rather than guess its zone.
+ */
+export function formatDateTime(arg) {
+  const date = arg instanceof Date ? arg : new Date(Date.parse(arg));
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
 export function validateEventImportObject(obj) {
 
 }
