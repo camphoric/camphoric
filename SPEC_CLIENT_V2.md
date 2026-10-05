@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-05
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-96)
+- §15 — Decision Records (DR-1…DR-97)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -193,7 +193,8 @@ ending in `/` to the non-slash form.
 
 ### Public / registration routes (registration client store)
 
-- `/` — splash/default page listing public events (open/closed status), with a link to admin.
+- `/` — splash/default page listing public events (open/closed status, and when registration
+  closes, in the event's time zone), with a link to admin.
 - `/events/:eventId/register` — redirects to `…/register/registration` (preserving query
   string, which may carry an invitation code).
 - `/events/:eventId/register/registration` — Step 1, the registration form.
@@ -508,7 +509,10 @@ Non-CRUD admin endpoints:
     the user changed, in every event and organization, newest first: entries of the same shape,
     `object.type` any audited model (`event`, `report`, `lodging`, `user`, …), paginated 50 a
     page as `{ count, next, previous, results }`.
-- `GET /api/eventlist` — public list of events for the splash page.
+- `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
+  registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
+  and the event's time zone to show them in. Events whose registration closed more than 3
+  months ago are left out.
 
 ### Registration API (public)
 
@@ -637,8 +641,13 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   or `django_access`, deactivate or delete themselves (409 `{ detail }`); a superuser's `role`
   can't change while they're a superuser (400). Deactivating ends the user's sessions and API
   tokens.
-- **Event:** `id`, `name`; `registration_start`/`registration_end` (window); `start`/`end`
-  (event dates); `default_stay_length`; JSON Schemas: `camper_schema`, `camper_admin_schema`,
+- **Event:** `id`, `name`; `registration_start`/`registration_end` (the registration window:
+  ISO instants, which the server answers in UTC, `…Z`, or `null` when unbounded; registration is
+  open from the start, inclusive, until the end; a value written without a UTC offset is refused
+  with a 400 rather than read as UTC); `time_zone` (the camp's IANA time zone, e.g.
+  `America/Los_Angeles`, which the window is entered and shown in; a new event gets the server's
+  template time zone; an unknown zone is refused with a 400; §15, DR-97); `start`/`end` (event
+  dates, `YYYY-MM-DD`, or `null`); `default_stay_length`; JSON Schemas: `camper_schema`, `camper_admin_schema`,
   `registration_schema`, `registration_ui_schema`, `registration_admin_schema`,
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
   `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists, each
@@ -1064,8 +1073,13 @@ details**. Two cross-cutting requirements (the presentation is the implementer's
 An interface to view and edit the event's top-level configuration; saving persists via PATCH to
 the event:
 
-- Event basics: `name`, `start`, `end`, `default_stay_length`.
-- Registration window: `registration_start`, `registration_end`.
+- Event basics: `name`, `start`, `end`, `default_stay_length`. A cleared date is saved as
+  `null`.
+- Registration window: `time_zone`, `registration_start`, `registration_end` (§15, DR-97). The
+  opening and closing times are picked and shown as clock times in the event's time zone, not the
+  viewer's, with the zone named beside them, and are saved as ISO instants with an offset; a
+  cleared one is saved as `null`. Changing the time zone keeps the clock times the admin
+  entered (2 PM stays 2 PM, in the new zone).
 - **Confirmation page** — its message, a Jinja markdown template edited in the template editor
   (§9.6) with the `confirmation_page` context and a live preview for a completed registration
   (§7.3).
@@ -1079,8 +1093,7 @@ the event:
 - `pricing` (a freely editable set of named integer values) and `registration_template_vars`
   (named string values).
 
-Datetime fields use explicit timezone handling. (Exposing the underlying JSON is a useful
-debugging aid.)
+(Exposing the underlying JSON is a useful debugging aid.)
 
 **Email templates** (the confirmation and invoice emails here, and invitation emails, §8.4) are the event's
 email templates (§5; §15, DR-45), written in Jinja: the subject and the markdown body render on the
@@ -1699,7 +1712,9 @@ server remains authoritative; this is for live UX only). The server also applies
 price overrides (DR-56); those only exist on registrations already submitted, so the form never
 meets one and the client engine ignores them.
 
-Inputs: `config.event`, `config.pricingLogic` (`{ registration: [...], camper: [...] }`),
+Inputs: `config.event` (`{ is_open, epayment_handling?, start?, end?, registration_start?,
+registration_end? }`, each date as `{ epoch, year, month, day }`; the registration window's
+`year`/`month`/`day` are its day in the event's time zone, its `epoch` the instant), `config.pricingLogic` (`{ registration: [...], camper: [...] }`),
 `config.pricing` (named numeric vars), `config.dataSchema` (to find camper date properties), the
 `formData`, and the applied promo code, if any (`{ code, label, scope, pricingLogic }`, §7.1).
 The e-payment handling fee isn't part of the price: it's charged on each invoice paid online
@@ -2028,7 +2043,8 @@ section is the contract.
 - **Dates/times:** Luxon (`DateTime`) with explicit timezone handling; form date values are
   `YYYY-MM-DD`, datetimes are ISO with offset. Camper `stay` is an array of `YYYY-MM-DD`
   strings. Pricing logic receives dates as `{ year, month, day }` objects. Dates are **displayed
-  in the viewer's local time**. A date-only value is read as local midnight of that same day, so
+  in the viewer's local time**, except the registration window, which is entered and shown in
+  the event's time zone (§8.3; §15, DR-97). A date-only value is read as local midnight of that same day, so
   its label names the calendar day it holds; arithmetic that only builds `YYYY-MM-DD` strings
   (such as listing an event's days) may use a fixed zone (§15, DR-64).
 - **CSRF & credentials:** every request includes credentials; mutations send `X-CSRFToken`
@@ -4052,6 +4068,26 @@ charges after registering (a meal plan). Those amounts need an invoice to be pai
 ahead of a price change. A fixed, built-in invoice email — every other email is an editable
 template (DR-45).
 
+### DR-97 — The registration window is date and time, in the event's time zone
+
+**Decision:** `registration_start` and `registration_end` are instants, not dates, and each event
+has a `time_zone` (an IANA name). Admins pick and read the window as clock times in that zone,
+whatever zone their browser is in, and the client sends ISO instants with an offset; the server
+refuses a datetime without one. Registration is open from the start (inclusive) until the end.
+A new event's zone is the server's template time zone (`CAMPHORIC_TEMPLATE_TIMEZONE`). When the
+change shipped, every existing event was put in San Francisco's zone and its dates became
+midnight there.
+**Context:** Registration should open and close at a set time at camp, such as 2 PM, not at
+midnight UTC (the night before, in California). The picker's value has no offset, and the
+server read such values as UTC, so a time entered in the browser's zone was stored hours off,
+and a date-only column couldn't hold the time at all. Admins don't all sit in the camp's zone.
+**Alternatives:** One zone for every event from server settings — simpler, but camps elsewhere
+couldn't use it, and the client would still need the zone from the server. Keeping dates and
+fixing only the picker — registration still couldn't close at a time of day. Showing the window
+in the viewer's zone (as other times are, DR-64) — an admin elsewhere would see and edit times
+that aren't the camp's. Templates still format datetimes in the server's template time zone;
+moving them to the event's zone is a separate change.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4098,6 +4134,9 @@ must be coordinated with the backend. Grouped by status.
   shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94). Making invoices (`POST /api/invoices/`,
   `POST /api/registrations/{id}/invoice-balance/`), sending one (`POST /api/invoices/{id}/send/`),
   `pay_url`, the event's `invoice_template` and the `invoice_email` context (§8.3, §8.4; DR-96).
+- **Registration window:** the event's `registration_start`/`registration_end` as instants
+  (written with an offset) and its `time_zone`, on the event and in `GET /api/eventlist` (§5,
+  §8.3; DR-97).
 - **Invoice pay page:** `GET /api/invoices/pay/{token}` and its `order` and `capture` posts, open
   to anyone and throttled (`invoice_pay`), with the shapes in §5 (§9.7; DR-95).
 - **Validation messages:** the Event's `registration_error_messages` field, validated by the
