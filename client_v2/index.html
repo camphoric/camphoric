@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Camphoric Registration</title>
+    <!--
+      Set the colour scheme before the bundle loads, so a dark-mode visitor
+      doesn't see a white page first (SPEC §10, DR-100). The same rule as
+      Mantine's ColorSchemeScript with defaultColorScheme="auto" (main.tsx): a
+      choice saved under Mantine's key wins, otherwise the OS preference.
+    -->
+    <script>
+      try {
+        var saved = window.localStorage.getItem('mantine-color-scheme-value');
+        var scheme = saved === 'light' || saved === 'dark' ? saved : 'auto';
+        if (scheme === 'auto') {
+          scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-mantine-color-scheme', scheme);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
