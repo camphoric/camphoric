@@ -49,6 +49,8 @@ NEW THIS YEAR: Campers staying longer than 2 nights will take a COVID test 48 ho
 If you would like to sign up to lead a workshop, you may do so on the
 [Workshop Signup Form](https://docs.google.com/forms/d/1ISs1zhwBzUyp4Q8inU6Z8x12dFmmLmWsjExMZPt3EKc)
 
+Deadline for reserving a workshop space is Sunday, December 13th.
+
 You will be receiving an email with your housing assignment and additional details by December 16. Thank you for registering for Camp Harmony!
 
 Registration Number: ${yearDisplay}CH{{ registration.id }}
