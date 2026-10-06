@@ -18,7 +18,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import { useRegistrationConfig } from 'store/registrationApi';
 
-import { clearPaymentStep, clearRegistrationFormData, getRegistrationStorageKey } from './storage';
+import {
+  clearRegistrationFormData,
+  clearSentRegistration,
+  getRegistrationStorageKey,
+} from './storage';
 
 /** The rendered page (sanitized HTML), or null when there's no confirmation data. */
 function captureConfirmation(): string | null {
@@ -45,7 +49,7 @@ export function ConfirmationStep() {
     if (finished.current || !config) return;
     finished.current = true;
     clearRegistrationFormData(getRegistrationStorageKey(config));
-    clearPaymentStep(getRegistrationStorageKey(config));
+    clearSentRegistration(getRegistrationStorageKey(config));
     useRegistrationStore.getState().reset();
   }, [snapshot, config, goToStep]);
 

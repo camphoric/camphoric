@@ -17,6 +17,16 @@ import { create } from 'zustand';
 const emptyTotals: PricingResults = { total: 0, campers: [] };
 const emptyRegistration: RegistrationFormData = { campers: [{}] };
 
+/**
+ * A registration this browser has sent (SPEC §7.1): the payment-step payload it
+ * got back, with the form data and promo code it was sent with.
+ */
+export interface SentRegistration {
+  paymentStep: ApiRegisterPaymentStep;
+  formData: RegistrationFormData;
+  promo: AppliedPromo | null;
+}
+
 export interface RegistrationState {
   registration: RegistrationFormData;
   totals: PricingResults;
@@ -32,6 +42,8 @@ export interface RegistrationState {
   setPaymentStep: (paymentStep: ApiRegisterPaymentStep) => void;
   setConfirmationStep: (confirmationStep: ApiRegisterConfirmationStep) => void;
   setPromo: (promo: AppliedPromo | null) => void;
+  /** Go on with a registration already sent: what it was sent with, and its payment step. */
+  resumeSent: (sent: SentRegistration) => void;
   reset: () => void;
 }
 
@@ -47,6 +59,13 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   setPaymentStep: (paymentStep) => set({ paymentStep }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
   setPromo: (promo) => set({ promo }),
+  resumeSent: ({ paymentStep, formData, promo }) =>
+    set({
+      paymentStep,
+      registration: formData,
+      promo,
+      totals: paymentStep.serverPricingResults,
+    }),
   reset: () =>
     set({
       registration: emptyRegistration,
