@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-98)
+- §15 — Decision Records (DR-1…DR-99)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1694,6 +1694,11 @@ genuinely additive widgets are layered on (§15, DR-29):
   `+12025551234`; a North American one that starts with `1` is read as giving its country
   code. A value with `+` and another country code switches the country.
 - **NaturalNumberInput** — digits-only non-negative integer.
+- **Select** — overrides the base select to show the field's description (templated markdown)
+  between the label and the control, which the base widget omits. Choosing the option that's
+  already chosen keeps it. An optional select can be cleared with an explicit clear control;
+  a required one can't be emptied once answered. A field's `ui:options` (`allowDeselect`,
+  `clearable`) override either (§15, DR-99).
 - **Textarea** — overrides the base textarea to enforce `maxLength` truncation (guarding pasted
   or pre-filled overflow).
 - **Checkboxes** — overrides the base checkboxes so the chosen values are saved in the order the
@@ -4113,6 +4118,18 @@ deployed by version. Adding it to whoami (`GET /api/user`) — that response is 
 is polled to keep the session alive. A public endpoint — nothing outside the admin shows the
 version, so it isn't advertised to anyone signed out. Setting it to `dev` in development — one
 more variable to keep in each development setup, for what "unknown version" already says.
+
+### DR-99 — Choosing a dropdown's chosen option keeps it
+
+**Decision:** In form dropdowns, choosing the option that's already chosen keeps it. An
+optional dropdown is cleared with its own clear control; a required one has none.
+**Context:** The dropdown's default emptied the field when its chosen option was chosen again.
+On a phone, opening a pre-answered dropdown (Camp Harmony's "first time at camp", answered "No"
+by default) and tapping the answer to close it left the field blank, and as the field wasn't
+required, the registration went through without an answer.
+**Alternatives:** Making every such field required in each event's schema — it fixes only
+those fields, and an optional answer was still lost by a tap. Keeping the deselect and adding
+nothing — there'd be no way to tell an answer was cleared on purpose.
 
 ---
 

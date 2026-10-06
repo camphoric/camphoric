@@ -171,6 +171,57 @@ describe('custom widgets', () => {
     ).toBeTruthy();
   });
 
+  describe('select', () => {
+    const firstTimeSchema = (required: boolean): RJSFSchema => ({
+      type: 'object',
+      ...(required ? { required: ['first_time'] } : {}),
+      properties: {
+        first_time: { type: 'boolean', title: 'First time at camp?', default: false },
+      },
+    });
+    const firstTimeUi: UiSchema = {
+      first_time: { 'ui:enumNames': { false: 'No', true: 'Yes' } },
+    };
+    const chooseAgain = async (user: ReturnType<typeof userEvent.setup>, label: string) => {
+      await user.click(screen.getByLabelText(/First time at camp/));
+      // The dropdown is still mid-transition in jsdom, so its options count as hidden.
+      await user.click(screen.getByRole('option', { name: label, hidden: true }));
+    };
+
+    it('keeps an answer when it is chosen again', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(
+        <JsonSchemaForm schema={firstTimeSchema(true)} uiSchema={firstTimeUi} onChange={onChange} />,
+      );
+      await chooseAgain(user, 'No');
+
+      expect(screen.getByLabelText(/First time at camp/)).toHaveValue('No');
+      for (const [data] of onChange.mock.calls) expect(data).toEqual({ first_time: false });
+    });
+
+    it('clears an optional answer with its clear button, not by choosing it again', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      const { container } = renderForm(
+        <JsonSchemaForm schema={firstTimeSchema(false)} uiSchema={firstTimeUi} onChange={onChange} />,
+      );
+      await chooseAgain(user, 'No');
+      expect(screen.getByLabelText(/First time at camp/)).toHaveValue('No');
+
+      await user.click(container.querySelector('.mantine-Select-section button')!);
+      expect(screen.getByLabelText(/First time at camp/)).toHaveValue('');
+      expect(onChange).toHaveBeenLastCalledWith({}, expect.anything());
+    });
+
+    it('offers no clear button when an answer is required', () => {
+      const { container } = renderForm(
+        <JsonSchemaForm schema={firstTimeSchema(true)} uiSchema={firstTimeUi} />,
+      );
+      expect(container.querySelector('.mantine-Select-section button')).toBeNull();
+    });
+  });
+
   it('checkboxes save the choices in option order, not click order', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

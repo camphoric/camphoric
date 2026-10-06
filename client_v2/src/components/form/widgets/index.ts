@@ -11,6 +11,7 @@
  *   - DateWidget        — overrides the base date widget to display MM/DD/YYYY
  *                         while storing ISO YYYY-MM-DD
  *   - SelectWidget      — overrides the base select to render the description
+ *                         and keep a choice when it's chosen again
  *   - CheckboxesWidget  — overrides the base checkboxes to render the description
  *                         and save the choices in option order rather than
  *                         click order
