@@ -1,10 +1,12 @@
 /**
  * Who's signed in and their Camphoric permission group (SPEC §6, §8.2), with the
  * account actions: Users (Admins; it opens over the current page), change
- * password, sign out.
+ * password, sign out. On a narrow screen the button shows the person's
+ * initials, so the header keeps room for the event's name (#755); the menu
+ * still names them.
  */
 
-import { Badge, Button, Group, Menu, Text } from '@mantine/core';
+import { Avatar, Badge, Button, Group, Menu, Text, VisuallyHidden } from '@mantine/core';
 import { IconChevronDown, IconKey, IconLogout, IconUsers } from '@tabler/icons-react';
 import { useCurrentUser, useLogout } from 'hooks/auth';
 import { ROLE_LABEL, usePermissions } from 'hooks/permissions';
@@ -27,11 +29,13 @@ export function UserMenu() {
         <Menu.Target>
           <Button variant="subtle" size="xs" rightSection={<IconChevronDown size={14} />}>
             <Group gap={6} wrap="nowrap">
-              <Text size="sm" truncate maw={160}>
+              <Text size="sm" truncate maw={160} visibleFrom="sm">
                 {name}
               </Text>
+              <Avatar name={name} color="initials" size={26} hiddenFrom="sm" aria-hidden />
+              <VisuallyHidden hiddenFrom="sm">{name}</VisuallyHidden>
               {user.role && (
-                <Badge size="xs" variant="light" visibleFrom="xs">
+                <Badge size="xs" variant="light" visibleFrom="sm">
                   {ROLE_LABEL[user.role]}
                 </Badge>
               )}

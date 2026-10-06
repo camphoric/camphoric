@@ -696,3 +696,20 @@ test.describe('Light or dark mode', () => {
     await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'light');
   });
 });
+
+test.describe('Admin header on a narrow screen', () => {
+  test('the user menu shows initials on a phone and the name elsewhere', async ({ page }) => {
+    await page.goto(story('user-menu--admin'));
+    // Either way the button is named for who's signed in.
+    const menu = page.getByRole('button', { name: /Pat Alpha/ });
+    await expect(menu).toBeVisible();
+    const initials = menu.getByText('PA', { exact: true });
+    if ((page.viewportSize()?.width ?? 1280) < 768) {
+      await expect(initials).toBeVisible();
+    } else {
+      await expect(initials).toBeHidden();
+    }
+    await menu.click();
+    await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+  });
+});

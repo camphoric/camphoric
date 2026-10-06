@@ -1,6 +1,8 @@
 /**
  * Stories for the user menu (SPEC §6, §8.2): who's signed in and their
- * Camphoric permission group, for each group. Run `npm run storybook`.
+ * Camphoric permission group, for each group. On a narrow screen (below
+ * Mantine's `sm`) the button shows their initials instead (#755). Run
+ * `npm run storybook`.
  */
 
 import { Group } from '@mantine/core';

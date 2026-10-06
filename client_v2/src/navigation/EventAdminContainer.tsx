@@ -5,8 +5,12 @@
  * back to home (handled in the router).
  *
  * The header names the event, links back to the event chooser, and carries the
- * light/dark toggle (§9.6), the user menu and a "Read-only" badge for a user who can view but not change (a
- * Reporter; DR-51).
+ * light/dark toggle (§9.6), the user menu and a "Read-only" badge for a user
+ * who can view but not change (a Reporter; DR-51). It stays on one line on a
+ * narrow screen (#755): where the navigation folds into the burger, the
+ * "Camphoric Admin" title gives way to the event's name, which is cut short to
+ * fit, and the badge shrinks to an icon; the toggle and user menu keep their
+ * room.
  */
 
 import {
@@ -18,12 +22,14 @@ import {
   NavLink,
   ScrollArea,
   Text,
+  ThemeIcon,
   Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconArrowLeft,
   IconBed,
+  IconEye,
   IconFileText,
   IconHelp,
   IconHome,
@@ -38,6 +44,8 @@ import { usePermissions } from 'hooks/permissions';
 import { UserMenu } from 'navigation/UserMenu';
 import type { ReactNode } from 'react';
 import { eventHooks } from 'store/entities';
+
+const READ_ONLY_HINT = 'Your permission group can view but not change';
 
 const SECTIONS = [
   { path: 'home', label: 'Home', icon: IconHome },
@@ -65,8 +73,8 @@ export function EventAdminContainer() {
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group wrap="nowrap" style={{ minWidth: 0 }}>
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
+          <Group wrap="nowrap" gap="sm" style={{ minWidth: 0 }}>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <ActionIcon
               component={Link}
@@ -78,25 +86,39 @@ export function EventAdminContainer() {
             >
               <IconArrowLeft size={18} />
             </ActionIcon>
-            <Title order={4} style={{ whiteSpace: 'nowrap' }}>
+            <Title order={4} visibleFrom="sm" style={{ whiteSpace: 'nowrap' }}>
               Camphoric Admin
             </Title>
             {event && (
-              <Text fw={500} c="dimmed" truncate>
+              <Text fw={500} c="dimmed" truncate style={{ minWidth: 0 }}>
                 {event.name}
               </Text>
             )}
             {!canEdit && (
-              <Badge
-                variant="light"
-                color="gray"
-                title="Your permission group can view but not change"
-              >
-                Read-only
-              </Badge>
+              <>
+                <Badge
+                  variant="light"
+                  color="gray"
+                  title={READ_ONLY_HINT}
+                  visibleFrom="sm"
+                  style={{ flexShrink: 0 }}
+                >
+                  Read-only
+                </Badge>
+                <ThemeIcon
+                  variant="light"
+                  color="gray"
+                  title={READ_ONLY_HINT}
+                  aria-label="Read-only"
+                  hiddenFrom="sm"
+                  style={{ flexShrink: 0 }}
+                >
+                  <IconEye size={16} />
+                </ThemeIcon>
+              </>
             )}
           </Group>
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <ColorSchemeToggle />
             <UserMenu />
           </Group>
