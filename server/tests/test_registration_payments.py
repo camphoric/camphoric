@@ -304,6 +304,18 @@ class ConfirmationSweepTests(FlowTestCase):
         self.assertIsNone(self.invoice().payment_type)  # #759
         self.assertEqual(confirmations.send_overdue_confirmations(later), 0)
 
+    def test_a_walked_away_confirmation_doesnt_say_paypal(self):
+        # #763 (wiki A10): pressed PayPal, closed the window and left.
+        template = self.event.confirmation_template
+        template.body = ('Paying by {{ invoice.payment_type or "nothing yet" }}; '
+                         'chose {{ registration.payment_type or "nothing" }}.')
+        template.save()
+        self.start_paypal()
+        later = timezone.now() + datetime.timedelta(minutes=31)
+        confirmations.send_overdue_confirmations(later)
+        [email] = self.confirmations()
+        self.assertIn('Paying by nothing yet; chose nothing.', email.body)
+
     def test_registrations_confirmed_before_the_sweep_are_left_alone(self):
         models.Registration.objects.filter(uuid=self.uuid).update(
             completed=True, completed_at=timezone.now() - datetime.timedelta(days=9),
