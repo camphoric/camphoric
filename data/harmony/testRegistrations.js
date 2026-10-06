@@ -63,6 +63,7 @@ function destructureCamper(c, email, phone, lodgingMap) {
     email,
     phone,
     meal_exceptions,
+    first_time: false,
     driving: 'Passenger',
     lodging: {
       'lodging_requested': {

@@ -7,7 +7,7 @@ export const days = [0, 1, 2, 3, 4]
 // export default (args) => ({
 export default {
   'type': 'object',
-  'required': ['first_name', 'last_name', 'email', 'phone', 'driving', 'attendance'],
+  'required': ['first_name', 'last_name', 'email', 'phone', 'first_time', 'driving', 'attendance'],
   'dependencies': {
     'address_different_than_payer': {
       'oneOf': [
