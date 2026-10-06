@@ -713,3 +713,43 @@ test.describe('Admin header on a narrow screen', () => {
     await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
   });
 });
+
+test.describe('Form actions', () => {
+  test('Save stays in view as a long form scrolls, and covers no field at the end', async ({
+    page,
+  }) => {
+    await page.goto(story('form-actions--long-page'));
+    const save = page.getByRole('button', { name: 'Save' });
+    const lastField = page.getByLabel('Field 16');
+
+    // The form runs past the bottom of the screen, and Save is there anyway.
+    await expect(lastField).not.toBeInViewport();
+    await expect(save).toBeInViewport({ ratio: 0.99 });
+
+    await page.getByLabel('Field 3').fill('changed');
+    await expect(page.getByText('Unsaved changes')).toBeInViewport();
+
+    // Scrolled to the last field, at the end of the page, it sits above the bar.
+    await lastField.scrollIntoViewIfNeeded();
+    const bar = await page.locator('.camphoric-form-actions').boundingBox();
+    const field = await lastField.boundingBox();
+    expect(field!.y + field!.height).toBeLessThanOrEqual(bar!.y);
+
+    await save.click();
+    await expect(page.getByText('Unsaved changes')).toHaveCount(0);
+  });
+
+  test('a dialog’s Save is in view while its fields run past the bottom', async ({ page }) => {
+    await page.goto(story('form-actions--in-a-dialog'));
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByLabel('Field 16')).not.toBeInViewport();
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeInViewport({ ratio: 0.99 });
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport({ ratio: 0.99 });
+  });
+
+  test('a Reporter has Close, and no Save', async ({ page }) => {
+    await page.goto(story('form-actions--for-a-reporter'));
+    await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
+  });
+});

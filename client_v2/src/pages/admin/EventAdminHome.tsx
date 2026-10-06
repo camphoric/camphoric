@@ -6,7 +6,8 @@
  * Jinja with a preview for any completed registration, and saved with the rest;
  * so is the invoice email registrars send with an invoice's pay link (§9.7,
  * DR-95), previewed for any of the event's invoices.
- * Leaving with anything changed and unsaved asks first.
+ * Save stays in view as the page scrolls, and says when anything is unsaved;
+ * leaving with anything changed and unsaved asks first.
  */
 
 import {
@@ -27,6 +28,7 @@ import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent, Hash } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
+import { FormActions } from 'components/FormActions';
 import { JsonViewer } from 'components/JsonViewer';
 import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
@@ -103,11 +105,11 @@ export function EventAdminHome() {
     }
   }, [event, form]);
 
-  useUnsavedChanges(
+  const dirty =
     confirmation.changed ||
-      invoiceEmail.changed ||
-      (!!form && !!saved && editable(form) !== editable(saved)),
-  );
+    invoiceEmail.changed ||
+    (!!form && !!saved && editable(form) !== editable(saved));
+  useUnsavedChanges(dirty);
 
   if (!event || !form || !confirmation.loaded || !invoiceEmail.loaded) {
     return <FullScreenLoading />;
@@ -300,12 +302,14 @@ export function EventAdminHome() {
           </Stack>
         </ReadOnlyFieldset>
 
-        <Group>
-          <CanEdit>
+        <CanEdit>
+          <FormActions dirty={dirty} justify="flex-start">
             <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
               Save
             </Button>
-          </CanEdit>
+          </FormActions>
+        </CanEdit>
+        <Group>
           <Button variant="subtle" onClick={toggleRaw}>
             {showRaw ? 'Hide' : 'Show'} raw JSON
           </Button>

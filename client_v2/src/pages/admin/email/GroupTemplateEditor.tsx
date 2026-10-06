@@ -11,6 +11,7 @@ import { Alert, Button, Group, Select, Stack, Text, TextInput, Title } from '@ma
 import { notifications } from '@mantine/notifications';
 import type { ApiEmailTemplate, EmailAudience } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
+import { FormActions } from 'components/FormActions';
 import { completeFilter, unfinishedRules } from 'components/RecipientFilterBuilder';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
@@ -74,7 +75,8 @@ export function GroupTemplateEditor({
 
   const edits = JSON.stringify({ name, audience, account, fromEmail, replyTo, subject, body });
   const [initialEdits] = useState(edits);
-  const { confirmDiscard, release } = useUnsavedChanges(edits !== initialEdits);
+  const dirty = edits !== initialEdits;
+  const { confirmDiscard, release } = useUnsavedChanges(dirty);
 
   const source = audience.recipient_source;
   const { data: fields } = useRecipientFields(eventId, source);
@@ -225,12 +227,7 @@ export function GroupTemplateEditor({
         </Alert>
       )}
 
-      {missing && canEdit && (
-        <Text size="sm" c="dimmed">
-          Add {missing} to save.
-        </Text>
-      )}
-      <Group>
+      <FormActions dirty={dirty} justify="flex-start">
         <CanEdit>
           <Button onClick={save} disabled={!!missing || saving} loading={saving}>
             Save
@@ -239,7 +236,12 @@ export function GroupTemplateEditor({
         <Button variant="default" onClick={() => confirmDiscard(() => onDone())}>
           {canEdit ? 'Cancel' : 'Close'}
         </Button>
-      </Group>
+        {missing && canEdit && (
+          <Text size="sm" c="dimmed">
+            Add {missing} to save.
+          </Text>
+        )}
+      </FormActions>
     </Stack>
   );
 }

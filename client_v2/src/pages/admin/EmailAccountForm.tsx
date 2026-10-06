@@ -9,7 +9,6 @@
 import {
   Alert,
   Button,
-  Group,
   NumberInput,
   PasswordInput,
   SegmentedControl,
@@ -21,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { ApiEmailAccount, EmailAccountSecurity } from 'api-types';
+import { FormActions } from 'components/FormActions';
 
 export const SMTP_BACKEND = 'django.core.mail.backends.smtp.EmailBackend';
 const CONSOLE_BACKEND = 'django.core.mail.backends.console.EmailBackend';
@@ -214,14 +214,14 @@ export function EmailAccountForm({
           {...form.getInputProps('default_reply_to')}
         />
 
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" loading={saving}>
             {account ? 'Save' : 'Add account'}
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </form>
   );

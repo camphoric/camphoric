@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiLodging, LodgingAvailability, Scalar } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { useState } from 'react';
 import { lodgingHooks } from 'store/entities';
 
@@ -132,14 +133,14 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
           autosize
           minRows={2}
         />
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={save} loading={create.isPending || update.isPending}>
             Save
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </Modal>
   );

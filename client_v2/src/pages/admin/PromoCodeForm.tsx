@@ -9,6 +9,7 @@ import { Alert, Button, Group, Input, Radio, Stack, Switch, Text, TextInput } fr
 import { DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import type { ApiPromoCode, PromoScope } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { ReadOnlyFieldset } from 'hooks/permissions';
 import { useMemo } from 'react';
@@ -156,14 +157,14 @@ export function PromoCodeForm({
           Registrations that already have the code keep it — and its discount — if it’s later turned
           off, expires or is deleted.
         </Text>
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" loading={saving} disabled={!!logicError}>
             Save
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </form>
   );

@@ -22,6 +22,7 @@ import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ApiOrganization } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { FormActions } from 'components/FormActions';
 import { InlineLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
@@ -162,14 +163,14 @@ function OrganizationNameForm({
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
         />
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={!name.trim()} loading={saving}>
             Save
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </form>
   );

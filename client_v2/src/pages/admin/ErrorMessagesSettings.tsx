@@ -10,7 +10,7 @@
  * receive it, so conditional and server-built fields (lodging) are included.
  */
 
-import { Accordion, Alert, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
+import { Accordion, Alert, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
@@ -27,6 +27,7 @@ import {
   setRule,
   validateRules,
 } from 'components/form';
+import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { CanEdit } from 'hooks/permissions';
 import { useMemo, useState } from 'react';
@@ -237,16 +238,11 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
       )}
 
       <CanEdit>
-        <Group>
+        <FormActions dirty={dirty} justify="flex-start">
           <Button onClick={save} disabled={!dirty || blocked} loading={update.isPending}>
             Save
           </Button>
-          {dirty && (
-            <Badge color="yellow" variant="light">
-              Unsaved changes
-            </Badge>
-          )}
-        </Group>
+        </FormActions>
       </CanEdit>
 
       <Accordion variant="contained">
