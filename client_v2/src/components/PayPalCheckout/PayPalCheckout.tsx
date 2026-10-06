@@ -8,16 +8,26 @@
  *
  * The page isn't blocked while PayPal's popup or inline card form is open
  * (#646); the container blocks it only once PayPal approves.
+ *
+ * While PayPal's script loads, a loader holds the buttons' place. If it can't
+ * load — PayPal refuses the event's client id, a blocker stops it, PayPal is
+ * down — the payer is told online payment isn't available, rather than left
+ * with no buttons and no word why.
  */
 
-import { Box } from '@mantine/core';
+import { Alert, Box, Center, Loader } from '@mantine/core';
 import type {
   PayPalButtonCreateOrder,
   PayPalButtonOnApprove,
   PayPalButtonOnClick,
   PayPalButtonOnError,
 } from '@paypal/paypal-js';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
+import {
+  PayPalButtons,
+  type PayPalButtonsComponentProps,
+  PayPalScriptProvider,
+  usePayPalScriptReducer,
+} from '@paypal/react-paypal-js';
 import type { PaymentType } from 'api-types';
 import { useRef } from 'react';
 
@@ -84,7 +94,7 @@ export function PayPalCheckout({
     */
     <Box style={{ colorScheme: 'light' }} w="100%" maw={PAYMENT_BUTTON_WIDTH} mx="auto">
       <PayPalScriptProvider options={{ clientId, currency: 'USD' }}>
-        <PayPalButtons
+        <LoadedButtons
           style={{ tagline: false, height: PAYMENT_BUTTON_HEIGHT }}
           disabled={disabled}
           onClick={handleClick}
@@ -96,4 +106,25 @@ export function PayPalCheckout({
       </PayPalScriptProvider>
     </Box>
   );
+}
+
+/** PayPal's buttons once its script has loaded; until then, a loader or why it couldn't. */
+function LoadedButtons(props: PayPalButtonsComponentProps) {
+  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+  if (isRejected) {
+    return (
+      <Alert color="red" variant="light" title="PayPal couldn’t load">
+        Online payment isn’t available right now. Please reload the page to try again, or contact
+        the organizers.
+      </Alert>
+    );
+  }
+  if (isPending) {
+    return (
+      <Center h={PAYMENT_BUTTON_HEIGHT}>
+        <Loader size="sm" aria-label="Loading PayPal" />
+      </Center>
+    );
+  }
+  return <PayPalButtons {...props} />;
 }

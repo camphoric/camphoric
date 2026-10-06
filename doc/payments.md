@@ -225,6 +225,13 @@ sequenceDiagram
   its first answer to a retried create, capture or refund.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
   what's owed.
+- **When PayPal's buttons can't load.** The buttons come from PayPal's script, loaded with the
+  event's `paypal_client_id`. If PayPal refuses that id ("client-id not recognized" — e.g. an id
+  from another PayPal account, or a sandbox id against live), a blocker stops the script, or
+  PayPal is down, the payment step and the pay page say online payment isn't available instead
+  of showing buttons (`PayPalCheckout`). Nothing reaches the server, so there's nothing to clean
+  up; the fix is the event's client id (it must belong to the same PayPal app as the server's
+  `PAYPAL_SECRET`, on the same sandbox or live `PAYPAL_BASE_URL`).
 - **The PayPal problem email** (`invoices.send_paypal_problem_report`, kind `payment_report`) goes
   to the event's `confirmation_email_from`, once per order: what happened, who (registration,
   registrant, campers, an admin link), what for (invoice, amounts, payment type), PayPal's
