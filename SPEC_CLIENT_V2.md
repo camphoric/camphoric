@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-102)
+- §15 — Decision Records (DR-1…DR-103)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1264,10 +1264,12 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
 - **See the camper's lodging** — the unit they're placed in (path, or "Unassigned") and their
   stay, the unit's notes, and the other campers in that unit with their stays, each opening that
   camper's record; and a way to the lodging screen with the camper selected (§8.6; §15, DR-72).
-- **Set the lodging stay** — show the current assignment (path, or "Unassigned") and let the
-  admin choose which event days the camper is present (the days derive from event start/end;
-  the last is departure day and can't be chosen, §8.6). Persists via PATCH `stay` (the set of
-  selected days).
+- **Set the lodging stay** — alongside the camper's lodging, a camper placed in a unit has the
+  event days they're present ticked off, and the admin can change them (the days derive from
+  event start/end; the last is departure day and can't be chosen, §8.6). The days are saved with
+  the camper's other edits, in day order, and only when they've changed: PATCH `stay` (the
+  selected days). A camper not yet placed has no days to set; placing them, with their days,
+  happens on the lodging screen (§15, DR-103).
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
@@ -3722,6 +3724,8 @@ back and forth loses the camper being placed. Keep one shared selection, as befo
 
 ### DR-72 — The camper record shows its lodging and who's in the unit with it
 
+*The stay became editable in this section: see DR-103.*
+
 **Decision:** The camper's record has a read-only lodging section (§8.5): the unit and the
 camper's stay, the unit's notes, and the other campers placed in the same unit with their stays,
 each opening that camper's record, plus a way to the lodging screen with the camper selected.
@@ -4201,6 +4205,22 @@ every page reserves room for it, and outside a dialog rather than in it. A secon
 top — two of the same button, and the one by the fields still scrolls away. A floating Save
 button — covers content on a phone, and leaves Cancel and Delete at the end. Each screen
 arranging its own — how the screens came to differ.
+
+### DR-103 — The camper record sets the days present, saved with the camper
+
+**Decision:** The camper record's lodging section (DR-72) ticks off the days a placed camper is
+present, as checkboxes the admin can change; the camper's Save sends the new `stay` with the
+rest of its edits, and leaves it out when unchanged. A camper not yet placed has none to set.
+**Context:** The old client's camper editor set the stay with a checkbox for each night, and
+organizers asked for it back: a change of plans is usually handled from the camper's record, not
+by finding their bar on the timeline. Sending the stay only when it changed means saving the
+camper's answers doesn't undo a move made on the lodging screen meanwhile, nor drop departure day
+from an older stay that has it (DR-65) unless the days were edited.
+**Alternatives:** Keeping the section read-only, as DR-72 had it — the timeline can resize a bar,
+but not leave a gap in a stay. A Save of its own for the days, as the old client had — two Saves
+in one record, and a change made in one tab lost by saving the other. Setting days for an
+unplaced camper — a stay without a unit isn't shown anywhere, and placing one sets its days
+anyway.
 
 ---
 

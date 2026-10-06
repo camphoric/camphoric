@@ -557,6 +557,25 @@ test.describe('Camper lodging tab', () => {
     await page.goto(story('camper-lodging--unassigned'));
     await expect(page.getByText('Unassigned')).toBeVisible();
     await expect(page.getByText('Others in this unit')).toHaveCount(0);
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+  });
+
+  test('the days present are ticked off, in day order, but not departure day', async ({ page }) => {
+    await page.goto(story('camper-lodging--placed'));
+    await expect(page.getByRole('checkbox')).toHaveCount(4);
+    await expect(page.getByLabel('Mon 10/19')).toHaveCount(0);
+    await expect(page.getByText('Mon 10/19 is departure day; no one stays over.')).toBeVisible();
+
+    await page.getByLabel('Sat 10/17').uncheck();
+    await page.getByLabel('Thu 10/15').check();
+    await expect(page.getByText('3 days: Thu 10/15, Fri 10/16, Sun 10/18')).toBeVisible();
+    await expect(page.getByTestId('stay')).toHaveText('Stay: 2026-10-15, 2026-10-16, 2026-10-18');
+  });
+
+  test('a Reporter sees the days but can’t change them', async ({ page }) => {
+    await page.goto(story('camper-lodging--for-a-reporter'));
+    await expect(page.getByLabel('Fri 10/16')).toBeChecked();
+    await expect(page.getByLabel('Fri 10/16')).toBeDisabled();
   });
 });
 

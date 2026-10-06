@@ -5,12 +5,13 @@
  * The last day is departure day, which no one stays over, so it isn't offered.
  */
 
-import { Button, Checkbox, Group, Modal, Select, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack } from '@mantine/core';
 import type { ApiCamper, ApiEvent, AugmentedLodging } from 'api-types';
 import { useMemo, useState } from 'react';
 import { eventDays } from 'utils/dates';
 
-import { dayLabel, stayableDays } from './timelineUtils';
+import { StayCheckboxes } from './StayCheckboxes';
+import { stayableDays, stayWithinStayableDays } from './timelineUtils';
 
 interface AssignCamperModalProps {
   event: ApiEvent;
@@ -40,14 +41,13 @@ export function AssignCamperModal({
     const current = leaves.find((l) => l.id === camper.lodging) ?? leaves[0];
     return current ? String(current.id) : '';
   });
-  const stayDays = stayableDays(days);
-  const departureDay = days.length > 1 ? days[days.length - 1] : undefined;
-  // A stay saved before the departure day was kept out of stays loses it here.
-  const [stay, setStay] = useState<string[]>(() =>
-    (camper.stay ?? stayDays.slice(0, event.default_stay_length || stayDays.length)).filter((day) =>
-      stayDays.includes(day),
-    ),
-  );
+  const [stay, setStay] = useState<string[]>(() => {
+    const stayDays = stayableDays(days);
+    return stayWithinStayableDays(
+      camper.stay ?? stayDays.slice(0, event.default_stay_length || stayDays.length),
+      days,
+    );
+  });
 
   const save = () => {
     if (!leafId) return;
@@ -67,23 +67,7 @@ export function AssignCamperModal({
           searchable
           allowDeselect={false}
         />
-        <div>
-          <Text size="sm" fw={500} mb={4}>
-            Days present
-          </Text>
-          <Checkbox.Group value={stay} onChange={setStay}>
-            <Stack gap={4}>
-              {stayDays.map((day) => (
-                <Checkbox key={day} value={day} label={dayLabel(day)} />
-              ))}
-            </Stack>
-          </Checkbox.Group>
-          {departureDay && (
-            <Text size="xs" c="dimmed" mt={4}>
-              {dayLabel(departureDay)} is departure day; no one stays over.
-            </Text>
-          )}
-        </div>
+        <StayCheckboxes days={days} value={stay} onChange={setStay} />
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose}>
             Cancel
