@@ -199,6 +199,9 @@ USE_TZ = True
 CAMPHORIC_TEMPLATE_TIMEZONE = env.str('CAMPHORIC_TEMPLATE_TIMEZONE', default='America/Los_Angeles')
 CAMPHORIC_PUBLIC_URL = env.str('CAMPHORIC_PUBLIC_URL', default='')
 
+# The release version (e.g. 0.12.0), set in release images; empty when not a release.
+CAMPHORIC_VERSION = env.str('CAMPHORIC_VERSION', default='')
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/

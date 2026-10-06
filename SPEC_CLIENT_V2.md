@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-97)
+- §15 — Decision Records (DR-1…DR-98)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -348,6 +348,9 @@ Non-CRUD admin endpoints:
 - `GET /api/user` — current user (whoami): the Django user fields, plus `role` (the user's
   Camphoric permission group: `admin` | `registrar` | `reporter`, or `null` when signed out or
   without one; a superuser is always `admin`) and `must_change_password` (§6; §15, DR-50).
+- `GET /api/version` — the release the server runs → `{ version: string | null }`: the version
+  without the tag's `v` (`0.12.0`, `0.13.0-alpha.1`), or `null` when the server isn't a release
+  build. Any role may read it (§8.1; §15, DR-98).
 - **Roles on every admin endpoint (§6; §15, DR-50):** any role may read (including the POSTs that
   only read: the recipients preview, report render and template preview); Registrars and Admins
   may also write; organizations are written by Admins only. A signed-out caller gets 401, a
@@ -1042,6 +1045,9 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   container for that event. It offers a way back to organization selection (placed as in §9.6,
   *Way back*).
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
+- Both show the server's version from `GET /api/version` beside the Camphoric title, in the place
+  the Event Admin container shows the event's name (§8.2): `v` and the version (`v0.12.0`), or
+  "unknown version" when the server reports none. Nothing shows while it loads (§15, DR-98).
 - **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
   rename one, and delete one after confirming — refused, with the reason, while it still has
   events. Registrars and Reporters only see and open them.
@@ -4093,6 +4099,21 @@ in the viewer's zone (as other times are, DR-64) — an admin elsewhere would se
 that aren't the camp's. Templates still format datetimes in the server's template time zone;
 moving them to the event's zone is a separate change.
 
+### DR-98 — The admin shows the server's release version
+
+**Decision:** The server reports the release it runs at `GET /api/version`, from its
+`CAMPHORIC_VERSION` environment variable, which release images set from their tag (without the
+`v`). The organization and event choosers show it as `v0.12.0`, or "unknown version" when the
+variable is empty or unset, as it is in development and in images that aren't releases.
+**Context:** Admins and developers need to see which release a server runs, for example to
+confirm a deploy or report a bug against a version.
+**Alternatives:** Building the version into the client bundle — the client built in development
+and the one in an image can't know which release the server is, and the server is the one
+deployed by version. Adding it to whoami (`GET /api/user`) — that response is about the user and
+is polled to keep the session alive. A public endpoint — nothing outside the admin shows the
+version, so it isn't advertised to anyone signed out. Setting it to `dev` in development — one
+more variable to keep in each development setup, for what "unknown version" already says.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4125,6 +4146,8 @@ must be coordinated with the backend. Grouped by status.
   (DR-80).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
   `POST /api/logout` (§3, §6; DR-9, DR-26).
+- **Server version:** `GET /api/version` with the shape in §5, read from the server's
+  `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`
   filtering (`DjangoFilterBackend`). The client fetches per-event sets via these filters
   (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field

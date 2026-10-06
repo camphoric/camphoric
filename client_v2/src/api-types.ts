@@ -598,6 +598,11 @@ export interface NewUserRequest {
   require_change?: boolean;
 }
 
+/** GET /api/version: the release the server runs (e.g. `0.12.0`); null when it isn't one. */
+export interface ApiVersion {
+  version: string | null;
+}
+
 /** The anonymous (logged-out) user — username is empty and id is null. */
 export const anonymousUser: ApiUser = {
   id: null,

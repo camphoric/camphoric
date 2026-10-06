@@ -60,11 +60,20 @@ jobs:
             org.opencontainers.image.version=${{ inputs.tag }}
             org.opencontainers.image.description=Camphoric server with the v2 frontend
 
+      # The tag without its leading "v" (v0.12.0 -> 0.12.0, v0.2.0-alpha.1 -> 0.2.0-alpha.1).
+      - name: Release version
+        id: version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
+          build-args: |
+            CAMPHORIC_VERSION=${{ steps.version.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

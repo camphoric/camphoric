@@ -168,6 +168,12 @@ rejects the legacy `DBBACKUP_STORAGE` / `DBBACKUP_STORAGE_OPTIONS` settings.
 | `CAMPHORIC_SKIP_MIGRATE`                                      | `0`     | `1` skips `manage.py migrate` at start (e.g. when running several replicas).                |
 | `GUNICORN_CMD_ARGS`                                           | unset   | Extra gunicorn options, e.g. `--workers 5 --timeout 60`, without overriding the `CMD`.      |
 
+### Set by the image
+
+| Variable            | Value                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| `CAMPHORIC_VERSION` | The release version the image was built for, without the tag's `v` (`0.12.0`, `0.13.0-alpha.1`). Release builds set it from the tag via the `CAMPHORIC_VERSION` build arg; in any other build it's empty. The admin shows it in its header (`v0.12.0`), or "unknown version" when it's empty or unset, as in development. |
+
 ---
 
 ## Mount points
@@ -313,6 +319,7 @@ docker exec <container> python manage.py diffsettings --output unified
 
 ```bash
 docker build -t camphoric:local .
+# (Add --build-arg CAMPHORIC_VERSION=X.Y.Z to stamp a version; otherwise it's empty.)
 # No secrets or dev tooling in the image:
 docker run --rm camphoric:local sh -c 'test ! -e /app/.env && test ! -e /app/camphoric_server/settings_override.py && echo ok'
 # Boots, serves the SPA and static assets with DEBUG off:

@@ -5,6 +5,7 @@ import traceback
 
 from dateutil.relativedelta import relativedelta
 from deepmerge import always_merger
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -122,6 +123,13 @@ class UserView(APIView):
 
     def get(self, request):
         return Response(serializers.CurrentUserSerializer(request.user).data)
+
+
+class VersionView(APIView):
+    '''The release this server runs (`CAMPHORIC_VERSION`), or null when it isn't one.'''
+
+    def get(self, request):
+        return Response({'version': settings.CAMPHORIC_VERSION or None})
 
 
 class PlannedDeleteMixin:

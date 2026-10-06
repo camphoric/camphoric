@@ -94,6 +94,25 @@ class LoginTests(APITestCase):
         self.assertNotIn('email', response.data)
 
 
+class VersionTests(APITestCase):
+    def test_signed_out(self):
+        response = self.client.get('/api/version')
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(CAMPHORIC_VERSION='0.12.0')
+    def test_release(self):
+        self.client.force_authenticate(User.objects.create_superuser('tom'))
+        response = self.client.get('/api/version')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {'version': '0.12.0'})
+
+    @override_settings(CAMPHORIC_VERSION='')
+    def test_not_a_release(self):
+        self.client.force_authenticate(User.objects.create_superuser('tom'))
+        response = self.client.get('/api/version')
+        self.assertEqual(response.data, {'version': None})
+
+
 class CSRFTests(APITestCase):
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=True)

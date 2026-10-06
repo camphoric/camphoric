@@ -63,6 +63,11 @@ RUN SECRET_KEY=build-only DATABASE_URL=sqlite:////tmp/build.sqlite3 \
     python manage.py collectstatic --no-input \
  && mkdir -p /app/backup \
  && chown -R backend:backend /app/backup /app/static
+# The release version (e.g. 0.12.0), passed by release-image.yml; empty for any other build,
+# which the admin shows as "unknown version". Declared last so a new version only rebuilds
+# this layer.
+ARG CAMPHORIC_VERSION=
+ENV CAMPHORIC_VERSION=${CAMPHORIC_VERSION}
 USER backend
 EXPOSE 8000
 # /api/set-csrf-cookie is unauthenticated; 127.0.0.1 is in the default ALLOWED_HOSTS.
