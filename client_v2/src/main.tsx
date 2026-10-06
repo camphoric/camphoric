@@ -2,7 +2,9 @@
  * Entry point. Mounts the provider stack (Mantine UI + dialogs + notifications,
  * and the single TanStack Query client) around the bootstrapping App.
  *
- * Mantine CSS must be imported before app styles so component styles win.
+ * Mantine CSS must be imported before app styles so component styles win. The
+ * colour scheme follows the OS (SPEC §10, DR-100); index.html sets it before
+ * the bundle loads.
  */
 
 import '@mantine/core/styles.css';
@@ -28,7 +30,7 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider theme={theme} defaultColorScheme="auto">
       <QueryClientProvider client={queryClient}>
         <ModalsProvider>
           <Notifications />

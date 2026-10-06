@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-99)
+- §15 — Decision Records (DR-1…DR-100)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2079,6 +2079,10 @@ section is the contract.
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
   invalidate-and-refetch (§15, DR-16).
+- **Colour scheme:** the client follows the operating system's light/dark preference
+  (`prefers-color-scheme`), on every surface, and switches when the preference changes while a
+  page is open. Where the browser reports no preference, it is light. The scheme is in place
+  before the app's script loads, so a page never shows the other scheme first (§15, DR-100).
 - **Debug aids:** a `debug()` logger that prints only when a `DEBUG` localStorage flag is set
   (in any environment, so a deployed site can be traced from the browser console); the
   registration step logs each form change with its recomputed totals, validation errors and the
@@ -4130,6 +4134,18 @@ required, the registration went through without an answer.
 **Alternatives:** Making every such field required in each event's schema — it fixes only
 those fields, and an optional answer was still lost by a tap. Keeping the deselect and adding
 nothing — there'd be no way to tell an answer was cleared on purpose.
+
+### DR-100 — The colour scheme follows the operating system
+
+**Decision:** The client takes its light or dark scheme from the operating system's preference,
+and uses light where none is reported.
+**Context:** The client was always dark. Registrants and admins whose systems are set to light
+got a dark page anyway, unlike the other sites they use. Browsers report the system preference,
+and the UI kit can follow it, switching live, with no other change: every screen already works
+in both schemes.
+**Alternatives:** Always dark (the old behaviour) or always light — either ignores what the
+person has asked for. Dark where no preference is reported — it keeps the old look for the few
+browsers that don't report one, but needs its own check on top of the UI kit's.
 
 ---
 
