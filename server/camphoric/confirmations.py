@@ -124,10 +124,16 @@ def overdue_confirmations(now=None):
 
 
 def send_overdue_confirmations(now=None):
-    '''The sweep: send each overdue confirmation. Returns how many.'''
+    '''
+    The sweep: send each overdue confirmation. Returns how many. These
+    registrants pressed PayPal or Card and left without paying.
+    '''
+    from camphoric.invoices import clear_unpaid_online_choice  # invoices imports this module
+
     sent = 0
     for registration in overdue_confirmations(now).select_related('event'):
         try:
+            clear_unpaid_online_choice(registration)
             send_confirmation(registration)
             sent += 1
         except Exception:

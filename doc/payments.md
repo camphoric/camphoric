@@ -66,7 +66,7 @@ erDiagram
         string description
         decimal amount "toward the registration"
         decimal handling "added when paid online"
-        string payment_type "how the payer chose to pay it"
+        string payment_type "how the payer chose to pay it (empty: not settled)"
         string pending_paypal_order_id
         datetime cancelled_at
         string token "for a pay link (#670)"
@@ -173,6 +173,11 @@ flowchart TD
   to the form offers "Continue to payment" or "Start a new registration".
 - While nothing is paid on the registration invoice, the registrant can change option or method;
   `prepare_registration_invoice` rewrites it in place (and does nothing on an identical repeat).
+- **Finish and pay later** (or the worker's half-hour confirmation) clears an unpaid PayPal or
+  Card choice from the registration invoice first (`clear_unpaid_online_choice`, #759), so the
+  confirmation doesn't say they chose to pay online. The pending PayPal order stays: it's what
+  the admin list's "Online payment not finished" badge looks for, and what "Check PayPal order"
+  checks. After a lost PayPal answer the confirmation has already gone out, so PayPal stays.
 
 ## 6. Paying online, step by step
 
@@ -225,6 +230,9 @@ sequenceDiagram
   its first answer to a retried create, capture or refund.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
   what's owed.
+- **PayPal or Card** is the button the payer pressed (`paymentType`), on the invoice and the
+  payment. PayPal's own `payment_source` is a last resort: its card button can report a card
+  payment as `paypal` (#758).
 - **When PayPal's buttons can't load.** The buttons come from PayPal's script, loaded with the
   event's `paypal_client_id`. If PayPal refuses that id ("client-id not recognized" — e.g. an id
   from another PayPal account, or a sandbox id against live), a blocker stops the script, or
@@ -401,7 +409,9 @@ flowchart LR
   event's invoice email — has `event`, `invoice`, `registration` and `campers`. A confirmation
   email can link to `registration.invoice.pay_url` when something is still due.
 - Confirmation templates must read well when nothing is paid yet: a check to send, or an online
-  payment that didn't go through (`invoice.amount_due`, `invoice.payment_type`).
+  payment that didn't go through (`invoice.amount_due`, `invoice.payment_type`). When such a
+  registrant finishes to pay later, or gets the worker's half-hour confirmation, the payment type
+  is cleared (`None`): guard it with `{% if registration.payment_type %}`.
 
 ## 14. Code map
 

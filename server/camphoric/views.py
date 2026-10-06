@@ -1351,6 +1351,8 @@ class RegisterView(APIView):
             registration = self.locked_registration(request)
             if not registration.completed:
                 raise serializers.Conflict('Choose how to pay first.')
+            if registration.confirmation_sent_at is None:
+                invoices.clear_unpaid_online_choice(registration)
             confirmations.send_confirmation(registration, request)
             return Response(self.payment_result(request, registration))
 

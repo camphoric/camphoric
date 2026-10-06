@@ -311,6 +311,20 @@ def has_payments(invoice):
     return invoice is not None and models.Payment.all_objects.filter(invoice=invoice).exists()
 
 
+def clear_unpaid_online_choice(registration):
+    '''
+    The registrant left a PayPal or Card payment unfinished and is confirmed
+    without paying (finished to pay later, or walked away): they haven't
+    settled on how to pay, so the registration invoice stops saying PayPal or
+    Card (#759). Any pending order stays, for "Check PayPal order".
+    '''
+    invoice = registration_invoice(registration)
+    if invoice is None or invoice.payment_type not in ONLINE_TYPES or has_payments(invoice):
+        return
+    invoice.payment_type = None
+    invoice.save(update_fields=['payment_type', 'updated_at'])
+
+
 # PayPal ---------------------------------------------------------------------------
 
 class PaymentProblem(Exception):
@@ -371,13 +385,15 @@ def capture_id_of(payment):
     return capture.get('id') if capture else None
 
 
-def _order_payment_type(order, fallback):
+def _order_payment_type(order):
+    '''
+    How PayPal says an order was paid, for when nothing else says: PayPal's
+    Debit or Credit Card button can report a card payment as `paypal` (#758).
+    '''
     source = (order or {}).get('payment_source') or {}
     if 'card' in source:
         return models.PaymentType.CARD
-    if 'paypal' in source:
-        return models.PaymentType.PAYPAL
-    return fallback or models.PaymentType.PAYPAL
+    return models.PaymentType.PAYPAL
 
 
 def _check_belongs(invoice, order):
@@ -451,7 +467,8 @@ def record_capture(invoice, order, payment_type=None, notes=''):
     if money(invoice.handling) == 0:
         fee = min(max(ZERO, amount - due), online_fee(event, due))
         invoice.handling = fee
-    payment_type = _order_payment_type(order, payment_type or invoice.payment_type)
+    # The button the payer pressed says how they paid; PayPal's order may not.
+    payment_type = payment_type or invoice.payment_type or _order_payment_type(order)
     invoice.payment_type = payment_type
     invoice.pending_paypal_order_id = None
     invoice.save(update_fields=['handling', 'payment_type', 'pending_paypal_order_id',

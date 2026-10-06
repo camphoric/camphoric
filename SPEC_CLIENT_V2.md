@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-103)
+- §15 — Decision Records (DR-1…DR-104)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -563,7 +563,9 @@ Non-CRUD admin endpoints:
     waiting for the check. A registration with nothing to pay is completed without an invoice.
   - **PayPal or card** (`paypalOrderId`): the server fetches the approved order, checks it's for
     this registration's invoice and for what the invoice asks now, and captures it — the money
-    moves only here. Repeating it after a capture returns the same payload (the order is found
+    moves only here. The invoice and the payment take `paymentType` — the button the payer
+    pressed — as how it was paid; PayPal's own report of the payment source is used only when
+    nothing else says (§15, DR-104). Repeating it after a capture returns the same payload (the order is found
     captured), with no second payment or email. When it doesn't go through, the registration
     stays completed and unpaid, and the response is an error `{ detail, code, invoice }`:
     `amount_changed` (409: the invoice changed since the order was made; nothing was captured),
@@ -584,6 +586,10 @@ Non-CRUD admin endpoints:
 - `POST /api/events/{eventId}/register` with `{ step: 'finish', registrationUUID }` — finish
   without paying now, after a PayPal attempt that didn't go through: sends the confirmation
   (once) and returns the confirmation-step payload. 409 for a registration not yet completed.
+  Before that confirmation goes out, an unpaid registration invoice to be paid by PayPal or card
+  has its `payment_type` cleared — the registrant hasn't settled on how to pay — while any
+  pending PayPal order stays on it (§15, DR-104). The worker's half-hour confirmation (§7.3)
+  does the same.
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter. Every
@@ -745,7 +751,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   balance. `id`, `registration`, `origin` (`registration` | `payment_received` | `admin` |
   `migrated`, §9.7), `description`, `amount` (toward the registration), `handling` (the
   e-payment handling fee on it; adds to what's owed), `payment_type` (how the payer chose to pay
-  it), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
+  it; empty once a registrant whose online payment didn't go through is confirmed without
+  paying, §15, DR-104), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
   `pending_paypal_order_id`, `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`,
   timestamps; and, worked out from its live payments, read-only `total` (`amount + handling`),
   `amount_paid` (net of refunds), `amount_due`, `overpaid`, `status` (`open` |
@@ -1009,7 +1016,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     option's amount is still due, and why (the server's message) when there is one. They can
     try again (perhaps with another option), pay by check, or **finish and pay later** (posts
     `{ step: 'finish', registrationUUID }`), which sends the confirmation and shows the
-    confirmation page (§15, DR-91).
+    confirmation page (§15, DR-91). The confirmation doesn't say they chose PayPal or card
+    (§15, DR-104).
   - **When PayPal's answer was lost** (the `unknown` code): money may have moved, so the
     registrant is asked not to pay again — the organizers will check — and offered only to
     finish; the payment options and buttons aren't shown.
@@ -1140,7 +1148,7 @@ balance, payment status) and works with it. The list holds every completed regis
 is completed once its registrant pressed a payment button, paid or not (§15, DR-91). Payment
 status is Paid (balance 0), Partial (some paid), Unpaid, or Refund due (balance below 0); a
 registration whose registrant chose to pay online and it didn't go through (its registration
-invoice is to be paid by PayPal or card, and is open) says so. For the selected registration
+invoice is open with a PayPal order still pending on it, §15, DR-104) says so. For the selected registration
 they can:
 
 - **Edit core fields and attributes** — registration type, promo code (any of the event's live
@@ -4225,6 +4233,27 @@ but not leave a gap in a stay. A Save of its own for the days, as the old client
 in one record, and a change made in one tab lost by saving the other. Setting days for an
 unplaced camper — a stay without a unit isn't shown anywhere, and placing one sets its days
 anyway.
+
+### DR-104 — How they paid is the button they pressed; paying later settles nothing
+
+**Decision:** A captured PayPal order is recorded as paid the way the payer chose: PayPal or Card,
+by the button they pressed. PayPal's report of the order's payment source is used only when
+nothing says (an invoice without a payment type). A registrant whose PayPal or card payment
+didn't go through, and who is confirmed without paying (they finished to pay later, or the
+worker's half-hour confirmation), has the registration invoice's `payment_type` cleared, so the
+confirmation doesn't say they chose to pay online. Its pending PayPal order stays, and that order
+is what marks the registration as an online payment not finished in the admin list.
+**Context:** Testers who closed PayPal's window and then paid with the card button were told
+they'd paid by PayPal (#758): PayPal's card button can report a card payment's source as
+`paypal`, and that report overrode the button. Testers who closed PayPal's window and finished
+to pay later were told they had elected to pay by PayPal (#759), as the invoice still held that
+abandoned choice. The admin list's badge read the same field, so it moves to the pending order.
+A confirmation sent after PayPal's answer was lost keeps PayPal, since that payment may have
+gone through.
+**Alternatives:** Trusting PayPal's payment source over the button — the cause of #758. Recording
+Check when they finish to pay later — they never chose a check, and may pay online from an
+invoice link. Keeping PayPal and leaving the wording to each event's template — every template
+would have to work out that the choice didn't hold.
 
 ---
 
