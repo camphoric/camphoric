@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/camphoric/camphoric/compare/v0.11.0...v0.12.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** registration_start/registration_end must be written as ISO timestamps with an offset; a plain YYYY-MM-DD is refused.
+
+### Bug Fixes
+
+* **client_v2:** keep the country when a phone number is autofilled ([04df400](https://github.com/camphoric/camphoric/commit/04df4004e965973e6decd151f7b4affe05e2978d)), closes [#746](https://github.com/camphoric/camphoric/issues/746)
+* **client_v2:** pick the registration window in the camp's time zone ([88fa97a](https://github.com/camphoric/camphoric/commit/88fa97a2bd88c04c841e607f6820a5fb231a6ab5))
+* **data:** import the registration window as timestamps ([9118269](https://github.com/camphoric/camphoric/commit/91182693857bfd0df40c73cbbadaced7679c4c4c))
+* **server:** make the registration window date and time, in the event's time zone ([55af16a](https://github.com/camphoric/camphoric/commit/55af16ab4528407583011f59714456d21ab6f500)), closes [#744](https://github.com/camphoric/camphoric/issues/744)
+
 ## [0.11.0](https://github.com/camphoric/camphoric/compare/v0.10.1...v0.11.0) (2026-10-05)
 
 
