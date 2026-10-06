@@ -30,9 +30,16 @@ Campership: {{ camper.pricing.campership | money }}
 Total fees: {{ campers | sum(attribute='pricing.total') | money }}    
 Total campership donation: {{ pricing.campership_donation | money }}    
 
-TOTAL FOR THIS REGISTRATION: {{ pricing.total | money }}    
+TOTAL FOR THIS REGISTRATION: {{ pricing.total | money }}
+{#- An online payment that didn't go through leaves no payment type. #}
+{%- if invoice and not invoice.payment_type %}
+
+Your online payment didn't go through, so nothing has been paid yet. You can
+[pay online]({{ invoice.pay_url }}), or pay by check.
+{%- else %}
 
 You have elected to pay by {{ invoice.payment_type if invoice else 'check' }}.
+{%- endif %}
 
 If you are paying by check, make your check for **{{ registration.balance | money }}**
 payable to SFFMC and mail to:
