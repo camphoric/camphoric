@@ -996,7 +996,10 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     completes the registration and creates the PayPal order, whose id goes to PayPal's
     checkout. On the payer's approval the step posts `{ step: 'payment', registrationUUID,
     paymentType, paypalOrderId }` and the server captures it. The browser never creates or
-    captures an order (§15, DR-90).
+    captures an order (§15, DR-90). While PayPal's script loads, the buttons' place shows that
+    it's loading; if it can't load (PayPal refuses the event's client id, a blocker stops it,
+    PayPal is down), the registrant is told online payment isn't available and to reload or
+    contact the organizers — never left with no buttons and no reason.
   - **When a PayPal payment doesn't go through** — the payer closes PayPal's window, PayPal
     declines, or the amount changed — the registrant is told they're registered, that the
     option's amount is still due, and why (the server's message) when there is one. They can
@@ -2044,8 +2047,9 @@ section is the contract.
   page offers PayPal's buttons for the amount due plus the handling fee (none when the invoice
   already carries one); the server creates and captures the order as on the payment step, with
   the same outcomes. So an invoice first meant for a check can be paid online, adding the fee
-  only then. Otherwise the page says the invoice is paid, cancelled, or can't be paid online;
-  and when a PayPal order on it hasn't been confirmed, it asks the payer not to pay again.
+  only then; if PayPal's script can't load, the page says so, as on the payment step. Otherwise
+  the page says the invoice is paid, cancelled, or can't be paid online; and when a PayPal order
+  on it hasn't been confirmed, it asks the payer not to pay again.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
   through PayPal's refund API on its capture (with a request id made once per attempt, so a

@@ -2,6 +2,7 @@
  * Stories for PayPal's buttons as Camphoric uses them (SPEC §7.2; §15, DR-77,
  * DR-90). They load PayPal's sandbox script with its public `sb` client id;
  * creating an order is stubbed (it says so instead of reaching a server).
+ * Unavailable gives a client id PayPal refuses, so its script won't load.
  * Run `npm run storybook`.
  */
 
@@ -38,6 +39,16 @@ export const Disabled: StoryFn = () => (
     <PayPalCheckout
       clientId="sb"
       disabled
+      createOrder={() => Promise.reject(new Error('No server in Storybook'))}
+      onApprove={() => undefined}
+    />
+  </Box>
+);
+
+export const Unavailable: StoryFn = () => (
+  <Box p="md">
+    <PayPalCheckout
+      clientId="not-a-paypal-client-id"
       createOrder={() => Promise.reject(new Error('No server in Storybook'))}
       onApprove={() => undefined}
     />
