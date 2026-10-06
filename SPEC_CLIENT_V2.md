@@ -950,12 +950,16 @@ Before any step renders, the app loads the registration config (`GET …/registe
   applied or cleared. Pressing Enter in the field applies the code; it doesn't submit the form.
 - **Submit:** posts `{ step: 'registration', formData, pricingResults, invitation?, promoCode? }`
   (`promoCode` only when one is applied). On success it stores the returned payment-step payload
-  — in the store and in localStorage beside the form data — and advances to the payment step.
+  in the store and advances to the payment step. It also saves the *sent registration* in
+  localStorage beside the form data: the payment-step payload together with the form data and
+  applied promo code exactly as they were sent.
 - **Already sent:** when this browser has a saved payment step for the event (the form was sent,
   and the registrant hasn't reached the confirmation), the step says so and offers to continue
   to payment for that registration, or to start a new one (which clears what's saved). A reload
   of the payment step resumes from what's saved the same way, so leaving PayPal's window or
-  closing the tab doesn't lead to a second registration from the same browser.
+  closing the tab doesn't lead to a second registration from the same browser. Resuming restores
+  the payment step, the form data and the promo code that were sent, so the payment step's
+  review shows what was entered — not edits made to the form afterward, which weren't sent.
 
 ### 7.2 Step 2 — Payment
 
@@ -1034,8 +1038,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   chose to pay by check, PayPal captured their payment, they finished to pay later, or there was
   nothing to pay — and otherwise half an hour after the registration was completed, by the
   worker (for someone who closed the page with PayPal's window open). It's sent once.
-- Clears the saved localStorage form data and payment step (unless the keep-data debug flag is
-  set).
+- Clears the saved localStorage form data and sent registration (unless the keep-data debug
+  flag is set).
 - If there's no confirmation data (e.g. direct navigation/refresh), redirects to step 1.
 
 ---

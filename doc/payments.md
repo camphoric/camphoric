@@ -167,10 +167,10 @@ flowchart TD
 
 - The registration is **started** when the form is sent, and **completed** the moment a payment
   button is pressed (`RegisterView.complete`). It's in the admin lists from then on.
-- The browser saves the payment step in localStorage
-  (`pages/register/storage.ts`), so a reload — or coming back after closing PayPal's window —
-  resumes paying for the same registration. Coming back to the form offers "Continue to payment"
-  or "Start a new registration".
+- The browser saves the payment step in localStorage, with the form data and promo code it was
+  sent with (`pages/register/storage.ts`), so a reload — or coming back after closing PayPal's
+  window — resumes paying for the same registration, still showing what was entered. Coming back
+  to the form offers "Continue to payment" or "Start a new registration".
 - While nothing is paid on the registration invoice, the registrant can change option or method;
   `prepare_registration_invoice` rewrites it in place (and does nothing on an identical repeat).
 

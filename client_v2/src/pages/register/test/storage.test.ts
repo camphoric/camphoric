@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   clearRegistrationFormData,
+  clearSentRegistration,
   getRegistrationStorageKey,
   loadRegistrationFormData,
+  loadSentRegistration,
   saveRegistrationFormData,
+  saveSentRegistration,
 } from '../storage';
 
 const config = makeRegisterConfig({
@@ -45,5 +48,39 @@ describe('registration storage', () => {
     localStorage.setItem('KEEP_REG_DATA', '1');
     clearRegistrationFormData(key);
     expect(loadRegistrationFormData(key)).not.toBeNull();
+  });
+
+  describe('the sent registration', () => {
+    const sent = {
+      paymentStep: {
+        registrationUUID: 'u',
+        serverPricingResults: { total: 100, campers: [] },
+        paymentOptions: { title: '', description: '', default: 'Full', options: [] },
+        handlingPercent: null,
+      },
+      formData: { campers: [{ first_name: 'Pat' }] },
+      promo: {
+        code: 'EARLY',
+        label: 'Early bird',
+        scope: 'registration' as const,
+        pricingLogic: null,
+      },
+    };
+
+    it('round-trips the payment step with the form data and promo it was sent with', () => {
+      saveSentRegistration('k', sent);
+      expect(loadSentRegistration('k')).toEqual(sent);
+    });
+
+    it('ignores one saved as a bare payment step', () => {
+      localStorage.setItem('k (payment)', JSON.stringify(sent.paymentStep));
+      expect(loadSentRegistration('k')).toBeNull();
+    });
+
+    it('clears it', () => {
+      saveSentRegistration('k', sent);
+      clearSentRegistration('k');
+      expect(loadSentRegistration('k')).toBeNull();
+    });
   });
 });

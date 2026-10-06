@@ -4,9 +4,10 @@
  * with `calculatePrice`, and persists to localStorage (debounced). On mount it
  * rehydrates any saved data. When the event has promo codes, a field above the
  * submit button applies one (repriced live); a code typed but not applied blocks
- * submitting. Submitting posts the registration, saves the payment step (so a
- * reload resumes paying for it) and advances to the payment step. A registration
- * already sent from this browser offers to continue paying for it instead.
+ * submitting. Submitting posts the registration, saves what was sent with the
+ * payment step it got back (so a reload resumes paying for it) and advances to
+ * the payment step. A registration already sent from this browser offers to
+ * continue paying for it instead.
  */
 
 import { Alert, Button, Stack } from '@mantine/core';
@@ -25,13 +26,13 @@ import { debug } from 'utils/debug';
 import { PriceTicker } from './PriceTicker';
 import { PromoCodeEntry, usePromoCodeEntry } from './PromoCodeEntry';
 import {
-  clearPaymentStep,
   clearRegistrationFormData,
+  clearSentRegistration,
   getRegistrationStorageKey,
-  loadPaymentStep,
   loadRegistrationFormData,
-  savePaymentStep,
+  loadSentRegistration,
   saveRegistrationFormData,
+  saveSentRegistration,
 } from './storage';
 
 export function RegistrationStep() {
@@ -47,14 +48,15 @@ export function RegistrationStep() {
   const setTotals = useRegistrationStore((state) => state.setTotals);
   const setUpdating = useRegistrationStore((state) => state.setUpdating);
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
+  const resumeSent = useRegistrationStore((state) => state.resumeSent);
 
   const storageKey = config ? getRegistrationStorageKey(config) : '';
   // A registration already sent from this browser: offer to go on paying for it.
   const [sentBefore, setSentBefore] = useState(() =>
-    storageKey ? loadPaymentStep(storageKey) : null,
+    storageKey ? loadSentRegistration(storageKey) : null,
   );
   useEffect(() => {
-    if (storageKey) setSentBefore(loadPaymentStep(storageKey));
+    if (storageKey) setSentBefore(loadSentRegistration(storageKey));
   }, [storageKey]);
 
   const debouncedSave = useDebouncedCallback((data: RegistrationFormData) => {
@@ -81,12 +83,12 @@ export function RegistrationStep() {
 
   const continueSent = () => {
     if (!sentBefore) return;
-    setPaymentStep(sentBefore);
+    resumeSent(sentBefore);
     goToStep('payment');
   };
 
   const startOver = () => {
-    clearPaymentStep(storageKey);
+    clearSentRegistration(storageKey);
     clearRegistrationFormData(storageKey);
     setSentBefore(null);
     useRegistrationStore.getState().reset();
@@ -125,7 +127,7 @@ export function RegistrationStep() {
       {
         onSuccess: (paymentStep) => {
           debug('RegistrationStep submit result', paymentStep);
-          savePaymentStep(storageKey, paymentStep);
+          saveSentRegistration(storageKey, { paymentStep, formData: registration, promo });
           setPaymentStep(paymentStep);
           goToStep('payment');
         },

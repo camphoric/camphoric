@@ -2,13 +2,15 @@
  * localStorage persistence for the in-progress registration (SPEC §7.1, §7.2,
  * §12). The key is derived from the schema title and the event start date so a
  * registrant's progress survives a reload — but stale data doesn't bleed across
- * events. Once the form is submitted the payment step is saved too, so a reload
- * (or a return after closing a PayPal window) resumes paying for the same
- * registration instead of starting a second one. Both are cleared after
- * confirmation unless the KEEP_REG_DATA debug flag is set.
+ * events. Once the form is submitted, what was sent — the payment step, with the
+ * form data and promo code it was sent with — is saved too, so a reload (or a
+ * return after closing a PayPal window) resumes paying for the same registration,
+ * still showing what was entered, instead of starting a second one. Both are
+ * cleared after confirmation unless the KEEP_REG_DATA debug flag is set.
  */
 
-import type { ApiRegister, ApiRegisterPaymentStep, RegistrationFormData } from 'api-types';
+import type { ApiRegister, RegistrationFormData } from 'api-types';
+import type { SentRegistration } from 'store/registration';
 
 export function getRegistrationStorageKey(config: ApiRegister): string {
   const title = config.dataSchema.title ?? 'formData';
@@ -45,33 +47,36 @@ export function clearRegistrationFormData(key: string): void {
   }
 }
 
-const paymentStepKey = (key: string) => `${key} (payment)`;
+const sentKey = (key: string) => `${key} (payment)`;
 
-export function savePaymentStep(key: string, paymentStep: ApiRegisterPaymentStep): void {
+export function saveSentRegistration(key: string, sent: SentRegistration): void {
   try {
-    window.localStorage.setItem(paymentStepKey(key), JSON.stringify(paymentStep));
+    window.localStorage.setItem(sentKey(key), JSON.stringify(sent));
   } catch (error) {
-    console.error('Failed to save the payment step', error);
+    console.error('Failed to save the sent registration', error);
   }
 }
 
-export function loadPaymentStep(key: string): ApiRegisterPaymentStep | null {
+export function loadSentRegistration(key: string): SentRegistration | null {
   try {
-    const saved = window.localStorage.getItem(paymentStepKey(key));
-    const parsed = saved ? (JSON.parse(saved) as ApiRegisterPaymentStep) : null;
-    // One saved before payment options moved to the server can't be resumed.
-    return parsed?.paymentOptions ? parsed : null;
+    const saved = window.localStorage.getItem(sentKey(key));
+    const parsed = saved ? (JSON.parse(saved) as Partial<SentRegistration>) : null;
+    // One saved as a bare payment step (without the form data it was sent with,
+    // or from before payment options moved to the server) can't be resumed.
+    return parsed?.paymentStep?.paymentOptions && parsed.formData
+      ? { paymentStep: parsed.paymentStep, formData: parsed.formData, promo: parsed.promo ?? null }
+      : null;
   } catch (error) {
-    console.error('Failed to read the saved payment step', error);
+    console.error('Failed to read the sent registration', error);
     return null;
   }
 }
 
-export function clearPaymentStep(key: string): void {
+export function clearSentRegistration(key: string): void {
   if (window.localStorage.getItem('KEEP_REG_DATA')) return;
   try {
-    window.localStorage.removeItem(paymentStepKey(key));
+    window.localStorage.removeItem(sentKey(key));
   } catch (error) {
-    console.error('Failed to clear the saved payment step', error);
+    console.error('Failed to clear the sent registration', error);
   }
 }
