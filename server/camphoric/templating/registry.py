@@ -170,7 +170,8 @@ TYPES = (
         F('completed_at', 'datetime', 'When they finished registering.', nullable=True),
         F('registrant_email', 'string', "The registrant's email address."),
         F('payment_type', 'string', 'How they chose to pay when registering (Check, PayPal, '
-          "Card …): their registration invoice's payment type.", nullable=True),
+          "Card …): their registration invoice's payment type. Empty when they haven't "
+          'settled on one, e.g. an online payment that didn\'t go through.', nullable=True),
         F('paypal_response', 'dict', "PayPal's record of their online payment (PayPal or Card) "
           'when registering, e.g. the payer: `payer.name.given_name`, `payer.email_address`.',
           "{{ registration.paypal_response.payer.email_address }}", nullable=True),
@@ -279,7 +280,8 @@ TYPES = (
         F('status', 'string', '`open`, `partially_paid`, `paid`, `overpaid` or `cancelled`.',
           "{% if invoice.status == 'paid' %}Paid in full{% endif %}"),
         F('description', 'string', 'What it is for, e.g. "50% Deposit".'),
-        F('payment_type', 'string', 'How the payer chose to pay it.', nullable=True),
+        F('payment_type', 'string', 'How the payer chose to pay it; empty when not settled.',
+          nullable=True),
         F('amount', 'money', 'What it asks toward the registration.'),
         F('handling', 'money', 'Electronic payment handling added to it.'),
         F('total', 'money', 'amount + handling.', '{{ invoice.total | money }}'),

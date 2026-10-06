@@ -148,6 +148,19 @@ class PayPalTests(FlowTestCase):
         self.assertEqual((payment.amount, payment.payment_type), (D('205.00'), 'Card'))
         self.assertEqual(len(self.confirmations()), 1)
 
+    def test_paypal_cancelled_then_card(self):
+        # #758: PayPal's card button may report the payment as a PayPal one.
+        self.start_paypal()
+        self.start_paypal(payment_type='Card')
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')),
+                   paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        self.approve(payment_type='Card')
+        invoice = self.invoice()
+        self.assertEqual((invoice.status, invoice.payment_type), ('paid', 'Card'))
+        self.assertEqual(invoice.payments.get().payment_type, 'Card')
+        self.assertEqual(len(self.confirmations()), 1)
+
     def test_the_amount_changed(self):
         self.start_paypal()
         invoice = self.invoice()
@@ -184,6 +197,11 @@ class PayPalTests(FlowTestCase):
         self.assertEqual(response.data['ledger']['balance'], 400)
         self.assertEqual(response.data['invoice']['status'], 'open')
         self.assertEqual(len(self.confirmations()), 1)
+        # #759: they haven't settled on how to pay, so it no longer says PayPal;
+        # the order stays for "Check PayPal order".
+        invoice = self.invoice()
+        self.assertEqual((invoice.payment_type, invoice.pending_paypal_order_id),
+                         (None, paypal_mocks.ORDER_ID))
         # Finishing again sends nothing more.
         self.post(step='finish', registrationUUID=self.uuid)
         self.assertEqual(len(self.confirmations()), 1)
@@ -236,6 +254,10 @@ class PayPalTests(FlowTestCase):
         self.approve(status=502)
         self.assertEqual(len([m for m in mail.outbox if 'needs checking' in m.subject]), 1)
 
+        # Finishing now keeps PayPal: they may well have paid with it.
+        self.post(step='finish', registrationUUID=self.uuid)
+        self.assertEqual(self.invoice().payment_type, 'PayPal')
+
     def test_without_an_event_address_the_problem_is_logged(self):
         self.event.confirmation_email_from = ''
         self.event.save()
@@ -279,6 +301,7 @@ class ConfirmationSweepTests(FlowTestCase):
         later = timezone.now() + datetime.timedelta(minutes=31)
         self.assertEqual(confirmations.send_overdue_confirmations(later), 1)
         self.assertEqual(len(self.confirmations()), 1)
+        self.assertIsNone(self.invoice().payment_type)  # #759
         self.assertEqual(confirmations.send_overdue_confirmations(later), 0)
 
     def test_registrations_confirmed_before_the_sweep_are_left_alone(self):

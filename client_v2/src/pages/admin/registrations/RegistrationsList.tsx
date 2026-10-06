@@ -50,17 +50,16 @@ const STATUS_COLOR: Record<PaymentStatus, string> = {
 
 /**
  * Registrations whose registrant started paying online and it didn't go
- * through: their registration invoice is to be paid by PayPal or card, and
- * nothing has been paid on it.
+ * through: their registration invoice still has a PayPal order waiting, and
+ * nothing has been paid on it. (Its payment type isn't a guide: it's cleared
+ * once they finish to pay later, #759.)
  */
-function onlineNotFinished(invoices: ApiInvoice[] | undefined): Set<number> {
+export function onlineNotFinished(invoices: ApiInvoice[] | undefined): Set<number> {
   return new Set(
     (invoices ?? [])
       .filter(
         (i) =>
-          i.origin === 'registration' &&
-          (i.payment_type === 'PayPal' || i.payment_type === 'Card') &&
-          i.status === 'open',
+          i.origin === 'registration' && Boolean(i.pending_paypal_order_id) && i.status === 'open',
       )
       .map((i) => Number(i.registration)),
   );
