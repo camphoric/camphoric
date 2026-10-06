@@ -1,29 +1,52 @@
 /**
- * The camper editor's Lodging tab (SPEC §8.5), read-only: the unit the camper
- * is placed in and their stay, the unit's notes, and the other campers in that
- * unit with their stays — each opening that camper — plus a way to the lodging
- * screen with this camper selected. Placing campers happens there (§8.6).
+ * The camper editor's Lodging tab (SPEC §8.5): the unit the camper is placed
+ * in, the days they're present — which can be changed here, and are saved
+ * with the camper (§15, DR-103) — the unit's notes, and the other campers in
+ * that unit with their stays, each opening that camper; plus a way to the
+ * lodging screen with this camper selected. Placing campers happens there
+ * (§8.6), so a camper not yet placed has no days to set.
  */
 
 import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
+import { ReadOnlyFieldset } from 'hooks/permissions';
 import { Field } from 'pages/admin/lodging/Field';
+import { StayCheckboxes } from 'pages/admin/lodging/StayCheckboxes';
 import { stayText } from 'pages/admin/lodging/timelineUtils';
 
 import type { CamperLodgingSummary } from './camperLodgingSummary';
 
 interface CamperLodgingProps {
   summary: CamperLodgingSummary;
+  /** Every day of the event, in order. */
+  days: string[];
+  /** The days the camper is present, as being edited. */
+  stay: string[];
+  onStayChange: (stay: string[]) => void;
   onSelectCamper: (camperId: number) => void;
   onOpenLodging: () => void;
 }
 
-export function CamperLodging({ summary, onSelectCamper, onOpenLodging }: CamperLodgingProps) {
+export function CamperLodging({
+  summary,
+  days,
+  stay,
+  onStayChange,
+  onSelectCamper,
+  onOpenLodging,
+}: CamperLodgingProps) {
   return (
     <Stack gap="sm">
       <Field label="Lodging">{summary.path ?? 'Unassigned'}</Field>
       {summary.path && (
         <>
-          <Field label="Stay">{stayText(summary.stay)}</Field>
+          <ReadOnlyFieldset>
+            <StayCheckboxes
+              days={days}
+              value={stay}
+              onChange={onStayChange}
+              description={stayText(stay)}
+            />
+          </ReadOnlyFieldset>
           {summary.notes && <Field label="Unit notes">{summary.notes}</Field>}
           <div>
             <Text size="xs" c="dimmed">

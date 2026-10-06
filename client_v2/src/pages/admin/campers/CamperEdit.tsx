@@ -1,10 +1,12 @@
 /**
  * Edit a camper (SPEC §8.5), organized into tabbed sections — Attributes (the
- * schema-driven form), Lodging (read-only: where they're placed and with whom),
+ * schema-driven form), Lodging (where they're placed and with whom, and the
+ * days they're present, DR-103),
  * Admin attributes, Fees, History (Registrars and Admins; DR-53), and a raw
  * record for debugging — with a pinned action bar (Save /
  * Delete) always visible below the scrolling section. Save persists the camper's
- * `attributes` and `admin_attributes` in a single PATCH; the camper can be
+ * `attributes` and `admin_attributes`, and their `stay` when it's changed, in a
+ * single PATCH; the camper can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55).
  * The open section is URL-addressable via `?camperTab`.
  *
@@ -25,8 +27,10 @@ import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
-import { useEffect, useState } from 'react';
+import { stayWithinStayableDays } from 'pages/admin/lodging/timelineUtils';
+import { useEffect, useMemo, useState } from 'react';
 import { camperHooks } from 'store/entities';
+import { eventDays } from 'utils/dates';
 
 import { CamperFees } from './CamperFees';
 import { useCamperForm } from './camperForm';
@@ -60,10 +64,19 @@ export function CamperEdit({
   const [adminAttributes, setAdminAttributes] = useState<Hash>(camper.admin_attributes);
   const { canEdit } = usePermissions();
 
+  const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
+  const savedStay = useMemo(() => stayWithinStayableDays(camper.stay, days), [camper.stay, days]);
+  const [stay, setStay] = useState(savedStay);
+  const lodgingSummary = camperLodgingSummary(camper, lodgingLookup);
+  // Only a placed camper's days can be set (§8.6), and only a change is sent:
+  // saving the attributes leaves the stay as the lodging screen left it.
+  const stayChanged = lodgingSummary.path !== null && stay.join() !== savedStay.join();
+
   useEffect(() => {
     setAttributes(camper.attributes);
     setAdminAttributes(camper.admin_attributes);
   }, [camper]);
+  useEffect(() => setStay(savedStay), [savedStay]);
 
   const { schema, uiSchema } = useCamperForm(event);
 
@@ -79,7 +92,12 @@ export function CamperEdit({
 
   const save = () =>
     update.mutate(
-      { id: camper.id, attributes, admin_attributes: adminAttributes },
+      {
+        id: camper.id,
+        attributes,
+        admin_attributes: adminAttributes,
+        ...(stayChanged ? { stay } : {}),
+      },
       { onSuccess: () => notifications.show({ color: 'green', message: 'Camper saved' }) },
     );
 
@@ -134,7 +152,10 @@ export function CamperEdit({
             </Tabs.Panel>
             <Tabs.Panel value="lodging">
               <CamperLodging
-                summary={camperLodgingSummary(camper, lodgingLookup)}
+                summary={lodgingSummary}
+                days={days}
+                stay={stay}
+                onStayChange={setStay}
                 onSelectCamper={onSelectCamper}
                 onOpenLodging={() => onOpenLodging(camper.id)}
               />

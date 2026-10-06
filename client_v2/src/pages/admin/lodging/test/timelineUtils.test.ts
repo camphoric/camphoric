@@ -13,6 +13,7 @@ import {
   stayFrom,
   staySpan,
   stayText,
+  stayWithinStayableDays,
   timelineDayUnits,
 } from '../timelineUtils';
 
@@ -64,6 +65,17 @@ describe('stayableDays', () => {
   });
   it('bounds a stay seeded from the stayable days', () => {
     expect(stayFrom(stayableDays(DAYS), 2, 5)).toEqual(['2026-10-18']);
+  });
+});
+
+describe('stayWithinStayableDays', () => {
+  it('puts a stay in day order and drops departure day and days outside the event', () => {
+    expect(
+      stayWithinStayableDays(['2026-10-19', '2026-10-17', '2026-10-01', '2026-10-16'], DAYS),
+    ).toEqual(['2026-10-16', '2026-10-17']);
+  });
+  it('reads no stay as no days', () => {
+    expect(stayWithinStayableDays(null, DAYS)).toEqual([]);
   });
 });
 

@@ -56,6 +56,18 @@ export function stayableDays(days: string[]): string[] {
 }
 
 /**
+ * A saved stay as it can be chosen: in day order, without departure day or
+ * days outside the event. A stay saved before departure day was kept out of
+ * stays loses it when next edited.
+ */
+export function stayWithinStayableDays(
+  stay: string[] | null | undefined,
+  days: string[],
+): string[] {
+  return stayableDays(days).filter((day) => stay?.includes(day));
+}
+
+/**
  * How many day-widths the timeline spans. Every day is a full column except
  * departure day, which is only its morning: campers leave by midday, so no bar
  * reaches past that. A one-day event's only day is also a stay, so it gets the
