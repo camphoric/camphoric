@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-100)
+- §15 — Decision Records (DR-1…DR-101)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -54,8 +54,9 @@ document names a specific widget (a "tab", "modal", "list", "table", "button"), 
 acceptable realization, not a mandate. What is **not** a UI choice and **is** binding: API
 request/response shapes, URL routes and which state is URL-addressable, pricing and validation
 rules, and the data written to each endpoint — these are called out as requirements throughout.
-One placement is also a house convention rather than a free choice: where a screen's way back
-goes (§9.6, *Way back*).
+Two placements are also house conventions rather than free choices: where a screen's way back
+goes (§9.6, *Way back*), and the light/dark choice at the top right of every page (§9.6, *Light
+or dark mode*).
 
 ---
 
@@ -1965,6 +1966,12 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   app header, at the far left, immediately before the "Camphoric Admin" title, as a back-arrow
   icon button whose accessible name says where it goes ("Back to event selection"). It isn't
   repeated in the page body. Every new way back follows this placement (§15, DR-82).
+- **Light or dark mode** — every page, public and admin, offers a choice of **Light**, **Dark** or
+  **System** (follow the operating system, §10), reached from the top right of the page. System
+  is the default; the current choice is shown. The choice applies at once, is remembered in this
+  browser (not with the account, so it works the same signed in or not), and carries to the
+  browser's other open tabs; choosing System goes back to following the operating system
+  (§15, DR-101).
 - **Error boundary** — isolates failures in risky subtrees (the registration form, invitation
   context, report rendering); shows detail in dev, fails quietly in prod. (This one *is*
   architectural, not just visual.)
@@ -2081,8 +2088,9 @@ section is the contract.
   invalidate-and-refetch (§15, DR-16).
 - **Colour scheme:** the client follows the operating system's light/dark preference
   (`prefers-color-scheme`), on every surface, and switches when the preference changes while a
-  page is open. Where the browser reports no preference, it is light. The scheme is in place
-  before the app's script loads, so a page never shows the other scheme first (§15, DR-100).
+  page is open. Where the browser reports no preference, it is light. A person can choose light
+  or dark instead (§9.6, *Light or dark mode*). The scheme is in place before the app's script
+  loads, so a page never shows the other scheme first (§15, DR-100).
 - **Debug aids:** a `debug()` logger that prints only when a `DEBUG` localStorage flag is set
   (in any environment, so a deployed site can be traced from the browser console); the
   registration step logs each form change with its recomputed totals, validation errors and the
@@ -4146,6 +4154,20 @@ in both schemes.
 **Alternatives:** Always dark (the old behaviour) or always light — either ignores what the
 person has asked for. Dark where no preference is reported — it keeps the old look for the few
 browsers that don't report one, but needs its own check on top of the UI kit's.
+
+### DR-101 — Light, Dark or System, remembered in the browser
+
+**Decision:** Every page offers Light, Dark and System, with System the default. The choice is
+kept in the browser's local storage.
+**Context:** Following the operating system (DR-100) is the right default, but some people want
+the other scheme for this site alone — a registrant reading a long form, an admin on a shared
+screen. Registrants don't sign in, so the choice can't live with an account; the browser is
+the one place every visitor has. Keeping System as a choice means overriding it isn't a one-way
+door.
+**Alternatives:** A two-way light/dark flip — the first use locks in a scheme, and there's no way
+back to following the system short of clearing the site's data. A setting saved with the admin's
+account — follows them between devices, but registrants have no account, and it would need a
+server change for little gain.
 
 ---
 
