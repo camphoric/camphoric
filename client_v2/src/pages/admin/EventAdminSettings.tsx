@@ -9,10 +9,11 @@
  * DR-34) and the event's email account (§15 DR-44). The open tab is URL-addressable via `?settingsTab`.
  */
 
-import { Alert, Button, Container, Group, Stack, Tabs, Title } from '@mantine/core';
+import { Alert, Button, Container, Stack, Tabs, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
@@ -94,11 +95,11 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
         </Alert>
       ) : null}
       <CanEdit>
-        <Group>
+        <FormActions justify="flex-start">
           <Button onClick={save} disabled={!!parseError} loading={update.isPending}>
             Save
           </Button>
-        </Group>
+        </FormActions>
       </CanEdit>
     </Stack>
   );

@@ -13,10 +13,11 @@
  * report (`onDirtyChange`), and Cancel goes through `onCancel`.
  */
 
-import { Alert, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Select, Stack, Text, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { ApiReport, Hash, ReportOutputType, ReportVariablesSource } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { TemplateEditor } from 'components/TemplateEditor';
 import { useEffect, useMemo, useState } from 'react';
@@ -212,14 +213,14 @@ export function ReportEditForm({
           ) : null}
         </Stack>
       )}
-      <Group>
+      <FormActions dirty={dirty} justify="flex-start">
         <Button onClick={save} disabled={!canSave} loading={create.isPending || update.isPending}>
           Save
         </Button>
         <Button variant="default" onClick={onCancel}>
           Cancel
         </Button>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

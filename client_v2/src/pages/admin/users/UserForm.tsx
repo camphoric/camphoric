@@ -11,7 +11,6 @@ import {
   Alert,
   Button,
   Checkbox,
-  Group,
   PasswordInput,
   Radio,
   Select,
@@ -21,6 +20,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import type { ApiManagedUser, DjangoAccess, Role } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { useState } from 'react';
 import { apiErrorMessage, apiFieldErrors } from 'utils/fetch';
 
@@ -220,14 +220,14 @@ export function UserForm({
             {otherError}
           </Alert>
         )}
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={!ready} loading={saving}>
             {user ? 'Save' : 'Add user'}
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </form>
   );

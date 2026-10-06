@@ -7,10 +7,11 @@
  * the invitation email changed and unsaved asks first, and discards the edits.
  */
 
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
+import { FormActions } from 'components/FormActions';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
@@ -134,7 +135,7 @@ export function RegistrationTypeForm({
             A new type starts with a standard invitation email; edit the type to change it.
           </Text>
         )}
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={close}>
             {canEdit ? 'Cancel' : 'Close'}
           </Button>
@@ -147,7 +148,7 @@ export function RegistrationTypeForm({
               Save
             </Button>
           </CanEdit>
-        </Group>
+        </FormActions>
       </Stack>
     </Modal>
   );

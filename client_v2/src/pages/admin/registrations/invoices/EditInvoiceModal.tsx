@@ -10,6 +10,7 @@ import { Button, Group, Modal, NumberInput, Stack, Textarea, TextInput } from '@
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiInvoice } from 'api-types';
+import { FormActions } from 'components/FormActions';
 import { handlingFee } from 'pricing';
 import { useEffect, useState } from 'react';
 import { invoiceHooks } from 'store/entities';
@@ -150,14 +151,14 @@ export function EditInvoiceModal({
           value={notes}
           onChange={(e) => setNotes(e.currentTarget.value)}
         />
-        <Group justify="flex-end">
+        <FormActions>
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={save} loading={update.isPending}>
             Save
           </Button>
-        </Group>
+        </FormActions>
       </Stack>
     </Modal>
   );

@@ -14,11 +14,12 @@
  * address) resolve.
  */
 
-import { Box, Button, Group, ScrollArea, Tabs } from '@mantine/core';
+import { Box, Button, ScrollArea, Tabs } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiCamper, ApiEvent, Hash, LodgingLookup } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { JsonSchemaForm } from 'components/form';
+import { FormActions } from 'components/FormActions';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, usePermissions } from 'hooks/permissions';
@@ -162,18 +163,14 @@ export function CamperEdit({
         </ScrollArea>
       </Tabs>
       <CanEdit>
-        <Group
-          justify="space-between"
-          pt="sm"
-          style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-        >
+        <FormActions justify="space-between">
           <Button onClick={save} loading={update.isPending}>
             Save
           </Button>
           <Button variant="light" color="red" onClick={confirmDeleteCamper} loading={del.isPending}>
             Delete
           </Button>
-        </Group>
+        </FormActions>
       </CanEdit>
     </Box>
   );

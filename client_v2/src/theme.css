@@ -35,6 +35,51 @@ body:has(.mantine-AppShell-header) .camphoric-corner-toggle {
 }
 
 /*
+ * A form's actions (FormActions) stick to the bottom of what scrolls the form
+ * — the page, or a dialog — over the fields that pass under them. A field
+ * moved to by the keyboard is scrolled to stop above the bar, not behind it.
+ * The z-index keeps the bar over the code editors' scrollbars, under their
+ * suggestions.
+ */
+.camphoric-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding-block: var(--mantine-spacing-sm);
+  border-top: 1px solid var(--mantine-color-default-border);
+  background-color: var(--mantine-color-body);
+}
+
+html:has(.camphoric-form-actions),
+.mantine-Modal-content:has(.camphoric-form-actions) {
+  scroll-padding-bottom: 5rem;
+}
+
+/* In a dialog, the bar reaches its edges and bottom, like its sticky header. */
+.mantine-Modal-body .camphoric-form-actions {
+  margin-inline: calc(var(--mb-padding, var(--mantine-spacing-md)) * -1);
+  margin-bottom: calc(var(--mb-padding, var(--mantine-spacing-md)) * -1);
+  padding-inline: var(--mb-padding, var(--mantine-spacing-md));
+}
+
+/*
+ * In a card (a report being edited), the bar takes the card's colour, and the
+ * card clips without scrolling — a card that hid its overflow would be what
+ * the bar sticks to, and it never scrolls.
+ */
+.mantine-Card-root:has(.camphoric-form-actions) {
+  overflow: clip;
+}
+
+:where([data-mantine-color-scheme='light']) .mantine-Card-root .camphoric-form-actions {
+  background-color: var(--mantine-color-white);
+}
+
+:where([data-mantine-color-scheme='dark']) .mantine-Card-root .camphoric-form-actions {
+  background-color: var(--mantine-color-dark-6);
+}
+
+/*
  * An event's uiSchema can hide a field from registrants while keeping it in
  * the admin's forms: `"ui:classNames": "camphoric-hide-during-registration"`
  * (SPEC §7.1), e.g. the parking pass type the organizers assign.

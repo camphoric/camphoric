@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-101)
+- §15 — Decision Records (DR-1…DR-102)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1964,6 +1964,17 @@ component — realize them with Mantine primitives (or otherwise) as you see fit
   or closing Users over the page (§8.10, which leaves the page as it is) don't ask. Any field of
   the form counts as a change — on Home, every setting it saves, not only its two templates; a
   value changed and changed back doesn't count (§15, DR-79, DR-85).
+- **Form actions** — on every admin screen or dialog where something is edited and saved (an
+  event's settings, a registration, a camper, a report, a user …), the form's actions (Save, and
+  any Cancel, Close or Delete) can be reached at any scroll position: while the form is on
+  screen, Save is visible without scrolling to its end, whether the page or the dialog is what
+  scrolls. They don't cover the field being edited, on a phone included: at the end of the
+  form they sit after its last field, and a field moved to with the keyboard is brought into
+  view clear of them. Where the screen tells whether its edits are unsaved (Home, validation
+  messages, a report, a group email), the actions say so. They follow the read-only state
+  (§15, DR-51): a Reporter sees only what they can use, such as Close, and none where there's
+  nothing. The unsaved-changes prompt above applies to Cancel and Close as before. All the
+  screens share one realization of this, so they behave alike (§15, DR-102).
 - **Way back** — a screen that offers a way back up to where it was reached from (the event
   chooser back to organization selection, the Event Admin back to event selection) puts it in the
   app header, at the far left, immediately before the "Camphoric Admin" title, as a back-arrow
@@ -4172,6 +4183,24 @@ door.
 back to following the system short of clearing the site's data. A setting saved with the admin's
 account — follows them between devices, but registrants have no account, and it would need a
 server change for little gain.
+
+### DR-102 — Form actions stick to the bottom of what scrolls the form
+
+**Decision:** Every admin screen and dialog where something is edited and saved puts its
+actions in one shared action area. It sticks to the bottom of whatever scrolls the form — the page, or the dialog's
+body — while keeping its own place after the last field, and says when the screen's edits are
+unsaved where the screen tracks that. Fields reached with the keyboard scroll to stop above it.
+**Context:** Most screens put Save after the form (#757). On a long one — Home, or a schema in
+Settings — the admin scrolled to the end to save, and only there learned whether anything was
+unsaved. The registration and camper editors already pinned their actions below a scrolling
+section; the other screens didn't. A sticky area stays in the flow, so scrolled to the end it
+covers nothing, and on a phone it costs one row at the bottom of the screen. A dialog's title
+already sticks to its top the same way.
+**Alternatives:** A bar fixed to the bottom of the window — always over the last field unless
+every page reserves room for it, and outside a dialog rather than in it. A second Save at the
+top — two of the same button, and the one by the fields still scrolls away. A floating Save
+button — covers content on a phone, and leaves Cancel and Delete at the end. Each screen
+arranging its own — how the screens came to differ.
 
 ---
 

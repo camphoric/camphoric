@@ -4,9 +4,10 @@
  * a new override or changes the existing one.
  */
 
-import { Button, Group, Modal, NumberInput, Stack, Text, Textarea } from '@mantine/core';
+import { Button, Modal, NumberInput, Stack, Text, Textarea } from '@mantine/core';
 import type { Scalar } from 'api-types';
 import type { FeeLine } from 'components/FeeBreakdown';
+import { FormActions } from 'components/FormActions';
 import { useEffect, useState } from 'react';
 import { pricingOverrideHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
@@ -68,14 +69,14 @@ export function OverrideModal({ registration, camper, line, onClose }: OverrideM
             value={reason}
             onChange={(e) => setReason(e.currentTarget.value)}
           />
-          <Group justify="flex-end">
+          <FormActions>
             <Button variant="default" onClick={onClose}>
               Cancel
             </Button>
             <Button onClick={save} disabled={!ready} loading={saving}>
               {line.override ? 'Save' : 'Override'}
             </Button>
-          </Group>
+          </FormActions>
         </Stack>
       )}
     </Modal>
