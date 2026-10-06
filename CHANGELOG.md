@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.13.0](https://github.com/camphoric/camphoric/compare/v0.12.0...v0.13.0) (2026-10-06)
+
+
+### Features
+
+* **client_v2:** add a light/dark/system toggle ([eb0f4f9](https://github.com/camphoric/camphoric/commit/eb0f4f9b5f2d43ba793f6229759705d0d34cd230))
+* **client_v2:** keep Save in view on admin edit screens ([edb103d](https://github.com/camphoric/camphoric/commit/edb103d99bc92ac2924b7be1c611f4ba54bf2d21)), closes [#757](https://github.com/camphoric/camphoric/issues/757)
+* **client_v2:** set a camper's days present from their record ([534c962](https://github.com/camphoric/camphoric/commit/534c962945eaaaede4dee4d36af773e7062605d4))
+* show the release version in the admin header ([5fefe0b](https://github.com/camphoric/camphoric/commit/5fefe0bff6d9e1f194359006823dc96ffc2bda80))
+
+
+### Bug Fixes
+
+* **client_v2:** follow the OS light/dark preference ([a137681](https://github.com/camphoric/camphoric/commit/a13768102057d27b7e6937f05d375dfe0ed75de8))
+* **client_v2:** keep a dropdown's answer when it's chosen again ([28eb2ae](https://github.com/camphoric/camphoric/commit/28eb2ae1383e23bec19ce3d15738faa0a956fe78)), closes [#743](https://github.com/camphoric/camphoric/issues/743)
+* **client_v2:** keep the admin headers on one line on phones ([d0fe9e4](https://github.com/camphoric/camphoric/commit/d0fe9e44df0aed0c918cdfac7a37facfdf6b9f6f)), closes [#755](https://github.com/camphoric/camphoric/issues/755)
+* **client_v2:** keep the registration's details when resuming payment ([41b3587](https://github.com/camphoric/camphoric/commit/41b3587e8b60b049dc88a4d8ce22fd21298aeaec)), closes [#761](https://github.com/camphoric/camphoric/issues/761)
+* **client_v2:** say when PayPal's buttons can't load ([5539df3](https://github.com/camphoric/camphoric/commit/5539df3b5e5cac6bc3981c5b182f37f5dad7b322))
+* **harmony:** add workshop signup deadline to confirmation email ([7ba8c97](https://github.com/camphoric/camphoric/commit/7ba8c97aa3990e88f70093868a856b56dfc25849)), closes [#742](https://github.com/camphoric/camphoric/issues/742)
+* **harmony:** require an answer to first time at camp ([6f833f1](https://github.com/camphoric/camphoric/commit/6f833f17c90370b89143877384fa64afd1259625)), closes [#743](https://github.com/camphoric/camphoric/issues/743)
+* **harmony:** word the confirmation for an unfinished online payment ([9e08d05](https://github.com/camphoric/camphoric/commit/9e08d0557079045eb9f78f18c0230abae9edb9cd)), closes [#759](https://github.com/camphoric/camphoric/issues/759)
+* say how they paid after an abandoned PayPal attempt ([8d1eb1a](https://github.com/camphoric/camphoric/commit/8d1eb1af8da9bbfb327d2ec74e9190f2b6b8e8e8)), closes [#758](https://github.com/camphoric/camphoric/issues/758) [#759](https://github.com/camphoric/camphoric/issues/759)
+
 ## [0.12.0](https://github.com/camphoric/camphoric/compare/v0.11.0...v0.12.0) (2026-10-06)
 
 
