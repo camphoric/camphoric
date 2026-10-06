@@ -1,14 +1,15 @@
 /**
  * The site-level admin frame (SPEC §8.1): a header with the Camphoric title, the
- * server's version (where the event admin shows the event's name) and the user
- * menu, around the organization and event choosers. On the event
- * chooser, a back arrow left of the title returns to organization selection —
- * where the event admin's header has its own way back.
+ * server's version (where the event admin shows the event's name), the
+ * light/dark toggle (§9.6) and the user menu, around the organization and event
+ * choosers. On the event chooser, a back arrow left of the title returns to
+ * organization selection — where the event admin's header has its own way back.
  */
 
 import { ActionIcon, Anchor, AppShell, Group, Text, Title } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, Outlet, useMatch } from '@tanstack/react-router';
+import { ColorSchemeToggle } from 'components/ColorSchemeToggle';
 import { UserMenu } from 'navigation/UserMenu';
 import { formatVersion, useServerVersion } from 'store/version';
 
@@ -44,7 +45,10 @@ export function AdminFrame() {
               </Text>
             )}
           </Group>
-          <UserMenu />
+          <Group gap="xs" wrap="nowrap">
+            <ColorSchemeToggle />
+            <UserMenu />
+          </Group>
         </Group>
       </AppShell.Header>
       <AppShell.Main>

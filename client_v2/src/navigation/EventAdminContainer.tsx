@@ -5,7 +5,7 @@
  * back to home (handled in the router).
  *
  * The header names the event, links back to the event chooser, and carries the
- * user menu and a "Read-only" badge for a user who can view but not change (a
+ * light/dark toggle (§9.6), the user menu and a "Read-only" badge for a user who can view but not change (a
  * Reporter; DR-51).
  */
 
@@ -33,6 +33,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { Link, Outlet, useParams } from '@tanstack/react-router';
+import { ColorSchemeToggle } from 'components/ColorSchemeToggle';
 import { usePermissions } from 'hooks/permissions';
 import { UserMenu } from 'navigation/UserMenu';
 import type { ReactNode } from 'react';
@@ -95,7 +96,10 @@ export function EventAdminContainer() {
               </Badge>
             )}
           </Group>
-          <UserMenu />
+          <Group gap="xs" wrap="nowrap">
+            <ColorSchemeToggle />
+            <UserMenu />
+          </Group>
         </Group>
       </AppShell.Header>
 

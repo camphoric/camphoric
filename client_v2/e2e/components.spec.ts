@@ -669,3 +669,30 @@ test.describe('Payments and invoices', () => {
     await expect(page.getByRole('textbox', { name: 'Amount' })).toHaveValue('$1425');
   });
 });
+
+test.describe('Light or dark mode', () => {
+  test('follows the system, remembers a choice, and can go back', async ({ page }) => {
+    const scheme = page.locator('html');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto(story('color-scheme-toggle--corner'));
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'light');
+
+    // System follows the OS as it changes.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'dark');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'light');
+
+    // A choice overrides the OS and is remembered.
+    await page.getByRole('button', { name: 'Light or dark mode: System' }).click();
+    await page.getByRole('menuitem', { name: 'Dark' }).click();
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'dark');
+    await page.reload();
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'dark');
+
+    // System goes back to the OS.
+    await page.getByRole('button', { name: 'Light or dark mode: Dark' }).click();
+    await page.getByRole('menuitem', { name: 'System' }).click();
+    await expect(scheme).toHaveAttribute('data-mantine-color-scheme', 'light');
+  });
+});

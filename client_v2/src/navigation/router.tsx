@@ -15,6 +15,7 @@ import {
   Outlet,
   redirect,
 } from '@tanstack/react-router';
+import { CornerColorSchemeToggle } from 'components/ColorSchemeToggle';
 import { ErrorBoundary } from 'components/ErrorBoundary';
 import { FullScreenLoading } from 'components/Loading';
 import { parseSearch, stringifySearch } from 'navigation/search';
@@ -131,11 +132,16 @@ function validateAdminSearch(search: Record<string, unknown>): AdminSearch {
 
 // --- Root ----------------------------------------------------------------------
 
+// The light/dark toggle sits in the corner of every page without a header
+// (SPEC §9.6, DR-101).
 const rootRoute = createRootRoute({
   component: () => (
-    <ErrorBoundary>
-      <Outlet />
-    </ErrorBoundary>
+    <>
+      <CornerColorSchemeToggle />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
+    </>
   ),
 });
 
