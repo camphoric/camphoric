@@ -14,6 +14,9 @@
  *    unpaid, and can try again, pay by check, or finish and pay later.
  *  - The page is blocked only once PayPal approves, never while PayPal's own
  *    popup or inline card form is open (DR-77).
+ *  - If the organizers cancelled the registration invoice, any payment button
+ *    is refused (`cancelled`): the page gives their message and offers only to
+ *    finish (DR-105).
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
@@ -39,10 +42,12 @@ interface PaymentNeededProps {
   paymentStep: ApiRegisterPaymentStep;
 }
 
-/** Where things stand after a PayPal attempt that didn't go through. */
+/** Where things stand after a payment that didn't go through. */
 interface NotFinished {
   reason?: string;
   unknown?: boolean;
+  /** The organizers cancelled the invoice: nothing can be paid here. */
+  invoiceCancelled?: boolean;
 }
 
 export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
@@ -69,6 +74,17 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     goToStep('finished');
   };
 
+  /** Show why a payment button was refused; true when it was a cancelled invoice. */
+  const refused = (e: unknown) => {
+    const problem = paymentProblem(e);
+    if (problem.code === 'cancelled') {
+      setNotFinished({ reason: problem.message, invoiceCancelled: true });
+      return true;
+    }
+    setError(problem.message);
+    return false;
+  };
+
   const payByCheck = () => {
     setError(null);
     setLoading(true);
@@ -78,7 +94,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         onSuccess: confirmed,
         onError: (e) => {
           setLoading(false);
-          setError(paymentProblem(e).message);
+          refused(e);
         },
       },
     );
@@ -96,7 +112,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       });
       return order.orderID;
     } catch (e) {
-      setError(paymentProblem(e).message);
+      refused(e);
       throw e;
     }
   };
@@ -135,11 +151,13 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       onSuccess: confirmed,
     });
 
-  if (notFinished?.unknown) {
+  if (notFinished?.unknown || notFinished?.invoiceCancelled) {
     return (
       <PaymentNotFinished
         amountDue={option.amount}
-        unknown
+        reason={notFinished.reason}
+        unknown={notFinished.unknown}
+        invoiceCancelled={notFinished.invoiceCancelled}
         onFinish={finishNow}
         finishing={finish.isPending}
       />

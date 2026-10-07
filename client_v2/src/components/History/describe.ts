@@ -93,6 +93,7 @@ const FIELD_NAMES: Record<string, string> = {
   cancelled_at: 'Cancelled',
   cancel_reason: 'Cancel reason',
   pending_paypal_order_id: 'Pending PayPal order',
+  organizer_changed_at: 'Changed by organizers',
   paypal_transaction_id: 'PayPal transaction',
   refund_of: 'Refund of payment',
   lodging: 'Lodging',
