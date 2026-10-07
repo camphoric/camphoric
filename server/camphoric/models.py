@@ -794,6 +794,10 @@ class Invoice(TimeStampedModel):
     notes = models.TextField(blank=True, default='', help_text='Internal')
     # A PayPal order made for it and not yet captured.
     pending_paypal_order_id = models.CharField(max_length=64, null=True, blank=True)
+    # When a registrar or admin last changed what it asks (amount, description,
+    # handling) or cancelled or reopened it. The registration's payment step
+    # doesn't rewrite it after that (SPEC DR-105).
+    organizer_changed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancel_reason = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(

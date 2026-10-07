@@ -153,6 +153,30 @@ describe('PaymentNeeded', () => {
     expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
   });
 
+  it('when the organizers cancelled the invoice, says so and offers only to finish', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    failWith(problem('cancelled', 'The organizers cancelled this invoice. Please contact them.'));
+    await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+
+    expect(screen.getByText(/The organizers cancelled this invoice/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(finishMutate).toHaveBeenCalledWith('uuid-1', expect.any(Object));
+  });
+
+  it('a PayPal button refused for a cancelled invoice says so too', async () => {
+    const props = renderPage();
+    createOrder.mutateAsync.mockRejectedValue(
+      problem('cancelled', 'The organizers cancelled this invoice. Please contact them.'),
+    );
+    await act(async () => {
+      await props.createOrder('PayPal').catch(() => undefined);
+    });
+    expect(screen.getByText(/Please contact the organizers/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+  });
+
   it('shows the server’s reason when it can’t start a PayPal payment', async () => {
     const props = renderPage();
     createOrder.mutateAsync.mockRejectedValue(

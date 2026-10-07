@@ -563,8 +563,8 @@ class InvoiceSerializer(ModelSerializer):
         model = models.Invoice
         exclude = ['token']
         read_only_fields = ['origin', 'payment_type', 'pending_paypal_order_id',
-                            'cancelled_at', 'cancel_reason', 'created_by', 'created_at',
-                            'updated_at']
+                            'organizer_changed_at', 'cancelled_at', 'cancel_reason',
+                            'created_by', 'created_at', 'updated_at']
 
     def get_pay_url(self, invoice):
         return invoice_pay_url(invoice.token, self.context.get('request'))

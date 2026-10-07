@@ -649,6 +649,33 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(origin=models.InvoiceOrigin.ADMIN, created_by=self.request.user)
 
+    @staticmethod
+    def lock(pk):
+        '''
+        Hold the invoice's row for this change, so the registration's payment
+        step (which locks it too) can't undo it half way (DR-105).
+        '''
+        models.Invoice.all_objects.select_for_update().filter(pk=pk).first()
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            self.lock(kwargs['pk'])
+            return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        # Changing what it asks keeps the payment step from rewriting it (DR-105).
+        def differs(new, old):
+            if isinstance(new, str) and isinstance(old, str):
+                return new.strip() != old.strip()  # the form trims what it sends back
+            return new != old
+
+        invoice = serializer.instance
+        changed = any(
+            name in serializer.validated_data
+            and differs(serializer.validated_data[name], getattr(invoice, name))
+            for name in invoices.PAYMENT_STEP_FIELDS)
+        serializer.save(**({'organizer_changed_at': timezone.now()} if changed else {}))
+
     @action(detail=True, methods=['post'])
     def send(self, request, pk=None):
         '''
@@ -687,25 +714,30 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.invoice_has_no_payments,)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def cancel(self, request, pk=None):
+        self.lock(pk)
         invoice = self.get_object()
         if invoice.cancelled_at is not None:
             raise serializers.Conflict('This invoice is already cancelled.')
         if invoice.amount_paid != 0:
             raise serializers.Conflict(
                 'This invoice still holds money. Refund or move its payments first.')
-        invoice.cancelled_at = timezone.now()
+        invoice.cancelled_at = invoice.organizer_changed_at = timezone.now()
         invoice.cancel_reason = (request.data.get('reason') or '').strip()
         invoice.save()
         return Response(self.get_serializer(invoice).data)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def reopen(self, request, pk=None):
+        self.lock(pk)
         invoice = self.get_object()
         if invoice.cancelled_at is None:
             raise serializers.Conflict('This invoice isn\'t cancelled.')
         invoice.cancelled_at = None
         invoice.cancel_reason = ''
+        invoice.organizer_changed_at = timezone.now()
         invoice.save()
         return Response(self.get_serializer(invoice).data)
 
@@ -1274,6 +1306,8 @@ class RegisterView(APIView):
         The PayPal or Card button: complete the registration, make or rewrite its
         invoice for the chosen option, and create the PayPal order for it, with
         the handling fee (DR-90, DR-91). Returns `{orderID, total, handling}`.
+        An invoice an organizer changed is paid as it stands; one they cancelled
+        is refused (DR-105).
         '''
         payment_type = self.payment_type(request, event, online=True)
         if not event.paypal_client_id:
@@ -1286,15 +1320,18 @@ class RegisterView(APIView):
             if option.amount <= 0:
                 raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
             self.complete(registration)
-            invoice = invoices.prepare_registration_invoice(registration, option, payment_type)
             try:
+                invoice = invoices.prepare_registration_invoice(
+                    registration, option, payment_type)
+                due, fee = invoices.order_amounts(invoice)
                 order_id = invoices.create_paypal_order(invoice, payment_type)
             except invoices.PaymentProblem as problem:
                 return self.problem_response(request, registration, problem)
+            # What the invoice asks: the option, unless an organizer changed it (DR-105).
             return Response({
                 'orderID': order_id,
-                'total': float(option.amount + option.handling),
-                'handling': float(option.handling),
+                'total': float(due + fee),
+                'handling': float(fee),
                 'invoice': self.invoice_data(invoice),
             })
 
@@ -1304,6 +1341,7 @@ class RegisterView(APIView):
         or capture the PayPal order the registrant approved. Either way the
         registration is completed and its confirmation sent; a PayPal payment
         that doesn't go through leaves it completed and unpaid, and says why.
+        A registration invoice the organizers cancelled is refused (DR-105).
         '''
         payment_type = request.data.get('paymentType') or models.PaymentType.CHECK
         with transaction.atomic():
@@ -1318,7 +1356,10 @@ class RegisterView(APIView):
             total = invoices.money((registration.server_pricing_results or {}).get('total'))
             if total > 0 or 'paymentOption' in request.data:
                 option = self.chosen_option(request, registration)
-                invoices.prepare_registration_invoice(registration, option, payment_type)
+                try:
+                    invoices.prepare_registration_invoice(registration, option, payment_type)
+                except invoices.PaymentProblem as problem:
+                    return self.problem_response(request, registration, problem)
             self.complete(registration)
             confirmations.send_confirmation(registration, request)
             return Response(self.payment_result(request, registration))

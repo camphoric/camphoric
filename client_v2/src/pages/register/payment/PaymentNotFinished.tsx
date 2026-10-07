@@ -4,7 +4,9 @@
  * registered already — the button completed the registration — so it says
  * what's still due, and offers to finish and pay later; they can also try
  * again or pay by check from the page. When PayPal's answer was lost
- * (`unknown`), money may have moved: it asks them not to pay again.
+ * (`unknown`), money may have moved: it asks them not to pay again. When the
+ * organizers cancelled the invoice (the `cancelled` code, §15 DR-105), there's nothing
+ * to pay here: it gives their message and offers only to finish.
  */
 
 import { Alert, Button, Stack, Text } from '@mantine/core';
@@ -17,6 +19,8 @@ export interface PaymentNotFinishedProps {
   reason?: string;
   /** PayPal's answer was lost: don't offer to pay again. */
   unknown?: boolean;
+  /** The organizers cancelled the invoice: nothing can be paid here. */
+  invoiceCancelled?: boolean;
   onFinish: () => void;
   finishing?: boolean;
 }
@@ -25,9 +29,24 @@ export function PaymentNotFinished({
   amountDue,
   reason,
   unknown,
+  invoiceCancelled,
   onFinish,
   finishing,
 }: PaymentNotFinishedProps) {
+  if (invoiceCancelled) {
+    return (
+      <Alert color="yellow" variant="light" title="Please contact the organizers">
+        <Stack gap="sm" align="flex-start">
+          <Text size="sm">
+            You’re registered. {reason ?? 'The organizers have changed what’s due.'}
+          </Text>
+          <Button onClick={onFinish} loading={finishing}>
+            Finish
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
   if (unknown) {
     return (
       <Alert color="yellow" variant="light" title="We couldn’t confirm your payment">
