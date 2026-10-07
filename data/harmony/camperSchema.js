@@ -106,7 +106,7 @@ export default {
         '3-12 years old',
         '0-2 years old',
       ],
-      'default': '70+ years old',
+      'default': '80+ years old',
     },
     'email': {
       'title': 'Camper Email',
