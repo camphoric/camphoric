@@ -2,6 +2,7 @@ from dataclasses import asdict
 from functools import partial
 import logging
 import traceback
+import uuid
 
 from dateutil.relativedelta import relativedelta
 from deepmerge import always_merger
@@ -11,6 +12,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Q
 from django.core import signing
+from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -711,7 +713,7 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
                          'to': message.to})
 
     def delete_checks(self):
-        return (deletes.invoice_has_no_payments,)
+        return (deletes.not_a_registration_invoice, deletes.invoice_has_no_payments)
 
     @action(detail=True, methods=['post'])
     @transaction.atomic
@@ -1132,7 +1134,7 @@ class RegisterView(APIView):
 
         return Response(response_data)
 
-    STEPS = ('registration', 'paypal-order', 'payment', 'finish')
+    STEPS = ('registration', 'payment-step', 'paypal-order', 'payment', 'finish')
 
     def post(self, request, event_id=None, format=None):
         '''
@@ -1140,6 +1142,8 @@ class RegisterView(APIView):
 
         - `registration`: the form; makes the (started) registration and returns
           its price and payment options.
+        - `payment-step`: that payment step again, as it is now: a page reopened
+          later shows what's due (an organizer may have changed it, DR-105).
         - `paypal-order`: the PayPal or Card button. Completes the registration,
           makes or updates its invoice, and creates the PayPal order.
         - `payment`: pay by check (or complete a $0 registration), or capture an
@@ -1151,6 +1155,8 @@ class RegisterView(APIView):
         step = request.data.get('step', 'registration')
         if step == 'registration':
             return self.post_registration(request, event)
+        if step == 'payment-step':
+            return self.post_payment_step(request, event)
         if step == 'paypal-order':
             return self.post_paypal_order(request, event)
         if step == 'payment':
@@ -1209,6 +1215,32 @@ class RegisterView(APIView):
             **self.payment_options(event, server_pricing_results),
         })
 
+    def post_payment_step(self, request, event):
+        '''The registration's payment step as it is now (DR-105); 404 if it isn't this event's.'''
+        registration_uuid = request.data.get('registrationUUID')
+        if registration_uuid is None:
+            raise ValidationError({'registrationUUID': 'This field is required.'})
+        try:
+            registration_uuid = uuid.UUID(str(registration_uuid))
+        except ValueError:
+            raise Http404('No such registration.')
+        registration = get_object_or_404(models.Registration, uuid=registration_uuid, event=event)
+        return Response(self.payment_step(registration))
+
+    def payment_step(self, registration):
+        '''What the payment page shows: the price and, from the server, the options.'''
+        meta, options = invoices.registration_payment_options(registration)
+        event = registration.event
+        online = event.paypal_enabled and event.epayment_handling
+        return {
+            'registrationUUID': registration.uuid,
+            'serverPricingResults': registration.server_pricing_results,
+            'paymentOptions': {**meta, 'options': [option.as_dict() for option in options]},
+            'handlingPercent': float(event.epayment_handling) if online else None,
+            # Nothing to pay: the page says to contact the organizers.
+            'invoiceCancelled': invoices.cancelled_registration_invoice(registration),
+        }
+
     @staticmethod
     def payment_options(event, server_pricing_results):
         '''The payment options, worked out on the server (#675), and the handling percent.'''
@@ -1263,14 +1295,20 @@ class RegisterView(APIView):
         The payment option the registrant chose, by name (the default if none).
         A browser loaded before options moved to the server sends the old shape:
         it's asked to reload rather than trusted (its PayPal order, if any, was
-        never captured by the server, so no money moved).
+        never captured by the server, so no money moved). Once an organizer has
+        set the invoice it's the only option: a page still showing the old ones
+        is refused (`invoice_changed`), and sent the fresh ones (DR-105).
         '''
         if 'paymentData' in request.data or 'payPalResponse' in request.data:
             raise serializers.Conflict(
                 'This page is out of date. Please reload it and try again.')
+        if invoices.cancelled_registration_invoice(registration):
+            raise invoices.PaymentProblem('cancelled', invoices.INVOICE_CANCELLED)
         name = request.data.get('paymentOption')
-        option = invoices.find_option(
-            registration.event, registration.server_pricing_results, name)
+        meta, options = invoices.registration_payment_options(registration)
+        option = next((o for o in options if o.name == (name or meta['default'])), None)
+        if option is None and invoices.organizer_set(invoices.registration_invoice(registration)):
+            raise invoices.PaymentProblem('invoice_changed', invoices.INVOICE_CHANGED)
         if option is None:
             raise ValidationError({'paymentOption': f'There\'s no payment option "{name}".'})
         return option
@@ -1290,11 +1328,14 @@ class RegisterView(APIView):
         registration.save()
 
     def problem_response(self, request, registration, problem):
-        return Response({
+        data = {
             'detail': problem.message,
             'code': problem.code,
             'invoice': self.invoice_data(invoices.registration_invoice(registration)),
-        }, status=problem.http_status)
+        }
+        if problem.code == 'invoice_changed':
+            data['paymentStep'] = self.payment_step(registration)
+        return Response(data, status=problem.http_status)
 
     def invoice_data(self, invoice):
         if invoice is None:
@@ -1306,15 +1347,18 @@ class RegisterView(APIView):
         The PayPal or Card button: complete the registration, make or rewrite its
         invoice for the chosen option, and create the PayPal order for it, with
         the handling fee (DR-90, DR-91). Returns `{orderID, total, handling}`.
-        An invoice an organizer changed is paid as it stands; one they cancelled
-        is refused (DR-105).
+        Once an organizer has changed the invoice, it's the one option; a page
+        showing the old ones, or a cancelled invoice, is refused (DR-105).
         '''
         payment_type = self.payment_type(request, event, online=True)
         if not event.paypal_client_id:
             raise serializers.Conflict('This event doesn\'t take payments online.')
         with transaction.atomic():
             registration = self.locked_registration(request)
-            option = self.chosen_option(request, registration)
+            try:
+                option = self.chosen_option(request, registration)
+            except invoices.PaymentProblem as problem:
+                return self.problem_response(request, registration, problem)
             if not self.payable(registration):
                 raise serializers.Conflict('This registration has already been paid.')
             if option.amount <= 0:
@@ -1341,7 +1385,8 @@ class RegisterView(APIView):
         or capture the PayPal order the registrant approved. Either way the
         registration is completed and its confirmation sent; a PayPal payment
         that doesn't go through leaves it completed and unpaid, and says why.
-        A registration invoice the organizers cancelled is refused (DR-105).
+        A registration invoice the organizers cancelled, or a page showing options
+        from before they changed it, is refused (DR-105).
         '''
         payment_type = request.data.get('paymentType') or models.PaymentType.CHECK
         with transaction.atomic():
@@ -1355,8 +1400,8 @@ class RegisterView(APIView):
                 return Response(self.payment_result(request, registration))
             total = invoices.money((registration.server_pricing_results or {}).get('total'))
             if total > 0 or 'paymentOption' in request.data:
-                option = self.chosen_option(request, registration)
                 try:
+                    option = self.chosen_option(request, registration)
                     invoices.prepare_registration_invoice(registration, option, payment_type)
                 except invoices.PaymentProblem as problem:
                     return self.problem_response(request, registration, problem)

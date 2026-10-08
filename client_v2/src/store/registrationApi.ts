@@ -116,6 +116,20 @@ export function useCreatePayPalOrder(eventId: string) {
   });
 }
 
+/**
+ * The registration's payment step as it is now (`payment-step`): a page reopened
+ * later shows what's due, which an organizer may have changed (§7.2; §15, DR-105).
+ */
+export function useRefreshPaymentStep(eventId: string) {
+  return useMutation({
+    mutationFn: (registrationUUID: string) =>
+      apiFetch<ApiRegisterPaymentStep>(registerUrl(eventId), {
+        method: 'POST',
+        body: { step: 'payment-step', registrationUUID },
+      }),
+  });
+}
+
 /** Finish without paying now, after a PayPal attempt didn't go through. */
 export function useFinishRegistration(eventId: string) {
   return useMutation({
@@ -127,11 +141,26 @@ export function useFinishRegistration(eventId: string) {
   });
 }
 
-/** Why a payment step failed: the server's code and message, if it said. */
-export function paymentProblem(error: unknown): { code?: PaymentProblemCode; message: string } {
+/**
+ * Why a payment step failed: the server's code and message, if it said, and —
+ * for `invoice_changed` — the payment step as it is now (§15, DR-105).
+ */
+export function paymentProblem(error: unknown): {
+  code?: PaymentProblemCode;
+  message: string;
+  paymentStep?: ApiRegisterPaymentStep;
+} {
   if (error instanceof ApiError && error.body && typeof error.body === 'object') {
-    const body = error.body as { code?: PaymentProblemCode; detail?: string };
-    return { code: body.code, message: body.detail ?? error.message };
+    const body = error.body as {
+      code?: PaymentProblemCode;
+      detail?: string;
+      paymentStep?: ApiRegisterPaymentStep;
+    };
+    return {
+      code: body.code,
+      message: body.detail ?? error.message,
+      paymentStep: body.paymentStep,
+    };
   }
   return { message: error instanceof Error ? error.message : String(error) };
 }

@@ -263,17 +263,6 @@ def payment_options(event, pricing_results):
     return meta, options
 
 
-def find_option(event, pricing_results, name):
-    '''The option called `name`; the default one when `name` is empty.'''
-    meta, options = payment_options(event, pricing_results)
-    if not name:
-        name = meta['default']
-    for option in options:
-        if option.name == name:
-            return option
-    return None
-
-
 # The registration's invoice -----------------------------------------------------------
 
 def registration_invoice(registration):
@@ -286,6 +275,44 @@ def registration_invoice(registration):
 # What the payment step writes for the chosen option; an organizer changing
 # any of them (or cancelling or reopening the invoice) stops it (DR-105).
 PAYMENT_STEP_FIELDS = ('description', 'amount', 'handling')
+
+
+INVOICE_CHANGED = ('The organizers changed what\'s due on your registration. '
+                   'Please check the amount and choose again.')
+INVOICE_CANCELLED = 'The organizers cancelled this invoice. Please contact them.'
+
+
+def cancelled_registration_invoice(registration):
+    '''Whether the organizers cancelled the registration's invoice: nothing to pay (DR-105).'''
+    invoice = registration_invoice(registration)
+    return invoice is not None and invoice.cancelled_at is not None
+
+
+def organizer_set(invoice):
+    '''The registration invoice is the organizers' to set: one changed it, and it's open.'''
+    return (invoice is not None and invoice.organizer_changed_at is not None
+            and invoice.cancelled_at is None)
+
+
+def invoice_option(invoice):
+    '''The registration invoice as a payment option: what it asks now, and the fee online.'''
+    due, fee = order_amounts(invoice)
+    return PaymentOption(name=f'invoice:{invoice.id}',
+                         title=invoice.description or f'Invoice #{invoice.id}',
+                         amount=due, handling=fee)
+
+
+def registration_payment_options(registration):
+    '''
+    The payment options for this registration, as `payment_options`: the
+    event's, or — once an organizer has set its invoice — that invoice alone,
+    for what it asks now (DR-105).
+    '''
+    invoice = registration_invoice(registration)
+    if organizer_set(invoice):
+        option = invoice_option(invoice)
+        return {'title': '', 'description': '', 'default': option.name}, [option]
+    return payment_options(registration.event, registration.server_pricing_results)
 
 
 def prepare_registration_invoice(registration, option, payment_type):
@@ -301,8 +328,12 @@ def prepare_registration_invoice(registration, option, payment_type):
         # Locked, so an organizer's change can't land between reading and saving.
         invoice = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
     if invoice is not None and invoice.cancelled_at is not None:
-        raise PaymentProblem(
-            'cancelled', 'The organizers cancelled this invoice. Please contact them.')
+        raise PaymentProblem('cancelled', INVOICE_CANCELLED)
+    if invoice is not None and invoice.organizer_changed_at is not None \
+            and option.name != invoice_option(invoice).name:
+        # An organizer changed it after the option was chosen: the page shows
+        # another amount, so the registrant chooses again (DR-105).
+        raise PaymentProblem('invoice_changed', INVOICE_CHANGED)
     if invoice is None:
         if option.amount <= 0:
             return None
@@ -346,13 +377,14 @@ def clear_unpaid_online_choice(registration):
 class PaymentProblem(Exception):
     '''
     A payment that didn't go through. `code` says why, for the client:
-    `amount_changed`, `declined`, `not_payable` and `cancelled` (the organizers
-    cancelled the invoice) took no money; `unknown` may have (PayPal's answer
-    was lost; the event has been emailed).
+    `amount_changed`, `declined`, `not_payable`, `cancelled` (the organizers
+    cancelled the invoice) and `invoice_changed` (they changed it since the page
+    was loaded) took no money; `unknown` may have (PayPal's answer was lost; the
+    event has been emailed).
     '''
     status = {'amount_changed': 409, 'declined': 402, 'not_payable': 409,
               'not_approved': 409, 'mismatch': 400, 'unknown': 502, 'refused': 409,
-              'not_configured': 409, 'cancelled': 409}
+              'not_configured': 409, 'cancelled': 409, 'invoice_changed': 409}
 
     def __init__(self, code, message):
         super().__init__(message)

@@ -801,6 +801,11 @@ export interface ApiRegisterPaymentStep {
   paymentOptions: ApiPaymentOptions;
   /** The handling percent on online payments; null without one. */
   handlingPercent: number | null;
+  /**
+   * The organizers cancelled the registration invoice: nothing can be paid here
+   * (from `payment-step`; §15, DR-105).
+   */
+  invoiceCancelled?: boolean;
 }
 
 /** The registration's ledger, as numbers (§9.7). */
@@ -850,9 +855,10 @@ export interface ApiPayPalOrder {
 }
 
 /**
- * Why a payment didn't go through: `amount_changed`, `declined`, `not_payable`
- * and `cancelled` (the organizers cancelled the invoice, DR-105) took no money;
- * `unknown` may have (the event has been told).
+ * Why a payment didn't go through: `amount_changed`, `declined`, `not_payable`,
+ * `cancelled` (the organizers cancelled the invoice) and `invoice_changed` (they
+ * changed it since the page loaded; the response carries the fresh payment step)
+ * took no money (DR-105); `unknown` may have (the event has been told).
  */
 export type PaymentProblemCode =
   | 'amount_changed'
@@ -863,7 +869,8 @@ export type PaymentProblemCode =
   | 'unknown'
   | 'refused'
   | 'not_configured'
-  | 'cancelled';
+  | 'cancelled'
+  | 'invoice_changed';
 
 // ---------------------------------------------------------------------------
 // Augmented view models — domain logic derived from cached query data (SPEC §5)

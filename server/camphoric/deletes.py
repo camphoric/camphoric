@@ -303,6 +303,16 @@ def paypal_refund_stays_refunded(payment, result):
                       'stays refunded in PayPal: deleting this record doesn\'t undo the refund')
 
 
+def not_a_registration_invoice(invoice, result):
+    '''
+    The registration's own invoice is cancelled, not deleted: without it, a
+    registrant's payment page would make a new one (DR-105).
+    '''
+    if invoice.origin == models.InvoiceOrigin.REGISTRATION:
+        result.block('It\'s the registration\'s own invoice: deleting it would let the '
+                     'registrant\'s payment page make a new one. Cancel it instead.')
+
+
 def invoice_has_no_payments(invoice, result):
     '''Only an invoice nothing was ever paid on can be deleted (deleted payments count).'''
     payments = models.Payment.all_objects.filter(invoice=invoice).order_by('id')
