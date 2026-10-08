@@ -33,7 +33,7 @@ Every invoice records its `origin`. It's informational — it never changes the 
 
 | Origin | Made by | When | Typical description | Special behavior |
 |---|---|---|---|---|
-| `registration` | the payment step | the registrant presses a payment button for an option that asks for money (at most one per registration) | the option's title, e.g. "50% Deposit" | rewritten in place by the payment step while nothing is paid on it and no organizer has changed it (they change option or method); templates call it `registration.invoice` |
+| `registration` | the payment step | the registrant presses a payment button for an option that asks for money (at most one per registration) | the option's title, e.g. "50% Deposit" | rewritten in place by the payment step while nothing is paid on it and no organizer has changed it (they change option or method); cancelled, not deleted; templates call it `registration.invoice` |
 | `payment_received` | recording a payment | a registrar records a payment and no invoice has money due (a surprise check, an overpayment, a donation), or chooses "On its own" | "Payment received" ("Refund given" for a refund converted from before invoices) | its amount always equals what its live payments net to, so it never shows money owed; cancelled when its payments are deleted, reopened on restore (`match_received_invoice`) |
 | `admin` | a registrar, by hand | "New invoice": for the balance no invoice asks for yet, or a meal plan added later (§15) | whatever the registrar types, "Registration balance" to start with | none: an ordinary bill, with a pay link that can be emailed |
 | `migrated` | migration 0076 only | an old registration's handling fee had nowhere else to go | "Electronic payment handling" | amount 0, only `handling`; no new ones are made |
@@ -176,10 +176,15 @@ flowchart TD
   `prepare_registration_invoice` rewrites it in place (and does nothing on an identical repeat).
 - **An organizer's change sticks (#766).** When a registrar or admin changes the registration
   invoice's amount, description or handling, or cancels or reopens it, `InvoiceViewSet` sets
-  `organizer_changed_at`. From then on `prepare_registration_invoice` only records the method
-  (`payment_type`, clearing any pending order): a replayed check or PayPal step pays what the
-  organizer set, and `paypal-order` reports that total. A cancelled one is refused with 409
-  `cancelled`, so a stale tab can't reopen it. Memo, notes and due date don't count.
+  `organizer_changed_at`. From then on the payment step's one option is that invoice
+  (`registration_payment_options`: `invoice:{id}`, for what it asks now), and
+  `prepare_registration_invoice` only records the method (`payment_type`, clearing any pending
+  order). The payment page asks for its payment step again when it opens (`payment-step`), so a
+  page reopened later shows the organizer's amount; a page left open that posts an earlier
+  option gets 409 `invoice_changed` with the fresh payment step, and shows that. A cancelled one
+  is refused with 409 `cancelled`, so a stale tab can't reopen it. Memo, notes and due date don't
+  count. The registration's own invoice can't be deleted (it would be made again), only
+  cancelled.
 - **Finish and pay later** (or the worker's half-hour confirmation) clears an unpaid PayPal or
   Card choice from the registration invoice first (`clear_unpaid_online_choice`, #759), so the
   confirmation doesn't say they chose to pay online. The pending PayPal order stays: it's what

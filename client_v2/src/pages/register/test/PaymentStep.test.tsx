@@ -5,9 +5,9 @@ import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PaymentStep } from '../PaymentStep';
-import { saveSentRegistration } from '../storage';
+import { loadSentRegistration, saveSentRegistration } from '../storage';
 
-const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
+const { navigate, refresh } = vi.hoisted(() => ({ navigate: vi.fn(), refresh: vi.fn() }));
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
@@ -38,7 +38,10 @@ const config = makeRegisterConfig({
   event: { is_open: true, start: { epoch: 0, year: 2026, month: 7, day: 1 } },
 });
 
-vi.mock('store/registrationApi', () => ({ useRegistrationConfig: () => ({ data: config }) }));
+vi.mock('store/registrationApi', () => ({
+  useRegistrationConfig: () => ({ data: config }),
+  useRefreshPaymentStep: () => ({ mutate: refresh }),
+}));
 
 const paymentStep: ApiRegisterPaymentStep = {
   registrationUUID: 'u',
@@ -49,6 +52,7 @@ const paymentStep: ApiRegisterPaymentStep = {
 
 beforeEach(() => {
   navigate.mockClear();
+  refresh.mockReset();
   useRegistrationStore.getState().reset();
   localStorage.clear();
 });
@@ -71,6 +75,34 @@ describe('PaymentStep', () => {
     expect(screen.getByText('Payment options')).toBeInTheDocument();
     expect(useRegistrationStore.getState().paymentStep).toEqual(paymentStep);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('asks the server for the payment step as it is now, and keeps it (DR-105)', () => {
+    saveSentRegistration('Camp, 2026-7-1', {
+      paymentStep,
+      formData: { campers: [{ first_name: 'Pat' }] },
+      promo: null,
+    });
+    // An organizer lowered the invoice: it's the one option now.
+    const now: ApiRegisterPaymentStep = {
+      ...paymentStep,
+      paymentOptions: {
+        title: '',
+        description: '',
+        default: 'invoice:7',
+        options: [{ name: 'invoice:7', title: 'Full Payment', amount: 50, handling: 0 }],
+      },
+    };
+    refresh.mockImplementation((_uuid: string, options: { onSuccess: (s: unknown) => void }) =>
+      options.onSuccess(now),
+    );
+
+    renderWithProviders(<PaymentStep />);
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith('u', expect.any(Object));
+    expect(useRegistrationStore.getState().paymentStep).toEqual(now);
+    expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(now);
   });
 
   it('goes back to step 1 when nothing was sent', () => {

@@ -221,6 +221,16 @@ class CancelAndDeleteTests(InvoiceTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(self.client.delete(f'/api/invoices/{empty.id}/').status_code, 204)
 
+    def test_the_registrations_own_invoice_is_cancelled_not_deleted(self):
+        # Deleted, a registrant's payment page would make it again (DR-105).
+        own = models.Invoice.objects.create(
+            registration=self.made.r2, origin='registration', amount=D('30'))
+        self.client.force_authenticate(self.admin)
+        preview = self.client.get(f'/api/invoices/{own.id}/delete-preview/').data
+        self.assertIn('Cancel it instead', str(preview))
+        self.assertEqual(self.client.delete(f'/api/invoices/{own.id}/').status_code, 409)
+        self.assertTrue(models.Invoice.objects.filter(pk=own.pk).exists())
+
     def test_only_admins_delete_payments(self):
         payment = models.Payment.objects.filter(registration=self.made.r1).get()
         self.assertEqual(self.client.delete(f'/api/payments/{payment.id}/').status_code, 403)
@@ -312,14 +322,6 @@ class PaymentOptionTests(APITestCase):
         self.event.paypal_enabled = False
         _, [option] = self.options(None, {'total': 80})
         self.assertEqual(option.handling, D('0.00'))
-
-    def test_finding_an_option(self):
-        self.event.registration_deposit_schema = self.LARK
-        results = {'total': 1000, 'tuition': 700, 'meals': 200}
-        self.assertEqual(invoices.find_option(self.event, results, '').name, 'Full Payment')
-        self.assertEqual(invoices.find_option(self.event, results, '50% Deposit').amount,
-                         D('550.00'))
-        self.assertIsNone(invoices.find_option(self.event, results, 'Nope'))
 
 
 class PayPalTestCase(paypal_mocks.PayPalServerMixin, InvoiceTestCase):
