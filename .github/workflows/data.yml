@@ -1,8 +1,10 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it:
-# every event module must load, satisfy eventImportObjectSchema and carry
-# well-formed JSON Schemas (data/__tests__/offline). The live import against the
-# built image runs in docker.yml.
+# every event module must load, satisfy eventImportObjectSchema, carry
+# well-formed JSON Schemas and pass the server's form and pricing checks
+# (server/camphoric/schema_checks.py, run with the runner's python3)
+# (data/__tests__/offline). The live import against the built image runs in
+# docker.yml.
 name: Data import validation
 
 on:
@@ -10,11 +12,13 @@ on:
     branches: [main]
     paths:
       - 'data/**'
+      - 'server/camphoric/schema_checks.py'
       - '.github/workflows/data.yml'
   pull_request:
     branches: [main]
     paths:
       - 'data/**'
+      - 'server/camphoric/schema_checks.py'
       - '.github/workflows/data.yml'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on

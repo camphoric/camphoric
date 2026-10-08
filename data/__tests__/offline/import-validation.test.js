@@ -6,11 +6,18 @@
  * eventImportObjectSchema (the same Ajv check CamphoricEventCreator runs before
  * importing) and every JSON Schema it carries must be well-formed. Its sample
  * registrations must satisfy the registration form's schema without any field
- * the schema doesn't declare.
+ * the schema doesn't declare. The event, as its overrides leave it, must pass
+ * the server's form and pricing checks (server/camphoric/schema_checks.py,
+ * run with python3): no default outside its choices, and no text or choice
+ * answer the pricing reads that a registration may lack (#771).
  *
  * Runs under native ESM (jest.config.cjs: transform: {}) because the event
  * modules use import.meta.url and ESM-only dependencies.
  */
+
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, test } from '@jest/globals';
 import Ajv from 'ajv';
@@ -103,6 +110,31 @@ function formSchema({ registration_schema = {}, camper_schema = {} }) {
 // Stands in for the importer's lodging lookup (key → saved lodging).
 const fakeLodgingLookup = () => new Proxy({}, { get: () => ({ id: 1 }) });
 
+// The server's own checks, run on an event's fields (DR-106). They need the
+// repository's server/ and python3: CI has both, the data container (which
+// mounts only data/) neither, so there the test is skipped and says why.
+const SCHEMA_CHECKS = fileURLToPath(
+  new URL('../../../server/camphoric/schema_checks.py', import.meta.url),
+);
+const canRunSchemaChecks = existsSync(SCHEMA_CHECKS)
+  && spawnSync('python3', ['--version']).status === 0;
+
+/**
+ * The event as the importer leaves it: its data, then each override's PATCH
+ * of the event applied (Harmony and LTA Campout set their pricing that way,
+ * once the lodging exists).
+ */
+async function importedEvent({ data, overrides = [] }) {
+  const event = { ...data.event };
+  const fetch = async (method, url, body) => {
+    if (method === 'PATCH' && /^\/api\/events\/[^/]+\/$/.test(url)) Object.assign(event, body);
+    return {};
+  };
+  const results = { event: { id: 1 }, lodging: fakeLodgingLookup() };
+  for (const override of overrides) await override(fetch, results, () => undefined);
+  return event;
+}
+
 describe.each(EVENTS)('data/%s', (name) => {
   let mod;
 
@@ -172,6 +204,17 @@ describe.each(EVENTS)('data/%s', (name) => {
       expect({ index, errors: validate.errors ?? [] }).toEqual({ index, errors: [] });
     });
   });
+
+  (canRunSchemaChecks ? test : test.skip)(
+    canRunSchemaChecks
+      ? "passes the server's form and pricing checks"
+      : "passes the server's form and pricing checks (skipped: needs server/ and python3)",
+    async () => {
+      const event = await importedEvent(mod.default);
+      const output = execFileSync('python3', [SCHEMA_CHECKS], { input: JSON.stringify(event) });
+      expect(JSON.parse(output.toString())).toEqual({});
+    },
+  );
 
   test('overrides and sampleRegGenerator are functions', () => {
     const { overrides = [], sampleRegGenerator } = mod.default;

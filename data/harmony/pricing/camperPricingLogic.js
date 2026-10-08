@@ -10,7 +10,9 @@ export const ageLookup = {
 
 const cutoff = Math.floor(earlybirdCutoff.toSeconds());
 
-const defaultCamperAge = ageLookup.adult;
+// A camper without an age prices as an adult. One age, not the list: the
+// rates compare it with `===`, which a list never matches (#771).
+const defaultCamperAge = ageLookup.adult[0];
 const camperAge = {var: ['camper.age', defaultCamperAge]};
 
 const dayCount = ({

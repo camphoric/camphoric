@@ -19,6 +19,7 @@ from camphoric import (
     models,
     pricing,
     roles,
+    schema_checks,
 )
 from camphoric.templating.bulk import Criteria, expression_diagnostics
 from camphoric.templating.urls import invoice_pay_url, register_url
@@ -116,13 +117,13 @@ class EventSerializer(ModelSerializer):
         return name
 
     def validate_camper_schema(self, schema):
-        return validate_schema(schema)
+        return validate_schema(schema, getattr(self.instance, 'camper_schema', None))
 
     def validate_payment_schema(self, schema):
-        return validate_schema(schema)
+        return validate_schema(schema, getattr(self.instance, 'payment_schema', None))
 
     def validate_registration_schema(self, schema):
-        return validate_schema(schema)
+        return validate_schema(schema, getattr(self.instance, 'registration_schema', None))
 
     def validate_lodging_schema(self, schema):
         return validate_schema(schema)
@@ -142,6 +143,33 @@ class EventSerializer(ModelSerializer):
         if problem:
             raise ValidationError(f'Line {problem.line}: {problem.message}')
         return template
+
+    PRICING_INPUTS = ('registration_schema', 'camper_schema',
+                      'registration_pricing_logic', 'camper_pricing_logic')
+
+    def validate(self, attrs):
+        '''
+        When the forms or the pricing change, every text or choice answer the
+        pricing reads must be one each registration has (DR-106, #771). Only
+        what this save brings in is refused: a problem already in the event
+        doesn't hold up other edits, or a fix made one field at a time.
+        '''
+        attrs = super().validate(attrs)
+        if any(name in attrs for name in self.PRICING_INPUTS):
+            stored = {name: getattr(self.instance, name, None) for name in self.PRICING_INPUTS}
+            current = {**stored, **{name: attrs[name] for name in self.PRICING_INPUTS
+                                    if name in attrs}}
+
+            def check(fields):
+                return schema_checks.pricing_input_problems(
+                    fields['registration_schema'], fields['camper_schema'],
+                    fields['registration_pricing_logic'], fields['camper_pricing_logic'])
+
+            problems = schema_checks.new_problems(
+                check(current), check(stored) if self.instance else {})
+            if problems:
+                raise ValidationError(problems)
+        return attrs
 
 
 class RegistrationListSerializer(ListSerializer):
@@ -812,11 +840,20 @@ class ManagedUserSerializer(ModelSerializer):
         return user
 
 
-def validate_schema(schema):
+def validate_schema(schema, stored=None):
+    '''
+    A well-formed JSON Schema, with no default outside its field's choices
+    that `stored` (the schema it replaces) didn't already have: the form shows
+    one as blank (DR-106, #771).
+    '''
     try:
         jsonschema.Draft7Validator.check_schema(schema)
     except jsonschema.exceptions.SchemaError as e:
         raise ValidationError(e.message)
+    before = schema_checks.default_problems(stored) if stored else []
+    problems = [p for p in schema_checks.default_problems(schema) if p not in before]
+    if problems:
+        raise ValidationError(problems)
     return schema
 
 

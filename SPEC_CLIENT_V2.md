@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-07
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-104)
+- §15 — Decision Records (DR-1…DR-106)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -662,7 +662,13 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `payment_schema`, `deposit_schema`; `pricing` (named numeric vars);
   `camper_pricing_logic` / `registration_pricing_logic` (JSON Logic component lists, each
   `[{ var, label?, exp }]` with a component whose `var` is `total`; saving one without is
-  refused with a 400 `{ <field>: ['message'] }`, §15, DR-69);
+  refused with a 400 `{ <field>: ['message'] }`, §15, DR-69). Saving a form schema whose
+  field default isn't one of that field's choices is refused the same way, on the schema's
+  field; so is saving schemas or pricing logic where the pricing reads a text or choice answer
+  that's neither required (at the top of its schema), nor given a fallback that's one of its
+  choices, nor read only where an `if` has found it there — on the pricing logic field. Only
+  what the save brings in is refused; a problem already in the event doesn't hold it up
+  (§15, DR-106);
   `registration_template_vars`; `registration_error_messages` (custom validation messages,
   `{ field path: { validation keyword: Handlebars message } }`, §7.1);
   `confirmation_page_template` (a Jinja markdown template, §7.3; saving one that doesn't parse
@@ -1424,7 +1430,9 @@ to the event via PATCH:
 
 - Schemas: camper, registration, registration UI, deposit, payment.
 - Pricing logic: camper pricing, registration pricing. Each must keep a `total` component; the
-  server refuses a save without one and the error is shown (§15, DR-69).
+  server refuses a save without one and the error is shown (§15, DR-69). It also refuses a
+  schema default that isn't one of its field's choices, and pricing that reads a text or choice
+  answer a registration may lack (§15, DR-106); the error names each field.
 - Admin attribute schemas: registration admin attributes, camper admin attributes (each a map
   of named `{ data, ui }` pairs).
 
@@ -4254,6 +4262,32 @@ gone through.
 Check when they finish to pay later — they never chose a check, and may pay online from an
 invoice link. Keeping PayPal and leaving the wording to each event's template — every template
 would have to work out that the choice didn't hold.
+
+### DR-106 — Forms and pricing must agree on what a registration has
+
+**Decision:** The server refuses to save an event's form schema when a field's `default` isn't
+one of that field's choices (`enum`, or `oneOf`/`anyOf` of `const`s). It refuses to save its
+schemas or pricing logic when the pricing reads a text or choice answer (`camper.<field>` or
+`registration.<field>`, following a local `$ref`) that a registration may lack: one that isn't
+required at the top of its schema, has no fallback in the logic, and isn't read only inside the
+branch of an `if` whose condition finds it there (`{"var": …}` or `{"!!": …}`, or the branches
+after a `{"missing": […]}`). A fallback is the `var`'s own default, or a constant right after a
+bare `var` in an `or`, and it must be one of the field's choices. Numbers, lists, objects and
+checkboxes aren't checked, choices or not: a missing one means none. A save is refused only for
+problems it brings in, so one already in the event holds up neither other edits nor a fix made
+one field at a time (as the importer sends schemas before the pricing its overrides set). The
+same checks run, without a server, on every event under `data/` in the data import validation,
+as each event is once its overrides have run.
+**Context:** A Camp Harmony registration was priced at $0 (#771). The age field's default had
+been left at a choice that no longer existed, so the form showed it blank; the registration went
+in without an age, which wasn't required; and the pricing's fallback for a missing age was the
+list of adult ages, which its `===` comparisons never match, so every rate fell through to $0.
+Each step was legal JSON Schema and JsonLogic, and nothing reported it.
+**Alternatives:** Requiring every answer the pricing reads — numbers and lists (donations,
+parking passes) legitimately mean none when missing, and existing events would need fallbacks
+added for them. Warning instead of refusing — nothing would make anyone fix it. Refusing a $0
+price at registration — free registrations exist (staff, waived), and the registrant isn't the
+one who can fix it.
 
 ---
 
