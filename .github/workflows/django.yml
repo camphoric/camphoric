@@ -59,6 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
+        id: setup-python
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -68,11 +69,14 @@ jobs:
         # The static directories settings expect (the built client, collected
         # files), so the system checks and whitenoise don't warn about them.
         run: mkdir -p frontend_bootstrap/build/static static
+      # Keyed on the exact Python (e.g. 3.12.15), not just 3.12: a virtualenv
+      # built under one patch release is broken under the next, and the
+      # runner image updates it without notice.
       - id: cache-pipenv
         uses: actions/cache@v6
         with:
           path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-py${{ matrix.python-version }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}-3
+          key: ${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-pipfile-${{ hashFiles('**/Pipfile.lock') }}-${{ hashFiles('**/Pipfile') }}-3
       - name: Install dependencies
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --dev
