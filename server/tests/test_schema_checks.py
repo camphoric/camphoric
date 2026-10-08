@@ -124,6 +124,23 @@ class PricingInputProblemsTests(SimpleTestCase):
             with self.subTest(exp=exp):
                 self.assertEqual(problems(camper_schema(), [{'var': 'total', 'exp': exp}]), {})
 
+    def test_a_check_with_a_fallback_guards_nothing(self):
+        # True when the answer is missing, so the branch it leads to may lack it.
+        logic = [{'var': 'total', 'exp': {'if': [
+            {'var': ['camper.age', '31-79 years old']},
+            {'===': ['3-12 years old', {'var': 'camper.age'}]}, 0]}}]
+        self.assertIn('camper_pricing_logic', problems(camper_schema(), logic))
+
+    def test_a_checks_fallback_must_be_a_choice_too(self):
+        logic = [{'var': 'total', 'exp': {'if': [{'var': ['camper.age', 'bogus']}, 500, 0]}}]
+        found = problems(camper_schema(required=['age']), logic)
+        self.assertIn('its fallback "bogus"', found['camper_pricing_logic'][0])
+
+    def test_a_nullable_choice_field(self):
+        schema = {'properties': {'tags': {'type': ['string', 'null'], 'enum': ['x', 'y', None]}}}
+        logic = [{'var': 'total', 'exp': {'===': [{'var': 'camper.tags'}, 'x']}}]
+        self.assertIn('camper_pricing_logic', problems(schema, logic))
+
     def test_a_field_defined_by_ref(self):
         schema = {'definitions': {'age': {'type': 'string', 'enum': AGES}},
                   'properties': {'age': {'$ref': '#/definitions/age'}}}

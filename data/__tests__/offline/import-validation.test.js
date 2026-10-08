@@ -111,13 +111,15 @@ function formSchema({ registration_schema = {}, camper_schema = {} }) {
 const fakeLodgingLookup = () => new Proxy({}, { get: () => ({ id: 1 }) });
 
 // The server's own checks, run on an event's fields (DR-106). They need the
-// repository's server/ and python3: CI has both, the data container (which
-// mounts only data/) neither, so there the test is skipped and says why.
+// repository's server/ and python3. Outside CI they're skipped (saying why)
+// where those are missing, as in the data container, which mounts only data/.
+// In CI they always run, so a moved file or a missing python3 fails the job
+// instead of quietly turning the check off.
 const SCHEMA_CHECKS = fileURLToPath(
   new URL('../../../server/camphoric/schema_checks.py', import.meta.url),
 );
-const canRunSchemaChecks = existsSync(SCHEMA_CHECKS)
-  && spawnSync('python3', ['--version']).status === 0;
+const canRunSchemaChecks = process.env.CI === 'true' || (existsSync(SCHEMA_CHECKS)
+  && spawnSync('python3', ['--version']).status === 0);
 
 /**
  * The event as the importer leaves it: its data, then each override's PATCH
