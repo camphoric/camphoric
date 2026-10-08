@@ -263,17 +263,6 @@ def payment_options(event, pricing_results):
     return meta, options
 
 
-def find_option(event, pricing_results, name):
-    '''The option called `name`; the default one when `name` is empty.'''
-    meta, options = payment_options(event, pricing_results)
-    if not name:
-        name = meta['default']
-    for option in options:
-        if option.name == name:
-            return option
-    return None
-
-
 # The registration's invoice -----------------------------------------------------------
 
 def registration_invoice(registration):
@@ -283,27 +272,85 @@ def registration_invoice(registration):
     ).order_by('created_at', 'id').first()
 
 
+# What the payment step writes for the chosen option; an organizer changing
+# any of them (or cancelling or reopening the invoice) stops it (DR-105).
+PAYMENT_STEP_FIELDS = ('description', 'amount', 'handling')
+
+
+INVOICE_CHANGED = ('The organizers changed what\'s due on your registration. '
+                   'Please check the amount and choose again.')
+INVOICE_CANCELLED = 'The organizers cancelled this invoice. Please contact them.'
+
+
+def cancelled_registration_invoice(registration):
+    '''Whether the organizers cancelled the registration's invoice: nothing to pay (DR-105).'''
+    invoice = registration_invoice(registration)
+    return invoice is not None and invoice.cancelled_at is not None
+
+
+def organizer_set(invoice):
+    '''The registration invoice is the organizers' to set: one changed it, and it's open.'''
+    return (invoice is not None and invoice.organizer_changed_at is not None
+            and invoice.cancelled_at is None)
+
+
+def invoice_option(invoice):
+    '''The registration invoice as a payment option: what it asks now, and the fee online.'''
+    due, fee = order_amounts(invoice)
+    return PaymentOption(name=f'invoice:{invoice.id}',
+                         title=invoice.description or f'Invoice #{invoice.id}',
+                         amount=due, handling=fee)
+
+
+def registration_payment_options(registration):
+    '''
+    The payment options for this registration, as `payment_options`: the
+    event's, or — once an organizer has set its invoice — that invoice alone,
+    for what it asks now (DR-105).
+    '''
+    invoice = registration_invoice(registration)
+    if organizer_set(invoice):
+        option = invoice_option(invoice)
+        return {'title': '', 'description': '', 'default': option.name}, [option]
+    return payment_options(registration.event, registration.server_pricing_results)
+
+
 def prepare_registration_invoice(registration, option, payment_type):
     '''
     The registration invoice for the chosen option, made or rewritten in place
     while nothing has been paid on it (the registrant may change their mind
     after a cancelled PayPal attempt). None when the option asks for nothing.
+    Once an organizer has changed it, only how they chose to pay is recorded:
+    it asks what the organizer set. A cancelled one is refused (DR-105).
     '''
     invoice = registration_invoice(registration)
+    if invoice is not None:
+        # Locked, so an organizer's change can't land between reading and saving.
+        invoice = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
+    if invoice is not None and invoice.cancelled_at is not None:
+        raise PaymentProblem('cancelled', INVOICE_CANCELLED)
+    if invoice is not None and invoice.organizer_changed_at is not None \
+            and option.name != invoice_option(invoice).name:
+        # An organizer changed it after the option was chosen: the page shows
+        # another amount, so the registrant chooses again (DR-105).
+        raise PaymentProblem('invoice_changed', INVOICE_CHANGED)
     if invoice is None:
         if option.amount <= 0:
             return None
         invoice = models.Invoice(
             registration=registration, origin=models.InvoiceOrigin.REGISTRATION)
-    wanted = {'description': option.title, 'amount': option.amount, 'handling': ZERO,
-              'payment_type': payment_type, 'pending_paypal_order_id': None,
-              'cancelled_at': None}
+    wanted = {'payment_type': payment_type, 'pending_paypal_order_id': None}
+    if invoice.organizer_changed_at is None:
+        wanted.update(description=option.title, amount=option.amount, handling=ZERO)
     if invoice.pk is not None and all(
             getattr(invoice, name) == value for name, value in wanted.items()):
         return invoice  # a repeat: nothing to change, nothing to log
     for name, value in wanted.items():
         setattr(invoice, name, value)
-    invoice.save()
+    if invoice.pk is None:
+        invoice.save()
+    else:
+        invoice.save(update_fields=[*wanted, 'updated_at'])
     return invoice
 
 
@@ -330,12 +377,14 @@ def clear_unpaid_online_choice(registration):
 class PaymentProblem(Exception):
     '''
     A payment that didn't go through. `code` says why, for the client:
-    `amount_changed`, `declined` and `not_payable` took no money; `unknown`
-    may have (PayPal's answer was lost; the event has been emailed).
+    `amount_changed`, `declined`, `not_payable`, `cancelled` (the organizers
+    cancelled the invoice) and `invoice_changed` (they changed it since the page
+    was loaded) took no money; `unknown` may have (PayPal's answer was lost; the
+    event has been emailed).
     '''
     status = {'amount_changed': 409, 'declined': 402, 'not_payable': 409,
               'not_approved': 409, 'mismatch': 400, 'unknown': 502, 'refused': 409,
-              'not_configured': 409}
+              'not_configured': 409, 'cancelled': 409, 'invoice_changed': 409}
 
     def __init__(self, code, message):
         super().__init__(message)
@@ -409,6 +458,16 @@ def _check_belongs(invoice, order):
         raise PaymentProblem('mismatch', f'Unexpected currency {currency}.')
 
 
+def order_amounts(invoice):
+    '''
+    What a PayPal order for the invoice asks: `(due, fee)`, the fee being the
+    handling it doesn't have yet (DR-88).
+    '''
+    due = invoice.amount_due
+    fee = online_fee(invoice.registration.event, due) if money(invoice.handling) == 0 else ZERO
+    return due, fee
+
+
 def create_paypal_order(invoice, payment_type):
     '''
     Create the PayPal order for what the invoice still asks, plus the handling
@@ -420,10 +479,9 @@ def create_paypal_order(invoice, payment_type):
         raise PaymentProblem('not_configured', 'This event doesn\'t take payments online.')
     if invoice.cancelled_at is not None:
         raise PaymentProblem('not_payable', 'This invoice has been cancelled.')
-    due = invoice.amount_due
+    due, fee = order_amounts(invoice)
     if due <= 0:
         raise PaymentProblem('not_payable', 'Nothing is due on this invoice.')
-    fee = online_fee(event, due) if money(invoice.handling) == 0 else ZERO
     value = due + fee
     text = item_text(invoice)
     body = {
@@ -531,8 +589,7 @@ def _capture(invoice, order_id, payment_type, notes):
         raise PaymentProblem('not_approved', 'PayPal hasn\'t approved this payment.')
     if order_id != invoice.pending_paypal_order_id or invoice.cancelled_at is not None:
         raise PaymentProblem('not_payable', 'This invoice isn\'t waiting for that payment.')
-    due = invoice.amount_due
-    fee = online_fee(invoice.registration.event, due) if money(invoice.handling) == 0 else ZERO
+    due, fee = order_amounts(invoice)
     if due <= 0:
         raise PaymentProblem('not_payable', 'Nothing is due on this invoice.')
     if _order_amount(order) != due + fee:

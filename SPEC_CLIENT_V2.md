@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-07
+**Last updated:** 2026-10-08
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -551,10 +551,21 @@ Non-CRUD admin endpoints:
   (§7.2; §15, DR-90, DR-91). It **completes** the registration (unpaid until money arrives),
   makes or rewrites its registration invoice for the chosen option, and creates the PayPal order
   for it → `{ orderID, total, handling, invoice }`. The order has a single item, "Total for
-  Invoice #{id} for {Event Name}", for the option's amount plus the handling fee; the fee isn't
-  added to the invoice until the order is captured. 409 `{ detail }` if the event doesn't take
-  payments online, or the registration invoice has already been paid on; 400 on
-  `paymentOption` for an option that doesn't exist or asks for nothing.
+  Invoice #{id} for {Event Name}", for what the invoice asks plus the handling fee; the fee
+  isn't added to the invoice until the order is captured. `total` and `handling` are the
+  order's. 409 `{ detail }` if the event doesn't take payments online, or the registration
+  invoice has already been paid on; 409 `{ detail, code: 'cancelled', invoice }` if the
+  organizers cancelled it, and 409 `{ detail, code: 'invoice_changed', invoice, paymentStep }`
+  for an option from before they changed it (§15, DR-105); 400 on `paymentOption` for an option
+  that doesn't exist or asks for nothing.
+- `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
+  the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
+  paymentOptions, handlingPercent, invoiceCancelled }`, the last true when the organizers
+  cancelled the registration invoice); 404 for a registration that isn't this event's (or an id
+  that isn't one). Once a registrar or
+  admin has changed the registration invoice, its options are that invoice alone:
+  `{ name: 'invoice:{id}', title: <its description>, amount: <what it asks now>, handling: <the
+  fee online> }` (§15, DR-105).
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
   paymentType?, paymentOption?, paypalOrderId? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, invoice, ledger, emailError }`):
@@ -578,9 +589,15 @@ Non-CRUD admin endpoints:
     uninvoiced_balance }` (§9.7). The confirmation email is queued, not sent, before the
     response (§15, DR-44): `emailError` is true only when it couldn't be queued.
   - The option and method can change until something is paid on the registration invoice;
-    after that, repeating the step returns the same payload and changes nothing. The payment
-    step isn't limited by the registration dates: a registration accepted before closing can
-    still pay.
+    after that, repeating the step returns the same payload and changes nothing. Once a
+    registrar or admin has changed what the invoice asks (amount, description, handling) or
+    cancelled or reopened it, the step no longer rewrites it: its one option is the invoice,
+    for what it asks now, and only the method is recorded. An option from before (a page
+    loaded earlier) is refused with 409 `{ detail, code: 'invoice_changed', invoice,
+    paymentStep }`, carrying the fresh payment step. While it's cancelled, a check or PayPal
+    step is refused with 409 `{ detail, code: 'cancelled', invoice }` (§15, DR-105).
+    The payment step isn't limited by the registration dates: a registration accepted before
+    closing can still pay.
   - A request in the old shape (with `paymentData` or `payPalResponse`) is refused with a 409
     asking the registrant to reload the page.
 - `POST /api/events/{eventId}/register` with `{ step: 'finish', registrationUUID }` — finish
@@ -759,8 +776,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   e-payment handling fee on it; adds to what's owed), `payment_type` (how the payer chose to pay
   it; empty once a registrant whose online payment didn't go through is confirmed without
   paying, §15, DR-104), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
-  `pending_paypal_order_id`, `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`,
-  timestamps; and, worked out from its live payments, read-only `total` (`amount + handling`),
+  `pending_paypal_order_id`, `organizer_changed_at` (when a registrar or admin last changed
+  its amount, description or handling, or cancelled or reopened it; §15, DR-105),
+  `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`, timestamps; and, worked out
+  from its live payments, read-only `total` (`amount + handling`),
   `amount_paid` (net of refunds), `amount_due`, `overpaid`, `status` (`open` |
   `partially_paid` | `paid` | `overpaid` | `cancelled`) and `payments` (ids); and read-only
   `pay_url`, the invoice's public pay page (§9.7; §15, DR-95) — from `CAMPHORIC_PUBLIC_URL`, else
@@ -787,7 +806,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     invoice's pending order → `{ result: 'recorded' | 'not_captured', payment, invoice }`: a
     captured order is recorded as a payment (once), one never captured is cleared.
   - `DELETE` (Admins only; §15, DR-93): only an invoice nothing was ever paid on (deleted payments
-    count) — a 409 otherwise; a hard delete.
+    count), and not a registration's own (`origin: 'registration'`), which is cancelled instead
+    (§15, DR-105) — a 409 otherwise; a hard delete.
 - **Payment:** `id`, `registration`, `invoice` (every payment belongs to one; §15, DR-87),
   `deposit?` (a bank deposit), `payment_type`, `paid_on`, `attributes`, `amount` (negative for a
   refund; §15, DR-94), `notes`, `refund_of` (for a refund: the payment it gives money back
@@ -1027,6 +1047,17 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   - **When PayPal's answer was lost** (the `unknown` code): money may have moved, so the
     registrant is asked not to pay again — the organizers will check — and offered only to
     finish; the payment options and buttons aren't shown.
+  - **When the organizers cancelled the invoice** (the `cancelled` code, from Pay by check or a
+    PayPal or card button, or `invoiceCancelled` in the payment step asked for again): the
+    registrant is told they're registered, given the server's message to contact the
+    organizers, and offered only to finish; the payment options and buttons aren't shown (§15,
+    DR-105).
+  - **When the organizers changed what's due:** the step asks for the payment step again
+    (`payment-step`) when it opens, so a page reopened later shows the invoice they set, and its
+    amount, as the one option. A page left open since gets `invoice_changed` from its next
+    button, with the payment step as it is now: it takes that, so its options and amounts are
+    the invoice's, and says the organizers changed what's due. Either way the step replaces the
+    payment step this browser saved (§15, DR-105).
   - While a payment is in flight, block further interaction and indicate progress (and prevent
     double submission). For PayPal, the payment is in flight from the payer's approval, not
     while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
@@ -2034,7 +2065,7 @@ section is the contract.
 
   | Origin | Made by | When | Typical description | Special behavior |
   |---|---|---|---|---|
-  | `registration` | the payment step | the registrant pressed a payment button for an option that asks for money (at most one per registration) | the option's title ("50% Deposit") | rewritten by the payment step while nothing is paid on it (a changed option or method); templates call it `registration.invoice` |
+  | `registration` | the payment step | the registrant pressed a payment button for an option that asks for money (at most one per registration) | the option's title ("50% Deposit") | rewritten by the payment step while nothing is paid on it and no organizer has changed it (a changed option or method; §15, DR-105); templates call it `registration.invoice` |
   | `payment_received` | recording a payment | a payment recorded with no invoice that has money due, or "on its own" | "Payment received" ("Refund given" for a refund converted from before invoices) | its amount always equals what its live payments net to, so it never shows money owed; cancelled when its payments are deleted, reopened on restore |
   | `admin` | a registrar | made by hand, for an amount or the balance no invoice asks for yet (§15, DR-96) | what the registrar types ("Registration balance") | none |
   | `migrated` | the conversion to invoices | an old handling fee with nowhere else to go | "Electronic payment handling" | amount 0, only `handling` |
@@ -2090,7 +2121,8 @@ section is the contract.
   PayPal problem email. Others are recorded by hand. A refunded payment can't be deleted.
 - **Cancel and delete.** Registrars and Admins cancel and reopen invoices; one that still holds
   money can't be cancelled. Only Admins delete a payment or an invoice (§15, DR-93): not a
-  refunded payment, nor an invoice anything was ever paid on.
+  refunded payment, nor an invoice anything was ever paid on, nor a registration's own invoice,
+  which is cancelled instead (§15, DR-105).
 - **Confirmation email timing** (§15, DR-91): sent when the payment flow reaches a result, or by
   the worker 30 minutes after completion when nothing did; once (`confirmation_sent_at`, and its
   dedupe key).
@@ -4262,6 +4294,31 @@ gone through.
 Check when they finish to pay later — they never chose a check, and may pay online from an
 invoice link. Keeping PayPal and leaving the wording to each event's template — every template
 would have to work out that the choice didn't hold.
+
+### DR-105 — An organizer's change to the registration invoice sticks
+
+**Decision:** Once a registrar or admin changes what a registration invoice asks — its amount,
+description or handling — or cancels or reopens it, the invoice records when
+(`organizer_changed_at`), and the registration's payment step stops rewriting it. The step's
+one option is then the invoice, for what it asks now: a page opened later asks the server for
+its payment step and shows that; a page left open that posts an earlier option is refused, and
+sent the fresh payment step to show instead. Paying the invoice records only how the registrant
+chose to pay. While it's cancelled, the payment step is refused with a 409 telling the
+registrant to contact the organizers. Changing only its memo, notes or due date doesn't count,
+since the payment step never writes those. A registration's own invoice can't be deleted, only
+cancelled: deleted, a payment page would make a new one at the option's amount.
+**Context:** The payment step rewrites the registration invoice while nothing is paid on it, so
+a registrant can switch option or method after an abandoned PayPal attempt (DR-91). It also
+undid a registrar's change: a stale tab, or a registration resumed from the browser's saved
+state, reopened a cancelled invoice or put back the option's amount (#766).
+**Alternatives:** Paying the invoice as the organizer left it whatever option is posted — the
+page would still show the option's amount, so a check payer could mail the wrong one (only
+PayPal's window shows the real amount). Refusing the payment step without the fresh options — a
+stale page becomes a dead end. Letting the invoice be deleted, and treating a missing one as
+organizer-set — the page would have nothing to show what's due.
+Counting any organizer edit, memo and notes included — it would stop a registrant changing
+option for an edit that doesn't conflict. Reading the change history instead of a field — the
+audit log isn't meant to drive behavior.
 
 ### DR-106 — Forms and pricing must agree on what a registration has
 

@@ -153,6 +153,91 @@ describe('PaymentNeeded', () => {
     expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
   });
 
+  it('when the organizers cancelled the invoice, says so and offers only to finish', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    failWith(problem('cancelled', 'The organizers cancelled this invoice. Please contact them.'));
+    await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+
+    expect(screen.getByText(/The organizers cancelled this invoice/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(finishMutate).toHaveBeenCalledWith('uuid-1', expect.any(Object));
+  });
+
+  it('a PayPal button refused for a cancelled invoice says so too', async () => {
+    const props = renderPage();
+    createOrder.mutateAsync.mockRejectedValue(
+      problem('cancelled', 'The organizers cancelled this invoice. Please contact them.'),
+    );
+    await act(async () => {
+      await props.createOrder('PayPal').catch(() => undefined);
+    });
+    expect(screen.getByText(/Please contact the organizers/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+  });
+
+  it('a payment step that says the invoice was cancelled shows only their message', () => {
+    renderWithProviders(
+      <PaymentNeeded eventId="1" paymentStep={{ ...paymentStep, invoiceCancelled: true }} />,
+    );
+    expect(screen.getByText(/The organizers cancelled this invoice/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
+  });
+
+  describe('when the organizers changed what’s due since the page loaded (DR-105)', () => {
+    const message =
+      'The organizers changed what’s due on your registration. Please check the amount and choose again.';
+    const now: ApiRegisterPaymentStep = {
+      ...paymentStep,
+      paymentOptions: {
+        title: '',
+        description: '',
+        default: 'invoice:7',
+        options: [{ name: 'invoice:7', title: 'Full Payment', amount: 500, handling: 12.5 }],
+      },
+    };
+    const changed = () =>
+      new ApiError(409, 'Conflict', { code: 'invoice_changed', detail: message, paymentStep: now });
+
+    /** As PaymentStep renders it: from the store, so a replaced payment step shows. */
+    function FromTheStore() {
+      const step = useRegistrationStore((state) => state.paymentStep);
+      return step ? <PaymentNeeded eventId="1" paymentStep={step} /> : null;
+    }
+
+    beforeEach(() => useRegistrationStore.getState().setPaymentStep(paymentStep));
+
+    it('a check takes their amount and says why', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<FromTheStore />);
+      failWith(changed());
+      await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+
+      expect(screen.getByText(message)).toBeInTheDocument();
+      submitMutate.mockReset();
+      await user.click(screen.getByRole('button', { name: 'Pay $500.00 by check' }));
+      expect(submitMutate).toHaveBeenCalledWith(
+        { registrationUUID: 'uuid-1', paymentType: 'Check', paymentOption: 'invoice:7' },
+        expect.any(Object),
+      );
+    });
+
+    it('a PayPal order does too, without a PayPal error', async () => {
+      renderWithProviders(<FromTheStore />);
+      createOrder.mutateAsync.mockRejectedValue(changed());
+      await act(async () => {
+        await checkout.props!.createOrder('PayPal').catch(() => undefined);
+      });
+      act(() => checkout.props!.onError?.(new Error('createOrder failed')));
+
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByText(/Pay \$512\.50 online/)).toBeInTheDocument();
+      expect(screen.queryByText(/PayPal ran into a problem/)).toBeNull();
+    });
+  });
+
   it('shows the server’s reason when it can’t start a PayPal payment', async () => {
     const props = renderPage();
     createOrder.mutateAsync.mockRejectedValue(

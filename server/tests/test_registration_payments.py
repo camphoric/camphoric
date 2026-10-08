@@ -12,8 +12,9 @@ from django.core import mail
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from camphoric import confirmations, models
+from camphoric import confirmations, invoices, models, roles
 from tests import paypal_mocks
+from tests.factories import make_user
 
 D = Decimal
 
@@ -85,6 +86,25 @@ class OptionsTests(FlowTestCase):
         self.post(400, step='payment', registrationUUID=self.uuid, paymentType='Check',
                   paymentOption='Everything')
         self.assertFalse(self.registration.completed)
+
+    def test_no_option_means_the_default(self):
+        self.post(step='payment', registrationUUID=self.uuid, paymentType='Check')
+        self.assertEqual(self.registration.invoices.get().amount, D('400.00'))
+
+    def test_the_payment_step_again(self):
+        data = self.post(step='payment-step', registrationUUID=self.uuid).data
+        self.assertEqual(data['paymentOptions']['options'], self.options)
+        self.assertEqual(str(data['registrationUUID']), str(self.uuid))
+
+    def test_the_payment_step_of_an_unknown_registration(self):
+        self.post(404, step='payment-step', registrationUUID='00000000-0000-0000-0000-000000000000')
+        self.post(404, step='payment-step', registrationUUID='nope')
+
+    def test_the_payment_step_only_for_its_own_event(self):
+        other = models.Event.objects.create(organization=self.event.organization, name='Other')
+        response = self.client.post(f'/api/events/{other.id}/register', {
+            'step': 'payment-step', 'registrationUUID': self.uuid}, format='json')
+        self.assertEqual(response.status_code, 404)
 
     def test_an_out_of_date_page_is_asked_to_reload(self):
         self.post(409, step='payment', registrationUUID=self.uuid, paymentType='Check',
@@ -292,6 +312,151 @@ class PayPalTests(FlowTestCase):
         other['purchase_units'][0]['reference_id'] = 'someone-else'
         self.reply(other)
         self.assertEqual(self.approve(status=400).data['code'], 'mismatch')
+
+
+class RegistrarEditsTests(FlowTestCase):
+    '''
+    A registrar's change to the registration invoice (cancel it, lower or waive
+    its amount) while nothing is paid, then the registrant replays the payment
+    step from a stale tab or resumed state (#766, DR-105).
+    '''
+
+    def registrar_acts(self, method, path, data=None):
+        if not hasattr(self, 'registrar'):
+            self.registrar = make_user(roles.REGISTRAR, 'reggie')
+        self.client.force_authenticate(self.registrar)
+        response = getattr(self.client, method)(path, data, format='json')
+        self.client.force_authenticate(None)
+        self.assertLess(response.status_code, 300, getattr(response, 'data', None))
+
+    def open_unpaid_invoice(self):
+        self.start_paypal(option='Full Payment')
+        return self.invoice()
+
+    def test_a_cancelled_invoice_stays_cancelled_when_paypal_is_replayed(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('post', f'/api/invoices/{invoice.id}/cancel/',
+                            {'reason': 'Waived'})
+        response = self.post(409, step='paypal-order', registrationUUID=self.uuid,
+                             paymentOption='Deposit', paymentType='PayPal')
+        self.assertEqual(response.data['code'], 'cancelled')
+        self.assertIsNotNone(self.invoice().cancelled_at)
+        self.assertEqual(len(self.paypal.requests), 1)  # only the first order
+
+    def test_a_cancelled_invoice_stays_cancelled_when_a_check_is_replayed(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('post', f'/api/invoices/{invoice.id}/cancel/',
+                            {'reason': 'Waived'})
+        response = self.post(409, step='payment', registrationUUID=self.uuid,
+                             paymentType='Check', paymentOption='Deposit')
+        self.assertEqual(response.data['code'], 'cancelled')
+        self.assertIsNotNone(self.invoice().cancelled_at)
+        self.assertEqual(self.confirmations(), [])
+
+    def lowered_to_100(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('patch', f'/api/invoices/{invoice.id}/', {'amount': '100.00'})
+        return invoice
+
+    def test_a_stale_page_is_sent_the_registrars_amount(self):
+        # Loaded before the registrar's change, the page still offers the Deposit.
+        invoice = self.lowered_to_100()
+        for step in ({'step': 'paypal-order', 'paymentType': 'PayPal'},
+                     {'step': 'payment', 'paymentType': 'Check'}):
+            with self.subTest(step=step['step']):
+                response = self.post(409, registrationUUID=self.uuid, paymentOption='Deposit',
+                                     **step)
+                self.assertEqual(response.data['code'], 'invoice_changed')
+                self.assertEqual(response.data['paymentStep']['paymentOptions']['options'], [{
+                    'name': f'invoice:{invoice.id}', 'title': 'Full Payment',
+                    'amount': 100.0, 'handling': 2.5}])
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.payment_type), (D('100.00'), 'PayPal'))
+        self.assertEqual(len(self.paypal.requests), 1)  # only the first order
+        self.assertEqual(self.confirmations(), [])
+
+    def test_a_reopened_page_shows_the_registrars_amount(self):
+        invoice = self.lowered_to_100()
+        data = self.post(step='payment-step', registrationUUID=self.uuid).data
+        self.assertEqual(data['paymentOptions']['default'], f'invoice:{invoice.id}')
+        self.assertEqual([o['amount'] for o in data['paymentOptions']['options']], [100.0])
+
+    def test_paying_the_registrars_amount_online(self):
+        invoice = self.lowered_to_100()
+        data = self.start_paypal(option=f'invoice:{invoice.id}')
+        self.assertEqual((data['total'], data['handling']), (102.5, 2.5))
+        unit = self.paypal.requests[-1]['json']['purchase_units'][0]
+        self.assertEqual(unit['amount']['value'], '102.50')
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.description), (D('100.00'), 'Full Payment'))
+
+    def test_paying_the_registrars_amount_by_check(self):
+        invoice = self.lowered_to_100()
+        self.post(step='payment', registrationUUID=self.uuid, paymentType='Check',
+                  paymentOption=f'invoice:{invoice.id}')
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.payment_type, invoice.pending_paypal_order_id),
+                         (D('100.00'), 'Check', None))
+        self.assertEqual(len(self.confirmations()), 1)
+
+    def test_cancelled_after_the_page_showed_the_registrars_amount(self):
+        invoice = self.lowered_to_100()
+        self.registrar_acts('post', f'/api/invoices/{invoice.id}/cancel/')
+        data = self.post(step='payment-step', registrationUUID=self.uuid).data
+        self.assertTrue(data['invoiceCancelled'])
+        for step in ({'step': 'paypal-order', 'paymentType': 'PayPal'},
+                     {'step': 'payment', 'paymentType': 'Check'}):
+            with self.subTest(step=step['step']):
+                response = self.post(409, registrationUUID=self.uuid,
+                                     paymentOption=f'invoice:{invoice.id}', **step)
+                self.assertEqual(response.data['code'], 'cancelled')
+        self.assertIsNotNone(self.invoice().cancelled_at)
+
+    def test_a_change_between_choosing_and_paying_is_caught(self):
+        # The organizer's change lands after the option was chosen, before the
+        # invoice is locked: it's refused there, as at the choosing (DR-105).
+        self.lowered_to_100()
+        deposit = invoices.PaymentOption(name='Deposit', title='50% Deposit',
+                                         amount=D('200.00'), handling=D('5.00'))
+        with self.assertRaises(invoices.PaymentProblem) as caught:
+            invoices.prepare_registration_invoice(self.registration, deposit, 'Check')
+        self.assertEqual(caught.exception.code, 'invoice_changed')
+        self.assertEqual(self.invoice().amount, D('100.00'))
+
+    def test_a_reopened_invoice_is_the_option(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('post', f'/api/invoices/{invoice.id}/cancel/')
+        self.registrar_acts('post', f'/api/invoices/{invoice.id}/reopen/')
+        self.post(409, step='paypal-order', registrationUUID=self.uuid, paymentOption='Deposit',
+                  paymentType='PayPal')
+        self.start_paypal(option=f'invoice:{invoice.id}')
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.cancelled_at), (D('400.00'), None))
+
+    def test_a_new_description_alone_sticks(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('patch', f'/api/invoices/{invoice.id}/',
+                            {'description': 'Registration (sliding scale)'})
+        self.start_paypal(option=f'invoice:{invoice.id}')
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.description),
+                         (D('400.00'), 'Registration (sliding scale)'))
+
+    def test_the_edit_form_sending_back_unchanged_fields_isnt_a_change(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('patch', f'/api/invoices/{invoice.id}/', {
+            'description': ' Full Payment ', 'amount': '400.00', 'handling': '0.00',
+            'memo': 'See you at camp'})
+        self.assertIsNone(self.invoice().organizer_changed_at)
+
+    def test_a_memo_or_due_date_leaves_the_option_free_to_change(self):
+        invoice = self.open_unpaid_invoice()
+        self.registrar_acts('patch', f'/api/invoices/{invoice.id}/',
+                            {'memo': 'See you at camp', 'due_on': '2026-11-15'})
+        self.assertIsNone(self.invoice().organizer_changed_at)
+        self.start_paypal(option='Deposit')
+        invoice = self.invoice()
+        self.assertEqual((invoice.amount, invoice.memo), (D('200.00'), 'See you at camp'))
 
 
 class ConfirmationSweepTests(FlowTestCase):

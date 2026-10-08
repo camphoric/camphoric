@@ -14,13 +14,20 @@
  *    unpaid, and can try again, pay by check, or finish and pay later.
  *  - The page is blocked only once PayPal approves, never while PayPal's own
  *    popup or inline card form is open (DR-77).
+ *  - If the organizers cancelled the registration invoice, any payment button
+ *    is refused (`cancelled`), and a payment step asked for again says so
+ *    (`invoiceCancelled`): the page gives their message and offers only to
+ *    finish (DR-105).
+ *  - If they changed it since this page loaded, a payment button is refused
+ *    (`invoice_changed`) with the payment step as it is now: the page takes it,
+ *    so its options and amounts are the invoice's, and says why (DR-105).
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
 import type { ApiRegisterConfirmationStep, ApiRegisterPaymentStep, PaymentType } from 'api-types';
 import { PAYMENT_BUTTON_WIDTH, PayPalCheckout } from 'components/PayPalCheckout';
 import { useGoToStep } from 'hooks/useGoToStep';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import {
   paymentProblem,
@@ -31,6 +38,7 @@ import {
 } from 'store/registrationApi';
 import { formatMoney } from 'utils/money';
 
+import { useReplacePaymentStep } from '../useReplacePaymentStep';
 import { PaymentNotFinished } from './PaymentNotFinished';
 import { PaymentOptions } from './PaymentOptions';
 
@@ -39,10 +47,12 @@ interface PaymentNeededProps {
   paymentStep: ApiRegisterPaymentStep;
 }
 
-/** Where things stand after a PayPal attempt that didn't go through. */
+/** Where things stand after a payment that didn't go through. */
 interface NotFinished {
   reason?: string;
   unknown?: boolean;
+  /** The organizers cancelled the invoice: nothing can be paid here. */
+  invoiceCancelled?: boolean;
 }
 
 export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
@@ -61,12 +71,34 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const [error, setError] = useState<string | null>(null);
   // Set once a PayPal button has completed the registration and it isn't paid.
   const [notFinished, setNotFinished] = useState<NotFinished | null>(null);
+  // Why the options just changed: the organizers changed what's due (DR-105).
+  const [notice, setNotice] = useState<string | null>(null);
+  // A PayPal order refused that way isn't also "PayPal ran into a problem".
+  const refusedOrder = useRef(false);
+  const replacePaymentStep = useReplacePaymentStep();
 
   const clientId = config?.payPalOptions?.clientId as string | undefined;
 
   const confirmed = (confirmation: ApiRegisterConfirmationStep) => {
     setConfirmationStep(confirmation);
     goToStep('finished');
+  };
+
+  /** Show why a payment button was refused; true when it was a cancelled invoice. */
+  const refused = (e: unknown) => {
+    const problem = paymentProblem(e);
+    if (problem.code === 'cancelled') {
+      setNotFinished({ reason: problem.message, invoiceCancelled: true });
+      return true;
+    }
+    if (problem.code === 'invoice_changed' && problem.paymentStep) {
+      replacePaymentStep(problem.paymentStep);
+      setSelected(problem.paymentStep.paymentOptions.default);
+      setNotice(problem.message);
+      return true;
+    }
+    setError(problem.message);
+    return false;
   };
 
   const payByCheck = () => {
@@ -78,7 +110,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         onSuccess: confirmed,
         onError: (e) => {
           setLoading(false);
-          setError(paymentProblem(e).message);
+          refused(e);
         },
       },
     );
@@ -96,7 +128,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       });
       return order.orderID;
     } catch (e) {
-      setError(paymentProblem(e).message);
+      refusedOrder.current = refused(e);
       throw e;
     }
   };
@@ -124,6 +156,10 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
 
   const payPalFailed = (e: unknown) => {
     setLoading(false);
+    if (refusedOrder.current) {
+      refusedOrder.current = false;
+      return;
+    }
     console.error('PayPal error', e);
     setError(
       (current) => current ?? 'PayPal ran into a problem. Please try again or pay by check.',
@@ -135,11 +171,24 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       onSuccess: confirmed,
     });
 
-  if (notFinished?.unknown) {
+  // Cancelled by the organizers: refused at a button, or already so when the
+  // payment step was asked for again.
+  const stopped: NotFinished | null =
+    notFinished?.unknown || notFinished?.invoiceCancelled
+      ? notFinished
+      : paymentStep.invoiceCancelled
+        ? {
+            reason: 'The organizers cancelled this invoice. Please contact them.',
+            invoiceCancelled: true,
+          }
+        : null;
+  if (stopped) {
     return (
       <PaymentNotFinished
         amountDue={option.amount}
-        unknown
+        reason={stopped.reason}
+        unknown={stopped.unknown}
+        invoiceCancelled={stopped.invoiceCancelled}
         onFinish={finishNow}
         finishing={finish.isPending}
       />
@@ -159,6 +208,12 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
             onFinish={finishNow}
             finishing={finish.isPending}
           />
+        )}
+
+        {notice && (
+          <Alert color="blue" variant="light" title="What’s due has changed">
+            {notice}
+          </Alert>
         )}
 
         <PaymentOptions

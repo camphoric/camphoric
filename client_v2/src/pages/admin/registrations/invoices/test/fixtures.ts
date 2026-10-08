@@ -21,6 +21,7 @@ export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice 
     memo: '',
     notes: '',
     pending_paypal_order_id: null,
+    organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',
     created_by: null,

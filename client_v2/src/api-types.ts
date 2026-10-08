@@ -288,6 +288,11 @@ export interface ApiInvoice extends TimeStamped {
   notes: string;
   /** A PayPal order made for it and not yet captured. */
   pending_paypal_order_id: string | null;
+  /**
+   * When a registrar or admin last changed what it asks (amount, description,
+   * handling) or cancelled or reopened it; the payment step stops rewriting it (DR-105).
+   */
+  organizer_changed_at: string | null;
   cancelled_at: string | null;
   cancel_reason: string;
   created_by: number | null;
@@ -796,6 +801,11 @@ export interface ApiRegisterPaymentStep {
   paymentOptions: ApiPaymentOptions;
   /** The handling percent on online payments; null without one. */
   handlingPercent: number | null;
+  /**
+   * The organizers cancelled the registration invoice: nothing can be paid here
+   * (from `payment-step`; §15, DR-105).
+   */
+  invoiceCancelled?: boolean;
 }
 
 /** The registration's ledger, as numbers (§9.7). */
@@ -845,8 +855,10 @@ export interface ApiPayPalOrder {
 }
 
 /**
- * Why a payment didn't go through: `amount_changed`, `declined` and
- * `not_payable` took no money; `unknown` may have (the event has been told).
+ * Why a payment didn't go through: `amount_changed`, `declined`, `not_payable`,
+ * `cancelled` (the organizers cancelled the invoice) and `invoice_changed` (they
+ * changed it since the page loaded; the response carries the fresh payment step)
+ * took no money (DR-105); `unknown` may have (the event has been told).
  */
 export type PaymentProblemCode =
   | 'amount_changed'
@@ -856,7 +868,9 @@ export type PaymentProblemCode =
   | 'mismatch'
   | 'unknown'
   | 'refused'
-  | 'not_configured';
+  | 'not_configured'
+  | 'cancelled'
+  | 'invoice_changed';
 
 // ---------------------------------------------------------------------------
 // Augmented view models — domain logic derived from cached query data (SPEC §5)
