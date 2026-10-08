@@ -65,12 +65,16 @@ _NONE = object()  # no fallback
 
 
 def _present_if_true(condition):
-    '''Names a condition is true only when they're there: `{"var": n}`, `{"!!": …}`.'''
+    '''
+    Names a condition is true only when they're there: `{"var": n}` or
+    `{"!!": …}` of it, without a fallback (which would make it true when
+    they're missing).
+    '''
     if isinstance(condition, dict) and set(condition) == {'!!'}:
         arg = condition['!!']
         condition = arg[0] if isinstance(arg, list) and len(arg) == 1 else arg
     var = _var(condition)
-    return {var[0]} if var else set()
+    return {var[0]} if var and var[1] is _NONE else set()
 
 
 def _missing_if_true(condition):
@@ -145,7 +149,8 @@ def pricing_input_problems(registration_schema, camper_schema, registration_logi
     only where an `if` has found them there; or given a fallback that isn't
     one of their choices. A missing one prices as no match — often $0 (#771).
     Numbers, lists, objects and checkboxes are left alone: missing means none.
-    Returns `{logic field: [problem]}`.
+    "Required" is taken at its word, though it holds only for registrations
+    saved after it was (DR-106). Returns `{logic field: [problem]}`.
     '''
     schemas = {'registration': registration_schema or {}, 'camper': camper_schema or {}}
     found = {}
@@ -165,7 +170,9 @@ def pricing_input_problems(registration_schema, camper_schema, registration_logi
             field_schema = _resolve(properties[field], schema, schemas['registration'])
             options = choices(field_schema)
             kind = field_schema.get('type')
-            if kind not in (None, 'string') or (kind is None and options is None):
+            text = kind == 'string' or (isinstance(kind, list) and 'string' in kind) \
+                or (kind is None and options is not None)
+            if not text:
                 continue
             if fallback is not _NONE:
                 if options is not None and len(parts) == 2 and fallback not in options:
@@ -175,8 +182,9 @@ def pricing_input_problems(registration_schema, camper_schema, registration_logi
             elif not guarded and field not in (schema.get('required') or []):
                 problems.append(
                     f'{name}: the pricing reads it, but the {parts[0]} schema doesn\'t '
-                    f'require it and the logic gives it no fallback. Make it required, or '
-                    f'give the var one, e.g. {{"var": ["{name}", <value>]}}.')
+                    f'require it and the logic gives it no fallback. Give the var one, e.g. '
+                    f'{{"var": ["{name}", <value>]}}, or make it required (which covers new '
+                    f'registrations; any saved without it still need it added).')
         if problems:
             found[logic_field] = sorted(set(problems))
     return found

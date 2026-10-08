@@ -4273,11 +4273,14 @@ required at the top of its schema, has no fallback in the logic, and isn't read 
 branch of an `if` whose condition finds it there (`{"var": …}` or `{"!!": …}`, or the branches
 after a `{"missing": […]}`). A fallback is the `var`'s own default, or a constant right after a
 bare `var` in an `or`, and it must be one of the field's choices. Numbers, lists, objects and
-checkboxes aren't checked, choices or not: a missing one means none. A save is refused only for
-problems it brings in, so one already in the event holds up neither other edits nor a fix made
-one field at a time (as the importer sends schemas before the pricing its overrides set). The
-same checks run, without a server, on every event under `data/` in the data import validation,
-as each event is once its overrides have run.
+checkboxes aren't checked, choices or not: a missing one means none. Required is taken as a
+guarantee, though it covers only registrations saved from then on: one saved before without the
+answer still prices as no match until the answer is added, so the error suggests a fallback first
+and says so. A save is refused only for problems it brings in, so one already in the event
+holds up neither other edits nor a fix made one field at a time (as the importer sends schemas
+before the pricing its overrides set). The same checks run, without a server, on every event
+under `data/` in the data import validation, as each event is once its overrides have run; in
+CI they can't be skipped.
 **Context:** A Camp Harmony registration was priced at $0 (#771). The age field's default had
 been left at a choice that no longer existed, so the form showed it blank; the registration went
 in without an age, which wasn't required; and the pricing's fallback for a missing age was the
