@@ -37,7 +37,7 @@
     "@tanstack/react-router": "^1.170.40",
     "@tanstack/react-table": "^8.21.3",
     "d3-dsv": "^3.0.1",
-    "handlebars": "^4.7.9",
+    "handlebars": "^4.7.10",
     "json-logic-js": "^2.0.5",
     "luxon": "^3.5.0",
     "match-sorter": "^8.3.0",
