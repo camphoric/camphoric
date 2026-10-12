@@ -12,7 +12,7 @@
     "@rjsf/utils": "^5.0.1",
     "bootstrap": "^4.5.3",
     "fuse.js": "^6.4.6",
-    "handlebars": "^4.7.7",
+    "handlebars": "^4.7.10",
     "json-logic-js": "^2.0.1",
     "json-schema": "^0.4.0",
     "lodash": "^4.17.21",
