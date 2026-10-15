@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.14.0](https://github.com/camphoric/camphoric/compare/v0.13.0...v0.14.0) (2026-10-15)
+
+
+### Features
+
+* **server:** refuse forms and pricing that leave a priced answer unset ([9eb137a](https://github.com/camphoric/camphoric/commit/9eb137ae8f56175868ddfaefd4b6b7bd2377422a))
+
+
+### Bug Fixes
+
+* **admin:** let admin tables move past page 1 ([d10e40c](https://github.com/camphoric/camphoric/commit/d10e40cd33bb0c562daab1b964e2ab48160ee0b2)), closes [#775](https://github.com/camphoric/camphoric/issues/775)
+* **deps:** bump handlebars from 4.7.9 to 4.7.10 in /client_v2 ([#779](https://github.com/camphoric/camphoric/issues/779)) ([150455e](https://github.com/camphoric/camphoric/commit/150455e1fc2f7ea4c5a807c705638512d67684f4))
+* **harmony:** call the private room option a single room ([d8fdf65](https://github.com/camphoric/camphoric/commit/d8fdf65417f8cab0deda3ab78b9305e5419094fb)), closes [#776](https://github.com/camphoric/camphoric/issues/776)
+* **harmony:** make the camper age default one of its choices ([4599e06](https://github.com/camphoric/camphoric/commit/4599e06ed719f2fcd3a6f822cbff2304e3d91db1))
+* **harmony:** price a camper without an age as an adult, and require it ([9eb137a](https://github.com/camphoric/camphoric/commit/9eb137ae8f56175868ddfaefd4b6b7bd2377422a)), closes [#771](https://github.com/camphoric/camphoric/issues/771)
+* **payments:** keep a registrar's change to the registration invoice ([4a48faf](https://github.com/camphoric/camphoric/commit/4a48faf62463cd55c649dc9c71423beb28f071db)), closes [#766](https://github.com/camphoric/camphoric/issues/766)
+* **payments:** show what an organizer set, and keep their invoice ([208457f](https://github.com/camphoric/camphoric/commit/208457f50548a605a623cc0322b47b19e2e52ccc)), closes [#766](https://github.com/camphoric/camphoric/issues/766)
+* **server:** close gaps in the pricing-input check found in review ([8194c92](https://github.com/camphoric/camphoric/commit/8194c927a94ba29c2add244403cb8a7c60f2f723)), closes [#771](https://github.com/camphoric/camphoric/issues/771)
+
 ## [0.13.0](https://github.com/camphoric/camphoric/compare/v0.12.0...v0.13.0) (2026-10-06)
 
 
