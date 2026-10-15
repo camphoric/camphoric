@@ -110,8 +110,8 @@ export default {
       },
       'lodging_private': {
         'ui:enumNames': {
-          false: 'No, I do not want a private room',
-          true: 'Yes, I would like a private room',
+          false: 'No, I do not want a private single room',
+          true: 'Yes, I would like a private single room',
         },
       },
       'linens': {
