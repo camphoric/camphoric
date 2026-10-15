@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-08
+**Last updated:** 2026-10-14
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -1124,7 +1124,8 @@ details**. Two cross-cutting requirements (the presentation is the implementer's
 - **Data-heavy lists** (registrations, campers, invitations) support **sorting, filtering, and
   pagination** — handled client-side in the table over the full per-event dataset, which is small
   (≤~700 records; DR-19, DR-25); smaller lists need only lightweight client-side filtering
-  (DR-20). Whether a record is reached via a side list, a
+  (DR-20). Changing the sort or filter returns the table to its first page; a page past the
+  last one (rows were removed, or the URL is stale) shows the last page. Whether a record is reached via a side list, a
   master/detail split, a drawer, or full pages is left open.
 
 ### 8.3 Home / Event configuration

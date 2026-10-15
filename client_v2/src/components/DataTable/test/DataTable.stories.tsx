@@ -1,12 +1,15 @@
 /**
  * Story for the DataTable (SPEC §8.2, DR-19). Exercises sorting, the
- * global fuzzy filter, pagination, and row selection. Run `npm run storybook`.
+ * global fuzzy filter, pagination, and row selection, with the table's state
+ * held locally or, as the admin screens do, in URL search params. Run
+ * `npm run storybook`.
  */
 
 import { Stack, Title } from '@mantine/core';
 import type { Meta, StoryFn } from '@storybook/react-vite';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
+import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
 import { DataTable } from '../DataTable';
 
@@ -45,6 +48,30 @@ export const Basic: StoryFn = () => {
         onRowClick={(p) => setSelectedId(p.id)}
         isRowSelected={(p) => p.id === selectedId}
       />
+    </Stack>
+  );
+};
+
+/**
+ * State held as search params and parsed back on every change, as the admin
+ * screens do (DR-2); the params are shown under the table.
+ */
+export const UrlState: StoryFn = () => {
+  const [search, setSearch] = useState<Record<string, string | undefined>>({});
+  return (
+    <Stack maw={640} p="md">
+      <Title order={4}>People</Title>
+      <DataTable
+        data={PEOPLE}
+        columns={columns}
+        searchKeys={['name', 'role']}
+        pageSize={10}
+        state={tableStateFromSearch(search, 'p')}
+        onStateChange={(next) =>
+          setSearch((prev) => ({ ...prev, ...tableStateToSearch(next, 'p') }))
+        }
+      />
+      <pre data-testid="search">{JSON.stringify(search)}</pre>
     </Stack>
   );
 };

@@ -61,6 +61,20 @@ test.describe('Data table', () => {
     await expect(rows).toHaveCount(8);
     await expect(rows.first()).toContainText('Xander');
   });
+
+  test('pages through a table whose state is in the URL', async ({ page }) => {
+    await page.goto(story('data-table--url-state'));
+    const rows = tableRows(page);
+    await expect(rows.first()).toContainText('Bob 1');
+
+    await page.getByRole('button', { name: '2', exact: true }).click();
+    await expect(rows.first()).toContainText('Malcolm 11');
+    await expect(page.getByTestId('search')).toContainText('"ppage":"2"');
+
+    // Sorting returns to the first page.
+    await page.getByRole('columnheader', { name: 'Name' }).click();
+    await expect(page.getByTestId('search')).not.toContainText('ppage');
+  });
 });
 
 test.describe('Templating', () => {

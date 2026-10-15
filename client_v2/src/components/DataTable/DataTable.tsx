@@ -77,23 +77,28 @@ export function DataTable<T>({
     return matchSorter(data, query, { keys: searchKeys });
   }, [data, current.globalFilter, searchKeys]);
 
+  // A page past the end (rows were removed, or a stale URL) shows the last page.
+  const lastPageIndex = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
+  const pageIndex = Math.min(current.pageIndex, lastPageIndex);
+
   const table = useReactTable({
     data: filtered,
     columns,
     state: {
       sorting: current.sorting,
-      pagination: { pageIndex: current.pageIndex, pageSize },
+      pagination: { pageIndex, pageSize },
     },
+    // Sorting and filtering return to the first page themselves (below). The
+    // table's own reset would also fire whenever a URL-held sort is parsed into
+    // a fresh array, sending every page change back to page 1.
+    autoResetPageIndex: false,
     onSortingChange: (updater) => {
       const sorting = typeof updater === 'function' ? updater(current.sorting) : updater;
       // Re-sorting returns to the first page.
       update({ ...current, sorting, pageIndex: 0 });
     },
     onPaginationChange: (updater) => {
-      const pagination =
-        typeof updater === 'function'
-          ? updater({ pageIndex: current.pageIndex, pageSize })
-          : updater;
+      const pagination = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
       update({ ...current, pageIndex: pagination.pageIndex });
     },
     getCoreRowModel: getCoreRowModel(),
