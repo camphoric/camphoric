@@ -3,10 +3,12 @@
  * checks it with the server and, if it can be used, keeps it in the
  * registration store; the code stays applied only while the field holds it.
  * Before the form is submitted, `readyToSubmit` refuses a code that's been
- * typed but not applied, so an unchecked code never goes unnoticed.
+ * typed but not applied, so an unchecked code never goes unnoticed. The check
+ * carries the registrant's invitation, as some codes exclude registration types
+ * (§15, DR-107).
  */
 
-import type { AppliedPromo } from 'api-types';
+import type { ApiRegister, AppliedPromo } from 'api-types';
 import { useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import { useCheckPromoCode } from 'store/registrationApi';
@@ -32,10 +34,11 @@ export interface PromoCodeEntryState {
 export function usePromoCodeEntry(
   eventId: string,
   onPromoChange: (promo: AppliedPromo | null) => void,
+  invitation?: ApiRegister['invitation'],
 ): PromoCodeEntryState {
   const applied = useRegistrationStore((state) => state.promo);
   const setPromo = useRegistrationStore((state) => state.setPromo);
-  const check = useCheckPromoCode(eventId);
+  const check = useCheckPromoCode(eventId, invitation);
   const [value, setValue] = useState(applied?.code ?? '');
   const [error, setError] = useState<string>();
   const inputRef = useRef<HTMLInputElement>(null);

@@ -51,6 +51,8 @@ LEFT_BEHIND = {
     ('payment', 'deposit'): 'will no longer be part of a deposit',
     ('invitation', 'registration'): 'will no longer link to a registration',
     ('logentry', 'actor'): 'stay in the audit log with their email, no longer linked to the user',
+    # Many-to-many, by (model, field) of the link.
+    ('promocode', 'excluded_registration_types'): 'will no longer exclude it',
 }
 EMAIL_LEFT_BEHIND = 'stay in the email history'
 
@@ -193,7 +195,9 @@ def _collect(instance, result):
     for queryset in collector.fast_deletes:
         going.setdefault(queryset.model, set()).update(queryset)
     for model, instances in going.items():
-        if instances:
+        if instances and model._meta.auto_created:
+            _unlinked(model, instances, going, result)
+        elif instances:
             result.deletes.append(_entry(model, sorted(instances, key=lambda i: i.pk)))
 
     left = {}
@@ -208,6 +212,18 @@ def _collect(instance, result):
         description = EMAIL_LEFT_BEHIND if model_name in ('emailmessage', 'emailbatch') \
             else LEFT_BEHIND.get((model_name, field_name), 'will no longer link to it')
         result.change(model, sorted(instances, key=lambda i: i.pk), description)
+
+
+def _unlinked(through, links, going, result):
+    '''Many-to-many links going with it: what has them stays, without the link.'''
+    owner = through._meta.auto_created
+    m2m = next(f for f in owner._meta.many_to_many if f.remote_field.through is through)
+    owners = {getattr(link, m2m.m2m_field_name()) for link in links}
+    owners -= going.get(owner, set()) | {result.instance}
+    key = (owner._meta.model_name, m2m.name)
+    if key not in result.covered:
+        result.change(owner, sorted(owners, key=lambda i: i.pk),
+                      LEFT_BEHIND.get(key, 'will no longer link to it'))
 
 
 def _blocked(instance, collector, referrers, result):

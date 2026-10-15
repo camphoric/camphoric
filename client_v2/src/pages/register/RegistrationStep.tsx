@@ -75,9 +75,13 @@ export function RegistrationStep() {
     }
   }, [config, setRegistration, setTotals]);
 
-  const promoEntry = usePromoCodeEntry(eventId, (applied: AppliedPromo | null) => {
-    if (config) setTotals(calculatePrice(config, registration, applied));
-  });
+  const promoEntry = usePromoCodeEntry(
+    eventId,
+    (applied: AppliedPromo | null) => {
+      if (config) setTotals(calculatePrice(config, registration, applied));
+    },
+    config?.invitation,
+  );
 
   if (!config) return null;
 

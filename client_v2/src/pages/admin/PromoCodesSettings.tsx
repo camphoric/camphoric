@@ -2,18 +2,19 @@
  * Promo codes (SPEC §8.8; §15, DR-67): the event's codes — add, edit, turn off,
  * delete — and, for Registrars and Admins, the deleted ones with Restore.
  * Deleting a code stops registrants using it; registrations that have it keep
- * it, and their discount.
+ * it, and their discount. A code can leave out registrants by registration
+ * type, or those without an invitation (§15, DR-107).
  */
 
 import { Badge, Button, Group, Modal, Stack, Table, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
-import type { ApiPromoCode } from 'api-types';
+import type { ApiPromoCode, ApiRegistrationType } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useDeletedPromoCodes, useRestore } from 'store/deletes';
-import { promoCodeHooks } from 'store/entities';
+import { promoCodeHooks, registrationTypeHooks } from 'store/entities';
 import { apiErrorMessage, apiFieldErrors } from 'utils/fetch';
 
 import { type PromoCodeBody, PromoCodeForm } from './PromoCodeForm';
@@ -21,6 +22,17 @@ import { type PromoCodeBody, PromoCodeForm } from './PromoCodeForm';
 const SCOPE_LABEL = { registration: 'Registration', camper: 'Each camper' };
 
 const formatDateTime = (iso: string) => new Date(iso).toLocaleString();
+
+/** Who can't use the code, by name; '—' when anyone can. */
+function excludedNames(promoCode: ApiPromoCode, types: ApiRegistrationType[]): string {
+  const names = [
+    ...(promoCode.excludes_uninvited ? ['Not invited'] : []),
+    ...types
+      .filter((type) => promoCode.excluded_registration_types.includes(type.id))
+      .map((type) => type.label || type.name),
+  ];
+  return names.length ? names.join(', ') : '—';
+}
 
 function StatusBadge({ promoCode }: { promoCode: ApiPromoCode }) {
   if (!promoCode.enabled) {
@@ -46,6 +58,7 @@ function StatusBadge({ promoCode }: { promoCode: ApiPromoCode }) {
 
 export function PromoCodesSettings({ eventId }: { eventId: string }) {
   const { data: promoCodes } = promoCodeHooks.useList({ event: eventId });
+  const { data: registrationTypes } = registrationTypeHooks.useList({ event: eventId });
   const { canEdit } = usePermissions();
   const { data: deleted } = useDeletedPromoCodes(eventId, canEdit);
   const create = promoCodeHooks.useCreate();
@@ -132,6 +145,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
               <Table.Th>Label</Table.Th>
               <Table.Th>Code</Table.Th>
               <Table.Th>Discount for</Table.Th>
+              <Table.Th>Not for</Table.Th>
               <Table.Th>Expires</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th aria-label="Actions" />
@@ -140,7 +154,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
           <Table.Tbody>
             {(promoCodes ?? []).length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={6}>
+                <Table.Td colSpan={7}>
                   <Text c="dimmed" size="sm" ta="center" py="md">
                     {promoCodes ? 'No promo codes yet.' : 'Loading…'}
                   </Text>
@@ -156,6 +170,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
                     </Text>
                   </Table.Td>
                   <Table.Td>{SCOPE_LABEL[promoCode.scope]}</Table.Td>
+                  <Table.Td>{excludedNames(promoCode, registrationTypes ?? [])}</Table.Td>
                   <Table.Td>
                     {promoCode.expiration_date ? formatDateTime(promoCode.expiration_date) : '—'}
                   </Table.Td>
@@ -251,6 +266,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
         {editing !== null && (
           <PromoCodeForm
             promoCode={editing === 'new' ? undefined : editing}
+            registrationTypes={registrationTypes}
             onSubmit={save}
             onCancel={close}
             saving={create.isPending || update.isPending}

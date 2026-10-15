@@ -4,13 +4,22 @@ import { renderWithProviders, screen, within } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PromoCodesSettings } from '../PromoCodesSettings';
-import { samplePromoCode } from './promoCodeFixtures';
+import { samplePromoCode, sampleRegistrationType } from './promoCodeFixtures';
 
 const { create, restore } = vi.hoisted(() => ({ create: vi.fn(), restore: vi.fn() }));
 
+const TYPES = [sampleRegistrationType(11, 'Staff'), sampleRegistrationType(12, 'Crew')];
 const CODES = [
   samplePromoCode(),
-  samplePromoCode({ id: 4, label: 'Sibling', code: 'SIB', scope: 'camper', enabled: false }),
+  samplePromoCode({
+    id: 4,
+    label: 'Sibling',
+    code: 'SIB',
+    scope: 'camper',
+    enabled: false,
+    excluded_registration_types: [11, 12],
+    excludes_uninvited: true,
+  }),
   samplePromoCode({
     id: 5,
     label: 'Last year',
@@ -35,6 +44,7 @@ vi.mock('store/entities', () => {
       useUpdate: () => mutation,
       useDelete: () => mutation,
     },
+    registrationTypeHooks: { useList: () => ({ data: TYPES }) },
   };
 });
 vi.mock('store/deletes', () => ({
@@ -68,6 +78,17 @@ describe('PromoCodesSettings', () => {
     expect(within(rows[2]).getByText('Each camper')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Off')).toBeInTheDocument();
     expect(within(rows[3]).getByText('Expired')).toBeInTheDocument();
+  });
+
+  it('lists who can’t use each code', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PromoCodesSettings eventId="7" />);
+    const [live] = screen.getAllByRole('table');
+    const rows = within(live).getAllByRole('row');
+    expect(within(rows[2]).getByText('Not invited, Staff, Crew')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Edit Sibling' }));
+    expect(await screen.findByRole('checkbox', { name: 'Invited as Crew' })).toBeChecked();
   });
 
   it('adds a code for the event', async () => {

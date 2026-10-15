@@ -3,7 +3,7 @@ import { renderWithProviders, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PromoCodeForm } from '../PromoCodeForm';
-import { samplePromoCode } from './promoCodeFixtures';
+import { samplePromoCode, sampleRegistrationType } from './promoCodeFixtures';
 
 // Monaco doesn't load in jsdom; a textarea stands in for the JSON editor.
 vi.mock('components/JsonEditor', () => ({
@@ -24,6 +24,8 @@ function setup(props: Partial<Parameters<typeof PromoCodeForm>[0]> = {}) {
 
 const logic = () => screen.getByRole('textbox', { name: 'Discount logic' });
 
+const TYPES = [sampleRegistrationType(11, 'Staff'), sampleRegistrationType(12, 'Crew')];
+
 describe('PromoCodeForm', () => {
   it('adds a per-camper code', async () => {
     const { onSubmit, user } = setup();
@@ -43,6 +45,8 @@ describe('PromoCodeForm', () => {
       scope: 'camper',
       enabled: true,
       expiration_date: null,
+      excluded_registration_types: [],
+      excludes_uninvited: false,
     });
   });
 
@@ -60,7 +64,37 @@ describe('PromoCodeForm', () => {
       scope: 'registration',
       enabled: false,
       expiration_date: '2026-12-01T08:00:00.000Z',
+      excluded_registration_types: [],
+      excludes_uninvited: false,
     });
+  });
+
+  it('keeps registrants from using it, by registration type or without an invitation', async () => {
+    const promoCode = samplePromoCode({ excluded_registration_types: [11] });
+    const { onSubmit, user } = setup({ promoCode, registrationTypes: TYPES });
+    expect(screen.getByRole('checkbox', { name: 'Invited as Staff' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Invited as Crew' })).not.toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'Registrants without an invitation' }),
+    ).not.toBeChecked();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Invited as Staff' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Invited as Crew' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Registrants without an invitation' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ excluded_registration_types: [12], excludes_uninvited: true }),
+    );
+  });
+
+  it('drops a registration type deleted since the code was loaded', async () => {
+    const promoCode = samplePromoCode({ excluded_registration_types: [11, 99] });
+    const { onSubmit, user } = setup({ promoCode, registrationTypes: TYPES });
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ excluded_registration_types: [11] }),
+    );
   });
 
   it('won’t save invalid JSON or a missing label', async () => {

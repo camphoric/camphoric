@@ -173,6 +173,10 @@ export interface ApiPromoCode extends TimeStamped {
   enabled: boolean;
   /** ISO datetime; registrants can't use the code after it. */
   expiration_date: string | null;
+  /** Registration types whose registrants can't use the code (§15, DR-107). */
+  excluded_registration_types: number[];
+  /** Whether registrants without an invitation (no registration type) can't use it. */
+  excludes_uninvited: boolean;
 }
 
 export interface ApiRegistrationType extends TimeStamped {
@@ -762,7 +766,7 @@ export interface ApiRegister {
   };
   invitationError?: string;
   registrationType?: { name: string; label: string };
-  /** Whether the event has a promo code a registrant could use now (§7.1). */
+  /** Whether the event has a promo code this registrant could use now (§7.1; §15, DR-107). */
   hasPromoCodes?: boolean;
   payPalOptions?: Hash;
 }

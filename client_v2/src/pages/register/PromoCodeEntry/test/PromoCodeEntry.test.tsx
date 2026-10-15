@@ -8,11 +8,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PromoCodeEntry } from '../PromoCodeEntry';
 import { UNAPPLIED_MESSAGE, usePromoCodeEntry } from '../usePromoCodeEntry';
 
-const { checkMutate } = vi.hoisted(() => ({ checkMutate: vi.fn() }));
+const { checkMutate, useCheckPromoCode } = vi.hoisted(() => {
+  const checkMutate = vi.fn();
+  return {
+    checkMutate,
+    useCheckPromoCode: vi.fn(() => ({ mutate: checkMutate, isPending: false })),
+  };
+});
 
-vi.mock('store/registrationApi', () => ({
-  useCheckPromoCode: () => ({ mutate: checkMutate, isPending: false }),
-}));
+vi.mock('store/registrationApi', () => ({ useCheckPromoCode }));
+
+const INVITATION = {
+  recipient_name: 'Sam',
+  recipient_email: 'sam@example.com',
+  invitation_code: 'ABC123',
+};
 
 const SPRING: AppliedPromo = {
   code: 'SPRING',
@@ -36,8 +46,16 @@ const invalid = new ApiError(400, 'Bad Request', {
 });
 
 /** The field as the registration step uses it, with a stand-in submit button. */
-function Harness({ onPromoChange, onSubmit }: { onPromoChange: () => void; onSubmit: () => void }) {
-  const entry = usePromoCodeEntry('1', onPromoChange);
+function Harness({
+  onPromoChange,
+  onSubmit,
+  invitation,
+}: {
+  onPromoChange: () => void;
+  onSubmit: () => void;
+  invitation?: typeof INVITATION;
+}) {
+  const entry = usePromoCodeEntry('1', onPromoChange, invitation);
   return (
     <>
       <PromoCodeEntry {...entry.props} />
@@ -48,10 +66,12 @@ function Harness({ onPromoChange, onSubmit }: { onPromoChange: () => void; onSub
   );
 }
 
-function setup() {
+function setup(invitation?: typeof INVITATION) {
   const onPromoChange = vi.fn();
   const onSubmit = vi.fn();
-  renderWithProviders(<Harness onPromoChange={onPromoChange} onSubmit={onSubmit} />);
+  renderWithProviders(
+    <Harness onPromoChange={onPromoChange} onSubmit={onSubmit} invitation={invitation} />,
+  );
   return { user: userEvent.setup(), onPromoChange, onSubmit };
 }
 
@@ -59,10 +79,30 @@ const field = () => screen.getByRole('textbox', { name: 'Promo code' });
 
 beforeEach(() => {
   checkMutate.mockReset();
+  useCheckPromoCode.mockClear();
   useRegistrationStore.getState().reset();
 });
 
 describe('PromoCodeEntry', () => {
+  it('checks the code for the registrant’s invitation, and shows a refusal', async () => {
+    const { user, onPromoChange } = setup(INVITATION);
+    expect(useCheckPromoCode).toHaveBeenLastCalledWith('1', INVITATION);
+    answerCheck(
+      new ApiError(400, 'Bad Request', {
+        detail: 'That promo code can’t be used with this registration type.',
+      }),
+    );
+
+    await user.type(field(), 'spring');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(
+      screen.getByText('That promo code can’t be used with this registration type.'),
+    ).toBeInTheDocument();
+    expect(useRegistrationStore.getState().promo).toBeNull();
+    expect(onPromoChange).not.toHaveBeenCalled();
+  });
+
   it('applies a code the server accepts, and removes it', async () => {
     const { user, onPromoChange } = setup();
     answerCheck(SPRING);
