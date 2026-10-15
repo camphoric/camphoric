@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-107)
+- §15 — Decision Records (DR-1…DR-108)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -306,11 +306,12 @@ consistently:
   anything under it (clearing their stay) and clears it from campers who asked for it; deleting a
   registration type leaves its registrations with no type, deletes its invitations and its
   invitation email, and drops it from the promo codes that exclude it (listed under `changes`,
-  "will no longer exclude it"; §15, DR-107); deleting a deposit leaves its payments; a custom charge type campers still
+  "will no longer exclude it", with deleted codes listed apart, "are deleted, and won't exclude
+  it if restored"; §15, DR-107); deleting a deposit leaves its payments; a custom charge type campers still
   have, an organization with events, and an email account an event or sent email uses can't be
   deleted; only Admins delete events, and only before anyone has registered; only Admins delete
   payments and invoices, not a payment that has been refunded nor an invoice anything was paid on
-  (§15, DR-93).
+  (§15, DR-93); only Admins delete promo codes (§15, DR-108).
 - **Soft delete** (registrations, campers, payments and promo codes; §15, DR-55, DR-67): `DELETE`
   marks one deleted (its `delete-preview` has `restorable: true`, and lists under `deletes` what
   goes out of sight with it: a registration's campers, invoices, payments and custom charges, a
@@ -355,7 +356,8 @@ Non-CRUD admin endpoints:
   build. Any role may read it (§8.1; §15, DR-98).
 - **Roles on every admin endpoint (§6; §15, DR-50):** any role may read (including the POSTs that
   only read: the recipients preview, report render and template preview); Registrars and Admins
-  may also write; organizations are written by Admins only. A signed-out caller gets 401, a
+  may also write; organizations are written by Admins only, and payments, invoices and promo
+  codes are deleted by Admins only (§15, DR-93, DR-108). A signed-out caller gets 401, a
   signed-in one without the needed role 403, and user management (`/api/users/`) answers 404 to
   anyone who isn't an Admin.
 - `POST /api/login` — `{ username, password }`, invalidates whoami.
@@ -847,7 +849,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `excluded_registration_types` (ids of the event's registration types whose registrants can't
   use the code; `[]` by default; a 400 on it for another event's type), `excludes_uninvited`
   (true if registrants without an invitation — no registration type — can't use it; false by
-  default; §15, DR-107), timestamps. Any role reads; Registrars and Admins write.
+  default; §15, DR-107), timestamps. Any role reads; Registrars and Admins write and restore;
+  only Admins delete (403 otherwise, as for its `delete-preview`; §15, DR-108).
 - **PricingOverride** (`/api/pricingoverrides/`, filter `registration`, `camper`,
   `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
   the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
@@ -896,7 +899,8 @@ hooks):
   registration submit surfaces a friendly error (see §15, DR-9).
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin.
-  - **Registrar** — everything except users and organizations.
+  - **Registrar** — everything except users and organizations, and deleting payments, invoices
+    and promo codes (§15, DR-93, DR-108).
   - **Reporter** — read-only: they can open every section, render and download reports, and use
     previews, Template Help and recipient previews, but can't create, edit, delete or send
     anything (test emails, invitations, retries and cancels included), and don't see change
@@ -1493,9 +1497,9 @@ who can't use them, expiry and whether registrants can use one now (enabled and 
 or edit a code's `label`, `code`, `scope`, `pricing_logic` (JSON, edited like the pricing logic;
 invalid JSON can't be saved), `enabled`, `expiration_date`, and who can't use it — any of the
 event's registration types (`excluded_registration_types`) and registrants without an invitation
-(`excludes_uninvited`; §15, DR-107) — (POST / PATCH on `promocodes`); and delete one
-after the usual preview. Registrars and Admins also see the deleted codes, with who deleted each
-and when, and restore them. Any role can view a code.
+(`excludes_uninvited`; §15, DR-107) — (POST / PATCH on `promocodes`); and, for Admins only,
+delete one after the usual preview (§15, DR-108). Registrars and Admins also see the deleted
+codes, with who deleted each and when, and restore them. Any role can view a code.
 
 **Validation messages** (the event's `registration_error_messages`, §7.1; §15, DR-34) are also
 managed here. Admins can:
@@ -4377,7 +4381,8 @@ invitation for their type) and when the registration is submitted (§7.1), and `
 counts only codes this registrant could use. As with expiry and being turned off (DR-67), it's
 decided when the code is applied: a registration keeps its code if the code's exclusions or the
 registration's type change later, and Registrars can still give a registration any live code.
-Deleting a registration type drops it from the codes that exclude it.
+Deleting a registration type drops it from the codes that exclude it, deleted codes included
+(its preview lists those apart).
 **Context:** Some registration types (staff, other invited types) already get special pricing and
 shouldn't stack a promo code on it (#783). The code's `pricing_logic` can return 0 for them, but
 then `checkpromo` accepts the code and the registrant sees it applied with no discount, every
@@ -4387,6 +4392,18 @@ the cases in hand are a few types to leave out, and an empty allow-list meaning 
 oddly. Both lists — more to explain for no case in hand. Treating registrants without an
 invitation as always eligible — leaves no way to make a code for invited registrants only. The
 `pricing_logic` workaround above.
+
+### DR-108 — Only Admins delete promo codes
+
+**Decision:** Deleting a promo code is for Admins (§5, §8.8). Registrars add and edit codes,
+turn one off or let it expire to stop registrants using it, and restore a deleted one.
+**Context:** A deleted code leaves the list Registrars work from, yet registrations keep it, and
+changes made to it afterward — such as a registration type it excluded being deleted (DR-107) —
+happen out of sight. Turning a code off stops its use just as well and leaves it in view.
+Payments follow the same split (DR-93).
+**Alternatives:** Registrars deleting too (as before) — codes vanish from view for an everyday
+task that turning one off already covers. Admins restoring too — restoring only undoes a delete,
+and Registrars restore deleted payments already.
 
 ---
 

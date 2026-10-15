@@ -54,6 +54,11 @@ LEFT_BEHIND = {
     # Many-to-many, by (model, field) of the link.
     ('promocode', 'excluded_registration_types'): 'will no longer exclude it',
 }
+# The same for soft-deleted ones (a restored one is without the link too).
+DELETED_LEFT_BEHIND = {
+    ('promocode', 'excluded_registration_types'):
+        'are deleted, and won\'t exclude it if restored',
+}
 EMAIL_LEFT_BEHIND = 'stay in the email history'
 
 
@@ -221,9 +226,16 @@ def _unlinked(through, links, going, result):
     owners = {getattr(link, m2m.m2m_field_name()) for link in links}
     owners -= going.get(owner, set()) | {result.instance}
     key = (owner._meta.model_name, m2m.name)
-    if key not in result.covered:
-        result.change(owner, sorted(owners, key=lambda i: i.pk),
-                      LEFT_BEHIND.get(key, 'will no longer link to it'))
+    if key in result.covered:
+        return
+    description = LEFT_BEHIND.get(key, 'will no longer link to it')
+    # Soft-deleted ones (promo codes) are out of sight, so they're listed apart.
+    live = sorted((o for o in owners if getattr(o, 'deleted_at', None) is None),
+                  key=lambda i: i.pk)
+    deleted = sorted((o for o in owners if getattr(o, 'deleted_at', None) is not None),
+                     key=lambda i: i.pk)
+    result.change(owner, live, description)
+    result.change(owner, deleted, DELETED_LEFT_BEHIND.get(key, description))
 
 
 def _blocked(instance, collector, referrers, result):

@@ -1,6 +1,7 @@
 /**
  * Promo codes (SPEC §8.8; §15, DR-67): the event's codes — add, edit, turn off,
- * delete — and, for Registrars and Admins, the deleted ones with Restore.
+ * and, for Admins, delete (DR-108) — and, for Registrars and Admins, the deleted
+ * ones with Restore.
  * Deleting a code stops registrants using it; registrations that have it keep
  * it, and their discount. A code can leave out registrants by registration
  * type, or those without an invitation (§15, DR-107).
@@ -59,7 +60,7 @@ function StatusBadge({ promoCode }: { promoCode: ApiPromoCode }) {
 export function PromoCodesSettings({ eventId }: { eventId: string }) {
   const { data: promoCodes } = promoCodeHooks.useList({ event: eventId });
   const { data: registrationTypes } = registrationTypeHooks.useList({ event: eventId });
-  const { canEdit } = usePermissions();
+  const { canEdit, canDeletePromoCodes } = usePermissions();
   const { data: deleted } = useDeletedPromoCodes(eventId, canEdit);
   const create = promoCodeHooks.useCreate();
   const update = promoCodeHooks.useUpdate();
@@ -188,7 +189,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
                       >
                         {canEdit ? 'Edit' : 'View'}
                       </Button>
-                      <CanEdit>
+                      {canDeletePromoCodes && (
                         <Button
                           size="compact-sm"
                           variant="light"
@@ -199,7 +200,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
                         >
                           Delete
                         </Button>
-                      </CanEdit>
+                      )}
                     </Group>
                   </Table.Td>
                 </Table.Tr>

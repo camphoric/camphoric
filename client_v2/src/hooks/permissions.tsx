@@ -17,6 +17,8 @@ export interface Permissions {
   canEdit: boolean;
   /** Delete payments and invoices (Admins; §15, DR-93). Registrars cancel invoices. */
   canDeletePayments: boolean;
+  /** Delete promo codes (Admins; §15, DR-108). Registrars turn them off, and restore them. */
+  canDeletePromoCodes: boolean;
   /** The Users screen (Admins). */
   canManageUsers: boolean;
   /** Create, rename and delete organizations (Admins). */
@@ -34,6 +36,7 @@ export function permissionsFor(role: Role | null): Permissions {
     role,
     canEdit: role === 'admin' || role === 'registrar',
     canDeletePayments: role === 'admin',
+    canDeletePromoCodes: role === 'admin',
     canManageUsers: role === 'admin',
     canManageOrganizations: role === 'admin',
   };

@@ -113,6 +113,22 @@ describe('PromoCodesSettings', () => {
     expect(restore).toHaveBeenCalledWith(6, expect.anything());
   });
 
+  it('lets an Admin delete a code', () => {
+    renderWithProviders(<PromoCodesSettings eventId="7" />);
+    expect(screen.getByRole('button', { name: 'Delete Early bird' })).toBeInTheDocument();
+  });
+
+  it('lets a Registrar turn codes off and restore them, but not delete them', () => {
+    renderWithProviders(
+      <PermissionsProvider userRole="registrar">
+        <PromoCodesSettings eventId="7" />
+      </PermissionsProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Edit Early bird' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: /^Delete / })).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Restore Mistake' })).toBeInTheDocument();
+  });
+
   it('is read-only for a Reporter', () => {
     renderWithProviders(
       <PermissionsProvider userRole="reporter">
