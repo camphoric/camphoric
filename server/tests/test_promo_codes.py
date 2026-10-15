@@ -337,18 +337,26 @@ class PromoCodeAdminTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('excluded_registration_types', response.data)
 
-        # Deleting a type drops it from the codes that exclude it.
+        # Deleting a type drops it from the codes that exclude it, deleted ones
+        # too, which are listed apart.
+        gone = make_promo_code(self.event, 'GONE')
+        gone.excluded_registration_types.add(staff)
+        gone.soft_delete()
         response = self.client.get(f'/api/registrationtypes/{staff.id}/delete-preview/')
         self.assertTrue(response.data['can_delete'], response.data)
         self.assertEqual([row['type'] for row in response.data['deletes']], ['emailtemplate'])
         self.assertEqual(response.data['changes'], [{
             'type': 'promocode', 'name': 'promo code', 'count': 1, 'items': ['Summer promo'],
             'description': 'will no longer exclude it',
+        }, {
+            'type': 'promocode', 'name': 'promo code', 'count': 1, 'items': ['Summer promo'],
+            'description': 'are deleted, and won\'t exclude it if restored',
         }])
         self.client.force_authenticate(make_user(roles.ADMIN, 'ada'))
         response = self.client.delete(f'/api/registrationtypes/{staff.id}/')
         self.assertEqual(response.status_code, 204)
         self.assertEqual(self.client.get(url).data['excluded_registration_types'], [])
+        self.assertFalse(gone.excluded_registration_types.exists())
 
     def test_codes_must_differ(self):
         response = self.client.post('/api/promocodes/', {
@@ -363,7 +371,24 @@ class PromoCodeAdminTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('code', response.data)
 
+    def test_only_admins_delete_registrars_turn_it_off_and_restore(self):
+        url = f'/api/promocodes/{self.promo_code.id}/'
+        self.assertEqual(self.client.get(f'{url}delete-preview/').status_code, 403)
+        self.assertEqual(self.client.delete(url).status_code, 403)
+        self.assertIsNone(models.PromoCode.all_objects.get().deleted_at)
+        response = self.client.patch(url, {'enabled': False}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
+        self.client.force_authenticate(make_user(roles.ADMIN, 'ada'))
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.client.force_authenticate(make_user(roles.REGISTRAR, 'rita'))
+        deleted = self.client.get('/api/promocodes/deleted/', {'event': self.event.id}).data
+        self.assertEqual([row['id'] for row in deleted], [self.promo_code.id])
+        response = self.client.post(f'{url}restore/')
+        self.assertEqual(response.status_code, 200, response.data)
+
     def test_delete_keeps_it_on_registrations(self):
+        self.client.force_authenticate(make_user(roles.ADMIN, 'ada'))
         registration = models.Registration.objects.create(
             event=self.event, registrant_email='pat@example.com', attributes={},
             promo_code=self.promo_code)
@@ -391,14 +416,14 @@ class PromoCodeAdminTests(APITestCase):
 
         deleted = self.client.get('/api/promocodes/deleted/', {'event': self.event.id}).data
         self.assertEqual([row['id'] for row in deleted], [self.promo_code.id])
-        self.assertEqual(deleted[0]['deleted_by']['username'], 'reggie')
+        self.assertEqual(deleted[0]['deleted_by']['username'], 'ada')
 
         response = self.client.post(f'/api/promocodes/{self.promo_code.id}/restore/')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(self.listed(), [self.promo_code.id])
 
     def test_restore_refuses_a_clash(self):
-        self.client.delete(f'/api/promocodes/{self.promo_code.id}/')
+        self.promo_code.soft_delete()
         make_promo_code(self.event, 'summer')
         response = self.client.post(f'/api/promocodes/{self.promo_code.id}/restore/')
         self.assertEqual(response.status_code, 409)

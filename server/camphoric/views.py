@@ -812,15 +812,18 @@ class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
 class PromoCodeViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     '''
     An event's promo codes (SPEC DR-67). They're soft-deleted (DR-55), so the
-    registrations that have one keep it — and their discount.
+    registrations that have one keep it — and their discount. Only Admins
+    delete one; Registrars turn it off, and restore a deleted one (DR-108).
     '''
-    queryset = models.PromoCode.objects.all()
+    queryset = models.PromoCode.objects.prefetch_related('excluded_registration_types')
     serializer_class = serializers.PromoCodeSerializer
     filterset_fields = ['event']
     deleted_filters = {'event': 'event'}
+    delete_permission_classes = [AdminOnly]
 
     def deleted_queryset(self):
-        return models.PromoCode.all_objects.filter(deleted_at__isnull=False)
+        return models.PromoCode.all_objects.filter(
+            deleted_at__isnull=False).prefetch_related('excluded_registration_types')
 
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
