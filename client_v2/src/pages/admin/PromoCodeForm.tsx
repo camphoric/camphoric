@@ -2,13 +2,26 @@
  * Add or edit a promo code (SPEC §8.8; §15, DR-67): its label (which names the
  * discount on price breakdowns), the code registrants enter, the discount — a
  * JsonLogic expression worked out once for the registration or for each camper
- * — and whether, and until when, registrants can use it.
+ * — whether, and until when, registrants can use it, and which registrants
+ * can't: those of some registration types, or those without an invitation
+ * (§15, DR-107).
  */
 
-import { Alert, Button, Group, Input, Radio, Stack, Switch, Text, TextInput } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  Input,
+  Radio,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+} from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import type { ApiPromoCode, PromoScope } from 'api-types';
+import type { ApiPromoCode, ApiRegistrationType, PromoScope } from 'api-types';
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { ReadOnlyFieldset } from 'hooks/permissions';
@@ -18,8 +31,18 @@ import { isoToLocalDateTime, localDateTimeToIso } from 'utils/dates';
 /** What the form saves. */
 export type PromoCodeBody = Pick<
   ApiPromoCode,
-  'label' | 'code' | 'pricing_logic' | 'scope' | 'enabled' | 'expiration_date'
+  | 'label'
+  | 'code'
+  | 'pricing_logic'
+  | 'scope'
+  | 'enabled'
+  | 'expiration_date'
+  | 'excluded_registration_types'
+  | 'excludes_uninvited'
 >;
+
+/** The choice, among the excluded types, for registrants without an invitation. */
+const UNINVITED = 'uninvited';
 
 interface Values {
   label: string;
@@ -29,11 +52,15 @@ interface Values {
   enabled: boolean;
   /** A DateTimePicker value (local time), or '' for none. */
   expires: string;
+  /** Who can't use it: registration type ids, and UNINVITED. */
+  excluded: string[];
 }
 
 interface PromoCodeFormProps {
   /** The code being edited; omit to add one. */
   promoCode?: ApiPromoCode;
+  /** The event's registration types, any of which the code can exclude; omit while loading. */
+  registrationTypes?: ApiRegistrationType[];
   onSubmit: (body: PromoCodeBody) => void;
   onCancel: () => void;
   saving?: boolean;
@@ -52,6 +79,7 @@ function jsonError(text: string): string | null {
 
 export function PromoCodeForm({
   promoCode,
+  registrationTypes,
   onSubmit,
   onCancel,
   saving,
@@ -65,6 +93,10 @@ export function PromoCodeForm({
       scope: promoCode?.scope ?? 'registration',
       enabled: promoCode?.enabled ?? true,
       expires: promoCode?.expiration_date ? isoToLocalDateTime(promoCode.expiration_date) : '',
+      excluded: [
+        ...(promoCode?.excludes_uninvited ? [UNINVITED] : []),
+        ...(promoCode?.excluded_registration_types ?? []).map(String),
+      ],
     },
     validate: {
       label: (value) => (value.trim() ? null : 'Give the code a label'),
@@ -82,6 +114,12 @@ export function PromoCodeForm({
       scope: values.scope,
       enabled: values.enabled,
       expiration_date: values.expires ? localDateTimeToIso(values.expires) : null,
+      // A type deleted since the code was loaded is no longer one to exclude.
+      excluded_registration_types: values.excluded
+        .filter((value) => value !== UNINVITED)
+        .map(Number)
+        .filter((id) => !registrationTypes || registrationTypes.some((type) => type.id === id)),
+      excludes_uninvited: values.excluded.includes(UNINVITED),
     });
   };
 
@@ -151,11 +189,28 @@ export function PromoCodeForm({
               error={errors.expiration_date}
               maw={320}
             />
+            <Checkbox.Group
+              label="Who can’t use it"
+              description="These registrants are told the code can’t be used with their registration."
+              {...form.getInputProps('excluded')}
+              error={errors.excluded_registration_types ?? errors.excludes_uninvited}
+            >
+              <Stack gap="xs" mt="xs">
+                <Checkbox value={UNINVITED} label="Registrants without an invitation" />
+                {(registrationTypes ?? []).map((type) => (
+                  <Checkbox
+                    key={type.id}
+                    value={String(type.id)}
+                    label={`Invited as ${type.label || type.name}`}
+                  />
+                ))}
+              </Stack>
+            </Checkbox.Group>
           </Stack>
         </ReadOnlyFieldset>
         <Text size="xs" c="dimmed">
           Registrations that already have the code keep it — and its discount — if it’s later turned
-          off, expires or is deleted.
+          off, expires, is deleted or stops being for them.
         </Text>
         <FormActions>
           <Button variant="default" onClick={onCancel}>

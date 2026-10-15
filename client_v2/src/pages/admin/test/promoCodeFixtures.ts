@@ -1,4 +1,4 @@
-import type { ApiPromoCode } from 'api-types';
+import type { ApiPromoCode, ApiRegistrationType } from 'api-types';
 
 export function samplePromoCode(overrides: Partial<ApiPromoCode> = {}): ApiPromoCode {
   return {
@@ -10,8 +10,22 @@ export function samplePromoCode(overrides: Partial<ApiPromoCode> = {}): ApiPromo
     scope: 'registration',
     enabled: true,
     expiration_date: null,
+    excluded_registration_types: [],
+    excludes_uninvited: false,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-01T12:00:00Z',
     ...overrides,
+  };
+}
+
+export function sampleRegistrationType(id: number, label: string): ApiRegistrationType {
+  return {
+    id,
+    event: 7,
+    name: label.toLowerCase(),
+    label,
+    invitation_template: null,
+    created_at: '2026-09-01T12:00:00Z',
+    updated_at: '2026-09-01T12:00:00Z',
   };
 }

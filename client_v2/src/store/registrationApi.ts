@@ -70,15 +70,17 @@ export function useSubmitRegistration(eventId: string) {
 
 /**
  * Checks a promo code the registrant typed: POST /api/events/{id}/checkpromo
- * `{code}` -> the code, or a 400 whose `detail` says it can't be used (§7.1).
- * The form shows that message itself, so there's no error notification.
+ * `{code, invitation?}` -> the code, or a 400 whose `detail` says it can't be
+ * used (§7.1). The registrant's invitation, if any, gives their registration
+ * type, which some codes exclude (§15, DR-107). The form shows that message
+ * itself, so there's no error notification.
  */
-export function useCheckPromoCode(eventId: string) {
+export function useCheckPromoCode(eventId: string, invitation?: ApiRegister['invitation']) {
   return useMutation({
     mutationFn: (code: string) =>
       apiFetch<AppliedPromo>(`/api/events/${eventId}/checkpromo`, {
         method: 'POST',
-        body: { code },
+        body: { code, ...(invitation ? { invitation } : {}) },
       }),
     meta: { suppressErrorNotification: true },
   });

@@ -49,8 +49,10 @@ export const emailAccountHooks = createEntityHooks<ApiEmailAccount>({
   alsoInvalidate: ['EmailQueue'],
 });
 export const registrationHooks = createEntityHooks<ApiRegistration>({ name: 'Registration' });
+// Deleting a type drops it from the promo codes that exclude it (§15, DR-107).
 export const registrationTypeHooks = createEntityHooks<ApiRegistrationType>({
   name: 'RegistrationType',
+  alsoInvalidate: ['PromoCode'],
 });
 export const reportHooks = createEntityHooks<ApiReport>({ name: 'Report' });
 export const invitationHooks = createEntityHooks<ApiInvitation>({ name: 'Invitation' });

@@ -374,7 +374,8 @@ class PromoCode(TimeStampedModel):
     once per camper (`scope`), after every other price line (camphoric.pricing).
 
     Soft-deleted (DR-55): a deleted code can't be used any more, but the
-    registrations that already have it keep it, and their discount.
+    registrations that already have it keep it, and their discount. Some
+    registrants may be kept from using it, by registration type (DR-107).
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='promo_codes')
     label = models.CharField(
@@ -390,6 +391,13 @@ class PromoCode(TimeStampedModel):
         default=True, help_text="False if registrants can't use this code")
     expiration_date = models.DateTimeField(
         null=True, blank=True, help_text="registrants can't use this code after this time")
+    # Who can't use it (SPEC DR-107). A deleted registration type drops out of the list.
+    excluded_registration_types = models.ManyToManyField(
+        RegistrationType, blank=True, related_name='+',
+        help_text="registrants invited as one of these types can't use this code")
+    excludes_uninvited = models.BooleanField(
+        default=False,
+        help_text="True if registrants without an invitation (no registration type) can't use it")
 
     objects = LivePromoCodes()
     all_objects = models.Manager()
@@ -416,6 +424,13 @@ class PromoCode(TimeStampedModel):
         '''The event's live, usable code the registrant typed, or None.'''
         promo_code = cls.objects.filter(event=event, code__iexact=(code or '').strip()).first()
         return promo_code if promo_code and promo_code.is_valid() else None
+
+    def is_for(self, registration_type):
+        '''Whether a registrant of `registration_type` (None: not invited) may use this code.'''
+        if registration_type is None:
+            return not self.excludes_uninvited
+        # Through all(), so a prefetch of the excluded types is used.
+        return registration_type.pk not in {t.pk for t in self.excluded_registration_types.all()}
 
     def clashes_with_live_code(self):
         '''Whether another live code of the event has the same text.'''

@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-14
+**Last updated:** 2026-10-15
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-106)
+- §15 — Decision Records (DR-1…DR-107)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -304,8 +304,9 @@ consistently:
   "stay in the email history"). `deletes` doesn't include the thing itself.
 - **What a delete takes with it** (DR-54): deleting a lodging unassigns the campers in it or in
   anything under it (clearing their stay) and clears it from campers who asked for it; deleting a
-  registration type leaves its registrations with no type, and deletes its invitations and its
-  invitation email; deleting a deposit leaves its payments; a custom charge type campers still
+  registration type leaves its registrations with no type, deletes its invitations and its
+  invitation email, and drops it from the promo codes that exclude it (listed under `changes`,
+  "will no longer exclude it"; §15, DR-107); deleting a deposit leaves its payments; a custom charge type campers still
   have, an organization with events, and an email account an event or sent email uses can't be
   deleted; only Admins delete events, and only before anyone has registered; only Admins delete
   payments and invoices, not a payment that has been refunded nor an invoice anything was paid on
@@ -524,11 +525,19 @@ Non-CRUD admin endpoints:
   (schemas, ui schema, pricing logic, pricing vars, template vars, event subset, optional
   invitation/registration-type info, PayPal options, pre-submit template,
   `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
-  §7.1 — and `hasPromoCodes`, whether the event has a promo code a registrant could use now).
-- `POST /api/events/{eventId}/checkpromo` with `{ code }` (anyone; throttled per client) → 200
-  `{ code, label, scope, pricingLogic }` for a code of the event that's enabled, not expired and
-  not deleted — matched without regard to case or surrounding space — or 400 `{ detail }`
-  ("That promo code isn't valid for this event."), shown to the registrant (§7.1; §15, DR-67).
+  §7.1 — and `hasPromoCodes`, whether the event has a promo code this registrant could use now:
+  one that's usable and doesn't exclude the registration type of the query's invitation, or, with
+  no valid invitation, registrants without one; §15, DR-107).
+- `POST /api/events/{eventId}/checkpromo` with `{ code, invitation? }` (anyone; throttled per
+  client) → 200 `{ code, label, scope, pricingLogic }` for a code of the event that's enabled, not
+  expired and not deleted — matched without regard to case or surrounding space — and that this
+  registrant may use, or 400 `{ detail }`, shown to the registrant (§7.1; §15, DR-67, DR-107).
+  `invitation` is the config's `invitation`, as the registration step sends it; it gives the
+  registration type. The `detail` says why: "That promo code isn't valid for this event."; "That
+  promo code can't be used with this registration type." when the code excludes the
+  invitation's type; "That promo code can only be used with an invitation." when there's no
+  invitation and the code excludes registrants without one; or, for an invitation that's no
+  good, the same message the registration step gives for it.
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, invitation?, promoCode? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent }`). The
@@ -834,8 +843,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   not blank, and unique among the event's live codes regardless of case — a 400 on `code`
   otherwise), `pricing_logic` (one JsonLogic expression for the discount, a positive amount),
   `scope` (`registration` | `camper`: worked out once, or for each camper; §9.2), `enabled`,
-  `expiration_date` (ISO datetime or null; registrants can't use the code after it), timestamps.
-  Any role reads; Registrars and Admins write.
+  `expiration_date` (ISO datetime or null; registrants can't use the code after it),
+  `excluded_registration_types` (ids of the event's registration types whose registrants can't
+  use the code; `[]` by default; a 400 on it for another event's type), `excludes_uninvited`
+  (true if registrants without an invitation — no registration type — can't use it; false by
+  default; §15, DR-107), timestamps. Any role reads; Registrars and Admins write.
 - **PricingOverride** (`/api/pricingoverrides/`, filter `registration`, `camper`,
   `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
   the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
@@ -976,7 +988,8 @@ Before any step renders, the app loads the registration config (`GET …/registe
   An action advances the registrant to payment.
 - **Promo code** (§15, DR-67): when the config's `hasPromoCodes` is true, the registrant can
   enter a promo code just before advancing to payment. Applying it checks it with
-  `checkpromo`: a usable code is shown as applied (with its label), kept in the registration
+  `checkpromo`, sending the config's `invitation` when there is one, since a code can exclude
+  registration types (§15, DR-107): a usable code is shown as applied (with its label), kept in the registration
   store and priced live (§9.2); a refused one shows the server's message by the field. An
   applied code stays applied only while the field still holds it, and can be removed. A code
   that has been typed but not applied blocks advancing, with a message by the field, until it's
@@ -1476,9 +1489,11 @@ persist via POST (new) / PATCH (edit) on `registrationtypes` (see §15, DR-32); 
 PATCH of its template.
 
 Promo codes are managed here too (§15, DR-67): the event's codes with their label, code, scope,
-expiry and whether registrants can use one now (enabled and not expired); add or edit a code's
-`label`, `code`, `scope`, `pricing_logic` (JSON, edited like the pricing logic; invalid JSON
-can't be saved), `enabled` and `expiration_date` (POST / PATCH on `promocodes`); and delete one
+who can't use them, expiry and whether registrants can use one now (enabled and not expired); add
+or edit a code's `label`, `code`, `scope`, `pricing_logic` (JSON, edited like the pricing logic;
+invalid JSON can't be saved), `enabled`, `expiration_date`, and who can't use it — any of the
+event's registration types (`excluded_registration_types`) and registrants without an invitation
+(`excludes_uninvited`; §15, DR-107) — (POST / PATCH on `promocodes`); and delete one
 after the usual preview. Registrars and Admins also see the deleted codes, with who deleted each
 and when, and restore them. Any role can view a code.
 
@@ -3677,6 +3692,8 @@ their stored order.
 
 ### DR-67 — Promo codes carry their own discount logic
 
+*Codes were later able to leave out some registration types (DR-107).*
+
 **Decision:** An event's promo codes are records of their own (§5, §8.8): a label, the code
 registrants type (matched without regard to case), whether it's enabled, an optional expiry, and
 a JsonLogic expression for the discount with a scope — once for the registration, or for each
@@ -4350,6 +4367,27 @@ added for them. Warning instead of refusing — nothing would make anyone fix it
 price at registration — free registrations exist (staff, waived), and the registrant isn't the
 one who can fix it.
 
+### DR-107 — A promo code can leave out registration types
+
+**Decision:** A promo code lists who can't use it (§5, §8.8): any of the event's registration
+types, and, separately, registrants without an invitation (who have no type). Both are empty by
+default, so a code is for everyone. The server refuses an excluded registrant's code with a
+message that says why, both when it's applied (`checkpromo`, which takes the registrant's
+invitation for their type) and when the registration is submitted (§7.1), and `hasPromoCodes`
+counts only codes this registrant could use. As with expiry and being turned off (DR-67), it's
+decided when the code is applied: a registration keeps its code if the code's exclusions or the
+registration's type change later, and Registrars can still give a registration any live code.
+Deleting a registration type drops it from the codes that exclude it.
+**Context:** Some registration types (staff, other invited types) already get special pricing and
+shouldn't stack a promo code on it (#783). The code's `pricing_logic` can return 0 for them, but
+then `checkpromo` accepts the code and the registrant sees it applied with no discount, every
+code needs the same hand-written check, and nothing in Settings shows whom a code leaves out.
+**Alternatives:** An allow-list (only these types may use it) — suits a code for one group, but
+the cases in hand are a few types to leave out, and an empty allow-list meaning "everyone" reads
+oddly. Both lists — more to explain for no case in hand. Treating registrants without an
+invitation as always eligible — leaves no way to make a code for invited registrants only. The
+`pricing_logic` workaround above.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4376,7 +4414,8 @@ must be coordinated with the backend. Grouped by status.
   and promo codes, and `registration_deleted` on invitations, with the shapes in §5 (DR-55).
 - **Promo codes:** `/api/promocodes/`, `POST /api/events/{id}/checkpromo`, `hasPromoCodes` and
   `promoCode` on the register endpoint, `promo_code`/`promo` on registrations, and the `promo`
-  pricing line, with the shapes in §5 and §9.2 (DR-67).
+  pricing line, with the shapes in §5 and §9.2 (DR-67); the registration types a code excludes,
+  and the invitation on `checkpromo` (DR-107).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
   (DR-80).

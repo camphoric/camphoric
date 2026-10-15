@@ -70,12 +70,13 @@ def register_models():
         models.Organization, models.EmailAccount, models.Event, models.RegistrationType,
         models.Report, models.Invitation, models.Lodging, models.Camper,
         models.CustomChargeType, models.CustomCharge, models.Deposit, models.PricingOverride,
-        models.PromoCode,
         models.EmailTemplate, models.EmailUnsubscribe,
     ):
         auditlog.register(model, exclude_fields=TIMESTAMPS)
     auditlog.register(models.UserAccount)
     auditlog.register(models.Registration, exclude_fields=TIMESTAMPS)
+    auditlog.register(
+        models.PromoCode, exclude_fields=TIMESTAMPS, m2m_fields={'excluded_registration_types'})
     # An invoice's link code is a secret (anyone with it may pay).
     auditlog.register(models.Invoice, exclude_fields=TIMESTAMPS + ['token'])
     # PayPal's replies carry the payer's details, and are written once by the

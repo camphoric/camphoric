@@ -1,6 +1,7 @@
 '''
-Promo codes (SPEC DR-67): who can use one, applying it while registering,
-managing an event's codes, and soft-deleting them.
+Promo codes (SPEC DR-67): who can use one — including by registration type
+(DR-107) — applying it while registering, managing an event's codes, and
+soft-deleting them.
 '''
 
 import datetime
@@ -22,6 +23,18 @@ def make_promo_code(event, code='SUMMER', **fields):
         'event': event, 'label': 'Summer promo', 'code': code, 'pricing_logic': 25,
         **fields,
     })
+
+
+def invite(event, name='staff'):
+    registration_type = models.RegistrationType.objects.create(
+        event=event, name=name, label=name.capitalize())
+    return models.Invitation.objects.create(
+        registration_type=registration_type, recipient_email=f'{name}@example.com')
+
+
+def invitation_body(invitation):
+    return {'recipient_email': invitation.recipient_email,
+            'invitation_code': invitation.invitation_code}
 
 
 class PromoCodeValidityTests(TestCase):
@@ -57,6 +70,22 @@ class PromoCodeValidityTests(TestCase):
         self.assertIsNone(models.PromoCode.find_valid(self.event, 'SUMMER'))
         self.assertIsNone(models.PromoCode.find_valid(self.event, 'GONE'))
 
+    def test_is_for_a_registration_type(self):
+        staff = models.RegistrationType.objects.create(event=self.event, name='staff')
+        crew = models.RegistrationType.objects.create(event=self.event, name='crew')
+        promo_code = make_promo_code(self.event)
+        self.assertTrue(promo_code.is_for(staff))
+        self.assertTrue(promo_code.is_for(None))
+
+        promo_code.excluded_registration_types.add(staff)
+        self.assertFalse(promo_code.is_for(staff))
+        self.assertTrue(promo_code.is_for(crew))
+        self.assertTrue(promo_code.is_for(None))
+
+        promo_code.excludes_uninvited = True
+        self.assertFalse(promo_code.is_for(None))
+        self.assertTrue(promo_code.is_for(crew))
+
     def test_codes_are_unique_per_event_regardless_of_case(self):
         make_promo_code(self.event)
         with self.assertRaises(IntegrityError), transaction.atomic():
@@ -83,9 +112,9 @@ class RegisterWithPromoCodeTests(APITestCase):
             'formData': self.valid_form_data, 'pricingResults': {}, **body,
         }, format='json')
 
-    def check(self, code):
+    def check(self, code, **body):
         return self.client.post(
-            f'/api/events/{self.event.id}/checkpromo', {'code': code}, format='json')
+            f'/api/events/{self.event.id}/checkpromo', {'code': code, **body}, format='json')
 
     def test_register_offers_promo_codes_only_when_one_can_be_used(self):
         def has_promo_codes():
@@ -97,6 +126,29 @@ class RegisterWithPromoCodeTests(APITestCase):
         self.assertFalse(has_promo_codes())
         make_promo_code(self.event, 'OLD', expiration_date=timezone.now() - datetime.timedelta(1))
         self.assertFalse(has_promo_codes())
+
+    def test_register_offers_promo_codes_only_to_who_can_use_one(self):
+        staff = invite(self.event, 'staff')
+        crew = invite(self.event, 'crew')
+
+        def has_promo_codes(invitation=None):
+            query = {'email': invitation.recipient_email, 'code': invitation.invitation_code} \
+                if invitation else {}
+            return self.client.get(
+                f'/api/events/{self.event.id}/register', query).data['hasPromoCodes']
+
+        self.promo_code.excluded_registration_types.add(staff.registration_type)
+        self.assertFalse(has_promo_codes(staff))
+        self.assertTrue(has_promo_codes(crew))
+        self.assertTrue(has_promo_codes())
+
+        self.promo_code.excludes_uninvited = True
+        self.promo_code.save()
+        self.assertFalse(has_promo_codes())
+        self.assertTrue(has_promo_codes(crew))
+        # Another code staff can use.
+        make_promo_code(self.event, 'STAFF')
+        self.assertTrue(has_promo_codes(staff))
 
     def test_a_valid_code_is_applied_and_priced(self):
         response = self.register(promoCode=' summer ')
@@ -131,6 +183,44 @@ class RegisterWithPromoCodeTests(APITestCase):
                     response.data['detail'], 'That promo code isn\'t valid for this event.')
                 self.assertFalse(models.Registration.objects.exists())
 
+    def test_a_code_is_refused_for_a_registration_type_it_excludes(self):
+        staff = invite(self.event, 'staff')
+        crew = invite(self.event, 'crew')
+        self.promo_code.excluded_registration_types.add(staff.registration_type)
+
+        response = self.register(promoCode='SUMMER', invitation=invitation_body(staff))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data['detail'], 'That promo code can\'t be used with this registration type.')
+        self.assertFalse(models.Registration.objects.exists())
+
+        response = self.register(promoCode='SUMMER', invitation=invitation_body(crew))
+        self.assertEqual(response.status_code, 200, response.data)
+        registration = models.Registration.objects.get()
+        self.assertEqual(registration.registration_type, crew.registration_type)
+        self.assertEqual(registration.promo_code, self.promo_code)
+
+    def test_a_code_is_refused_without_an_invitation_when_it_needs_one(self):
+        self.promo_code.excludes_uninvited = True
+        self.promo_code.save()
+        response = self.register(promoCode='SUMMER')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data['detail'], 'That promo code can only be used with an invitation.')
+        self.assertFalse(models.Registration.objects.exists())
+
+        response = self.register(promoCode='SUMMER', invitation=invitation_body(invite(self.event)))
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_the_code_stays_once_its_exclusions_change(self):
+        staff = invite(self.event, 'staff')
+        self.register(promoCode='SUMMER', invitation=invitation_body(staff))
+        registration = models.Registration.objects.get()
+        self.promo_code.excluded_registration_types.add(staff.registration_type)
+        registration.save()  # recalculates
+        self.assertEqual(registration.promo_code, self.promo_code)
+        self.assertEqual(registration.server_pricing_results['promo'], -90)
+
     def test_the_code_stays_with_the_registration_once_it_expires(self):
         self.register(promoCode='SUMMER')
         registration = models.Registration.objects.get()
@@ -157,6 +247,39 @@ class RegisterWithPromoCodeTests(APITestCase):
         self.assertEqual(self.client.post(
             '/api/events/0/checkpromo', {'code': 'SUMMER'}, format='json').status_code, 404)
 
+    def test_check_a_code_for_a_registration_type(self):
+        staff = invite(self.event, 'staff')
+        crew = invite(self.event, 'crew')
+        self.promo_code.excluded_registration_types.add(staff.registration_type)
+        self.promo_code.excludes_uninvited = True
+        self.promo_code.save()
+
+        response = self.check('SUMMER', invitation=invitation_body(staff))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data['detail'], 'That promo code can\'t be used with this registration type.')
+        response = self.check('SUMMER')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data['detail'], 'That promo code can only be used with an invitation.')
+        response = self.check('SUMMER', invitation=None)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data['detail'], 'That promo code can only be used with an invitation.')
+        response = self.check('SUMMER', invitation=invitation_body(crew))
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['code'], 'SUMMER')
+
+        # An invitation that's no good is refused, as it is at submit.
+        response = self.check(
+            'SUMMER', invitation={**invitation_body(crew), 'invitation_code': 'x'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('couldn\'t find an invitation', response.data['detail'])
+        other = models.Event.objects.create(organization=self.organization, name='Other')
+        response = self.check('SUMMER', invitation=invitation_body(invite(other, 'guest')))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['detail'], 'Sorry, that invitation is for a different event')
+
 
 class PromoCodeAdminTests(APITestCase):
     def setUp(self):
@@ -182,6 +305,50 @@ class PromoCodeAdminTests(APITestCase):
             f'/api/promocodes/{response.data["id"]}/', {'enabled': False}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertFalse(response.data['enabled'])
+
+    def test_exclude_registration_types(self):
+        staff = models.RegistrationType.objects.create(event=self.event, name='staff')
+        url = f'/api/promocodes/{self.promo_code.id}/'
+        response = self.client.get(url)
+        self.assertEqual(response.data['excluded_registration_types'], [])
+        self.assertFalse(response.data['excludes_uninvited'])
+
+        response = self.client.patch(url, {
+            'excluded_registration_types': [staff.id], 'excludes_uninvited': True,
+        }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['excluded_registration_types'], [staff.id])
+        self.assertTrue(response.data['excludes_uninvited'])
+
+        other = models.Event.objects.create(organization=self.organization, name='Other')
+        elsewhere = models.RegistrationType.objects.create(event=other, name='guest')
+        response = self.client.patch(
+            url, {'excluded_registration_types': [elsewhere.id]}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('excluded_registration_types', response.data)
+        response = self.client.post('/api/promocodes/', {
+            'event': self.event.id, 'label': 'New', 'code': 'NEW', 'pricing_logic': 5,
+            'excluded_registration_types': [elsewhere.id],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('excluded_registration_types', response.data)
+        # Nor can it move to another event, keeping this one's types.
+        response = self.client.patch(url, {'event': other.id}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('excluded_registration_types', response.data)
+
+        # Deleting a type drops it from the codes that exclude it.
+        response = self.client.get(f'/api/registrationtypes/{staff.id}/delete-preview/')
+        self.assertTrue(response.data['can_delete'], response.data)
+        self.assertEqual([row['type'] for row in response.data['deletes']], ['emailtemplate'])
+        self.assertEqual(response.data['changes'], [{
+            'type': 'promocode', 'name': 'promo code', 'count': 1, 'items': ['Summer promo'],
+            'description': 'will no longer exclude it',
+        }])
+        self.client.force_authenticate(make_user(roles.ADMIN, 'ada'))
+        response = self.client.delete(f'/api/registrationtypes/{staff.id}/')
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.client.get(url).data['excluded_registration_types'], [])
 
     def test_codes_must_differ(self):
         response = self.client.post('/api/promocodes/', {

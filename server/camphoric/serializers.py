@@ -386,6 +386,14 @@ class PromoCodeSerializer(ModelSerializer):
                 others = others.exclude(pk=self.instance.pk)
             if others.exists():
                 raise ValidationError({'code': 'Another promo code already uses this code.'})
+        # Checked when the code moves to another event too.
+        excluded = data.get('excluded_registration_types')
+        if excluded is None:
+            excluded = self.instance.excluded_registration_types.all() \
+                if self.instance is not None else []
+        if event is not None and any(t.event_id != event.id for t in excluded):
+            raise ValidationError(
+                {'excluded_registration_types': 'Choose registration types of this event.'})
         return data
 
 

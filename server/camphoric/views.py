@@ -1020,6 +1020,22 @@ class PromoCodeRejected(APIException):
     default_detail = 'That promo code isn\'t valid for this event.'
 
 
+def usable_promo_code(event, code, registration_type):
+    '''
+    The event's code the registrant typed, if a registrant of `registration_type`
+    (None: not invited) may use it now; PromoCodeRejected, saying why, if not
+    (SPEC DR-67, DR-107).
+    '''
+    promo_code = models.PromoCode.find_valid(event, code) if isinstance(code, str) else None
+    if promo_code is None:
+        raise PromoCodeRejected()
+    if not promo_code.is_for(registration_type):
+        raise PromoCodeRejected(
+            'That promo code can only be used with an invitation.' if registration_type is None
+            else 'That promo code can\'t be used with this registration type.')
+    return promo_code
+
+
 class InvitationRejected(APIException):
     '''
     A registration submitted with an invitation that's no good: a 400 whose
@@ -1106,10 +1122,6 @@ class RegisterView(APIView):
             },
         }
 
-        # Whether to offer a promo code field at all (SPEC DR-67).
-        response_data['hasPromoCodes'] = any(
-            promo_code.is_valid() for promo_code in event.promo_codes.all())
-
         if event.paypal_enabled and event.paypal_client_id:
             response_data['payPalOptions'] = {
                 'clientId': event.paypal_client_id,
@@ -1120,6 +1132,14 @@ class RegisterView(APIView):
             invitation = self.find_invitation(request, event)
         except InvitationError as e:
             response_data['invitationError'] = e.user_message
+
+        # Whether to offer a promo code field at all: one this registrant could
+        # use now (SPEC DR-67, DR-107).
+        registration_type = invitation.registration_type if invitation else None
+        response_data['hasPromoCodes'] = any(
+            promo_code.is_valid() and promo_code.is_for(registration_type)
+            for promo_code in event.promo_codes.prefetch_related('excluded_registration_types'))
+
         if invitation:
             response_data['invitation'] = {
                 'recipient_name': invitation.recipient_name,
@@ -1192,7 +1212,8 @@ class RegisterView(APIView):
         if invitation:
             registration.registration_type = invitation.registration_type
 
-        registration.promo_code = self.find_promo_code(request, event)
+        registration.promo_code = self.find_promo_code(
+            request, event, registration.registration_type)
 
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
@@ -1251,15 +1272,12 @@ class RegisterView(APIView):
             'handlingPercent': float(event.epayment_handling) if online else None,
         }
 
-    def find_promo_code(self, request, event):
+    def find_promo_code(self, request, event, registration_type):
         '''The promo code the registrant entered, if any; one they can't use is refused.'''
         code = request.data.get('promoCode')
         if not isinstance(code, str) or not code.strip():
             return None
-        promo_code = models.PromoCode.find_valid(event, code)
-        if promo_code is None:
-            raise PromoCodeRejected()
-        return promo_code
+        return usable_promo_code(event, code, registration_type)
 
     @staticmethod
     def locked_registration(request):
@@ -1619,7 +1637,7 @@ class RegisterView(APIView):
     def find_invitation(cls, request, event):
         '''The request's invitation to this event, or None; InvitationError if it's no good.'''
         email, code = None, None
-        if request.method == 'POST' and 'invitation' in request.data:
+        if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
             email = request.data['invitation'].get('recipient_email')
             code = request.data['invitation'].get('invitation_code')
         else:
@@ -1748,10 +1766,12 @@ class InvoicePayView(APIView):
 
 class CheckPromoCodeView(APIView):
     '''
-    POST /api/events/<id>/checkpromo `{code}` → 200 `{code, label, scope,
-    pricingLogic}` for a code a registrant can use now (enough for the form to
-    price the discount live), or 400 `{detail}` (SPEC DR-67). Anyone may ask;
-    throttled (`promo_code_check`) so codes can't be guessed wholesale.
+    POST /api/events/<id>/checkpromo `{code, invitation?}` → 200 `{code, label,
+    scope, pricingLogic}` for a code this registrant can use now (enough for the
+    form to price the discount live), or 400 `{detail}` (SPEC DR-67, DR-107). The
+    invitation, as the register step takes it, gives the registration type; a
+    bad one is refused as it is there. Anyone may ask; throttled
+    (`promo_code_check`) so codes can't be guessed wholesale.
     '''
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -1759,10 +1779,12 @@ class CheckPromoCodeView(APIView):
 
     def post(self, request, event_id=None):
         event = get_object_or_404(models.Event, id=event_id)
-        code = request.data.get('code')
-        promo_code = models.PromoCode.find_valid(event, code) if isinstance(code, str) else None
-        if promo_code is None:
-            raise PromoCodeRejected()
+        try:
+            invitation = RegisterView.find_invitation(request, event)
+        except InvitationError as e:
+            raise InvitationRejected(e.user_message)
+        promo_code = usable_promo_code(
+            event, request.data.get('code'), invitation.registration_type if invitation else None)
         return Response({
             'code': promo_code.code,
             'label': promo_code.label,

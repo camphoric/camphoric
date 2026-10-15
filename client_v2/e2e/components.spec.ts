@@ -652,6 +652,17 @@ test.describe('Promo codes', () => {
       '"expiration_date": "2026-12-01T08:00:00.000Z"',
     );
   });
+
+  test('an admin chooses who can’t use a code', async ({ page }) => {
+    await page.goto(story('promo-code-form--not-for-some'));
+    await expect(page.getByRole('checkbox', { name: 'Invited as Staff' })).toBeChecked();
+    await page.getByRole('checkbox', { name: 'Registrants without an invitation' }).uncheck();
+    await page.getByRole('checkbox', { name: 'Invited as Work-trade' }).check();
+    await page.getByRole('button', { name: 'Save' }).click();
+    const saved = page.locator('#storybook-root pre');
+    await expect(saved).toContainText('"excludes_uninvited": false');
+    await expect(saved).toContainText(/"excluded_registration_types": \[\s*11,\s*12\s*\]/);
+  });
 });
 
 test.describe('Payments and invoices', () => {
