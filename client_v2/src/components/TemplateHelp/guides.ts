@@ -205,6 +205,36 @@ Lodging requests are on the camper too: \`lodging_requested\`, \`lodging_shared\
 \`lodging_shared_with\`, \`lodging_comments\`.
 `;
 
+const PRINTING = `
+**Print** beside a report's output prints the output by itself, without the admin page around
+it. Every printed report gets page margins, and a CSV report's header row repeats at the top of
+each page. A wide table is fitted to the page width, wrapping long values; printing in landscape
+gives it more room.
+
+Two classes control page breaks in Markdown and HTML reports, on a \`<div>\` or a \`<span>\`:
+
+- \`page-break\` starts a new page before the element — one cabin per page, say.
+- \`no-break\` keeps the element on one page — a camper's details, a signature block.
+
+In Markdown, put them on a \`<div>\` (leave a blank line after the opening tag so the Markdown
+inside still renders):
+
+${fence(`{%- for group in campers | selectattr('lodging') | groupby('lodging.full_name') %}
+<div class="{{ 'page-break' if not loop.first }}">
+
+## {{ group.grouper }}
+{% for camper in group.list %}
+* {{ camper.attributes.first_name }} {{ camper.attributes.last_name }}
+{%- endfor %}
+
+</div>
+{%- endfor %}`)}
+
+An HTML report can also carry its own print styles in a \`<style>\` element, such as
+\`@media print { .camper { break-inside: avoid; } }\` or its own \`@page\` margins. They come
+after Camphoric's, so they win.
+`;
+
 const ERRORS = `
 Problems are listed under the preview and underlined in the template; choose one to jump to it.
 
@@ -343,6 +373,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
   topic('computed', 'Computed values', COMPUTED),
   topic('formatting', 'Money, dates and CSV', FORMATTING),
   topic('lodging', 'Lodging', LODGING),
+  topic('printing', 'Printing', PRINTING),
   topic('errors', 'Common errors', ERRORS),
   topic('legacy', 'From legacy reports', LEGACY),
   topic('mustache', 'From Mustache emails', MUSTACHE),

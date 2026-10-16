@@ -22,6 +22,12 @@ describe('guides', () => {
     expect(html).toContain('<code>{{ event.start | date }}</code>');
   });
 
+  it('shows the page-break classes on a div that markdown keeps', () => {
+    const html = markdownToHtml(guideTopic('printing').body);
+    expect(html).toContain('<code>page-break</code>');
+    expect(html).toContain('<code>no-break</code>');
+  });
+
   it('documents every Handlebars helper', () => {
     const body = guideTopic('handlebars').body;
     expect(body).toContain('### getLodgingValue');

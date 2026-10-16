@@ -6,6 +6,8 @@
  *   - md   → the markdown pipeline → sanitized HTML (with a download).
  *   - html → a sandboxed frame (with a download).
  *   - txt  → preformatted text (with a download).
+ * Each of these can also be printed by itself, without the admin page around
+ * it, from a standalone document with print styles (./printDocument).
  *
  * The output scrolls on its own, both ways, so a wide or long report doesn't
  * widen or stretch the page (a CSV table keeps its header row in view).
@@ -16,7 +18,7 @@
  */
 
 import { Alert, Box, Button, Code, Group, Stack } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import { IconDownload, IconPrinter } from '@tabler/icons-react';
 import type { ApiRenderedReport, ApiReport } from 'api-types';
 import { CsvTable } from 'components/CsvTable';
 import { HtmlFrame } from 'components/HtmlFrame';
@@ -27,6 +29,9 @@ import { useReportTemplateVars } from 'hooks/useReportData';
 import type { ReactNode } from 'react';
 import { useRenderedReport, useServerRenderedReport } from 'store/reportRender';
 import { downloadTextFile } from 'utils/download';
+import { printHtml } from 'utils/print';
+
+import { type PrintableOutput, reportPrintDocument } from './printDocument';
 
 const MIME: Record<string, string> = {
   csv: 'text/csv',
@@ -56,6 +61,8 @@ interface RenderedReportProps {
 }
 
 function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedReport }) {
+  // Only the server-rendered formats reach here; Handlebars renders in the page.
+  const format = report.output as PrintableOutput;
   const diagnostics = data.diagnostics ?? [];
 
   if (data.error) {
@@ -87,6 +94,13 @@ function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedRe
           }
         >
           Download {report.output.toUpperCase()}
+        </Button>
+        <Button
+          variant="light"
+          leftSection={<IconPrinter size={16} />}
+          onClick={() => printHtml(reportPrintDocument(report.title, format, output), report.title)}
+        >
+          Print
         </Button>
       </Group>
       <OutputScroll>

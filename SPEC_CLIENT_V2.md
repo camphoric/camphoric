@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-112)
+- §15 — Decision Records (DR-1…DR-113)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1510,6 +1510,23 @@ DR-41); only reports saved in existing events before then still use the browser 
   - The output, in every format, scrolls within its own area in both directions, at most about
     a window tall, so a wide or long report never widens or stretches the page; a CSV table's
     header row stays in view as it scrolls.
+- **Printing a report** — a `csv`/`md`/`txt`/`html` report's output can be printed by itself,
+  without the admin page around it (§15, DR-113). It prints from a standalone document of the
+  output alone, titled with the report's title, opened in the browser's print dialog from a
+  hidden sandboxed frame that runs no scripts; no report content runs in the admin page, and
+  focus stays where it was. That
+  document:
+  - **CSV** → a table numbered like the on-screen one, its header row in a `<thead>` so it
+    repeats at the top of each printed page.
+  - **Markdown** → the sanitized markdown→HTML output; **Text** → preformatted text.
+  - **HTML** → the report's own document, keeping its title and styles.
+  - Every format gets page margins and these page-break classes, which report authors use in
+    Markdown (on a `div` or `span`) and HTML: **`page-break`** starts a new page before the
+    element; **`no-break`** keeps the element on one page. Table rows, images and headings
+    don't split across pages. CSV, Markdown and Text are laid out in plain black-on-white type
+    with bordered tables that fit the page width, wrapping long values rather than losing
+    columns off the page's edge; an HTML report's look is its own. An HTML report's own styles —
+    including `@media print` rules and `@page` margins — come after Camphoric's, so they win.
 
 **Legacy report template variables** (the bundle assembled client-side and passed to
 render/Template): `event`, `registrations` (augmented) + `registrationLookup`, `campers` +
@@ -1991,7 +2008,8 @@ and linked from the editor's help. Both offer, for one kind of template:
 - **Search** across the variables, the filters, tests and tags, and the Markdown reference, by
   name, title, type, description or example; a type whose name matches is shown whole.
 - **Guides** — short topics: Jinja basics; loops, sorting and grouping; computed values (own
-  lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; common errors
+  lists and dicts, `merge`, `namespace`, macros); money, dates and CSV; lodging; printing
+  (the page-break classes and a report's own print styles, §8.7); common errors
   (including the printed-method warnings above);
   moving from legacy reports (a mapping from the bundle's lookups to the linked variables);
   moving emails from Mustache (a mapping of each email's variables); and the Handlebars helpers
@@ -4655,6 +4673,25 @@ leases stay on REST), and a channel layer, usually Redis; rejected. A hosted pus
 Polling a changes endpoint — not instant, and constant load; refetching on focus remains the
 fallback. Sending notices from `transaction.on_commit` — the same delivery, but repeated saves
 of one record in a transaction would each send one; Postgres collapses identical notices itself.
+
+### DR-113 — Reports print from a standalone document in a sandboxed frame
+
+**Decision:** A Print control beside a report's download prints the output alone: the client
+builds a complete HTML document of it (a `<thead>` table for CSV, the sanitized Markdown, the
+text, or the HTML report's own document) with a print stylesheet, loads it into a hidden frame
+sandboxed with `allow-same-origin allow-modals` and no `allow-scripts`, and opens that frame's
+print dialog. Camphoric supplies the stylesheet — page margins, repeated table headers, rows that
+don't split, and the `page-break` and `no-break` classes — and an HTML report can add its own
+print styles after it. There's no print view with its own URL.
+**Context:** #728: printing the reports page brought the admin chrome along, and an HTML report
+lives in a sandboxed frame, so the browser's print gave no clean result. Authors need page
+breaks (one cabin per page, a camper's block kept whole; #406). Markdown keeps `class` and
+`style` on `div`/`span` through sanitizing, so the classes work there too.
+**Alternatives:** A print-friendly route opened in a new tab — an HTML report would have to stay
+in a frame there (its markup can't run in the app's page), and frames print poorly across pages;
+not needed. Print styles on the admin page hiding the chrome — the HTML report's frame still
+prints as one clipped box. Only author-written CSS — Markdown reports can't carry a `<style>`.
+Only Camphoric's classes — would take away print CSS HTML reports can already write.
 
 ---
 
