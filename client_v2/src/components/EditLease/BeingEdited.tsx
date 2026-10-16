@@ -58,11 +58,14 @@ export function BeingEditedView({
   lease,
   isYou,
   size = 'sm',
+  ml,
 }: {
   lease: ApiEditLease;
   isYou: boolean;
   /** `xs` for tight spots (a camper's bar on the lodging timeline). */
   size?: 'xs' | 'sm';
+  /** Room before it, in running text (where a space would show without it). */
+  ml?: number;
 }) {
   const who = isYou
     ? 'You are editing this in another tab'
@@ -72,6 +75,7 @@ export function BeingEditedView({
     <Tooltip label={label} withArrow>
       <ThemeIcon
         size={size}
+        ml={ml}
         radius="xl"
         variant="light"
         color="blue"
@@ -90,15 +94,17 @@ export function BeingEdited({
   model,
   id,
   size,
+  ml,
 }: {
   model: string;
   id: Scalar;
   size?: 'xs' | 'sm';
+  ml?: number;
 }) {
   const lease = useBeingEdited(model, id);
   const { myId } = useContext(EventLeasesContext);
   if (!lease) return null;
-  return <BeingEditedView lease={lease} isYou={lease.holder.id === myId} size={size} />;
+  return <BeingEditedView lease={lease} isYou={lease.holder.id === myId} size={size} ml={ml} />;
 }
 
 /** A record's name in a list, marked when someone else is editing it. */

@@ -245,6 +245,15 @@ class StreamLifeTests(SimpleTestCase):
         self.assertIn('sslmode=require', conninfo)
         self.assertNotIn('pool', conninfo)
 
+    def test_the_listener_gives_up_on_a_dropped_connection(self):
+        conninfo = live_stream._conninfo()
+        self.assertIn('keepalives=1', conninfo)
+        # Once its check waits for an answer, keepalives no longer apply.
+        self.assertIn('tcp_user_timeout=30000', conninfo)
+        options = {'tcp_user_timeout': 5000}
+        with mock.patch.dict(live_stream.settings.DATABASES['default'], {'OPTIONS': options}):
+            self.assertIn('tcp_user_timeout=5000', live_stream._conninfo())
+
 
 class SessionCheckTests(TestCase):
     def test_a_session_still_signed_in_with_a_role_is_allowed(self):

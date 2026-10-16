@@ -13,8 +13,9 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, Hash } from 'api-types';
 import { DataTable } from 'components/DataTable';
-import { WithBeingEdited } from 'components/EditLease';
+import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useReportTemplateVars } from 'hooks/useReportData';
 import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
 import { useMemo } from 'react';
@@ -111,9 +112,13 @@ export function EventAdminCampers() {
     [vars, campersByRegistration],
   );
 
-  if (!vars || !event) return <FullScreenLoading />;
+  // Kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
+  const { record: selected, deleted } = useKeptRecord(
+    camperId,
+    vars?.campers.find((c) => String(c.id) === camperId),
+  );
 
-  const selected = vars.campers.find((c) => String(c.id) === camperId);
+  if (!vars || !event) return <FullScreenLoading />;
 
   return (
     <Stack>
@@ -136,6 +141,7 @@ export function EventAdminCampers() {
         size={EDITOR_MODAL_SIZE}
         styles={editorModalStyles}
       >
+        {deleted && <RecordDeleted label="camper" />}
         {selected && (
           <CamperEdit
             key={selected.id}

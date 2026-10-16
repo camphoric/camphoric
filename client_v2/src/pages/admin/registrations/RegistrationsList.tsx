@@ -14,9 +14,10 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, ApiInvoice, AugmentedRegistration } from 'api-types';
 import { DataTable } from 'components/DataTable';
-import { WithBeingEdited } from 'components/EditLease';
+import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useAugmentedRegistrations, useRegistrationTypeLookup } from 'hooks/useAdminData';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
 import { useMemo } from 'react';
 import { eventHooks, invoiceHooks } from 'store/entities';
@@ -144,9 +145,13 @@ export function RegistrationsList() {
     [notFinished],
   );
 
-  if (!registrations || !registrationTypes || !event) return <FullScreenLoading />;
+  // Kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
+  const { record: selected, deleted } = useKeptRecord(
+    registrationId,
+    registrations?.find((r) => String(r.id) === registrationId),
+  );
 
-  const selected = registrations.find((r) => String(r.id) === registrationId);
+  if (!registrations || !registrationTypes || !event) return <FullScreenLoading />;
 
   return (
     <Stack>
@@ -172,6 +177,7 @@ export function RegistrationsList() {
         size={EDITOR_MODAL_SIZE}
         styles={editorModalStyles}
       >
+        {deleted && <RecordDeleted label="registration" />}
         {selected && (
           <RegistrationEdit
             key={selected.id}

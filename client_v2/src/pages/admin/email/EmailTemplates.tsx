@@ -27,9 +27,10 @@ import { IconCopy, IconPencil, IconPlus, IconSend, IconTrash } from '@tabler/ico
 import { Link } from '@tanstack/react-router';
 import type { ApiEmailBatch, ApiEmailTemplate, ApiEvent } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { BeingEdited, WithBeingEdited } from 'components/EditLease';
+import { BeingEdited, RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { InlineLoading } from 'components/Loading';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useState } from 'react';
 import { emailTemplateHooks } from 'store/entities';
 import { useDuplicateTemplate } from 'store/groupEmail';
@@ -85,7 +86,11 @@ export function EmailTemplates({
   const eventParams = { organizationId, eventId: String(event.id) };
   const automatic = (templates ?? []).filter((t) => t.purpose !== 'group');
   const group = (templates ?? []).filter((t) => t.purpose === 'group');
-  const editing = templateId === 'new' ? undefined : group.find((t) => String(t.id) === templateId);
+  // Kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
+  const { record: editing, deleted } = useKeptRecord(
+    templateId === 'new' ? undefined : templateId,
+    group.find((t) => String(t.id) === templateId),
+  );
   const { canEdit } = usePermissions();
   // A Reporter can open a template to read it, but not start a new one.
   const openVerb = canEdit ? 'Edit' : 'View';
@@ -148,8 +153,8 @@ export function EmailTemplates({
                         onClick={() => onEditTemplate(String(template.id))}
                       >
                         {template.name}
-                      </Anchor>{' '}
-                      <BeingEdited model="emailtemplate" id={template.id} />
+                      </Anchor>
+                      <BeingEdited model="emailtemplate" id={template.id} ml={6} />
                     </Table.Td>
                     <Table.Td>{template.subject}</Table.Td>
                     <Table.Td>{audienceSummary(template)}</Table.Td>
@@ -294,6 +299,7 @@ export function EmailTemplates({
         // closing here would discard the draft.
         closeOnEscape={false}
       >
+        {deleted && <RecordDeleted label="template" />}
         {editorOpen && (
           <GroupTemplateEditor
             key={templateId}

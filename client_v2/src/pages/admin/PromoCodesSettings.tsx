@@ -12,8 +12,9 @@ import { notifications } from '@mantine/notifications';
 import { IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ApiPromoCode, ApiRegistrationType } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { WithBeingEdited } from 'components/EditLease';
+import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useState } from 'react';
 import { useDeletedPromoCodes, useRestore } from 'store/deletes';
 import { promoCodeHooks, registrationTypeHooks } from 'store/entities';
@@ -70,6 +71,13 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
   // The code being edited, or 'new' while adding one.
   const [editing, setEditing] = useState<ApiPromoCode | 'new' | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // As it is now, so the form can show what someone else saves — and kept open
+  // if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
+  const editingId = editing && editing !== 'new' ? String(editing.id) : undefined;
+  const { record: shownCode, deleted: codeDeleted } = useKeptRecord(
+    editingId,
+    promoCodes?.find((code) => String(code.id) === editingId),
+  );
 
   const close = () => {
     setEditing(null);
@@ -280,14 +288,10 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
         }
         size="lg"
       >
+        {codeDeleted && <RecordDeleted label="promo code" />}
         {editing !== null && (
           <PromoCodeForm
-            // As it is now, so the form can show what someone else saves.
-            promoCode={
-              editing === 'new'
-                ? undefined
-                : (promoCodes?.find((code) => code.id === editing.id) ?? editing)
-            }
+            promoCode={editing === 'new' ? undefined : (shownCode ?? editing)}
             registrationTypes={registrationTypes}
             onSubmit={save}
             onCancel={close}

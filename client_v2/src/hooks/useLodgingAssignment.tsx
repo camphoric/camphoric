@@ -30,7 +30,7 @@ interface MoveVars {
   stay: string[] | null;
 }
 
-const LODGING_MOVE = ['lodging-move'];
+export const LODGING_MOVE = ['lodging-move'];
 
 interface MoveContext {
   snapshot: [QueryKey, ApiCamper[] | undefined][];
