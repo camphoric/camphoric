@@ -25,8 +25,12 @@ Vagrant.configure("2") do |config|
       config.vm.box = 'bento/ubuntu-24.04'
   end
 
-  if File.exist?(ENV['CAMPHORIC_VAGRANT_BASE_IMAGE'] || '')
-      config.vm.box = ENV['CAMPHORIC_VAGRANT_BASE_IMAGE']
+  # The VM is always Ubuntu 24.04 (Python 3.12, PostgreSQL 16). Choosing another
+  # base box (CAMPHORIC_VAGRANT_BASE_IMAGE) is no longer supported: a leftover
+  # setting quietly built a VM that can't run Camphoric.
+  if ENV['CAMPHORIC_VAGRANT_BASE_IMAGE']
+      $stderr.puts("Note: CAMPHORIC_VAGRANT_BASE_IMAGE is ignored; the VM is built from " \
+                   "#{config.vm.box}. You can remove it from your environment.")
   end
 
   # On Apple Silicon, resuming a VirtualBox VM from a saved state often brings
