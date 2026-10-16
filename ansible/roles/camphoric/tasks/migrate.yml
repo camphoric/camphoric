@@ -1,0 +1,15 @@
+---
+# Applies any pending Django migrations to the database, and nothing else.
+# Run on its own through ansible/migrate.yml.
+- name: Run Django migrations
+  become: true
+  become_user: "{{ camphoric_user }}"
+  ansible.builtin.shell:
+    chdir: "{{ camphoric_folder }}/server"
+    cmd: pipenv run python manage.py migrate --noinput
+  register: camphoric_migrate
+  changed_when: "'No migrations to apply.' not in camphoric_migrate.stdout"
+
+- name: Show migrations applied
+  ansible.builtin.debug:
+    var: camphoric_migrate.stdout_lines

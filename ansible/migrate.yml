@@ -1,0 +1,16 @@
+---
+# Runs pending Django migrations on the camphoric database, without the rest of
+# the provisioning in site.yml.
+#
+# Against the Vagrant VM, from the repo root:
+#   ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ansible/migrate.yml \
+#     -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory \
+#     --vault-password-file ansible/.ansible-vault-pw
+- hosts: all
+  become: true
+  tasks:
+    # Through the role so its defaults (and group_vars/host_vars) apply as in site.yml.
+    - name: Migrate the camphoric database
+      ansible.builtin.include_role:
+        name: camphoric
+        tasks_from: migrate.yml
