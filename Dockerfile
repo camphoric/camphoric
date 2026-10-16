@@ -75,8 +75,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/set-csrf-cookie', timeout=3)" || exit 1
 ENTRYPOINT ["camphoric-entrypoint"]
-# Tune workers etc. at runtime with GUNICORN_CMD_ARGS rather than overriding CMD. The
-# uvicorn workers serve Django's ASGI app (SPEC DR-111).
-CMD ["gunicorn", "camphoric_server.asgi:application", "--worker-class", \
-     "uvicorn_worker.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "3", \
-     "--access-logfile", "-", "--error-logfile", "-"]
+# server/gunicorn.conf.py runs Django's ASGI app on 3 uvicorn workers (SPEC DR-111);
+# tune them at runtime with GUNICORN_CMD_ARGS (e.g. "--workers 5"), which it gives way to.
+CMD ["gunicorn"]

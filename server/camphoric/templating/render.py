@@ -25,8 +25,8 @@ import traceback
 from jinja2 import Undefined
 from jinja2.exceptions import SecurityError, TemplateSyntaxError, UndefinedError
 
-from . import registry
-from .deadline import RenderTimeout, check_deadline, time_limit, watch
+from . import filters, registry, values
+from .deadline import RenderTimeout, check_deadline, time_limit, watch, watch_modules
 from .env import blank_none, make_env
 from .values import ReadOnlyDict, TemplateObject
 
@@ -162,6 +162,9 @@ def _finalize(value):
         _warn(('method', getattr(value, '__name__', None)), _printed_method_message(value))
     return blank_none(value)
 
+
+# Camphoric's own filters and values check the render deadline too (DR-111).
+watch_modules(filters, values)
 
 TEXT_ENV = make_env(autoescape=False, undefined=TrackingUndefined, finalize=_finalize)
 HTML_ENV = make_env(autoescape=True, undefined=TrackingUndefined, finalize=_finalize)
