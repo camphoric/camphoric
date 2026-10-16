@@ -35,6 +35,7 @@ describe('reportPrintDocument', () => {
     const css = doc.querySelector('style')!.textContent;
     expect(css).toContain('thead { display: table-header-group; }');
     expect(css).toContain('overflow-wrap: anywhere;');
+    expect(css).toContain('img { max-width: 100%; }');
   });
 
   it('prints markdown sanitized, keeping the page-break classes', () => {
@@ -73,6 +74,15 @@ describe('reportPrintDocument', () => {
     expect(styles[0]).not.toContain('font-family');
     expect(styles[1]).toBe('.tag { break-inside: avoid; }');
     expect(doc.querySelector('.tag')?.textContent).toBe('Pat');
+  });
+
+  it('parses an html report without a doctype as its on-screen frame does', () => {
+    // In quirks mode a <p> would hold the table; in standards mode it closes first.
+    const doc = parse(
+      reportPrintDocument('Tags', 'html', '<p>Intro<table><tr><td>Pat</td></tr></table>'),
+    );
+    expect(doc.querySelector('p table')).toBeNull();
+    expect(doc.querySelectorAll('p')).toHaveLength(1);
   });
 
   it('gives an html fragment a head and the report’s title', () => {

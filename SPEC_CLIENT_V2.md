@@ -1514,18 +1514,20 @@ DR-41); only reports saved in existing events before then still use the browser 
   without the admin page around it (§15, DR-113). It prints from a standalone document of the
   output alone, titled with the report's title, opened in the browser's print dialog from a
   hidden sandboxed frame that runs no scripts; no report content runs in the admin page, and
-  focus stays where it was. That
-  document:
+  focus stays where it was. The frame stays until the next print replaces it, since some
+  browsers report printing done while their print dialog is still open. That document:
   - **CSV** → a table numbered like the on-screen one, its header row in a `<thead>` so it
     repeats at the top of each printed page.
   - **Markdown** → the sanitized markdown→HTML output; **Text** → preformatted text.
-  - **HTML** → the report's own document, keeping its title and styles.
+  - **HTML** → the report's own document, keeping its title and styles, parsed in standards
+    mode as its on-screen frame is.
   - Every format gets page margins and these page-break classes, which report authors use in
     Markdown (on a `div` or `span`) and HTML: **`page-break`** starts a new page before the
-    element; **`no-break`** keeps the element on one page. Table rows, images and headings
-    don't split across pages. CSV, Markdown and Text are laid out in plain black-on-white type
-    with bordered tables that fit the page width, wrapping long values rather than losing
-    columns off the page's edge; an HTML report's look is its own. An HTML report's own styles —
+    element; **`no-break`** keeps the element on one page. Table rows and images don't split
+    across pages, and a heading stays on the page with what follows it. CSV, Markdown and Text
+    are laid out in plain black-on-white type with bordered tables, fitted to the page width:
+    tables, images and long values (in text, prose and cells alike) wrap or shrink rather than
+    running off the page's edge. An HTML report's look is its own. An HTML report's own styles —
     including `@media print` rules and `@page` margins — come after Camphoric's, so they win.
 
 **Legacy report template variables** (the bundle assembled client-side and passed to

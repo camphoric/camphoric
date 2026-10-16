@@ -208,8 +208,8 @@ Lodging requests are on the camper too: \`lodging_requested\`, \`lodging_shared\
 const PRINTING = `
 **Print** beside a report's output prints the output by itself, without the admin page around
 it. Every printed report gets page margins, and a CSV report's header row repeats at the top of
-each page. A wide table is fitted to the page width, wrapping long values; printing in landscape
-gives it more room.
+each page. CSV, Markdown and Text reports are fitted to the page width: long values wrap, and
+a wide table squeezes its columns, so printing in landscape gives it more room.
 
 Two classes control page breaks in Markdown and HTML reports, on a \`<div>\` or a \`<span>\`:
 

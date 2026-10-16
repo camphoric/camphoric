@@ -1,18 +1,15 @@
 /**
  * Print an HTML document by itself, without the page around it (SPEC §8.7).
  * The document loads into a hidden, sandboxed frame whose print dialog is then
- * opened; the frame goes away after printing, or when the next print starts.
+ * opened. The frame stays until the next print replaces it: some browsers
+ * report printing done while their dialog is still open, and removing the
+ * frame then would blank the print.
  */
 
 let current: HTMLIFrameElement | null = null;
 
-function discard(frame: HTMLIFrameElement) {
-  frame.remove();
-  if (current === frame) current = null;
-}
-
 export function printHtml(html: string, title: string): void {
-  if (current) discard(current);
+  current?.remove();
 
   const frame = document.createElement('iframe');
   current = frame;
@@ -34,11 +31,8 @@ export function printHtml(html: string, title: string): void {
   frame.addEventListener(
     'load',
     () => {
-      const win = frame.contentWindow;
-      if (!win) return;
-      win.addEventListener('afterprint', () => discard(frame), { once: true });
-      // Not focused first: focus would be lost when the frame goes.
-      win.print();
+      // Not focused first, so focus stays where it was.
+      frame.contentWindow?.print();
     },
     { once: true },
   );
