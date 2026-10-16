@@ -6,12 +6,18 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { ApiEditLease, Scalar } from 'api-types';
+import { useLiveFeedState } from 'store/liveFeed';
 import { getCsrfToken } from 'utils/csrf';
 import { apiFetch } from 'utils/fetch';
 
 export const LEASES = 'EditLease';
 
-/** How often a record's lease is looked at while it's open. */
+/**
+ * How often a record's lease is looked at while it's open. While the event's
+ * live change feed is open it says when a lease is taken or given up, so a
+ * record nobody holds isn't looked at; one someone holds still is, since a
+ * lease that simply lapses changes nothing to send a notice about (DR-112).
+ */
 const POLL_MS = 15_000;
 
 export const CLIENT_ID =
@@ -23,6 +29,7 @@ export const leaseKey = (model: string, id: Scalar) => [LEASES, model, String(id
 
 /** The record's current lease, or null; looked at again every so often. */
 export function useRecordLease(model: string | undefined, id: Scalar, enabled = true) {
+  const live = useLiveFeedState() === 'live';
   return useQuery({
     queryKey: [LEASES, model, String(id)],
     queryFn: async ({ signal }) => {
@@ -32,7 +39,7 @@ export function useRecordLease(model: string | undefined, id: Scalar, enabled = 
       return leases[0] ?? null;
     },
     enabled: enabled && !!model,
-    refetchInterval: POLL_MS,
+    refetchInterval: (query) => (live && !query.state.data ? false : POLL_MS),
     staleTime: 0,
   });
 }

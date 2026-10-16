@@ -45,6 +45,8 @@ export interface MutationOptions {
 
 export interface EntityHooks<T extends { id: Scalar }> {
   name: string;
+  /** Other entities its changes change too (refetched with it). */
+  alsoInvalidate: string[];
   listKey: (params?: ListParams) => QueryKey;
   detailKey: (id: Scalar) => QueryKey;
   useList: (params?: ListParams, enabled?: boolean) => UseQueryResult<T[]>;
@@ -157,5 +159,15 @@ export function createEntityHooks<T extends { id: Scalar }>(
     });
   };
 
-  return { name, listKey, detailKey, useList, useById, useCreate, useUpdate, useDelete };
+  return {
+    name,
+    alsoInvalidate,
+    listKey,
+    detailKey,
+    useList,
+    useById,
+    useCreate,
+    useUpdate,
+    useDelete,
+  };
 }

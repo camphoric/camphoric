@@ -25,7 +25,7 @@ npm run dev          # Vite on :3000, proxies /api -> http://localhost:8000
 ```
 
 `django` publishes `8000:8000` and `postgres` publishes on `5434`. The `django` service runs
-`migrate` + `collectstatic` + `runserver` on start.
+`migrate` + `collectstatic`, then the ASGI server (`uvicorn --reload`) on start.
 
 ## Lightest reload: native Django via pipenv
 
@@ -37,10 +37,12 @@ docker compose up postgres            # just the database
 cd server
 pipenv install
 pipenv run ./manage.py migrate
-pipenv run ./manage.py runserver 8000
+pipenv run uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --port 8000
 ```
 
 (Point it at the compose Postgres on `:5434` via the server's env/settings if it isn't already.)
+`./manage.py runserver 8000` works too, but it's WSGI: the admin's live updates (an event's
+change feed, SPEC DR-112) need the ASGI server, and without it the admin says they're off.
 
 ## Vagrant: parity checks only, not the inner loop
 

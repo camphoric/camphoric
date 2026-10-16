@@ -31,7 +31,11 @@ import type {
 import { createEntityHooks } from './createEntityHooks';
 
 export const organizationHooks = createEntityHooks<ApiOrganization>({ name: 'Organization' });
-export const eventHooks = createEntityHooks<ApiEvent>({ name: 'Event' });
+// The registration form is built from the event's configuration (§7).
+export const eventHooks = createEntityHooks<ApiEvent>({
+  name: 'Event',
+  alsoInvalidate: ['RegisterConfig', 'RegisterConfigAdmin'],
+});
 export const emailTemplateHooks = createEntityHooks<ApiEmailTemplate>({
   name: 'EmailTemplate',
   path: 'emailtemplates',
@@ -95,3 +99,31 @@ export const promoCodeHooks = createEntityHooks<ApiPromoCode>({
   path: 'promocodes',
   alsoInvalidate: ['Registration'],
 });
+
+/**
+ * What else each entity's changes change, as its mutations refetch it: live
+ * updates (hooks/useEventChangeFeed) refetch the same when someone else makes
+ * the change (§9.8; §15, DR-112).
+ */
+export const ALSO_CHANGES: Record<string, string[]> = Object.fromEntries(
+  [
+    organizationHooks,
+    eventHooks,
+    emailTemplateHooks,
+    emailUnsubscribeHooks,
+    emailAccountHooks,
+    registrationHooks,
+    registrationTypeHooks,
+    reportHooks,
+    invitationHooks,
+    lodgingHooks,
+    camperHooks,
+    depositHooks,
+    paymentHooks,
+    invoiceHooks,
+    customChargeHooks,
+    pricingOverrideHooks,
+    customChargeTypeHooks,
+    promoCodeHooks,
+  ].map((hooks) => [hooks.name, hooks.alsoInvalidate]),
+);

@@ -27,6 +27,11 @@ _request = ContextVar('camphoric_audit_request', default=None)
 _request_id = ContextVar('camphoric_audit_request_id', default=None)
 
 
+def current_request():
+    '''The request being handled, if any (the live feed's notices name who acted).'''
+    return _request.get()
+
+
 def request_id():
     '''The current request's id (settings.AUDITLOG_CID_GETTER).'''
     return _request_id.get()

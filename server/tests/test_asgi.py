@@ -54,6 +54,47 @@ class ConcurrencyTests(SimpleTestCase):
         stuck.set()
         await holder
 
+    async def test_an_events_live_feed_gives_its_turn_back_once_it_starts(self):
+        streaming = asyncio.Event()
+        seen = []
+
+        async def app(scope, receive, send):
+            seen.append(scope['path'])
+            if scope['path'].endswith('/stream/'):
+                await send({'type': 'http.response.start', 'status': 200, 'headers': []})
+                await streaming.wait()  # streams on
+
+        async def send(message):
+            pass
+
+        limited = limit_concurrency(app, 1, wait=0.05)
+        stream = asyncio.ensure_future(
+            limited({'type': 'http', 'path': '/api/events/4/stream/'}, None, send))
+        await asyncio.sleep(0)
+        await limited({'type': 'http', 'path': '/api/users/'}, None, send)
+        self.assertEqual(seen, ['/api/events/4/stream/', '/api/users/'])
+        streaming.set()
+        await stream
+
+    async def test_an_events_live_feed_waits_its_turn_to_start(self):
+        stuck = asyncio.Event()
+
+        async def app(scope, receive, send):
+            await stuck.wait()
+
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        limited = limit_concurrency(app, 1, wait=0.05)
+        holder = asyncio.ensure_future(limited({'type': 'http', 'path': '/api/users/'}, None, send))
+        await asyncio.sleep(0)
+        await limited({'type': 'http', 'path': '/api/events/4/stream/'}, None, send)
+        self.assertEqual(sent[0]['status'], 503)
+        stuck.set()
+        await holder
+
     async def test_lifespan_messages_pass_straight_through(self):
         seen = []
 
