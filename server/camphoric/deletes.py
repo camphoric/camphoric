@@ -304,6 +304,10 @@ def unassign_campers(lodging, result):
     result.covered.add(('camper', 'lodging'))
 
     def unassign():
+        # Their registrations first, as every camper write takes them (DR-109).
+        registrations = {camper.registration_id for camper in campers}
+        list(models.Registration.all_objects.select_for_update()
+             .filter(id__in=registrations).order_by('id'))
         for camper in campers:
             camper.lodging = None
             camper.stay = None

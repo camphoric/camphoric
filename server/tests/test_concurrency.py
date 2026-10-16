@@ -6,9 +6,13 @@ over without being seen.
 '''
 
 from decimal import Decimal
+import threading
+from unittest import mock
 
 from auditlog.models import LogEntry
-from rest_framework.test import APITestCase
+from django.db import connection
+from django.test import TransactionTestCase
+from rest_framework.test import APIClient, APITestCase
 
 from camphoric import models, roles
 from tests.factories import create_template_event, make_user
@@ -218,3 +222,60 @@ class InvoiceTests(VersionTestCase):
         response = self.client.post(f'{self.path}reopen/', {}, format='json',
                                     HTTP_IF_MATCH=f'"{version + 1}"')
         self.assertEqual(response.status_code, 412)
+
+
+class SimultaneousWriteTests(TransactionTestCase):
+    '''
+    Writes to one registration's records at the same moment wait their turn
+    rather than deadlock: each takes the registration's row before its own.
+    '''
+
+    def run_together(self, *requests):
+        '''Run (method, path, data) requests in threads that meet just before repricing.'''
+        user = make_user(roles.REGISTRAR, 'reggie')
+        barrier = threading.Barrier(len(requests), timeout=2)
+        reprice = models.Registration.recalculate_server_pricing
+
+        def meet_then_reprice(registration):
+            if threading.current_thread().name.startswith('write-'):
+                try:
+                    barrier.wait()
+                except threading.BrokenBarrierError:
+                    pass  # the other is waiting for the registration: as it should
+            return reprice(registration)
+
+        results = {}
+
+        def send(index, method, path, data):
+            client = APIClient()
+            client.force_authenticate(user)
+            try:
+                results[index] = getattr(client, method)(path, data, format='json').status_code
+            except Exception as error:
+                results[index] = repr(error)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=send, args=(i, *request), name=f'write-{i}')
+                   for i, request in enumerate(requests)]
+        with mock.patch.object(models.Registration, 'recalculate_server_pricing',
+                               meet_then_reprice):
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(30)
+        return [results[i] for i in range(len(requests))]
+
+    def test_two_campers_of_one_registration(self):
+        made = create_template_event()
+        self.assertEqual(self.run_together(
+            ('patch', f'/api/campers/{made.c1.id}/', {'admin_attributes': {'note': 1}}),
+            ('patch', f'/api/campers/{made.c2.id}/', {'admin_attributes': {'note': 2}}),
+        ), [200, 200])
+
+    def test_a_registration_and_one_of_its_campers(self):
+        made = create_template_event()
+        self.assertEqual(self.run_together(
+            ('patch', f'/api/registrations/{made.r1.id}/', {'registrant_email': 'p@example.org'}),
+            ('patch', f'/api/campers/{made.c1.id}/', {'admin_attributes': {'note': 1}}),
+        ), [200, 200])

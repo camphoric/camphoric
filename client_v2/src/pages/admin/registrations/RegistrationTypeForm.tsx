@@ -15,7 +15,7 @@ import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
-import { saveResolvingConflicts } from 'hooks/useEditableRecord';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
@@ -42,6 +42,11 @@ export function RegistrationTypeForm({
 }: RegistrationTypeFormProps) {
   const create = registrationTypeHooks.useCreate();
   const update = registrationTypeHooks.useUpdate({ handlesVersionConflict: true });
+  const saveType = useConflictAwareSave(regType, {
+    toForm: (current: ApiRegistrationType) => ({ name: current.name, label: current.label }),
+    saveRecord: update.mutateAsync,
+    label: 'registration type',
+  });
 
   const [name, setName] = useState(regType?.name ?? '');
   const [label, setLabel] = useState(regType?.label ?? '');
@@ -77,30 +82,13 @@ export function RegistrationTypeForm({
   const save = async () => {
     if (!valid) return;
     try {
-      if (regType && name === regType.name && label === regType.label) {
-        // Only the invitation email changed.
-        if (!(await invitationEmail.save())) return;
-      } else if (regType) {
-        const outcome = await saveResolvingConflicts(
-          {
-            id: regType.id,
-            base: { name: regType.name, label: regType.label },
-            version: regType.version,
-            form: { name, label },
-          },
-          {
-            toForm: (current: ApiRegistrationType) => ({
-              name: current.name,
-              label: current.label,
-            }),
-            saveRecord: update.mutateAsync,
-            label: 'registration type',
-            onRebase: ({ form }) => {
-              setName(form.name);
-              setLabel(form.label);
-            },
-          },
-        );
+      if (regType) {
+        // Sends nothing when only the invitation email changed, and remembers
+        // what it saved, so trying again (say, after fixing the email) starts there.
+        const outcome = await saveType({ name, label }, (form) => {
+          setName(form.name);
+          setLabel(form.label);
+        });
         if (outcome?.discarded) {
           setName(outcome.discarded.name);
           setLabel(outcome.discarded.label);

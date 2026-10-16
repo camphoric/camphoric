@@ -118,6 +118,21 @@ describe('useEditableRecord (SPEC §9.8, DR-109)', () => {
     expect(result.current.isDirty).toBe(false);
   });
 
+  it('is saved, without asking, when theirs is already just what I wanted', async () => {
+    const theirs = { ...v1, version: 2, notes: 'Mine' };
+    const saveRecord = vi.fn().mockRejectedValue(conflict(theirs));
+    const { result } = setup(saveRecord);
+    act(() => result.current.setField('notes', 'Mine'));
+    let answer: Camper | undefined;
+    await act(async () => {
+      answer = await result.current.save();
+    });
+    expect(openEditConflict).not.toHaveBeenCalled();
+    expect(saveRecord).toHaveBeenCalledTimes(1);
+    expect(answer).toBe(theirs);
+    expect(result.current.isDirty).toBe(false);
+  });
+
   it('sends nothing when nothing changed', async () => {
     const saveRecord = vi.fn();
     const { result } = setup(saveRecord);
