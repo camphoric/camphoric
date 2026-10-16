@@ -95,8 +95,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'camphoric_server.wsgi.application'
-# What production serves: gunicorn with uvicorn workers (DR-111).
+# What production serves: gunicorn with uvicorn workers (DR-111). Each worker
+# serves this many requests at once (each with its own database connection);
+# the rest wait up to the queue wait in seconds, then get a 503 (asgi.py).
 ASGI_APPLICATION = 'camphoric_server.asgi.application'
+CAMPHORIC_WORKER_CONCURRENCY = env.int('CAMPHORIC_WORKER_CONCURRENCY', default=4)
+CAMPHORIC_WORKER_QUEUE_WAIT = env.float('CAMPHORIC_WORKER_QUEUE_WAIT', default=30)
+if CAMPHORIC_WORKER_CONCURRENCY < 1 or CAMPHORIC_WORKER_QUEUE_WAIT <= 0:
+    raise ImproperlyConfigured(
+        'CAMPHORIC_WORKER_CONCURRENCY must be at least 1, '
+        'and CAMPHORIC_WORKER_QUEUE_WAIT more than 0.')
 
 
 # Database

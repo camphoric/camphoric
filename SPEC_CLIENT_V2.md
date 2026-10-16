@@ -1938,8 +1938,9 @@ example and its result.
   but can build their own lists and dicts (`{% set rows = [] %}`, `namespace`, `merge`).
 - **Sandboxed, with limits** — templates run in Jinja's sandbox (no Python internals, no model
   methods), with a render time limit and an output-size cap (§15, DR-37). Legacy reports also
-  render sandboxed, with the report time limit. The time limit is checked at every loop turn and
-  branch of the template, in whichever thread renders it (§15, DR-111).
+  render sandboxed, with the report time limit. The time limit is checked at every call, loop turn
+  and branch of the template and of the filters it uses, in whichever thread renders it (§15,
+  DR-111).
 - **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
   sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
@@ -4540,12 +4541,17 @@ change feed; polling is enough until it exists.
 (three by default), and talks to Postgres through psycopg 3, built against the system libpq.
 Views stay synchronous: Django runs each request's view in a thread of its own, with its own
 database connection, so each worker lets in at most `CAMPHORIC_WORKER_CONCURRENCY` requests at
-once (default 4) and queues the rest, keeping connections bounded. A streaming response can wait
-without holding a worker. Template rendering's time limit is a deadline checked at every jump
-(loop turn, branch) of the template's compiled code, through Python's `sys.monitoring`, so it
-holds in any thread; legacy reports now have the report limit too. gunicorn's `--timeout` no
-longer stops a slow request, so nothing else does: a view that never returns holds its thread
-until the worker restarts. Behind nginx on a unix socket, gunicorn trusts the forwarded headers
+once (default 4) and queues the rest, keeping connections bounded; one queued past
+`CAMPHORIC_WORKER_QUEUE_WAIT` (30 s) is answered 503. A streaming response waits on the event loop
+rather than a thread, but holds a slot like any request, so a long-lived stream must be let
+past the cap. Template rendering's time limit is a deadline checked, through Python's
+`sys.monitoring`, at every function call, loop turn and branch of the template's compiled code
+and of the Jinja and Camphoric filters, tests and runtime it uses, so it holds in any thread and
+through recursion; only a single call into Python's own C code (sorting a huge list) runs to its
+end first. Legacy reports now have the 20 s report limit, where gunicorn's 30 s worker timeout
+was their only bound. gunicorn's `--timeout` no longer stops a slow request: outside templates,
+a view that never returns keeps its slot until the worker restarts, and once a worker's slots
+are all held, requests to it get 503s rather than hanging. Behind nginx on a unix socket, gunicorn trusts the forwarded headers
 (only nginx reaches the socket), so links keep https.
 **Context:** The live change feed (#770) holds a response open per admin viewing an event; a
 sync worker can't, and it listens on Postgres `LISTEN/NOTIFY`, which needs psycopg 3's async
@@ -4557,8 +4563,8 @@ Channels — more infrastructure than a one-way feed needs; rejected. gunicorn's
 newer and less proven than uvicorn's; worth revisiting. A tracing
 hook for the render limit — checks every line but slows every render; rejected. Running renders
 in a subprocess to kill them — heavy for every email and preview; rejected. Checking the deadline
-only in the sandbox's lookups, calls and arithmetic — comparisons, filters and plain loops slip
-past it; rejected. A watchdog that restarts a worker running any request too long — it would
+only in the sandbox's lookups, calls and arithmetic, or only at loop turns — comparisons,
+filters and recursion slip past it; rejected. A watchdog that restarts a worker running any request too long — it would
 take the worker's other requests down with it; left for later if a slow view ever appears.
 
 ---

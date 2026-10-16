@@ -189,6 +189,23 @@ class RenderTests(TestCase):
         [error] = self.errors(result)
         self.assertEqual(error.kind, 'timeout')
 
+    def test_timeout_of_recursion_without_loops(self):
+        for template in (
+            '{% macro f(n) %}{% if n > 0 %}{{ f(n-1) }}{{ f(n-1) }}{% endif %}{% endmacro %}'
+            '{{ f(40) }}',
+            '{% macro f(n) %}{{ n > 0 and (f(n-1) ~ f(n-1)) }}{% endmacro %}{{ f(40) }}',
+        ):
+            result = self.render(template, limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            [error] = self.errors(result)
+            self.assertEqual(error.kind, 'timeout', template)
+
+    def test_timeout_inside_a_filter(self):
+        result = self.render(
+            '{% set r = range(100000) | list %}{{ r | select("in", r) | list | length }}',
+            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+        [error] = self.errors(result)
+        self.assertEqual(error.kind, 'timeout')
+
     def test_no_limit_is_left_behind(self):
         self.render('{{ 1 + 1 }}', limits=RenderLimits(timeout_s=0.01, max_output_chars=100))
         time.sleep(0.02)
