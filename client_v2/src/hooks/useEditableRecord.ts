@@ -218,6 +218,8 @@ export async function saveResolvingConflicts<R extends VersionedRecord, F extend
       const current = versionConflict<R>(error);
       if (!current) return undefined;
       const theirs = toForm(current);
+      // It already holds just what this edit wanted.
+      if (isEqual(theirs, form)) return { saved: current };
       if (!isEqual(theirs, base)) {
         const choice = await openEditConflict({ label, base, mine: form, theirs, fieldLabels });
         if (choice === 'discard') return { discarded: current };

@@ -2173,7 +2173,8 @@ hasn't seen (§15, DR-109).
   record as it is now.
 - **A refused save asks — when it matters.** When the server refuses a save (412) but the other
   person changed none of the fields the edit covers, the edit moves to their version and is saved
-  again without asking. Otherwise the user sees what they
+  again without asking; when their version already holds just the user's changes, it counts as
+  saved. Otherwise the user sees what they
   changed, what the other person changed, and what both changed — compared field by field, and
   key by key inside objects such as `attributes` (arrays are compared whole). Leaving without
   choosing isn't offered; the user either:
@@ -4463,7 +4464,10 @@ three versions field by field (and key by key inside objects such as `attributes
 user to put their changes on top of the other person's or drop them — or, when the other person
 changed nothing the edit covers, saves again from their version without asking. A pricing
 recalculation writes only the prices, and every API write locks the row before reading it, so a
-copy read before someone else's edit is never written back over it. Edit forms stop following
+copy read before someone else's edit is never written back over it. A write to a camper, custom
+charge or pricing override locks its registration first, as saving one reprices the whole
+registration; taking them in that order, two writes to one family wait their turn rather than
+deadlock. Edit forms stop following
 refetches once edited. `If-Match` stays optional while the V1 client is in use. Lodging moves and
 camper reorders send no version (§9.8).
 **Context:** Several registrars work on an event at once, and the second of two saves silently

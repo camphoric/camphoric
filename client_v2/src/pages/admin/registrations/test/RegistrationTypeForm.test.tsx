@@ -98,6 +98,22 @@ describe('RegistrationTypeForm', () => {
     expect(draft.save).toHaveBeenCalled();
   });
 
+  it('renames once, though its email has to be fixed and saved again', async () => {
+    const user = userEvent.setup();
+    update.mockResolvedValue({ ...REG_TYPE, label: 'Staff member', version: 3 });
+    draft.save.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    renderWithProviders(
+      <RegistrationTypeForm eventId="4" regType={REG_TYPE} opened onClose={vi.fn()} />,
+    );
+    await user.type(screen.getByLabelText(/Label/), ' member');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledWith({ id: 3, version: 2, label: 'Staff member' });
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(draft.save).toHaveBeenCalledTimes(2);
+  });
+
   it('asks before closing with the invitation email changed, then discards it', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();

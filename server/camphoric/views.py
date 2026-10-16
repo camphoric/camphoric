@@ -189,6 +189,22 @@ def if_match_versions(request):
     return versions
 
 
+def lock_registration_first(instance):
+    '''
+    Lock the registration a camper, charge or override prices into, before the
+    record itself. Saving any of them reprices the whole registration, writing
+    its campers and itself; taking the registration first, as every such write
+    does, keeps two at once from each holding a row the other needs (DR-109).
+    '''
+    if isinstance(instance, models.CustomCharge):
+        registration_id = instance.camper.registration_id
+    elif isinstance(instance, (models.Camper, models.PricingOverride)):
+        registration_id = instance.registration_id
+    else:
+        return
+    models.Registration.all_objects.select_for_update().filter(pk=registration_id).first()
+
+
 class VersionCheckMixin:
     '''
     Optimistic concurrency (SPEC §5, DR-109). A PATCH, PUT or DELETE that sends
@@ -214,6 +230,7 @@ class VersionCheckMixin:
         else None. Call it inside a transaction: it locks the row until commit.
         '''
         instance = self.get_object()
+        lock_registration_first(instance)
         current = (type(instance)._base_manager.select_for_update()
                    .filter(pk=instance.pk).values_list('version', flat=True).first())
         expected = if_match_versions(self.request)
