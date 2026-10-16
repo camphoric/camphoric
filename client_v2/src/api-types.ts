@@ -1116,11 +1116,10 @@ export interface AudienceSkipped {
   camper: number | null;
 }
 
-/** An address unsubscribed from an event's group email (SPEC §5; §15 DR-48). */
 /**
  * Who is editing a record (SPEC §5, §9.8; §15, DR-110): `GET/POST /api/leases/`.
  * `model` is the record's kind (`registration`, `camper`, …); `client_id` the
- * browser tab holding it.
+ * page holding it, for `holder`.
  */
 export interface ApiEditLease {
   id: number;
@@ -1133,6 +1132,7 @@ export interface ApiEditLease {
   expires_at: string;
 }
 
+/** An address unsubscribed from an event's group email (SPEC §5; §15 DR-48). */
 export interface ApiEmailUnsubscribe {
   id: number;
   event: number;

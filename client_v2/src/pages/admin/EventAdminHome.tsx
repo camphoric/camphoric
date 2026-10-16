@@ -123,6 +123,7 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
     label: 'event',
     lease: 'event',
     unsavedElsewhere: confirmation.changed || invoiceEmail.changed,
+    alsoRefresh: ['EmailTemplate'],
     fieldLabels: {
       start: 'Event starts',
       end: 'Event ends',

@@ -13,6 +13,8 @@ const store = vi.hoisted(() => ({
   releaseLease: vi.fn(),
 }));
 
+vi.mock('hooks/auth', () => ({ useCurrentUser: () => ({ data: { id: 9 } }) }));
+
 vi.mock('store/leases', () => ({
   CLIENT_ID: 'my-tab',
   leaseKey: (model: string, id: unknown) => ['EditLease', model, String(id)],
@@ -37,15 +39,18 @@ let invalidate: ReturnType<typeof vi.spyOn>;
 const held = (theirs: ApiEditLease) =>
   new ApiError(409, 'Conflict', { code: 'lease_held', lease: theirs });
 
-function setup(isDirty = false) {
+function setup(isDirty = false, alsoRefresh: string[] = []) {
   const client = new QueryClient();
   invalidate = vi.spyOn(client, 'invalidateQueries');
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client }, children);
-  return renderHook(({ dirty }: { dirty: boolean }) => useEditLease('camper', 1, dirty), {
-    initialProps: { dirty: isDirty },
-    wrapper,
-  });
+  return renderHook(
+    ({ dirty }: { dirty: boolean }) => useEditLease('camper', 1, dirty, alsoRefresh),
+    {
+      initialProps: { dirty: isDirty },
+      wrapper,
+    },
+  );
 }
 
 beforeEach(() => {
@@ -131,6 +136,60 @@ describe('useEditLease (SPEC §9.8, DR-110)', () => {
     store.current = null;
     rerender({ dirty: false });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['Camper'] });
+  });
+
+  it('gives up a takeover that comes back after the form closed', async () => {
+    let answer: (lease: ApiEditLease) => void = () => undefined;
+    store.current = alex;
+    store.takeLease.mockReset().mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const { result, unmount } = setup();
+    let taking: Promise<void> = Promise.resolve();
+    act(() => {
+      taking = result.current.takeOver();
+    });
+    unmount();
+    await act(async () => {
+      answer(lease());
+      await taking;
+    });
+    expect(store.releaseLease).toHaveBeenCalledWith(5);
+  });
+
+  it('ignores a refusal overtaken by a takeover', async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const refusals: ((error: unknown) => void)[] = [];
+    store.takeLease
+      .mockReset()
+      .mockImplementation(
+        () => new Promise((resolve, reject) => (answers.push(resolve), refusals.push(reject))),
+      );
+    const { result } = setup(true);
+    await act(() => vi.advanceTimersByTimeAsync(0)); // a renewal on its way
+    let taking: Promise<void> = Promise.resolve();
+    act(() => {
+      taking = result.current.takeOver();
+    });
+    await act(async () => {
+      answers[1](lease());
+      await taking;
+      refusals[0](held(alex));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.other).toBeNull();
+  });
+
+  it('fetches more besides the record when told to', () => {
+    store.current = alex;
+    const { rerender } = setup(false, ['EmailTemplate']);
+    store.current = null;
+    rerender({ dirty: false });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['EmailTemplate'] });
+  });
+
+  it('sees a lease another user took on this page as theirs', () => {
+    store.current = lease({ holder: { id: 7, name: 'Alex' } });
+    const { result } = setup();
+    expect(result.current.other?.holder.name).toBe('Alex');
   });
 
   it('isn’t shown its own lease as someone else’s', () => {

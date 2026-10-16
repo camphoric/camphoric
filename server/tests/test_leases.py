@@ -136,6 +136,7 @@ class ListAndReleaseTests(LeaseTestCase):
     def test_only_its_tab_gives_it_up(self):
         lease = self.take().data
         self.client.delete(f'/api/leases/{lease["id"]}/?client_id=tab-2')
+        self.as_alex().delete(f'/api/leases/{lease["id"]}/?client_id=tab-1')
         self.assertTrue(models.EditLease.objects.filter(pk=lease['id']).exists())
         response = self.client.delete(f'/api/leases/{lease["id"]}/?client_id=tab-1')
         self.assertEqual(response.status_code, 204)
@@ -165,3 +166,13 @@ class EdgeTests(LeaseTestCase):
         self.assertEqual(preview.status_code, 200)
         self.assertTrue(preview.data['can_delete'])
         self.assertNotIn('edit lease', str(preview.data).lower())
+
+
+class SignedInAgainTests(LeaseTestCase):
+    def test_another_user_on_the_same_page_is_another_holder(self):
+        self.take('tab-1')
+        response = self.take('tab-1', client=self.as_alex())
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data['lease']['holder']['id'], self.reggie.id)
+        taken = self.take('tab-1', takeover=True, client=self.as_alex())
+        self.assertEqual(taken.data['holder']['id'], self.alex.id)

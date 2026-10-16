@@ -54,6 +54,8 @@ export interface EditableRecordWithLease<
   lease?: string;
   /** The page has unsaved changes that belong with this record's (Home's email drafts). */
   unsavedElsewhere?: boolean;
+  /** Their entities, fetched afresh with the record when someone else's lease ends. */
+  alsoRefresh?: string[];
 }
 
 export interface EditableRecord<R, F> {
@@ -85,6 +87,7 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
     fieldLabels,
     lease: model,
     unsavedElsewhere = false,
+    alsoRefresh,
   }: EditableRecordWithLease<R, F>,
 ): EditableRecord<R, F> {
   const fromRecord = (from: R): Edit<R, F> => {
@@ -97,7 +100,7 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
   latest.current = state;
 
   const isDirty = !isEqual(state.base, state.form);
-  const lease = useEditLease(model, record.id, isDirty || unsavedElsewhere);
+  const lease = useEditLease(model, record.id, isDirty || unsavedElsewhere, alsoRefresh);
 
   // Follow the record while there's nothing to lose. Only a newer version is
   // news: a refetch of the same one isn't, nor is an older copy still cached
