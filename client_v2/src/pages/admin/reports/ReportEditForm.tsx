@@ -20,6 +20,7 @@ import type { ApiReport, Hash, ReportOutputType, ReportVariablesSource } from 'a
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { TemplateEditor } from 'components/TemplateEditor';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useEffect, useMemo, useState } from 'react';
 import { reportHooks } from 'store/entities';
 
@@ -45,6 +46,11 @@ const LEGACY_TEMPLATE_LANGUAGE: Record<ReportOutputType, string> = {
   html: 'html',
 };
 
+type ReportFields = Pick<
+  ApiReport,
+  'title' | 'output' | 'template' | 'variables_schema' | 'variables_source'
+>;
+
 interface ReportEditFormProps {
   eventId: string;
   /** Omitted when creating a new report. */
@@ -66,7 +72,19 @@ export function ReportEditForm({
   onDirtyChange,
 }: ReportEditFormProps) {
   const create = reportHooks.useCreate();
-  const update = reportHooks.useUpdate();
+  const update = reportHooks.useUpdate({ handlesVersionConflict: true });
+  const saveReport = useConflictAwareSave(report, {
+    toForm: (record: ApiReport) => ({
+      title: record.title,
+      output: record.output,
+      template: record.template,
+      variables_schema: record.variables_schema,
+      variables_source: record.variables_source,
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'report',
+    fieldLabels: { variables_schema: 'Variables schema', variables_source: 'Variables from' },
+  });
 
   const [title, setTitle] = useState(report?.title ?? '');
   const [source, setSource] = useState<ReportVariablesSource>(report?.variables_source ?? 'server');
@@ -132,7 +150,15 @@ export function ReportEditForm({
     });
   };
 
-  const save = () => {
+  const show = (fields: ReportFields) => {
+    setTitle(fields.title);
+    setOutput(fields.output);
+    setTemplate(fields.template);
+    setSource(fields.variables_source);
+    setSchemaText(JSON.stringify(fields.variables_schema ?? {}, null, 2));
+  };
+
+  const save = async () => {
     const variables_schema = isServer
       ? (report?.variables_schema ?? {})
       : (JSON.parse(schemaText) as Hash);
@@ -143,7 +169,11 @@ export function ReportEditForm({
     };
 
     if (report) {
-      update.mutate({ id: report.id, ...fields }, { onSuccess });
+      // From the version the form opened at, so a change someone else saved
+      // meanwhile is never overwritten unseen (§9.8, DR-109).
+      const outcome = await saveReport(fields, show);
+      if (outcome?.saved) onSuccess(outcome.saved);
+      if (outcome?.discarded) show(outcome.discarded);
     } else {
       create.mutate({ event: eventId, ...fields }, { onSuccess });
     }
@@ -214,7 +244,11 @@ export function ReportEditForm({
         </Stack>
       )}
       <FormActions dirty={dirty} justify="flex-start">
-        <Button onClick={save} disabled={!canSave} loading={create.isPending || update.isPending}>
+        <Button
+          onClick={() => void save()}
+          disabled={!canSave}
+          loading={create.isPending || update.isPending}
+        >
           Save
         </Button>
         <Button variant="default" onClick={onCancel}>

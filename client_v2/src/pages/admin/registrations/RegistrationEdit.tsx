@@ -5,7 +5,9 @@
  * changes and its campers', payments' and charges', DR-53), and a raw record for
  * debugging — with a pinned action bar (Save / Delete) always visible below the
  * scrolling section. Save persists `{ registrant_email, registration_type,
- * promo_code, attributes, admin_attributes }` in a single PATCH; the registration can be
+ * promo_code, attributes, admin_attributes }` in a single PATCH, of what changed and
+ * from which version, so a change someone else saved meanwhile is never overwritten
+ * unseen (§9.8, DR-109); the registration can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55). The
  * attributes form is rendered in admin mode (§9.5). The open section is
  * URL-addressable via `?regTab`.
@@ -13,16 +15,25 @@
 
 import { Box, Button, ScrollArea, Select, Stack, Tabs, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import type { ApiEvent, AugmentedRegistration, Hash, RegistrationTypeLookup } from 'api-types';
+import type {
+  ApiEvent,
+  ApiRegistration,
+  AugmentedRegistration,
+  Hash,
+  RegistrationTypeLookup,
+  Scalar,
+} from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { StaleRecordNotice } from 'components/EditConflict';
 import { deriveAdminUiSchema, JsonSchemaForm } from 'components/form';
 import { FormActions } from 'components/FormActions';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { promoCodeHooks, registrationHooks } from 'store/entities';
 
 import { RegistrationInvoices } from './invoices';
@@ -30,8 +41,25 @@ import { RegistrationCampers } from './RegistrationCampers';
 
 const NONE = 'none';
 
-const promoCodeValue = (registration: AugmentedRegistration) =>
-  registration.promo_code == null ? NONE : String(registration.promo_code);
+const toSelect = (id: Scalar | null | undefined) => (id == null ? NONE : String(id));
+const fromSelect = (value: string | null) =>
+  value == null || value === NONE ? null : Number(value);
+
+/** What the attributes tab edits. */
+const toForm = (registration: ApiRegistration) => ({
+  registrant_email: registration.registrant_email,
+  registration_type: registration.registration_type ?? null,
+  promo_code: registration.promo_code ?? null,
+  attributes: registration.attributes,
+  admin_attributes: registration.admin_attributes,
+});
+
+const FIELD_LABELS = {
+  registrant_email: 'Registrant email',
+  registration_type: 'Registration type',
+  promo_code: 'Promo code',
+  admin_attributes: 'Admin attributes',
+};
 
 interface RegistrationEditProps {
   event: ApiEvent;
@@ -46,28 +74,15 @@ export function RegistrationEdit({
   registrationTypes,
   onDeleted,
 }: RegistrationEditProps) {
-  const update = registrationHooks.useUpdate();
+  const update = registrationHooks.useUpdate({ handlesVersionConflict: true });
   const del = registrationHooks.useDelete();
-
-  const [email, setEmail] = useState(registration.registrant_email);
-  const [regType, setRegType] = useState<string>(
-    registration.registration_type == null ? NONE : String(registration.registration_type),
-  );
-  const [promoCode, setPromoCode] = useState<string>(promoCodeValue(registration));
-  const [attributes, setAttributes] = useState<Hash>(registration.attributes);
-  const [adminAttributes, setAdminAttributes] = useState<Hash>(registration.admin_attributes);
+  const { form, setField, isStale, loadLatest, save } = useEditableRecord(registration, {
+    toForm,
+    saveRecord: update.mutateAsync,
+    label: 'registration',
+    fieldLabels: FIELD_LABELS,
+  });
   const { canEdit } = usePermissions();
-
-  // Reset the controlled fields when a different registration is selected.
-  useEffect(() => {
-    setEmail(registration.registrant_email);
-    setRegType(
-      registration.registration_type == null ? NONE : String(registration.registration_type),
-    );
-    setPromoCode(promoCodeValue(registration));
-    setAttributes(registration.attributes);
-    setAdminAttributes(registration.admin_attributes);
-  }, [registration]);
 
   const { data: promoCodes } = promoCodeHooks.useList({ event: event.id });
 
@@ -102,18 +117,9 @@ export function RegistrationEdit({
       : []),
   ];
 
-  const save = () =>
-    update.mutate(
-      {
-        id: registration.id,
-        registrant_email: email,
-        registration_type: regType === NONE ? null : Number(regType),
-        promo_code: promoCode === NONE ? null : Number(promoCode),
-        attributes,
-        admin_attributes: adminAttributes,
-      },
-      { onSuccess: () => notifications.show({ color: 'green', message: 'Registration saved' }) },
-    );
+  const saveRegistration = async () => {
+    if (await save()) notifications.show({ color: 'green', message: 'Registration saved' });
+  };
 
   const confirmDeleteRegistration = () =>
     confirmDelete({
@@ -121,7 +127,11 @@ export function RegistrationEdit({
       id: registration.id,
       title: 'Delete registration',
       message: <>Delete the registration for “{registration.registrant_email}”?</>,
-      onConfirm: () => del.mutate({ id: registration.id }, { onSuccess: onDeleted }),
+      onConfirm: () =>
+        del.mutate(
+          { id: registration.id, version: registration.version },
+          { onSuccess: onDeleted },
+        ),
     });
 
   return (
@@ -141,6 +151,7 @@ export function RegistrationEdit({
         </Tabs.List>
         <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
           <Box py="md">
+            {isStale && <StaleRecordNotice label="registration" onLoadLatest={loadLatest} />}
             <Tabs.Panel value="attributes">
               <Stack>
                 <ReadOnlyFieldset>
@@ -148,8 +159,8 @@ export function RegistrationEdit({
                     <Select
                       label="Registration type"
                       data={typeOptions}
-                      value={regType}
-                      onChange={(value) => setRegType(value ?? NONE)}
+                      value={toSelect(form.registration_type)}
+                      onChange={(value) => setField('registration_type', fromSelect(value))}
                       allowDeselect={false}
                       maw={320}
                     />
@@ -157,15 +168,15 @@ export function RegistrationEdit({
                       label="Promo code"
                       description="Changing it reprices the registration."
                       data={promoOptions}
-                      value={promoCode}
-                      onChange={(value) => setPromoCode(value ?? NONE)}
+                      value={toSelect(form.promo_code)}
+                      onChange={(value) => setField('promo_code', fromSelect(value))}
                       allowDeselect={false}
                       maw={320}
                     />
                     <TextInput
                       label="Registrant email"
-                      value={email}
-                      onChange={(e) => setEmail(e.currentTarget.value)}
+                      value={form.registrant_email}
+                      onChange={(e) => setField('registrant_email', e.currentTarget.value)}
                       maw={320}
                     />
                   </Stack>
@@ -173,7 +184,7 @@ export function RegistrationEdit({
                 <JsonSchemaForm
                   schema={event.registration_schema}
                   uiSchema={adminUiSchema}
-                  formData={attributes}
+                  formData={form.attributes}
                   templateData={{
                     ...event.registration_template_vars,
                     pricing: event.pricing,
@@ -184,7 +195,7 @@ export function RegistrationEdit({
                   // block saving (admins may need to save partial or legacy data).
                   liveValidate
                   errorMessages={{ rules: event.registration_error_messages }}
-                  onChange={(formData) => setAttributes(formData as Hash)}
+                  onChange={(formData) => setField('attributes', formData as Hash)}
                 >
                   <></>
                 </JsonSchemaForm>
@@ -194,8 +205,8 @@ export function RegistrationEdit({
               <Tabs.Panel value="admin">
                 <AdminAttributesForm
                   adminSchema={event.registration_admin_schema}
-                  value={adminAttributes}
-                  onChange={setAdminAttributes}
+                  value={form.admin_attributes}
+                  onChange={(value) => setField('admin_attributes', value)}
                 />
               </Tabs.Panel>
             )}
@@ -220,7 +231,7 @@ export function RegistrationEdit({
       </Tabs>
       <CanEdit>
         <FormActions justify="space-between">
-          <Button onClick={save} loading={update.isPending}>
+          <Button onClick={() => void saveRegistration()} loading={update.isPending}>
             Save
           </Button>
           <Button

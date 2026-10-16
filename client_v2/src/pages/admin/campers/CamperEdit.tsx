@@ -5,8 +5,8 @@
  * Admin attributes, Fees, History (Registrars and Admins; DR-53), and a raw
  * record for debugging — with a pinned action bar (Save /
  * Delete) always visible below the scrolling section. Save persists the camper's
- * `attributes` and `admin_attributes`, and their `stay` when it's changed, in a
- * single PATCH; the camper can be
+ * `attributes` and `admin_attributes`, and their `stay`, in a single PATCH of
+ * what changed and from which version (§9.8, DR-109); the camper can be
  * deleted after confirming what that does, and restored later (DR-54, DR-55).
  * The open section is URL-addressable via `?camperTab`.
  *
@@ -20,15 +20,17 @@ import { Box, Button, ScrollArea, Tabs } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiCamper, ApiEvent, Hash, LodgingLookup } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { StaleRecordNotice } from 'components/EditConflict';
 import { JsonSchemaForm } from 'components/form';
 import { FormActions } from 'components/FormActions';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { stayWithinStayableDays } from 'pages/admin/lodging/timelineUtils';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { camperHooks } from 'store/entities';
 import { eventDays } from 'utils/dates';
 
@@ -58,25 +60,24 @@ export function CamperEdit({
   onSelectCamper,
   onOpenLodging,
 }: CamperEditProps) {
-  const update = camperHooks.useUpdate();
+  const update = camperHooks.useUpdate({ handlesVersionConflict: true });
   const del = camperHooks.useDelete();
-  const [attributes, setAttributes] = useState<Hash>(camper.attributes);
-  const [adminAttributes, setAdminAttributes] = useState<Hash>(camper.admin_attributes);
   const { canEdit } = usePermissions();
 
   const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
-  const savedStay = useMemo(() => stayWithinStayableDays(camper.stay, days), [camper.stay, days]);
-  const [stay, setStay] = useState(savedStay);
+  // Only what changed is sent, so saving the attributes leaves the stay as the
+  // lodging screen left it.
+  const { form, setField, isStale, loadLatest, save } = useEditableRecord(camper, {
+    toForm: (record: ApiCamper) => ({
+      attributes: record.attributes,
+      admin_attributes: record.admin_attributes,
+      stay: stayWithinStayableDays(record.stay, days),
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'camper',
+    fieldLabels: { admin_attributes: 'Admin attributes', stay: 'Days present' },
+  });
   const lodgingSummary = camperLodgingSummary(camper, lodgingLookup);
-  // Only a placed camper's days can be set (§8.6), and only a change is sent:
-  // saving the attributes leaves the stay as the lodging screen left it.
-  const stayChanged = lodgingSummary.path !== null && stay.join() !== savedStay.join();
-
-  useEffect(() => {
-    setAttributes(camper.attributes);
-    setAdminAttributes(camper.admin_attributes);
-  }, [camper]);
-  useEffect(() => setStay(savedStay), [savedStay]);
 
   const { schema, uiSchema } = useCamperForm(event);
 
@@ -90,16 +91,9 @@ export function CamperEdit({
     'raw',
   ]);
 
-  const save = () =>
-    update.mutate(
-      {
-        id: camper.id,
-        attributes,
-        admin_attributes: adminAttributes,
-        ...(stayChanged ? { stay } : {}),
-      },
-      { onSuccess: () => notifications.show({ color: 'green', message: 'Camper saved' }) },
-    );
+  const saveCamper = async () => {
+    if (await save()) notifications.show({ color: 'green', message: 'Camper saved' });
+  };
 
   const confirmDeleteCamper = () =>
     confirmDelete({
@@ -107,7 +101,8 @@ export function CamperEdit({
       id: camper.id,
       title: 'Delete camper',
       message: <>Delete the camper “{name}”?</>,
-      onConfirm: () => del.mutate({ id: camper.id }, { onSuccess: onDeleted }),
+      onConfirm: () =>
+        del.mutate({ id: camper.id, version: camper.version }, { onSuccess: onDeleted }),
     });
 
   return (
@@ -127,11 +122,12 @@ export function CamperEdit({
         </Tabs.List>
         <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
           <Box py="md">
+            {isStale && <StaleRecordNotice label="camper" onLoadLatest={loadLatest} />}
             <Tabs.Panel value="attributes">
               <JsonSchemaForm
                 schema={schema}
                 uiSchema={uiSchema}
-                formData={attributes}
+                formData={form.attributes}
                 templateData={{
                   ...event.registration_template_vars,
                   pricing: event.pricing,
@@ -145,7 +141,7 @@ export function CamperEdit({
                   pathPrefix: 'campers.*',
                   camper: { label: name },
                 }}
-                onChange={(formData) => setAttributes(formData as Hash)}
+                onChange={(formData) => setField('attributes', formData as Hash)}
               >
                 <></>
               </JsonSchemaForm>
@@ -154,8 +150,8 @@ export function CamperEdit({
               <CamperLodging
                 summary={lodgingSummary}
                 days={days}
-                stay={stay}
-                onStayChange={setStay}
+                stay={form.stay}
+                onStayChange={(stay) => setField('stay', stay)}
                 onSelectCamper={onSelectCamper}
                 onOpenLodging={() => onOpenLodging(camper.id)}
               />
@@ -164,8 +160,8 @@ export function CamperEdit({
               <Tabs.Panel value="admin">
                 <AdminAttributesForm
                   adminSchema={event.camper_admin_schema}
-                  value={adminAttributes}
-                  onChange={setAdminAttributes}
+                  value={form.admin_attributes}
+                  onChange={(value) => setField('admin_attributes', value)}
                 />
               </Tabs.Panel>
             )}
@@ -185,7 +181,7 @@ export function CamperEdit({
       </Tabs>
       <CanEdit>
         <FormActions justify="space-between">
-          <Button onClick={save} loading={update.isPending}>
+          <Button onClick={() => void saveCamper()} loading={update.isPending}>
             Save
           </Button>
           <Button variant="light" color="red" onClick={confirmDeleteCamper} loading={del.isPending}>

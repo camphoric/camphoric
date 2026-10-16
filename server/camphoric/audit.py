@@ -59,8 +59,8 @@ def credit_request_user(sender, instance, **kwargs):
         instance.actor_email = user.email
 
 
-# Every save changes these.
-TIMESTAMPS = ['created_at', 'updated_at']
+# Every save changes these (`version` counts edits for If-Match, DR-109).
+TIMESTAMPS = ['created_at', 'updated_at', 'version']
 
 
 def register_models():

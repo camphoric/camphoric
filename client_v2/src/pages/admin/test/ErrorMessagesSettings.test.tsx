@@ -6,10 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ErrorMessagesSettings } from '../ErrorMessagesSettings';
 
-const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
+// Saving answers with the event as saved.
+const { mutateAsync } = vi.hoisted(() => ({
+  mutateAsync: vi.fn((body: object) => Promise.resolve({ id: 7, version: 2, ...body })),
+}));
 
 vi.mock('store/entities', () => ({
-  eventHooks: { useUpdate: () => ({ mutate, isPending: false }) },
+  eventHooks: { useUpdate: () => ({ mutateAsync, isPending: false }) },
 }));
 
 const dataSchema = {
@@ -59,7 +62,7 @@ const lodgingRule = {
 const makeEvent = (registration_error_messages = {}) =>
   ({ id: 7, registration_error_messages }) as unknown as ApiEvent;
 
-beforeEach(() => mutate.mockClear());
+beforeEach(() => mutateAsync.mockClear());
 
 describe('ErrorMessagesSettings', () => {
   it('lists the saved messages with their field names', () => {
@@ -95,16 +98,13 @@ describe('ErrorMessagesSettings', () => {
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(mutate).toHaveBeenCalledWith(
-      {
-        id: 7,
-        registration_error_messages: {
-          ...lodgingRule,
-          'campers.*.phone': { pattern: '{{camper}}: use a number like +15555555555' },
-        },
+    expect(mutateAsync).toHaveBeenCalledWith({
+      id: 7,
+      registration_error_messages: {
+        ...lodgingRule,
+        'campers.*.phone': { pattern: '{{camper}}: use a number like +15555555555' },
       },
-      expect.anything(),
-    );
+    });
   });
 
   it('blocks a second message for the same field and error type', async () => {
@@ -137,10 +137,7 @@ describe('ErrorMessagesSettings', () => {
 
     expect(await screen.findByText(/No custom messages/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(mutate).toHaveBeenCalledWith(
-      { id: 7, registration_error_messages: {} },
-      expect.anything(),
-    );
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 7, registration_error_messages: {} });
   });
 
   it('edits the map as JSON, blocking save while it is invalid', async () => {
@@ -158,9 +155,9 @@ describe('ErrorMessagesSettings', () => {
     await user.type(editor, '{{"campers.*.nickname": {{"required": "Nickname?"}}');
     expect(screen.getByText('Fields not on the form')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(mutate).toHaveBeenCalledWith(
-      { id: 7, registration_error_messages: { 'campers.*.nickname': { required: 'Nickname?' } } },
-      expect.anything(),
-    );
+    expect(mutateAsync).toHaveBeenCalledWith({
+      id: 7,
+      registration_error_messages: { 'campers.*.nickname': { required: 'Nickname?' } },
+    });
   });
 });

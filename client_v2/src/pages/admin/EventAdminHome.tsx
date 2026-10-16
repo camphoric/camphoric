@@ -7,7 +7,9 @@
  * so is the invoice email registrars send with an invoice's pay link (§9.7,
  * DR-95), previewed for any of the event's invoices.
  * Save stays in view as the page scrolls, and says when anything is unsaved;
- * leaving with anything changed and unsaved asks first.
+ * leaving with anything changed and unsaved asks first. Saving sends what
+ * changed, from the version it was changed from, so a change someone else saved
+ * meanwhile is never overwritten unseen (§9.8, DR-109).
  */
 
 import {
@@ -27,6 +29,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent, Hash } from 'api-types';
+import { StaleRecordNotice } from 'components/EditConflict';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { JsonViewer } from 'components/JsonViewer';
@@ -35,12 +38,12 @@ import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
 import { TimeZoneSelect, ZonedDateTimePicker } from 'components/TimeZone';
 import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
+import { useEditableRecord } from 'hooks/useEditableRecord';
+import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
-import { useEffect, useMemo, useState } from 'react';
-import { useTemplateDraft } from 'store/emailTemplates';
+import { useMemo } from 'react';
 import { eventHooks, invoiceHooks, registrationHooks } from 'store/entities';
 import { keepClockTimeInZone } from 'utils/dates';
-import { apiErrorMessage } from 'utils/fetch';
 
 /** What Home edits and saves; leaving with any of them changed asks first. */
 const EDITABLE = [
@@ -60,13 +63,24 @@ const EDITABLE = [
   'registration_template_vars',
 ] as const satisfies readonly (keyof ApiEvent)[];
 
-const editable = (event: ApiEvent) => JSON.stringify(EDITABLE.map((field) => event[field]));
+type EditableFields = Pick<ApiEvent, (typeof EDITABLE)[number]>;
+
+const toForm = (event: ApiEvent) =>
+  Object.fromEntries(EDITABLE.map((field) => [field, event[field]])) as EditableFields;
 
 export function EventAdminHome() {
-  const { organizationId, eventId } = useParams({
+  const { eventId } = useParams({
     from: '/admin/organization/$organizationId/event/$eventId',
   });
   const { data: event } = eventHooks.useById(eventId);
+  if (!event) return <FullScreenLoading />;
+  return <EventHomeEditor event={event} />;
+}
+
+function EventHomeEditor({ event }: { event: ApiEvent }) {
+  const { organizationId, eventId } = useParams({
+    from: '/admin/organization/$organizationId/event/$eventId',
+  });
   const { data: registrations } = registrationHooks.useList({ event: eventId, completed: 1 });
   const samples = useMemo<EmailSample[]>(
     () =>
@@ -90,39 +104,41 @@ export function EventAdminHome() {
       })),
     [invoices],
   );
-  const update = eventHooks.useUpdate();
-  const confirmation = useTemplateDraft(event?.confirmation_template);
-  const invoiceEmail = useTemplateDraft(event?.invoice_template);
-  const [form, setForm] = useState<ApiEvent | null>(null);
-  // The event as last loaded or saved, to tell what's changed since.
-  const [saved, setSaved] = useState<ApiEvent | null>(null);
+  const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  const confirmation = useTemplateDraft(event.confirmation_template);
+  const invoiceEmail = useTemplateDraft(event.invoice_template);
+  const {
+    form,
+    setForm,
+    setField: set,
+    isDirty,
+    isStale,
+    loadLatest,
+    save: saveEvent,
+  } = useEditableRecord(event, {
+    toForm,
+    saveRecord: update.mutateAsync,
+    label: 'event',
+    fieldLabels: {
+      start: 'Event starts',
+      end: 'Event ends',
+      registration_start: 'Registration opens',
+      registration_end: 'Registration closes',
+    },
+  });
   const [showRaw, { toggle: toggleRaw }] = useDisclosure(false);
 
-  useEffect(() => {
-    if (event && !form) {
-      setForm(event);
-      setSaved(event);
-    }
-  }, [event, form]);
-
-  const dirty =
-    confirmation.changed ||
-    invoiceEmail.changed ||
-    (!!form && !!saved && editable(form) !== editable(saved));
+  const dirty = confirmation.changed || invoiceEmail.changed || isDirty;
   useUnsavedChanges(dirty);
 
-  if (!event || !form || !confirmation.loaded || !invoiceEmail.loaded) {
+  if (!confirmation.loaded || !invoiceEmail.loaded) {
     return <FullScreenLoading />;
   }
-
-  const set = <K extends keyof ApiEvent>(field: K, value: ApiEvent[K]) =>
-    setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
 
   // The registration times keep their clock time in the new zone: they were
   // entered as the camp's times, so a corrected zone shouldn't move them.
   const setTimeZone = (zone: string) =>
     setForm((prev) => {
-      if (!prev) return prev;
       const rezone = (iso: string | null) =>
         iso ? keepClockTimeInZone(iso, prev.time_zone, zone) : null;
       return {
@@ -134,27 +150,19 @@ export function EventAdminHome() {
     });
 
   const save = async () => {
-    try {
-      const updated = await update.mutateAsync({
-        id: event.id,
-        ...Object.fromEntries(EDITABLE.map((field) => [field, form[field]])),
-      });
-      // Follow what the server kept (it may write a date differently), so
-      // the page reads as saved.
-      setForm(updated);
-      setSaved(updated);
-      await confirmation.save();
-      await invoiceEmail.save();
-      notifications.show({ color: 'green', message: 'Event saved' });
-    } catch (error) {
-      notifications.show({ color: 'red', message: apiErrorMessage(error) });
-    }
+    // The form follows what the server kept (it may write a date differently),
+    // so the page reads as saved. A failed save has said why.
+    if (!(await saveEvent())) return;
+    if (!(await confirmation.save())) return;
+    if (!(await invoiceEmail.save())) return;
+    notifications.show({ color: 'green', message: 'Event saved' });
   };
 
   return (
     <Container size="md">
       <Stack>
         <Title order={2}>Event configuration</Title>
+        {isStale && <StaleRecordNotice label="event" onLoadLatest={loadLatest} />}
 
         <ReadOnlyFieldset>
           <Stack>
@@ -314,7 +322,7 @@ export function EventAdminHome() {
             {showRaw ? 'Hide' : 'Show'} raw JSON
           </Button>
         </Group>
-        {showRaw ? <JsonViewer value={form} /> : null}
+        {showRaw ? <JsonViewer value={event} /> : null}
       </Stack>
     </Container>
   );

@@ -165,6 +165,10 @@ built client. Match the patterns already in the codebase rather than introducing
 - **Keep audit entries meaningful.** Changes are logged by django-auditlog through model
   signals (`camphoric.audit`), so change rows with `save()` rather than `QuerySet.update()`
   when the change should appear in someone's history.
+- **Let saves count.** `save()` bumps a record's `version`, which the API checks against
+  `If-Match` so an admin never saves over a change they didn't see (SPEC DR-109).
+  `QuerySet.update()` doesn't bump it. Pass `save(bump_version=False)` only for a save that
+  refreshes what the server computes (pricing), never for a change someone could be editing.
 - Use **`CustomJSONField`** (wraps `JSONField` with `DjangoJSONEncoder`) for JSON columns —
   schemas, `attributes`, `admin_attributes`, pricing logic, etc.
 - Use **`models.TextChoices`** for enumerations (see `PaymentType`, `ReportOutputType`).

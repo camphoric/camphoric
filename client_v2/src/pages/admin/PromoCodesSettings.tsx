@@ -16,7 +16,7 @@ import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useDeletedPromoCodes, useRestore } from 'store/deletes';
 import { promoCodeHooks, registrationTypeHooks } from 'store/entities';
-import { apiErrorMessage, apiFieldErrors } from 'utils/fetch';
+import { apiErrorMessage, apiFieldErrors, versionConflict } from 'utils/fetch';
 
 import { type PromoCodeBody, PromoCodeForm } from './PromoCodeForm';
 
@@ -63,7 +63,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
   const { canEdit, canDeletePromoCodes } = usePermissions();
   const { data: deleted } = useDeletedPromoCodes(eventId, canEdit);
   const create = promoCodeHooks.useCreate();
-  const update = promoCodeHooks.useUpdate();
+  const update = promoCodeHooks.useUpdate({ handlesVersionConflict: true });
   const remove = promoCodeHooks.useDelete();
   const restore = useRestore('promocodes');
   // The code being edited, or 'new' while adding one.
@@ -76,6 +76,17 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
   };
 
   const fail = (error: Error) => {
+    if (versionConflict(error)) {
+      // Someone else saved it since it was opened (§9.8, DR-109): opening it
+      // again shows theirs.
+      close();
+      notifications.show({
+        color: 'yellow',
+        message:
+          'Someone else changed this promo code, so yours wasn’t saved. Open it again to see theirs.',
+      });
+      return;
+    }
     setFieldErrors(apiFieldErrors(error));
     notifications.show({ color: 'red', message: apiErrorMessage(error) });
   };
@@ -91,7 +102,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
     if (editing === 'new') {
       create.mutate({ event: eventId, ...body }, done);
     } else if (editing) {
-      update.mutate({ id: editing.id, ...body }, done);
+      update.mutate({ id: editing.id, version: editing.version, ...body }, done);
     }
   };
 
@@ -108,7 +119,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
       ),
       onConfirm: () =>
         remove.mutate(
-          { id: promoCode.id },
+          { id: promoCode.id, version: promoCode.version },
           {
             onError: (error) =>
               notifications.show({ color: 'red', message: apiErrorMessage(error) }),

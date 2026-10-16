@@ -9,7 +9,7 @@ import { sampleAudience, sampleTemplate } from './emailFixtures';
 
 const { create, update, emailEditor, useAudience } = vi.hoisted(() => ({
   create: vi.fn(),
-  update: vi.fn(),
+  update: vi.fn((body: object) => Promise.resolve(body)),
   emailEditor: vi.fn(),
   useAudience: vi.fn(),
 }));
@@ -17,7 +17,7 @@ const { create, update, emailEditor, useAudience } = vi.hoisted(() => ({
 vi.mock('store/entities', () => ({
   emailTemplateHooks: {
     useCreate: () => ({ mutate: create, isPending: false, error: null }),
-    useUpdate: () => ({ mutate: update, isPending: false, error: null }),
+    useUpdate: () => ({ mutateAsync: update, isPending: false, error: null }),
   },
   emailAccountHooks: {
     useList: () => ({ data: [{ id: 3, name: 'Camp Gmail' }] }),
@@ -98,18 +98,8 @@ describe('GroupTemplateEditor', () => {
     await user.clear(screen.getByRole('textbox', { name: /Name/ }));
     await user.type(screen.getByRole('textbox', { name: /Name/ }), 'Reminder');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 5,
-        name: 'Reminder',
-        recipient_source: 'registrations',
-        filter: {
-          combinator: 'and',
-          rules: [{ field: 'registration.balance', op: 'gt', value: 0 }],
-        },
-      }),
-      expect.anything(),
-    );
+    // Only what changed, from the version the editor opened at.
+    expect(update).toHaveBeenCalledWith({ id: 5, version: 1, name: 'Reminder' });
   });
 
   it('counts with finished conditions only, and won’t save an unfinished one', async () => {

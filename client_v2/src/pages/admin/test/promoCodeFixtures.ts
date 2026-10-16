@@ -14,6 +14,7 @@ export function samplePromoCode(overrides: Partial<ApiPromoCode> = {}): ApiPromo
     excludes_uninvited: false,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-01T12:00:00Z',
+    version: 1,
     ...overrides,
   };
 }
@@ -27,5 +28,6 @@ export function sampleRegistrationType(id: number, label: string): ApiRegistrati
     invitation_template: null,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-01T12:00:00Z',
+    version: 1,
   };
 }

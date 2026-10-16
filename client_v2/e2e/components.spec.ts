@@ -797,3 +797,20 @@ test.describe('Form actions', () => {
     await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
   });
 });
+
+test.describe('Concurrent editing', () => {
+  test('a refused save shows what both sides changed, and asks', async ({ page }) => {
+    await page.goto(story('edit-conflict--same-field'));
+    const row = page.getByRole('row', { name: /First name/ });
+    await expect(row.getByText('Pattie')).toBeVisible();
+    await expect(row.getByText('Patricia')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save mine on top of theirs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Discard mine' })).toBeVisible();
+  });
+
+  test('without overlap, saving mine keeps theirs too', async ({ page }) => {
+    await page.goto(story('edit-conflict--different-fields'));
+    await expect(page.getByText('You both changed')).toHaveCount(0);
+    await expect(page.getByText('Saving yours keeps their changes too.')).toBeVisible();
+  });
+});

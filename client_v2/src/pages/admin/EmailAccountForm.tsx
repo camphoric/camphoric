@@ -30,7 +30,7 @@ const DEFAULT_PORT: Record<EmailAccountSecurity, number> = { starttls: 587, ssl:
 /** What the form saves: an account's fields (the password only when it's changed). */
 export type EmailAccountBody = Omit<
   ApiEmailAccount,
-  'id' | 'password_status' | 'created_at' | 'updated_at' | 'deleted_at'
+  'id' | 'password_status' | 'created_at' | 'updated_at' | 'deleted_at' | 'version'
 >;
 
 interface Values {

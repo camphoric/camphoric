@@ -30,6 +30,7 @@ export const TUITION_OVERRIDE: ApiPricingOverride = {
   applied: true,
   created_at: '2026-09-26T18:00:00Z',
   updated_at: '2026-09-26T18:00:00Z',
+  version: 1,
 };
 
 /** An override of a line the event's pricing no longer has. */

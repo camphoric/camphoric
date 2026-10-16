@@ -9,6 +9,12 @@
  * Some mutations affect derived data on other entities and must invalidate
  * multiple namespaces (e.g. a Camper/Payment/CustomCharge change also changes a
  * Registration's totals). Pass those extra namespaces via `alsoInvalidate`.
+ *
+ * An update or delete given the `version` it was made from sends it as
+ * `If-Match`; the server refuses it (412) when someone else changed the record
+ * first (SPEC §5, DR-109), and the entity is refetched. A screen that resolves
+ * such conflicts itself (hooks/useEditableRecord) passes `handlesVersionConflict`
+ * so the shared error toast stays out of the way.
  */
 
 import {
@@ -19,7 +25,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type { Scalar } from 'api-types';
-import { apiFetch } from 'utils/fetch';
+import { apiFetch, ifMatch, versionConflict } from 'utils/fetch';
 
 export type ListParams = Record<string, Scalar | boolean | undefined>;
 
@@ -32,6 +38,11 @@ export interface EntityHooksConfig {
   alsoInvalidate?: string[];
 }
 
+export interface MutationOptions {
+  /** The caller shows the conflict itself; no "Request failed" toast for a 412. */
+  handlesVersionConflict?: boolean;
+}
+
 export interface EntityHooks<T extends { id: Scalar }> {
   name: string;
   listKey: (params?: ListParams) => QueryKey;
@@ -39,12 +50,19 @@ export interface EntityHooks<T extends { id: Scalar }> {
   useList: (params?: ListParams, enabled?: boolean) => UseQueryResult<T[]>;
   useById: (id: Scalar | null | undefined) => UseQueryResult<T>;
   useCreate: () => ReturnType<typeof useMutation<T, Error, CreateBody<T>>>;
-  useUpdate: () => ReturnType<typeof useMutation<T, Error, UpdateBody<T>>>;
-  useDelete: () => ReturnType<typeof useMutation<void, Error, { id: Scalar }>>;
+  useUpdate: (options?: MutationOptions) => ReturnType<typeof useMutation<T, Error, UpdateBody<T>>>;
+  useDelete: (options?: MutationOptions) => ReturnType<typeof useMutation<void, Error, DeleteBody>>;
 }
 
-export type CreateBody<T> = Omit<T, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>;
-export type UpdateBody<T extends { id: Scalar }> = Partial<T> & Pick<T, 'id'>;
+export type CreateBody<T> = Omit<T, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'version'>;
+/** The fields to change; `version`, when given, is the one they were edited from. */
+export type UpdateBody<T extends { id: Scalar }> = Partial<T> &
+  Pick<T, 'id'> & { version?: number };
+export interface DeleteBody {
+  id: Scalar;
+  /** The version the user saw; the delete is refused if it has moved on. */
+  version?: number;
+}
 
 export function toQuery(params: ListParams): string {
   // Sort keys so the query string (and thus the cache key) is stable.
@@ -79,6 +97,17 @@ export function createEntityHooks<T extends { id: Scalar }>(
     };
   }
 
+  // Someone else's change got there first: show it.
+  function useRefetchOnConflict() {
+    const client = useQueryClient();
+    return (error: Error) => {
+      if (versionConflict(error)) void client.invalidateQueries({ queryKey: [name] });
+    };
+  }
+
+  const metaFor = (options?: MutationOptions) =>
+    options?.handlesVersionConflict ? { handlesVersionConflict: true } : undefined;
+
   // The query keys are inlined here (rather than via listKey/detailKey) so the
   // query/exhaustive-deps lint can see that `base` and the params are present;
   // the helper builders return the identical shape for cache invalidation.
@@ -104,20 +133,27 @@ export function createEntityHooks<T extends { id: Scalar }>(
     });
   };
 
-  const useUpdate: EntityHooks<T>['useUpdate'] = () => {
+  const useUpdate: EntityHooks<T>['useUpdate'] = (options) => {
     const invalidate = useInvalidate();
+    const onError = useRefetchOnConflict();
     return useMutation({
-      mutationFn: ({ id, ...patch }: UpdateBody<T>) =>
-        apiFetch<T>(`${base}${id}/`, { method: 'PATCH', body: patch }),
+      mutationFn: ({ id, version, ...patch }: UpdateBody<T>) =>
+        apiFetch<T>(`${base}${id}/`, { method: 'PATCH', body: patch, headers: ifMatch(version) }),
       onSuccess: invalidate,
+      onError,
+      meta: metaFor(options),
     });
   };
 
-  const useDelete: EntityHooks<T>['useDelete'] = () => {
+  const useDelete: EntityHooks<T>['useDelete'] = (options) => {
     const invalidate = useInvalidate();
+    const onError = useRefetchOnConflict();
     return useMutation({
-      mutationFn: ({ id }: { id: Scalar }) => apiFetch<void>(`${base}${id}/`, { method: 'DELETE' }),
+      mutationFn: ({ id, version }: DeleteBody) =>
+        apiFetch<void>(`${base}${id}/`, { method: 'DELETE', headers: ifMatch(version) }),
       onSuccess: invalidate,
+      onError,
+      meta: metaFor(options),
     });
   };
 

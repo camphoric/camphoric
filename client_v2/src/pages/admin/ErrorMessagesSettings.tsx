@@ -5,7 +5,8 @@
  *
  * Admins can list, add, edit and remove messages (each one a field, an error
  * type and a message), see the built-in messages that apply when no rule
- * matches, or edit the whole map as JSON. Changes are saved together with Save.
+ * matches, or edit the whole map as JSON. Changes are saved together with Save,
+ * from the version they were made from (§9.8, DR-109).
  * Field choices come from the registration form's full schema as registrants
  * receive it, so conditional and server-built fields (lodging) are included.
  */
@@ -30,6 +31,7 @@ import {
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { CanEdit } from 'hooks/permissions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 import { useRegistrationFormSchema } from 'store/registrationApi';
@@ -40,7 +42,14 @@ const keywordLabel = (keyword: string) =>
   (KEYWORD_LABELS as Record<string, string>)[keyword] ?? keyword;
 
 export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
-  const update = eventHooks.useUpdate();
+  const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  const saveRules = useConflictAwareSave(event, {
+    toForm: (record: ApiEvent) => ({
+      registration_error_messages: record.registration_error_messages ?? {},
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'event',
+  });
   const { data: config } = useRegistrationFormSchema(String(event.id));
 
   const fieldMap = useMemo(
@@ -93,16 +102,23 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
     setDirty(true);
   };
 
-  const save = () =>
-    update.mutate(
-      { id: event.id, registration_error_messages: rules },
-      {
-        onSuccess: () => {
-          setDirty(false);
-          notifications.show({ color: 'green', message: 'Validation messages saved' });
-        },
-      },
+  const show = (next: RegistrationErrorMessages) => {
+    setRules(next);
+    setJson((text) => (text === undefined ? undefined : JSON.stringify(next, null, 2)));
+  };
+
+  const save = async () => {
+    const outcome = await saveRules({ registration_error_messages: rules }, (form) =>
+      show(form.registration_error_messages),
     );
+    const record = outcome?.saved ?? outcome?.discarded;
+    if (!record) return;
+    show(record.registration_error_messages ?? {});
+    setDirty(false);
+    if (outcome?.saved) {
+      notifications.show({ color: 'green', message: 'Validation messages saved' });
+    }
+  };
 
   const confirmDelete = (rule: ErrorMessageRule) =>
     modals.openConfirmModal({
@@ -239,7 +255,11 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
 
       <CanEdit>
         <FormActions dirty={dirty} justify="flex-start">
-          <Button onClick={save} disabled={!dirty || blocked} loading={update.isPending}>
+          <Button
+            onClick={() => void save()}
+            disabled={!dirty || blocked}
+            loading={update.isPending}
+          >
             Save
           </Button>
         </FormActions>

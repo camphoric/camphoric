@@ -33,6 +33,7 @@ export function sampleMessage(fields: Partial<ApiEmailMessage> = {}): ApiEmailMe
     created_by_name: null,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-01T12:00:02Z',
+    version: 1,
     ...fields,
   };
 }
@@ -77,6 +78,7 @@ export function sampleTemplate(fields: Partial<ApiEmailTemplate> = {}): ApiEmail
     include_incomplete: false,
     created_at: '2026-09-01T12:00:00Z',
     updated_at: '2026-09-02T12:00:00Z',
+    version: 1,
     ...fields,
   };
 }
@@ -146,6 +148,7 @@ export function sampleBatch(fields: Partial<ApiEmailBatch> = {}): ApiEmailBatch 
     state: 'sending',
     created_at: '2026-09-20T15:00:00Z',
     updated_at: '2026-09-20T15:01:00Z',
+    version: 1,
     ...fields,
   };
 }

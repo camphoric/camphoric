@@ -3,8 +3,10 @@
  * — once it exists — its invitation email, the type's email template (§15
  * DR-45), edited in Jinja and previewed for one of the type's invitations (or an
  * example one). A new type starts with a standard invitation. Persists via POST
- * (new) or PATCH (edit), and the template via its own PATCH. Closing it with
- * the invitation email changed and unsaved asks first, and discards the edits.
+ * (new) or PATCH (edit), and the template via its own PATCH, each from the
+ * version it was opened at, so saving over someone else's change asks first
+ * (§9.8, DR-109). Closing it with the invitation email changed and unsaved asks
+ * first, and discards the edits.
  */
 
 import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
@@ -13,10 +15,11 @@ import type { ApiRegistrationType } from 'api-types';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { saveResolvingConflicts } from 'hooks/useEditableRecord';
+import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
 import type { CreateBody } from 'store/createEntityHooks';
-import { useTemplateDraft } from 'store/emailTemplates';
 import { invitationHooks, registrationTypeHooks } from 'store/entities';
 import { apiErrorMessage } from 'utils/fetch';
 
@@ -38,7 +41,7 @@ export function RegistrationTypeForm({
   helpHref,
 }: RegistrationTypeFormProps) {
   const create = registrationTypeHooks.useCreate();
-  const update = registrationTypeHooks.useUpdate();
+  const update = registrationTypeHooks.useUpdate({ handlesVersionConflict: true });
 
   const [name, setName] = useState(regType?.name ?? '');
   const [label, setLabel] = useState(regType?.label ?? '');
@@ -74,9 +77,35 @@ export function RegistrationTypeForm({
   const save = async () => {
     if (!valid) return;
     try {
-      if (regType) {
-        await update.mutateAsync({ id: regType.id, name, label });
-        await invitationEmail.save();
+      if (regType && name === regType.name && label === regType.label) {
+        // Only the invitation email changed.
+        if (!(await invitationEmail.save())) return;
+      } else if (regType) {
+        const outcome = await saveResolvingConflicts(
+          {
+            id: regType.id,
+            base: { name: regType.name, label: regType.label },
+            version: regType.version,
+            form: { name, label },
+          },
+          {
+            toForm: (current: ApiRegistrationType) => ({
+              name: current.name,
+              label: current.label,
+            }),
+            saveRecord: update.mutateAsync,
+            label: 'registration type',
+            onRebase: ({ form }) => {
+              setName(form.name);
+              setLabel(form.label);
+            },
+          },
+        );
+        if (outcome?.discarded) {
+          setName(outcome.discarded.name);
+          setLabel(outcome.discarded.label);
+        }
+        if (!outcome?.saved || !(await invitationEmail.save())) return;
       } else {
         const body = { event: eventId, name, label } as unknown as CreateBody<ApiRegistrationType>;
         await create.mutateAsync(body);

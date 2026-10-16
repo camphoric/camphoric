@@ -5,12 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReportEditForm } from '../ReportEditForm';
 
-const { create, update } = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn() }));
+const { create, update } = vi.hoisted(() => ({
+  create: vi.fn(),
+  update: vi.fn((body: object) => Promise.resolve(body)),
+}));
 
 vi.mock('store/entities', () => ({
   reportHooks: {
     useCreate: () => ({ mutate: create, isPending: false }),
-    useUpdate: () => ({ mutate: update, isPending: false }),
+    useUpdate: () => ({ mutateAsync: update, isPending: false }),
   },
 }));
 
@@ -46,6 +49,7 @@ const legacyReport = {
   template: '{{#each campers}}{{/each}}',
   variables_schema: { a: 1 },
   variables_source: 'client',
+  version: 4,
 } as unknown as ApiReport;
 
 beforeEach(() => {
@@ -77,17 +81,17 @@ describe('ReportEditForm', () => {
 
   it('keeps legacy reports on the plain editor with the variables schema', async () => {
     const user = userEvent.setup();
+    const onSaved = vi.fn();
     renderWithProviders(
-      <ReportEditForm eventId="7" report={legacyReport} onSaved={vi.fn()} onCancel={vi.fn()} />,
+      <ReportEditForm eventId="7" report={legacyReport} onSaved={onSaved} onCancel={vi.fn()} />,
     );
 
     expect(screen.getByText('Variables schema')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Jinja template/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 3, variables_source: 'client', variables_schema: { a: 1 } }),
-      expect.anything(),
-    );
+    // Only what changed is sent: nothing did, so nothing is, and it's done.
+    expect(update).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledWith(3);
   });
 
   it('confirms before switching a saved template to Camphoric variables', async () => {

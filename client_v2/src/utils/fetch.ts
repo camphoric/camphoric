@@ -52,6 +52,22 @@ export function apiFieldErrors(error: unknown): Record<string, string> {
   return errors;
 }
 
+/**
+ * The record as it is now, when a save was refused because someone else changed
+ * it first (412 `version_conflict`, SPEC §5, DR-109); else null.
+ */
+export function versionConflict<T>(error: unknown): T | null {
+  if (!(error instanceof ApiError) || error.status !== 412) return null;
+  const body = error.body as { code?: unknown; current?: unknown } | null;
+  if (body?.code !== 'version_conflict' || !body.current) return null;
+  return body.current as T;
+}
+
+/** The `If-Match` header naming the version an edit was made from, if there is one. */
+export function ifMatch(version: number | undefined): Record<string, string> | undefined {
+  return version === undefined ? undefined : { 'If-Match': `"${version}"` };
+}
+
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export interface ApiRequestOptions {

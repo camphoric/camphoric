@@ -98,7 +98,7 @@ export function EmailTemplates({
       message: <>Delete “{template.name}”?</>,
       onConfirm: () =>
         del.mutate(
-          { id: template.id },
+          { id: template.id, version: template.version },
           {
             onError: (error) =>
               notifications.show({ color: 'red', message: apiErrorMessage(error) }),

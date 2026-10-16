@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-108)
+- §15 — Decision Records (DR-1…DR-109)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -281,10 +281,21 @@ consistently:
 - **List:** `GET /api/{entity}s/?<sorted query params>` → array. Query params are used for
   server-side filtering (e.g. `?event=<id>`, `?completed=1`, `?registration__event=<id>`).
 - **Get by id:** `GET /api/{entity}s/{id}/` → object.
-- **Create:** `POST /api/{entity}s/` (body without `id`/timestamps).
-- **Update:** `PATCH /api/{entity}s/{id}/` (partial body).
+- **Create:** `POST /api/{entity}s/` (body without `id`/timestamps/`version`).
+- **Update:** `PATCH /api/{entity}s/{id}/` (partial body: the fields that changed), with
+  `If-Match` (below).
 - **Delete:** `DELETE /api/{entity}s/{id}/` → 204, or 409 `{ detail }` when something keeps it
-  (§15, DR-54).
+  (§15, DR-54), with `If-Match` (below).
+- **Versions (§9.8; §15, DR-109):** every record has a read-only `version: number` that counts
+  its saves (a save that only refreshes computed pricing doesn't count), and a detail response
+  carries it as `ETag: "<version>"`. An update or delete — and an invoice's `cancel`/`reopen` —
+  sends the version the user's edit started from as `If-Match: "<version>"` (`W/"<n>"`, a bare
+  number, a comma-separated list and `*` are accepted too). When the record has moved on, nothing
+  is written and the answer is:
+  ```
+  412 { detail: string, code: 'version_conflict', current: <the record as it is now> }
+  ```
+  with `ETag` naming `current.version`. A request without `If-Match` is written as before.
 - **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
   without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
   the same plan, so the preview is exact at the time it's asked. **Every delete confirmation in the
@@ -2147,6 +2158,41 @@ section is the contract.
   the worker 30 minutes after completion when nothing did; once (`confirmation_sent_at`, and its
   dedupe key).
 
+### 9.8 Concurrent editing
+
+Several admins may work on an event at once. A save never overwrites a change the person saving
+hasn't seen (§15, DR-109).
+
+- **An edit starts from a version.** An edit remembers the record's fields and `version` as it
+  started (or as the form was opened again), and its save sends that version as `If-Match` with
+  only the fields the user changed (§5, *Versions*). A save with nothing changed sends nothing.
+  What the user types while a save is on its way stays in the form.
+- **Edits survive refetches.** An edit shows the record as it is until the user changes
+  something; from then on it keeps the user's edits whatever is refetched. When someone else
+  saves the record meanwhile, the edit says so and offers to drop the user's changes for the
+  record as it is now.
+- **A refused save asks — when it matters.** When the server refuses a save (412) but the other
+  person changed none of the fields the edit covers, the edit moves to their version and is saved
+  again without asking. Otherwise the user sees what they
+  changed, what the other person changed, and what both changed — compared field by field, and
+  key by key inside objects such as `attributes` (arrays are compared whole). Leaving without
+  choosing isn't offered; the user either:
+  - puts their changes on top: what only the other person changed keeps their value, what only
+    the user changed keeps the user's, and where both changed the same thing the user's wins;
+    the result is saved from the new version (asking again if it moved on once more); or
+  - drops their changes and takes the record as it is now.
+- **Where it applies.** Every admin edit and delete of a record: registrations, campers, the
+  event's configuration, schemas and validation messages, registration types and their
+  invitation emails, the confirmation and invoice emails, group email templates, promo codes,
+  lodging, invoices (with cancel and reopen), payments, pricing overrides, custom charges,
+  reports, email accounts and unsubscribes, invitations and organizations. A promo code or email
+  account form that's refused closes, and says to open it again to see the other person's
+  version; elsewhere the user resolves the conflict in place. Moving a camper to other lodging
+  and reordering a registration's campers send no version: each is an instruction about the
+  record as shown that writes only those fields, so it can't undo anyone's other edits.
+- **Nobody else is held up.** Nothing is locked while someone edits; a save that sends no
+  version (the V1 client, a script) is written as before.
+
 ---
 
 ## 10. Cross-Cutting Concerns
@@ -2170,11 +2216,13 @@ section is the contract.
 - **Errors & notifications:** one strategy — Mantine `@mantine/notifications` toasts for mutation
   success/failure via a shared TanStack Query `MutationCache.onError` (opt-out per call), plus
   inline field errors on forms (§15, DR-10). A 403 reads "You don't have permission to do that."
-  (§6).
+  (§6). A 412 reads "Someone else changed this since you opened it, so your change wasn't saved.",
+  unless the screen resolves the conflict itself (§9.8).
 - **Data freshness & optimistic updates:** admin queries use a short `staleTime` and refetch on
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
-  invalidate-and-refetch (§15, DR-16).
+  invalidate-and-refetch (§15, DR-16). A refetch never replaces an edit the user hasn't saved;
+  a refused save refetches the record (§9.8).
 - **Colour scheme:** the client follows the operating system's light/dark preference
   (`prefers-color-scheme`), on every surface, and switches when the preference changes while a
   page is open. Where the browser reports no preference, it is light. A person can choose light
@@ -4405,6 +4453,32 @@ Payments follow the same split (DR-93).
 task that turning one off already covers. Admins restoring too — restoring only undoes a delete,
 and Registrars restore deleted payments already.
 
+### DR-109 — Saves are checked against the version they were made from
+
+**Decision:** Every record counts its saves in an integer `version`, bumped in the database by
+each save except one that only refreshes computed pricing. The client sends the version an edit
+started from as `If-Match`, with only the changed fields; the server checks it under a row lock
+and refuses a stale write with 412 and the record as it is now. The client then compares the
+three versions field by field (and key by key inside objects such as `attributes`) and asks the
+user to put their changes on top of the other person's or drop them — or, when the other person
+changed nothing the edit covers, saves again from their version without asking. A pricing
+recalculation writes only the prices, and every API write locks the row before reading it, so a
+copy read before someone else's edit is never written back over it. Edit forms stop following
+refetches once edited. `If-Match` stays optional while the V1 client is in use. Lodging moves and
+camper reorders send no version (§9.8).
+**Context:** Several registrars work on an event at once, and the second of two saves silently
+replaced the first (#770); edit forms also reset whenever a refetch landed, dropping unsaved
+edits. Only the payment paths were guarded (row locks; DR-105).
+**Alternatives:** `updated_at` as the token — `QuerySet.update()` skips `auto_now`, and two saves
+can share a timestamp; rejected. `django-concurrency` — less maintained, and its model-level check
+doesn't give the API a 412 with the current record; rejected. Bumping the version on every save —
+saving a camper re-saves its registration and siblings' prices, so they'd look edited and
+conflict falsely; rejected. Hard record locks — left behind when someone walks away mid-edit;
+rejected (advisory edit leases may come later as a courtesy, with this as the safety net).
+Requiring `If-Match` now — the V1 client doesn't send it; deferred until it's retired. Checking
+lodging moves — a second quick move of the same camper would be refused while the first saves;
+rejected. Last write wins (as before) — loses edits silently; rejected.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4425,6 +4499,9 @@ must be coordinated with the backend. Grouped by status.
   shapes in §5 (DR-56).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
+- **Record versions:** `version` on every record, `ETag` on detail responses, and the
+  `If-Match` check with its 412 `version_conflict` answer on updates, deletes and invoice
+  cancel/reopen, with the shapes in §5 (DR-109).
 - **Invitations and campers:** `register_link` on invitations, and creating a camper on an
   existing registration (`POST /api/campers/`), with the shapes in §5 and §8.4.
 - **Soft delete:** the restore and deleted-list endpoints for registrations, campers, payments

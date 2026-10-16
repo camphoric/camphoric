@@ -14,7 +14,7 @@ import { overridableLines, PriceLines } from '../PriceLines';
 
 const { create, update, remove, overrides } = vi.hoisted(() => ({
   create: vi.fn(),
-  update: vi.fn(),
+  update: vi.fn((body: object) => Promise.resolve(body)),
   remove: vi.fn(),
   overrides: { current: [] as unknown[] },
 }));
@@ -23,7 +23,7 @@ vi.mock('store/entities', () => ({
   pricingOverrideHooks: {
     useList: () => ({ data: overrides.current }),
     useCreate: () => ({ mutate: create, isPending: false }),
-    useUpdate: () => ({ mutate: update, isPending: false }),
+    useUpdate: () => ({ mutateAsync: update, isPending: false }),
     useDelete: () => ({ mutate: remove }),
   },
 }));
@@ -82,17 +82,15 @@ describe('PriceLines', () => {
     await user.clear(amount);
     await user.type(amount, '450');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(update).toHaveBeenCalledWith(
-      { id: 2, amount: 450, reason: 'Instructor’s kid' },
-      expect.anything(),
-    );
+    // Only what changed, from the version the dialog opened at.
+    expect(update).toHaveBeenCalledWith({ id: 2, version: 1, amount: '450.00' });
   });
 
   it('removes one after confirming', async () => {
     const user = setupCamper();
     await user.click(screen.getByRole('button', { name: 'Remove the override of Tuition' }));
     await user.click(await screen.findByRole('button', { name: 'Remove' }));
-    expect(remove).toHaveBeenCalledWith({ id: 2 });
+    expect(remove).toHaveBeenCalledWith({ id: 2, version: 1 });
   });
 
   it('shows a Reporter the override, with no actions', () => {

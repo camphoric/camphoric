@@ -71,7 +71,7 @@ export function PriceLines({
         </>
       ),
       confirmLabel: 'Remove',
-      onConfirm: () => remove.mutate({ id: override.id }),
+      onConfirm: () => remove.mutate({ id: override.id, version: override.version }),
     });
 
   return (

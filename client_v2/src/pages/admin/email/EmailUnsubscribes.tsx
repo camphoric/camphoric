@@ -51,7 +51,7 @@ export function EmailUnsubscribes({ eventId }: { eventId: number }) {
       confirmLabel: 'Remove',
       onConfirm: () =>
         remove.mutate(
-          { id: row.id },
+          { id: row.id, version: row.version },
           {
             onError: (error) =>
               notifications.show({ color: 'red', message: apiErrorMessage(error) }),

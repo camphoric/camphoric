@@ -162,7 +162,7 @@ describe('EmailTemplates', () => {
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: 'Delete Balance reminder' }));
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    expect(del).toHaveBeenCalledWith({ id: 5 }, expect.anything());
+    expect(del).toHaveBeenCalledWith({ id: 5, version: 1 }, expect.anything());
   });
 });
 
