@@ -302,7 +302,8 @@ consistently:
   ```
   where `model` names the record's kind (`registration`, `camper`, `event`, `invoice`, …) and
   `client_id` the page holding it (new each time a page loads, so a duplicated tab is another
-  editor).
+  editor). A lease is held by a user on a page: someone else signed in on that page is another
+  holder, and only the holder gives it up.
   - `GET /api/leases/?event=<id>` or `?model=<kind>&object_id=<id>` → the leases that haven't
     lapsed (any role).
   - `POST /api/leases/ { model, object_id, client_id, takeover? }` → the lease, taken or renewed

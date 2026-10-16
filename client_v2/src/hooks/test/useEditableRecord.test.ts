@@ -8,6 +8,7 @@ import { useEditableRecord } from '../useEditableRecord';
 
 const openEditConflict = vi.hoisted(() => vi.fn());
 vi.mock('components/EditConflict', () => ({ openEditConflict }));
+vi.mock('hooks/auth', () => ({ useCurrentUser: () => ({ data: { id: 9 } }) }));
 
 interface Camper {
   id: number;

@@ -57,9 +57,11 @@ def acquire(instance, user, client_id, takeover=False, now=None, _retried=False)
                     object_id=instance.pk, event_id=tracked.event_id_of(instance), user=user,
                     client_id=client_id, acquired_at=now, expires_at=expires_at)
             held = lease.expires_at > now
-            if held and lease.client_id != client_id and not takeover:
+            # A page holds it for one user: someone else signed in there is another holder.
+            same_holder = lease.client_id == client_id and lease.user_id == user.pk
+            if held and not same_holder and not takeover:
                 raise LeaseHeld(lease)
-            if not held or lease.client_id != client_id:
+            if not held or not same_holder:
                 lease.user, lease.client_id, lease.acquired_at = user, client_id, now
             lease.expires_at = expires_at
             lease.save()
@@ -71,9 +73,9 @@ def acquire(instance, user, client_id, takeover=False, now=None, _retried=False)
         return acquire(instance, user, client_id, takeover, now, _retried=True)
 
 
-def release(lease_id, client_id):
-    '''Give up a lease, if `client_id` still holds it.'''
-    models.EditLease.objects.filter(pk=lease_id, client_id=client_id).delete()
+def release(lease_id, user, client_id):
+    '''Give up a lease, if `user`, on page `client_id`, still holds it.'''
+    models.EditLease.objects.filter(pk=lease_id, user=user, client_id=client_id).delete()
 
 
 def purge_lapsed(now=None):

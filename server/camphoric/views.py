@@ -989,7 +989,7 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
     def destroy(self, request, pk=None):
         if not str(pk).isdigit():
             raise Http404
-        leases.release(pk, request.query_params.get('client_id', ''))
+        leases.release(pk, request.user, request.query_params.get('client_id', ''))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
