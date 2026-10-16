@@ -62,6 +62,19 @@ export function usePermissions(): Permissions {
   return useContext(PermissionsContext);
 }
 
+/**
+ * While `when`, shows its children as a user who can't change data would see
+ * them: a record someone else is editing (§9.8; §15, DR-110). The tree stays
+ * the same either way, so nothing inside loses its state when it changes.
+ */
+export function ViewOnly({ when, children }: { when: boolean; children: ReactNode }) {
+  const permissions = usePermissions();
+  const value = when
+    ? { ...permissions, canEdit: false, canDeletePayments: false, canDeletePromoCodes: false }
+    : permissions;
+  return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>;
+}
+
 /** Renders its children only for users who may change data. */
 export function CanEdit({ children }: { children: ReactNode }) {
   return usePermissions().canEdit ? <>{children}</> : null;

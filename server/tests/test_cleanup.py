@@ -104,7 +104,8 @@ class ScheduleTests(CleanUpTestCase):
     @DATABASE_QUEUE
     def test_a_run_cleans_up_and_schedules_the_next_night(self):
         abandoned = self.registration()
-        self.assertEqual(cleanup.clean_up.call(), {'deleted_registrations': 1})
+        self.assertEqual(
+            cleanup.clean_up.call(), {'deleted_registrations': 1, 'purged_leases': 0})
         self.assertFalse(self.exists(abandoned))
         self.assertTrue(DBTaskResult.objects.filter(
             task_path=cleanup.clean_up.module_path, status='READY').exists())

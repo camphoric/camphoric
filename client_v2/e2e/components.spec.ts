@@ -814,3 +814,17 @@ test.describe('Concurrent editing', () => {
     await expect(page.getByText('Saving yours keeps their changes too.')).toBeVisible();
   });
 });
+
+test.describe('Edit leases', () => {
+  test('a record someone else is editing says who, and offers to edit anyway', async ({ page }) => {
+    await page.goto(story('edit-lease-notice--someone-else-is-editing'));
+    await expect(page.getByText('Alex Registrar is editing this registration')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit anyway' })).toBeVisible();
+  });
+
+  test('unsaved changes here are warned about when someone else has it', async ({ page }) => {
+    await page.goto(story('edit-lease-notice--they-took-it-over'));
+    await expect(page.getByText(/Your changes here aren’t saved yet/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Take it back' })).toBeVisible();
+  });
+});

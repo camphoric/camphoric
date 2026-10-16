@@ -1280,3 +1280,30 @@ class UserAccount(models.Model):
 
     def __str__(self):
         return f'{self.user} account'
+
+
+class EditLease(models.Model):
+    '''
+    Who is editing a record now (SPEC §9.8, DR-110): an advisory lease, taken
+    when someone starts changing it and renewed while they go on, so others see
+    it's being edited. It lapses at `expires_at` unless renewed, and can be
+    taken over; it never stops a save (record versions do that, DR-109).
+    One per record. `client_id` names the browser tab holding it.
+    '''
+    content_type = models.ForeignKey(
+        'contenttypes.ContentType', related_name='+', on_delete=models.CASCADE)
+    object_id = models.PositiveBigIntegerField()
+    event = models.ForeignKey(Event, related_name='edit_leases', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='+', on_delete=models.CASCADE)
+    client_id = models.CharField(max_length=64)
+    acquired_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['content_type', 'object_id'], name='one_edit_lease_per_record'),
+        ]
+
+    def __str__(self):
+        return f'{self.user} editing {self.content_type.model} #{self.object_id}'

@@ -31,7 +31,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.mixins import ListModelMixin
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 
 from camphoric import (
     accounts,
@@ -39,10 +40,12 @@ from camphoric import (
     confirmations,
     deletes,
     invoices,
+    leases,
     models,
     pricing,
     roles,
     serializers,
+    tracked,
 )
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
@@ -940,6 +943,54 @@ class CustomChargeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 
 class UserHistoryPagination(PageNumberPagination):
     page_size = 50
+
+
+class EditLeaseViewSet(ListModelMixin, GenericViewSet):
+    '''
+    Edit leases (SPEC §5, §9.8, DR-110). Any role lists who is editing what: an
+    event's records (`?event=`), or one record (`?model=&object_id=`).
+    Registrars and Admins take or renew a record's lease for a browser tab
+    (POST; 409 with the holder's lease when another tab has it, unless
+    `takeover`), and give it up (DELETE `…/{id}/?client_id=`).
+    '''
+    serializer_class = serializers.EditLeaseSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        params = self.request.query_params
+        current = leases.active(
+            models.EditLease.objects.select_related('user', 'content_type').order_by('id'))
+        if params.get('model'):
+            record = tracked.record(params['model'], params.get('object_id'))
+            return current.filter(
+                content_type__model=params['model'], object_id=record.pk)
+        if params.get('event', '').isdigit():
+            return current.filter(event_id=params['event'])
+        raise ValidationError({'event': 'Give an event, or a model and object_id.'})
+
+    def create(self, request):
+        data = request.data
+        client_id = str(data.get('client_id') or '')
+        if not client_id or len(client_id) > 64:
+            raise ValidationError({'client_id': 'Up to 64 characters naming the browser tab.'})
+        record = tracked.record(str(data.get('model') or ''), data.get('object_id'))
+        try:
+            lease = leases.acquire(
+                record, request.user, client_id, takeover=bool(data.get('takeover')))
+        except leases.LeaseHeld as held:
+            holder = self.get_serializer(held.lease).data
+            return Response({
+                'detail': f'{holder["holder"]["name"]} is editing this.',
+                'code': 'lease_held',
+                'lease': holder,
+            }, status=status.HTTP_409_CONFLICT)
+        return Response(self.get_serializer(lease).data)
+
+    def destroy(self, request, pk=None):
+        if not str(pk).isdigit():
+            raise Http404
+        leases.release(pk, request.query_params.get('client_id', ''))
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserViewSet(PlannedDeleteMixin, ModelViewSet):

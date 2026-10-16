@@ -21,11 +21,12 @@ import { notifications } from '@mantine/notifications';
 import type { ApiCamper, ApiEvent, Hash, LodgingLookup } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { StaleRecordNotice } from 'components/EditConflict';
+import { EditLeaseNotice } from 'components/EditLease';
 import { JsonSchemaForm } from 'components/form';
 import { FormActions } from 'components/FormActions';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
-import { CanEdit, usePermissions } from 'hooks/permissions';
+import { CanEdit, usePermissions, ViewOnly } from 'hooks/permissions';
 import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
@@ -67,7 +68,7 @@ export function CamperEdit({
   const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
   // Only what changed is sent, so saving the attributes leaves the stay as the
   // lodging screen left it.
-  const { form, setField, isStale, loadLatest, save } = useEditableRecord(camper, {
+  const { form, setField, isStale, loadLatest, save, lease } = useEditableRecord(camper, {
     toForm: (record: ApiCamper) => ({
       attributes: record.attributes,
       admin_attributes: record.admin_attributes,
@@ -75,6 +76,7 @@ export function CamperEdit({
     }),
     saveRecord: update.mutateAsync,
     label: 'camper',
+    lease: 'camper',
     fieldLabels: { admin_attributes: 'Admin attributes', stay: 'Days present' },
   });
   const lodgingSummary = camperLodgingSummary(camper, lodgingLookup);
@@ -122,47 +124,54 @@ export function CamperEdit({
         </Tabs.List>
         <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
           <Box py="md">
+            <EditLeaseNotice label="camper" lease={lease} />
             {isStale && <StaleRecordNotice label="camper" onLoadLatest={loadLatest} />}
             <Tabs.Panel value="attributes">
-              <JsonSchemaForm
-                schema={schema}
-                uiSchema={uiSchema}
-                formData={form.attributes}
-                templateData={{
-                  ...event.registration_template_vars,
-                  pricing: event.pricing,
-                  formData: camper.attributes,
-                }}
-                // Validation messages show as the admin edits, but never block
-                // saving (admins may need to save partial or legacy data).
-                liveValidate
-                errorMessages={{
-                  rules: event.registration_error_messages,
-                  pathPrefix: 'campers.*',
-                  camper: { label: name },
-                }}
-                onChange={(formData) => setField('attributes', formData as Hash)}
-              >
-                <></>
-              </JsonSchemaForm>
+              <ViewOnly when={lease.viewOnly}>
+                <JsonSchemaForm
+                  schema={schema}
+                  uiSchema={uiSchema}
+                  formData={form.attributes}
+                  templateData={{
+                    ...event.registration_template_vars,
+                    pricing: event.pricing,
+                    formData: camper.attributes,
+                  }}
+                  // Validation messages show as the admin edits, but never block
+                  // saving (admins may need to save partial or legacy data).
+                  liveValidate
+                  errorMessages={{
+                    rules: event.registration_error_messages,
+                    pathPrefix: 'campers.*',
+                    camper: { label: name },
+                  }}
+                  onChange={(formData) => setField('attributes', formData as Hash)}
+                >
+                  <></>
+                </JsonSchemaForm>
+              </ViewOnly>
             </Tabs.Panel>
             <Tabs.Panel value="lodging">
-              <CamperLodging
-                summary={lodgingSummary}
-                days={days}
-                stay={form.stay}
-                onStayChange={(stay) => setField('stay', stay)}
-                onSelectCamper={onSelectCamper}
-                onOpenLodging={() => onOpenLodging(camper.id)}
-              />
+              <ViewOnly when={lease.viewOnly}>
+                <CamperLodging
+                  summary={lodgingSummary}
+                  days={days}
+                  stay={form.stay}
+                  onStayChange={(stay) => setField('stay', stay)}
+                  onSelectCamper={onSelectCamper}
+                  onOpenLodging={() => onOpenLodging(camper.id)}
+                />
+              </ViewOnly>
             </Tabs.Panel>
             {hasAdmin && (
               <Tabs.Panel value="admin">
-                <AdminAttributesForm
-                  adminSchema={event.camper_admin_schema}
-                  value={form.admin_attributes}
-                  onChange={(value) => setField('admin_attributes', value)}
-                />
+                <ViewOnly when={lease.viewOnly}>
+                  <AdminAttributesForm
+                    adminSchema={event.camper_admin_schema}
+                    value={form.admin_attributes}
+                    onChange={(value) => setField('admin_attributes', value)}
+                  />
+                </ViewOnly>
               </Tabs.Panel>
             )}
             <Tabs.Panel value="fees">
@@ -179,16 +188,23 @@ export function CamperEdit({
           </Box>
         </ScrollArea>
       </Tabs>
-      <CanEdit>
-        <FormActions justify="space-between">
-          <Button onClick={() => void saveCamper()} loading={update.isPending}>
-            Save
-          </Button>
-          <Button variant="light" color="red" onClick={confirmDeleteCamper} loading={del.isPending}>
-            Delete
-          </Button>
-        </FormActions>
-      </CanEdit>
+      <ViewOnly when={lease.viewOnly}>
+        <CanEdit>
+          <FormActions justify="space-between">
+            <Button onClick={() => void saveCamper()} loading={update.isPending}>
+              Save
+            </Button>
+            <Button
+              variant="light"
+              color="red"
+              onClick={confirmDeleteCamper}
+              loading={del.isPending}
+            >
+              Delete
+            </Button>
+          </FormActions>
+        </CanEdit>
+      </ViewOnly>
     </Box>
   );
 }

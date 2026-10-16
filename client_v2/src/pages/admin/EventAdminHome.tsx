@@ -30,6 +30,7 @@ import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent, Hash } from 'api-types';
 import { StaleRecordNotice } from 'components/EditConflict';
+import { EditLeaseNotice } from 'components/EditLease';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { JsonViewer } from 'components/JsonViewer';
@@ -37,7 +38,7 @@ import { KeyValueEdit } from 'components/KeyValueEdit';
 import { FullScreenLoading } from 'components/Loading';
 import { TemplateEditor } from 'components/TemplateEditor';
 import { TimeZoneSelect, ZonedDateTimePicker } from 'components/TimeZone';
-import { CanEdit, ReadOnlyFieldset } from 'hooks/permissions';
+import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
 import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
@@ -115,10 +116,13 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
     isStale,
     loadLatest,
     save: saveEvent,
+    lease,
   } = useEditableRecord(event, {
     toForm,
     saveRecord: update.mutateAsync,
     label: 'event',
+    lease: 'event',
+    unsavedElsewhere: confirmation.changed || invoiceEmail.changed,
     fieldLabels: {
       start: 'Event starts',
       end: 'Event ends',
@@ -160,170 +164,173 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
 
   return (
     <Container size="md">
-      <Stack>
-        <Title order={2}>Event configuration</Title>
-        {isStale && <StaleRecordNotice label="event" onLoadLatest={loadLatest} />}
+      <EditLeaseNotice label="event" lease={lease} />
+      <ViewOnly when={lease.viewOnly}>
+        <Stack>
+          <Title order={2}>Event configuration</Title>
+          {isStale && <StaleRecordNotice label="event" onLoadLatest={loadLatest} />}
 
-        <ReadOnlyFieldset>
-          <Stack>
-            <TextInput
-              label="Name"
-              value={form.name}
-              onChange={(e) => set('name', e.currentTarget.value)}
-            />
-            <Group grow>
-              <DateInput
-                label="Event starts"
-                valueFormat="MM/DD/YYYY"
-                value={form.start || null}
-                onChange={(value) => set('start', value || null)}
-              />
-              <DateInput
-                label="Event ends"
-                valueFormat="MM/DD/YYYY"
-                value={form.end || null}
-                onChange={(value) => set('end', value || null)}
-              />
-            </Group>
-            <TimeZoneSelect
-              label="Time zone"
-              description="The camp’s; registration opens and closes at these times there."
-              value={form.time_zone}
-              onChange={setTimeZone}
-            />
-            <Group grow>
-              <ZonedDateTimePicker
-                label="Registration opens"
-                value={form.registration_start}
-                timeZone={form.time_zone}
-                onChange={(value) => set('registration_start', value)}
-              />
-              <ZonedDateTimePicker
-                label="Registration closes"
-                value={form.registration_end}
-                timeZone={form.time_zone}
-                onChange={(value) => set('registration_end', value)}
-              />
-            </Group>
-            <NumberInput
-              label="Default stay length (days)"
-              value={form.default_stay_length}
-              min={0}
-              onChange={(value) => set('default_stay_length', Number(value) || 0)}
-            />
-          </Stack>
-        </ReadOnlyFieldset>
-
-        <Divider label="Confirmation page" />
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Confirmation page message (markdown)
-          </Text>
-          <Text size="sm" c="dimmed">
-            Shown when a registration completes; rendered on the server with the registration’s
-            details, like the confirmation email.
-          </Text>
-          <TemplateEditor
-            value={form.confirmation_page_template}
-            onChange={(value) => set('confirmation_page_template', value)}
-            eventId={eventId}
-            context="confirmation_page"
-            output="md"
-            height={240}
-            title="Confirmation page message"
-            helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_page`}
-          />
-        </Stack>
-
-        <Divider label="Confirmation email" />
-        <ReadOnlyFieldset>
-          <TextInput
-            label="From"
-            description="Also where a report goes if a Jinja confirmation email can’t be rendered."
-            value={form.confirmation_email_from}
-            onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
-          />
-        </ReadOnlyFieldset>
-        <EmailTemplateEditor
-          eventId={eventId}
-          context="confirmation_email"
-          subject={confirmation.subject}
-          onSubjectChange={confirmation.setSubject}
-          body={confirmation.body}
-          onBodyChange={confirmation.setBody}
-          samples={samples}
-          helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
-        />
-
-        <Divider label="Invoice email" />
-        <Text size="sm" c="dimmed">
-          Sent when a registrar sends an invoice, with its pay link (
-          <code>{'{{ invoice.pay_url }}'}</code>).
-        </Text>
-        <EmailTemplateEditor
-          eventId={eventId}
-          context="invoice_email"
-          subject={invoiceEmail.subject}
-          onSubjectChange={invoiceEmail.setSubject}
-          body={invoiceEmail.body}
-          onBodyChange={invoiceEmail.setBody}
-          samples={invoiceSamples}
-          helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=invoice_email`}
-        />
-
-        <ReadOnlyFieldset>
-          <Stack>
-            <Divider label="Payments" />
-            <Switch
-              label="PayPal enabled"
-              checked={form.paypal_enabled}
-              onChange={(e) => set('paypal_enabled', e.currentTarget.checked)}
-            />
-            <Group grow>
+          <ReadOnlyFieldset>
+            <Stack>
               <TextInput
-                label="PayPal client ID"
-                value={form.paypal_client_id}
-                onChange={(e) => set('paypal_client_id', e.currentTarget.value)}
+                label="Name"
+                value={form.name}
+                onChange={(e) => set('name', e.currentTarget.value)}
               />
+              <Group grow>
+                <DateInput
+                  label="Event starts"
+                  valueFormat="MM/DD/YYYY"
+                  value={form.start || null}
+                  onChange={(value) => set('start', value || null)}
+                />
+                <DateInput
+                  label="Event ends"
+                  valueFormat="MM/DD/YYYY"
+                  value={form.end || null}
+                  onChange={(value) => set('end', value || null)}
+                />
+              </Group>
+              <TimeZoneSelect
+                label="Time zone"
+                description="The camp’s; registration opens and closes at these times there."
+                value={form.time_zone}
+                onChange={setTimeZone}
+              />
+              <Group grow>
+                <ZonedDateTimePicker
+                  label="Registration opens"
+                  value={form.registration_start}
+                  timeZone={form.time_zone}
+                  onChange={(value) => set('registration_start', value)}
+                />
+                <ZonedDateTimePicker
+                  label="Registration closes"
+                  value={form.registration_end}
+                  timeZone={form.time_zone}
+                  onChange={(value) => set('registration_end', value)}
+                />
+              </Group>
               <NumberInput
-                label="Electronic payment handling (%)"
-                description="Added to each online payment, on the amount paid"
-                value={form.epayment_handling}
+                label="Default stay length (days)"
+                value={form.default_stay_length}
                 min={0}
-                onChange={(value) => set('epayment_handling', Number(value) || 0)}
+                onChange={(value) => set('default_stay_length', Number(value) || 0)}
               />
-            </Group>
+            </Stack>
+          </ReadOnlyFieldset>
 
-            <Divider label="Pricing" />
-            <KeyValueEdit
-              value={form.pricing}
-              valueType="integer"
-              onChange={(value) => set('pricing', value as Hash<number>)}
-            />
-
-            <Divider label="Registration template values" />
-            <KeyValueEdit
-              value={form.registration_template_vars}
-              valueType="string"
-              onChange={(value) => set('registration_template_vars', value as Hash<string>)}
+          <Divider label="Confirmation page" />
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              Confirmation page message (markdown)
+            </Text>
+            <Text size="sm" c="dimmed">
+              Shown when a registration completes; rendered on the server with the registration’s
+              details, like the confirmation email.
+            </Text>
+            <TemplateEditor
+              value={form.confirmation_page_template}
+              onChange={(value) => set('confirmation_page_template', value)}
+              eventId={eventId}
+              context="confirmation_page"
+              output="md"
+              height={240}
+              title="Confirmation page message"
+              helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_page`}
             />
           </Stack>
-        </ReadOnlyFieldset>
 
-        <CanEdit>
-          <FormActions dirty={dirty} justify="flex-start">
-            <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
-              Save
+          <Divider label="Confirmation email" />
+          <ReadOnlyFieldset>
+            <TextInput
+              label="From"
+              description="Also where a report goes if a Jinja confirmation email can’t be rendered."
+              value={form.confirmation_email_from}
+              onChange={(e) => set('confirmation_email_from', e.currentTarget.value)}
+            />
+          </ReadOnlyFieldset>
+          <EmailTemplateEditor
+            eventId={eventId}
+            context="confirmation_email"
+            subject={confirmation.subject}
+            onSubjectChange={confirmation.setSubject}
+            body={confirmation.body}
+            onBodyChange={confirmation.setBody}
+            samples={samples}
+            helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=confirmation_email`}
+          />
+
+          <Divider label="Invoice email" />
+          <Text size="sm" c="dimmed">
+            Sent when a registrar sends an invoice, with its pay link (
+            <code>{'{{ invoice.pay_url }}'}</code>).
+          </Text>
+          <EmailTemplateEditor
+            eventId={eventId}
+            context="invoice_email"
+            subject={invoiceEmail.subject}
+            onSubjectChange={invoiceEmail.setSubject}
+            body={invoiceEmail.body}
+            onBodyChange={invoiceEmail.setBody}
+            samples={invoiceSamples}
+            helpHref={`/admin/organization/${organizationId}/event/${eventId}/template-help?context=invoice_email`}
+          />
+
+          <ReadOnlyFieldset>
+            <Stack>
+              <Divider label="Payments" />
+              <Switch
+                label="PayPal enabled"
+                checked={form.paypal_enabled}
+                onChange={(e) => set('paypal_enabled', e.currentTarget.checked)}
+              />
+              <Group grow>
+                <TextInput
+                  label="PayPal client ID"
+                  value={form.paypal_client_id}
+                  onChange={(e) => set('paypal_client_id', e.currentTarget.value)}
+                />
+                <NumberInput
+                  label="Electronic payment handling (%)"
+                  description="Added to each online payment, on the amount paid"
+                  value={form.epayment_handling}
+                  min={0}
+                  onChange={(value) => set('epayment_handling', Number(value) || 0)}
+                />
+              </Group>
+
+              <Divider label="Pricing" />
+              <KeyValueEdit
+                value={form.pricing}
+                valueType="integer"
+                onChange={(value) => set('pricing', value as Hash<number>)}
+              />
+
+              <Divider label="Registration template values" />
+              <KeyValueEdit
+                value={form.registration_template_vars}
+                valueType="string"
+                onChange={(value) => set('registration_template_vars', value as Hash<string>)}
+              />
+            </Stack>
+          </ReadOnlyFieldset>
+
+          <CanEdit>
+            <FormActions dirty={dirty} justify="flex-start">
+              <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
+                Save
+              </Button>
+            </FormActions>
+          </CanEdit>
+          <Group>
+            <Button variant="subtle" onClick={toggleRaw}>
+              {showRaw ? 'Hide' : 'Show'} raw JSON
             </Button>
-          </FormActions>
-        </CanEdit>
-        <Group>
-          <Button variant="subtle" onClick={toggleRaw}>
-            {showRaw ? 'Hide' : 'Show'} raw JSON
-          </Button>
-        </Group>
-        {showRaw ? <JsonViewer value={event} /> : null}
-      </Stack>
+          </Group>
+          {showRaw ? <JsonViewer value={event} /> : null}
+        </Stack>
+      </ViewOnly>
     </Container>
   );
 }

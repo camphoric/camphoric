@@ -25,11 +25,12 @@ import type {
 } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { StaleRecordNotice } from 'components/EditConflict';
+import { EditLeaseNotice } from 'components/EditLease';
 import { deriveAdminUiSchema, JsonSchemaForm } from 'components/form';
 import { FormActions } from 'components/FormActions';
 import { HistoryPanel } from 'components/History';
 import { JsonViewer } from 'components/JsonViewer';
-import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { CanEdit, ReadOnlyFieldset, usePermissions, ViewOnly } from 'hooks/permissions';
 import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
@@ -76,11 +77,12 @@ export function RegistrationEdit({
 }: RegistrationEditProps) {
   const update = registrationHooks.useUpdate({ handlesVersionConflict: true });
   const del = registrationHooks.useDelete();
-  const { form, setField, isStale, loadLatest, save } = useEditableRecord(registration, {
+  const { form, setField, isStale, loadLatest, save, lease } = useEditableRecord(registration, {
     toForm,
     saveRecord: update.mutateAsync,
     label: 'registration',
     fieldLabels: FIELD_LABELS,
+    lease: 'registration',
   });
   const { canEdit } = usePermissions();
 
@@ -151,63 +153,68 @@ export function RegistrationEdit({
         </Tabs.List>
         <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
           <Box py="md">
+            <EditLeaseNotice label="registration" lease={lease} />
             {isStale && <StaleRecordNotice label="registration" onLoadLatest={loadLatest} />}
             <Tabs.Panel value="attributes">
-              <Stack>
-                <ReadOnlyFieldset>
-                  <Stack>
-                    <Select
-                      label="Registration type"
-                      data={typeOptions}
-                      value={toSelect(form.registration_type)}
-                      onChange={(value) => setField('registration_type', fromSelect(value))}
-                      allowDeselect={false}
-                      maw={320}
-                    />
-                    <Select
-                      label="Promo code"
-                      description="Changing it reprices the registration."
-                      data={promoOptions}
-                      value={toSelect(form.promo_code)}
-                      onChange={(value) => setField('promo_code', fromSelect(value))}
-                      allowDeselect={false}
-                      maw={320}
-                    />
-                    <TextInput
-                      label="Registrant email"
-                      value={form.registrant_email}
-                      onChange={(e) => setField('registrant_email', e.currentTarget.value)}
-                      maw={320}
-                    />
-                  </Stack>
-                </ReadOnlyFieldset>
-                <JsonSchemaForm
-                  schema={event.registration_schema}
-                  uiSchema={adminUiSchema}
-                  formData={form.attributes}
-                  templateData={{
-                    ...event.registration_template_vars,
-                    pricing: event.pricing,
-                    formData: registration.attributes,
-                    totals: registration.server_pricing_results,
-                  }}
-                  // Validation messages show as the admin edits, but never
-                  // block saving (admins may need to save partial or legacy data).
-                  liveValidate
-                  errorMessages={{ rules: event.registration_error_messages }}
-                  onChange={(formData) => setField('attributes', formData as Hash)}
-                >
-                  <></>
-                </JsonSchemaForm>
-              </Stack>
+              <ViewOnly when={lease.viewOnly}>
+                <Stack>
+                  <ReadOnlyFieldset>
+                    <Stack>
+                      <Select
+                        label="Registration type"
+                        data={typeOptions}
+                        value={toSelect(form.registration_type)}
+                        onChange={(value) => setField('registration_type', fromSelect(value))}
+                        allowDeselect={false}
+                        maw={320}
+                      />
+                      <Select
+                        label="Promo code"
+                        description="Changing it reprices the registration."
+                        data={promoOptions}
+                        value={toSelect(form.promo_code)}
+                        onChange={(value) => setField('promo_code', fromSelect(value))}
+                        allowDeselect={false}
+                        maw={320}
+                      />
+                      <TextInput
+                        label="Registrant email"
+                        value={form.registrant_email}
+                        onChange={(e) => setField('registrant_email', e.currentTarget.value)}
+                        maw={320}
+                      />
+                    </Stack>
+                  </ReadOnlyFieldset>
+                  <JsonSchemaForm
+                    schema={event.registration_schema}
+                    uiSchema={adminUiSchema}
+                    formData={form.attributes}
+                    templateData={{
+                      ...event.registration_template_vars,
+                      pricing: event.pricing,
+                      formData: registration.attributes,
+                      totals: registration.server_pricing_results,
+                    }}
+                    // Validation messages show as the admin edits, but never
+                    // block saving (admins may need to save partial or legacy data).
+                    liveValidate
+                    errorMessages={{ rules: event.registration_error_messages }}
+                    onChange={(formData) => setField('attributes', formData as Hash)}
+                  >
+                    <></>
+                  </JsonSchemaForm>
+                </Stack>
+              </ViewOnly>
             </Tabs.Panel>
             {hasAdmin && (
               <Tabs.Panel value="admin">
-                <AdminAttributesForm
-                  adminSchema={event.registration_admin_schema}
-                  value={form.admin_attributes}
-                  onChange={(value) => setField('admin_attributes', value)}
-                />
+                <ViewOnly when={lease.viewOnly}>
+                  <AdminAttributesForm
+                    adminSchema={event.registration_admin_schema}
+                    value={form.admin_attributes}
+                    onChange={(value) => setField('admin_attributes', value)}
+                  />
+                </ViewOnly>
               </Tabs.Panel>
             )}
             <Tabs.Panel value="fees">
@@ -229,21 +236,23 @@ export function RegistrationEdit({
           </Box>
         </ScrollArea>
       </Tabs>
-      <CanEdit>
-        <FormActions justify="space-between">
-          <Button onClick={() => void saveRegistration()} loading={update.isPending}>
-            Save
-          </Button>
-          <Button
-            variant="light"
-            color="red"
-            onClick={confirmDeleteRegistration}
-            loading={del.isPending}
-          >
-            Delete
-          </Button>
-        </FormActions>
-      </CanEdit>
+      <ViewOnly when={lease.viewOnly}>
+        <CanEdit>
+          <FormActions justify="space-between">
+            <Button onClick={() => void saveRegistration()} loading={update.isPending}>
+              Save
+            </Button>
+            <Button
+              variant="light"
+              color="red"
+              onClick={confirmDeleteRegistration}
+              loading={del.isPending}
+            >
+              Delete
+            </Button>
+          </FormActions>
+        </CanEdit>
+      </ViewOnly>
     </Box>
   );
 }
