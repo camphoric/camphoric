@@ -829,6 +829,13 @@ test.describe('Edit leases', () => {
   });
 });
 
+test.describe('Being edited', () => {
+  test('a list row says who is editing it', async ({ page }) => {
+    await page.goto(story('being-edited--in-a-list'));
+    await expect(page.getByRole('img', { name: /^Alex Registrar is editing this/ })).toBeVisible();
+  });
+});
+
 test.describe('Live updates', () => {
   test('the header says when live updates are off', async ({ page }) => {
     await page.goto(story('live-updates-status--off'));

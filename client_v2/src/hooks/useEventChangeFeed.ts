@@ -23,7 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Scalar } from 'api-types';
 import { useEffect, useState } from 'react';
 import { ALSO_CHANGES } from 'store/entities';
-import { leaseKey, LEASES } from 'store/leases';
+import { EVENT_LEASES, leaseKey, LEASES } from 'store/leases';
 import type { LiveFeedState } from 'store/liveFeed';
 import { ENTITY_OF_MODEL } from 'store/liveModels';
 
@@ -101,8 +101,10 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
       });
       source.addEventListener('lease', (event) => {
         heard();
+        // That record's lease, and the event's (its lists mark what's being edited).
         const { model, id } = read(event);
         void client.invalidateQueries({ queryKey: leaseKey(model, id) });
+        void client.invalidateQueries({ queryKey: [LEASES, EVENT_LEASES] });
       });
       source.addEventListener('resync', () => {
         heard();

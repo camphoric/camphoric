@@ -2225,10 +2225,13 @@ hasn't seen (§15, DR-109).
   version; elsewhere the user resolves the conflict in place. Moving a camper to other lodging
   and reordering a registration's campers send no version: each is an instruction about the
   record as shown that writes only those fields, so it can't undo anyone's other edits.
-- **Who else is editing (§15, DR-110).** Registrations, campers and the event's configuration
-  (Home) show who else is editing them:
-  - While an edit has unsaved changes — on Home, the confirmation and invoice emails' too — the
-    user holds the record's edit lease, renewed every half minute; saving or dropping the
+- **Who else is editing (§15, DR-110).** Registrations, campers, the event's configuration (Home
+  and Settings), registration types, promo codes, lodging, reports and group email templates show
+  who else is editing them:
+  - While an edit has unsaved changes — for the event, any of Home's or Settings' forms (its
+    details, confirmation and invoice emails, validation messages and registration form;
+    registration types and promo codes are records of their own, and the organization's email
+    accounts aren't held) — the user holds the record's edit lease, renewed every half minute; saving or dropping the
     changes, closing the record or the page gives it up. A lease not renewed for 90 seconds
     lapses, so one left by a closed laptop doesn't linger.
   - Opening a record someone else holds says who and since when, and shows the record without
@@ -2241,6 +2244,13 @@ hasn't seen (§15, DR-109).
     unsaved changes and is told someone else has the record too; their save still goes through
     the version check, and they can take the lease back.
   - The holder may be the same person in another tab; it says so.
+  - Wherever such records are listed — registrations, campers, lodging (its tree and timeline,
+    and the campers placed in it), reports, email templates, registration types and promo codes
+    — each one someone else holds is marked as being edited, with who and since when; the
+    navigation to Home and Settings is marked while someone else holds the event. This tab's own
+    edits aren't marked; the user's edits in another tab are, as theirs. The marks follow the
+    event's leases (`GET /api/leases/?event=`): pushed by the live change feed, and looked at
+    every 15 seconds while any lease is held (a lapse sends no notice) or without the feed.
   - A lease is a courtesy and never stops a save: the version check does that.
 - **Nobody else is held up.** Nothing is locked while someone edits; a save that sends no
   version (the V1 client, a script) is written as before.
@@ -4561,8 +4571,10 @@ the changes are unsaved, given up on saving, dropping or closing, and lapsing af
 without renewal. Someone opening a record another tab holds sees who and since when, and the
 record view-only until the lease ends or they take it over. Leases go over plain REST: a record's
 lease is looked at every 15 seconds while it's open. They never block a save; the version check
-(DR-109) keeps edits from being lost. Registrations, campers and the event's configuration carry
-them; lapsed leases are purged nightly.
+(DR-109) keeps edits from being lost. Registrations, campers, the event's configuration,
+registration types, promo codes, lodging, reports and group email templates carry them, and lists
+of them mark the ones someone else holds, from the event's leases fetched once for the whole
+admin; lapsed leases are purged nightly.
 **Context:** Several registrars work an event at once (#770). The version check stops an edit
 being lost, but only once someone has done the work twice; knowing a record is being edited
 avoids the duplicate work.
@@ -4571,7 +4583,8 @@ the person who most needs to save; rejected. Taking the lease on opening a recor
 changing it — everyone who merely looks would show as editing; rejected. One lease per user
 rather than per tab — a user's second tab would silently share the first's lease, so neither
 would know the other was editing; rejected. Pushing lease changes instantly — needs the live
-change feed; polling until then (now pushed: DR-112).
+change feed; polling until then (now pushed: DR-112). Asking each list row for its own lease —
+a request per row; one request for the event's leases serves every list instead.
 
 ### DR-111 — The server runs on ASGI, with psycopg 3
 

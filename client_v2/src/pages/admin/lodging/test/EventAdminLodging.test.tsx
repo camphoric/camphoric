@@ -6,6 +6,7 @@ import { EventAdminLodging } from '../EventAdminLodging';
 
 const search = vi.hoisted((): { current: Record<string, string> } => ({ current: {} }));
 
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ organizationId: '1', eventId: '7' }),
   useSearch: () => search.current,

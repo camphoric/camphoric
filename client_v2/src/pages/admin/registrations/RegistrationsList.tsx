@@ -14,6 +14,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, ApiInvoice, AugmentedRegistration } from 'api-types';
 import { DataTable } from 'components/DataTable';
+import { WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useAugmentedRegistrations, useRegistrationTypeLookup } from 'hooks/useAdminData';
 import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
@@ -93,7 +94,17 @@ export function RegistrationsList() {
 
   const columns = useMemo<ColumnDef<AugmentedRegistration, unknown>[]>(
     () => [
-      { id: 'camper', header: 'Primary camper', accessorFn: (r) => camperName(r.campers[0]) },
+      {
+        id: 'camper',
+        header: 'Primary camper',
+        accessorFn: (r) => camperName(r.campers[0]),
+        // Marked when someone else is editing it (§9.8).
+        cell: (info) => (
+          <WithBeingEdited model="registration" id={info.row.original.id}>
+            {info.getValue<string>()}
+          </WithBeingEdited>
+        ),
+      },
       { id: 'type', header: 'Type', accessorFn: (r) => r.registrationType?.label ?? '—' },
       { id: 'promo', header: 'Promo code', accessorFn: (r) => r.promo?.code ?? '—' },
       { accessorKey: 'registrant_email', header: 'Email' },

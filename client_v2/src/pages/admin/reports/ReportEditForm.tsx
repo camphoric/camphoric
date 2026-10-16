@@ -17,10 +17,13 @@ import { Alert, Button, Select, Stack, Text, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { ApiReport, Hash, ReportOutputType, ReportVariablesSource } from 'api-types';
+import { EditLeaseNotice } from 'components/EditLease';
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { TemplateEditor } from 'components/TemplateEditor';
-import { useConflictAwareSave } from 'hooks/useEditableRecord';
+import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
+import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
+import { useEditLease } from 'hooks/useEditLease';
 import { useEffect, useMemo, useState } from 'react';
 import { reportHooks } from 'store/entities';
 
@@ -63,9 +66,34 @@ interface ReportEditFormProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
+const reportFields = (record: ApiReport): ReportFields => ({
+  title: record.title,
+  output: record.output,
+  template: record.template,
+  variables_schema: record.variables_schema,
+  variables_source: record.variables_source,
+});
+
+interface Starting {
+  title: string;
+  source: ReportVariablesSource;
+  output: ReportOutputType;
+  template: string;
+  schemaText: string;
+}
+
+/** What unsaved changes are measured from. */
+const startingFrom = (fields?: ReportFields): Starting => ({
+  title: fields?.title ?? '',
+  source: fields?.variables_source ?? 'server',
+  output: fields?.output ?? 'csv',
+  template: fields?.template ?? '',
+  schemaText: JSON.stringify(fields?.variables_schema ?? {}, null, 2),
+});
+
 export function ReportEditForm({
   eventId,
-  report,
+  report: latest,
   helpHref,
   onSaved,
   onCancel,
@@ -73,30 +101,31 @@ export function ReportEditForm({
 }: ReportEditFormProps) {
   const create = reportHooks.useCreate();
   const update = reportHooks.useUpdate({ handlesVersionConflict: true });
-  const saveReport = useConflictAwareSave(report, {
-    toForm: (record: ApiReport) => ({
-      title: record.title,
-      output: record.output,
-      template: record.template,
-      variables_schema: record.variables_schema,
-      variables_source: record.variables_source,
-    }),
-    saveRecord: update.mutateAsync,
-    label: 'report',
-    fieldLabels: { variables_schema: 'Variables schema', variables_source: 'Variables from' },
-  });
+  // The version shown: a newer one shows while nothing here is unsaved.
+  const [report, showVersion] = useLatestWhileUnchanged<ApiReport>(
+    latest,
+    (): boolean => !dirty,
+    (record) => {
+      show(reportFields(record));
+      setInitial(startingFrom(reportFields(record)));
+    },
+  );
+  const saveReport = useConflictAwareSave(
+    report,
+    {
+      toForm: reportFields,
+      saveRecord: update.mutateAsync,
+      label: 'report',
+      fieldLabels: { variables_schema: 'Variables schema', variables_source: 'Variables from' },
+    },
+    true,
+  );
 
-  const [title, setTitle] = useState(report?.title ?? '');
-  const [source, setSource] = useState<ReportVariablesSource>(report?.variables_source ?? 'server');
-  const [output, setOutput] = useState<ReportOutputType>(report?.output ?? 'csv');
-  const [template, setTemplate] = useState(report?.template ?? '');
-  const [initial] = useState(() => ({
-    title,
-    source,
-    output,
-    template,
-    schemaText: JSON.stringify(report?.variables_schema ?? {}, null, 2),
-  }));
+  const [initial, setInitial] = useState(() => startingFrom(report && reportFields(report)));
+  const [title, setTitle] = useState(initial.title);
+  const [source, setSource] = useState<ReportVariablesSource>(initial.source);
+  const [output, setOutput] = useState<ReportOutputType>(initial.output);
+  const [template, setTemplate] = useState(initial.template);
   const [schemaText, setSchemaText] = useState(initial.schemaText);
 
   const dirty =
@@ -109,6 +138,8 @@ export function ReportEditForm({
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // Who else is editing it (§9.8): held while there are unsaved changes.
+  const lease = useEditLease(report ? 'report' : undefined, report?.id ?? 0, dirty);
 
   const isServer = source === 'server';
 
@@ -173,7 +204,7 @@ export function ReportEditForm({
       // meanwhile is never overwritten unseen (§9.8, DR-109).
       const outcome = await saveReport(fields, show);
       if (outcome?.saved) onSuccess(outcome.saved);
-      if (outcome?.discarded) show(outcome.discarded);
+      if (outcome?.discarded) showVersion(outcome.discarded);
     } else {
       create.mutate({ event: eventId, ...fields }, { onSuccess });
     }
@@ -182,79 +213,88 @@ export function ReportEditForm({
   return (
     <Stack>
       <Text fw={600}>{report ? 'Edit report' : 'New report'}</Text>
-      <TextInput
-        label="Title"
-        value={title}
-        onChange={(e) => setTitle(e.currentTarget.value)}
-        error={title ? titleError : null}
-      />
-      <Select
-        label="Variables"
-        description={
-          isServer
-            ? 'The server builds the event’s data; autocomplete and a live preview help write the template.'
-            : 'The browser assembles and uploads the event’s data for each render.'
-        }
-        data={SOURCE_OPTIONS}
-        value={source}
-        onChange={(value) => value && changeSource(value as ReportVariablesSource)}
-        allowDeselect={false}
-      />
-      <Select
-        label="Output format"
-        data={OUTPUT_OPTIONS.filter((option) => !isServer || !option.legacyOnly)}
-        value={output}
-        onChange={(value) => value && setOutput(value as ReportOutputType)}
-        allowDeselect={false}
-      />
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Template
-        </Text>
-        {isServer ? (
-          <TemplateEditor
-            value={template}
-            onChange={setTemplate}
-            eventId={eventId}
-            context="report"
-            output={output === 'hbs' ? 'md' : output}
-            helpHref={helpHref}
-            title={title.trim() || 'Report template'}
-          />
-        ) : (
-          <JsonEditor
-            value={template}
-            onChange={setTemplate}
-            language={LEGACY_TEMPLATE_LANGUAGE[output]}
-            height={320}
-          />
-        )}
-      </Stack>
-      {!isServer && (
+      <EditLeaseNotice label="report" lease={lease} />
+      <ViewOnly when={lease.viewOnly}>
+        <ReadOnlyFieldset>
+          <Stack>
+            <TextInput
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.currentTarget.value)}
+              error={title ? titleError : null}
+            />
+            <Select
+              label="Variables"
+              description={
+                isServer
+                  ? 'The server builds the event’s data; autocomplete and a live preview help write the template.'
+                  : 'The browser assembles and uploads the event’s data for each render.'
+              }
+              data={SOURCE_OPTIONS}
+              value={source}
+              onChange={(value) => value && changeSource(value as ReportVariablesSource)}
+              allowDeselect={false}
+            />
+            <Select
+              label="Output format"
+              data={OUTPUT_OPTIONS.filter((option) => !isServer || !option.legacyOnly)}
+              value={output}
+              onChange={(value) => value && setOutput(value as ReportOutputType)}
+              allowDeselect={false}
+            />
+          </Stack>
+        </ReadOnlyFieldset>
         <Stack gap={4}>
           <Text size="sm" fw={500}>
-            Variables schema
+            Template
           </Text>
-          <JsonEditor value={schemaText} onChange={setSchemaText} height={200} />
-          {schemaError ? (
-            <Alert color="red" variant="light" title="Invalid JSON">
-              {schemaError}
-            </Alert>
-          ) : null}
+          {isServer ? (
+            <TemplateEditor
+              value={template}
+              onChange={setTemplate}
+              eventId={eventId}
+              context="report"
+              output={output === 'hbs' ? 'md' : output}
+              helpHref={helpHref}
+              title={title.trim() || 'Report template'}
+            />
+          ) : (
+            <JsonEditor
+              value={template}
+              onChange={setTemplate}
+              language={LEGACY_TEMPLATE_LANGUAGE[output]}
+              height={320}
+            />
+          )}
         </Stack>
-      )}
-      <FormActions dirty={dirty} justify="flex-start">
-        <Button
-          onClick={() => void save()}
-          disabled={!canSave}
-          loading={create.isPending || update.isPending}
-        >
-          Save
-        </Button>
-        <Button variant="default" onClick={onCancel}>
-          Cancel
-        </Button>
-      </FormActions>
+        {!isServer && (
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              Variables schema
+            </Text>
+            <JsonEditor value={schemaText} onChange={setSchemaText} height={200} />
+            {schemaError ? (
+              <Alert color="red" variant="light" title="Invalid JSON">
+                {schemaError}
+              </Alert>
+            ) : null}
+          </Stack>
+        )}
+        <FormActions dirty={dirty} justify="flex-start">
+          <CanEdit>
+            <Button
+              onClick={() => void save()}
+              disabled={!canSave}
+              loading={create.isPending || update.isPending}
+            >
+              Save
+            </Button>
+          </CanEdit>
+          <Button variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+        </FormActions>
+      </ViewOnly>
     </Stack>
   );
 }

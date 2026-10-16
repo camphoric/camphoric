@@ -14,6 +14,7 @@ const { create, update, emailEditor, useAudience } = vi.hoisted(() => ({
   useAudience: vi.fn(),
 }));
 
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('store/entities', () => ({
   emailTemplateHooks: {
     useCreate: () => ({ mutate: create, isPending: false, error: null }),

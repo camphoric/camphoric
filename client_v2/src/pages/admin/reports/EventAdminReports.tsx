@@ -12,6 +12,7 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { BeingEdited } from 'components/EditLease';
 import { CanEdit } from 'hooks/permissions';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useState } from 'react';
@@ -91,6 +92,7 @@ export function EventAdminReports() {
                   variant={selected?.id === report.id && mode !== 'create' ? 'light' : 'subtle'}
                   justify="flex-start"
                   onClick={() => confirmDiscard(() => select(report.id))}
+                  rightSection={<BeingEdited model="report" id={report.id} />}
                 >
                   {report.title}
                 </Button>

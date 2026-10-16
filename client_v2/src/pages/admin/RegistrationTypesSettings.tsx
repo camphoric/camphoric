@@ -8,6 +8,7 @@
 import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import type { ApiRegistrationType } from 'api-types';
+import { BeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
@@ -60,7 +61,8 @@ export function RegistrationTypesSettings({
                   {rt.label}{' '}
                   <Text span c="dimmed">
                     ({rt.name})
-                  </Text>
+                  </Text>{' '}
+                  <BeingEdited model="registrationtype" id={rt.id} />
                 </Text>
                 <Button
                   variant="subtle"
@@ -78,7 +80,8 @@ export function RegistrationTypesSettings({
       <RegistrationTypeForm
         key={typeForm.regType?.id ?? 'new'}
         eventId={eventId}
-        regType={typeForm.regType}
+        // As it is now, so the form can show what someone else saves.
+        regType={registrationTypes.find((rt) => rt.id === typeForm.regType?.id) ?? typeForm.regType}
         opened={typeForm.open}
         onClose={() => setTypeForm({ open: false })}
         helpHref={helpHref}

@@ -12,6 +12,7 @@ import { notifications } from '@mantine/notifications';
 import { IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ApiPromoCode, ApiRegistrationType } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { WithBeingEdited } from 'components/EditLease';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useDeletedPromoCodes, useRestore } from 'store/deletes';
@@ -91,7 +92,7 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
     notifications.show({ color: 'red', message: apiErrorMessage(error) });
   };
 
-  const save = (body: PromoCodeBody) => {
+  const save = (body: PromoCodeBody, shown?: ApiPromoCode) => {
     const done = {
       onSuccess: () => {
         notifications.show({ color: 'green', message: 'Promo code saved' });
@@ -101,8 +102,8 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
     };
     if (editing === 'new') {
       create.mutate({ event: eventId, ...body }, done);
-    } else if (editing) {
-      update.mutate({ id: editing.id, version: editing.version, ...body }, done);
+    } else if (shown) {
+      update.mutate({ id: shown.id, version: shown.version, ...body }, done);
     }
   };
 
@@ -175,7 +176,11 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
             ) : (
               promoCodes!.map((promoCode) => (
                 <Table.Tr key={promoCode.id}>
-                  <Table.Td>{promoCode.label}</Table.Td>
+                  <Table.Td>
+                    <WithBeingEdited model="promocode" id={promoCode.id}>
+                      {promoCode.label}
+                    </WithBeingEdited>
+                  </Table.Td>
                   <Table.Td>
                     <Text ff="monospace" size="sm">
                       {promoCode.code}
@@ -277,7 +282,12 @@ export function PromoCodesSettings({ eventId }: { eventId: string }) {
       >
         {editing !== null && (
           <PromoCodeForm
-            promoCode={editing === 'new' ? undefined : editing}
+            // As it is now, so the form can show what someone else saves.
+            promoCode={
+              editing === 'new'
+                ? undefined
+                : (promoCodes?.find((code) => code.id === editing.id) ?? editing)
+            }
             registrationTypes={registrationTypes}
             onSubmit={save}
             onCancel={close}

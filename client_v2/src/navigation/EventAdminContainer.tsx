@@ -40,6 +40,7 @@ import {
 } from '@tabler/icons-react';
 import { Link, Outlet, useParams } from '@tanstack/react-router';
 import { ColorSchemeToggle } from 'components/ColorSchemeToggle';
+import { BeingEdited, EventLeasesProvider } from 'components/EditLease';
 import { LiveUpdatesStatus } from 'components/LiveUpdates';
 import { usePermissions } from 'hooks/permissions';
 import { useEventChangeFeed } from 'hooks/useEventChangeFeed';
@@ -61,6 +62,8 @@ const SECTIONS = [
   { path: 'settings', label: 'Settings', icon: IconSettings },
 ] as const;
 
+const EVENT_SECTIONS = new Set<string>(['home', 'settings']);
+
 export function EventAdminContainer() {
   const { organizationId, eventId } = useParams({ strict: false });
   const [opened, { toggle }] = useDisclosure();
@@ -73,84 +76,92 @@ export function EventAdminContainer() {
 
   return (
     <LiveFeedContext.Provider value={feed}>
-      <AppShell
-        header={{ height: 56 }}
-        navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: !opened } }}
-        padding="md"
-      >
-        <AppShell.Header>
-          <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
-            <Group wrap="nowrap" gap="sm" style={{ minWidth: 0 }}>
-              <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-              <ActionIcon
-                component={Link}
-                to={`/admin/organization/${organizationId}/event`}
-                variant="subtle"
-                color="gray"
-                aria-label="Back to event selection"
-                title="Back to event selection"
-              >
-                <IconArrowLeft size={18} />
-              </ActionIcon>
-              <Title order={4} visibleFrom="sm" style={{ whiteSpace: 'nowrap' }}>
-                Camphoric Admin
-              </Title>
-              {event && (
-                <Text fw={500} c="dimmed" truncate style={{ minWidth: 0 }}>
-                  {event.name}
-                </Text>
-              )}
-              {!canEdit && (
-                <>
-                  <Badge
-                    variant="light"
-                    color="gray"
-                    title={READ_ONLY_HINT}
-                    visibleFrom="sm"
-                    style={{ flexShrink: 0 }}
-                  >
-                    Read-only
-                  </Badge>
-                  <ThemeIcon
-                    variant="light"
-                    color="gray"
-                    title={READ_ONLY_HINT}
-                    aria-label="Read-only"
-                    hiddenFrom="sm"
-                    style={{ flexShrink: 0 }}
-                  >
-                    <IconEye size={16} />
-                  </ThemeIcon>
-                </>
-              )}
+      <EventLeasesProvider eventId={eventId}>
+        <AppShell
+          header={{ height: 56 }}
+          navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+          padding="md"
+        >
+          <AppShell.Header>
+            <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
+              <Group wrap="nowrap" gap="sm" style={{ minWidth: 0 }}>
+                <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+                <ActionIcon
+                  component={Link}
+                  to={`/admin/organization/${organizationId}/event`}
+                  variant="subtle"
+                  color="gray"
+                  aria-label="Back to event selection"
+                  title="Back to event selection"
+                >
+                  <IconArrowLeft size={18} />
+                </ActionIcon>
+                <Title order={4} visibleFrom="sm" style={{ whiteSpace: 'nowrap' }}>
+                  Camphoric Admin
+                </Title>
+                {event && (
+                  <Text fw={500} c="dimmed" truncate style={{ minWidth: 0 }}>
+                    {event.name}
+                  </Text>
+                )}
+                {!canEdit && (
+                  <>
+                    <Badge
+                      variant="light"
+                      color="gray"
+                      title={READ_ONLY_HINT}
+                      visibleFrom="sm"
+                      style={{ flexShrink: 0 }}
+                    >
+                      Read-only
+                    </Badge>
+                    <ThemeIcon
+                      variant="light"
+                      color="gray"
+                      title={READ_ONLY_HINT}
+                      aria-label="Read-only"
+                      hiddenFrom="sm"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <IconEye size={16} />
+                    </ThemeIcon>
+                  </>
+                )}
+              </Group>
+              <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <LiveUpdatesStatus state={feed} />
+                <ColorSchemeToggle />
+                <UserMenu />
+              </Group>
             </Group>
-            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-              <LiveUpdatesStatus state={feed} />
-              <ColorSchemeToggle />
-              <UserMenu />
-            </Group>
-          </Group>
-        </AppShell.Header>
+          </AppShell.Header>
 
-        <AppShell.Navbar p="xs">
-          <ScrollArea>
-            {SECTIONS.map(({ path, label, icon: Icon }) => (
-              <NavLink
-                key={path}
-                component={Link}
-                to={`${base}/${path}`}
-                label={label}
-                leftSection={<Icon size={18} />}
-                activeOptions={{ exact: false }}
-              />
-            ))}
-          </ScrollArea>
-        </AppShell.Navbar>
+          <AppShell.Navbar p="xs">
+            <ScrollArea>
+              {SECTIONS.map(({ path, label, icon: Icon }) => (
+                <NavLink
+                  key={path}
+                  component={Link}
+                  to={`${base}/${path}`}
+                  label={label}
+                  leftSection={<Icon size={18} />}
+                  // Home and Settings edit the event itself: marked while someone else does.
+                  rightSection={
+                    EVENT_SECTIONS.has(path) && eventId ? (
+                      <BeingEdited model="event" id={eventId} />
+                    ) : undefined
+                  }
+                  activeOptions={{ exact: false }}
+                />
+              ))}
+            </ScrollArea>
+          </AppShell.Navbar>
 
-        <AppShell.Main>
-          <Outlet />
-        </AppShell.Main>
-      </AppShell>
+          <AppShell.Main>
+            <Outlet />
+          </AppShell.Main>
+        </AppShell>
+      </EventLeasesProvider>
     </LiveFeedContext.Provider>
   );
 }

@@ -171,6 +171,8 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
 export function useConflictAwareSave<R extends VersionedRecord, F extends object>(
   record: R | undefined,
   options: EditableRecordOptions<R, F>,
+  /** `record` is the version the form shows (`useLatestWhileUnchanged`): a newer one starts afresh. */
+  shown = false,
 ) {
   const startFrom = (from: R) => ({
     id: from.id,
@@ -178,11 +180,12 @@ export function useConflictAwareSave<R extends VersionedRecord, F extends object
     version: from.version,
   });
   const [start, setStart] = useState(() => record && startFrom(record));
-  // A form opened again, or for another record, starts from the record as it is.
+  // A form opened again, or for another record (or showing a newer version of
+  // it), starts from the record as it is.
   useEffect(() => {
     setStart(record && startFrom(record));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record?.id]);
+  }, [record?.id, shown ? record?.version : undefined]);
   /** Resolves as `saveResolvingConflicts` does; undefined without a record. */
   return async (form: F, onRebase: (form: F) => void) => {
     if (!record) return undefined;
@@ -203,6 +206,44 @@ export function useConflictAwareSave<R extends VersionedRecord, F extends object
     if (latest) setStart(startFrom(latest));
     return outcome;
   };
+}
+
+/**
+ * For a form that keeps its own state over a record: the version of the record
+ * it shows. While nothing in the form differs from that version (`unchanged`),
+ * a newer one — someone else saved it, as when their lease ends (§9.8) — is
+ * shown in its place (`show`). Measure unsaved changes against it, and save
+ * from it (`useConflictAwareSave(shown, …, true)`).
+ *
+ * Returns that version, and `showVersion` to put a given one in the form and
+ * measure from it — the one the user took when dropping their changes, or the
+ * one saved while the form stays open — so nothing then counts as unsaved.
+ */
+export function useLatestWhileUnchanged<R extends VersionedRecord>(
+  record: R | undefined,
+  unchanged: (shown: R) => boolean,
+  show: (record: R) => void,
+): [R | undefined, (record: R) => void] {
+  const [shown, setShown] = useState(record);
+  const showVersion = (version: R) => {
+    setShown(version);
+    show(version);
+  };
+  // Another record (or none) starts from it as it is.
+  const current = shown?.id === record?.id ? shown : record;
+  // After every render: whether the form is unchanged is the form's to say, now.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (current !== shown) setShown(current);
+    else if (
+      record &&
+      current &&
+      isNewerVersion(record.version, current.version) &&
+      unchanged(current)
+    )
+      showVersion(record);
+  });
+  return [current, showVersion];
 }
 
 export interface Edit<R extends VersionedRecord, F> {

@@ -18,6 +18,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import type { AugmentedLodging } from 'api-types';
+import { BeingEdited } from 'components/EditLease';
 import { CanEdit } from 'hooks/permissions';
 import { Fragment } from 'react';
 import { camperName } from 'utils/camper';
@@ -111,6 +112,7 @@ export function LodgingTree({
               </Badge>
             )}
             {node.notes.trim() && <NoteIndicator name={node.name} notes={node.notes.trim()} />}
+            <BeingEdited model="lodging" id={node.id} />
           </Group>
         </Group>
         <CanEdit>
@@ -140,7 +142,8 @@ export function LodgingTree({
               {index > 0 && ', '}
               <Anchor component="button" type="button" inherit onClick={() => onSelectCamper(c.id)}>
                 {camperName(c)}
-              </Anchor>
+              </Anchor>{' '}
+              <BeingEdited model="camper" id={c.id} size="xs" />
             </Fragment>
           ))}
         </Text>

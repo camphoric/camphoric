@@ -10,11 +10,13 @@
 import { Alert, Button, Group, Select, Stack, Text, TextInput, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiEmailTemplate, EmailAudience } from 'api-types';
+import { EditLeaseNotice } from 'components/EditLease';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { completeFilter, unfinishedRules } from 'components/RecipientFilterBuilder';
-import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
-import { useConflictAwareSave } from 'hooks/useEditableRecord';
+import { CanEdit, ReadOnlyFieldset, usePermissions, ViewOnly } from 'hooks/permissions';
+import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
+import { useEditLease } from 'hooks/useEditLease';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
 import { emailAccountHooks, emailTemplateHooks } from 'store/entities';
@@ -66,25 +68,50 @@ const templateFields = (template: ApiEmailTemplate) => ({
 
 type Fields = ReturnType<typeof templateFields>;
 
+/** The form's state as one string, for telling whether anything is unsaved. */
+const editsOf = ({ name, account, from_email, reply_to, subject, body, ...audience }: Fields) =>
+  JSON.stringify({
+    name,
+    audience,
+    account,
+    fromEmail: from_email,
+    replyTo: reply_to,
+    subject,
+    body,
+  });
+
 export function GroupTemplateEditor({
   eventId,
   organizationId,
   defaultFrom,
-  template,
+  template: latest,
   helpBase,
   onDone,
 }: GroupTemplateEditorProps) {
-  const { canEdit } = usePermissions();
+  // The version shown: a newer one shows while nothing here is unsaved.
+  const [template, showVersion] = useLatestWhileUnchanged<ApiEmailTemplate>(
+    latest,
+    (): boolean => !dirty,
+    (record) => {
+      show(templateFields(record));
+      setInitialEdits(editsOf(templateFields(record)));
+    },
+  );
+  const { canEdit: mayEdit } = usePermissions();
   const create = emailTemplateHooks.useCreate();
   const update = emailTemplateHooks.useUpdate({ handlesVersionConflict: true });
   // From the version the editor opened at, so a change someone else saved
   // meanwhile is never overwritten unseen (§9.8, DR-109).
-  const saveTemplate = useConflictAwareSave(template, {
-    toForm: templateFields,
-    saveRecord: update.mutateAsync,
-    label: 'template',
-    fieldLabels: { from_email: 'From', reply_to: 'Reply-to', recipient_source: 'Recipients' },
-  });
+  const saveTemplate = useConflictAwareSave(
+    template,
+    {
+      toForm: templateFields,
+      saveRecord: update.mutateAsync,
+      label: 'template',
+      fieldLabels: { from_email: 'From', reply_to: 'Reply-to', recipient_source: 'Recipients' },
+    },
+    true,
+  );
   const { data: accounts } = emailAccountHooks.useList({ organization: organizationId });
 
   const [name, setName] = useState(template?.name ?? '');
@@ -95,10 +122,21 @@ export function GroupTemplateEditor({
   const [subject, setSubject] = useState(template?.subject ?? '');
   const [body, setBody] = useState(template?.body ?? '');
 
-  const edits = JSON.stringify({ name, audience, account, fromEmail, replyTo, subject, body });
-  const [initialEdits] = useState(edits);
+  const edits = editsOf({
+    name,
+    ...audience,
+    account,
+    from_email: fromEmail,
+    reply_to: replyTo,
+    subject,
+    body,
+  });
+  const [initialEdits, setInitialEdits] = useState(edits);
   const dirty = edits !== initialEdits;
   const { confirmDiscard, release } = useUnsavedChanges(dirty);
+  // Who else is editing it (§9.8): held while there are unsaved changes.
+  const lease = useEditLease(template ? 'emailtemplate' : undefined, template?.id ?? 0, dirty);
+  const canEdit = mayEdit && !lease.viewOnly;
 
   const source = audience.recipient_source;
   const { data: fields } = useRecipientFields(eventId, source);
@@ -168,7 +206,7 @@ export function GroupTemplateEditor({
     if (template) {
       const outcome = await saveTemplate(fields, show);
       if (outcome?.saved) onSuccess(outcome.saved);
-      if (outcome?.discarded) show(templateFields(outcome.discarded));
+      if (outcome?.discarded) showVersion(outcome.discarded);
     } else create.mutate({ event: Number(eventId), purpose: 'group', ...fields }, { onSuccess });
   };
 
@@ -179,104 +217,107 @@ export function GroupTemplateEditor({
 
   return (
     <Stack>
-      <ReadOnlyFieldset>
-        <TextInput
-          label="Name"
-          description="For finding it again; recipients don’t see it."
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          error={errors.name}
-          withAsterisk
+      <EditLeaseNotice label="template" lease={lease} />
+      <ViewOnly when={lease.viewOnly}>
+        <ReadOnlyFieldset>
+          <TextInput
+            label="Name"
+            description="For finding it again; recipients don’t see it."
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            error={errors.name}
+            withAsterisk
+          />
+        </ReadOnlyFieldset>
+
+        <Title order={4}>Recipients</Title>
+        <AudienceEditor
+          eventId={eventId}
+          audience={audience}
+          onChange={setAudience}
+          resolution={preview.data}
+          checking={preview.isFetching}
+          error={preview.error ? apiErrorMessage(preview.error) : null}
+          fieldErrors={errors}
+          disabled={!canEdit}
         />
-      </ReadOnlyFieldset>
+        <Text size="sm" c="dimmed">
+          These are the default recipients. Before sending, you review exactly who gets it. Anyone
+          who unsubscribed from this event’s group email is left out, and each copy ends with an
+          unsubscribe link.
+        </Text>
 
-      <Title order={4}>Recipients</Title>
-      <AudienceEditor
-        eventId={eventId}
-        audience={audience}
-        onChange={setAudience}
-        resolution={preview.data}
-        checking={preview.isFetching}
-        error={preview.error ? apiErrorMessage(preview.error) : null}
-        fieldErrors={errors}
-        disabled={!canEdit}
-      />
-      <Text size="sm" c="dimmed">
-        These are the default recipients. Before sending, you review exactly who gets it. Anyone who
-        unsubscribed from this event’s group email is left out, and each copy ends with an
-        unsubscribe link.
-      </Text>
+        <Title order={4}>Sender</Title>
+        <ReadOnlyFieldset>
+          <Group grow align="flex-start">
+            <Select
+              label="Account"
+              data={accountOptions}
+              value={account === null ? EVENT_ACCOUNT : String(account)}
+              onChange={(value) =>
+                setAccount(!value || value === EVENT_ACCOUNT ? null : Number(value))
+              }
+              allowDeselect={false}
+              error={errors.account}
+            />
+            <TextInput
+              label="From"
+              placeholder={defaultFrom || 'The event’s address'}
+              description="Blank uses the placeholder."
+              value={fromEmail}
+              onChange={(e) => setFromEmail(e.currentTarget.value)}
+              error={errors.from_email}
+            />
+            <TextInput
+              label="Reply-To"
+              placeholder="The account’s default, else From"
+              value={replyTo}
+              onChange={(e) => setReplyTo(e.currentTarget.value)}
+              error={errors.reply_to}
+            />
+          </Group>
+        </ReadOnlyFieldset>
 
-      <Title order={4}>Sender</Title>
-      <ReadOnlyFieldset>
-        <Group grow align="flex-start">
-          <Select
-            label="Account"
-            data={accountOptions}
-            value={account === null ? EVENT_ACCOUNT : String(account)}
-            onChange={(value) =>
-              setAccount(!value || value === EVENT_ACCOUNT ? null : Number(value))
-            }
-            allowDeselect={false}
-            error={errors.account}
-          />
-          <TextInput
-            label="From"
-            placeholder={defaultFrom || 'The event’s address'}
-            description="Blank uses the placeholder."
-            value={fromEmail}
-            onChange={(e) => setFromEmail(e.currentTarget.value)}
-            error={errors.from_email}
-          />
-          <TextInput
-            label="Reply-To"
-            placeholder="The account’s default, else From"
-            value={replyTo}
-            onChange={(e) => setReplyTo(e.currentTarget.value)}
-            error={errors.reply_to}
-          />
-        </Group>
-      </ReadOnlyFieldset>
-
-      <Title order={4}>Message</Title>
-      <EmailTemplateEditor
-        eventId={eventId}
-        context={context}
-        subject={subject}
-        onSubjectChange={setSubject}
-        body={body}
-        onBodyChange={setBody}
-        samples={samples}
-        helpHref={helpBase ? `${helpBase}?context=${context}` : undefined}
-      />
-      {(errors.subject || errors.body) && (
-        <Alert color="red" variant="light" title="The message has problems">
-          {[errors.subject && `Subject: ${errors.subject}`, errors.body && `Body: ${errors.body}`]
-            .filter(Boolean)
-            .join(' ')}
-        </Alert>
-      )}
-      {saveError && !Object.keys(errors).length && (
-        <Alert color="red" variant="light" title="Couldn’t save">
-          {apiErrorMessage(saveError)}
-        </Alert>
-      )}
-
-      <FormActions dirty={dirty} justify="flex-start">
-        <CanEdit>
-          <Button onClick={() => void save()} disabled={!!missing || saving} loading={saving}>
-            Save
-          </Button>
-        </CanEdit>
-        <Button variant="default" onClick={() => confirmDiscard(() => onDone())}>
-          {canEdit ? 'Cancel' : 'Close'}
-        </Button>
-        {missing && canEdit && (
-          <Text size="sm" c="dimmed">
-            Add {missing} to save.
-          </Text>
+        <Title order={4}>Message</Title>
+        <EmailTemplateEditor
+          eventId={eventId}
+          context={context}
+          subject={subject}
+          onSubjectChange={setSubject}
+          body={body}
+          onBodyChange={setBody}
+          samples={samples}
+          helpHref={helpBase ? `${helpBase}?context=${context}` : undefined}
+        />
+        {(errors.subject || errors.body) && (
+          <Alert color="red" variant="light" title="The message has problems">
+            {[errors.subject && `Subject: ${errors.subject}`, errors.body && `Body: ${errors.body}`]
+              .filter(Boolean)
+              .join(' ')}
+          </Alert>
         )}
-      </FormActions>
+        {saveError && !Object.keys(errors).length && (
+          <Alert color="red" variant="light" title="Couldn’t save">
+            {apiErrorMessage(saveError)}
+          </Alert>
+        )}
+
+        <FormActions dirty={dirty} justify="flex-start">
+          <CanEdit>
+            <Button onClick={() => void save()} disabled={!!missing || saving} loading={saving}>
+              Save
+            </Button>
+          </CanEdit>
+          <Button variant="default" onClick={() => confirmDiscard(() => onDone())}>
+            {canEdit ? 'Cancel' : 'Close'}
+          </Button>
+          {missing && canEdit && (
+            <Text size="sm" c="dimmed">
+              Add {missing} to save.
+            </Text>
+          )}
+        </FormActions>
+      </ViewOnly>
     </Stack>
   );
 }

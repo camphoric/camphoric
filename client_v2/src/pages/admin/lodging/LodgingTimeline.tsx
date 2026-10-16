@@ -45,6 +45,7 @@ import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { Box, Group, MultiSelect, Paper, ScrollArea, Stack, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import type { ApiCamper, AugmentedLodging } from 'api-types';
+import { BeingEdited } from 'components/EditLease';
 import { usePermissions } from 'hooks/permissions';
 import {
   type KeyboardEvent,
@@ -455,7 +456,7 @@ function CamperChip({
         boxShadow: selected ? SELECTED_RING : undefined,
       }}
     >
-      {camperName(camper)}
+      {camperName(camper)} <BeingEdited model="camper" id={camper.id} size="xs" />
     </Paper>
   );
 }
@@ -501,6 +502,7 @@ const LeafRow = memo(function LeafRow({
             onSelect={onSelectLodging}
           />
           {leaf.notes.trim() && <NotesMarker />}
+          <BeingEdited model="lodging" id={leaf.id} />
         </Group>
       </Box>
       <Box
@@ -710,6 +712,7 @@ function CamperBar({
       <Text size="xs" lineClamp={1} style={{ flex: 1, color: 'inherit' }}>
         {camperName(camper)}
       </Text>
+      <BeingEdited model="camper" id={camper.id} size="xs" />
       {/* Right-edge resize handle (custom, per DR-6). */}
       {canEdit && (
         <Box

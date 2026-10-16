@@ -14,13 +14,15 @@ import { Alert, Button, Container, Stack, Tabs, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiEvent } from 'api-types';
+import { EditLeaseNotice } from 'components/EditLease';
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
-import { CanEdit } from 'hooks/permissions';
-import { useConflictAwareSave } from 'hooks/useEditableRecord';
+import { CanEdit, ViewOnly } from 'hooks/permissions';
+import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
+import { useEditLease } from 'hooks/useEditLease';
 import { useSearchTab } from 'hooks/useSearchTab';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 
 import { EmailSettings } from './EmailSettings';
@@ -68,14 +70,40 @@ const TABS = [
 
 const stringify = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
-function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField }) {
+function SchemaEditor({
+  event: latest,
+  field,
+  onDirtyChange,
+}: {
+  event: ApiEvent;
+  field: EditableField;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const update = eventHooks.useUpdate({ handlesVersionConflict: true });
-  const saveField = useConflictAwareSave(event, {
-    toForm: (record: ApiEvent): Partial<ApiEvent> => ({ [field]: record[field] }),
-    saveRecord: update.mutateAsync,
-    label: 'event',
-  });
-  const [text, setText] = useState(() => stringify(event[field]));
+  // The version shown: a newer one shows while nothing here is unsaved.
+  const [event, showVersion] = useLatestWhileUnchanged<ApiEvent>(
+    latest,
+    (): boolean => !dirty,
+    (record) => {
+      setText(stringify(record[field]));
+      setSavedText(stringify(record[field]));
+    },
+  );
+  const saveField = useConflictAwareSave(
+    event,
+    {
+      toForm: (record: ApiEvent): Partial<ApiEvent> => ({ [field]: record[field] }),
+      saveRecord: update.mutateAsync,
+      label: 'event',
+    },
+    true,
+  );
+  const [text, setText] = useState(() => stringify(latest[field]));
+  // The text as last opened or saved, to tell what's unsaved.
+  const [savedText, setSavedText] = useState(text);
+  const dirty = text !== savedText;
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   const parseError = useMemo(() => {
     try {
@@ -92,7 +120,7 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
       (form) => setText(stringify(form[field])),
     );
     const record = outcome?.saved ?? outcome?.discarded;
-    if (record) setText(stringify(record[field]));
+    if (record) showVersion(record);
     if (outcome?.saved) notifications.show({ color: 'green', message: 'Saved' });
   };
 
@@ -121,6 +149,30 @@ export function EventAdminSettings() {
   });
   const { data: event } = eventHooks.useById(eventId);
   const [tab, setTab] = useSearchTab('settingsTab', TABS);
+  // The tabs that edit the event's own fields share its edit lease (§9.8): held
+  // while any of them has unsaved changes.
+  const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(new Set());
+  const reportDirty = useCallback((key: string, dirty: boolean) => {
+    setUnsaved((prev) => {
+      if (prev.has(key) === dirty) return prev;
+      const next = new Set(prev);
+      if (dirty) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+  // One steady callback per tab, so each tab's effects don't run again every render.
+  const reportersFor = useMemo(
+    () =>
+      Object.fromEntries(
+        [VALIDATION_MESSAGES, ...EDITABLE_FIELDS.map(({ field }) => field)].map((key) => [
+          key,
+          (dirty: boolean) => reportDirty(key, dirty),
+        ]),
+      ),
+    [reportDirty],
+  );
+  const lease = useEditLease(event ? 'event' : undefined, event?.id ?? 0, unsaved.size > 0);
 
   if (!event) return <FullScreenLoading />;
 
@@ -128,6 +180,7 @@ export function EventAdminSettings() {
     <Container size="lg">
       <Stack>
         <Title order={2}>Settings</Title>
+        <EditLeaseNotice label="event" lease={lease} />
         <Tabs value={tab} onChange={setTab} orientation="vertical">
           <Tabs.List>
             <Tabs.Tab value={REGISTRATION_TYPES}>Registration types</Tabs.Tab>
@@ -150,14 +203,23 @@ export function EventAdminSettings() {
             <PromoCodesSettings eventId={eventId} />
           </Tabs.Panel>
           <Tabs.Panel value={VALIDATION_MESSAGES} pl="md">
-            <ErrorMessagesSettings key={event.id} event={event} />
+            <ViewOnly when={lease.viewOnly}>
+              <ErrorMessagesSettings
+                key={event.id}
+                event={event}
+                onDirtyChange={reportersFor[VALIDATION_MESSAGES]}
+              />
+            </ViewOnly>
           </Tabs.Panel>
           <Tabs.Panel value={EMAIL} pl="md">
+            {/* Its choices save at once, and its accounts are the organization's: never held. */}
             <EmailSettings event={event} />
           </Tabs.Panel>
           {EDITABLE_FIELDS.map(({ field }) => (
             <Tabs.Panel key={field} value={field} pl="md">
-              <SchemaEditor event={event} field={field} />
+              <ViewOnly when={lease.viewOnly}>
+                <SchemaEditor event={event} field={field} onDirtyChange={reportersFor[field]} />
+              </ViewOnly>
             </Tabs.Panel>
           ))}
         </Tabs>

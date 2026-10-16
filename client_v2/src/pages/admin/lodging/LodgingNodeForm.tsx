@@ -19,10 +19,14 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiLodging, LodgingAvailability, Scalar } from 'api-types';
+import { EditLeaseNotice } from 'components/EditLease';
 import { FormActions } from 'components/FormActions';
-import { useConflictAwareSave } from 'hooks/useEditableRecord';
+import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
+import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
+import { useEditLease } from 'hooks/useEditLease';
 import { useState } from 'react';
 import { lodgingHooks } from 'store/entities';
+import { isEqual } from 'utils/merge';
 
 type LodgingFields = Pick<
   ApiLodging,
@@ -54,32 +58,44 @@ const AVAILABILITY: { value: LodgingAvailability; label: string }[] = [
   { value: 'open', label: 'Always open' },
 ];
 
+const lodgingFields = (record: ApiLodging): LodgingFields => ({
+  name: record.name,
+  children_title: record.children_title,
+  capacity: record.capacity,
+  reserved: record.reserved,
+  sharing_multiplier: record.sharing_multiplier,
+  visible: record.visible,
+  availability: record.availability,
+  notes: record.notes,
+});
+
 export function LodgingNodeForm({
   eventId,
   parentId,
-  node,
+  node: latest,
   opened,
   onClose,
 }: LodgingNodeFormProps) {
+  // The version shown: a newer one shows while nothing here is unsaved.
+  const [node, showVersion] = useLatestWhileUnchanged<ApiLodging>(
+    latest,
+    (): boolean => !dirty,
+    (record) => show(lodgingFields(record)),
+  );
   const create = lodgingHooks.useCreate();
   const update = lodgingHooks.useUpdate({ handlesVersionConflict: true });
   // From the version the form opened at, so a change someone else saved
   // meanwhile is never overwritten unseen (§9.8, DR-109).
-  const saveNode = useConflictAwareSave(node, {
-    toForm: (record: ApiLodging): LodgingFields => ({
-      name: record.name,
-      children_title: record.children_title,
-      capacity: record.capacity,
-      reserved: record.reserved,
-      sharing_multiplier: record.sharing_multiplier,
-      visible: record.visible,
-      availability: record.availability,
-      notes: record.notes,
-    }),
-    saveRecord: update.mutateAsync,
-    label: 'lodging',
-    fieldLabels: { children_title: 'Children are called' },
-  });
+  const saveNode = useConflictAwareSave(
+    node,
+    {
+      toForm: lodgingFields,
+      saveRecord: update.mutateAsync,
+      label: 'lodging',
+      fieldLabels: { children_title: 'Children are called' },
+    },
+    true,
+  );
 
   const [name, setName] = useState(node?.name ?? '');
   const [childrenTitle, setChildrenTitle] = useState(node?.children_title ?? '');
@@ -93,6 +109,24 @@ export function LodgingNodeForm({
     node?.availability ?? 'auto',
   );
   const [notes, setNotes] = useState(node?.notes ?? '');
+
+  // Who else is editing it (§9.8): held while the open form has unsaved changes.
+  const dirty =
+    !!node &&
+    !isEqual(
+      {
+        name,
+        children_title: childrenTitle,
+        capacity: num(capacity),
+        reserved: num(reserved),
+        sharing_multiplier: num(sharingMultiplier),
+        visible,
+        availability,
+        notes,
+      },
+      lodgingFields(node),
+    );
+  const lease = useEditLease(node && opened ? 'lodging' : undefined, node?.id ?? 0, dirty);
 
   const show = (fields: LodgingFields) => {
     setName(fields.name);
@@ -124,7 +158,7 @@ export function LodgingNodeForm({
     if (node) {
       const outcome = await saveNode(fields, show);
       if (outcome?.saved) onSuccess();
-      if (outcome?.discarded) show(outcome.discarded);
+      if (outcome?.discarded) showVersion(outcome.discarded);
     } else {
       create.mutate({ event: eventId, parent: parentId ?? null, ...fields }, { onSuccess });
     }
@@ -132,65 +166,76 @@ export function LodgingNodeForm({
 
   return (
     <Modal opened={opened} onClose={onClose} title={node ? 'Edit lodging' : 'New lodging'}>
-      <Stack>
-        <TextInput
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          required
-        />
-        <TextInput
-          label="Children title"
-          description="Label for this node's child units (e.g. “Rooms”)."
-          value={childrenTitle}
-          onChange={(e) => setChildrenTitle(e.currentTarget.value)}
-        />
-        <Group grow>
-          <NumberInput
-            label="Capacity"
-            description="0 = sum of children"
-            value={capacity}
-            onChange={setCapacity}
-            min={0}
-          />
-          <NumberInput label="Reserved" value={reserved} onChange={setReserved} min={0} />
-        </Group>
-        <NumberInput
-          label="Sharing multiplier"
-          value={sharingMultiplier}
-          onChange={setSharingMultiplier}
-          min={0}
-          step={0.5}
-        />
-        <Switch
-          label="Visible"
-          checked={visible}
-          onChange={(e) => setVisible(e.currentTarget.checked)}
-        />
-        <Select
-          label="On the registration form"
-          description="Full options are shown as “(full)” and can’t be chosen. Marking it full or open overrides its count, which is kept as it is."
-          data={AVAILABILITY}
-          value={availability}
-          onChange={(value) => setAvailability((value as LodgingAvailability | null) ?? 'auto')}
-          allowDeselect={false}
-        />
-        <Textarea
-          label="Notes"
-          value={notes}
-          onChange={(e) => setNotes(e.currentTarget.value)}
-          autosize
-          minRows={2}
-        />
-        <FormActions>
-          <Button variant="default" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => void save()} loading={create.isPending || update.isPending}>
-            Save
-          </Button>
-        </FormActions>
-      </Stack>
+      <EditLeaseNotice label="lodging" lease={lease} />
+      <ViewOnly when={lease.viewOnly}>
+        <Stack>
+          <ReadOnlyFieldset>
+            <Stack>
+              <TextInput
+                label="Name"
+                value={name}
+                onChange={(e) => setName(e.currentTarget.value)}
+                required
+              />
+              <TextInput
+                label="Children title"
+                description="Label for this node's child units (e.g. “Rooms”)."
+                value={childrenTitle}
+                onChange={(e) => setChildrenTitle(e.currentTarget.value)}
+              />
+              <Group grow>
+                <NumberInput
+                  label="Capacity"
+                  description="0 = sum of children"
+                  value={capacity}
+                  onChange={setCapacity}
+                  min={0}
+                />
+                <NumberInput label="Reserved" value={reserved} onChange={setReserved} min={0} />
+              </Group>
+              <NumberInput
+                label="Sharing multiplier"
+                value={sharingMultiplier}
+                onChange={setSharingMultiplier}
+                min={0}
+                step={0.5}
+              />
+              <Switch
+                label="Visible"
+                checked={visible}
+                onChange={(e) => setVisible(e.currentTarget.checked)}
+              />
+              <Select
+                label="On the registration form"
+                description="Full options are shown as “(full)” and can’t be chosen. Marking it full or open overrides its count, which is kept as it is."
+                data={AVAILABILITY}
+                value={availability}
+                onChange={(value) =>
+                  setAvailability((value as LodgingAvailability | null) ?? 'auto')
+                }
+                allowDeselect={false}
+              />
+              <Textarea
+                label="Notes"
+                value={notes}
+                onChange={(e) => setNotes(e.currentTarget.value)}
+                autosize
+                minRows={2}
+              />
+            </Stack>
+          </ReadOnlyFieldset>
+          <FormActions>
+            <Button variant="default" onClick={onClose}>
+              Cancel
+            </Button>
+            <CanEdit>
+              <Button onClick={() => void save()} loading={create.isPending || update.isPending}>
+                Save
+              </Button>
+            </CanEdit>
+          </FormActions>
+        </Stack>
+      </ViewOnly>
     </Modal>
   );
 }

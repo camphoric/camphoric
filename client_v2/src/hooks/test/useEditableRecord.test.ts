@@ -4,7 +4,11 @@ import { createElement, type ReactNode } from 'react';
 import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useEditableRecord } from '../useEditableRecord';
+import {
+  useConflictAwareSave,
+  useEditableRecord,
+  useLatestWhileUnchanged,
+} from '../useEditableRecord';
 
 const openEditConflict = vi.hoisted(() => vi.fn());
 vi.mock('components/EditConflict', () => ({ openEditConflict }));
@@ -194,5 +198,70 @@ describe('useEditableRecord (SPEC §9.8, DR-109)', () => {
     });
     expect(openEditConflict).not.toHaveBeenCalled();
     expect(result.current.form.attributes.name).toBe('Pattie');
+  });
+});
+
+describe('useLatestWhileUnchanged (a form showing what someone else saved, §9.8)', () => {
+  const v2: Camper = { ...v1, version: 2, notes: 'Theirs' };
+
+  function follow(unchanged: boolean) {
+    const show = vi.fn();
+    const initialProps: { record?: Camper } = { record: v1 };
+    const hook = renderHook(
+      ({ record }: { record?: Camper }) => useLatestWhileUnchanged(record, () => unchanged, show),
+      { initialProps },
+    );
+    return { ...hook, show };
+  }
+
+  it('shows a newer version while nothing in the form is unsaved', () => {
+    const { result, rerender, show } = follow(true);
+    rerender({ record: v2 });
+    expect(show).toHaveBeenCalledWith(v2);
+    expect(result.current[0]).toBe(v2);
+  });
+
+  it('keeps the version the edits were made from while some are unsaved', () => {
+    const { result, rerender, show } = follow(false);
+    rerender({ record: v2 });
+    expect(show).not.toHaveBeenCalled();
+    expect(result.current[0]).toBe(v1);
+  });
+
+  it('measures from the version the user took or saved, shown in the form', () => {
+    const { result, rerender, show } = follow(false);
+    act(() => result.current[1](v2));
+    expect(show).toHaveBeenCalledWith(v2);
+    expect(result.current[0]).toBe(v2);
+    // The list catching up to it changes nothing.
+    rerender({ record: v2 });
+    expect(show).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts another record (or none) from it as it is, without showing it over the form', () => {
+    const { result, rerender, show } = follow(false);
+    const other = { ...v1, id: 2 };
+    rerender({ record: other });
+    expect(result.current[0]).toBe(other);
+    rerender({ record: undefined });
+    expect(result.current[0]).toBeUndefined();
+    expect(show).not.toHaveBeenCalled();
+  });
+});
+
+describe('useConflictAwareSave from the version shown', () => {
+  it('saves from a newer version the form was moved on to', async () => {
+    const saveRecord = vi.fn((body: object) => Promise.resolve({ ...v1, ...body, version: 3 }));
+    const { result, rerender } = renderHook(
+      ({ record }: { record: Camper }) =>
+        useConflictAwareSave(record, { toForm, saveRecord, label: 'camper' }, true),
+      { initialProps: { record: v1 } },
+    );
+    const v2 = { ...v1, version: 2, notes: 'Theirs' };
+    rerender({ record: v2 });
+    await act(() => result.current({ ...toForm(v2), notes: 'Mine' }, vi.fn()));
+    // Only my change, from their version: no conflict to ask about.
+    expect(saveRecord).toHaveBeenCalledWith({ id: 1, version: 2, notes: 'Mine' });
+    expect(openEditConflict).not.toHaveBeenCalled();
   });
 });

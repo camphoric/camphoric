@@ -35,6 +35,7 @@ const DELETED = [
   },
 ];
 
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('store/entities', () => {
   const mutation = { mutate: vi.fn(), isPending: false };
   return {

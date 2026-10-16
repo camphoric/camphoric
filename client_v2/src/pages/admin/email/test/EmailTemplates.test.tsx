@@ -31,6 +31,7 @@ const templates = [
   }),
 ];
 
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('store/entities', () => ({
   emailTemplateHooks: {
     useList: () => ({ data: templates }),

@@ -78,7 +78,8 @@ export function useEditLease(
   // Show a lease now, over any look at it still on its way.
   const show = (lease: ApiEditLease | null) => {
     if (!model) return;
-    void client.cancelQueries({ queryKey: leaseKey(model, id) });
+    // Without reverting: a cancelled look must not put back what it replaced.
+    void client.cancelQueries({ queryKey: leaseKey(model, id) }, { revert: false });
     client.setQueryData(leaseKey(model, id), lease);
   };
 
