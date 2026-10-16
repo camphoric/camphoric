@@ -3,7 +3,7 @@
  * editing a per-registration one, a per-camper one that expires, and one that
  * some registrants can't use (DR-107).
  * Submitting shows what would be saved; nobody else is editing (the story
- * answers the lease lookup itself). Run `npm run storybook`.
+ * answers the edit-lease calls itself). Run `npm run storybook`.
  */
 
 import { Stack } from '@mantine/core';
@@ -18,12 +18,37 @@ import { samplePromoCode, sampleRegistrationType } from './promoCodeFixtures';
 const TYPES = [sampleRegistrationType(11, 'Staff'), sampleRegistrationType(12, 'Work-trade')];
 
 const realFetch = window.fetch.bind(window);
+const YOU = { id: 1, username: 'admin', first_name: 'Alex', last_name: 'Admin' };
 
-/** Nobody else is editing it: the form's lease lookup finds none. */
+/**
+ * Nobody else is editing it: looking up its lease finds none, and taking one
+ * (once the form has changes) gives this tab its own, which it gives up again.
+ */
 function stubLeases() {
   window.fetch = (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes('/api/leases/')) return Promise.resolve(Response.json([]));
+    const method = init?.method ?? 'GET';
+    if (url.endsWith('/api/user')) return Promise.resolve(Response.json(YOU));
+    if (url.includes('/api/leases/')) {
+      if (method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }));
+      if (method === 'POST') {
+        const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+        const now = new Date();
+        return Promise.resolve(
+          Response.json({
+            id: 1,
+            model: body.model,
+            object_id: body.object_id,
+            event: 7,
+            holder: { id: YOU.id, name: 'Alex Admin' },
+            client_id: body.client_id,
+            acquired_at: now.toISOString(),
+            expires_at: new Date(now.getTime() + 90_000).toISOString(),
+          }),
+        );
+      }
+      return Promise.resolve(Response.json([]));
+    }
     return realFetch(input, init);
   };
 }
