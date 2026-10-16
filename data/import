@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd /app
-node loadAllData.js
+exec node_modules/.bin/tsx loadAllData.ts

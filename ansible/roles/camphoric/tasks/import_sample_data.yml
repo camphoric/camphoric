@@ -75,5 +75,5 @@
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
-        cmd: node loadAllData.js
+        cmd: npm run import
         chdir: "{{camphoric_folder}}/data"
