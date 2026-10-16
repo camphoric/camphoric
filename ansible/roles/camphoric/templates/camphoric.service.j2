@@ -12,7 +12,9 @@ WorkingDirectory={{ camphoric_folder }}/server
 
 {% if camphoric_environment == 'development' %}
 {# The ASGI server, reloading on changes, so the live change feed works (DR-112);
-   a reload doesn't wait on admins' open feeds, which reconnect. #}
+   a reload doesn't wait on admins' open feeds, which reconnect. It polls for
+   changes, since a VirtualBox shared folder passes on no file events. #}
+Environment=WATCHFILES_FORCE_POLLING=true
 ExecStart={{ pipenv_bin }} run uvicorn \
           camphoric_server.asgi:application \
           --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000

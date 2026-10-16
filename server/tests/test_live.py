@@ -84,6 +84,17 @@ class NoticeTests(TestCase):
         made.pending.save()
         self.assertIn(('invitation', made.pending.id, 'updated'), self.notices())
 
+    def test_a_sent_invitation(self):
+        from camphoric.mail import outbox
+        message = outbox.enqueue(
+            event=self.made.event, kind=models.EmailMessageKind.INVITATION,
+            invitation=self.made.pending, from_email='camp@example.com',
+            to='kim@example.com', subject='Join us', text='Hi')
+        outbox.deliver(message.id)  # tests run tasks at once; a second go changes nothing
+        self.made.pending.refresh_from_db()
+        self.assertIsNotNone(self.made.pending.sent_time)
+        self.assertIn(('invitation', self.made.pending.id, 'updated'), self.notices())
+
     def test_a_sent_confirmation(self):
         from camphoric import confirmations
         with mock.patch.object(confirmations, 'queue_confirmation_email', return_value=None):
@@ -206,6 +217,25 @@ class StreamLifeTests(SimpleTestCase):
             chunks = [chunk async for chunk in live_stream.events(4, 'key', 1)]
         self.assertEqual(len(chunks), 1)  # hello, then nothing more
         self.assertEqual(broadcaster.streams, {})
+
+    async def test_it_says_goodbye_at_its_routine_close(self):
+        broadcaster = live_stream.Broadcaster()
+        broadcaster.task = asyncio.get_running_loop().create_future()
+        broadcaster.listening.set()
+        with mock.patch.object(live_stream, 'broadcaster', broadcaster), \
+                mock.patch.object(live_stream, 'MAX_SECONDS', 0):
+            chunks = [chunk async for chunk in live_stream.events(4, 'key', 1)]
+        self.assertTrue(chunks[-1].startswith('event: bye\n'))
+
+    async def test_it_ends_when_its_worker_stops_hearing_notices(self):
+        broadcaster = live_stream.Broadcaster()
+        broadcaster.task = asyncio.get_running_loop().create_future()
+        broadcaster.listening.set()
+        with mock.patch.object(live_stream, 'broadcaster', broadcaster):
+            stream = live_stream.events(4, 'key', 1)
+            await anext(stream)  # hello
+            broadcaster.deliver({'type': 'lost'}, broadcaster.everyone())
+            self.assertEqual([chunk async for chunk in stream], [])
 
     def test_the_listener_takes_only_libpq_options(self):
         options = {'sslmode': 'require', 'pool': True, 'isolation_level': 1,

@@ -325,7 +325,9 @@ consistently:
   ```
   A notice says only which record changed (`model` as for edit leases), never its contents;
   the client refetches what it shows through the endpoints above. Notices are sent when the
-  change commits, once per record per transaction.
+  change commits; identical notices in one transaction arrive once (so a record saved over and
+  over in a transaction is one `updated`, though created-then-updated is two). An `event: bye`
+  precedes the server's routine 30-minute close, so the client can reopen at once.
 - **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
   without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
   the same plan, so the preview is exact at the time it's asked. **Every delete confirmation in the
@@ -2256,8 +2258,10 @@ hasn't seen (§15, DR-109).
   was when rendered until it's rendered again, and group email's queue and batches keep
   refreshing on their own timers as they send. Unsaved edits are never replaced by a refetch (above). After the feed drops — a network
   blip, a deploy, its 30-minute renewal — it reconnects by itself and refetches everything, as
-  it does when told to resync. The admin shows when live updates are reconnecting, or off (the
-  server isn't streaming); without them, refetching on returning to the tab still applies.
+  it does when told to resync. The admin shows when live updates are reconnecting (they were
+  live and dropped: a deploy, a network blip — not the routine 30-minute renewal), or off (they
+  haven't come on since the page opened: a server that isn't streaming); without them,
+  refetching on returning to the tab still applies.
 
 ---
 
@@ -4605,8 +4609,8 @@ take the worker's other requests down with it; left for later if a slow view eve
 
 **Decision:** Each save or delete of a record admins edit (and each edit-lease change) sends a
 notice of what changed — kind, id, event, action, who — never its contents, with Postgres's
-`pg_notify` inside the saving transaction, so it's delivered only on commit and once per record
-however many times the transaction saved it. Each server worker has one connection LISTENing
+`pg_notify` inside the saving transaction, so it's delivered only on commit, and identical
+notices (a record re-saved by a repricing) arrive once. Each server worker has one connection LISTENing
 for notices, and hands each to the Server-Sent Events streams open on its event; the streams
 are outside the per-worker request cap. The client refetches through the usual endpoints, so
 permissions, serializers and computed pricing stay in one place and the stream carries nothing
@@ -4618,6 +4622,9 @@ the per-worker cap only until it starts. The client also refetches each entity's
 entities, as local saves do; closes the feed of a tab hidden a minute (browsers allow a site few
 HTTP/1.1 connections, so the site should be served over HTTP/2); keeps polling a lease someone
 holds, since lapsing sends no notice; and reopens a stream that has gone silent or been refused.
+If a worker loses its listening connection, its open streams end, so admins see their live
+updates reconnecting rather than a feed that has silently stopped. Restarting the app waits for
+open streams up to gunicorn's graceful timeout (30 s), on any deployment, before they close.
 Each notice refetches every open list of its entity in every admin tab, and each notifying
 commit takes Postgres's notify lock; at a camp's scale (a few admins, a few registrations a
 minute) that's small, and if it ever isn't, notices can be throttled per entity.

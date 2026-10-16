@@ -169,6 +169,9 @@ built client. Match the patterns already in the codebase rather than introducing
   `If-Match` so an admin never saves over a change they didn't see (SPEC DR-109).
   `QuerySet.update()` doesn't bump it. Pass `save(bump_version=False)` only for a save that
   refreshes what the server computes (pricing), never for a change someone could be editing.
+- **Let admins see it.** `save()` and `delete()` of a record admins edit also send the live
+  change feed's notice (`camphoric.live`, SPEC DR-112); `QuerySet.update()` sends none. After an
+  `.update()` admins look at, call `live.notify_changed(record)`.
 - Use **`CustomJSONField`** (wraps `JSONField` with `DjangoJSONEncoder`) for JSON columns —
   schemas, `attributes`, `admin_attributes`, pricing logic, etc.
 - Use **`models.TextChoices`** for enumerations (see `PaymentType`, `ReportOutputType`).

@@ -154,6 +154,32 @@ describe('useEventChangeFeed (SPEC §9.8, DR-112)', () => {
     expect(invalidated()).toContainEqual(['Invitation']);
   });
 
+  it('refetches what changes change too on hello: the registration form', () => {
+    setup();
+    act(() => FakeEventSource.last.emit('hello'));
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(invalidated()).toContainEqual(['RegisterConfigAdmin']);
+  });
+
+  it('reopens at once, still live, on the server’s routine goodbye', () => {
+    const { result } = setup();
+    const first = FakeEventSource.last;
+    act(() => first.emit('hello'));
+    act(() => first.emit('bye'));
+    expect(first.closed).toBe(true);
+    expect(FakeEventSource.last).not.toBe(first);
+    expect(result.current).toBe('live');
+  });
+
+  it('says reconnecting, not off, when a stream that was live is refused (a deploy)', () => {
+    const { result } = setup();
+    act(() => FakeEventSource.last.emit('hello'));
+    act(() => FakeEventSource.last.fail(FakeEventSource.CLOSED));
+    expect(result.current).toBe('reconnecting');
+  });
+
   it('refreshes a record’s lease when it changes', () => {
     setup();
     act(() => FakeEventSource.last.emit('lease', { model: 'camper', id: 3 }));

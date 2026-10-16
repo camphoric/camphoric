@@ -69,7 +69,13 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
         stale.clear();
       }, GATHER_MS);
     };
-    const everything = () => refetch([...Object.values(ENTITY_OF_MODEL), LEASES]);
+    const everything = () => {
+      const entities = Object.values(ENTITY_OF_MODEL);
+      refetch([...entities, ...entities.flatMap((name) => ALSO_CHANGES[name] ?? []), LEASES]);
+    };
+    // Whether it has been live since the page opened: a drop after that is
+    // reconnecting, a refusal before it is off.
+    let everLive = false;
     const read = (event: Event) => JSON.parse((event as MessageEvent<string>).data) as Notice;
 
     const open = () => {
@@ -78,7 +84,14 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
       source.addEventListener('hello', () => {
         heard();
         everything();
+        everLive = true;
         setState('live');
+      });
+      // The server's routine 30-minute close: reopen at once, still live.
+      source.addEventListener('bye', () => {
+        source.close();
+        heard();
+        current = open();
       });
       source.addEventListener('ping', heard);
       source.addEventListener('change', (event) => {
@@ -96,13 +109,15 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
         everything();
       });
       source.onerror = () => {
-        // The browser tries again by itself, unless the server refused outright.
-        setState(source.readyState === EventSource.CLOSED ? 'off' : 'reconnecting');
+        // The browser tries again by itself unless the server refused outright;
+        // either way, once it has been live, it's reconnecting (the watchdog
+        // tries a refused one again).
+        setState(everLive || source.readyState !== EventSource.CLOSED ? 'reconnecting' : 'off');
       };
       return source;
     };
 
-    let source = open();
+    let current = open();
     let paused = false;
     let hiddenSince: number | undefined;
     const onVisibility = () => {
@@ -114,7 +129,7 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
           paused = false;
           setState('connecting');
           heard();
-          source = open();
+          current = open();
         }
       }
     };
@@ -126,21 +141,21 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
       if (hiddenSince !== undefined) {
         // Hidden: no use reviving it now; close it once it's been a while.
         if (now - hiddenSince >= HIDDEN_MS) {
-          source.close();
+          current.close();
           paused = true;
         }
         return;
       }
-      const closed = source.readyState === EventSource.CLOSED;
+      const closed = current.readyState === EventSource.CLOSED;
       if (closed ? now - lastOpened < RETRY_MS : now - lastHeard < STALE_MS) return;
-      source.close();
+      current.close();
       if (!closed) setState('reconnecting');
       heard();
-      source = open();
+      current = open();
     }, WATCH_MS);
 
     return () => {
-      source.close();
+      current.close();
       clearInterval(watchdog);
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisibility);
