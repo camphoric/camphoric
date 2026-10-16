@@ -27,6 +27,7 @@ import { IconCopy, IconPencil, IconPlus, IconSend, IconTrash } from '@tabler/ico
 import { Link } from '@tanstack/react-router';
 import type { ApiEmailBatch, ApiEmailTemplate, ApiEvent } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { BeingEdited, WithBeingEdited } from 'components/EditLease';
 import { InlineLoading } from 'components/Loading';
 import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
@@ -147,7 +148,8 @@ export function EmailTemplates({
                         onClick={() => onEditTemplate(String(template.id))}
                       >
                         {template.name}
-                      </Anchor>
+                      </Anchor>{' '}
+                      <BeingEdited model="emailtemplate" id={template.id} />
                     </Table.Td>
                     <Table.Td>{template.subject}</Table.Td>
                     <Table.Td>{audienceSummary(template)}</Table.Td>
@@ -218,7 +220,11 @@ export function EmailTemplates({
           <Card key={template.id} withBorder padding="sm">
             <Group justify="space-between" wrap="wrap">
               <Stack gap={0}>
-                <Text fw={500}>{template.name}</Text>
+                <Text fw={500}>
+                  <WithBeingEdited model="emailtemplate" id={template.id}>
+                    {template.name}
+                  </WithBeingEdited>
+                </Text>
                 <Text size="sm" c="dimmed">
                   {template.subject || 'No subject'}
                 </Text>

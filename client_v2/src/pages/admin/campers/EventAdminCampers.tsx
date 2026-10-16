@@ -13,6 +13,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, Hash } from 'api-types';
 import { DataTable } from 'components/DataTable';
+import { WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useReportTemplateVars } from 'hooks/useReportData';
 import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
@@ -89,7 +90,17 @@ export function EventAdminCampers() {
 
   const columns = useMemo<ColumnDef<ApiCamper, unknown>[]>(
     () => [
-      { id: 'name', header: 'Name', accessorFn: camperName },
+      {
+        id: 'name',
+        header: 'Name',
+        accessorFn: camperName,
+        // Marked when someone else is editing it (§9.8).
+        cell: (info) => (
+          <WithBeingEdited model="camper" id={info.row.original.id}>
+            {info.getValue<string>()}
+          </WithBeingEdited>
+        ),
+      },
       { id: 'registration', header: 'Registration', accessorFn: registrationEmail },
       { id: 'lodging', header: 'Lodging', accessorFn: lodgingPath },
       { id: 'requested', header: 'Requested lodging', accessorFn: requestedPath },

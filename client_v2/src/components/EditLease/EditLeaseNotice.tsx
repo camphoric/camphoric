@@ -42,7 +42,9 @@ export function EditLeaseNoticeView({
     >
       {overlapping
         ? 'Your changes here aren’t saved yet. Saving shows you anything they’ve saved first.'
-        : `Since ${time(lease.acquired_at)}. It opens for editing here once they’re done.`}{' '}
+        : `Since ${time(lease.acquired_at)}. It opens for editing here once ${
+            isYou ? 'you’re done there' : 'they’re done'
+          }.`}{' '}
       <CanEdit>
         <Button variant="subtle" size="compact-sm" onClick={onTakeOver}>
           {overlapping ? 'Take it back' : 'Edit anyway'}
@@ -54,13 +56,25 @@ export function EditLeaseNoticeView({
 
 /** The notice for a form's lease, when someone else holds it. */
 export function EditLeaseNotice({ label, lease }: { label: string; lease: EditLeaseState }) {
-  const { data: user } = useCurrentUser();
   if (!lease.other) return null;
+  return <HeldNotice label={label} lease={lease} other={lease.other} />;
+}
+
+function HeldNotice({
+  label,
+  lease,
+  other,
+}: {
+  label: string;
+  lease: EditLeaseState;
+  other: ApiEditLease;
+}) {
+  const { data: user } = useCurrentUser();
   return (
     <EditLeaseNoticeView
       label={label}
-      lease={lease.other}
-      isYou={lease.other.holder.id === user?.id}
+      lease={other}
+      isYou={other.holder.id === user?.id}
       overlapping={lease.overlapping}
       onTakeOver={() => void lease.takeOver()}
     />

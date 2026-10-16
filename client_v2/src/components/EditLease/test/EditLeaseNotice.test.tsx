@@ -39,5 +39,6 @@ describe('EditLeaseNoticeView', () => {
     expect(
       screen.getByText('You are editing this registration in another tab'),
     ).toBeInTheDocument();
+    expect(screen.getByText(/once you’re done there\./)).toBeInTheDocument();
   });
 });

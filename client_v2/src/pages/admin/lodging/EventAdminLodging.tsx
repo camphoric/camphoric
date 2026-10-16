@@ -140,6 +140,10 @@ export function EventAdminLodging() {
   const editNode = (node: AugmentedLodging) =>
     setNodeForm({ open: true, node: { ...node, capacity: ownCapacity(node) } });
 
+  // The node as it is now, so the form can show what someone else saves.
+  const liveNode = nodeForm.node && data?.lodgingLookup[nodeForm.node.id];
+  const editedNode = liveNode ? { ...liveNode, capacity: ownCapacity(liveNode) } : nodeForm.node;
+
   const setShownLodging = (ids: string[]) =>
     setSearch({ lodgingFilter: ids.length ? ids.join(',') : undefined });
 
@@ -283,7 +287,7 @@ export function EventAdminLodging() {
         key={nodeForm.node?.id ?? `new-${String(nodeForm.parentId)}`}
         eventId={eventId}
         parentId={nodeForm.parentId}
-        node={nodeForm.node}
+        node={editedNode}
         opened={nodeForm.open}
         onClose={() => setNodeForm({ open: false })}
       />

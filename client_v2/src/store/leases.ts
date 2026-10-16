@@ -27,6 +27,14 @@ export const CLIENT_ID =
 
 export const leaseKey = (model: string, id: Scalar) => [LEASES, model, String(id)];
 
+/** The event's leases: apart from every record's own (`leaseKey`), the event's included. */
+export const EVENT_LEASES = '@event';
+export const eventLeasesKey = (eventId: Scalar | undefined) => [
+  LEASES,
+  EVENT_LEASES,
+  String(eventId),
+];
+
 /** The record's current lease, or null; looked at again every so often. */
 export function useRecordLease(model: string | undefined, id: Scalar, enabled = true) {
   const live = useLiveFeedState() === 'live';
@@ -40,6 +48,22 @@ export function useRecordLease(model: string | undefined, id: Scalar, enabled = 
     },
     enabled: enabled && !!model,
     refetchInterval: (query) => (live && !query.state.data ? false : POLL_MS),
+    staleTime: 0,
+  });
+}
+
+/**
+ * The event's leases that haven't lapsed, for marking what's being edited in
+ * its lists. Looked at as `useRecordLease` is: every 15 seconds while any
+ * lease is held or without the live feed.
+ */
+export function useEventLeases(eventId: Scalar | undefined) {
+  const live = useLiveFeedState() === 'live';
+  return useQuery({
+    queryKey: eventLeasesKey(eventId),
+    queryFn: ({ signal }) => apiFetch<ApiEditLease[]>(`/api/leases/?event=${eventId}`, { signal }),
+    enabled: eventId !== undefined,
+    refetchInterval: (query) => (live && !query.state.data?.length ? false : POLL_MS),
     staleTime: 0,
   });
 }

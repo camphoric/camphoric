@@ -6,6 +6,7 @@ import { PromoCodeForm } from '../PromoCodeForm';
 import { samplePromoCode, sampleRegistrationType } from './promoCodeFixtures';
 
 // Monaco doesn't load in jsdom; a textarea stands in for the JSON editor.
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('components/JsonEditor', () => ({
   JsonEditor: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea
@@ -38,16 +39,19 @@ describe('PromoCodeForm', () => {
     await user.paste('{"*": [{"var": "tuition"}, 0.5]}');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({
-      label: 'Sibling discount',
-      code: 'sibling',
-      pricing_logic: { '*': [{ var: 'tuition' }, 0.5] },
-      scope: 'camper',
-      enabled: true,
-      expiration_date: null,
-      excluded_registration_types: [],
-      excludes_uninvited: false,
-    });
+    expect(onSubmit).toHaveBeenCalledWith(
+      {
+        label: 'Sibling discount',
+        code: 'sibling',
+        pricing_logic: { '*': [{ var: 'tuition' }, 0.5] },
+        scope: 'camper',
+        enabled: true,
+        expiration_date: null,
+        excluded_registration_types: [],
+        excludes_uninvited: false,
+      },
+      undefined,
+    );
   });
 
   it('edits a code, keeping what isn’t changed', async () => {
@@ -57,16 +61,20 @@ describe('PromoCodeForm', () => {
     await user.click(screen.getByRole('switch', { name: 'Registrants can use it' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({
-      label: 'Early bird',
-      code: 'EARLY',
-      pricing_logic: promoCode.pricing_logic,
-      scope: 'registration',
-      enabled: false,
-      expiration_date: '2026-12-01T08:00:00.000Z',
-      excluded_registration_types: [],
-      excludes_uninvited: false,
-    });
+    // With the version shown, which the save goes from.
+    expect(onSubmit).toHaveBeenCalledWith(
+      {
+        label: 'Early bird',
+        code: 'EARLY',
+        pricing_logic: promoCode.pricing_logic,
+        scope: 'registration',
+        enabled: false,
+        expiration_date: '2026-12-01T08:00:00.000Z',
+        excluded_registration_types: [],
+        excludes_uninvited: false,
+      },
+      promoCode,
+    );
   });
 
   it('keeps registrants from using it, by registration type or without an invitation', async () => {
@@ -85,6 +93,7 @@ describe('PromoCodeForm', () => {
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ excluded_registration_types: [12], excludes_uninvited: true }),
+      promoCode,
     );
   });
 
@@ -94,6 +103,7 @@ describe('PromoCodeForm', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ excluded_registration_types: [11] }),
+      promoCode,
     );
   });
 

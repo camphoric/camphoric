@@ -31,8 +31,8 @@ import {
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { CanEdit } from 'hooks/permissions';
-import { useConflictAwareSave } from 'hooks/useEditableRecord';
-import { useMemo, useState } from 'react';
+import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
+import { useEffect, useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 import { useRegistrationFormSchema } from 'store/registrationApi';
 
@@ -41,16 +41,36 @@ import { ErrorMessageRuleForm, fieldTitle } from './ErrorMessageRuleForm';
 const keywordLabel = (keyword: string) =>
   (KEYWORD_LABELS as Record<string, string>)[keyword] ?? keyword;
 
-export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
+export function ErrorMessagesSettings({
+  event: latest,
+  onDirtyChange,
+}: {
+  event: ApiEvent;
+  /** Whether there are unsaved changes (the page holds the event's edit lease). */
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const update = eventHooks.useUpdate({ handlesVersionConflict: true });
-  const saveRules = useConflictAwareSave(event, {
-    toForm: (record: ApiEvent) => ({
-      registration_error_messages: record.registration_error_messages ?? {},
-    }),
-    saveRecord: update.mutateAsync,
-    label: 'event',
-  });
-  const { data: config } = useRegistrationFormSchema(String(event.id));
+  // The version shown: a newer one shows while nothing here is unsaved.
+  const [event, showVersion] = useLatestWhileUnchanged<ApiEvent>(
+    latest,
+    (): boolean => !dirty,
+    (record) => {
+      show(record.registration_error_messages ?? {});
+      setDirty(false);
+    },
+  );
+  const saveRules = useConflictAwareSave(
+    event,
+    {
+      toForm: (record: ApiEvent) => ({
+        registration_error_messages: record.registration_error_messages ?? {},
+      }),
+      saveRecord: update.mutateAsync,
+      label: 'event',
+    },
+    true,
+  );
+  const { data: config } = useRegistrationFormSchema(String(latest.id));
 
   const fieldMap = useMemo(
     () =>
@@ -62,9 +82,11 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
   const fields = useMemo(() => [...fieldMap.values()], [fieldMap]);
 
   const [rules, setRules] = useState<RegistrationErrorMessages>(
-    () => event.registration_error_messages ?? {},
+    () => latest.registration_error_messages ?? {},
   );
   const [dirty, setDirty] = useState(false);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const [json, setJson] = useState<string | undefined>(); // defined while editing as JSON
   const [form, setForm] = useState<{ open: boolean; rule?: ErrorMessageRule }>({ open: false });
 
@@ -113,8 +135,7 @@ export function ErrorMessagesSettings({ event }: { event: ApiEvent }) {
     );
     const record = outcome?.saved ?? outcome?.discarded;
     if (!record) return;
-    show(record.registration_error_messages ?? {});
-    setDirty(false);
+    showVersion(record);
     if (outcome?.saved) {
       notifications.show({ color: 'green', message: 'Validation messages saved' });
     }

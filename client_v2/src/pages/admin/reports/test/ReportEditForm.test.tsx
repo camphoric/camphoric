@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import type { ApiReport } from 'api-types';
 import { renderWithProviders, screen } from 'test/utils';
+import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReportEditForm } from '../ReportEditForm';
@@ -10,6 +11,9 @@ const { create, update } = vi.hoisted(() => ({
   update: vi.fn((body: object) => Promise.resolve(body)),
 }));
 
+const openEditConflict = vi.hoisted(() => vi.fn());
+vi.mock('components/EditConflict', () => ({ openEditConflict }));
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('store/entities', () => ({
   reportHooks: {
     useCreate: () => ({ mutate: create, isPending: false }),
@@ -130,6 +134,54 @@ describe('ReportEditForm', () => {
     await user.type(screen.getByLabelText('Title'), '!');
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     await user.type(screen.getByLabelText('Title'), '{Backspace}');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('shows what someone else saved while nothing here is unsaved, and not over edits', async () => {
+    const user = userEvent.setup();
+    const props = { eventId: '7', onSaved: vi.fn(), onCancel: vi.fn() };
+    const { rerender } = renderWithProviders(<ReportEditForm {...props} report={legacyReport} />);
+
+    rerender(
+      <ReportEditForm {...props} report={{ ...legacyReport, version: 5, title: 'Cabins' }} />,
+    );
+    expect(screen.getByLabelText('Title')).toHaveValue('Cabins');
+
+    await user.type(screen.getByLabelText('Title'), '!');
+    rerender(
+      <ReportEditForm {...props} report={{ ...legacyReport, version: 6, title: 'Bunks' }} />,
+    );
+    expect(screen.getByLabelText('Title')).toHaveValue('Cabins!');
+
+    // Saved from the version shown, so only the title goes, with no conflict to ask about.
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledWith({ id: 3, version: 5, title: 'Cabins!' });
+  });
+
+  it('has nothing unsaved after taking theirs over mine', async () => {
+    const user = userEvent.setup();
+    const theirs = { ...legacyReport, version: 5, title: 'Cabins' };
+    update.mockRejectedValueOnce(
+      new ApiError(412, 'Precondition Failed', { code: 'version_conflict', current: theirs }),
+    );
+    openEditConflict.mockResolvedValueOnce('discard');
+    const onDirtyChange = vi.fn();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        report={legacyReport}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.type(screen.getByLabelText('Title'), '!');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByLabelText('Title')).toHaveValue('Cabins');
+    // So the edit lease, and the page's leaving prompt, are given up.
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });

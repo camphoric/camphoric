@@ -21,6 +21,7 @@ const { create, update, draft } = vi.hoisted(() => ({
   },
 }));
 
+vi.mock('hooks/useEditLease', async () => (await import('test/leases')).mockEditLease);
 vi.mock('store/entities', () => ({
   registrationTypeHooks: {
     useCreate: () => ({ mutateAsync: create, isPending: false }),

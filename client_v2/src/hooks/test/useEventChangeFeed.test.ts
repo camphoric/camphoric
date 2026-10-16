@@ -183,7 +183,11 @@ describe('useEventChangeFeed (SPEC §9.8, DR-112)', () => {
   it('refreshes a record’s lease when it changes', () => {
     setup();
     act(() => FakeEventSource.last.emit('lease', { model: 'camper', id: 3 }));
-    expect(invalidated()).toEqual([['EditLease', 'camper', '3']]);
+    // That record's lease, and the event's, which its lists mark.
+    expect(invalidated()).toEqual([
+      ['EditLease', 'camper', '3'],
+      ['EditLease', '@event'],
+    ]);
   });
 
   it('refetches everything after a drop, or when told to resync', () => {
