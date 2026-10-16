@@ -32,16 +32,12 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 11pt;
   line-height: 1.4;
-}
-/* Wide tables fit the page, wrapping long values, rather than running off its edge. */
-table { border-collapse: collapse; width: 100%; }
-th, td {
-  border: 1px solid #888;
-  padding: 2pt 5pt;
-  text-align: left;
-  vertical-align: top;
+  /* Long values wrap rather than running off the page's edge. */
   overflow-wrap: anywhere;
 }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #888; padding: 2pt 5pt; text-align: left; vertical-align: top; }
+img { max-width: 100%; }
 pre { margin: 0; white-space: pre-wrap; font-size: 10pt; }
 `;
 
@@ -55,10 +51,14 @@ export function reportPrintDocument(
   output: string,
 ): string {
   // Neither kind of document runs scripts: both are inert until printed, and
-  // print from a sandboxed frame (utils/print).
+  // print from a sandboxed frame (utils/print). An html report without a
+  // doctype is parsed as the frames showing it do, never in quirks mode.
   const doc =
     format === 'html'
-      ? new DOMParser().parseFromString(output, 'text/html')
+      ? new DOMParser().parseFromString(
+          /^\s*<!doctype/i.test(output) ? output : `<!doctype html>${output}`,
+          'text/html',
+        )
       : document.implementation.createHTMLDocument(title);
   if (!doc.title) doc.title = title;
 

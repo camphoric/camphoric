@@ -30,12 +30,12 @@ describe('printHtml', () => {
     await vi.waitFor(() => expect(print).toHaveBeenCalledOnce());
   });
 
-  it('removes the frame after printing', async () => {
+  it('keeps the frame after printing, so an early afterprint can’t blank the print', async () => {
     const { win, print } = startPrint('<p>Roster</p>', 'Roster');
     await vi.waitFor(() => expect(print).toHaveBeenCalled());
 
     win.dispatchEvent(new Event('afterprint'));
-    expect(frames()).toHaveLength(0);
+    expect(frames()).toHaveLength(1);
   });
 
   it('replaces a frame left from an earlier print', async () => {
