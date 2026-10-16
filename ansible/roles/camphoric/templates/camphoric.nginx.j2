@@ -11,6 +11,21 @@ server {
       try_files $uri $uri/index.html @proxy_django;
     }
 
+    # An event's live change feed (SPEC DR-112): passed on as it comes, and
+    # left open (the server pings every 20 s and closes after 30 min).
+    location ~ ^/api/events/\d+/stream/$ {
+      include proxy_params;
+      proxy_http_version 1.1;
+      proxy_set_header Connection '';
+      proxy_buffering off;
+      proxy_read_timeout 1h;
+      {% if camphoric_environment == 'development' %}
+      proxy_pass http://localhost:8000;
+      {% else %}
+      proxy_pass http://unix:/run/camphoric.sock;
+      {% endif %}
+    }
+
     location @proxy_django {
       include proxy_params;
       {% if camphoric_environment == 'development' %}
@@ -22,7 +37,9 @@ server {
 
     {%- if nginx_ssl_on | bool %}
 
-    listen 443 ssl; # managed by Certbot
+    # HTTP/2, so admins' live-update streams don't use up the browser's few
+    # HTTP/1.1 connections to the site (SPEC DR-112).
+    listen 443 ssl http2; # managed by Certbot
 
     ssl_certificate /etc/letsencrypt/live/{{ camphoric_domain_name }}/fullchain.pem; # managed by Certbot
     ssl_certificate_key /etc/letsencrypt/live/{{ camphoric_domain_name }}/privkey.pem; # managed by Certbot

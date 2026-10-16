@@ -19,4 +19,5 @@ export const ENTITY_OF_MODEL: Record<string, string> = {
   pricingoverride: 'PricingOverride',
   report: 'Report',
   emailtemplate: 'EmailTemplate',
+  invitation: 'Invitation',
 };

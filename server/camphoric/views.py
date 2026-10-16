@@ -974,6 +974,8 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
         if not client_id or len(client_id) > 64:
             raise ValidationError({'client_id': 'Up to 64 characters naming the browser tab.'})
         record = tracked.record(str(data.get('model') or ''), data.get('object_id'))
+        if tracked.event_id_of(record) is None:
+            raise ValidationError({'object_id': 'That record belongs to no event.'})
         try:
             lease = leases.acquire(
                 record, request.user, client_id, takeover=bool(data.get('takeover')))

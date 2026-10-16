@@ -111,7 +111,8 @@ or keep your data by dumping it with the old version first: before pulling this 
 
 ### Running the released image
 
-The development stack above bind-mounts your source into a `runserver` container. To run the
+The development stack above bind-mounts your source into a container running the ASGI server
+with `--reload`. To run the
 *release* image instead — the same image CI builds and every release publishes to
 `ghcr.io/camphoric/camphoric` — use the separate compose file:
 

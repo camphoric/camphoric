@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-111)
+- §15 — Decision Records (DR-1…DR-112)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -310,6 +310,22 @@ consistently:
     for 90 seconds (Registrars and Admins). When another tab holds it, `409 { detail,
     code: 'lease_held', lease }` — unless `takeover`, which gives it to this tab.
   - `DELETE /api/leases/{id}/?client_id=<tab>` → 204; gives it up if that tab still holds it.
+- **Live change feed (§9.8; §15, DR-112):** `GET /api/events/{id}/stream/` → a Server-Sent Events
+  stream for any role (401 signed out, 403 without a role, 404 for no such event, 503 when the
+  server isn't the ASGI one). It sends `retry: 5000` and `event: hello` once the server is
+  listening for notices (or ends, if it can't be, and the client tries again), then each notice,
+  an `event: ping` every 20 seconds, and closes after 30 minutes, or once the session is no longer
+  signed in with a role (checked every 5 minutes). A client that hears nothing for 50 seconds
+  treats the stream as dead and opens a new one:
+  ```
+  event: change   data: { type: 'changed', model, id, event, action: 'created' | 'updated' | 'deleted',
+                          actor: { id, name } | null }
+  event: lease    data: { type: 'lease', model, id, event }
+  event: resync   data: {}        // notices may have been missed: refetch everything
+  ```
+  A notice says only which record changed (`model` as for edit leases), never its contents;
+  the client refetches what it shows through the endpoints above. Notices are sent when the
+  change commits, once per record per transaction.
 - **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
   without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
   the same plan, so the preview is exact at the time it's asked. **Every delete confirmation in the
@@ -2215,8 +2231,9 @@ hasn't seen (§15, DR-109).
     lapses, so one left by a closed laptop doesn't linger.
   - Opening a record someone else holds says who and since when, and shows the record without
     letting it be changed (other records on the same screen, such as a registration's invoices,
-    stay as they are). It opens for editing once their lease ends — it's looked at every 15
-    seconds — showing the record afresh, with whatever they saved; or at once if the user
+    stay as they are). It opens for editing once their lease ends — the live change feed says so
+    at once, or it's looked at every 15 seconds without the feed — showing the record afresh,
+    with whatever they saved; or at once if the user
     chooses to edit anyway, which takes the lease over and keeps it while the record stays open.
   - Someone whose lease was taken over, or who started editing at the same moment, keeps their
     unsaved changes and is told someone else has the record too; their save still goes through
@@ -2225,6 +2242,22 @@ hasn't seen (§15, DR-109).
   - A lease is a courtesy and never stops a save: the version check does that.
 - **Nobody else is held up.** Nothing is locked while someone edits; a save that sends no
   version (the V1 client, a script) is written as before.
+- **Live updates (§15, DR-112).** While an event's admin is open, what anyone changes in that
+  event's records — registrations, campers, invoices and payments, lodging, invitations, the
+  event's configuration (and so the registration form), its registration types, promo codes,
+  charges, overrides, reports and email templates — shows without reloading, within a moment:
+  the server's change feed (§5) says which records changed, and the client refetches them — with what their changes change too, as its
+  own saves do (a payment refetches its registration's balance and its invoice) — along with
+  change histories and deleted lists, gathering a quarter-second's notices at a time. Edit
+  leases show as they're taken and given up; one someone holds is still looked at every 15
+  seconds, since a lease that lapses sends no notice. A tab hidden for a minute closes its feed,
+  and catches up when it's shown again; each time the feed (re)opens, everything is refetched,
+  so nothing changed while it was connecting is missed. A rendered report shows the data as it
+  was when rendered until it's rendered again, and group email's queue and batches keep
+  refreshing on their own timers as they send. Unsaved edits are never replaced by a refetch (above). After the feed drops — a network
+  blip, a deploy, its 30-minute renewal — it reconnects by itself and refetches everything, as
+  it does when told to resync. The admin shows when live updates are reconnecting, or off (the
+  server isn't streaming); without them, refetching on returning to the tab still applies.
 
 ---
 
@@ -2255,7 +2288,8 @@ hasn't seen (§15, DR-109).
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
   invalidate-and-refetch (§15, DR-16). A refetch never replaces an edit the user hasn't saved;
-  a refused save refetches the record (§9.8).
+  a refused save refetches the record (§9.8). While an event's admin is open, the live change
+  feed refetches what others change as they change it (§9.8; §15, DR-112).
 - **Colour scheme:** the client follows the operating system's light/dark preference
   (`prefers-color-scheme`), on every surface, and switches when the preference changes while a
   page is open. Where the browser reports no preference, it is light. A person can choose light
@@ -4533,7 +4567,7 @@ the person who most needs to save; rejected. Taking the lease on opening a recor
 changing it — everyone who merely looks would show as editing; rejected. One lease per user
 rather than per tab — a user's second tab would silently share the first's lease, so neither
 would know the other was editing; rejected. Pushing lease changes instantly — needs the live
-change feed; polling is enough until it exists.
+change feed; polling until then (now pushed: DR-112).
 
 ### DR-111 — The server runs on ASGI, with psycopg 3
 
@@ -4567,6 +4601,36 @@ only in the sandbox's lookups, calls and arithmetic, or only at loop turns — c
 filters and recursion slip past it; rejected. A watchdog that restarts a worker running any request too long — it would
 take the worker's other requests down with it; left for later if a slow view ever appears.
 
+### DR-112 — Live updates: notify, then refetch, over Server-Sent Events and Postgres
+
+**Decision:** Each save or delete of a record admins edit (and each edit-lease change) sends a
+notice of what changed — kind, id, event, action, who — never its contents, with Postgres's
+`pg_notify` inside the saving transaction, so it's delivered only on commit and once per record
+however many times the transaction saved it. Each server worker has one connection LISTENing
+for notices, and hands each to the Server-Sent Events streams open on its event; the streams
+are outside the per-worker request cap. The client refetches through the usual endpoints, so
+permissions, serializers and computed pricing stay in one place and the stream carries nothing
+a user couldn't otherwise read. After a dropped listener or stream, everything is refetched.
+Development servers run the ASGI server too; under a WSGI one the stream answers 503 and the
+admin says live updates are off. A stream says hello only once its worker is listening, holds
+no database connection while open, re-checks the session every 5 minutes, and counts against
+the per-worker cap only until it starts. The client also refetches each entity's related
+entities, as local saves do; closes the feed of a tab hidden a minute (browsers allow a site few
+HTTP/1.1 connections, so the site should be served over HTTP/2); keeps polling a lease someone
+holds, since lapsing sends no notice; and reopens a stream that has gone silent or been refused.
+Each notice refetches every open list of its entity in every admin tab, and each notifying
+commit takes Postgres's notify lock; at a camp's scale (a few admins, a few registrations a
+minute) that's small, and if it ever isn't, notices can be throttled per entity.
+**Context:** #770: a change one admin makes should show in another's open views of the event
+without a reload, within seconds, and survive network blips and deploys.
+**Alternatives:** Pushing the changed data — duplicates the API's permissions and serializers in
+the stream; rejected. Django Channels over WebSockets — two-way, which nothing needs (edits and
+leases stay on REST), and a channel layer, usually Redis; rejected. A hosted push service
+(Pusher, Ably) or Centrifugo — another service or vendor for a handful of admins; rejected.
+Polling a changes endpoint — not instant, and constant load; refetching on focus remains the
+fallback. Sending notices from `transaction.on_commit` — the same delivery, but repeated saves
+of one record in a transaction would each send one; Postgres collapses identical notices itself.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4592,6 +4656,8 @@ must be coordinated with the backend. Grouped by status.
   cancel/reopen, with the shapes in §5 (DR-109).
 - **Edit leases:** `/api/leases/` (list, take or renew, take over, give up) with the shapes in
   §5 (DR-110).
+- **Live change feed:** `GET /api/events/{id}/stream/` and its notices, with the shapes in §5
+  (DR-112).
 - **Invitations and campers:** `register_link` on invitations, and creating a camper on an
   existing registration (`POST /api/campers/`), with the shapes in §5 and §8.4.
 - **Soft delete:** the restore and deleted-list endpoints for registrations, campers, payments

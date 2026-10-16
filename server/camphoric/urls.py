@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from camphoric import views
+from camphoric import live_stream, views
 from camphoric.templating import views as template_views
 
 router = DefaultRouter()
@@ -35,6 +35,8 @@ urlpatterns = [
     # An invoice's public pay page (SPEC §9.7, DR-95), ahead of the router's invoice routes.
     path('invoices/pay/<str:token>', views.InvoicePayView.as_view()),
     path('invoices/pay/<str:token>/<str:action>', views.InvoicePayView.as_view()),
+    # The event's live change feed (SPEC §9.8, DR-112), ahead of the router's event routes.
+    path('events/<int:event_id>/stream/', live_stream.event_stream),
 ] + router.urls + [
     path('set-csrf-cookie', views.SetCSRFCookieView.as_view()),
     path('login', views.LoginView.as_view()),

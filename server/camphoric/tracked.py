@@ -10,9 +10,17 @@ from django.http import Http404
 
 from camphoric import models
 
-# The model, and the path from one of its records to its event's id.
+
+def _invitation_event_id(invitation):
+    # Its type's event; one sent without a type, its registration's.
+    if invitation.registration_type_id:
+        return invitation.registration_type.event_id
+    return invitation.registration.event_id if invitation.registration_id else None
+
+
+# The model, and the path (or function) from one of its records to its event's id.
 TRACKED = {
-    model._meta.model_name: (model, attrgetter(path))
+    model._meta.model_name: (model, path if callable(path) else attrgetter(path))
     for model, path in (
         (models.Event, 'id'),
         (models.RegistrationType, 'event_id'),
@@ -28,6 +36,7 @@ TRACKED = {
         (models.PricingOverride, 'registration.event_id'),
         (models.Report, 'event_id'),
         (models.EmailTemplate, 'event_id'),
+        (models.Invitation, _invitation_event_id),
     )
 }
 

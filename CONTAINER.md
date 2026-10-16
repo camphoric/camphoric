@@ -263,7 +263,7 @@ simpler and matches the existing convention.
   request's view runs in a thread of its own with its own database connection, so each worker
   lets in at most `CAMPHORIC_WORKER_CONCURRENCY` requests at once (default 4) and queues the rest:
   the database sees at most workers × that connections from the web tier, well under Postgres's
-  default 100. A request queued longer than `CAMPHORIC_WORKER_QUEUE_WAIT` (30 s) gets a 503
+  default 100, plus one per worker that listens for the live change feed's notices. A request queued longer than `CAMPHORIC_WORKER_QUEUE_WAIT` (30 s) gets a 503
   instead. gunicorn's `--timeout` only restarts a worker whose event loop stops answering; it no
   longer stops a slow request. Template renders stop themselves at their own limits (reports
   20 s, previews 5 s, emails 3 s), wherever the time goes in the template or its filters. Static files the image serves itself (the built frontend) are read
@@ -289,6 +289,19 @@ CSRF_TRUSTED_ORIGINS=https://register.example.org
 
 Proxy `/` to the container's port 8000; the image serves the SPA and `/static/*` itself
 (whitenoise), so no separate static file root is needed.
+
+The admin's live updates are a long-lived response on `/api/events/<id>/stream/` (Server-Sent
+Events). The proxy must pass it on as it comes rather than buffering it — the app sends
+`X-Accel-Buffering: no`, which nginx honours — and keep it open: the app sends a `ping` every
+20 seconds and closes it after 30 minutes, so any read timeout over 20 s will do (nginx's default
+60 s does). Without them the admin works, but says live updates are off or reconnecting.
+Serve the site to browsers over HTTP/2 (`listen 443 ssl http2;` in nginx): over HTTP/1.1 a browser
+opens only about six connections to a site, shared by all its tabs, and each open stream holds
+one. The admin closes the stream of a tab hidden for a minute, so over HTTP/1.1 only a handful
+of visible admin tabs is safe. A stream holds no database connection while it's open.
+Stopping or restarting the app waits for open streams up to gunicorn's graceful timeout (30 s;
+`--graceful-timeout` changes it) before closing them; admins' browsers then reconnect and
+refetch.
 
 ## Users and roles
 

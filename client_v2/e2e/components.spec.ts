@@ -828,3 +828,10 @@ test.describe('Edit leases', () => {
     await expect(page.getByRole('button', { name: 'Take it back' })).toBeVisible();
   });
 });
+
+test.describe('Live updates', () => {
+  test('the header says when live updates are off', async ({ page }) => {
+    await page.goto(story('live-updates-status--off'));
+    await expect(page.getByText('Live updates off')).toBeVisible();
+  });
+});

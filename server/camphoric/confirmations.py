@@ -14,7 +14,7 @@ import logging
 
 from django.utils import timezone
 
-from camphoric import models
+from camphoric import live, models
 from camphoric.mail import outbox
 from camphoric.templating.emails import confirmation_failure_report, render_confirmation_email
 
@@ -105,6 +105,7 @@ def send_confirmation(registration, request=None):
     registration.confirmation_sent_at = timezone.now()
     models.Registration.all_objects.filter(pk=registration.pk).update(
         confirmation_sent_at=registration.confirmation_sent_at)
+    live.notify_changed(registration)  # .update() sends no signal (DR-112)
     return error
 
 

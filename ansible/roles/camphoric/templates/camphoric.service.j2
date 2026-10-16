@@ -11,8 +11,11 @@ Group={{ camphoric_user }}
 WorkingDirectory={{ camphoric_folder }}/server
 
 {% if camphoric_environment == 'development' %}
-ExecStart={{ pipenv_bin }} run python \
-          manage.py runserver 0.0.0.0:8000
+{# The ASGI server, reloading on changes, so the live change feed works (DR-112);
+   a reload doesn't wait on admins' open feeds, which reconnect. #}
+ExecStart={{ pipenv_bin }} run uvicorn \
+          camphoric_server.asgi:application \
+          --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000
 {% else %}
 {# Only nginx reaches the socket, so its X-Forwarded-Proto is trusted: links stay https. #}
 ExecStart={{ pipenv_bin }} run gunicorn \

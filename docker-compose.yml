@@ -28,7 +28,7 @@ services:
     command: >
       bash -c "./manage.py migrate &&
                ./manage.py collectstatic --no-input &&
-               ./manage.py runserver 0.0.0.0:8000"
+               uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     depends_on:
