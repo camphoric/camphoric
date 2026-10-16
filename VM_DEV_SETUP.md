@@ -197,12 +197,34 @@ camphoric_email_force_backend: django.core.mail.backends.console.EmailBackend
 ```
 
 
+The VM's own node_modules
+-------------------------
+
+The VM shares your checkout at `/vagrant`, but not its `node_modules`: on every
+`vagrant up`, before provisioning, a folder of the VM's own (under
+`/home/vagrant/node_modules/`) is mounted over `node_modules`, `client/node_modules`,
+`client_v2/node_modules` and `data/node_modules`. So `npm ci` in the VM installs
+Linux builds there, and the `npm` and Vite dev server on your own computer keep
+theirs. If an older VM left Linux builds in your checkout's `node_modules`, run
+`npm ci` in those folders on your computer once to put your own back.
+
+The mounts are made by a provisioner, so `vagrant up --no-provision`, or
+restarting from inside the VM (`sudo reboot`), comes up without them; put them
+back before running npm in the VM:
+
+```
+vagrant provision --provision-with own-node-modules
+```
+
+
 Rebuilding the VM
 -----------------
 
 The VM runs Ubuntu 24.04, which provides Python 3.12 and PostgreSQL 16. A VM
 built from an older base box (Ubuntu 22.04: Python 3.10, PostgreSQL 14) can't
-run current Camphoric and has to be rebuilt. Rebuilding deletes the VM's
+run current Camphoric and has to be rebuilt. Check that `CAMPHORIC_VAGRANT_BASE_IMAGE`
+isn't set (in your shell profile, say) to an older box: when it names a box file
+that exists, the Vagrantfile builds from it instead. Rebuilding deletes the VM's
 database, so dump it first if you want to keep what's in it:
 
 ```

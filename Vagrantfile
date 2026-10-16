@@ -47,6 +47,22 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  # The VM keeps its own node_modules (Linux builds) rather than writing into the
+  # checkout's, which the host's own npm and Vite dev server use. On every
+  # `vagrant up`, once /vagrant is mounted and before ansible runs, a folder of
+  # the VM's own is bind-mounted over each node_modules in the checkout, so npm
+  # in the VM and npm on the host each have theirs.
+  config.vm.provision "own-node-modules", type: "shell", run: "always", inline: <<~SHELL
+    set -e
+    for dir in root client client_v2 data; do
+      if [ "$dir" = root ]; then target=/vagrant/node_modules; else target=/vagrant/$dir/node_modules; fi
+      own=/home/vagrant/node_modules/$dir
+      mkdir -p "$own" "$target"
+      chown vagrant:vagrant "$own"
+      mountpoint -q "$target" || mount --bind "$own" "$target"
+    done
+  SHELL
+
   # Provision with ansible
   config.vm.provision "ansible" do |ansible|
       ansible.verbose = "v"
