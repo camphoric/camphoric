@@ -14,11 +14,14 @@ WorkingDirectory={{ camphoric_folder }}/server
 ExecStart={{ pipenv_bin }} run python \
           manage.py runserver 0.0.0.0:8000
 {% else %}
+{# Only nginx reaches the socket, so its X-Forwarded-Proto is trusted: links stay https. #}
 ExecStart={{ pipenv_bin }} run gunicorn \
           --access-logfile - \
+          --worker-class uvicorn_worker.UvicornWorker \
+          --forwarded-allow-ips=* \
           --workers 3 \
           --bind unix:/run/camphoric.sock \
-          camphoric_server.wsgi
+          camphoric_server.asgi:application
 {% endif %}
 
 [Install]

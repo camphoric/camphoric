@@ -8,6 +8,7 @@
 #   frontend     - builds client_v2 with Vite -> /frontend/build (index.html + static/)
 #   python-deps  - resolves server/Pipfile.lock into a venv (runtime deps only)
 #   app          - slim runtime image: venv + server/ + built frontend, non-root, gunicorn
+#                  running the ASGI app on uvicorn workers
 
 ARG NODE_VERSION=22
 ARG PYTHON_VERSION=3.12
@@ -26,9 +27,9 @@ RUN npm run build
 FROM python:${PYTHON_VERSION}-slim AS python-deps
 ENV PIP_NO_CACHE_DIR=1 \
     PIPENV_VENV_IN_PROJECT=1
-# psycopg2 ships no wheels and builds from source, so we need a full C toolchain with the
-# libc headers (build-essential) and libpq-dev; libffi-dev covers cffi on platforms without
-# a wheel. They stay in this stage only.
+# psycopg[c] builds from source against the system libpq, so we need a full C toolchain
+# with the libc headers (build-essential) and libpq-dev; libffi-dev covers cffi on
+# platforms without a wheel. They stay in this stage only.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential libpq-dev libffi-dev \
  && rm -rf /var/lib/apt/lists/* \
@@ -45,7 +46,7 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/app/.venv/bin:$PATH \
     DJANGO_SETTINGS_MODULE=camphoric_server.settings \
     STATIC_ROOT=/app/static
-# libpq5 for psycopg2; postgresql-client provides pg_dump for `manage.py dbbackup`.
+# libpq5 for psycopg; postgresql-client provides pg_dump for `manage.py dbbackup`.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libpq5 postgresql-client \
  && rm -rf /var/lib/apt/lists/* \
@@ -74,6 +75,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/set-csrf-cookie', timeout=3)" || exit 1
 ENTRYPOINT ["camphoric-entrypoint"]
-# Tune workers etc. at runtime with GUNICORN_CMD_ARGS rather than overriding CMD.
-CMD ["gunicorn", "camphoric_server.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3", \
+# Tune workers etc. at runtime with GUNICORN_CMD_ARGS rather than overriding CMD. The
+# uvicorn workers serve Django's ASGI app (SPEC DR-111).
+CMD ["gunicorn", "camphoric_server.asgi:application", "--worker-class", \
+     "uvicorn_worker.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "3", \
      "--access-logfile", "-", "--error-logfile", "-"]

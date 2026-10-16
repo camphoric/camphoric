@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-110)
+- §15 — Decision Records (DR-1…DR-111)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1938,7 +1938,8 @@ example and its result.
   but can build their own lists and dicts (`{% set rows = [] %}`, `namespace`, `merge`).
 - **Sandboxed, with limits** — templates run in Jinja's sandbox (no Python internals, no model
   methods), with a render time limit and an output-size cap (§15, DR-37). Legacy reports also
-  render sandboxed.
+  render sandboxed, with the report time limit. The time limit is checked at every loop turn and
+  branch of the template, in whichever thread renders it (§15, DR-111).
 - **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
   sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
@@ -4532,6 +4533,33 @@ changing it — everyone who merely looks would show as editing; rejected. One l
 rather than per tab — a user's second tab would silently share the first's lease, so neither
 would know the other was editing; rejected. Pushing lease changes instantly — needs the live
 change feed; polling is enough until it exists.
+
+### DR-111 — The server runs on ASGI, with psycopg 3
+
+**Decision:** Production serves Django's ASGI application through gunicorn with uvicorn workers
+(three by default), and talks to Postgres through psycopg 3, built against the system libpq.
+Views stay synchronous: Django runs each request's view in a thread of its own, with its own
+database connection, so each worker lets in at most `CAMPHORIC_WORKER_CONCURRENCY` requests at
+once (default 4) and queues the rest, keeping connections bounded. A streaming response can wait
+without holding a worker. Template rendering's time limit is a deadline checked at every jump
+(loop turn, branch) of the template's compiled code, through Python's `sys.monitoring`, so it
+holds in any thread; legacy reports now have the report limit too. gunicorn's `--timeout` no
+longer stops a slow request, so nothing else does: a view that never returns holds its thread
+until the worker restarts. Behind nginx on a unix socket, gunicorn trusts the forwarded headers
+(only nginx reaches the socket), so links keep https.
+**Context:** The live change feed (#770) holds a response open per admin viewing an event; a
+sync worker can't, and it listens on Postgres `LISTEN/NOTIFY`, which needs psycopg 3's async
+notifications. The previous render limit used `SIGALRM`, which only a main thread receives, and
+sync views under ASGI don't run in one.
+**Alternatives:** A separate ASGI service for the feed alone, beside the sync app — keeps the
+alarm, but every deployment would route one path to a second port; rejected. Redis with Django
+Channels — more infrastructure than a one-way feed needs; rejected. gunicorn's own ASGI worker —
+newer and less proven than uvicorn's; worth revisiting. A tracing
+hook for the render limit — checks every line but slows every render; rejected. Running renders
+in a subprocess to kill them — heavy for every email and preview; rejected. Checking the deadline
+only in the sandbox's lookups, calls and arithmetic — comparisons, filters and plain loops slip
+past it; rejected. A watchdog that restarts a worker running any request too long — it would
+take the worker's other requests down with it; left for later if a slow view ever appears.
 
 ---
 

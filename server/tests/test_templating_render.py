@@ -1,5 +1,7 @@
 import datetime
 from decimal import Decimal
+import threading
+import time
 
 from django.test import TestCase
 
@@ -155,6 +157,42 @@ class RenderTests(TestCase):
             limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
         [error] = self.errors(result)
         self.assertEqual(error.kind, 'timeout')
+
+    def test_timeout_in_any_thread(self):
+        # Under ASGI a view's render runs off the main thread (DR-111).
+        results = []
+        worker = threading.Thread(daemon=True, target=lambda: results.append(self.render(
+            '{% for i in range(100000) %}{% for j in range(100000) %}{% endfor %}{% endfor %}',
+            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))))
+        worker.start()
+        worker.join(10)
+        self.assertFalse(worker.is_alive(), 'the render ran on past its limit')
+        [error] = self.errors(results[0])
+        self.assertEqual(error.kind, 'timeout')
+
+    def test_timeout_of_any_busy_loop(self):
+        # Loops over a bound list, doing what checks nothing else: compare, join, negate.
+        for body in ('{% if i > j %}{% endif %}', '{% set s = "a" ~ "b" %}',
+                     '{% set s = -i %}', '{% set s = i | abs %}', ''):
+            result = self.render(
+                '{% set r = range(100000) %}{% for i in r %}{% for j in r %}'
+                + body + '{% endfor %}{% endfor %}',
+                limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            [error] = self.errors(result)
+            self.assertEqual(error.kind, 'timeout', body)
+
+    def test_timeout_of_a_macro(self):
+        result = self.render(
+            '{% macro spin() %}{% for i in range(100000) %}{% for j in range(100000) %}'
+            '{% endfor %}{% endfor %}{% endmacro %}{{ spin() }}',
+            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+        [error] = self.errors(result)
+        self.assertEqual(error.kind, 'timeout')
+
+    def test_no_limit_is_left_behind(self):
+        self.render('{{ 1 + 1 }}', limits=RenderLimits(timeout_s=0.01, max_output_chars=100))
+        time.sleep(0.02)
+        self.assertEqual(render_template('{{ 2 + 2 }}', {}).output, '4')
 
     def test_html_output_is_escaped(self):
         result = render_template('{{ "<b>" }}', {}, fmt='html')

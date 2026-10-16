@@ -1,7 +1,10 @@
+from unittest import mock
+
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from camphoric import models
+from camphoric.templating.render import RenderLimits
 
 from tests.factories import create_template_event
 
@@ -189,6 +192,14 @@ class LegacyReportRenderTests(APITestCase):
     def test_blocks_python_internals(self):
         data = self.render("{{ ''.__class__.__mro__ }}", {})
         self.assertIn('unsafe', data['error'])
+
+    def test_stops_a_report_that_runs_too_long(self):
+        with mock.patch('camphoric.views.REPORT_LIMITS', RenderLimits(0.2, 100)):
+            data = self.render(
+                '{% for i in range(100000) %}{% for j in range(100000) %}{% if i > j %}'
+                '{% endif %}{% endfor %}{% endfor %}', {})
+        self.assertEqual(data['report'], '')
+        self.assertIn('took longer than', data['error'])
 
 
 class ServerReportTests(APITestCase):

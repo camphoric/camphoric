@@ -50,14 +50,14 @@ from camphoric import (
 from camphoric.lodging import get_lodging_schema
 from camphoric.mail import batches, outbox, unsubscribe
 from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
-from camphoric.templating import bulk, rules
+from camphoric.templating import bulk, deadline, rules
 from camphoric.templating.contexts import report_context
 from camphoric.templating.emails import render_invitation_email, render_invoice_email
 from camphoric.templating.pages import (
     FALLBACK_PAGE, page_failure_report, render_confirmation_page)
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
-from camphoric.templating.render import render_template
+from camphoric.templating.render import REPORT_LIMITS, render_template
 from camphoric.templating.urls import public_base
 
 
@@ -2015,9 +2015,15 @@ class RenderReportView(APIView):
         output = report.template
         error = None
         try:
-            output = LEGACY_REPORT_ENV \
-                .from_string(report.template) \
-                .render(**request.data)
+            # Bounded like any report render (DR-37, DR-111).
+            template = LEGACY_REPORT_ENV.from_string(report.template)
+            deadline.watch(template)
+            with deadline.time_limit(REPORT_LIMITS.timeout_s):
+                output = template.render(**request.data)
+        except deadline.RenderTimeout:
+            error = (f'The report took longer than {REPORT_LIMITS.timeout_s} seconds '
+                     'and was stopped.')
+            output = ''
         except Exception as e:
             tb = traceback.format_exc() or ''
             start = tb.find('File "<template>"')

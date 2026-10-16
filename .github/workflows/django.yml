@@ -64,7 +64,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
-        run: python -m pip install --upgrade pipenv wheel psycopg2-binary
+        run: python -m pip install --upgrade pipenv wheel
       - name: Make build dir
         # The static directories settings expect (the built client, collected
         # files), so the system checks and whitenoise don't warn about them.
