@@ -12,8 +12,9 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { BeingEdited } from 'components/EditLease';
+import { BeingEdited, RecordDeleted } from 'components/EditLease';
 import { CanEdit } from 'hooks/permissions';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useState } from 'react';
 import { reportHooks } from 'store/entities';
@@ -35,7 +36,11 @@ export function EventAdminReports() {
   const [formDirty, setFormDirty] = useState(false);
   const { confirmDiscard, release } = useUnsavedChanges(mode !== 'view' && formDirty);
 
-  const selected = reports?.find((r) => String(r.id) === reportId);
+  // Kept open while being edited if someone else deletes it meanwhile, so no
+  // unsaved edit vanishes (§9.8).
+  const found = reports?.find((r) => String(r.id) === reportId);
+  const kept = useKeptRecord(mode === 'edit' ? reportId : undefined, found);
+  const selected = found ?? kept.record;
   const helpHref = `/admin/organization/${organizationId}/event/${eventId}/template-help?context=report`;
 
   // Stay on the reports route and only update the URL-addressable selection;
@@ -123,6 +128,7 @@ export function EventAdminReports() {
 
           {mode === 'edit' && selected && (
             <Card withBorder>
+              {kept.deleted && <RecordDeleted label="report" />}
               <ReportEditForm
                 eventId={eventId}
                 report={selected}

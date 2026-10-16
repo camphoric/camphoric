@@ -42,10 +42,12 @@ class FakeEventSource {
 }
 
 let invalidate: MockInstance<QueryClient['invalidateQueries']>;
+let isMutating: MockInstance<QueryClient['isMutating']>;
 
 function setup(eventId: string | null = '4') {
   const client = new QueryClient();
   invalidate = vi.spyOn(client, 'invalidateQueries');
+  isMutating = vi.spyOn(client, 'isMutating');
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client }, children);
   return renderHook(() => useEventChangeFeed(eventId ?? undefined), { wrapper });
@@ -88,6 +90,24 @@ describe('useEventChangeFeed (SPEC §9.8, DR-112)', () => {
       vi.advanceTimersByTime(250);
     });
     expect(invalidated()).toEqual([['Camper'], ['Registration'], ['History'], ['Deleted']]);
+  });
+
+  it('waits while this tab moves campers, so what it shows ahead of the move stays', () => {
+    setup();
+    // A lodging move on its way (other saves don't hold it up).
+    isMutating.mockImplementation((filters) =>
+      filters?.mutationKey?.[0] === 'lodging-move' ? 1 : 0,
+    );
+    act(() => FakeEventSource.last.emit('change', { model: 'camper', id: 1 }));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(invalidate).not.toHaveBeenCalled();
+    isMutating.mockImplementation(() => 0);
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(invalidated()).toContainEqual(['Camper']);
   });
 
   it('refetches what a change changes too: a payment, its registration and invoice', () => {

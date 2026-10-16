@@ -836,6 +836,13 @@ test.describe('Being edited', () => {
   });
 });
 
+test.describe('Record deleted', () => {
+  test('an editor says when someone else deleted its record', async ({ page }) => {
+    await page.goto(story('record-deleted--over-an-editor'));
+    await expect(page.getByText('Someone else deleted this report')).toBeVisible();
+  });
+});
+
 test.describe('Live updates', () => {
   test('the header says when live updates are off', async ({ page }) => {
     await page.goto(story('live-updates-status--off'));

@@ -21,6 +21,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import type { Scalar } from 'api-types';
+import { LODGING_MOVE } from 'hooks/useLodgingAssignment';
 import { useEffect, useState } from 'react';
 import { ALSO_CHANGES } from 'store/entities';
 import { EVENT_LEASES, leaseKey, LEASES } from 'store/leases';
@@ -61,7 +62,14 @@ export function useEventChangeFeed(eventId: Scalar | undefined): LiveFeedState {
     const refetch = (names: string[]) => {
       names.forEach((name) => stale.add(name));
       if (timer !== undefined) return; // this window's refetch is already coming
-      timer = setTimeout(() => {
+      timer = setTimeout(function flush() {
+        // While this tab is moving campers between lodging, wait: refetching
+        // now would undo what it shows ahead of the move, and the move
+        // refetches what it changed once it's done.
+        if (client.isMutating({ mutationKey: LODGING_MOVE }) > 0) {
+          timer = setTimeout(flush, GATHER_MS);
+          return;
+        }
         timer = undefined;
         [...stale, ...ALWAYS].forEach((name) => {
           void client.invalidateQueries({ queryKey: [name] });

@@ -142,8 +142,8 @@ export function LodgingTree({
               {index > 0 && ', '}
               <Anchor component="button" type="button" inherit onClick={() => onSelectCamper(c.id)}>
                 {camperName(c)}
-              </Anchor>{' '}
-              <BeingEdited model="camper" id={c.id} size="xs" />
+              </Anchor>
+              <BeingEdited model="camper" id={c.id} size="xs" ml={4} />
             </Fragment>
           ))}
         </Text>

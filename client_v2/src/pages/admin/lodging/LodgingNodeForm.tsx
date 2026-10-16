@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiLodging, LodgingAvailability, Scalar } from 'api-types';
-import { EditLeaseNotice } from 'components/EditLease';
+import { EditLeaseNotice, RecordDeleted } from 'components/EditLease';
 import { FormActions } from 'components/FormActions';
 import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
 import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
@@ -48,6 +48,8 @@ interface LodgingNodeFormProps {
   node?: ApiLodging;
   opened: boolean;
   onClose: () => void;
+  /** Someone else deleted it while it was open (SPEC §9.8). */
+  deleted?: boolean;
 }
 
 const num = (v: number | string) => (typeof v === 'number' ? v : Number(v) || 0);
@@ -75,6 +77,7 @@ export function LodgingNodeForm({
   node: latest,
   opened,
   onClose,
+  deleted = false,
 }: LodgingNodeFormProps) {
   // The version shown: a newer one shows while nothing here is unsaved.
   const [node, showVersion] = useLatestWhileUnchanged<ApiLodging>(
@@ -166,6 +169,7 @@ export function LodgingNodeForm({
 
   return (
     <Modal opened={opened} onClose={onClose} title={node ? 'Edit lodging' : 'New lodging'}>
+      {deleted && <RecordDeleted label="lodging" />}
       <EditLeaseNotice label="lodging" lease={lease} />
       <ViewOnly when={lease.viewOnly}>
         <Stack>

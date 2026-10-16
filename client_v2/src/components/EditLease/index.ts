@@ -10,3 +10,4 @@ export {
   EditLeaseNoticeView,
   type EditLeaseNoticeViewProps,
 } from './EditLeaseNotice';
+export { RecordDeleted } from './RecordDeleted';

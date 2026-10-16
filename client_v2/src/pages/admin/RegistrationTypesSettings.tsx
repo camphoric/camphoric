@@ -11,6 +11,7 @@ import type { ApiRegistrationType } from 'api-types';
 import { BeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useState } from 'react';
 import { registrationTypeHooks } from 'store/entities';
 
@@ -30,6 +31,13 @@ export function RegistrationTypesSettings({
   });
 
   const { canEdit } = usePermissions();
+  // As it is now, so the form can show what someone else saves — and kept open
+  // if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
+  const openId = typeForm.open && typeForm.regType ? String(typeForm.regType.id) : undefined;
+  const { record: shownType, deleted } = useKeptRecord(
+    openId,
+    registrationTypes?.find((rt) => String(rt.id) === openId),
+  );
   if (!registrationTypes) return <FullScreenLoading />;
 
   return (
@@ -61,8 +69,8 @@ export function RegistrationTypesSettings({
                   {rt.label}{' '}
                   <Text span c="dimmed">
                     ({rt.name})
-                  </Text>{' '}
-                  <BeingEdited model="registrationtype" id={rt.id} />
+                  </Text>
+                  <BeingEdited model="registrationtype" id={rt.id} ml={6} />
                 </Text>
                 <Button
                   variant="subtle"
@@ -80,8 +88,8 @@ export function RegistrationTypesSettings({
       <RegistrationTypeForm
         key={typeForm.regType?.id ?? 'new'}
         eventId={eventId}
-        // As it is now, so the form can show what someone else saves.
-        regType={registrationTypes.find((rt) => rt.id === typeForm.regType?.id) ?? typeForm.regType}
+        regType={shownType ?? typeForm.regType}
+        deleted={deleted}
         opened={typeForm.open}
         onClose={() => setTypeForm({ open: false })}
         helpHref={helpHref}

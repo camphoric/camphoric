@@ -2266,7 +2266,12 @@ hasn't seen (§15, DR-109).
   and catches up when it's shown again; each time the feed (re)opens, everything is refetched,
   so nothing changed while it was connecting is missed. A rendered report shows the data as it
   was when rendered until it's rendered again, and group email's queue and batches keep
-  refreshing on their own timers as they send. Unsaved edits are never replaced by a refetch (above). After the feed drops — a network
+  refreshing on their own timers as they send. Unsaved edits are never replaced by a refetch
+  (above): a registration, camper, lodging, report, group email template, registration type or
+  promo code someone else deletes while it's open stays there, saying it was deleted and can't be
+  saved, until the user closes it. While the user's lodging moves are on
+  their way, refetching waits for them, so what the screen shows ahead of each move stays.
+  After the feed drops — a network
   blip, a deploy, its 30-minute renewal — it reconnects by itself and refetches everything, as
   it does when told to resync. The admin shows when live updates are reconnecting (they were
   live and dropped: a deploy, a network blip — not the routine 30-minute renewal), or off (they

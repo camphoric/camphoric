@@ -12,7 +12,7 @@
 import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiRegistrationType } from 'api-types';
-import { EditLeaseNotice } from 'components/EditLease';
+import { EditLeaseNotice, RecordDeleted } from 'components/EditLease';
 import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateEditor';
 import { FormActions } from 'components/FormActions';
 import { CanEdit, ReadOnlyFieldset, usePermissions, ViewOnly } from 'hooks/permissions';
@@ -33,6 +33,8 @@ interface RegistrationTypeFormProps {
   onClose: () => void;
   /** The Template Help page for invitation emails. */
   helpHref?: string;
+  /** Someone else deleted it while it was open (SPEC §9.8). */
+  deleted?: boolean;
 }
 
 export function RegistrationTypeForm({
@@ -41,6 +43,7 @@ export function RegistrationTypeForm({
   opened,
   onClose,
   helpHref,
+  deleted = false,
 }: RegistrationTypeFormProps) {
   // The version shown: a newer one shows while nothing here is unsaved.
   const [regType, showVersion] = useLatestWhileUnchanged<ApiRegistrationType>(
@@ -140,6 +143,7 @@ export function RegistrationTypeForm({
       // closing here would discard the edits.
       closeOnEscape={false}
     >
+      {deleted && <RecordDeleted label="registration type" />}
       <EditLeaseNotice label="registration type" lease={lease} />
       <ViewOnly when={lease.viewOnly}>
         <Stack>

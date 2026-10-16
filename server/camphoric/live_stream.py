@@ -65,10 +65,14 @@ def _conninfo():
               'host': db.get('HOST'), 'port': db.get('PORT')}
     options = {key: value for key, value in db.get('OPTIONS', {}).items()
                if key in LIBPQ_OPTIONS}
-    # TCP keepalives, so a connection whose path was silently dropped fails
-    # rather than waiting forever (unless the settings say otherwise).
+    # So a connection whose path was silently dropped fails rather than waiting
+    # forever (unless the settings say otherwise): TCP keepalives while it's
+    # idle, and a user timeout once the listener's "still there?" query waits
+    # for an answer — keepalives stop then, and TCP would retry for minutes.
+    # (psycopg goes on waiting for a query that's cancelled, so the check's own
+    # time limit can't end it.)
     keepalives = {'keepalives': 1, 'keepalives_idle': 30, 'keepalives_interval': 10,
-                  'keepalives_count': 3}
+                  'keepalives_count': 3, 'tcp_user_timeout': 30_000}
     return make_conninfo('', **{k: v for k, v in params.items() if v},
                          **{**keepalives, **options})
 

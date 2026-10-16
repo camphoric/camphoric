@@ -36,6 +36,7 @@ import { confirmDelete } from 'components/ConfirmDelete';
 import { FullScreenLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
 import { useRegistrationTypeLookup } from 'hooks/useAdminData';
+import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useLodgingAssignment } from 'hooks/useLodgingAssignment';
 import { useLodgingData } from 'hooks/useLodgingData';
 import { useSearchTab } from 'hooks/useSearchTab';
@@ -140,9 +141,14 @@ export function EventAdminLodging() {
   const editNode = (node: AugmentedLodging) =>
     setNodeForm({ open: true, node: { ...node, capacity: ownCapacity(node) } });
 
-  // The node as it is now, so the form can show what someone else saves.
+  // The node as it is now, so the form can show what someone else saves — and
+  // kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
   const liveNode = nodeForm.node && data?.lodgingLookup[nodeForm.node.id];
-  const editedNode = liveNode ? { ...liveNode, capacity: ownCapacity(liveNode) } : nodeForm.node;
+  const { record: keptNode, deleted: nodeDeleted } = useKeptRecord(
+    nodeForm.node ? String(nodeForm.node.id) : undefined,
+    liveNode ? { ...liveNode, capacity: ownCapacity(liveNode) } : undefined,
+  );
+  const editedNode = keptNode ?? nodeForm.node;
 
   const setShownLodging = (ids: string[]) =>
     setSearch({ lodgingFilter: ids.length ? ids.join(',') : undefined });
@@ -288,6 +294,7 @@ export function EventAdminLodging() {
         eventId={eventId}
         parentId={nodeForm.parentId}
         node={editedNode}
+        deleted={nodeDeleted}
         opened={nodeForm.open}
         onClose={() => setNodeForm({ open: false })}
       />
