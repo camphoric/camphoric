@@ -1,13 +1,15 @@
+import userEvent from '@testing-library/user-event';
 import type { ApiRenderedReport, ApiReport } from 'api-types';
 import { renderWithProviders, screen, within } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RenderedReport } from '../RenderedReport';
 
-const { server, legacy, templateVars } = vi.hoisted(() => ({
+const { server, legacy, templateVars, printHtml } = vi.hoisted(() => ({
   server: vi.fn(),
   legacy: vi.fn(),
   templateVars: vi.fn(),
+  printHtml: vi.fn(),
 }));
 
 vi.mock('store/reportRender', () => ({
@@ -15,6 +17,7 @@ vi.mock('store/reportRender', () => ({
   useRenderedReport: legacy,
 }));
 vi.mock('hooks/useReportData', () => ({ useReportTemplateVars: templateVars }));
+vi.mock('utils/print', () => ({ printHtml }));
 
 const report = (overrides: Partial<ApiReport>) =>
   ({
@@ -34,6 +37,7 @@ beforeEach(() => {
   server.mockReset();
   legacy.mockReset();
   templateVars.mockReset();
+  printHtml.mockReset();
 });
 
 describe('RenderedReport', () => {
@@ -54,6 +58,20 @@ describe('RenderedReport', () => {
     expect(output).toHaveStyle({ overflow: 'auto' });
     expect(within(output).getByRole('cell', { name: 'Pat' })).toBeInTheDocument();
     expect(within(output).queryByRole('button', { name: /Download/ })).toBeNull();
+    expect(within(output).queryByRole('button', { name: /Print/ })).toBeNull();
+  });
+
+  it('prints the output by itself', async () => {
+    server.mockReturnValue(rendered({ report: 'Name\nPat\n', error: null, diagnostics: [] }));
+    renderWithProviders(<RenderedReport report={report({})} eventId="7" />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Print' }));
+
+    expect(printHtml).toHaveBeenCalledOnce();
+    const [html, title] = printHtml.mock.calls[0] as [string, string];
+    expect(title).toBe('Roster');
+    expect(html).toMatch(/^<!doctype html>/);
+    expect(html).toContain('<td>Pat</td>');
   });
 
   it('shows a server report’s problems with their lines', () => {
