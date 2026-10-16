@@ -220,12 +220,13 @@ vagrant provision --provision-with own-node-modules
 Rebuilding the VM
 -----------------
 
-The VM runs Ubuntu 24.04, which provides Python 3.12 and PostgreSQL 16. A VM
-built from an older base box (Ubuntu 22.04: Python 3.10, PostgreSQL 14) can't
-run current Camphoric and has to be rebuilt. Check that `CAMPHORIC_VAGRANT_BASE_IMAGE`
-isn't set (in your shell profile, say) to an older box: when it names a box file
-that exists, the Vagrantfile builds from it instead. Rebuilding deletes the VM's
-database, so dump it first if you want to keep what's in it:
+The VM runs Ubuntu 24.04 (the `bento/ubuntu-24.04` box), which provides
+Python 3.12 and PostgreSQL 16. A VM built from an older base box (Ubuntu 22.04:
+Python 3.10, PostgreSQL 14) can't run current Camphoric and has to be rebuilt.
+The base box can't be swapped any more: `CAMPHORIC_VAGRANT_BASE_IMAGE` is
+ignored (Vagrant says so if it's set), so you can drop it from your shell
+profile. Rebuilding deletes the VM's database, so dump it first if you want to
+keep what's in it:
 
 ```
 # 1. Save the VM's database to vm-data.sql in the repo root (git-ignored)
@@ -241,10 +242,6 @@ vagrant up
 
 A plain-SQL dump from an older PostgreSQL restores into a newer one without
 changes.
-
-If you set `CAMPHORIC_VAGRANT_BASE_IMAGE` to a local box, unset it or point it
-at an Ubuntu 24.04 box before `vagrant up`; otherwise the old base image is
-used again.
 
 
 Troubleshooting a stuck VM
