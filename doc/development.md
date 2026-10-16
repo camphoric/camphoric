@@ -135,12 +135,20 @@ docker-compose exec django python manage.py test
 The event definitions under `data/` have their own checks (`data/__tests__`):
 
     cd data
+    npm run typecheck     # tsc --noEmit over the import tooling and every event
     npm test              # offline: every event module loads, matches the import schema,
                           # and carries well-formed JSON Schemas — no server needed
-    npm run test:live     # post-import snapshot tests against a running server (CAMPHORIC_URL)
+    npm run import        # import every event into a running server (CAMPHORIC_URL)
 
-A syntax error or a bad schema in any single event fails only that event's block. CI runs the
-offline suite on every pull request that touches `data/` (`.github/workflows/data.yml`) and
+The tooling and events are TypeScript, run with [tsx](https://tsx.is) (no build step). Each
+event's `index.ts` default export `satisfies EventModule`, and the import object's type
+(`EventImport`) and its JSON Schema both come from the TypeBox schema in
+`data/eventImportObjectSchema.ts`, so a mistake shows up in the editor; the importer still
+checks the schema with Ajv at runtime. A `data` Docker image built before the switch to TypeScript
+has no tsx: rebuild it (`docker compose build data`) before `docker compose run --rm data import`.
+
+A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
+and runs the offline suite on every pull request that touches `data/` (`.github/workflows/data.yml`) and
 imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
 rejected sample registration fails that import.
 

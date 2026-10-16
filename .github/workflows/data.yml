@@ -1,5 +1,6 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it:
+# the TypeScript must type-check (tsc --noEmit), and
 # every event module must load, satisfy eventImportObjectSchema, carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
 # (server/camphoric/schema_checks.py, run with the runner's python3)
@@ -47,11 +48,15 @@ jobs:
 
       - run: npm ci
 
+      - name: Type-check
+        run: npm run typecheck
+
       - name: Offline import validation
         run: npm test
 
       # Advisory until the pre-existing lint issues in data/ are cleaned up; flip
-      # to blocking (remove continue-on-error) after an `eslint --fix` pass.
+      # to blocking (remove continue-on-error) after an `eslint --fix` pass. (The
+      # type-check it starts with already ran, blocking, above.)
       - name: Lint (advisory)
         run: npm run lint
         continue-on-error: true

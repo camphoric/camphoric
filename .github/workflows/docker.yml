@@ -87,7 +87,7 @@ jobs:
           DJANGO_SUPERUSER_PASSWORD: admin
         run: |
           npm ci
-          node loadAllData.js
+          npm run import
 
       # Queue one message and require the worker service to deliver it (to its
       # log: the compose file forces the console backend). No message from the
