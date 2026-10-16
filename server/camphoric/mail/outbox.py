@@ -35,7 +35,7 @@ from django.db.models import Case, IntegerField, Min, Q, Value, When
 
 from django.utils import timezone
 
-from camphoric import models, worker
+from camphoric import live, models, worker
 from camphoric.mail.mailers import AccountUnusable, mailer_for
 
 logger = logging.getLogger(__name__)
@@ -252,6 +252,10 @@ def _send(mailer, message):
     if message.invitation_id:
         models.Invitation.objects.filter(id=message.invitation_id).update(
             sent_time=message.sent_at)
+        # .update() sends no signal: tell the admins it's sent (DR-112).
+        invitation = models.Invitation.objects.filter(id=message.invitation_id).first()
+        if invitation:
+            live.notify_changed(invitation)
     return 'sent'
 
 

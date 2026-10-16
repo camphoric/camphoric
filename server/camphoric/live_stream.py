@@ -136,6 +136,9 @@ class Broadcaster:
                 raise
             except Exception:
                 self.listening.clear()
+                # Without notices the open streams would only seem live: end
+                # them, so browsers say they're reconnecting until it's back.
+                self.deliver({'type': 'lost'}, self.everyone())
                 logger.exception('live: lost the notice connection; reconnecting')
                 missed = True
                 await asyncio.sleep(delay)
@@ -181,7 +184,11 @@ async def events(event_id, session_key, user_id):
         loop = asyncio.get_running_loop()
         ends = loop.time() + MAX_SECONDS
         recheck = loop.time() + RECHECK_SECONDS
-        while loop.time() < ends:
+        while True:
+            if loop.time() >= ends:
+                # Tell the browser this close is routine; it reconnects at once.
+                yield sse('bye', {})
+                return
             if loop.time() >= recheck:
                 if not await sync_to_async(still_allowed)(session_key, user_id):
                     return
@@ -192,6 +199,8 @@ async def events(event_id, session_key, user_id):
             except TimeoutError:
                 yield sse('ping', {})
                 continue
+            if message.get('type') == 'lost':
+                return
             if message.get('type') == 'resync':
                 yield sse('resync', {})
             else:
