@@ -32,6 +32,7 @@ const row = (fields: Partial<ApiEmailUnsubscribe>): ApiEmailUnsubscribe => ({
   created_by: null,
   created_by_name: null,
   created_at: '2026-09-20T15:00:00Z',
+  version: 1,
   ...fields,
 });
 
@@ -79,7 +80,7 @@ describe('EmailUnsubscribes', () => {
     await user.click(screen.getByRole('button', { name: 'Remove kim@example.com' }));
     expect(await screen.findByText(/will get this event’s group emails again/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Remove' }));
-    expect(remove).toHaveBeenCalledWith({ id: 2 }, expect.anything());
+    expect(remove).toHaveBeenCalledWith({ id: 2, version: 1 }, expect.anything());
   });
 
   it('says when no one has unsubscribed', () => {

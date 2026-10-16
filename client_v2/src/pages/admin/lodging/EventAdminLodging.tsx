@@ -165,7 +165,7 @@ export function EventAdminLodging() {
           Delete “{node.name}”{node.children.length > 0 ? ' and everything under it' : ''}?
         </>
       ),
-      onConfirm: () => deleteNode.mutate({ id: node.id }),
+      onConfirm: () => deleteNode.mutate({ id: node.id, version: node.version }),
     });
 
   if (!event || !data) return <FullScreenLoading />;

@@ -30,12 +30,14 @@ from camphoric.templating.render import syntax_error
 class ModelSerializer(BaseModelSerializer):
     '''
     DRF's, except that `deleted_at` is never written: deleting and restoring go
-    through their own endpoints (SPEC DR-55).
+    through their own endpoints (SPEC DR-55). Nor is `version`: saving bumps it,
+    and a client sends the one it read as `If-Match` (DR-109).
     '''
 
     def get_extra_kwargs(self):
         extra_kwargs = super().get_extra_kwargs()
-        extra_kwargs['deleted_at'] = {**extra_kwargs.get('deleted_at', {}), 'read_only': True}
+        for name in ('deleted_at', 'version'):
+            extra_kwargs[name] = {**extra_kwargs.get(name, {}), 'read_only': True}
         return extra_kwargs
 
 
@@ -310,7 +312,7 @@ class EmailUnsubscribeSerializer(ModelSerializer):
     class Meta:
         model = models.EmailUnsubscribe
         fields = ['id', 'event', 'email', 'source', 'created_by', 'created_by_name',
-                  'created_at']
+                  'created_at', 'version']
         read_only_fields = ['source', 'created_by', 'created_at']
         # The duplicate check is in validate, on the normalized address.
         validators = []
@@ -423,7 +425,7 @@ class PricingOverrideSerializer(ModelSerializer):
     class Meta:
         model = models.PricingOverride
         fields = ['id', 'registration', 'camper', 'var', 'amount', 'reason', 'created_by',
-                  'created_by_name', 'applied', 'created_at', 'updated_at']
+                  'created_by_name', 'applied', 'created_at', 'updated_at', 'version']
         read_only_fields = ['created_by', 'created_at', 'updated_at']
         # One per line is checked in validate(): DRF's own check would require
         # `registration` even for a camper's line.

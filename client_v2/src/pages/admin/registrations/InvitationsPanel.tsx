@@ -120,7 +120,7 @@ export function InvitationsPanel() {
       id: i.id,
       title: 'Delete invitation',
       message: <>Delete the invitation for “{i.recipient_name || i.recipient_email}”?</>,
-      onConfirm: () => del.mutate({ id: i.id }),
+      onConfirm: () => del.mutate({ id: i.id, version: i.version }),
     });
 
   // Newest first.
@@ -168,7 +168,11 @@ export function InvitationsPanel() {
           const i = info.row.original;
           if (i.registration_deleted) return <Text c="dimmed">Registration deleted</Text>;
           return i.registration != null ? (
-            <Anchor component="button" type="button" onClick={() => openRegistration(Number(i.registration))}>
+            <Anchor
+              component="button"
+              type="button"
+              onClick={() => openRegistration(Number(i.registration))}
+            >
               View
             </Anchor>
           ) : (
@@ -183,42 +187,42 @@ export function InvitationsPanel() {
           const i = info.row.original;
           return (
             <CanEdit>
-            <Group gap="xs" wrap="nowrap">
-              {i.registration == null && i.register_link && (
-                <CopyButton value={i.register_link}>
-                  {({ copied, copy }) => (
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      color={copied ? 'green' : undefined}
-                      leftSection={copied ? <IconCheck size={14} /> : <IconLink size={14} />}
-                      aria-label={`Copy the registration link for ${i.recipient_name || i.recipient_email}`}
-                      onClick={copy}
-                    >
-                      {copied ? 'Copied' : 'Copy link'}
-                    </Button>
-                  )}
-                </CopyButton>
-              )}
-              <Button
-                size="compact-sm"
-                variant="light"
-                leftSection={<IconMail size={14} />}
-                onClick={() => send.mutate(i.id)}
-                loading={send.isPending && send.variables === i.id}
-              >
-                Resend
-              </Button>
-              <Button
-                size="compact-sm"
-                variant="light"
-                color="red"
-                leftSection={<IconTrash size={14} />}
-                onClick={() => confirmDeleteInvitation(i)}
-              >
-                Delete
-              </Button>
-            </Group>
+              <Group gap="xs" wrap="nowrap">
+                {i.registration == null && i.register_link && (
+                  <CopyButton value={i.register_link}>
+                    {({ copied, copy }) => (
+                      <Button
+                        size="compact-sm"
+                        variant="light"
+                        color={copied ? 'green' : undefined}
+                        leftSection={copied ? <IconCheck size={14} /> : <IconLink size={14} />}
+                        aria-label={`Copy the registration link for ${i.recipient_name || i.recipient_email}`}
+                        onClick={copy}
+                      >
+                        {copied ? 'Copied' : 'Copy link'}
+                      </Button>
+                    )}
+                  </CopyButton>
+                )}
+                <Button
+                  size="compact-sm"
+                  variant="light"
+                  leftSection={<IconMail size={14} />}
+                  onClick={() => send.mutate(i.id)}
+                  loading={send.isPending && send.variables === i.id}
+                >
+                  Resend
+                </Button>
+                <Button
+                  size="compact-sm"
+                  variant="light"
+                  color="red"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={() => confirmDeleteInvitation(i)}
+                >
+                  Delete
+                </Button>
+              </Group>
             </CanEdit>
           );
         },

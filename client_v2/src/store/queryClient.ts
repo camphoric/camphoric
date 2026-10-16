@@ -4,21 +4,26 @@
  * client state is the Zustand registration store (SPEC §5, DR-1).
  *
  * A shared MutationCache surfaces mutation failures as notifications (DR-10).
- * Individual mutations opt out with `meta: { suppressErrorNotification: true }`.
+ * Individual mutations opt out with `meta: { suppressErrorNotification: true }`,
+ * or, for a save refused because someone else changed the record first,
+ * `meta: { handlesVersionConflict: true }` (DR-109).
  */
 
 import { notifications } from '@mantine/notifications';
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import type { TemplateDiagnostic } from 'api-types';
-import { ApiError } from 'utils/fetch';
+import { ApiError, versionConflict } from 'utils/fetch';
 
 /**
- * A mutation error as one line: for a 403, that the user lacks permission;
- * otherwise the API's `detail` (plus the first template problem, when the API
+ * A mutation error as one line: for a 412, that someone else changed the record
+ * first; for a 403, that the user lacks permission; otherwise the API's `detail` (plus the first template problem, when the API
  * returns `diagnostics`), or its field errors (`field: message`), or the HTTP
  * status.
  */
 export function describeError(error: unknown): string {
+  if (versionConflict(error)) {
+    return 'Someone else changed this since you opened it, so your change wasn’t saved.';
+  }
   if (error instanceof ApiError && error.status === 403) {
     // A refusal the admin didn't hide (SPEC §10, DR-51), or a signed-out session.
     const body = error.body as { code?: unknown } | null;
@@ -75,6 +80,7 @@ export const queryClient = new QueryClient({
         return;
       }
       if (mutation.meta?.suppressErrorNotification) return;
+      if (mutation.meta?.handlesVersionConflict && versionConflict(error)) return;
       notifications.show({
         color: 'red',
         title: 'Request failed',

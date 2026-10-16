@@ -81,16 +81,46 @@ class TimeStampedModel(models.Model):
     - Base class for most models.
     - Updates creation and modification time stamps automatically.
     - Allows soft delete.
+    - Counts its edits in `version`, which the API checks against `If-Match` so a
+      save made from stale data is refused (SPEC §5, DR-109).
     '''
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         abstract = True
 
     # Saving only these, a soft delete or restore can't overwrite anything else.
     SOFT_DELETE_FIELDS = ['deleted_at', 'updated_at']
+
+    def save(self, *args, bump_version=True, **kwargs):
+        '''
+        Every save of an existing row bumps `version`, in the database (so two
+        writers can't both land on the same number) and read back by the save.
+        Pass `bump_version=False` for a save that only refreshes what the server
+        computes (pricing), which an admin's edit can't conflict with. Such a save
+        leaves `version` alone rather than writing back a value this instance may
+        have read before someone else's edit.
+        '''
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and not update_fields:
+            pass  # Django saves nothing; neither does this.
+        elif self.pk is None:
+            # A new row, or a copy made by clearing the pk: its own first version.
+            self.version = 1
+        elif not self._state.adding:
+            if bump_version:
+                self.version = models.F('version') + 1
+                if update_fields is not None and 'version' not in update_fields:
+                    kwargs['update_fields'] = [*update_fields, 'version']
+            else:
+                if update_fields is None:
+                    update_fields = [f.name for f in self._meta.concrete_fields
+                                     if not f.primary_key]
+                kwargs['update_fields'] = [f for f in update_fields if f != 'version']
+        super().save(*args, **kwargs)
 
     def soft_delete(self):
         self.deleted_at = timezone.now()
@@ -300,12 +330,12 @@ class Event(TimeStampedModel):
                 event=self, purpose=EmailTemplatePurpose.CONFIRMATION,
                 name='Registration confirmation', subject=DEFAULT_CONFIRMATION_SUBJECT,
                 body=DEFAULT_CONFIRMATION_BODY)
-            super().save(update_fields=['confirmation_template'])
+            super().save(update_fields=['confirmation_template'], bump_version=False)
         if self.invoice_template_id is None:
             self.invoice_template = EmailTemplate.objects.create(
                 event=self, purpose=EmailTemplatePurpose.INVOICE, name='Invoice',
                 subject=DEFAULT_INVOICE_SUBJECT, body=DEFAULT_INVOICE_BODY)
-            super().save(update_fields=['invoice_template'])
+            super().save(update_fields=['invoice_template'], bump_version=False)
 
     @property
     def zone(self):
@@ -359,7 +389,7 @@ class RegistrationType(TimeStampedModel):
                 event_id=self.event_id, purpose=EmailTemplatePurpose.INVITATION,
                 name=f'Invitation: {self.label}', subject=DEFAULT_INVITATION_SUBJECT,
                 body=DEFAULT_INVITATION_BODY)
-            super().save(update_fields=['invitation_template'])
+            super().save(update_fields=['invitation_template'], bump_version=False)
 
 
 class PromoCodeScope(models.TextChoices):
@@ -438,6 +468,10 @@ class PromoCode(TimeStampedModel):
             event_id=self.event_id, code__iexact=self.code).exclude(pk=self.pk).exists()
 
 
+# What a pricing recalculation writes (Registration.recalculate_server_pricing).
+PRICING_FIELDS = ['server_pricing_results', 'updated_at']
+
+
 class Registration(TimeStampedModel):
     '''
     Group of campers registering together.
@@ -499,13 +533,17 @@ class Registration(TimeStampedModel):
             campers,
         )
 
+        # Only the computed prices are written, and no version is bumped: editing
+        # one camper mustn't make its registration and siblings look edited, nor
+        # write back what this copy of them held before someone else's edit
+        # (DR-109).
         camper_pricing = server_pricing_results['campers']
         for index, camper in enumerate(campers):
             camper.server_pricing_results = camper_pricing[index]
-            camper.save_without_recalc()
+            camper.save_without_recalc(update_fields=PRICING_FIELDS, bump_version=False)
 
         self.server_pricing_results = server_pricing_results
-        super().save()
+        super().save(update_fields=PRICING_FIELDS, bump_version=False)
 
 
 class Report(TimeStampedModel):

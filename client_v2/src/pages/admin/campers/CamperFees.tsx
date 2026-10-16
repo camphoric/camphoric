@@ -38,7 +38,7 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
           Delete {typeLabel(cc.custom_charge_type)} ({formatMoney(cc.amount)})?
         </>
       ),
-      onConfirm: () => del.mutate({ id: cc.id }),
+      onConfirm: () => del.mutate({ id: cc.id, version: cc.version }),
     });
 
   return (

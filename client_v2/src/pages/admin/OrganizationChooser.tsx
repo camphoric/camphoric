@@ -49,7 +49,7 @@ export function OrganizationChooser() {
       message: <>Delete “{organization.name}”?</>,
       onConfirm: () =>
         remove.mutate(
-          { id: organization.id },
+          { id: organization.id, version: organization.version },
           {
             onSuccess: () =>
               notifications.show({ color: 'green', message: `Deleted ${organization.name}.` }),
@@ -60,7 +60,10 @@ export function OrganizationChooser() {
   const saveName = (name: string) => {
     const done = () => setNaming(null);
     if (naming?.organization)
-      update.mutate({ id: naming.organization.id, name }, { onSuccess: done });
+      update.mutate(
+        { id: naming.organization.id, version: naming.organization.version, name },
+        { onSuccess: done },
+      );
     else create.mutate({ name }, { onSuccess: done });
   };
 

@@ -7,7 +7,7 @@ import { RegistrationTypeForm } from '../RegistrationTypeForm';
 
 const { create, update, draft } = vi.hoisted(() => ({
   create: vi.fn(),
-  update: vi.fn(),
+  update: vi.fn((body: object) => Promise.resolve(body)),
   draft: {
     loaded: true,
     subject: 'Join us',
@@ -16,7 +16,7 @@ const { create, update, draft } = vi.hoisted(() => ({
     setBody: vi.fn(),
     changed: false,
     discard: vi.fn(),
-    save: vi.fn(),
+    save: vi.fn(() => Promise.resolve(true)),
     saving: false,
   },
 }));
@@ -35,7 +35,7 @@ vi.mock('store/entities', () => ({
     }),
   },
 }));
-vi.mock('store/emailTemplates', () => ({ useTemplateDraft: () => draft }));
+vi.mock('hooks/useTemplateDraft', () => ({ useTemplateDraft: () => draft }));
 vi.mock('components/EmailTemplateEditor', () => ({
   EmailTemplateEditor: (props: {
     subject: string;
@@ -57,12 +57,13 @@ const REG_TYPE = {
   name: 'staff',
   label: 'Staff',
   invitation_template: 11,
+  version: 2,
 } as ApiRegistrationType;
 
 beforeEach(() => {
   create.mockReset().mockResolvedValue({ ...REG_TYPE, id: 9 });
   update.mockReset().mockResolvedValue(REG_TYPE);
-  draft.save.mockReset().mockResolvedValue(undefined);
+  draft.save.mockReset().mockResolvedValue(true);
   draft.setBody.mockReset();
 });
 
@@ -92,7 +93,8 @@ describe('RegistrationTypeForm', () => {
     await user.type(screen.getByLabelText('Body'), 'x');
     expect(draft.setBody).toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(update).toHaveBeenCalledWith({ id: 3, name: 'staff', label: 'Staff' });
+    // Name and label are as they were, so only the email is saved.
+    expect(update).not.toHaveBeenCalled();
     expect(draft.save).toHaveBeenCalled();
   });
 

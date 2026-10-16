@@ -10,6 +10,11 @@
  * Campers are refetched only once the last move in flight settles. Refetching
  * after each one let an earlier move's refetch land while a later move was
  * still saving, briefly putting back that camper's old lodging or stay.
+ *
+ * A move sends no `If-Match` (§9.8, DR-109): it's an instruction about where
+ * the camper goes now, made on what's on screen, and it writes only their
+ * lodging and stay, so it can't undo anyone's other edits. Checking the version
+ * would refuse a second quick move of the same camper while the first saves.
  */
 
 import { notifications } from '@mantine/notifications';

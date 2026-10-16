@@ -7,7 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiInvoice, ApiPayment, Hash, PaymentType, Scalar } from 'api-types';
-import { apiFetch } from 'utils/fetch';
+import { apiFetch, ifMatch } from 'utils/fetch';
 
 // A payment or an invoice change moves the registration's ledger and its history.
 const INVALIDATES = ['Invoice', 'Payment', 'Registration', 'History', 'Deleted'];
@@ -17,16 +17,22 @@ function useInvalidate() {
   return () => INVALIDATES.forEach((name) => void client.invalidateQueries({ queryKey: [name] }));
 }
 
-/** `POST /api/invoices/{id}/cancel/` `{reason}` or `/reopen/`. */
+/**
+ * `POST /api/invoices/{id}/cancel/` `{reason}` or `/reopen/`, refused (412) when
+ * the invoice has changed since the `version` the user saw (§9.8, DR-109).
+ */
 export function useInvoiceStatusAction(action: 'cancel' | 'reopen') {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: Scalar; reason?: string }) =>
+    mutationFn: ({ id, version, reason }: { id: Scalar; version?: number; reason?: string }) =>
       apiFetch<ApiInvoice>(`/api/invoices/${id}/${action}/`, {
         method: 'POST',
         body: action === 'cancel' ? { reason: reason ?? '' } : {},
+        headers: ifMatch(version),
       }),
     onSuccess: invalidate,
+    // Either way, show the invoice as it is now.
+    onError: invalidate,
   });
 }
 

@@ -73,7 +73,8 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
         </Stack>
       ),
       labels: { confirm: 'Cancel invoice', cancel: 'Keep it' },
-      onConfirm: () => cancel.mutate({ id: invoice.id, reason }, { onError: failed }),
+      onConfirm: () =>
+        cancel.mutate({ id: invoice.id, version: invoice.version, reason }, { onError: failed }),
     });
   };
 
@@ -83,7 +84,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       id: invoice.id,
       title: 'Delete invoice',
       message: <>Delete invoice #{invoice.id}?</>,
-      onConfirm: () => deleteInvoice.mutate({ id: invoice.id }),
+      onConfirm: () => deleteInvoice.mutate({ id: invoice.id, version: invoice.version }),
     });
 
   const confirmDeletePayment = (p: ApiPayment) =>
@@ -92,7 +93,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       id: p.id,
       title: Number(p.amount) < 0 ? 'Delete refund' : 'Delete payment',
       message: <>Delete the {paymentName(p)}?</>,
-      onConfirm: () => deletePayment.mutate({ id: p.id }),
+      onConfirm: () => deletePayment.mutate({ id: p.id, version: p.version }),
     });
 
   const copyLink = (invoice: ApiInvoice) =>
@@ -171,7 +172,9 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
             canDelete={canDeletePayments}
             onEdit={() => setEditing(invoice)}
             onCancel={() => confirmCancel(invoice)}
-            onReopen={() => reopen.mutate({ id: invoice.id }, { onError: failed })}
+            onReopen={() =>
+              reopen.mutate({ id: invoice.id, version: invoice.version }, { onError: failed })
+            }
             onCheckPayPal={() => checkOrder(invoice)}
             checkingPayPal={checkPayPal.isPending && checkPayPal.variables === invoice.id}
             onDelete={() => confirmDeleteInvoice(invoice)}

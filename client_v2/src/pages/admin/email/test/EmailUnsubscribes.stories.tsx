@@ -40,6 +40,7 @@ function stubList(initial: ApiEmailUnsubscribe[]) {
         created_by: 1,
         created_by_name: 'you',
         created_at: new Date().toISOString(),
+        version: 1,
       };
       rows = [row, ...rows];
       return json(row, 201);
@@ -82,6 +83,7 @@ export const List: StoryFn = () => (
         created_by: null,
         created_by_name: null,
         created_at: '2026-09-20T15:00:00Z',
+        version: 1,
       },
       {
         id: 2,
@@ -91,6 +93,7 @@ export const List: StoryFn = () => (
         created_by: 1,
         created_by_name: 'will',
         created_at: '2026-09-18T10:30:00Z',
+        version: 1,
       },
     ]}
   />

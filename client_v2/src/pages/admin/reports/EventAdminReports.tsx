@@ -55,7 +55,11 @@ export function EventAdminReports() {
       id: report.id,
       title: 'Delete report',
       message: <>Delete “{report.title}”?</>,
-      onConfirm: () => del.mutate({ id: report.id }, { onSuccess: () => select(undefined) }),
+      onConfirm: () =>
+        del.mutate(
+          { id: report.id, version: report.version },
+          { onSuccess: () => select(undefined) },
+        ),
     });
 
   return (

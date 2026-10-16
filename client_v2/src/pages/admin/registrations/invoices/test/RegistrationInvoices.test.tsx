@@ -94,7 +94,7 @@ describe('RegistrationInvoices', () => {
     await user.click(screen.getByRole('button', { name: 'Delete the Check payment of $450.00' }));
     expect(await screen.findByText('Delete the Check payment of $450.00?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(delPayment).toHaveBeenCalledWith({ id: 11 });
+    expect(delPayment).toHaveBeenCalledWith({ id: 11, version: 1 });
   });
 
   it('doesn’t let a Registrar delete a payment, but restore one', async () => {

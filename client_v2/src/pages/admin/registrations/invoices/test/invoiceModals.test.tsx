@@ -18,12 +18,13 @@ import {
 } from './fixtures';
 
 const { update, record, refundPayPal, createInvoice, mutation } = vi.hoisted(() => ({
-  update: vi.fn(),
+  update: vi.fn((body: object) => Promise.resolve(body)),
   createInvoice: vi.fn(),
   record: vi.fn(),
   refundPayPal: vi.fn(),
   mutation: (mutate: unknown) => ({
     mutate,
+    mutateAsync: mutate,
     reset: () => undefined,
     isPending: false,
     error: null,
@@ -84,10 +85,13 @@ describe('EditInvoiceModal', () => {
     await user.click(screen.getByRole('button', { name: 'Calculate' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     // $550 + $450 = $1,000; 2.5% of it is $25.
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 1, amount: '1000.00', handling: '25.00' }),
-      expect.anything(),
-    );
+    // What changed, from the version the dialog opened at.
+    expect(update).toHaveBeenCalledWith({
+      id: 1,
+      version: 1,
+      amount: '1000.00',
+      handling: '25.00',
+    });
   });
 });
 

@@ -33,6 +33,8 @@ export interface TimeStamped {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  /** Counts the record's edits; sent back as `If-Match` to save it (SPEC §5, DR-109). */
+  version: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1125,6 +1127,8 @@ export interface ApiEmailUnsubscribe {
   created_by: number | null;
   created_by_name: string | null;
   created_at: string;
+  /** Counts its edits, for `If-Match` (SPEC §5, DR-109). */
+  version: number;
 }
 
 export interface AudienceResolution {

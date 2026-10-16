@@ -11,11 +11,17 @@ import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiInvoice } from 'api-types';
 import { FormActions } from 'components/FormActions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { handlingFee } from 'pricing';
 import { useEffect, useState } from 'react';
 import { invoiceHooks } from 'store/entities';
 import { apiFieldErrors } from 'utils/fetch';
 import { formatMoney, roundMoney } from 'utils/money';
+
+type InvoiceFields = Pick<
+  ApiInvoice,
+  'description' | 'amount' | 'handling' | 'due_on' | 'memo' | 'notes'
+>;
 
 export interface EditInvoiceModalProps {
   invoice: ApiInvoice | null;
@@ -32,7 +38,23 @@ export function EditInvoiceModal({
   handlingPercent,
   onClose,
 }: EditInvoiceModalProps) {
-  const update = invoiceHooks.useUpdate();
+  const update = invoiceHooks.useUpdate({ handlesVersionConflict: true });
+  // From the version the dialog opened at, so a change someone else saved —
+  // or the registrant's payment step made — meanwhile is never overwritten
+  // unseen (§9.8, DR-109).
+  const saveInvoice = useConflictAwareSave(invoice ?? undefined, {
+    toForm: (record: ApiInvoice): InvoiceFields => ({
+      description: record.description,
+      amount: record.amount,
+      handling: record.handling,
+      due_on: record.due_on ?? null,
+      memo: record.memo,
+      notes: record.notes,
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'invoice',
+    fieldLabels: { due_on: 'Due' },
+  });
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<number | string>(0);
   const [handling, setHandling] = useState<number | string>(0);
@@ -40,14 +62,18 @@ export function EditInvoiceModal({
   const [memo, setMemo] = useState('');
   const [notes, setNotes] = useState('');
 
+  const show = (fields: InvoiceFields) => {
+    setDescription(fields.description);
+    setAmount(Number(fields.amount));
+    setHandling(Number(fields.handling));
+    setDueOn(fields.due_on ?? '');
+    setMemo(fields.memo);
+    setNotes(fields.notes);
+  };
+
   useEffect(() => {
     if (!invoice) return;
-    setDescription(invoice.description);
-    setAmount(Number(invoice.amount));
-    setHandling(Number(invoice.handling));
-    setDueOn(invoice.due_on ?? '');
-    setMemo(invoice.memo);
-    setNotes(invoice.notes);
+    show(invoice);
     update.reset();
     // Reset only when a different invoice opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,10 +89,9 @@ export function EditInvoiceModal({
 
   const errors = apiFieldErrors(update.error);
 
-  const save = () =>
-    update.mutate(
+  const save = async () => {
+    const outcome = await saveInvoice(
       {
-        id: invoice.id,
         description,
         amount: (Number(amount) || 0).toFixed(2),
         handling: (Number(handling) || 0).toFixed(2),
@@ -74,13 +99,14 @@ export function EditInvoiceModal({
         memo,
         notes,
       },
-      {
-        onSuccess: () => {
-          notifications.show({ color: 'green', message: 'Invoice saved' });
-          onClose();
-        },
-      },
+      show,
     );
+    if (outcome?.discarded) show(outcome.discarded);
+    if (outcome?.saved) {
+      notifications.show({ color: 'green', message: 'Invoice saved' });
+      onClose();
+    }
+  };
 
   return (
     <Modal opened onClose={onClose} title={`Edit invoice #${invoice.id}`}>
@@ -155,7 +181,7 @@ export function EditInvoiceModal({
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={save} loading={update.isPending}>
+          <Button onClick={() => void save()} loading={update.isPending}>
             Save
           </Button>
         </FormActions>

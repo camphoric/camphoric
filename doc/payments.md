@@ -341,6 +341,13 @@ stateDiagram-v2
 Status is never stored: `Invoice.status` (and `templating/graph.invoice_status`) work it out from
 `cancelled_at`, the total and the live payments' net.
 
+**An edit made from a stale invoice is refused (#770).** Every invoice counts its saves in
+`version`, and the payment step's rewrites count too. An organizer's edit, cancel or reopen sends
+the version the dialog opened at as `If-Match`; if anything saved the invoice since (another
+registrar, or the registrant's payment step), `InvoiceViewSet` answers 412 with the invoice as it
+is now, under the same row lock as DR-105, and nothing changes. The edit dialog then shows both
+sides' changes and asks whether to save the organizer's on top or drop them (SPEC §9.8, DR-109).
+
 ## 11. Refunds
 
 ```mermaid

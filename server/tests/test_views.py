@@ -423,6 +423,7 @@ class RegisterGetTests(APITestCase):
                     'availability': 'auto',
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
+                    'version': 1,
                     'visible': True},
                 {
                     'camper_count_adjusted': 0,
@@ -439,6 +440,7 @@ class RegisterGetTests(APITestCase):
                     'availability': 'auto',
                     'reserved': 0,
                     'sharing_multiplier': 1.0,
+                    'version': 1,
                     'visible': True}
             ]
         )

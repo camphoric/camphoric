@@ -14,7 +14,7 @@ import { CanEdit, usePermissions } from 'hooks/permissions';
 import { useState } from 'react';
 import { useTestEmailAccount } from 'store/email';
 import { emailAccountHooks, eventHooks } from 'store/entities';
-import { apiErrorMessage } from 'utils/fetch';
+import { apiErrorMessage, versionConflict } from 'utils/fetch';
 
 import { type EmailAccountBody, EmailAccountForm, SMTP_BACKEND } from './EmailAccountForm';
 
@@ -69,16 +69,23 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
   const fail = (error: Error) =>
     notifications.show({ color: 'red', message: apiErrorMessage(error) });
 
+  // Someone else saved the account since it was opened (§9.8, DR-109): opening
+  // it again shows theirs.
+  const failSave = (error: Error) => {
+    if (versionConflict(error)) setEditing(null);
+    fail(error);
+  };
+
   const save = (body: EmailAccountBody) => {
     const done = {
       onSuccess: () => {
         notifications.show({ color: 'green', message: 'Saved' });
         setEditing(null);
       },
-      onError: fail,
+      onError: failSave,
     };
     if (editing === 'new') create.mutate(body as Parameters<typeof create.mutate>[0], done);
-    else if (editing) update.mutate({ id: editing.id, ...body }, done);
+    else if (editing) update.mutate({ id: editing.id, version: editing.version, ...body }, done);
   };
 
   const chooseAccount = (value: string | null) =>
@@ -109,7 +116,8 @@ export function EmailSettings({ event }: { event: ApiEvent }) {
       id: account.id,
       title: 'Delete email account',
       message: <>Delete “{account.name}”?</>,
-      onConfirm: () => remove.mutate({ id: account.id }, { onError: fail }),
+      onConfirm: () =>
+        remove.mutate({ id: account.id, version: account.version }, { onError: fail }),
     });
 
   return (

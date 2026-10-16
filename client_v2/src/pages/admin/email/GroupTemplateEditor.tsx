@@ -14,6 +14,7 @@ import { type EmailSample, EmailTemplateEditor } from 'components/EmailTemplateE
 import { FormActions } from 'components/FormActions';
 import { completeFilter, unfinishedRules } from 'components/RecipientFilterBuilder';
 import { CanEdit, ReadOnlyFieldset, usePermissions } from 'hooks/permissions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
 import { useMemo, useState } from 'react';
 import { emailAccountHooks, emailTemplateHooks } from 'store/entities';
@@ -52,6 +53,19 @@ function fieldErrors(error: unknown): Record<string, string> {
   return errors;
 }
 
+/** What the editor edits. */
+const templateFields = (template: ApiEmailTemplate) => ({
+  name: template.name,
+  ...audienceOf(template),
+  account: template.account ?? null,
+  from_email: template.from_email,
+  reply_to: template.reply_to,
+  subject: template.subject,
+  body: template.body,
+});
+
+type Fields = ReturnType<typeof templateFields>;
+
 export function GroupTemplateEditor({
   eventId,
   organizationId,
@@ -62,7 +76,15 @@ export function GroupTemplateEditor({
 }: GroupTemplateEditorProps) {
   const { canEdit } = usePermissions();
   const create = emailTemplateHooks.useCreate();
-  const update = emailTemplateHooks.useUpdate();
+  const update = emailTemplateHooks.useUpdate({ handlesVersionConflict: true });
+  // From the version the editor opened at, so a change someone else saved
+  // meanwhile is never overwritten unseen (§9.8, DR-109).
+  const saveTemplate = useConflictAwareSave(template, {
+    toForm: templateFields,
+    saveRecord: update.mutateAsync,
+    label: 'template',
+    fieldLabels: { from_email: 'From', reply_to: 'Reply-to', recipient_source: 'Recipients' },
+  });
   const { data: accounts } = emailAccountHooks.useList({ organization: organizationId });
 
   const [name, setName] = useState(template?.name ?? '');
@@ -113,7 +135,17 @@ export function GroupTemplateEditor({
     .filter(Boolean)
     .join(', ');
 
-  const save = () => {
+  const show = ({ name, account, from_email, reply_to, subject, body, ...audience }: Fields) => {
+    setName(name);
+    setAudience(audience);
+    setAccount(account);
+    setFromEmail(from_email);
+    setReplyTo(reply_to);
+    setSubject(subject);
+    setBody(body);
+  };
+
+  const save = async () => {
     const fields = {
       name: name.trim(),
       ...audience,
@@ -133,8 +165,11 @@ export function GroupTemplateEditor({
       release();
       onDone(saved);
     };
-    if (template) update.mutate({ id: template.id, ...fields }, { onSuccess });
-    else create.mutate({ event: Number(eventId), purpose: 'group', ...fields }, { onSuccess });
+    if (template) {
+      const outcome = await saveTemplate(fields, show);
+      if (outcome?.saved) onSuccess(outcome.saved);
+      if (outcome?.discarded) show(templateFields(outcome.discarded));
+    } else create.mutate({ event: Number(eventId), purpose: 'group', ...fields }, { onSuccess });
   };
 
   const accountOptions = [
@@ -229,7 +264,7 @@ export function GroupTemplateEditor({
 
       <FormActions dirty={dirty} justify="flex-start">
         <CanEdit>
-          <Button onClick={save} disabled={!!missing || saving} loading={saving}>
+          <Button onClick={() => void save()} disabled={!!missing || saving} loading={saving}>
             Save
           </Button>
         </CanEdit>

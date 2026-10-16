@@ -5,9 +5,10 @@
  */
 
 import { Button, Modal, NumberInput, Stack, Text, Textarea } from '@mantine/core';
-import type { Scalar } from 'api-types';
+import type { ApiPricingOverride, Scalar } from 'api-types';
 import type { FeeLine } from 'components/FeeBreakdown';
 import { FormActions } from 'components/FormActions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useEffect, useState } from 'react';
 import { pricingOverrideHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
@@ -26,9 +27,23 @@ interface OverrideModalProps extends OverrideTarget {
 
 export function OverrideModal({ registration, camper, line, onClose }: OverrideModalProps) {
   const create = pricingOverrideHooks.useCreate();
-  const update = pricingOverrideHooks.useUpdate();
+  const update = pricingOverrideHooks.useUpdate({ handlesVersionConflict: true });
+  // From the version the dialog opened at (§9.8, DR-109).
+  const saveOverride = useConflictAwareSave(line?.override, {
+    toForm: (record: ApiPricingOverride) => ({
+      amount: Number(record.amount).toFixed(2),
+      reason: record.reason,
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'override',
+  });
   const [amount, setAmount] = useState<number | string>('');
   const [reason, setReason] = useState('');
+
+  const show = (fields: { amount: number | string; reason: string }) => {
+    setAmount(Number(fields.amount));
+    setReason(fields.reason);
+  };
 
   useEffect(() => {
     setAmount(line?.override ? Number(line.override.amount) : '');
@@ -38,11 +53,17 @@ export function OverrideModal({ registration, camper, line, onClose }: OverrideM
   const ready = line !== null && amount !== '' && reason.trim() !== '';
   const saving = create.isPending || update.isPending;
 
-  const save = () => {
+  const save = async () => {
     if (!line || !ready) return;
     const body = { amount: Number(amount), reason: reason.trim() };
-    if (line.override) update.mutate({ id: line.override.id, ...body }, { onSuccess: onClose });
-    else create.mutate({ registration, camper, var: line.key, ...body }, { onSuccess: onClose });
+    if (line.override) {
+      const outcome = await saveOverride(
+        { amount: body.amount.toFixed(2), reason: body.reason },
+        show,
+      );
+      if (outcome?.saved) onClose();
+      if (outcome?.discarded) show(outcome.discarded);
+    } else create.mutate({ registration, camper, var: line.key, ...body }, { onSuccess: onClose });
   };
 
   return (
@@ -73,7 +94,7 @@ export function OverrideModal({ registration, camper, line, onClose }: OverrideM
             <Button variant="default" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={save} disabled={!ready} loading={saving}>
+            <Button onClick={() => void save()} disabled={!ready} loading={saving}>
               {line.override ? 'Save' : 'Override'}
             </Button>
           </FormActions>

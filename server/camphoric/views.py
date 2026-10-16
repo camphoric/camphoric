@@ -166,6 +166,77 @@ class PlannedDeleteMixin:
         return Response(self.delete_plan(self.get_object()).preview())
 
 
+ANY_VERSION = object()
+
+
+def if_match_versions(request):
+    '''
+    The versions a request's `If-Match` names: None without the header,
+    ANY_VERSION for `*`, else a set (empty when no tag is a version). Accepts
+    `"42"`, `W/"42"` and a bare `42`.
+    '''
+    header = request.headers.get('If-Match')
+    if header is None:
+        return None
+    tags = [tag.strip() for tag in header.split(',') if tag.strip()]
+    if '*' in tags:
+        return ANY_VERSION
+    versions = set()
+    for tag in tags:
+        tag = tag.removeprefix('W/').strip('"')
+        if tag.isdigit():
+            versions.add(int(tag))
+    return versions
+
+
+class VersionCheckMixin:
+    '''
+    Optimistic concurrency (SPEC §5, DR-109). A PATCH, PUT or DELETE that sends
+    `If-Match: "<version>"` is refused with 412 — and the record as it is now —
+    when the record has moved on since the client read that version, so nobody
+    saves over an edit they never saw. Every write locks the row before reading
+    it, so it starts from the record as committed and holds it until it's
+    written. Without `If-Match` the write goes ahead, as it always did. Detail
+    responses carry the version as their `ETag`.
+    '''
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return self.version_conflict() or super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return self.version_conflict() or super().destroy(request, *args, **kwargs)
+
+    def version_conflict(self):
+        '''
+        A 412 response when `If-Match` names a version other than the record's,
+        else None. Call it inside a transaction: it locks the row until commit.
+        '''
+        instance = self.get_object()
+        current = (type(instance)._base_manager.select_for_update()
+                   .filter(pk=instance.pk).values_list('version', flat=True).first())
+        expected = if_match_versions(self.request)
+        if expected is None or expected is ANY_VERSION or current in expected:
+            return None
+        return Response(
+            {'detail': 'Someone else changed this since you opened it.',
+             'code': 'version_conflict',
+             'current': self.get_serializer(self.get_object()).data},
+            status=status.HTTP_412_PRECONDITION_FAILED)
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        record = getattr(response, 'data', None)
+        if response.status_code == status.HTTP_412_PRECONDITION_FAILED:
+            record = record.get('current') if isinstance(record, dict) else None
+        elif not (self.detail and status.is_success(response.status_code)):
+            record = None
+        if isinstance(record, dict) and isinstance(record.get('version'), int):
+            response['ETag'] = f'"{record["version"]}"'
+        return response
+
+
 class SoftDeleteMixin:
     '''
     Registrations, campers and payments are soft-deleted (SPEC DR-55): DELETE marks
@@ -218,7 +289,7 @@ class SoftDeleteMixin:
         return Response(rows)
 
 
-class OrganizationViewSet(PlannedDeleteMixin, ModelViewSet):
+class OrganizationViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     '''Any role may list organizations; only Admins create, rename or delete them.'''
     queryset = models.Organization.objects.all()
     serializer_class = serializers.OrganizationSerializer
@@ -227,7 +298,7 @@ class OrganizationViewSet(PlannedDeleteMixin, ModelViewSet):
     delete_permission_classes = [AdminOnly]
 
 
-class EmailAccountViewSet(PlannedDeleteMixin, ModelViewSet):
+class EmailAccountViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.EmailAccount.objects.all()
     serializer_class = serializers.EmailAccountSerializer
     filterset_fields = ['organization']
@@ -255,7 +326,7 @@ class EmailAccountViewSet(PlannedDeleteMixin, ModelViewSet):
                         status=status.HTTP_202_ACCEPTED)
 
 
-class EmailTemplateViewSet(PlannedDeleteMixin, ModelViewSet):
+class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     '''The event's email templates: its confirmation, its invitations, its group emails.'''
     queryset = models.EmailTemplate.objects.order_by('purpose', 'name', 'id')
     serializer_class = serializers.EmailTemplateSerializer
@@ -365,7 +436,7 @@ class EmailRecipientsView(APIView):
         return Response(result)
 
 
-class EmailUnsubscribeViewSet(PlannedDeleteMixin, ModelViewSet):
+class EmailUnsubscribeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     '''
     The addresses that unsubscribed from an event's group email (`?event=`);
     an organizer can add one (someone who asked by reply) or remove one.
@@ -522,7 +593,7 @@ class EmailQueueView(APIView):
         return Response(outbox.queue_state(event))
 
 
-class EventViewSet(PlannedDeleteMixin, ModelViewSet):
+class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Event.objects.all()
     serializer_class = serializers.EventSerializer
     filterset_fields = ['organization']
@@ -534,7 +605,7 @@ class EventViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.no_registrations,)
 
 
-class RegistrationViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
+class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Registration.objects.select_related('promo_code')
     serializer_class = serializers.RegistrationSerializer
     filterset_fields = ['event', 'completed']
@@ -573,13 +644,13 @@ class RegistrationViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class ReportViewSet(PlannedDeleteMixin, ModelViewSet):
+class ReportViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
     filterset_fields = ['event']
 
 
-class RegistrationTypeViewSet(PlannedDeleteMixin, ModelViewSet):
+class RegistrationTypeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.RegistrationType.objects.all()
     serializer_class = serializers.RegistrationTypeSerializer
     filterset_fields = ['event']
@@ -588,13 +659,13 @@ class RegistrationTypeViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.with_invitation_email,)
 
 
-class InvitationViewSet(PlannedDeleteMixin, ModelViewSet):
+class InvitationViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Invitation.objects.select_related('registration')
     serializer_class = serializers.InvitationSerializer
     filterset_fields = ['registration', 'registration_type__event']
 
 
-class LodgingViewSet(PlannedDeleteMixin, ModelViewSet):
+class LodgingViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Lodging.objects.all()
     serializer_class = serializers.LodgingSerializer
     filterset_fields = ['event']
@@ -603,7 +674,7 @@ class LodgingViewSet(PlannedDeleteMixin, ModelViewSet):
         return (deletes.unassign_campers,)
 
 
-class CamperViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
+class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
     filterset_fields = ['registration__event', 'registration', 'registration__completed']
@@ -614,7 +685,7 @@ class CamperViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         return Response(audit.history(camper=self.get_any_object().id))
 
 
-class PricingOverrideViewSet(PlannedDeleteMixin, ModelViewSet):
+class PricingOverrideViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     '''Registrars' amounts for single price lines of a registration or camper (SPEC DR-56).'''
     queryset = models.PricingOverride.objects.select_related('created_by', 'registration__event')
     serializer_class = serializers.PricingOverrideSerializer
@@ -624,7 +695,7 @@ class PricingOverrideViewSet(PlannedDeleteMixin, ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
-class DepositViewSet(PlannedDeleteMixin, ModelViewSet):
+class DepositViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Deposit.objects.all()
     serializer_class = serializers.DepositSerializer
     filterset_fields = ['event']
@@ -635,7 +706,7 @@ def payment_problem_response(problem):
                     status=problem.http_status)
 
 
-class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
+class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     '''
     A registration's invoices (SPEC §9.7, DR-87). Any role reads them; Registrars
     and Admins create them (DR-96), edit, cancel and reopen them, send them, and
@@ -719,6 +790,8 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
     @transaction.atomic
     def cancel(self, request, pk=None):
         self.lock(pk)
+        if conflict := self.version_conflict():
+            return conflict
         invoice = self.get_object()
         if invoice.cancelled_at is not None:
             raise serializers.Conflict('This invoice is already cancelled.')
@@ -734,6 +807,8 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
     @transaction.atomic
     def reopen(self, request, pk=None):
         self.lock(pk)
+        if conflict := self.version_conflict():
+            return conflict
         invoice = self.get_object()
         if invoice.cancelled_at is None:
             raise serializers.Conflict('This invoice isn\'t cancelled.')
@@ -758,7 +833,7 @@ class InvoiceViewSet(PlannedDeleteMixin, ModelViewSet):
         })
 
 
-class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
+class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     '''
     Payments and refunds (SPEC §9.7, DR-87, DR-94). Registrars and Admins record
     them and refund through PayPal; only Admins delete one (DR-93). A payment
@@ -809,7 +884,7 @@ class PaymentViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         return Response(self.get_serializer(refund).data, status=status.HTTP_201_CREATED)
 
 
-class PromoCodeViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
+class PromoCodeViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     '''
     An event's promo codes (SPEC DR-67). They're soft-deleted (DR-55), so the
     registrations that have one keep it — and their discount. Only Admins
@@ -834,13 +909,13 @@ class PromoCodeViewSet(SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
         return super().restore(request, pk)
 
 
-class CustomChargeTypeViewSet(PlannedDeleteMixin, ModelViewSet):
+class CustomChargeTypeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.CustomChargeType.objects.all()
     serializer_class = serializers.CustomChargeTypeSerializer
     filterset_fields = ['event']
 
 
-class CustomChargeViewSet(PlannedDeleteMixin, ModelViewSet):
+class CustomChargeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.CustomCharge.objects.all()
     serializer_class = serializers.CustomChargeSerializer
     filterset_fields = ['camper', 'custom_charge_type__event']

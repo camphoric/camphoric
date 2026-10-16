@@ -7,7 +7,11 @@
 
 import type { ApiInvoice, ApiPayment } from 'api-types';
 
-const stamps = { created_at: '2026-10-01T18:00:00Z', updated_at: '2026-10-01T18:00:00Z' };
+const stamps = {
+  created_at: '2026-10-01T18:00:00Z',
+  updated_at: '2026-10-01T18:00:00Z',
+  version: 1,
+};
 
 export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice {
   return {

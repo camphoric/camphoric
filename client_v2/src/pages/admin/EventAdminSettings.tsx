@@ -1,6 +1,7 @@
 /**
  * Settings (SPEC §8.8). Edit the event's JSON configuration directly in Monaco,
- * each field saving back to the event via PATCH:
+ * each field saving back to the event via PATCH, from the version it was
+ * opened at, so saving over someone else's change asks first (§9.8, DR-109):
  *   - Schemas: camper, registration, registration UI, deposit, payment.
  *   - Pricing logic: camper, registration.
  *   - Admin attribute schemas: registration, camper.
@@ -17,6 +18,7 @@ import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
@@ -64,9 +66,16 @@ const TABS = [
   ...EDITABLE_FIELDS.map(({ field }) => field),
 ];
 
+const stringify = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
+
 function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField }) {
-  const update = eventHooks.useUpdate();
-  const [text, setText] = useState(() => JSON.stringify(event[field] ?? {}, null, 2));
+  const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  const saveField = useConflictAwareSave(event, {
+    toForm: (record: ApiEvent): Partial<ApiEvent> => ({ [field]: record[field] }),
+    saveRecord: update.mutateAsync,
+    label: 'event',
+  });
+  const [text, setText] = useState(() => stringify(event[field]));
 
   const parseError = useMemo(() => {
     try {
@@ -77,13 +86,14 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
     }
   }, [text]);
 
-  const save = () => {
-    const parsed: unknown = JSON.parse(text);
-    const patch: Partial<ApiEvent> & { id: number } = { id: event.id };
-    (patch as Record<string, unknown>)[field] = parsed;
-    update.mutate(patch, {
-      onSuccess: () => notifications.show({ color: 'green', message: 'Saved' }),
-    });
+  const save = async () => {
+    const outcome = await saveField(
+      { [field]: JSON.parse(text) as ApiEvent[EditableField] },
+      (form) => setText(stringify(form[field])),
+    );
+    const record = outcome?.saved ?? outcome?.discarded;
+    if (record) setText(stringify(record[field]));
+    if (outcome?.saved) notifications.show({ color: 'green', message: 'Saved' });
   };
 
   return (
@@ -96,7 +106,7 @@ function SchemaEditor({ event, field }: { event: ApiEvent; field: EditableField 
       ) : null}
       <CanEdit>
         <FormActions justify="flex-start">
-          <Button onClick={save} disabled={!!parseError} loading={update.isPending}>
+          <Button onClick={() => void save()} disabled={!!parseError} loading={update.isPending}>
             Save
           </Button>
         </FormActions>

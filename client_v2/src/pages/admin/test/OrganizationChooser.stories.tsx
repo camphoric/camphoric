@@ -24,8 +24,8 @@ const realFetch = window.fetch.bind(window);
 
 function stubOrganizations() {
   let organizations: ApiOrganization[] = [
-    { id: 1, name: 'Lark Traditional Arts', created_at: '', updated_at: '' },
-    { id: 2, name: 'Camp Harmony', created_at: '', updated_at: '' },
+    { id: 1, name: 'Lark Traditional Arts', created_at: '', updated_at: '', version: 1 },
+    { id: 2, name: 'Camp Harmony', created_at: '', updated_at: '', version: 1 },
   ];
   let nextId = 10;
   window.fetch = async (input, init) => {
@@ -40,7 +40,7 @@ function stubOrganizations() {
     const id = Number(url.split('/').filter(Boolean).pop());
     if (method === 'POST') {
       const { name } = JSON.parse(init?.body as string) as { name: string };
-      const created = { id: nextId++, name, created_at: '', updated_at: '' };
+      const created = { id: nextId++, name, created_at: '', updated_at: '', version: 1 };
       organizations = [...organizations, created];
       return json(created, 201);
     }

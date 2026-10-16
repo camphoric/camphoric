@@ -20,8 +20,21 @@ import {
 import { notifications } from '@mantine/notifications';
 import type { ApiLodging, LodgingAvailability, Scalar } from 'api-types';
 import { FormActions } from 'components/FormActions';
+import { useConflictAwareSave } from 'hooks/useEditableRecord';
 import { useState } from 'react';
 import { lodgingHooks } from 'store/entities';
+
+type LodgingFields = Pick<
+  ApiLodging,
+  | 'name'
+  | 'children_title'
+  | 'capacity'
+  | 'reserved'
+  | 'sharing_multiplier'
+  | 'visible'
+  | 'availability'
+  | 'notes'
+>;
 
 interface LodgingNodeFormProps {
   eventId: Scalar;
@@ -41,9 +54,32 @@ const AVAILABILITY: { value: LodgingAvailability; label: string }[] = [
   { value: 'open', label: 'Always open' },
 ];
 
-export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: LodgingNodeFormProps) {
+export function LodgingNodeForm({
+  eventId,
+  parentId,
+  node,
+  opened,
+  onClose,
+}: LodgingNodeFormProps) {
   const create = lodgingHooks.useCreate();
-  const update = lodgingHooks.useUpdate();
+  const update = lodgingHooks.useUpdate({ handlesVersionConflict: true });
+  // From the version the form opened at, so a change someone else saved
+  // meanwhile is never overwritten unseen (§9.8, DR-109).
+  const saveNode = useConflictAwareSave(node, {
+    toForm: (record: ApiLodging): LodgingFields => ({
+      name: record.name,
+      children_title: record.children_title,
+      capacity: record.capacity,
+      reserved: record.reserved,
+      sharing_multiplier: record.sharing_multiplier,
+      visible: record.visible,
+      availability: record.availability,
+      notes: record.notes,
+    }),
+    saveRecord: update.mutateAsync,
+    label: 'lodging',
+    fieldLabels: { children_title: 'Children are called' },
+  });
 
   const [name, setName] = useState(node?.name ?? '');
   const [childrenTitle, setChildrenTitle] = useState(node?.children_title ?? '');
@@ -58,9 +94,20 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
   );
   const [notes, setNotes] = useState(node?.notes ?? '');
 
-  const save = () => {
+  const show = (fields: LodgingFields) => {
+    setName(fields.name);
+    setChildrenTitle(fields.children_title);
+    setCapacity(fields.capacity);
+    setReserved(fields.reserved);
+    setSharingMultiplier(fields.sharing_multiplier);
+    setVisible(fields.visible);
+    setAvailability(fields.availability);
+    setNotes(fields.notes);
+  };
+
+  const save = async () => {
     if (!name.trim()) return;
-    const fields = {
+    const fields: LodgingFields = {
       name,
       children_title: childrenTitle,
       capacity: num(capacity),
@@ -75,7 +122,9 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
       onClose();
     };
     if (node) {
-      update.mutate({ id: node.id, ...fields }, { onSuccess });
+      const outcome = await saveNode(fields, show);
+      if (outcome?.saved) onSuccess();
+      if (outcome?.discarded) show(outcome.discarded);
     } else {
       create.mutate({ event: eventId, parent: parentId ?? null, ...fields }, { onSuccess });
     }
@@ -137,7 +186,7 @@ export function LodgingNodeForm({ eventId, parentId, node, opened, onClose }: Lo
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={save} loading={create.isPending || update.isPending}>
+          <Button onClick={() => void save()} loading={create.isPending || update.isPending}>
             Save
           </Button>
         </FormActions>
