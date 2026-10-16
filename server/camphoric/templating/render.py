@@ -14,11 +14,9 @@ what a key named like a dict method gives (`camper.attributes.items` is the
 method; `camper.attributes['items']` is the answer).
 '''
 
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 import logging
 import re
-import signal
 import sys
 import threading
 import time
@@ -28,6 +26,7 @@ from jinja2 import Undefined
 from jinja2.exceptions import SecurityError, TemplateSyntaxError, UndefinedError
 
 from . import registry
+from .deadline import RenderTimeout, check_deadline, time_limit, watch
 from .env import blank_none, make_env
 from .values import ReadOnlyDict, TemplateObject
 
@@ -168,35 +167,6 @@ TEXT_ENV = make_env(autoescape=False, undefined=TrackingUndefined, finalize=_fin
 HTML_ENV = make_env(autoescape=True, undefined=TrackingUndefined, finalize=_finalize)
 
 
-class RenderTimeout(Exception):
-    pass
-
-
-@contextmanager
-def _time_limit(seconds):
-    '''
-    Stop a render that runs too long. Uses SIGALRM, so it only works in a
-    main thread (gunicorn sync workers, management commands); elsewhere (the
-    threaded dev server) there is no limit beyond the worker timeout.
-    '''
-    usable = (seconds and hasattr(signal, 'SIGALRM')
-              and threading.current_thread() is threading.main_thread())
-    if not usable:
-        yield
-        return
-
-    def expire(signum, frame):
-        raise RenderTimeout()
-
-    previous = signal.signal(signal.SIGALRM, expire)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous)
-
-
 def _error_line(exc):
     '''The template line in an exception's (Jinja-rewritten) traceback.'''
     line = None
@@ -295,8 +265,10 @@ def render_template(source, context, *, fmt='text', limits=REPORT_LIMITS, field=
     _render_state.warnings = []
     _render_state.seen = set()
     try:
-        with _time_limit(limits.timeout_s):
+        watch(template)
+        with time_limit(limits.timeout_s):
             for chunk in template.generate(**context):
+                check_deadline()
                 size += len(chunk)
                 if size > limits.max_output_chars:
                     chunks.append(chunk[:max(0, len(chunk) - (size - limits.max_output_chars))])

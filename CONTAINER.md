@@ -166,7 +166,8 @@ rejects the legacy `DBBACKUP_STORAGE` / `DBBACKUP_STORAGE_OPTIONS` settings.
 | ------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------- |
 | `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL`          | unset   | When username **and** password are set, a superuser is created on boot (idempotent). A superuser is always a Camphoric Admin. |
 | `CAMPHORIC_SKIP_MIGRATE`                                      | `0`     | `1` skips `manage.py migrate` at start (e.g. when running several replicas).                |
-| `GUNICORN_CMD_ARGS`                                           | unset   | Extra gunicorn options, e.g. `--workers 5 --timeout 60`, without overriding the `CMD`.      |
+| `GUNICORN_CMD_ARGS`                                           | unset   | Extra gunicorn options, e.g. `--workers 5`, without overriding the `CMD` (keep its uvicorn worker class). |
+| `CAMPHORIC_WORKER_CONCURRENCY`                                | `4`     | Requests each web worker serves at once; the rest wait. Database connections from the web tier are at most workers × this. |
 
 ### Set by the image
 
@@ -256,8 +257,17 @@ simpler and matches the existing convention.
 
 ## Ports, healthcheck, startup
 
-- **Port `8000`** — gunicorn (3 workers by default; tune with `GUNICORN_CMD_ARGS`). The task
-  worker (see *Email*) listens on no port.
+- **Port `8000`** — gunicorn running Django's ASGI app on uvicorn workers (3 by default; tune
+  with `GUNICORN_CMD_ARGS`, keeping its worker class). Each request's view runs in a thread of
+  its own with its own database connection, so each worker lets in at most
+  `CAMPHORIC_WORKER_CONCURRENCY` requests at once (default 4) and queues the rest: the database
+  sees at most workers × that connections from the web tier, well under Postgres's default 100.
+  gunicorn's `--timeout` only restarts a worker whose event loop stops answering; it no longer
+  stops a slow request. Template renders stop themselves at their own limits (reports 20 s,
+  previews 5 s, emails 3 s). Static files the image serves itself (the built frontend) are read
+  whole into memory per request under ASGI, and each worker logs a WhiteNoise warning about it
+  once; a reverse proxy that serves `/static/` itself avoids both. The task worker (see *Email*)
+  listens on no port.
 - **Healthcheck** — `GET http://127.0.0.1:8000/api/set-csrf-cookie` (unauthenticated) every 30s,
   40s start period. Hence `127.0.0.1` in `ALLOWED_HOSTS`.
 - **Startup** (`docker/entrypoint.sh`): `manage.py migrate` (retried up to 10× while the database

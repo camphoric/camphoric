@@ -13,11 +13,11 @@ flake8 = "*"
 django = "~=6.1"
 djangorestframework = ">=3.18"
 django-environ = "*"
-psycopg2 = ">=2.9.9"
+# psycopg 3, built against the system libpq; its async connections serve the live change feed.
+psycopg = {extras = ["c"], version = ">=3.2"}
 json-logic-qubit = "*"
 # Reads Mustache emails so migration 0065 can convert them to Jinja (templating/mustache.py).
 chevron = "*"
-psycopg2-binary = ">=2.9.9"
 cmarkgfm = "*"
 requests = "*"
 django-dbbackup = "*"
@@ -28,6 +28,9 @@ jinja2 = "*"
 deepmerge = "*"
 whitenoise = "*"
 gunicorn = "*"
+# gunicorn runs Django's ASGI app through uvicorn's workers (DR-111).
+uvicorn = {extras = ["standard"], version = "*"}
+uvicorn-worker = "*"
 django-tasks-db = "*"
 cryptography = "*"
 django-auditlog = ">=3.4"

@@ -95,6 +95,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'camphoric_server.wsgi.application'
+# What production serves: gunicorn with uvicorn workers (DR-111).
+ASGI_APPLICATION = 'camphoric_server.asgi.application'
 
 
 # Database
