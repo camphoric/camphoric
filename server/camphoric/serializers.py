@@ -720,6 +720,23 @@ class CurrentUserSerializer(ModelSerializer):
         return accounts.must_change_password(user)
 
 
+class EditLeaseSerializer(ModelSerializer):
+    '''Who is editing a record, since when, and until when unless renewed (DR-110).'''
+    model = SerializerMethodField()
+    holder = SerializerMethodField()
+
+    class Meta:
+        model = models.EditLease
+        fields = ['id', 'model', 'object_id', 'event', 'holder', 'client_id', 'acquired_at',
+                  'expires_at']
+
+    def get_model(self, lease):
+        return lease.content_type.model
+
+    def get_holder(self, lease):
+        return {'id': lease.user_id, 'name': lease.user.get_full_name() or lease.user.username}
+
+
 class Conflict(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_code = 'conflict'

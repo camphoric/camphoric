@@ -3,7 +3,7 @@ The nightly clean-up (SPEC §9.3, DR-76). Incomplete registrations, those starte
 never finished, that nobody has changed in INCOMPLETE_REGISTRATION_MAX_AGE are
 deleted for real, with their campers, charges and pricing overrides; the audit
 log keeps their last values. One with a payment, even a deleted payment, is
-left alone.
+left alone. Lapsed edit leases (camphoric.leases) are deleted too.
 
 `clean_up` runs at CLEAN_UP_AT each night and schedules the next night's run,
 a chain like the reconciler's (camphoric.worker); `manage.py camphoric_worker`
@@ -17,7 +17,7 @@ from django.db import transaction
 from django.tasks import task
 from django.utils import timezone
 
-from camphoric import models, worker
+from camphoric import leases, models, worker
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,11 @@ def next_run(now=None):
 @task()
 def clean_up():
     try:
-        return {'deleted_registrations': delete_abandoned_registrations()}
+        return {
+            'deleted_registrations': delete_abandoned_registrations(),
+            # Lapsed edit leases are ignored anyway; this only tidies them away.
+            'purged_leases': leases.purge_lapsed(),
+        }
     finally:
         schedule_clean_up()
 

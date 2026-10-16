@@ -28,6 +28,7 @@ router.register('emailbatches', views.EmailBatchViewSet, basename='emailbatch')
 router.register(
     'emailunsubscribes', views.EmailUnsubscribeViewSet, basename='emailunsubscribe')
 router.register('users', views.UserViewSet, basename='user')
+router.register('leases', views.EditLeaseViewSet, basename='editlease')
 
 
 urlpatterns = [

@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-15
+**Last updated:** 2026-10-16
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-109)
+- §15 — Decision Records (DR-1…DR-110)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -296,6 +296,19 @@ consistently:
   412 { detail: string, code: 'version_conflict', current: <the record as it is now> }
   ```
   with `ETag` naming `current.version`. A request without `If-Match` is written as before.
+- **Edit leases (§9.8; §15, DR-110):** who is editing a record. A lease is
+  ```
+  { id, model, object_id, event, holder: { id, name }, client_id, acquired_at, expires_at }
+  ```
+  where `model` names the record's kind (`registration`, `camper`, `event`, `invoice`, …) and
+  `client_id` the page holding it (new each time a page loads, so a duplicated tab is another
+  editor).
+  - `GET /api/leases/?event=<id>` or `?model=<kind>&object_id=<id>` → the leases that haven't
+    lapsed (any role).
+  - `POST /api/leases/ { model, object_id, client_id, takeover? }` → the lease, taken or renewed
+    for 90 seconds (Registrars and Admins). When another tab holds it, `409 { detail,
+    code: 'lease_held', lease }` — unless `takeover`, which gives it to this tab.
+  - `DELETE /api/leases/{id}/?client_id=<tab>` → 204; gives it up if that tab still holds it.
 - **Delete preview:** `GET /api/{entity}s/{id}/delete-preview/` — what that delete would do,
   without doing it, for anyone allowed to delete it (403 otherwise). The delete itself follows
   the same plan, so the preview is exact at the time it's asked. **Every delete confirmation in the
@@ -2191,6 +2204,22 @@ hasn't seen (§15, DR-109).
   version; elsewhere the user resolves the conflict in place. Moving a camper to other lodging
   and reordering a registration's campers send no version: each is an instruction about the
   record as shown that writes only those fields, so it can't undo anyone's other edits.
+- **Who else is editing (§15, DR-110).** Registrations, campers and the event's configuration
+  (Home) show who else is editing them:
+  - While an edit has unsaved changes — on Home, the confirmation and invoice emails' too — the
+    user holds the record's edit lease, renewed every half minute; saving or dropping the
+    changes, closing the record or the page gives it up. A lease not renewed for 90 seconds
+    lapses, so one left by a closed laptop doesn't linger.
+  - Opening a record someone else holds says who and since when, and shows the record without
+    letting it be changed (other records on the same screen, such as a registration's invoices,
+    stay as they are). It opens for editing once their lease ends — it's looked at every 15
+    seconds — showing the record afresh, with whatever they saved; or at once if the user
+    chooses to edit anyway, which takes the lease over and keeps it while the record stays open.
+  - Someone whose lease was taken over, or who started editing at the same moment, keeps their
+    unsaved changes and is told someone else has the record too; their save still goes through
+    the version check, and they can take the lease back.
+  - The holder may be the same person in another tab; it says so.
+  - A lease is a courtesy and never stops a save: the version check does that.
 - **Nobody else is held up.** Nothing is locked while someone edits; a save that sends no
   version (the V1 client, a script) is written as before.
 
@@ -4483,6 +4512,26 @@ Requiring `If-Match` now — the V1 client doesn't send it; deferred until it's 
 lodging moves — a second quick move of the same camper would be refused while the first saves;
 rejected. Last write wins (as before) — loses edits silently; rejected.
 
+### DR-110 — Advisory edit leases show who is editing
+
+**Decision:** A record being edited carries an advisory lease — who holds it, from which browser
+tab, until when — taken when the user first changes something, renewed every 30 seconds while
+the changes are unsaved, given up on saving, dropping or closing, and lapsing after 90 seconds
+without renewal. Someone opening a record another tab holds sees who and since when, and the
+record view-only until the lease ends or they take it over. Leases go over plain REST: a record's
+lease is looked at every 15 seconds while it's open. They never block a save; the version check
+(DR-109) keeps edits from being lost. Registrations, campers and the event's configuration carry
+them; lapsed leases are purged nightly.
+**Context:** Several registrars work an event at once (#770). The version check stops an edit
+being lost, but only once someone has done the work twice; knowing a record is being edited
+avoids the duplicate work.
+**Alternatives:** Hard locks — orphaned when someone closes a laptop mid-edit, and they'd stop
+the person who most needs to save; rejected. Taking the lease on opening a record rather than on
+changing it — everyone who merely looks would show as editing; rejected. One lease per user
+rather than per tab — a user's second tab would silently share the first's lease, so neither
+would know the other was editing; rejected. Pushing lease changes instantly — needs the live
+change feed; polling is enough until it exists.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -4506,6 +4555,8 @@ must be coordinated with the backend. Grouped by status.
 - **Record versions:** `version` on every record, `ETag` on detail responses, and the
   `If-Match` check with its 412 `version_conflict` answer on updates, deletes and invoice
   cancel/reopen, with the shapes in §5 (DR-109).
+- **Edit leases:** `/api/leases/` (list, take or renew, take over, give up) with the shapes in
+  §5 (DR-110).
 - **Invitations and campers:** `register_link` on invitations, and creating a camper on an
   existing registration (`POST /api/campers/`), with the shapes in §5 and §8.4.
 - **Soft delete:** the restore and deleted-list endpoints for registrations, campers, payments
@@ -4558,7 +4609,7 @@ must be coordinated with the backend. Grouped by status.
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
   which the client adopts (§5, §11).
 - **Nightly clean-up:** the task worker deletes incomplete registrations nobody has changed in
-  30 days (§9.3; DR-76).
+  30 days (§9.3; DR-76), and lapsed edit leases (DR-110).
 
 ### A.2 — Needs a backend change (coordinate)
 

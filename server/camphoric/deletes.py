@@ -195,6 +195,11 @@ def _collect(instance, result):
         return
 
     going = {}
+    # Edit leases go with what they're on, unremarked: they say only who is
+    # editing it now (DR-110).
+    collector.data.pop(models.EditLease, None)
+    collector.fast_deletes = [qs for qs in collector.fast_deletes
+                              if qs.model is not models.EditLease]
     for model, instances in collector.data.items():
         going.setdefault(model, set()).update(i for i in instances if i != instance)
     for queryset in collector.fast_deletes:

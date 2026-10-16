@@ -11,6 +11,10 @@
  *   refuses (412) and the edit conflict asks the user whether to put their
  *   changes on top of the other person's, or drop them.
  *
+ * - With `lease` (the record's kind, e.g. `registration`), it also holds the
+ *   record's edit lease while there are unsaved edits, and says when someone
+ *   else is editing it (hooks/useEditLease, DR-110).
+ *
  * The form is the record's editable fields (`toForm`), sent back as they are.
  * Pass the entity's `useUpdate({ handlesVersionConflict: true }).mutateAsync`
  * as `saveRecord`.
@@ -18,6 +22,7 @@
 
 import type { Scalar } from 'api-types';
 import { openEditConflict } from 'components/EditConflict';
+import { type EditLeaseState, useEditLease } from 'hooks/useEditLease';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { versionConflict } from 'utils/fetch';
 import { changedFields, isEqual, threeWayMerge } from 'utils/merge';
@@ -41,6 +46,16 @@ export interface EditableRecordOptions<R extends VersionedRecord, F extends obje
   fieldLabels?: Record<string, string>;
 }
 
+export interface EditableRecordWithLease<
+  R extends VersionedRecord,
+  F extends object,
+> extends EditableRecordOptions<R, F> {
+  /** Hold the record's edit lease, naming its kind (`registration`, `camper`, …). */
+  lease?: string;
+  /** The page has unsaved changes that belong with this record's (Home's email drafts). */
+  unsavedElsewhere?: boolean;
+}
+
 export interface EditableRecord<R, F> {
   form: F;
   setForm: (form: F | ((form: F) => F)) => void;
@@ -57,11 +72,20 @@ export interface EditableRecord<R, F> {
    * error is reported by the mutation, as for any save).
    */
   save: () => Promise<R | undefined>;
+  /** Who else is editing the record (with `lease`). */
+  lease: EditLeaseState;
 }
 
 export function useEditableRecord<R extends VersionedRecord, F extends object>(
   record: R,
-  { toForm, saveRecord, label, fieldLabels }: EditableRecordOptions<R, F>,
+  {
+    toForm,
+    saveRecord,
+    label,
+    fieldLabels,
+    lease: model,
+    unsavedElsewhere = false,
+  }: EditableRecordWithLease<R, F>,
 ): EditableRecord<R, F> {
   const fromRecord = (from: R): Edit<R, F> => {
     const fields = toForm(from);
@@ -73,6 +97,7 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
   latest.current = state;
 
   const isDirty = !isEqual(state.base, state.form);
+  const lease = useEditLease(model, record.id, isDirty || unsavedElsewhere);
 
   // Follow the record while there's nothing to lose. Only a newer version is
   // news: a refetch of the same one isn't, nor is an older copy still cached
@@ -130,6 +155,7 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
     isStale: isDirty && isNewer,
     loadLatest,
     save,
+    lease,
   };
 }
 

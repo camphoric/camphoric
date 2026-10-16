@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
 import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,10 +23,13 @@ const conflict = (current: Camper) =>
   new ApiError(412, 'Precondition Failed', { code: 'version_conflict', current });
 
 function setup(saveRecord: (body: object) => Promise<Camper>) {
+  const client = new QueryClient();
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
   return renderHook(
     ({ record }: { record: Camper }) =>
       useEditableRecord(record, { toForm, saveRecord, label: 'camper' }),
-    { initialProps: { record: v1 } },
+    { initialProps: { record: v1 }, wrapper },
   );
 }
 
