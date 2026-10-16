@@ -70,6 +70,16 @@ Playwright e2e suite, so keep them current as components change. Give each stori
 title that is its component's name in words (`export default { title: 'Confirm Delete' } satisfies
 Meta;`): the title fixes the story ids (`confirm-delete--blocked`) that the e2e suite opens.
 
+## Database Migrations
+
+When a change adds or alters a Django migration, apply it to both local dev databases so they
+stay in step:
+
+- **Vagrant VM:** `ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ansible/migrate.yml -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory --vault-password-file ansible/.ansible-vault-pw`
+  (see `vagrant-command-help`).
+- **Docker:** `docker compose exec django ./manage.py migrate` (restarting the `django` service
+  also migrates, since it runs `migrate` on start).
+
 ## Using Git
 
 Do not automatically commit code to git. All changes shall be reviewed by the human coder and committed by hand.
