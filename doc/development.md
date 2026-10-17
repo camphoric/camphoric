@@ -146,7 +146,7 @@ their own repositories' packages (#780):
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
-| (GitHub Packages) | `@camphoric/camphoric-event-<name>` | a camp's event (`lark`, `ltacampout`, `familyweek`, `harmony`), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from GitHub Packages by a caret range |
+| (GitHub Packages) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from GitHub Packages by a caret range |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
@@ -175,18 +175,16 @@ every workspace imports only its own files and the packages it declares.
     scripts/smoke-test-event-package.sh events/sample-camp   # build, pack and load an event from its build
                                                 # (npm run build -w events/<name> needs the spec built first)
 
-To add an event, create `data/events/<name>` with a `package.json` named `@camphoric/camphoric-event-<name>`
-(start from a copy of Sample Camp, including its configs and `__tests__/conformance.test.ts`, but
-drop its `__tests__/coverage.test.ts` and `__tests__/dates.test.ts`, and its "never published"
-description and comments), add it to
-`data/package.json`'s dependencies and to `EVENTS` in `data/eventModules.ts`, and run `npm install`.
+A camp's event lives in a repository of its own: see "Event repositories" in
+[RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. In this repository, an
+event is added by its package name: installed from GitHub Packages by a caret range (`npm install
+@camphoric/camphoric-event-<name>` in `data/`) and listed in `EVENTS` in `data/eventModules.ts`.
 Each event takes the spec as a peer dependency, so the importer and every event share one copy (see
-"What a spec version means" in [RELEASE.md](../RELEASE.md)). An event published from a repository
-of its own is added the same way, by its package name in `EVENTS`, but installed from GitHub
-Packages by a caret range (`npm install @camphoric/camphoric-event-<name>`). The offline tests check
-that it's the published build, from `dist/`, resolved from GitHub Packages and taking a spec range
-this repository's spec satisfies, and that events naming the same organization declare it
-identically.
+"What a spec version means" in RELEASE.md). The offline tests check that each installed event is
+the published build, from `dist/`, resolved from GitHub Packages and taking a spec range this
+repository's spec satisfies, and that events naming the same organization declare it identically.
+To work on a camp's event against your development server, clone its repository; each has its own
+tests, e2e tests and (where the camp has one) bulk-registration script.
 
 The packages are TypeScript. The spec and import-tools are published to GitHub Packages compiled
 to JS (their `exports` point at `dist/`; see "Event import packages" in the
