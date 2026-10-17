@@ -2224,7 +2224,13 @@ section is the contract.
   problem email** goes to the event's `confirmation_email_from`: what happened, who
   (registration, registrant, campers, an admin link), what for (invoice, amounts, payment type),
   PayPal's references and error, what the registrant was told, and what to do ("Check PayPal
-  order"). It's sent once per order and always logged.
+  order"). It's sent once per order and always logged. A capture is committed before anything
+  else the payment step does, so a later error can't undo it. A capture whose outcome isn't
+  known — the answer was lost, or the server stopped before recording it — is asked about by
+  the worker 15 minutes after it started; PayPal's capture is then recorded as a payment noted
+  "Recorded by the worker checking PayPal". Until that outcome is known (for up to a day), the
+  invoice takes no new PayPal order and the payment step refuses paying by check (409
+  `not_payable`), and the payer is asked not to pay again.
 - **The pay page** (#670, #623; §15, DR-95). Every invoice has an unguessable link code and a
   public page at `/invoices/{code}` (its `pay_url`). Anyone with the link sees the event's name,
   the invoice — number, description, memo, due date, amount, handling, paid and due, and its
@@ -2246,7 +2252,8 @@ section is the contract.
   refunded payment, nor an invoice anything was ever paid on, nor a registration's own invoice,
   which is cancelled instead (§15, DR-105).
 - **Confirmation email timing** (§15, DR-91): sent when the payment flow reaches a result, or by
-  the worker 30 minutes after completion when nothing did; once (`confirmation_sent_at`, and its
+  the worker 30 minutes after completion when nothing did — waiting, though, while a PayPal
+  capture's outcome isn't known, so it says what was paid; once (`confirmation_sent_at`, and its
   dedupe key).
 
 ### 9.8 Concurrent editing

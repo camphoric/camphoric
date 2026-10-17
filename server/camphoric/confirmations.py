@@ -12,6 +12,7 @@ The confirmation's dedupe key means it's only ever sent once.
 from datetime import timedelta
 import logging
 
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from camphoric import live, models
@@ -118,10 +119,21 @@ def confirmation_email_problem(registration):
 
 
 def overdue_confirmations(now=None):
-    '''Completed registrations whose confirmation nobody triggered in time.'''
-    cutoff = (now or timezone.now()) - CONFIRMATION_FALLBACK_DELAY
+    '''
+    Completed registrations whose confirmation nobody triggered in time. One
+    with a PayPal capture not yet settled waits until the worker has asked
+    PayPal about it, so its confirmation says what was paid (#804).
+    '''
+    from camphoric.invoices import UNRECORDED_CAPTURE_RETRIES_FOR  # invoices imports this module
+
+    now = now or timezone.now()
+    capturing = models.Invoice.all_objects.filter(
+        registration=OuterRef('pk'), paypal_capture_order_id__isnull=False,
+        paypal_capture_started_at__gte=now - UNRECORDED_CAPTURE_RETRIES_FOR)
     return models.Registration.objects.filter(
-        completed=True, confirmation_sent_at__isnull=True, completed_at__lt=cutoff)
+        completed=True, confirmation_sent_at__isnull=True,
+        completed_at__lt=now - CONFIRMATION_FALLBACK_DELAY,
+    ).exclude(Exists(capturing))
 
 
 def send_overdue_confirmations(now=None):
