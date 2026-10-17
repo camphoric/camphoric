@@ -81,6 +81,14 @@ export type SampleRegGenerator = (
 /** A step run once the event, its lodging and its registration types are saved. */
 export type Override = (fetch: Fetch, results: SavedResults, log: Log) => Promise<unknown>;
 
+/** What an event module exports as its default, as far as importing it goes. */
+export interface ImportableEvent {
+  data: ImportData;
+  organization: OrganizationImport;
+  sampleRegGenerator?: SampleRegGenerator;
+  overrides?: Override[];
+}
+
 /** The organization an event belongs to, with the email account it sends from. */
 export interface OrganizationImport {
   organization: { name: string };

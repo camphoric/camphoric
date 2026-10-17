@@ -1,0 +1,40 @@
+# A throwaway Camphoric for an event's e2e tests (camphoricServer() in
+# e2eServer.ts): the release image and its Postgres, on a free port, with an
+# admin to import as. It holds nothing worth keeping: `down -v` removes it.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: camphoric
+      POSTGRES_PASSWORD: camphoric
+      POSTGRES_DB: camphoric
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camphoric"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    image: ${CAMPHORIC_E2E_IMAGE:-ghcr.io/camphoric/camphoric:latest}
+    # always for a registry tag (so `latest` is the latest), missing for a
+    # locally built one (e2eServer.ts sets it)
+    pull_policy: ${CAMPHORIC_E2E_PULL_POLICY:-missing}
+    environment:
+      SECRET_KEY: e2e-only-not-a-secret
+      DATABASE_URL: postgres://camphoric:camphoric@postgres/camphoric
+      DEBUG: "off"
+      PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      PAYPAL_SECRET: unused
+      # Registrations queue confirmation emails; nothing delivers them here
+      CAMPHORIC_EMAIL_FORCE_BACKEND: django.core.mail.backends.console.EmailBackend
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: http://localhost:${CAMPHORIC_E2E_PORT},http://127.0.0.1:${CAMPHORIC_E2E_PORT}
+      SESSION_COOKIE_SECURE: "false"
+      DJANGO_SUPERUSER_USERNAME: ${CAMPHORIC_E2E_USERNAME}
+      DJANGO_SUPERUSER_PASSWORD: ${CAMPHORIC_E2E_PASSWORD}
+      DJANGO_SUPERUSER_EMAIL: e2e@example.com
+    ports:
+      - "127.0.0.1:${CAMPHORIC_E2E_PORT}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
