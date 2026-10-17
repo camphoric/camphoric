@@ -84,8 +84,10 @@ GitHub Packages needs a token to install **even public packages**:
          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-   A repository outside the `camphoric` organization needs a token with `read:packages` stored as
-   a secret instead.
+   That installs public packages, such as these two, in any repository. A private package
+   installs only in a repository it grants read access to under "Manage Actions access" in its
+   settings ([GitHub's docs](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package));
+   anywhere else, store a token with `read:packages` as a secret instead.
 
 4. **In a Docker build**, pass the token as a build secret rather than an argument or a file, so
    it isn't kept in the image. The secret is only in the install step's environment, and a config
@@ -114,7 +116,9 @@ with `read:packages`. Each place is already wired up, and works without a token 
 
 - **CI** (`data.yml`, `docker.yml`, `release-packages.yml`): the job's own `GITHUB_TOKEN`, with
   `packages: read`, as `NODE_AUTH_TOKEN` (the variable `actions/setup-node`'s npm config reads).
-  Nothing to set up.
+  That's enough for public packages. A private package published from another repository, such
+  as a camp's events, installs only if it grants this repository read access: in its settings,
+  add `camphoric/camphoric` under "Manage Actions access" ([GitHub's docs](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package)).
 - **Your machine:** `~/.npmrc`, as in step 2 above.
 - **The `data` Docker image** (`docker-compose.yml`): the `npm_token` build secret, taken from
   `CAMPHORIC_NPM_AUTH_TOKEN` when you build:
