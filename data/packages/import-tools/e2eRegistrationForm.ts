@@ -101,9 +101,24 @@ export class CamperSection extends FormSection {
     return offered;
   }
 
+  /**
+   * The lodging dropdowns the camper is shown now, one per level: the top
+   * one, then one under each chosen lodging that has choices of its own. To
+   * check that a lodging offers no choices below it:
+   *
+   *     await camper.chooseLodging('Tent');
+   *     await expect(camper.lodgingLevels()).toHaveCount(1);
+   *
+   * Count them, don't click them: a dropdown opened and closed without a pick
+   * can leave it ignoring the next pick (choose with chooseLodging instead).
+   */
+  lodgingLevels(): Locator {
+    return this.root.locator('.field-lodging-requested input:not([type="hidden"])');
+  }
+
   // The lodging dropdown at a level (0 is the top)
   private lodgingDropdown(level: number): Locator {
-    return this.root.locator('.field-lodging-requested input:not([type="hidden"])').nth(level);
+    return this.lodgingLevels().nth(level);
   }
 }
 

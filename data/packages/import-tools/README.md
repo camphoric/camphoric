@@ -45,6 +45,12 @@ importer:
   - **What tests use:** a `test` with `registration` (a `RegistrationForm` page object: fields by
     label, campers, lodging, the price ticker, submitting and paying) and `eventId` fixtures, and
     `expect`.
+  - **Lodging:** a camper's `chooseLodging(...names)` picks a name at each level and returns the
+    choices each level offered; `lodgingLevels()` is the lodging dropdowns shown now, one per
+    level. A lodging offers nothing below it when no dropdown appears under it: after
+    `chooseLodging('Tent')`, `expect(camper.lodgingLevels()).toHaveCount(1)`; after
+    `chooseLodging('Cabins', 'Cabin 1')`, `toHaveCount(2)`. Count the dropdowns rather than open
+    them: one opened and closed without a pick can leave it ignoring the next pick.
 - `@camphoric/camphoric-event-import-tools/types`: the event-module types the tools use, kept
   compatible with the spec's.
 - `@camphoric/camphoric-event-import-tools/bulk-registrations`: `main()` /
