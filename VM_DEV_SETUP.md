@@ -70,6 +70,13 @@ localhost:3000 using the following command:
 
 `vagrant ssh -c "cd /vagrant/client; npm run dev"`
 
+The VM's forwarded ports (Django on 8000, the frontend on 3000 and 3001,
+Postgres on 5432, nginx on 8080) listen on your machine's localhost only, so
+nothing else on your network can reach them. To try the app from another
+device, such as a phone on your LAN, change that port's `host_ip` to
+`"0.0.0.0"` in the `Vagrantfile`, run `vagrant reload`, and don't commit the
+change.
+
 
 Setup instructions for Windows
 ------------------------------
@@ -175,6 +182,10 @@ If you are doing frontend development you can start the server at
 localhost:3000 using the following command:
 
 `vagrant ssh -c "cd /vagrant/client; npm run dev"`
+
+The VM's forwarded ports listen on Windows' localhost only, so open them from a
+browser on the Windows side. To reach them from another device, see "Test your
+camphoric installation" in the MacOS/Linux instructions above.
 
 
 Email and the task worker

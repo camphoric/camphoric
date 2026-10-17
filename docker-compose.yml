@@ -8,6 +8,10 @@ secrets:
   npm_token:
     environment: CAMPHORIC_NPM_AUTH_TOKEN
 
+# Every port is published on the host's loopback (127.0.0.1) only, so nothing
+# else on the network can reach the stack: Postgres has a known password and
+# Django an admin/admin login. To reach it from another device, see
+# "Reaching the stack from another device" in doc/development.md.
 services:
   postgres:
     image: postgres:16-alpine
@@ -15,7 +19,7 @@ services:
       - ./env/local/shared.env
       - ./env/local/postgres.env
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - db:/var/lib/postgresql/data/pgdata
       - ./postgres-initdb.sql:/docker-entrypoint-initdb.d/max_conns.sql
@@ -41,7 +45,7 @@ services:
                { ./manage.py createsuperuser --no-input > /dev/null 2>&1 || true; } &&
                uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,8 +83,8 @@ services:
       - ./client:/app
       - /app/node_modules
     ports:
-      - "3000:3000"
-      - "3001:3001"
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3001"
     command: sh -c "npm ci && npm run dev"
 #   depends_on:
 #     django:
