@@ -1,0 +1,4 @@
+# The image installs its own node_modules (npm ci), for its platform
+node_modules
+**/node_modules
+reportdump.json

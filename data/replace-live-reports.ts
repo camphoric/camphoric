@@ -6,7 +6,7 @@
  * 1. Run this util like ./replace-live-reports.ts <fromEventId> <toEventId>
  */
 
-import Fetcher from './CamphoricFetcher.ts';
+import Fetcher from 'camphoric-event-import-tools/fetcher';
 
 // A report, as the reports API lists it
 interface LiveReport {

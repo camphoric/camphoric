@@ -5,7 +5,8 @@
  *
  * 1. Get a json dump of all reports and save it to this directory
  * 2. Get the eventId of the event you want to copy reports from
- * 3. Run this util like ./dump-new-reports.ts <eventId> <dir>
+ * 3. Run this util like ./dump-new-reports.ts <eventId> <dir>, where <dir> is the
+ *    event package's folder (such as events/lark)
  */
 
 import * as fs from 'fs/promises';
@@ -70,7 +71,7 @@ async function writeReportIndex(reports: ReportFile[], dir: string) {
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import type { Report } from '../eventImportObjectSchema.ts';
+import type { Report } from 'camphoric-event-import-spec';
 
 const cwd = path.dirname(fileURLToPath(import.meta.url));
 
