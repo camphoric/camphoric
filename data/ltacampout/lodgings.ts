@@ -1,4 +1,5 @@
 /* eslint-disable indent */
+import type { LodgingLookup, Lodgings } from '../eventImportObjectSchema.ts';
 import { dates } from './dates.ts';
 
 export default {
@@ -61,4 +62,4 @@ export default {
 
   offsitefull: { parentKey: 'root', capacity: 50, name: 'Off Site - Full Camp', visible: true },
   offsiteday: { parentKey: 'root', capacity: 50, name: 'Off Site - Single Day', visible: true },
-};
+} satisfies Lodgings;
