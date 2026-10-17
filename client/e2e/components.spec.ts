@@ -483,13 +483,13 @@ test.describe('Pricing overrides', () => {
 test.describe('Lodging marked full or open', () => {
   test('marked full can’t be chosen, whatever its room', async ({ page }) => {
     await page.goto(story('fields--lodging-requested-marked'));
-    await page.getByPlaceholder('Area *').click();
+    await page.getByRole('textbox', { name: 'Area' }).click();
     await expect(page.getByRole('option', { name: 'Tent Field (full)' })).toHaveAttribute(
       'data-combobox-disabled',
       'true',
     );
     await page.getByRole('option', { name: 'Cabins' }).click();
-    await page.getByPlaceholder('Cabin *').click();
+    await page.getByRole('textbox', { name: 'Cabin' }).click();
     // Cabin B has no room but is marked open.
     await expect(page.getByRole('option', { name: 'Cabin B', exact: true })).not.toHaveAttribute(
       'data-combobox-disabled',

@@ -243,7 +243,7 @@ describe('JsonSchemaForm', () => {
 
       await user.click(screen.getByRole('button', { name: 'Submit' }));
 
-      expect(screen.getByPlaceholderText('RV length *')).toHaveFocus();
+      expect(screen.getByRole('textbox', { name: 'RV length' })).toHaveFocus();
     });
   });
 });
