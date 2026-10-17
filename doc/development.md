@@ -24,6 +24,10 @@ Run the following and follow the prompts:
 ./development_setup_wizard.py
 ```
 
+It builds and starts the services (without the `data` service's background import), waits for the
+admin the `django` service creates, then imports the events in the foreground
+(`import --if-empty`).
+
 Creating the docker services (the hard way)
 ===========================================
 
@@ -58,7 +62,7 @@ doing, but it's probably best to just keep them the same for development.
 First you'll need to build the web and db docker containers for the server:
 
 ```
-docker-compose up --build -d
+docker-compose up --build -d -V
 ```
 
 After this finishes, run `docker ps`. You should now see your postgres,
@@ -100,7 +104,7 @@ server"). Either start over with fresh sample data:
 
 ```
 docker-compose down -v
-docker-compose up --build -d
+docker-compose up --build -d -V
 ./reset-db
 ```
 
@@ -154,6 +158,8 @@ every workspace imports only its own files and the packages it declares.
                                                 # then each workspace's own tests
     npm test -w events/lark                     # one package's tests
     npm run import                              # import every event into a running server (CAMPHORIC_URL)
+    npm run import -- --if-empty                # only into a server with no events
+    npm run import -- --wait                    # wait for the server to start first
     CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
     COUNT=10 npm run bulk -w events/lark        # add generated registrations to an imported event
     npm run build                               # compile the spec and import-tools to dist/ (for publishing)
@@ -196,7 +202,9 @@ rejected sample registration fails that import.
 ### Create the Django superuser
 
 This user is the one that you'll use to log in with on the front end (a superuser is always a
-Camphoric Admin).  Run the following and follow onscreen instructions in the shell:
+Camphoric Admin). The `django` service creates it from `DJANGO_SUPERUSER_*` in
+`env/local/shared.env` when it starts on a fresh database. For another one, run the following and
+follow the onscreen instructions (with a different username):
 
 ```
 docker-compose exec django bash -c "./manage.py createsuperuser"
@@ -209,21 +217,25 @@ http://localhost:3000`.
 
 ### Load the sample data
 
-Once your server is running, use the scripts in data directory to seed sample
-data.
+On a fresh database, `docker compose up` creates the admin (`DJANGO_SUPERUSER_*` in
+`env/local/shared.env`) and imports every event the importer loads (the camps and Sample Camp, from
+`data/eventModules.ts`): the `data` service runs `import --if-empty`, which waits for the server,
+imports, and exits. A database that already has events is left alone, as the Vagrant VM's is when
+it's provisioned (importing an event again deletes and recreates its lodging and unassigns its
+campers). If that first import is interrupted or fails, `docker compose logs data` says so; start
+again with `./data/reset-data-and-test`, which flushes the database first. Rebuild with
+`docker-compose up --build -d -V`: the `-V` gives the `data` service a fresh `node_modules` for the
+rebuilt image (otherwise it keeps the old container's).
 
-First, load the family week fixture data:
+To import again, into a database that already has events:
 
-```
-docker-compose exec django bash -c "./manage.py loaddata fixtures/familyweek-seed-data.json"
+```bash
+./data/reset-data-and-test
 ```
 
-Second, load the Lark Camp sample data (when asked to log in, user your superuser
-credentials):
-
-```
-docker-compose exec react node fixtures/lark/loadData.mjs
-```
+That flushes the database first. `docker compose run --rm data import` imports without flushing
+(it starts the server if it isn't running, and waits for it). Add `--no-deps` for what doesn't need
+the server, such as `docker compose run --rm --no-deps data npm test`.
 
 ### View loaded data
 
@@ -267,7 +279,7 @@ The Django server will automatically reload when you change any .py files.
 Run the following to rebuild the database and django containers:
 
 ```
-docker-compose up --build -d
+docker-compose up --build -d -V
 ```
 
 You'll want to do this every time when you start development.

@@ -22,6 +22,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 
 def main():
@@ -99,7 +100,10 @@ def check_node_modules_folder(args):
 def docker_compose_up(args):
     print(bold('(Re)building docker containers'))
     try:
-        subprocess.run(['docker', 'compose', 'up', '--build', '-d'], check=True)
+        # Everything but the data service, which would import in the
+        # background (load_sample_data imports in the foreground instead),
+        # with fresh node_modules volumes for the rebuilt images (-V).
+        subprocess.run(['docker', 'compose', 'up', '--build', '-d', '-V', '--scale', 'data=0'], check=True)
     except subprocess.CalledProcessError:
         die('failed to start docker containers')
     hooray('Successfully built and started docker containers')
@@ -179,28 +183,35 @@ def get_secret_key():
 
 
 def create_django_superuser(args):
-    print(bold('Creating Django superuser using values from env/local/shared.env'))
-    try:
-        subprocess.run(
-            [
-                'docker', 'compose', 'exec', 'django',
-                'python', 'manage.py', 'createsuperuser', '--noinput'
-            ],
-            check=True)
-    except subprocess.CalledProcessError:
-        answer = input('Continue anyway? [y/n] ')
-        if answer.lower() != 'y':
-            die('Failed to create Django superuser')
-    hooray('Successfully created Django superuser')
+    # The django service creates it from env/local/shared.env when it starts
+    # (docker-compose.yml); check it's there.
+    # (It migrates first, which takes a while on a fresh database, so wait.)
+    print(bold('Waiting for the Django superuser from env/local/shared.env'))
+    check = [
+        'docker', 'compose', 'exec', '-T', 'django', 'python', 'manage.py', 'shell',
+        '--no-imports', '-c',
+        'import os; from django.contrib.auth import get_user_model; '
+        'assert get_user_model().objects.filter('
+        'username=os.environ["DJANGO_SUPERUSER_USERNAME"], is_superuser=True).exists()',
+    ]
+    deadline = time.monotonic() + 600
+    while subprocess.run(check, capture_output=True).returncode != 0:
+        if time.monotonic() > deadline:
+            die('The Django superuser is missing',
+                'The django service creates it from env/local/shared.env when it starts;',
+                'see `docker compose logs django`.')
+        time.sleep(3)
+    hooray('The Django superuser is there')
 
 
 def load_sample_data(args):
     print(bold('Loading sample data...'))
     try:
+        # Every event, into a fresh database (left alone when it has events)
         subprocess.run(
             [
                 'docker', 'compose', 'run', '--build', '--rm', 'data',
-                '/bin/sh', '-c', 'import'
+                'import', '--if-empty'
             ],
             check=True)
     except subprocess.CalledProcessError:

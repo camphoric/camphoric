@@ -7,15 +7,33 @@ import CamphoricEventCreator from '@camphoric/camphoric-event-import-tools/creat
 import { Organizations, organizationLoader } from '@camphoric/camphoric-event-import-tools/organizations';
 import { validateEventImport, type LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
 import { EVENTS, selectedEvents } from './eventModules.ts';
+import { importOptions, serverEventNames, waitForServer } from './importOptions.ts';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
 
+// Run as a retry hint when an --if-empty import fails
+const RETRY = 'If an import into a fresh database failed partway, start again with ./data/reset-data-and-test (it flushes the database first).';
+
 // Every event in eventModules.ts, in import order. Restrict the run with
-// CAMPHORIC_EVENTS=harmony,lark (comma-separated event names).
+// CAMPHORIC_EVENTS=harmony,lark (comma-separated event names). Options:
+// --if-empty imports only into a server with no events, and --wait waits for
+// the server to start first.
 async function main() {
+  const { ifEmpty, wait } = importOptions(process.argv.slice(2));
   const selected = selectedEvents();
 
+  if (wait) await waitForServer(urlBase);
+
   const authToken = await getAuthToken();
+
+  if (ifEmpty) {
+    const existing = await serverEventNames(urlBase, authToken);
+    if (existing.size) {
+      console.log(`${urlBase} already has events, so nothing is imported (--if-empty). ${RETRY}`);
+      return;
+    }
+  }
+
   const organizationFor = organizationLoader(authToken, urlBase);
 
   for (const name of selected) {
@@ -48,5 +66,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e);
+  if (process.argv.includes('--if-empty')) console.error(RETRY);
   process.exit(1);
 });

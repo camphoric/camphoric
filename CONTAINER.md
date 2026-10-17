@@ -15,7 +15,9 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
   — GitHub Packages is **free for public repositories** (unlimited storage and transfer, no
   pull-rate limits), which `camphoric/camphoric` is.
 
-The image needs no npm token: it doesn't include the event importer (`data/`). The importer's
+The image is a blank slate: it boots with no events and never imports any (CI checks both), unlike
+the development environments, which import every camp into a fresh database. It needs no npm
+token: it doesn't include the event importer (`data/`). The importer's
 own `data` image (docker-compose.yml) gets the event-import packages from its npm workspaces, so
 it needs none either. Once events are installed from GitHub Packages instead, its build needs a
 token, passed as the `npm_token` build secret from `CAMPHORIC_NPM_AUTH_TOKEN`

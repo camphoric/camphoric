@@ -74,6 +74,18 @@ jobs:
           curl -fsSI "http://localhost:8000$asset" | grep -qi 'content-type: .*javascript'
           curl -fsS http://localhost:8000/api/set-csrf-cookie > /dev/null
 
+      # The release image is a blank slate, whatever the development
+      # environments import: it boots with no events, and holds no event
+      # importer (data/ never goes into it).
+      - name: The release image starts with no events and no importer
+        run: |
+          set -eux
+          app() { docker compose -f docker-compose.image.yml exec -T app "$@"; }
+          events=$(app python manage.py shell --no-imports -c \
+            "from camphoric.models import Event; print(Event.objects.count())" | tail -n 1)
+          test "$events" = 0
+          app sh -c '! test -e /app/data && ! command -v node && ! command -v tsx'
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
