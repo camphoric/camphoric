@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.0...camphoric-event-import-spec-v1.0.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **data:** keep reset-data-and-test from importing alongside docker compose up ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+* **data:** open an e2e event's registration before its sample registrations ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+* **data:** stop a failed import request from ending the process ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+
 ## 1.0.0 (2026-10-17)
 
 
