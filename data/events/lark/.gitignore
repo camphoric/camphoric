@@ -2,4 +2,5 @@
 # a package's own config is not data
 !package.json
 !tsconfig.json
+!tsconfig.build.json
 .auth-token

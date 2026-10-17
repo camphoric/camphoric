@@ -1,13 +1,11 @@
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import type { Report } from '@camphoric/camphoric-event-import-spec';
 
-const cwd = path.dirname(fileURLToPath(import.meta.url));
+import { packagePath } from './packagePath.ts';
 
 function readFile(filename: string): string {
-  const fullPathFilename = path.join(cwd, 'reports', filename);
+  const fullPathFilename = packagePath('reports', filename);
 
   return fs.readFileSync(fullPathFilename).toString();
 }

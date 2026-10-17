@@ -1,12 +1,10 @@
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import type { Report } from '@camphoric/camphoric-event-import-spec';
 
-import { earlybirdCutoff } from './dates.ts';
+import { packagePath } from './packagePath.ts';
 
-const cwd = path.dirname(fileURLToPath(import.meta.url));
+import { earlybirdCutoff } from './dates.ts';
 
 // Ellen's Report compares registration times with the early-bird cutoff. The
 // committed template keeps whatever year it was last exported with; the value
@@ -39,7 +37,7 @@ function withCurrentDates(filename: string, template: string): string {
 }
 
 function readFile(filename: string): string {
-  const fullPathFilename = path.join(cwd, 'reports', filename);
+  const fullPathFilename = packagePath('reports', filename);
 
   return withCurrentDates(filename, fs.readFileSync(fullPathFilename).toString());
 }

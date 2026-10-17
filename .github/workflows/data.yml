@@ -76,6 +76,11 @@ jobs:
       - name: The packed event-import packages work under plain Node
         run: scripts/smoke-test-packages.sh
 
+      # Each event packs and loads from its build, as it will once it's
+      # published from a repository of its own.
+      - name: Each packed event works under plain Node
+        run: for event in events/*/; do scripts/smoke-test-event-package.sh "$event"; done
+
       # Advisory until the pre-existing lint issues in data/ are cleaned up; flip
       # to blocking (remove continue-on-error) after an `eslint --fix` pass. (The
       # type-check it starts with already ran, blocking, above.)

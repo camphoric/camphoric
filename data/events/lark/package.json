@@ -4,15 +4,26 @@
   "private": true,
   "type": "module",
   "description": "Lark Traditional Arts' Lark Camp Camphoric event: its import object, organization, reports and bulk registrations.",
+  "files": [
+    "dist",
+    "reports",
+    "CHANGELOG.md"
+  ],
   "exports": {
-    ".": "./index.ts",
+    ".": {
+      "camphoric-source": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit && eslint .",
-    "bulk": "tsx --conditions=camphoric-source addRegistrations.ts"
+    "bulk": "tsx --conditions=camphoric-source addRegistrations.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@camphoric/camphoric-event-import-spec": "*",

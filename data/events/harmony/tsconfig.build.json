@@ -1,0 +1,15 @@
+{
+  // Compiles the event to dist/ (JavaScript and declarations), starting from
+  // index.ts so only what the event module imports is built (not its bulk
+  // script or tests). It resolves the spec as a consumer would (its dist/), so
+  // build the spec first.
+  "extends": "@camphoric/camphoric-event-import-spec/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true
+  },
+  "files": ["index.ts"]
+}
