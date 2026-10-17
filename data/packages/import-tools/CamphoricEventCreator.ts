@@ -66,6 +66,24 @@ export interface CamphoricEventCreatorOptions {
 // A sample registration, with the server's answer to its last step
 type PostedRegistration = SampleRegistration & { response: Record<string, unknown> };
 
+/**
+ * Requests started ahead of the Promise.all that collects them, pausing
+ * between batches so the server keeps up. Each is handled as it starts, so
+ * one that fails during a pause isn't an unhandled rejection (which ends the
+ * process, skipping the other events and any cleanup); once one has failed,
+ * `failed` says to start no more. Promise.all still rejects with its error.
+ */
+export function requestBatch() {
+  let failed = false;
+  return {
+    get failed() { return failed; },
+    start<T>(request: Promise<T>): Promise<T> {
+      request.catch(() => { failed = true; });
+      return request;
+    },
+  };
+}
+
 export default class CamphoricEventCreator extends Fetcher {
   declare data: ImportData;
   sampleRegGenerator?: SampleRegGenerator;
@@ -255,11 +273,10 @@ export default class CamphoricEventCreator extends Fetcher {
 
       // batch requests so that it doesn't time out
       const promises = [];
+      const requests = requestBatch();
       const all = lodgingEntries.filter(([, l]) => l.parentKey === key);
-      for (let i = 0; i < all.length; ++i) {
-        promises.push(
-          createLodging(...all[i])
-        );
+      for (let i = 0; i < all.length && !requests.failed; ++i) {
+        promises.push(requests.start(createLodging(...all[i])));
 
         if (promises.length % 10 === 0) await this.wait(5000);
       }
@@ -457,8 +474,9 @@ export default class CamphoricEventCreator extends Fetcher {
 
     // get first step responses
     const step1 = [];
-    for (let i = 0; i < registrations.length; ++i) {
-      step1.push(postReg(registrations[i]));
+    const registering = requestBatch();
+    for (let i = 0; i < registrations.length && !registering.failed; ++i) {
+      step1.push(registering.start(postReg(registrations[i])));
 
       if (i % 10 === 0) await this.wait(1500);
     }
@@ -466,8 +484,9 @@ export default class CamphoricEventCreator extends Fetcher {
 
     // process payment step
     const step2 = [];
-    for (let i = 0; i < responses.length; ++i) {
-      step2.push(postPayment(responses[i]));
+    const paying = requestBatch();
+    for (let i = 0; i < responses.length && !paying.failed; ++i) {
+      step2.push(paying.start(postPayment(responses[i])));
 
       if (i % 10 === 0) await this.wait(1500);
     }

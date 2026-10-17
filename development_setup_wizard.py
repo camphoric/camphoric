@@ -216,7 +216,8 @@ def load_sample_data(args):
             check=True)
     except subprocess.CalledProcessError:
         die('Failed to load sample data')
-    hooray('Successfully loaded sample data')
+    # (On a database that already had events, the importer said it skipped them.)
+    hooray('Sample data loaded, or already there')
 
 
 def run_tests(args):

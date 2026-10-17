@@ -19,6 +19,8 @@ const DATA = fileURLToPath(new URL('../..', import.meta.url));
 let serverEvents: { id: number, name: string }[] = [];
 let requests: { method: string, url: string }[] = [];
 let nextId = 1;
+// Whether it refuses registrations, as a server does outside an event's window
+let registrationClosed = false;
 
 const server = http.createServer(async (req, res) => {
   let body = '';
@@ -33,6 +35,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url === '/api/events/') return send(200, serverEvents);
   if (req.method === 'GET') return send(200, []);
   if (req.method === 'DELETE') return send(204);
+  if (registrationClosed && /^\/api\/events\/\d+\/register$/.test(url)) {
+    return send(409, { detail: 'Registration for this event is closed.' });
+  }
   return send(req.method === 'POST' ? 201 : 200,
     { ...JSON.parse(body || '{}'), id: nextId++, confirmation_template: 9000, invitation_template: 9001 });
 });
@@ -51,6 +56,10 @@ afterAll(async () => {
 // Runs the importer for Sample Camp alone. (Asynchronously: the stand-in
 // server answers it from this process.)
 function importSampleCamp(...args: string[]): Promise<{ status: number, stdout: string, stderr: string }> {
+  return runImporter(args);
+}
+
+function runImporter(args: string[], { sampleRegistrations = false } = {}): Promise<{ status: number, stdout: string, stderr: string }> {
   requests = [];
   return new Promise(resolve => execFile('node_modules/.bin/tsx', ['--conditions=camphoric-source', 'loadAllData.ts', ...args], {
     cwd: DATA,
@@ -62,7 +71,7 @@ function importSampleCamp(...args: string[]): Promise<{ status: number, stdout: 
       CAMPHORIC_EVENTS: 'sample-camp',
       DJANGO_SUPERUSER_USERNAME: 'admin',
       DJANGO_SUPERUSER_PASSWORD: 'admin',
-      SKIP_TEST_REGS: '1',
+      SKIP_TEST_REGS: sampleRegistrations ? '0' : '1',
     },
   }, (error, stdout, stderr) => resolve({ status: error ? Number(error.code ?? 1) : 0, stdout, stderr })));
 }
@@ -93,3 +102,20 @@ describe('the importer, with --if-empty', () => {
     expect(requests.some(r => r.method === 'PUT' && r.url === '/api/events/1/')).toBe(true);
   }, 60_000);
 });
+
+// The creator starts requests ahead of collecting them, pausing between
+// batches; a rejection during a pause must reach the importer's own error
+// handling (which, with --if-empty, says how to retry), not end the process
+// as an unhandled rejection.
+test('a rejected sample registration fails the import through its error handling', async () => {
+  serverEvents = [];
+  registrationClosed = true;
+  try {
+    const run = await runImporter(['--if-empty'], { sampleRegistrations: true });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('test registration rejected (409)');
+    expect(run.stderr).toContain('start again with ./data/reset-data-and-test');
+  } finally {
+    registrationClosed = false;
+  }
+}, 60_000);

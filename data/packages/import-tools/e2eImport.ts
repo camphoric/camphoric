@@ -33,10 +33,20 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
   process.env.DJANGO_SUPERUSER_USERNAME = username;
   process.env.DJANGO_SUPERUSER_PASSWORD = password;
 
+  // Imported with the window open, so its sample registrations (posted as
+  // it's imported) are accepted, and set again afterwards, in case an
+  // override changed it
+  const day = 24 * 60 * 60 * 1000;
+  const window = {
+    registration_start: new Date(Date.now() - day).toISOString(),
+    registration_end: new Date(Date.now() + 365 * day).toISOString(),
+  };
+  const data = openRegistration ? { ...event.data, event: { ...event.data.event, ...window } } : event.data;
+
   const token = await getAuthToken(url);
   const organization = await organizationLoader(token, url)(event.organization);
   const creator = new CamphoricEventCreator({
-    data: event.data,
+    data,
     validate,
     overrides: event.overrides,
     sampleRegGenerator: withSampleRegistrations ? event.sampleRegGenerator : undefined,
@@ -45,14 +55,7 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
   });
   await creator.create();
   const { id } = creator.savedEvent();
-
-  if (openRegistration) {
-    const day = 24 * 60 * 60 * 1000;
-    await creator.fetch('PATCH', `/api/events/${id}/`, {
-      registration_start: new Date(Date.now() - day).toISOString(),
-      registration_end: new Date(Date.now() + 365 * day).toISOString(),
-    });
-  }
+  if (openRegistration) await creator.fetch('PATCH', `/api/events/${id}/`, window);
 
   return id;
 }
