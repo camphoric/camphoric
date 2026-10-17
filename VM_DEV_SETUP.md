@@ -211,13 +211,21 @@ delivery:
 vagrant ssh -c "journalctl -u camphoric-worker -f"
 ```
 
-The events' email accounts send through real mail servers (the Gmail account in your vault).
-To keep the VM from emailing anyone, and print each message in the worker's log instead,
-set this in `ansible/host_vars/default.yml` and run `vagrant provision`:
+The VM doesn't email anyone: since `camphoric_environment` is `development`, every message
+goes through the console backend and is printed in the worker's log instead, whatever
+the event's email account says. (A VM provisioned before this was the default keeps
+sending for real until you run `vagrant provision`.) To send through the events' email
+accounts for real (e.g. the Gmail account in your vault), set this in
+`ansible/host_vars/default.yml` and run `vagrant provision`:
 
 ```yaml
-camphoric_email_force_backend: django.core.mail.backends.console.EmailBackend
+camphoric_email_force_backend: ''
 ```
+
+`./overwrite-with-live-data.sh` keeps a restored dump from emailing anyone even then: it
+stops the worker while it restores, switches every restored email account to the console
+backend, and marks the email that was waiting to go out as failed. It starts the worker
+again only if the restore succeeded; otherwise it says so, and exits non-zero.
 
 
 The VM's own node_modules
@@ -264,7 +272,9 @@ vagrant up
 ```
 
 A plain-SQL dump from an older PostgreSQL restores into a newer one without
-changes.
+changes. The restored email accounts come back set to the console backend (see
+"Email and the task worker" above), and the restore sets no passwords: sign in
+with an account from the dump.
 
 
 Troubleshooting a stuck VM
