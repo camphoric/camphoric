@@ -1,17 +1,18 @@
 import { expect, test } from '@camphoric/camphoric-event-import-tools/e2e';
 
-import event from '../index.ts';
 import { ages } from '../pricing/camperPricingLogic.ts';
 import pricing from '../pricing/pricing.ts';
 import { deposit } from '../registrationDepositSchema.ts';
+import registrationSchema from '../registrationSchema.ts';
 
 // The registration form, as a registrant fills it in, through the
 // import-tools page object (RegistrationForm). Every test shares the one
 // imported event, so a completed registration stays, taking a lodging spot.
 
-test('the form opens under the event\'s name', async ({ page, registration }) => {
+// (The form's heading is its schema's title)
+test('the form opens under its title', async ({ page, registration }) => {
   await registration.open();
-  await expect(page.getByRole('heading', { name: event.data.event.name + ' Registration' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: registrationSchema.title, exact: true })).toBeVisible();
 });
 
 test('lodging offers only the choices registrants see', async ({ registration }) => {
