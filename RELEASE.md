@@ -104,7 +104,11 @@ then collects Django's static files (which Django serves, with `DEBUG` off, only
 `STATIC_ROOT`) and restarts the `camphoric` service, so the new code and build take effect. The
 role does not yet check out `camphoric_release`
 ([#797](https://github.com/camphoric/camphoric/issues/797)), so check out the tag on the host before
-running it.
+running it. Set `camphoric_environment` to `production` and override the role's placeholder
+secrets in `host_vars` (vault-encrypted) or an inventory `group_vars/<group>.yml` file, not in
+the inventory file itself, which `ansible/group_vars/all.yml` outranks: outside development the camphoric role fails at
+its first task while one is left at its default (see
+[the role's README](./ansible/roles/camphoric/README.md#secrets)).
 
 ### Host requirements
 
