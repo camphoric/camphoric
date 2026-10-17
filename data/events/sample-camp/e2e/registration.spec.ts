@@ -15,6 +15,21 @@ test('the form opens under its title', async ({ page, registration }) => {
   await expect(page.getByRole('heading', { name: registrationSchema.title, exact: true })).toBeVisible();
 });
 
+// The week's schedule is wider than a phone's screen: it scrolls in a box of
+// its own, so the page keeps to the screen's width (and never scrolls
+// sideways, where a tap can land on the wrong question)
+test('the form fits the screen\'s width', async ({ page, registration, isMobile }) => {
+  await registration.open();
+  const schedule = page.getByRole('table').filter({ hasText: 'Workshops' });
+  await expect(schedule).toBeVisible();
+  if (isMobile) {
+    expect((await schedule.boundingBox())?.width).toBeGreaterThan(page.viewportSize()?.width ?? 0);
+  }
+
+  const overflows = (el: { scrollWidth: number, clientWidth: number }) => el.scrollWidth > el.clientWidth;
+  expect(await page.locator('html').evaluate(overflows)).toBe(false);
+});
+
 test('lodging offers only the choices registrants see', async ({ registration }) => {
   await registration.open();
   const offered = await registration.camper(1).chooseLodging('Meadow Cabins', 'Cabin 1');

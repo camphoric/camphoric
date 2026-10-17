@@ -4,7 +4,7 @@
  * future Playwright e2e coverage.
  */
 
-import { Code, Stack, Title } from '@mantine/core';
+import { Button, Code, Container, Stack, Title } from '@mantine/core';
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import type { Meta, StoryFn } from '@storybook/react-vite';
 import { JsonSchemaForm } from 'components/form';
@@ -182,4 +182,44 @@ export const ListsDuringRegistration: StoryFn = () => (
       formData={{ parking_passes: [{}], helpers: [] }}
     />
   </Stack>
+);
+
+/** A six-column rates table, wider than a phone's screen. */
+const ratesTable = [
+  '| Lodging | Adult | Teen (13-17) | Youth (5-12) | Child (2-4) | Infant (0-1) |',
+  '| ------- | ----- | ------------ | ------------ | ----------- | ------------ |',
+  '| Cabin with bath | $1,250 | $1,050 | $850 | $450 | free |',
+  '| Cabin, shared bath | $1,100 | $950 | $750 | $400 | free |',
+  '| Tent or RV | $900 | $800 | $650 | $350 | free |',
+].join('\n');
+
+const wideTableSchema: RJSFSchema = {
+  type: 'object',
+  description: `Camper rates:\n\n${ratesTable}`,
+  properties: {
+    lodging: {
+      type: 'string',
+      title: 'Lodging',
+      description: `Rates by camper, for the week:\n\n${ratesTable}`,
+      enum: ['Cabin with bath', 'Cabin, shared bath', 'Tent or RV'],
+    },
+    donation: { type: 'integer', title: 'Donation (dollars)' },
+  },
+};
+
+/**
+ * Event text with tables wider than a phone (SPEC §9.3): each scrolls sideways
+ * in its own box, so the page keeps to the screen's width and a tap lands on
+ * what it's aimed at. Laid out like the registration page.
+ */
+export const WideTable: StoryFn = () => (
+  <Container size="md" py="lg">
+    <Stack className="camphoric-registration">
+      <JsonSchemaForm schema={wideTableSchema} formData={{}}>
+        <Button type="submit" mt="md">
+          Continue to payment
+        </Button>
+      </JsonSchemaForm>
+    </Stack>
+  </Container>
 );

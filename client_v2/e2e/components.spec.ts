@@ -14,6 +14,10 @@ const story = (id: string) => `${STORYBOOK_URL}/iframe.html?id=${id}&viewMode=st
 /** The story's table rows (Storybook's page also holds a hidden placeholder table). */
 const tableRows = (page: Page) => page.locator('#storybook-root tbody tr');
 
+/** Whether an element's content is wider than it is (this build has no DOM types). */
+const overflows = (el: { scrollWidth: number; clientWidth: number }) =>
+  el.scrollWidth > el.clientWidth;
+
 test.describe('Form engine', () => {
   test('renders the custom widgets through JsonSchemaForm', async ({ page }) => {
     await page.goto(story('json-schema-form--all-widgets'));
@@ -43,6 +47,44 @@ test.describe('Form engine', () => {
 
     await phone.fill('+44 20 7946 0958');
     await expect.poll(saved).toEqual({ phone: '+442079460958' });
+  });
+
+  test('a table wider than a phone scrolls in its own box, not the page', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto(story('json-schema-form--wide-table'));
+    const boxes = page.locator('#storybook-root .md-table-scroll');
+    await expect(boxes).toHaveCount(2);
+
+    // The page keeps to the screen's width, so it never scrolls sideways
+    expect(await page.locator('html').evaluate(overflows)).toBe(false);
+
+    // On a phone the tables are wider than their boxes, which scroll instead,
+    // from the keyboard too; a box that doesn't scroll adds no tab stop
+    const scrolling = page.getByRole('region', { name: 'Table, scrolls sideways' });
+    if ((page.viewportSize()?.width ?? 1280) < 768) {
+      for (const box of await boxes.all()) {
+        expect(await box.evaluate(overflows)).toBe(true);
+      }
+      await expect(scrolling).toHaveCount(2);
+      const first = scrolling.first();
+      await first.focus();
+      await expect(first).toBeFocused();
+      // (Playwright's WebKit scrolls nothing with the arrow keys, not even the page)
+      if (browserName === 'chromium') {
+        await page.keyboard.press('ArrowRight');
+        await expect
+          .poll(() => first.evaluate((el: { scrollLeft: number }) => el.scrollLeft))
+          .toBeGreaterThan(0);
+      }
+    } else {
+      await expect(scrolling).toHaveCount(0);
+      await expect(boxes.and(page.locator('[tabindex]'))).toHaveCount(0);
+    }
+
+    // A tap on the button lands on the button, not on a field beside it
+    await page.getByRole('button', { name: 'Continue to payment' }).click({ trial: true });
   });
 });
 
@@ -83,6 +125,22 @@ test.describe('Templating', () => {
     const rendered = page.locator('.md-template').first();
     await expect(rendered).toBeVisible();
     await expect(rendered).not.toBeEmpty();
+  });
+
+  test('a table box that scrolls takes keyboard focus, and one that fits does not', async ({
+    page,
+  }) => {
+    const scrolling = page.getByRole('region', { name: 'Table, scrolls sideways' });
+    await page.goto(story('rendered-markdown--table-scrolls'));
+    await scrolling.focus();
+    await expect(scrolling).toBeFocused();
+
+    // (On a phone even the wide column is narrower than the table)
+    if ((page.viewportSize()?.width ?? 1280) >= 768) {
+      await page.goto(story('rendered-markdown--table-fits'));
+      await expect(page.locator('#storybook-root table')).toBeVisible();
+      await expect(scrolling).toHaveCount(0);
+    }
   });
 });
 

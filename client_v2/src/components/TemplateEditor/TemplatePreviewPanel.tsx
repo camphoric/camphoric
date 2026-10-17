@@ -8,7 +8,7 @@ import { Alert, Code, Group, Loader, Stack, Text } from '@mantine/core';
 import type { TemplateDiagnostic, TemplatePreviewOutput, TemplatePreviewResponse } from 'api-types';
 import { CsvTable } from 'components/CsvTable';
 import { HtmlFrame } from 'components/HtmlFrame';
-import { markdownToHtml } from 'components/templating';
+import { markdownToHtml, RenderedMarkdown } from 'components/templating';
 
 import { TemplateDiagnostics } from './TemplateDiagnostics';
 
@@ -41,10 +41,7 @@ function PreviewOutput({
     case 'csv':
       return <CsvTable csv={text} />;
     case 'md':
-      // Safe: markdownToHtml sanitizes via rehype-sanitize (§11).
-      return (
-        <div className="md-template" dangerouslySetInnerHTML={{ __html: markdownToHtml(text) }} />
-      );
+      return <RenderedMarkdown html={markdownToHtml(text)} />;
     case 'html':
       return <HtmlFrame title="Preview" html={text} />;
     case 'email':

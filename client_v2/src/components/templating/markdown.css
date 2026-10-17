@@ -14,3 +14,35 @@
   border: 1px solid var(--mantine-color-default-border);
   padding: 4px 8px;
 }
+
+/*
+ * The pipeline puts each table in a box of its own: a table wider than the
+ * column it's in — an event's rates, on a phone — scrolls sideways there
+ * rather than widening the page.
+ */
+.md-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* A box that scrolls takes keyboard focus (RenderedMarkdown): ring it as Mantine rings its controls. */
+.md-table-scroll:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+/*
+ * An area that scrolls both ways, at most a window tall (a report's output, the
+ * expanded template editor's preview), scrolls its tables too: a tall table's
+ * own scrollbar would sit at its foot, out of sight. On paper nothing scrolls,
+ * so a table there is never cut off at the box's edge.
+ */
+.camphoric-scrolls-both-ways .md-table-scroll {
+  overflow-x: visible;
+}
+
+@media print {
+  .md-table-scroll {
+    overflow-x: visible;
+  }
+}

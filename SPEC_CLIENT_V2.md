@@ -2,7 +2,7 @@
 
 **Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
 decision history.
-**Last updated:** 2026-10-16
+**Last updated:** 2026-10-17
 
 > **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
 > rewritten as the *current* client spec — at which point the migration rationale (the "the
@@ -25,7 +25,7 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-113)
+- §15 — Decision Records (DR-1…DR-114)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1509,7 +1509,8 @@ DR-41); only reports saved in existing events before then still use the browser 
     shown as its raw text.
   - The output, in every format, scrolls within its own area in both directions, at most about
     a window tall, so a wide or long report never widens or stretches the page; a CSV table's
-    header row stays in view as it scrolls.
+    header row stays in view as it scrolls, and a Markdown report's tables scroll with the rest
+    of the output, not in boxes of their own (§9.3).
 - **Printing a report** — a `csv`/`md`/`txt`/`html` report's output can be printed by itself,
   without the admin page around it (§15, DR-113). It prints from a standalone document of the
   output alone, titled with the report's title, opened in the browser's print dialog from a
@@ -1927,11 +1928,23 @@ and Handlebars reports:
 1. **Handlebars** compiles the template with the provided variables and custom helpers, then
 2. a **markdown → HTML** pipeline (`remark-parse` → `remark-gfm` → `remark-rehype` with raw
    HTML allowed → `rehype-raw` → **`rehype-sanitize`** (extended to permit `class`/`style` on
-   `div`/`span`) → `rehype-external-links` (external links open in a new tab) →
+   `div`/`span`) → a step that puts each table in a box of its own (a `div` with the class
+   `md-table-scroll`; a table inside another's cell scrolls with that one) → `rehype-external-links` (external links open in a new tab) →
    `rehype-stringify`).
 
+A table wider than the column it sits in — an event's rates, on a phone — scrolls sideways
+within its box, so templated text never makes the page wider than the screen (§15, DR-114).
+While a box scrolls, it takes keyboard focus as a region named "Table, scrolls sideways", so the
+keyboard can scroll it in every browser (Safari doesn't make a scrolling box focusable on its
+own); a box whose table fits takes no focus and adds no tab stop. It is checked again whenever
+the box or its table changes size.
+In an area that already scrolls both ways and is at most about a window tall — a report's output
+(§8.7), the expanded template editor's preview (§9.6) — tables scroll with the rest of it
+instead, and in print no table is cut off at its box's edge.
+
 Output is inserted via `dangerouslySetInnerHTML`; sanitization is mandatory. Rendering errors
-are caught and shown (in a `<pre>`) rather than crashing.
+are caught and shown as text (in a `<pre>`), never as HTML — an error quotes the template —
+rather than crashing.
 
 **Custom Handlebars helpers** (must be preserved): lookups (`getLodgingValue`,
 `getRegistrationValue`, `getCamperValue`), array ops (`count`, `filter` with comparison
@@ -4694,6 +4707,27 @@ in a frame there (its markup can't run in the app's page), and frames print poor
 not needed. Print styles on the admin page hiding the chrome — the HTML report's frame still
 prints as one clipped box. Only author-written CSS — Markdown reports can't carry a `<style>`.
 Only Camphoric's classes — would take away print CSS HTML reports can already write.
+
+### DR-114 — Wide tables in templated text scroll in a box of their own
+
+**Decision:** The markdown pipeline (§9.3) wraps each table it renders (but one inside another's
+cell) in a `div` that scrolls sideways, after sanitizing, so a table wider than its column
+scrolls there instead of widening the page. An area that scrolls both ways already, at most about a window tall (a report's output,
+the expanded template editor's preview), lets its tables lay out as before, as does print. A box
+that scrolls takes keyboard focus, as a labelled region, only while it scrolls.
+**Context:** An event's text can hold a table wider than a phone: BACDS Family Week's six-column
+camper rates are 472px wide, on a 393px screen. The whole registration page grew that wide, so it
+scrolled sideways and taps could land on the wrong control. Registration is mobile-first
+(DR-17). In a box at most a window tall, a tall table's own scrollbar would sit at its foot, out
+of sight, so there the box's own scrolling covers it; on paper a scrolling box would cut the
+table off. Chrome and Firefox let the keyboard reach a scrolling box without help; Safari
+doesn't, so the client gives the box focus itself.
+**Alternatives:** Making the table itself scroll with CSS alone (`display: block` with
+`overflow-x: auto`) — no pipeline change, but changing a table's `display` can drop its table
+semantics for screen readers in some browsers. Shrinking or wrapping the table to fit — a table
+of prices is unreadable squeezed below its narrowest layout. Making every table's box focusable
+— a tab stop, and a region announced, even for the many tables that fit. Asking events to keep
+tables narrow — the text is theirs, and the client renders whatever the event defines (§11).
 
 ---
 
