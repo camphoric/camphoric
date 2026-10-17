@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.1.0...camphoric-event-import-tools-v1.2.0) (2026-10-17)
+
+
+### Features
+
+* **data:** count a camper's lodging levels in the e2e page object ([9f7ac3b](https://github.com/camphoric/camphoric/commit/9f7ac3b06c5647ea1b5796756034eb4694bce01d)), closes [#780](https://github.com/camphoric/camphoric/issues/780)
+
 ## [1.1.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.0.0...camphoric-event-import-tools-v1.1.0) (2026-10-17)
 
 
