@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from '@jest/globals';
 import type {
   EventImport as SpecEventImport,
+  EventModule as SpecEventModule,
   FetchMethod as SpecFetchMethod,
   OrganizationImport as SpecOrganizationImport,
   Override as SpecOverride,
@@ -23,6 +24,7 @@ import type {
 } from '@camphoric/camphoric-event-import-spec';
 import type {
   FetchMethod as ToolsFetchMethod,
+  ImportableEvent as ToolsImportableEvent,
   ImportData as ToolsImportData,
   OrganizationImport as ToolsOrganizationImport,
   Override as ToolsOverride,
@@ -90,7 +92,8 @@ const toolsTypesMatchTheSpec: [
   Fits<SpecEventImport, ToolsImportData>,
   Fits<SpecOverride, ToolsOverride>,
   Fits<SpecSampleRegGenerator, ToolsSampleRegGenerator>,
-] = [true, true, true, true, true, true, true, true];
+  Fits<SpecEventModule, ToolsImportableEvent>,
+] = [true, true, true, true, true, true, true, true, true];
 
 test('import-tools\' copies of the spec\'s types match the spec', () => {
   expect(toolsTypesMatchTheSpec.every(Boolean)).toBe(true);

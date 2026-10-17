@@ -1,7 +1,7 @@
 {
   "name": "@camphoric/camphoric-event-import-tools",
   "version": "1.0.0",
-  "description": "Camphoric REST client, login, the event importer (creator and organization loader), and the runner that posts generated registrations to an event.",
+  "description": "Camphoric REST client, login, the event importer (creator and organization loader), e2e scaffolding for an event's registration form, and the runner that posts generated registrations to an event.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,6 +18,11 @@
     "organizations.ts",
     "types.ts",
     "utils.ts",
+    "e2e.ts",
+    "e2eImport.ts",
+    "e2eRegistrationForm.ts",
+    "e2eServer.ts",
+    "e2e-compose.yml",
     "CHANGELOG.md"
   ],
   "exports": {
@@ -51,6 +56,11 @@
       "types": "./dist/types.d.ts",
       "default": "./dist/types.js"
     },
+    "./e2e": {
+      "camphoric-source": "./e2e.ts",
+      "types": "./dist/e2e.d.ts",
+      "default": "./dist/e2e.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -69,9 +79,18 @@
     "lodash": "^4.17.21",
     "ora": "^9.4.1"
   },
+  "peerDependencies": {
+    "@playwright/test": "^1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@camphoric/camphoric-event-import-spec": "*",
     "@jest/globals": "^30.5.2",
+    "@playwright/test": "^1.63.0",
     "@swc/core": "^1.16.13",
     "@swc/jest": "^0.2.39",
     "@types/cli-progress": "^3.11.6",

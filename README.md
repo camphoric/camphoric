@@ -38,7 +38,8 @@ released on their own versions (see [RELEASE.md](./RELEASE.md)):
   shared `tsconfig.base.json`. A major version is a change event modules must follow.
 - **`@camphoric/camphoric-event-import-tools`** — the Camphoric REST client, login, the event
   importer (`CamphoricEventCreator` and the organization loader, given the spec's
-  `validateEventImport`), and the bulk-registration runner. It depends on no spec version.
+  `validateEventImport`), Playwright scaffolding for an event's registration-form e2e tests, and
+  the bulk-registration runner. It depends on no spec version.
 
 Their source is in [`data/packages/`](./data/packages). Within this repository the importer and
 the events use them as npm workspaces (from source), so **nothing here needs a token yet** — not

@@ -32,14 +32,19 @@ for tarball in *.tgz; do
   fi
 done
 grep -q '^package/tsconfig\.base\.json$' camphoric-camphoric-event-import-spec-*.tgz.files
+# The compose file the e2e harness's throwaway server comes from
+grep -q '^package/e2e-compose\.yml$' camphoric-camphoric-event-import-tools-*.tgz.files
 
 npm init -y > /dev/null
 npm pkg set type=module
 # Anything @camphoric the tarballs don't satisfy must fail against GitHub
 # Packages, never resolve to npmjs.
 cp "$DATA/.npmrc" .npmrc
+# @playwright/test is the e2e harness's optional peer, at the version this
+# repository uses (no browsers are installed: nothing launches one)
+PLAYWRIGHT=$(node -p "require('$DATA/node_modules/@playwright/test/package.json').version")
 npm install --silent --no-audit --no-fund ./camphoric-camphoric-event-import-spec-*.tgz \
-  ./camphoric-camphoric-event-import-tools-*.tgz
+  ./camphoric-camphoric-event-import-tools-*.tgz "@playwright/test@$PLAYWRIGHT"
 
 # Plain Node, through the packages' default (dist/) exports
 node --input-type=module -e "
@@ -69,6 +74,12 @@ assert.throws(() => new CamphoricEventCreator({
 assert.throws(() => new CamphoricEventCreator({
   data: {}, validate: () => ['bad'], organizations: new Organizations([]),
 }), /did not pass/);
+// The e2e harness loads, with its parts
+const e2e = await import('@camphoric/camphoric-event-import-tools/e2e');
+for (const name of ['defineEventE2EConfig', 'setUpEvent', 'camphoricServer', 'importForE2E', 'RegistrationForm', 'test', 'expect']) {
+  assert.ok(e2e[name], 'e2e exports ' + name);
+}
+assert.equal(e2e.defineEventE2EConfig({ globalSetup: './setup.ts' }).globalSetup, './setup.ts');
 console.log('the packed packages load and validate under plain Node');
 "
 
@@ -77,6 +88,8 @@ cat > check.ts <<'TS'
 import type { EventImport, EventModule } from '@camphoric/camphoric-event-import-spec';
 import type { LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
 import type { describeEventModule } from '@camphoric/camphoric-event-import-spec/conformance';
+import { validateEventImport } from '@camphoric/camphoric-event-import-spec';
+import { defineEventE2EConfig, expect, setUpEvent, test } from '@camphoric/camphoric-event-import-tools/e2e';
 
 const data = {
   organization: 'Test',
@@ -92,6 +105,16 @@ export const event = {
 
 export type Load = Parameters<typeof describeEventModule>[0];
 export const load: Load = async (): Promise<LoadedEventModule> => ({ default: event });
+
+// An event repository's e2e setup and tests, against the packed declarations
+export const config = defineEventE2EConfig({ globalSetup: './e2e/global-setup.ts' });
+export const setup = setUpEvent({ event, validate: validateEventImport });
+test('the form opens', async ({ registration }) => {
+  await registration.open();
+  const [lodging] = await registration.camper(1).chooseLodging('Cabins');
+  expect(lodging).toContain('Cabins');
+  await registration.expectTotal(100);
+});
 TS
 "$DATA/node_modules/.bin/tsc" --noEmit --strict \
   --module nodenext --moduleResolution nodenext --types node --typeRoots "$DATA/node_modules/@types" check.ts
