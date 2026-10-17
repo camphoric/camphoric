@@ -151,6 +151,10 @@ components alongside the app:
   their own copies of the two spec types they use, and a test keeps those identical), so their
   release PRs can be merged in any order. In this repository, the importer, the events and the
   tools use each other's workspace copies (`"*"`), whatever version a release gives them.
+- **Publishing access.** The repository that publishes a package must keep the **Write** (or
+  Admin) role in the package's settings, under "Manage Actions access"; with only Read, the publish
+  job fails with `403 … write_package`. Other repositories need no grant to install a public
+  package.
 - **Republishing.** To publish a released tag again (if the publish job failed), run
   `gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0`; a version
   that's already published is skipped, and one older than the newest published version doesn't

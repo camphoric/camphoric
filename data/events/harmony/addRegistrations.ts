@@ -49,7 +49,7 @@
  *   docker compose run --rm data npm run bulk -w @camphoric/camphoric-event-harmony
  *
  * See also the other events' addRegistrations.ts
- * (@camphoric/camphoric-event-lark, @camphoric/camphoric-event-ltacampout); the shared
+ * (@camphoric/camphoric-event-lark, and camphoric/camphoric-event-ltacampout's); the shared
  * plumbing is in @camphoric/camphoric-event-import-tools/bulk-registrations.
  */
 

@@ -45,10 +45,30 @@
         cmd: pipenv run python manage.py createsuperuser --noinput
         chdir: "{{camphoric_folder}}/server"
 
-    # npm ci installs any @camphoric package not in a workspace from GitHub
-    # Packages (data/.npmrc), which needs a token even for public packages.
-    # Without one this is skipped, and npm ci works as long as nothing comes
-    # from the registry.
+    # npm ci installs the events that aren't workspaces from GitHub Packages
+    # (data/.npmrc), which needs a token even for public packages: from
+    # camphoric_npm_token, or one the VM user's ~/.npmrc already has. Without
+    # either, stop here with how to give one, rather than at npm ci's 401.
+    - name: Check for a GitHub Packages token in ~/.npmrc
+      when: camphoric_environment == 'development' and camphoric_npm_token | length == 0
+      tags: [npm, camphoric_install, camphoric_reset, camphoric_data_reset]
+      ansible.builtin.shell:
+        cmd: "grep -qs '^//npm.pkg.github.com/:_authToken=.' ~{{ camphoric_user }}/.npmrc"
+      register: camphoric_npmrc_token
+      changed_when: false
+      failed_when: false
+
+    - name: Stop without a GitHub Packages token
+      when: >-
+        camphoric_environment == 'development' and camphoric_npm_token | length == 0
+        and camphoric_npmrc_token.rc != 0
+      tags: [npm, camphoric_install, camphoric_reset, camphoric_data_reset]
+      ansible.builtin.fail:
+        msg: >-
+          data/ installs events from GitHub Packages, which needs a token with read:packages.
+          Provision with CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) vagrant provision, or set
+          camphoric_vault_npm_token in your vault (see VM_DEV_SETUP.md).
+
     - name: Give npm the GitHub Packages token
       when: camphoric_environment == 'development' and camphoric_npm_token | length > 0
       tags: [npm, camphoric_install, camphoric_reset, camphoric_data_reset]

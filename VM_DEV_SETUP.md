@@ -332,7 +332,7 @@ camphoric_email_host_password: aaaaaaaaaaaaaaaa
 Provisioning onto an empty database imports every event (the camps and Sample Camp); a database
 that already has events is left as it is.
 
-Once `data/` installs events from GitHub Packages, its `npm ci` also needs a token with
+`data/` installs events from GitHub Packages, so its `npm ci` also needs a token with
 `read:packages`. Either set `CAMPHORIC_NPM_AUTH_TOKEN` when you provision
 (`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) vagrant provision`), or keep one here:
 
@@ -340,7 +340,8 @@ Once `data/` installs events from GitHub Packages, its `npm ci` also needs a tok
 camphoric_vault_npm_token: <longstringofencrypedbullshithere>
 ```
 
-The playbook writes it to the VM user's `~/.npmrc` before `npm ci`, and skips that without one.
+The playbook writes it to the VM user's `~/.npmrc` before `npm ci`. Without one (and none already
+in that `~/.npmrc`), provisioning stops there and says how to give one.
 
 **ansible/.ansible-vault-pw**
 

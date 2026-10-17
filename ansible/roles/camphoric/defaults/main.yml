@@ -37,9 +37,10 @@ camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
 camphoric_paypal_client_id: this-should-be-in-vault
 camphoric_paypal_secret: this-should-be-in-vault
 
-# A GitHub Packages token (read:packages) for data/'s npm ci, only needed once
-# it installs events from the registry: CAMPHORIC_NPM_AUTH_TOKEN where ansible
-# runs, else camphoric_vault_npm_token from the vault (see VM_DEV_SETUP.md).
+# A GitHub Packages token (read:packages) for data/'s npm ci, which installs
+# events from the registry: CAMPHORIC_NPM_AUTH_TOKEN where ansible runs, else
+# camphoric_vault_npm_token from the vault (see VM_DEV_SETUP.md). Without one
+# (and none in the VM user's ~/.npmrc), the import stops and says so.
 camphoric_npm_token: "{{ lookup('env', 'CAMPHORIC_NPM_AUTH_TOKEN') | default(camphoric_vault_npm_token | default(''), true) }}"
 
 # apt's pipenv (Ubuntu 24.04 refuses system-wide pip installs, PEP 668)

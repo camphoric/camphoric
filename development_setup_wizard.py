@@ -54,7 +54,33 @@ def check_prereqs(args):
             'required command `docker` not found!',
             'please make sure that you have it installed and try again')
 
+    check_npm_token()
     hooray('Found all requirements')
+
+
+def check_npm_token():
+    # The data image installs events from GitHub Packages, which needs a token
+    # (docker-compose.yml's npm_token build secret): CAMPHORIC_NPM_AUTH_TOKEN, or
+    # else the GitHub CLI's, for the docker compose builds below.
+    if os.environ.get('CAMPHORIC_NPM_AUTH_TOKEN'):
+        return
+    if shutil.which('gh'):
+        result = subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            # A default gh login can't read packages; say so here rather than
+            # let the image build fail with npm's 401.
+            status = subprocess.run(['gh', 'auth', 'status'], capture_output=True, text=True)
+            scopes = re.search(r'Token scopes: (.*)', status.stdout + status.stderr)
+            if scopes and not re.search(r"'(read|write):packages'", scopes.group(1)):
+                die('the GitHub CLI\'s token can\'t read GitHub Packages',
+                    'the data image installs events from GitHub Packages, which needs',
+                    'read:packages: run gh auth refresh -s read:packages, then try again.')
+            os.environ['CAMPHORIC_NPM_AUTH_TOKEN'] = result.stdout.strip()
+            return
+    die('no token for GitHub Packages',
+        'the data image installs events from GitHub Packages, which needs a token',
+        'with read:packages: set CAMPHORIC_NPM_AUTH_TOKEN, or sign in with the GitHub CLI',
+        '(gh auth login; gh auth refresh -s read:packages). See README.md.')
 
 
 def create_env_files(args):

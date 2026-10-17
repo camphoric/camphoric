@@ -2,10 +2,11 @@
 # inputs (server/, client_v2/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
-# every event the importer installs (data/events) is imported into it (the live
-# import test). Alongside, Sample Camp's registration-form e2e tests run
-# against a throwaway server from the same image, through the import-tools
-# page object every event repository's tests use.
+# every event the importer loads (data/events and those from GitHub Packages) is
+# imported into it (the live import test). Alongside, Sample Camp's
+# registration-form e2e tests run against a throwaway server from the same
+# image, through the import-tools page object every event repository's tests
+# use.
 # Publishing to ghcr.io happens separately in release-image.yml. See CONTAINER.md.
 name: Docker image
 

@@ -1,7 +1,8 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it. data/ is an npm workspace root (the importer) with the
-# @camphoric/camphoric-event-* packages under packages/ and events/; its scripts run
-# every workspace's too:
+# @camphoric/camphoric-event-* packages under packages/ and events/ (and installs
+# the events published from repositories of their own from GitHub Packages); its
+# scripts run every workspace's too:
 # the TypeScript must type-check (tsc --noEmit), every event module must load,
 # satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
