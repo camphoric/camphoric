@@ -3,7 +3,7 @@
 {%- for node in [lodging] recursive %}
   <li>
     {{ node.name }}
-    {%- if node.capacity %} ({{ node.campers | length }} of {{ node.capacity }}){% endif %}
+    {%- if node.capacity %} ({{ node.camper_count }} of {{ node.capacity }}){% endif %}
     {%- if node.campers %}
     <ul>
       {%- for camper in node.campers %}

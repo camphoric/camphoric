@@ -1,5 +1,10 @@
 Last name,First name,Age,Lodging,Custom charges,Registration balance
-{% for camper in campers | sort(attribute="attributes.last_name") -%}
+{%- set rows = [] -%}
+{%- for camper in campers -%}
+{%- do rows.append({'name': camper.attributes.last_name or '', 'camper': camper}) -%}
+{%- endfor %}
+{% for row in rows | sort(attribute="name") -%}
+{%- set camper = row.camper -%}
 "{{ camper.attributes.last_name }}","{{ camper.attributes.first_name }}","{{ camper.attributes.age }}","{{ camper.lodging.full_name if camper.lodging }}",{{ camper.custom_charges | length }},{{ camper.registration.balance if camper.registration else '' }}
 {% endfor -%}
 Custom charge types: {{ custom_charge_types | map(attribute="label") | join("; ") }}
