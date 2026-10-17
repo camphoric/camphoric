@@ -71,10 +71,10 @@ django, worker and react services running, with postgres reporting healthy:
 ```
 ❯ docker ps
 CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS                   PORTS                              NAMES
-9221cf257ca2   postgres:16-alpine   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:5434->5432/tcp             camphoric-postgres-1
+9221cf257ca2   postgres:16-alpine   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes (healthy)   127.0.0.1:5434->5432/tcp           camphoric-postgres-1
 9e5b365574e6   camphoric-worker     "./manage.py camphor…"   6 minutes ago   Up 4 minutes                                                camphoric-worker-1
-df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   Up 4 minutes             0.0.0.0:8000->8000/tcp             camphoric-django-1
-1e66e583199e   node:22-bookworm     "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             0.0.0.0:3000-3001->3000-3001/tcp   camphoric-react-1
+df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   Up 4 minutes             127.0.0.1:8000->8000/tcp           camphoric-django-1
+1e66e583199e   node:22-bookworm     "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             127.0.0.1:3000-3001->3000-3001/tcp camphoric-react-1
 ```
 
 Run the following command to get your secret key:
@@ -341,9 +341,30 @@ If you like using a database GUI tool like [Beekeeper Studio](https://www.beekee
 or [pgAdmin](https://www.pgadmin.org/), you can use the following to connect:
 
 - The username, password, and database name is in 'env/local/postgres'
-- The server is exposed on port 5434
+- The server is exposed on port 5434, on the host's loopback only
 
 If using the env defaults, this should be [postgres://camphoric:camphoric@localhost:5434/camphoric](postgres://camphoric:camphoric@localhost:5434/camphoric)
+
+### Reaching the stack from another device
+
+`docker-compose.yml` publishes every port on 127.0.0.1 only, so other machines
+on your network can't reach the stack: Postgres has a known password, Django
+runs with DEBUG on and an admin/admin login, and after a live-data restore the
+database holds real people's details. To try the app from another device (a
+phone on your LAN, say), add a `docker-compose.override.yml` (which `docker
+compose` reads by itself) that republishes the ports you need on every
+interface, and don't commit it. `!override` needs Compose 2.24 or later:
+
+```yaml
+services:
+  react:
+    ports: !override
+      - "3000:3000"
+      - "3001:3001"
+```
+
+Remove it, and run `docker compose up -d` again, when you're done. The Vagrant
+VM's forwarded ports are bound the same way; see [VM_DEV_SETUP.md](../VM_DEV_SETUP.md).
 
 Tips for working with docker
 ============================

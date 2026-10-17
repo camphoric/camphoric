@@ -25,8 +25,9 @@ cd client
 npm run dev          # Vite on :3000, proxies /api -> http://localhost:8000
 ```
 
-`django` publishes `8000:8000` and `postgres` publishes on `5434`. The `django` service runs
-`migrate` + `collectstatic`, then the ASGI server (`uvicorn --reload`) on start.
+`django` publishes `8000` and `postgres` `5434`, on the host's loopback (127.0.0.1) only. The
+`django` service runs `migrate` + `collectstatic`, then the ASGI server (`uvicorn --reload`) on
+start.
 
 ## Lightest reload: native Django via pipenv
 

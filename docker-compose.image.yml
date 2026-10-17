@@ -53,8 +53,9 @@ services:
       DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin}
       DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+    # On the host's loopback only: the admin login defaults to admin/admin.
     ports:
-      - "${CAMPHORIC_PORT:-8000}:8000"
+      - "127.0.0.1:${CAMPHORIC_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy

@@ -79,15 +79,17 @@ Vagrant.configure("2") do |config|
       ansible.extra_vars = { is_vagrant: true, nginx_ssl_on: false }
   end
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
-  config.vm.network "forwarded_port", guest: 8000, host: 8000 # django
-  config.vm.network "forwarded_port", guest: 3000, host: 3000 # main react app
-  config.vm.network "forwarded_port", guest: 3001, host: 3001 # vite communications
-  config.vm.network "forwarded_port", guest: 5432, host: 5432 # postgres
-  config.vm.network "forwarded_port", guest:   80, host: 8080 # nginx
+  # Forward the VM's ports to the host's loopback only (host_ip), so nothing
+  # else on the network can reach them: Postgres has a known password, Django
+  # runs with DEBUG on and an admin/admin login, and after a live-data restore
+  # the database holds real people's details. To reach the VM from another
+  # device (a phone on your LAN, say), change a port's host_ip to "0.0.0.0" in
+  # your checkout, and don't commit it.
+  config.vm.network "forwarded_port", guest: 8000, host: 8000, host_ip: "127.0.0.1" # django
+  config.vm.network "forwarded_port", guest: 3000, host: 3000, host_ip: "127.0.0.1" # main react app
+  config.vm.network "forwarded_port", guest: 3001, host: 3001, host_ip: "127.0.0.1" # vite communications
+  config.vm.network "forwarded_port", guest: 5432, host: 5432, host_ip: "127.0.0.1" # postgres
+  config.vm.network "forwarded_port", guest:   80, host: 8080, host_ip: "127.0.0.1" # nginx
 
   # Share an additional folder to the guest VM. The first argument is
   # the path on the host to the actual folder. The second argument is
@@ -101,11 +103,6 @@ Vagrant.configure("2") do |config|
   # If you use this you may want to enable additional shared subfolders as
   # shown above.
   # config.vm.synced_folder ".", "/vagrant", disabled: true
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine and only allow access
-  # via 127.0.0.1 to disable public access
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
