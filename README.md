@@ -36,8 +36,9 @@ released on their own versions (see [RELEASE.md](./RELEASE.md)):
 - **`@camphoric/camphoric-event-import-spec`** — the event import object's schema and types,
   `validateEventImport()`, the module contract, the conformance tests every event runs, and the
   shared `tsconfig.base.json`. A major version is a change event modules must follow.
-- **`@camphoric/camphoric-event-import-tools`** — the Camphoric REST client, login, and the
-  bulk-registration runner.
+- **`@camphoric/camphoric-event-import-tools`** — the Camphoric REST client, login, the event
+  importer (`CamphoricEventCreator` and the organization loader, given the spec's
+  `validateEventImport`), and the bulk-registration runner. It depends on no spec version.
 
 Their source is in [`data/packages/`](./data/packages). Within this repository the importer and
 the events use them as npm workspaces (from source), so **nothing here needs a token yet** — not

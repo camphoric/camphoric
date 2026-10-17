@@ -1,7 +1,7 @@
 {
   "name": "@camphoric/camphoric-event-import-tools",
   "version": "1.0.0",
-  "description": "Camphoric REST client, login, and the runner that posts generated registrations to an event.",
+  "description": "Camphoric REST client, login, the event importer (creator and organization loader), and the runner that posts generated registrations to an event.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,8 +12,12 @@
   "files": [
     "dist",
     "CamphoricFetcher.ts",
+    "CamphoricEventCreator.ts",
     "getAuthInfo.ts",
     "bulkRegistrations.ts",
+    "organizations.ts",
+    "types.ts",
+    "utils.ts",
     "CHANGELOG.md"
   ],
   "exports": {
@@ -32,6 +36,21 @@
       "types": "./dist/bulkRegistrations.d.ts",
       "default": "./dist/bulkRegistrations.js"
     },
+    "./creator": {
+      "camphoric-source": "./CamphoricEventCreator.ts",
+      "types": "./dist/CamphoricEventCreator.d.ts",
+      "default": "./dist/CamphoricEventCreator.js"
+    },
+    "./organizations": {
+      "camphoric-source": "./organizations.ts",
+      "types": "./dist/organizations.d.ts",
+      "default": "./dist/organizations.js"
+    },
+    "./types": {
+      "camphoric-source": "./types.ts",
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -44,14 +63,19 @@
     "prepack": "npm run build"
   },
   "dependencies": {
+    "cli-progress": "^3.12.0",
     "dotenv": "^18.0.4",
-    "inquirer": "^14.2.2"
+    "inquirer": "^14.2.2",
+    "lodash": "^4.17.21",
+    "ora": "^9.4.1"
   },
   "devDependencies": {
     "@camphoric/camphoric-event-import-spec": "*",
     "@jest/globals": "^30.5.2",
     "@swc/core": "^1.16.13",
     "@swc/jest": "^0.2.39",
+    "@types/cli-progress": "^3.11.6",
+    "@types/lodash": "^4.17.25",
     "@types/node": "^22.20.5",
     "jest": "^30.5.2",
     "typescript": "^5.9.3"

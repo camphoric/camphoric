@@ -47,6 +47,8 @@ import assert from 'node:assert/strict';
 import { EventImportSchema, validateEventImport } from '@camphoric/camphoric-event-import-spec';
 import Fetcher from '@camphoric/camphoric-event-import-tools/fetcher';
 import { getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
+import CamphoricEventCreator from '@camphoric/camphoric-event-import-tools/creator';
+import { Organizations, organizationLoader } from '@camphoric/camphoric-event-import-tools/organizations';
 
 assert.equal(typeof EventImportSchema, 'object');
 assert.notDeepEqual(validateEventImport({}), []);
@@ -55,6 +57,18 @@ assert.deepEqual(validateEventImport({
 }), []);
 assert.equal(typeof Fetcher, 'function');
 assert.equal(typeof getAuthToken, 'function');
+assert.equal(typeof organizationLoader, 'function');
+assert.ok(new Organizations([{ id: 1, name: 'Org' }]).byName.Org);
+// The creator checks the data with the validator it's given, before any request
+assert.throws(() => new CamphoricEventCreator({
+  data: { organization: 'Org', event: { name: 'Test' }, reports: [], registration_types: [] },
+  validate: validateEventImport,
+  organizations: new Organizations([{ id: 1, name: 'Org' }]),
+  overrides: 'not a list',
+}), /overrides/);
+assert.throws(() => new CamphoricEventCreator({
+  data: {}, validate: () => ['bad'], organizations: new Organizations([]),
+}), /did not pass/);
 console.log('the packed packages load and validate under plain Node');
 "
 
