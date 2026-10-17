@@ -258,13 +258,17 @@ sequenceDiagram
   captured (the order stays pending: it still marks an online payment not finished, and "Check
   PayPal order" still settles it), unknown to PayPal (404), or not this invoice's. Anything else
   (PayPal down, rate-limited or refusing our credentials) is asked again each minute, for up to
-  a day. Orders whose capture never started — the registrant closed PayPal's window — aren't
-  asked about.
+  a day. Each run asks about at most 5, in no fixed order, and tells the worker's heartbeat it's
+  still working after each, so slow PayPal calls can't make the reconciler look stuck. "Check
+  PayPal order" settles the mark too when it records the order or finds it wasn't captured.
+  Orders whose capture never started — the registrant closed PayPal's window — aren't asked
+  about.
 - **No new payment while a capture is unsettled.** While an invoice carries that mark (up to a
   day), a new PayPal order on it — from the payment step or the pay page — and the payment
   step's pay-by-check are refused with 409 `not_payable` ("still being confirmed … don't pay
   again"): PayPal may have the money, and a second order would also overwrite the mark. The
-  worker normally settles it within about 16 minutes.
+  worker normally settles it within about 16 minutes, or a registrar can with "Check PayPal
+  order".
 - **Why `paypal_transaction_id` is unique.** It's PayPal's capture id (or refund id). Fetching the
   order first means a retried call, a double click, a lost capture reply or "Check PayPal order"
   after a capture all find it already captured and return the existing payment — one PayPal

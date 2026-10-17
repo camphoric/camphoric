@@ -31,6 +31,7 @@ from json_logic import jsonLogic
 from camphoric import models, pricing
 from camphoric.confirmations import queue_report
 from camphoric.paypal import PayPalClient, PayPalError
+from camphoric.worker import still_working
 from camphoric.templating.urls import admin_registration_url
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ PAYPAL_TEXT_LIMIT = 127
 # unrecorded (the process died); the worker then asks PayPal (#804).
 UNRECORDED_CAPTURE_AFTER = timedelta(minutes=15)
 UNRECORDED_CAPTURE_RETRIES_FOR = timedelta(days=1)
+UNRECORDED_CAPTURES_PER_RUN = 5
 CAPTURE_UNSETTLED = ('A PayPal payment on this invoice is still being confirmed. Please don\'t '
                      'pay again; check back in a few minutes.')
 
@@ -671,7 +673,8 @@ def check_paypal_order(invoice):
     '''
     A registrar's "Check PayPal order": ask PayPal about the invoice's pending
     order; record it if it was captured, else clear it (no money was taken).
-    Returns `(result, payment)`.
+    Either way a capture of it that hadn't settled has (#804). Returns
+    `(result, payment)`.
     '''
     order_id = invoice.pending_paypal_order_id
     if not order_id:
@@ -683,6 +686,7 @@ def check_paypal_order(invoice):
         except PayPalError as e:
             raise PaymentProblem('unknown' if e.unknown else 'mismatch', str(e))
         _check_belongs(invoice, order)
+        _capture_settled(invoice, order_id)
         if order.get('status') == 'COMPLETED':
             return 'recorded', record_capture(invoice, order, invoice.payment_type,
                                               'Recorded by checking PayPal')
@@ -700,8 +704,8 @@ def check_unrecorded_captures(now=None):
     PayPal says wasn't captured, doesn't know, or isn't this invoice's is
     settled: it's asked about once, and stays pending for "Check PayPal order"
     if it still is. Anything less definite (PayPal down, busy, or refusing our
-    credentials) is asked again next time, for a day. Returns how many it
-    recorded.
+    credentials) is asked again next time, for a day. A few are asked each
+    run. Returns how many it recorded.
     '''
     now = now or timezone.now()
     unsettled = models.Invoice.all_objects.filter(
@@ -709,12 +713,17 @@ def check_unrecorded_captures(now=None):
         paypal_capture_started_at__lt=now - UNRECORDED_CAPTURE_AFTER,
         paypal_capture_started_at__gte=now - UNRECORDED_CAPTURE_RETRIES_FOR)
     recorded = 0
-    for invoice in unsettled.select_related('registration__event'):
+    # A few per run, in no fixed order: each PayPal call may take a minute when
+    # PayPal is struggling, and the reconciler mustn't look stuck, nor marks
+    # that keep failing hold up the rest. The others wait for the next run.
+    some = unsettled.select_related('registration__event').order_by('?')
+    for invoice in some[:UNRECORDED_CAPTURES_PER_RUN]:
         try:
             recorded += _record_unrecorded_capture(invoice)
         except Exception:
             logger.exception(f'Checking PayPal order {invoice.paypal_capture_order_id} for '
                              f'invoice {invoice.id} failed; trying again next time')
+        still_working()
     return recorded
 
 

@@ -680,12 +680,42 @@ class UnrecordedCaptureSweepTests(FlowTestCase):
 
     def test_a_capture_recorded_meanwhile_isnt_counted_again(self):
         invoice = self.started_capture(minutes_ago=20)
-        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
-        invoices.check_paypal_order(invoice)  # a registrar got there first
-        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        captured = paypal_mocks.captured(self.registration, invoice, D('410.00'))
+        invoices.record_capture(invoice, captured, 'PayPal')  # recorded, mark left behind
+        self.reply(captured)
         self.assertEqual(invoices.check_unrecorded_captures(), 0)
         self.assertSettled()
         self.assertEqual(self.invoice().payments.count(), 1)
+
+    def test_check_paypal_order_settles_a_capture_it_records(self):
+        invoice = self.started_capture(minutes_ago=5)
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        self.assertEqual(invoices.check_paypal_order(invoice)[0], 'recorded')
+        self.assertSettled()
+        later = timezone.now() + datetime.timedelta(minutes=31)
+        self.assertEqual(confirmations.send_overdue_confirmations(later), 1)
+
+    def test_check_paypal_order_settles_a_capture_that_didnt_happen(self):
+        invoice = self.started_capture(minutes_ago=5)
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.assertEqual(invoices.check_paypal_order(invoice)[0], 'not_captured')
+        self.assertSettled()
+        self.start_paypal()  # the registrant can pay again
+        self.assertEqual(self.invoice().pending_paypal_order_id, paypal_mocks.ORDER_ID)
+
+    def test_a_few_are_asked_about_each_run(self):
+        self.started_capture(minutes_ago=20)
+        models.Invoice.objects.create(
+            registration=self.registration, origin=models.InvoiceOrigin.ADMIN,
+            amount=D('50.00'), paypal_capture_order_id='OTHER',
+            paypal_capture_started_at=timezone.now() - datetime.timedelta(minutes=20))
+        self.paypal.add_mock_response(503, {}, {})
+        with mock.patch.object(invoices, 'UNRECORDED_CAPTURES_PER_RUN', 1), \
+                mock.patch.object(invoices, 'still_working') as still_working, \
+                self.assertLogs('camphoric.invoices', level='WARNING'):
+            self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        self.assertEqual(len(self.paypal.requests), 2)  # the order made, and one asked about
+        still_working.assert_called_once()
 
     def test_a_capture_just_started_or_a_day_old_is_left_alone(self):
         self.started_capture(minutes_ago=5)
