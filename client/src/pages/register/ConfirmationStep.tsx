@@ -48,10 +48,10 @@ export function ConfirmationStep() {
     // Clear saved data (needs the config-derived key) and reset, once.
     if (finished.current || !config) return;
     finished.current = true;
-    clearRegistrationFormData(getRegistrationStorageKey(config));
-    clearSentRegistration(getRegistrationStorageKey(config));
+    clearRegistrationFormData(getRegistrationStorageKey(eventId, config));
+    clearSentRegistration(getRegistrationStorageKey(eventId, config));
     useRegistrationStore.getState().reset();
-  }, [snapshot, config, goToStep]);
+  }, [snapshot, eventId, config, goToStep]);
 
   if (!snapshot) return null;
 
