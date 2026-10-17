@@ -20,35 +20,41 @@ const config = makeRegisterConfig({
 vi.mock('store/registrationApi', () => ({ useRegistrationConfig: () => ({ data: config }) }));
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   navigate.mockClear();
   useRegistrationStore.getState().reset();
   localStorage.clear();
 });
 
+/** Puts a paid-for registration and its confirmation page in the store. */
+function confirm() {
+  const store = useRegistrationStore.getState();
+  store.setPaymentStep({
+    registrationUUID: 'u',
+    serverPricingResults: { total: 100, campers: [] },
+    paymentOptions: { title: '', description: '', default: 'Full', options: [] },
+    handlingPercent: null,
+  });
+  store.setConfirmationStep({
+    confirmationPage: 'Thanks, **paid by Check**! <img src=x onerror="alert(1)">',
+    serverPricingResults: { total: 100, campers: [] },
+    invoice: null,
+    ledger: {
+      price: 100,
+      handling_charges: 0,
+      total_owed: 100,
+      total_paid: 0,
+      balance: 100,
+      uninvoiced_balance: 0,
+    },
+  });
+}
+
 describe('ConfirmationStep', () => {
   it('shows the page the server rendered and clears saved data', () => {
-    const store = useRegistrationStore.getState();
-    store.setPaymentStep({
-      registrationUUID: 'u',
-      serverPricingResults: { total: 100, campers: [] },
-      paymentOptions: { title: '', description: '', default: 'Full', options: [] },
-      handlingPercent: null,
-    });
-    store.setConfirmationStep({
-      confirmationPage: 'Thanks, **paid by Check**! <img src=x onerror="alert(1)">',
-      serverPricingResults: { total: 100, campers: [] },
-      invoice: null,
-      ledger: {
-        price: 100,
-        handling_charges: 0,
-        total_owed: 100,
-        total_paid: 0,
-        balance: 100,
-        uninvoiced_balance: 0,
-      },
-    });
-    localStorage.setItem('Camp, 2026-7-1', '{"campers":[{}]}');
-    localStorage.setItem('Camp, 2026-7-1 (payment)', '{"paymentOptions":{}}');
+    confirm();
+    localStorage.setItem('Event 1: Camp, 2026-7-1', '{"campers":[{}]}');
+    localStorage.setItem('Event 1: Camp, 2026-7-1 (payment)', '{"paymentOptions":{}}');
 
     renderWithProviders(<ConfirmationStep />);
 
@@ -56,9 +62,21 @@ describe('ConfirmationStep', () => {
     expect(screen.getByText('paid by Check').tagName).toBe('STRONG');
     expect(document.querySelector('[onerror]')).toBeNull();
     // Saved form data, and the saved payment step, are cleared.
-    expect(localStorage.getItem('Camp, 2026-7-1')).toBeNull();
-    expect(localStorage.getItem('Camp, 2026-7-1 (payment)')).toBeNull();
+    expect(localStorage.getItem('Event 1: Camp, 2026-7-1')).toBeNull();
+    expect(localStorage.getItem('Event 1: Camp, 2026-7-1 (payment)')).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('still shows the page when site data is blocked', () => {
+    confirm();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Access is denied', 'SecurityError');
+    });
+
+    renderWithProviders(<ConfirmationStep />);
+
+    expect(screen.getByText('paid by Check')).toBeInTheDocument();
   });
 
   it('redirects to step 1 when there is no confirmation data', () => {

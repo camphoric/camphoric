@@ -998,7 +998,9 @@ Before any step renders, the app loads the registration config (`GET …/registe
   data to localStorage (debounced). The running price total is shown and updates live as the
   form changes, with a progress indication while it recalculates.
 - **Local persistence:** form data is saved to localStorage under a key derived from the
-  schema title and the event start date. On mount the step rehydrates from localStorage (if
+  event id, the schema title and the event start date, so two events never share saved data.
+  Every read and write of it tolerates storage being unavailable (site data blocked), losing
+  only the persistence, never the page. On mount the step rehydrates from localStorage (if
   present) and recomputes the price. After successful submission/confirmation the stored data
   is cleared (unless a `KEEP_REG_DATA` localStorage flag is set, used for debugging).
 - **Validation:** switches to live validation after the first failed submit. On error it
@@ -1037,7 +1039,8 @@ Before any step renders, the app loads the registration config (`GET …/registe
   enter a promo code just before advancing to payment. Applying it checks it with
   `checkpromo`, sending the config's `invitation` when there is one, since a code can exclude
   registration types (§15, DR-107): a usable code is shown as applied (with its label), kept in the registration
-  store and priced live (§9.2); a refused one shows the server's message by the field. An
+  store and priced live (§9.2) against the form as it stands when the answer arrives (edits made
+  while the code is checked count); a refused one shows the server's message by the field. An
   applied code stays applied only while the field still holds it, and can be removed. A code
   that has been typed but not applied blocks advancing, with a message by the field, until it's
   applied or cleared. Pressing Enter in the field applies the code; it doesn't submit the form.
@@ -2433,8 +2436,8 @@ a V2 may implement them more cleanly.
   client store is the small Zustand store for the in-progress registration. Don't push cached
   server data into the client store.
 - **Trailing slashes** on every admin API path are required by the backend.
-- **localStorage rehydration keyed on schema title + event start** — clear it after
-  confirmation; beware stale data across events.
+- **localStorage rehydration keyed on event id + schema title + event start** — clear it
+  after confirmation; beware stale data across events.
 - **Multi-key invalidation** for mutations that affect derived totals (`Camper`, `Payment`,
   `Invoice`, `CustomCharge` → also invalidate `Registration` queries; `Payment` ↔ `Invoice`).
 - **Admin UI schema derivation** (stripping `enumDisabled`, injecting `definitions`) keeps one

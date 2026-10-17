@@ -13,18 +13,19 @@ import { useRegistrationConfig } from 'store/registrationApi';
 import { getRegistrationStorageKey, loadSentRegistration, saveSentRegistration } from './storage';
 
 export function useReplacePaymentStep() {
-  const { data: config } = useRegistrationConfig(useEventId());
+  const eventId = useEventId();
+  const { data: config } = useRegistrationConfig(eventId);
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
   return useCallback(
     (paymentStep: ApiRegisterPaymentStep) => {
       setPaymentStep(paymentStep);
       if (!config) return;
-      const key = getRegistrationStorageKey(config);
+      const key = getRegistrationStorageKey(eventId, config);
       const saved = loadSentRegistration(key);
       if (saved?.paymentStep.registrationUUID === paymentStep.registrationUUID) {
         saveSentRegistration(key, { ...saved, paymentStep });
       }
     },
-    [config, setPaymentStep],
+    [eventId, config, setPaymentStep],
   );
 }

@@ -50,7 +50,7 @@ export function RegistrationStep() {
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
   const resumeSent = useRegistrationStore((state) => state.resumeSent);
 
-  const storageKey = config ? getRegistrationStorageKey(config) : '';
+  const storageKey = config ? getRegistrationStorageKey(eventId, config) : '';
   // A registration already sent from this browser: offer to go on paying for it.
   const [sentBefore, setSentBefore] = useState(() =>
     storageKey ? loadSentRegistration(storageKey) : null,
@@ -68,17 +68,19 @@ export function RegistrationStep() {
   useEffect(() => {
     if (rehydrated.current || !config) return;
     rehydrated.current = true;
-    const saved = loadRegistrationFormData(getRegistrationStorageKey(config));
+    const saved = loadRegistrationFormData(getRegistrationStorageKey(eventId, config));
     if (saved) {
       setRegistration(saved);
       setTotals(calculatePrice(config, saved, useRegistrationStore.getState().promo));
     }
-  }, [config, setRegistration, setTotals]);
+  }, [eventId, config, setRegistration, setTotals]);
 
   const promoEntry = usePromoCodeEntry(
     eventId,
     (applied: AppliedPromo | null) => {
-      if (config) setTotals(calculatePrice(config, registration, applied));
+      // Price what's in the form now, not what was there when Apply was clicked.
+      const current = useRegistrationStore.getState().registration;
+      if (config) setTotals(calculatePrice(config, current, applied));
     },
     config?.invitation,
   );
