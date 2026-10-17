@@ -1,13 +1,13 @@
 # Camphoric Client (Frontend) — Specification
 
-**Status:** Living draft for the V2 client rebuild — see §15 (Decision Records) for the
-decision history.
+**Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
+v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
 **Last updated:** 2026-10-17
 
-> **Note:** this is a *rebuild* (V2) spec. Once the rebuild ships, it will be renamed and
-> rewritten as the *current* client spec — at which point the migration rationale (the "the
-> current implementation used …" notes) and much of the Decision Records will naturally be
-> trimmed away.
+> **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
+> still carries the migration rationale (the "the current implementation used …" notes, which
+> describe v1) and the full Decision Records; those are trimmed when it is renamed and rewritten
+> as a plain spec of the client.
 
 ## Contents
 
@@ -698,8 +698,8 @@ an invoice of a completed registration is a 404.
 
 These are the fields the client reads/writes. They must stay in sync with the backend
 serializers. Define them as **explicit, `export`ed TypeScript types in a dedicated module**
-(e.g. `api-types.ts`) that callers import — **not** as ambient `declare global` interfaces like
-the current `global.d.ts` (which pollutes the global namespace and hides where types come from).
+(e.g. `api-types.ts`) that callers import — **not** as ambient `declare global` interfaces (which
+pollute the global namespace and hide where types come from).
 Until the types are generated from the backend (see below), they remain hand-maintained, so any
 serializer change must be mirrored here. (Rationale: §15, DR-27.)
 
@@ -3019,8 +3019,8 @@ Token/JWT refresh — a larger auth change, unnecessary given session auth.
 
 **Decision:** Define the API entity types (§5) as explicit, `export`ed TypeScript types in a
 dedicated module (e.g. `api-types.ts`) that callers import — not as ambient `declare global`
-interfaces (the current `global.d.ts` approach). For V1 they stay hand-maintained and must track
-the backend serializers.
+interfaces (the v1 client's `global.d.ts` approach). For V1 they stay hand-maintained and must
+track the backend serializers.
 **Context:** Ambient globals are convenient but pollute the global namespace, hide where a type
 comes from, and invite drift. An imported module fixes discoverability and tooling immediately,
 with **no backend change** — so it's in scope for V1.

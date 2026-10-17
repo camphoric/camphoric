@@ -36,22 +36,38 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
+      # Tags cut before the v1 client was retired (DR-115) hold the v2 client in
+      # client_v2/ and v1 in client/. Never build v1 under the v2 asset's name:
+      # --clobber below would replace the release's real v2 build.
+      - name: Find the v2 client at the tag
+        id: client
+        run: |
+          if [ -f client_v2/package.json ]; then
+            dir=client_v2
+          elif [ -f client/src/api-types.ts ]; then
+            dir=client
+          else
+            echo "::error::${{ inputs.tag }} has no v2 client (only the v1 app), so there is no frontend-build-v2.tar.gz to build."
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: ${{ steps.client.outputs.dir }}/package-lock.json
 
-      - name: Build the frontend (client/)
-        working-directory: client
+      - name: Build the frontend
+        working-directory: ${{ steps.client.outputs.dir }}
         run: |
           npm ci
           npm run build
 
       - name: Package the frontend build
-        # Contents of client/build (Vite outDir) at the archive root.
-        run: tar -czf frontend-build-v2.tar.gz -C client/build .
+        # Contents of the build (Vite outDir) at the archive root.
+        run: tar -czf frontend-build-v2.tar.gz -C "${{ steps.client.outputs.dir }}/build" .
 
       - name: Attach the frontend asset to the release
         env:

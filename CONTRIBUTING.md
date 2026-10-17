@@ -201,7 +201,7 @@ built client. Match the patterns already in the codebase rather than introducing
   httponly session cookie.
 - **The REST API is a contract with the client.** Changing field names, types, URL shapes
   (including trailing slashes), filter params, or status codes can break the frontend.
-  Coordinate such changes and update the client's `global.d.ts` types in the same change.
+  Coordinate such changes and update the client's `api-types.ts` in the same change.
 - **Naming convention:** standard CRUD serializers expose **snake_case** model fields
   (`paypal_enabled`, `registration_start`). The bespoke registration/payment/report endpoints
   build their own response shapes and use **camelCase** there (`dataSchema`, `preSubmitTemplate`,
