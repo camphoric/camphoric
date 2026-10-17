@@ -1,0 +1,13 @@
+{%- set ns = namespace(listed=0) -%}
+{%- set skipped = [] -%}
+First name,Last name,Lodging
+{% for camper in campers -%}
+{%- if not camper.attributes.first_name -%}
+{%- do skipped.append(camper.id) -%}
+{%- continue -%}
+{%- endif -%}
+{%- if ns.listed >= 1000 %}{% break %}{% endif -%}
+{%- set ns.listed = ns.listed + 1 -%}
+"{{ camper.attributes.first_name }}","{{ camper.attributes.last_name }}","{{ lodgingLookup[camper.lodging | string].name if camper.lodging else '' }}"
+{% endfor -%}
+Listed: {{ ns.listed }}, without a name: {{ skipped | length }}

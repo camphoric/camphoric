@@ -2,6 +2,10 @@
 The legacy reports under data/events/ still work in the sandboxed legacy environment
 (DR-37): every one parses, and each renders exactly as it did in the old,
 unsandboxed environment against the same (small) set of posted variables.
+Sample Camp (data/events/sample-camp) keeps legacy reports here that use the
+legacy environment's extensions and filters ({% do %}, {% continue %},
+regex_replace, money_fmt; {% break %} is only parsed), whichever camps'
+reports are in the repository.
 '''
 
 from pathlib import Path
@@ -45,11 +49,14 @@ def bundle():
               'stay': ['2026-12-30'], 'attributes': {'first_name': 'Pat', 'last_name': 'A'},
               'admin_attributes': {}, 'server_pricing_results': {'total': 100}}
     registration['campers'] = [camper]
+    # A camper with no answers yet, so reports' branches for one run too
+    unnamed = {'id': 21, 'registration': 10, 'lodging': None, 'sequence': 1, 'stay': [],
+               'attributes': {}, 'admin_attributes': {}, 'server_pricing_results': {}}
     return {
         'event': {'id': 1, 'name': 'Camp', 'registration_end': '2026-12-15'},
-        'campers': [camper],
+        'campers': [camper, unnamed],
         'registrations': [registration],
-        'camperLookup': {'20': camper},
+        'camperLookup': {'20': camper, '21': unnamed},
         'registrationLookup': {'10': registration},
         'lodgingLookup': {'1': root, '2': cabin},
         'registrationTypeLookup': {},

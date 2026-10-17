@@ -22,6 +22,7 @@
     "@camphoric/camphoric-event-import-tools": "*",
     "@camphoric/camphoric-event-lark": "*",
     "@camphoric/camphoric-event-ltacampout": "*",
+    "@camphoric/camphoric-event-sample-camp": "*",
     "cli-progress": "^3.12.0",
     "dotenv": "^18.0.4",
     "lodash": "^4.17.21",

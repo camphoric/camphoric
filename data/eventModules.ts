@@ -10,6 +10,7 @@ export const EVENTS = {
   lark: () => import('@camphoric/camphoric-event-lark'),
   familyweek: () => import('@camphoric/camphoric-event-familyweek'),
   harmony: () => import('@camphoric/camphoric-event-harmony'),
+  'sample-camp': () => import('@camphoric/camphoric-event-sample-camp'),
 } satisfies Record<string, () => Promise<LoadedEventModule>>;
 
 export type EventName = keyof typeof EVENTS;
