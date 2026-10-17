@@ -513,6 +513,34 @@ test.describe('Lodging timeline', () => {
     await expect(page.getByTestId('selected-camper')).toHaveText('Selected: Ani Skywalker');
   });
 
+  test('a camper in a unit with no days is unassigned until dragged in', async ({ page }) => {
+    await page.goto(story('lodging-timeline--assignment'));
+    // Inara Serra is in Off Site with no days, so she's unassigned with no bar.
+    const sidebar = page.getByText(/^Unassigned \(\d+\)$/);
+    await expect(sidebar).toHaveText('Unassigned (4)');
+    const inara = page.getByRole('button', { name: 'Inara Serra' });
+    await expect(inara).toHaveCount(1);
+
+    // Drag her onto Off Site's row (where Kaylee Frye's bar is).
+    const from = (await inara.boundingBox())!;
+    const to = (await page.getByRole('button', { name: 'Kaylee Frye' }).boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+    await page.mouse.up();
+
+    await expect(sidebar).toHaveText('Unassigned (3)');
+    await expect(inara).toHaveCount(1);
+    // She's now a bar in Off Site's row: right of its name, in the slot under Kaylee's bar.
+    const bar = (await inara.boundingBox())!;
+    const kaylee = (await page.getByRole('button', { name: 'Kaylee Frye' }).boundingBox())!;
+    const offSite = (await page
+      .getByRole('button', { name: 'Off Site', exact: true })
+      .boundingBox())!;
+    expect(bar.x).toBeGreaterThan(offSite.x + offSite.width);
+    expect(bar.y - kaylee.y).toBeCloseTo(30, 0); // a bar's height and the gap below it
+  });
+
   test('the view narrows to any lodging, a top-level unit included', async ({ page }) => {
     await page.goto(story('lodging-timeline--assignment'));
     await page.getByRole('textbox', { name: 'Show lodging' }).fill('Off');

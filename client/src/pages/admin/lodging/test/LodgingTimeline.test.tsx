@@ -34,6 +34,46 @@ function Timeline({ stay, onAssign }: { stay: string[]; onAssign: () => void }) 
   );
 }
 
+describe('LodgingTimeline campers with no days', () => {
+  const inUnit = (id: number, first: string, stay: string[] | null) =>
+    ({
+      id,
+      attributes: { first_name: first, last_name: 'Ross' },
+      lodging: 10,
+      stay,
+    }) as unknown as ApiCamper;
+
+  it.each([
+    ['no stay', null],
+    ['an empty stay', []],
+    ['a stay outside the event', ['2026-09-01']],
+    ['a stay of departure day alone', [DAYS[3]]],
+  ])('lists a camper in a unit with %s in the sidebar, not as a bar', (_, stay) => {
+    const annie = inUnit(3, 'Annie', stay);
+    const placed = bob(STAY);
+    renderWithProviders(
+      <LodgingTimeline
+        days={DAYS}
+        leaves={leavesWith([annie, placed])}
+        filterNodes={FILTER_NODES}
+        shownLodgingIds={[]}
+        onShownLodgingChange={vi.fn()}
+        unassigned={[annie]}
+        defaultStayLength={2}
+        onAssign={vi.fn()}
+        onUnassign={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Unassigned (1)')).toBeInTheDocument();
+    // Only the sidebar's chip: no bar, which would share its drag id.
+    expect(screen.getAllByRole('button', { name: 'Annie Ross' })).toHaveLength(1);
+    // A camper there with days is still a bar, in the row's first slot (Annie takes none).
+    const bar = screen.getByRole('button', { name: 'Bob Ross' });
+    expect(bar.style.width).toBe(barWidth(3));
+    expect(bar.style.top).toBe('6px');
+  });
+});
+
 /** Drags the bar's right edge by a number of days. */
 function resize(bar: HTMLElement, byDays: number) {
   const handle = bar.lastElementChild as HTMLElement;

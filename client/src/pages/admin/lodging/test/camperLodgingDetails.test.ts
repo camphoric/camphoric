@@ -112,6 +112,18 @@ describe('camperLodgingDetails', () => {
     expect(details.unitNotes).toBe('');
   });
 
+  it('still names the unit of a camper in one with no days', () => {
+    // As registration leaves a "Let registrar assign" choice: unassigned on the timeline.
+    const details = camperLodgingDetails({
+      camper: camper({ lodging: 3, lodging_requested: 3, stay: null }),
+      event,
+      lodgingLookup,
+    });
+    expect(details.assigned).toBe('Camp 1 → Cabin → Cabin 05');
+    expect(details.requested).toBe('Camp 1 → Cabin → Cabin 05');
+    expect(details.stay).toEqual([]);
+  });
+
   it('copes with no registration, type or request', () => {
     const details = camperLodgingDetails({
       camper: camper({ lodging: null, lodging_requested: null, lodging_shared: null }),

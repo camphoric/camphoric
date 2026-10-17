@@ -85,7 +85,6 @@ export function EventAdminLodging() {
   const search = useSearch({ from: FROM });
   const navigate = useNavigate();
   const { data: event } = eventHooks.useById(eventId);
-  const data = useLodgingData(eventId);
   const { data: registrations } = registrationHooks.useList({ completed: 1, event: eventId });
   const registrationTypeLookup = useRegistrationTypeLookup(eventId);
   const move = useLodgingAssignment();
@@ -105,6 +104,7 @@ export function EventAdminLodging() {
     });
 
   const days = useMemo(() => (event ? eventDays(event.start, event.end) : []), [event]);
+  const data = useLodgingData(eventId, days);
   const filterNodes = useMemo(() => lodgingFilterNodes(data?.tree), [data]);
   const shownLodgingIds = search.lodgingFilter?.split(',') ?? [];
 

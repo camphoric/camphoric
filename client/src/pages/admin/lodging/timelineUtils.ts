@@ -4,7 +4,7 @@
  * columns.
  */
 
-import type { AugmentedLodging, Scalar } from 'api-types';
+import type { ApiCamper, AugmentedLodging, LodgingLookup, Scalar } from 'api-types';
 import { DateTime } from 'luxon';
 import { listLodgingTree } from 'store/augmented';
 
@@ -43,6 +43,34 @@ export function staySpan(
   const indices = stayDayIndices(stay, days);
   if (indices.length === 0) return null;
   return { start: indices[0], end: indices[indices.length - 1] };
+}
+
+/**
+ * Whether a stay has any day a camper can be present — an event day but
+ * departure day — so the timeline draws it as a bar within the row and the
+ * camper editor ticks it. A stay of departure day alone (the server accepts
+ * one, DR-65) has no such day: its bar would start past the row's end.
+ */
+export function hasStayDays(stay: string[] | null | undefined, days: string[]): boolean {
+  return stayDayIndices(stay, stayableDays(days)).length > 0;
+}
+
+/**
+ * Whether a camper is unassigned on the timeline: their `lodging` is null or
+ * not a leaf unit, or it's a leaf but their stay has none of the days a camper
+ * can be present (`hasStayDays`).
+ * Registration leaves a camper on the node they chose, with no stay — often a
+ * branch ("Cabins"), but sometimes a leaf ("Let registrar assign my lodging") —
+ * and such a camper has no bar to drag, so they're listed with the unassigned
+ * until placed. One in a leaf still counts toward that unit's occupancy.
+ */
+export function isUnassigned(
+  camper: ApiCamper,
+  lodgingLookup: LodgingLookup,
+  days: string[],
+): boolean {
+  const lodging = camper.lodging == null ? undefined : lodgingLookup[String(camper.lodging)];
+  return !lodging?.isLeaf || !hasStayDays(camper.stay, days);
 }
 
 /**

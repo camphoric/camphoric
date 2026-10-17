@@ -55,6 +55,13 @@ describe('camperLodgingSummary', () => {
     });
   });
 
+  it('still gives the unit of a camper in one with no days, to tick some', () => {
+    expect(camperLodgingSummary(ANNIE, lookup)).toMatchObject({
+      path: 'Camp 1 → Cabins → Cabin A',
+      stay: [],
+    });
+  });
+
   it('reads a camper left on a non-leaf node as unassigned', () => {
     expect(camperLodgingSummary(RIVER, lookup).path).toBeNull();
   });

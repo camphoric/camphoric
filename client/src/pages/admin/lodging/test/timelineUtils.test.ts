@@ -1,9 +1,11 @@
-import type { AugmentedLodging } from 'api-types';
+import type { ApiCamper, AugmentedLodging, LodgingLookup } from 'api-types';
 import { describe, expect, it } from 'vitest';
 
 import {
   areConsecutiveDays,
   dayLabel,
+  hasStayDays,
+  isUnassigned,
   leafSections,
   leavesUnder,
   lodgingFilterNodes,
@@ -53,6 +55,52 @@ describe('staySpan', () => {
   });
   it('returns null for an empty stay', () => {
     expect(staySpan([], DAYS)).toBeNull();
+  });
+});
+
+describe('hasStayDays', () => {
+  it('is true when a stay has an event day', () => {
+    expect(hasStayDays(['2026-10-15', '2026-10-17'], DAYS)).toBe(true);
+  });
+  it('is false for no stay, an empty one, or one outside the event', () => {
+    expect(hasStayDays(null, DAYS)).toBe(false);
+    expect(hasStayDays([], DAYS)).toBe(false);
+    expect(hasStayDays(['2026-10-01', '2026-10-02'], DAYS)).toBe(false);
+  });
+  it('doesn’t count departure day, which no one stays over', () => {
+    expect(hasStayDays(['2026-10-19'], DAYS)).toBe(false);
+    expect(hasStayDays(['2026-10-18', '2026-10-19'], DAYS)).toBe(true);
+  });
+  it('counts a one-day event’s only day', () => {
+    expect(hasStayDays(['2026-10-16'], ['2026-10-16'])).toBe(true);
+  });
+});
+
+describe('isUnassigned', () => {
+  const lookup = {
+    '3': { id: 3, isLeaf: false },
+    '10': { id: 10, isLeaf: true },
+  } as unknown as LodgingLookup;
+  const camper = (lodging: number | null, stay: string[] | null) =>
+    ({ id: 1, lodging, stay }) as unknown as ApiCamper;
+
+  it('is false for a camper in a leaf with days in the event', () => {
+    expect(isUnassigned(camper(10, ['2026-10-16', '2026-10-17']), lookup, DAYS)).toBe(false);
+  });
+  it('is true with no lodging, or on a non-leaf node', () => {
+    expect(isUnassigned(camper(null, null), lookup, DAYS)).toBe(true);
+    expect(isUnassigned(camper(3, ['2026-10-16']), lookup, DAYS)).toBe(true);
+  });
+  it('is true in an unknown node', () => {
+    expect(isUnassigned(camper(99, ['2026-10-16']), lookup, DAYS)).toBe(true);
+  });
+  it('is true in a leaf with no stay, an empty one, or one outside the event', () => {
+    expect(isUnassigned(camper(10, null), lookup, DAYS)).toBe(true);
+    expect(isUnassigned(camper(10, []), lookup, DAYS)).toBe(true);
+    expect(isUnassigned(camper(10, ['2026-09-01']), lookup, DAYS)).toBe(true);
+  });
+  it('is true in a leaf with only departure day', () => {
+    expect(isUnassigned(camper(10, ['2026-10-19']), lookup, DAYS)).toBe(true);
   });
 });
 
