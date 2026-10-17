@@ -4,8 +4,9 @@
  * `?reportId=%2271%22`, which JSON-quotes a string that looks like a number so
  * it reads back as a string. Reading never turns a value into a number, so a
  * typed or pasted `?reportId=71` selects the report too, and the query string
- * the registration flow sends to the server (an invitation code) is the one in
- * the address bar. Links made with quoted values still read the same.
+ * the registration flow sends to the server (an invitation code), which it
+ * writes from the parsed search, carries no quotes. Links made with quoted
+ * values still read the same.
  */
 
 /** A value written JSON-quoted (`"71"`), as the router's default did: its string. */
