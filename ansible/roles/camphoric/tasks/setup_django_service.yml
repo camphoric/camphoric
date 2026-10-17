@@ -10,6 +10,7 @@
   template:
     src: camphoric.service.j2
     dest: /etc/systemd/system/camphoric.service
+  notify: Restart camphoric
 
 - name: Start camphoric socket listener
   ansible.builtin.systemd:
@@ -37,3 +38,9 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
+
+# Restart Django now, if setup_django.yml or the unit file above changed
+# anything, rather than at the end of the play, so a later task's failure
+# (e.g. the sample data import) doesn't leave the old code running.
+- name: Restart camphoric if its code, settings or unit changed
+  ansible.builtin.meta: flush_handlers

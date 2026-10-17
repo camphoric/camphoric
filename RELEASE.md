@@ -99,7 +99,9 @@ https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2
 
 The Ansible playbook deploys the code already checked out on the host: it builds `client/`
 there (`npm ci && npm run build`) and installs the build into
-`server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. The
+`server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. It
+then collects Django's static files (which Django serves, with `DEBUG` off, only from
+`STATIC_ROOT`) and restarts the `camphoric` service, so the new code and build take effect. The
 role does not yet check out `camphoric_release`
 ([#797](https://github.com/camphoric/camphoric/issues/797)), so check out the tag on the host before
 running it.
