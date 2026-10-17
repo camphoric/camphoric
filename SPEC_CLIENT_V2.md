@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-120)
+- §15 — Decision Records (DR-1…DR-128)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1958,16 +1958,21 @@ The e-payment handling fee isn't part of the price: it's charged on each invoice
 
 Algorithm:
 1. Build a logic context `data = { event, registration: { ...formData, registration_type,
-   created_at: {epoch,day,month,year} }, pricing, date }`.
+   created_at: {epoch,day,month,year} }, pricing, date }`. `date` is now, and so is
+   `created_at` (the registration isn't saved yet); their `year`/`month`/`day` are the day in
+   UTC, as the server's are, not in the browser's time zone (§15, DR-128).
 2. Identify camper date properties (schema properties with `type: string, format: date`) so
    they can be converted from `"YYYY-MM-DD"` to `{ year, month, day }` for logic evaluation.
 3. **Registration-level:** for each `{ var, exp }` component, evaluate `exp` with json-logic
-   against `data`, store `results[var]` (NaN → 0), and feed it back into `data[var]` so later
-   components can reference it.
-4. **Camper-level:** for each camper, set `data.camper = { ...camper, index }` (converting its
-   date props), then for each `{ var, exp }` component evaluate and store per-camper results;
-   when the value is numeric/boolean, **accumulate** it into the registration-level
-   `results[var]` (running total across campers) and feed back into `data[var]`. A camper's
+   against `data` and round the value as money (below; a boolean counts as 1 or 0, and any other
+   non-number is kept as it is), store it in `results[var]` (NaN → 0), and feed it back into
+   `data[var]` so later components can reference it.
+4. **Camper-level:** for each camper, set `data.camper = { ...camper, index, custom_charges:
+   [] }` (converting its date props; a camper being registered has no custom charges), then for
+   each `{ var, exp }` component evaluate and store per-camper results, as they are, and feed
+   every result, a number or not, back into `data[var]`. When the value is numeric/boolean,
+   **accumulate** it into the registration-level `results[var]` (a running total across
+   campers, rounded as money after each camper). A camper's
    `total` below 0 is 0, both in its breakdown and in what it adds to `results.total`. Append
    the per-camper breakdown to `results.campers[]`. Once every camper is in, a `results.total`
    below 0 is 0 (§15, DR-68); only that sum is floored, not the registration-level `total`
@@ -1983,7 +1988,7 @@ Algorithm:
      has a numeric one) and at what's left of `results.total`. Each camper's discount is stored
      as `promo: -discount` in its breakdown and taken off its `total`.
    The discount (for `camper` scope, the sum) is stored as `results.promo = -discount` and
-   taken off `results.total`.
+   taken off `results.total`. Each discount, and each total it comes off, is rounded as money.
 
 **Rounding money:** to the cent, a half cent up (away from zero), going by the amount as
 written in its shortest decimal form, not the binary float under it: 2.675 rounds to 2.68. The
@@ -2962,7 +2967,13 @@ records **Voucher** (and manual entries). This matches existing behavior (§7.2,
 
 **Decision:** A shared fixture set (inputs → expected `PricingResults`) committed once and run
 against **both** `calculatePrice` (client, Vitest) and `calculate_price` (server, Django) in CI;
-any pricing change must update both (§9.2, §11).
+any pricing change must update both (§9.2, §11). The set is one JSON file,
+`server/tests/data/pricing_parity.json`: each case gives the event's pricing and logic, the
+registration and its campers, an optional promo code, the instant it's priced at, and the whole
+expected result. `server/tests/test_pricing_parity.py` and the client's
+`pricing/test/pricingParity.test.ts` both run every case and compare exactly. The file sits with
+the server's tests, which run without the client; the client test reads it when it runs, so the
+client still builds on its own.
 **Context:** Parity is a hard requirement (mismatched totals = wrong charge). A shared
 golden-fixture suite is the durable guard against drift.
 
@@ -4977,6 +4988,20 @@ registration exists before offering "Continue to payment" — an extra request o
 the form, and it still needs this handling for one deleted while the payment page is open. Key
 on the server's message — it's Django's default wording, not a contract.
 
+### DR-128 — Pricing reads the date in UTC
+
+**Decision:** The pricing context's `date` (and a new registration's `created_at`) gives the day,
+month and year in UTC, on both sides: the server takes them from `timezone.now()`, which is UTC,
+and the client from the `getUTC…` parts of now (§9.2).
+**Context:** #810: the client read the browser's local date while the server read UTC, so a rule
+written with `date.day`/`date.month` (an early-bird deadline, say) changed price at a different
+moment on each side. Registrants in the Americas saw the early price until midnight local time,
+hours after it had ended on the server, then a higher total at payment.
+**Alternatives:** Read the date in the event's time zone on both sides (DR-97) — what an organizer
+most likely means by a deadline day, but it changes the server's prices for every event and
+needs the zone in the register config; it remains possible future work. Keep the browser's local
+date — the client's estimate would keep disagreeing with what the server charges.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -5066,9 +5091,6 @@ must be coordinated with the backend. Grouped by status.
   Confirm `GET /api/user` is cheap enough to poll and that hitting it refreshes the session.
 - **Verify `POST /api/logout`** exists and behaves (clears the session, reports logged-out). A
   `LogoutView` appears to exist — confirm path/behavior (DR-9).
-- **Pricing-parity fixtures (DR-14):** a shared fixture set (inputs → expected `PricingResults`)
-  plus a **server-side** test running them against `calculate_price`, so client/server parity is
-  enforced in CI.
 
 ### A.3 — Future (with the plugin system, §14)
 

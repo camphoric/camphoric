@@ -660,7 +660,8 @@ class TestHandlingFeeRounding(unittest.TestCase):
 class TestPromoCodePricing(unittest.TestCase):
     '''
     A promo code's discount (SPEC §9.2, DR-67). The same cases, with the same
-    inputs and results, are in client/src/pricing/test/fixtures.ts.
+    inputs and results, are among the shared parity fixtures
+    (tests/data/pricing_parity.json), which the client runs too.
     '''
 
     def setUp(self):
@@ -736,7 +737,8 @@ class TestPromoCodePricing(unittest.TestCase):
 class TestNoNegativeTotals(unittest.TestCase):
     '''
     No total is negative (SPEC §9.2, DR-68). The same cases, with the same
-    inputs and results, are in client/src/pricing/test/fixtures.ts.
+    inputs and results, are among the shared parity fixtures
+    (tests/data/pricing_parity.json), which the client runs too.
     '''
 
     def setUp(self):

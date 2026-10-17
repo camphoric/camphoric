@@ -1,0 +1,464 @@
+{
+  "about": [
+    "Pricing parity fixtures (SPEC §9.2, DR-14): each case is priced by BOTH engines, the",
+    "server's calculate_price (server/tests/test_pricing_parity.py) and the client's",
+    "calculatePrice (client/src/pricing/test/pricingParity.test.ts), and both must give",
+    "`expected` exactly. Any pricing change updates this file and both engines.",
+    "A case: `now` (the instant it's priced at, UTC), `event` (pricing, registrationPricingLogic,",
+    "camperPricingLogic, and optionally camperSchema and epaymentHandling), `registration`",
+    "(its attributes, without campers), `campers` (each camper's attributes), an optional",
+    "`promo` ({scope, pricingLogic}), and `expected` (the whole PricingResults)."
+  ],
+  "fixtures": [
+    {
+      "name": "the handling fee isn’t part of the price (DR-88)",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "epaymentHandling": 3,
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "expected": {
+        "total": 450,
+        "tuition": 400,
+        "campers": [
+          { "tuition": 200, "total": 200 },
+          { "tuition": 200, "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "no campers yields just the registration-level total",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [],
+      "expected": { "total": 50, "campers": [] }
+    },
+    {
+      "name": "promo: a flat discount comes off the total (DR-67)",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "promo": { "scope": "registration", "pricingLogic": 30 },
+      "expected": {
+        "total": 420,
+        "tuition": 400,
+        "promo": -30,
+        "campers": [
+          { "tuition": 200, "total": 200 },
+          { "tuition": 200, "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "promo: a percentage of a summed line",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "promo": { "scope": "registration", "pricingLogic": { "*": [{ "var": "tuition" }, 0.4] } },
+      "expected": {
+        "total": 290,
+        "tuition": 400,
+        "promo": -160,
+        "campers": [
+          { "tuition": 200, "total": 200 },
+          { "tuition": 200, "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "promo: the discount is capped at the total",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "promo": { "scope": "registration", "pricingLogic": 1000 },
+      "expected": {
+        "total": 0,
+        "tuition": 400,
+        "promo": -450,
+        "campers": [
+          { "tuition": 200, "total": 200 },
+          { "tuition": 200, "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "promo: a negative discount is none",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "promo": { "scope": "registration", "pricingLogic": { "-": [0, 10] } },
+      "expected": {
+        "total": 450,
+        "tuition": 400,
+        "promo": 0,
+        "campers": [
+          { "tuition": 200, "total": 200 },
+          { "tuition": 200, "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "promo: a per-camper discount, capped at each camper’s total",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "promo": {
+        "scope": "camper",
+        "pricingLogic": {
+          "if": [{ "==": [{ "var": "camper.index" }, 0] }, 1000, { "*": [{ "var": "tuition" }, 0.5] }]
+        }
+      },
+      "expected": {
+        "total": 150,
+        "tuition": 400,
+        "promo": -300,
+        "campers": [
+          { "tuition": 200, "total": 0, "promo": -200 },
+          { "tuition": 200, "total": 100, "promo": -100 }
+        ]
+      }
+    },
+    {
+      "name": "promo: a discount is to the cent, a half cent up",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50 },
+        "registrationPricingLogic": [{ "var": "total", "exp": { "var": "pricing.registration_fee" } }],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "var": "pricing.camp_fee" } },
+          { "var": "total", "exp": { "var": "tuition" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}],
+      "promo": { "scope": "camper", "pricingLogic": 10.005 },
+      "expected": {
+        "total": 239.99,
+        "tuition": 200,
+        "promo": -10.01,
+        "campers": [{ "tuition": 200, "total": 189.99, "promo": -10.01 }]
+      }
+    },
+    {
+      "name": "a camper’s total is never below 0 (DR-68)",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50, "campership": 100 },
+        "registrationPricingLogic": [
+          {
+            "var": "total",
+            "exp": { "-": [{ "var": "pricing.registration_fee" }, { "var": ["registration.credit", 0] }] }
+          }
+        ],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "if": [{ "var": "camper.free" }, 0, { "var": "pricing.camp_fee" }] } },
+          { "var": "campership", "exp": { "var": "pricing.campership" } },
+          { "var": "total", "exp": { "-": [{ "var": "tuition" }, { "var": "campership" }] } }
+        ]
+      },
+      "registration": {},
+      "campers": [{ "free": true }, {}],
+      "expected": {
+        "total": 150,
+        "tuition": 200,
+        "campership": 200,
+        "campers": [
+          { "tuition": 0, "campership": 100, "total": 0 },
+          { "tuition": 200, "campership": 100, "total": 100 }
+        ]
+      }
+    },
+    {
+      "name": "the registration’s total is never below 0",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50, "campership": 100 },
+        "registrationPricingLogic": [
+          {
+            "var": "total",
+            "exp": { "-": [{ "var": "pricing.registration_fee" }, { "var": ["registration.credit", 0] }] }
+          }
+        ],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "if": [{ "var": "camper.free" }, 0, { "var": "pricing.camp_fee" }] } },
+          { "var": "campership", "exp": { "var": "pricing.campership" } },
+          { "var": "total", "exp": { "-": [{ "var": "tuition" }, { "var": "campership" }] } }
+        ]
+      },
+      "registration": { "credit": 500 },
+      "campers": [{}, {}],
+      "expected": {
+        "total": 0,
+        "tuition": 400,
+        "campership": 200,
+        "campers": [
+          { "tuition": 200, "campership": 100, "total": 100 },
+          { "tuition": 200, "campership": 100, "total": 100 }
+        ]
+      }
+    },
+    {
+      "name": "a registration-level credit still comes off the campers’ totals",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200, "registration_fee": 50, "campership": 100 },
+        "registrationPricingLogic": [
+          {
+            "var": "total",
+            "exp": { "-": [{ "var": "pricing.registration_fee" }, { "var": ["registration.credit", 0] }] }
+          }
+        ],
+        "camperPricingLogic": [
+          { "var": "tuition", "exp": { "if": [{ "var": "camper.free" }, 0, { "var": "pricing.camp_fee" }] } },
+          { "var": "campership", "exp": { "var": "pricing.campership" } },
+          { "var": "total", "exp": { "-": [{ "var": "tuition" }, { "var": "campership" }] } }
+        ]
+      },
+      "registration": { "credit": 100 },
+      "campers": [{}, {}],
+      "expected": {
+        "total": 150,
+        "tuition": 400,
+        "campership": 200,
+        "campers": [
+          { "tuition": 200, "campership": 100, "total": 100 },
+          { "tuition": 200, "campership": 100, "total": 100 }
+        ]
+      }
+    },
+    {
+      "name": "the date is UTC’s: the evening of Feb 28 in the Americas is already Mar 1",
+      "now": "2026-03-01T03:30:00Z",
+      "event": {
+        "pricing": { "early": 100, "regular": 200 },
+        "registrationPricingLogic": [
+          { "var": "epoch", "exp": { "var": "date.epoch" } },
+          { "var": "year", "exp": { "var": "date.year" } },
+          { "var": "month", "exp": { "var": "date.month" } },
+          { "var": "day", "exp": { "var": "date.day" } },
+          { "var": "created_day", "exp": { "var": "registration.created_at.day" } }
+        ],
+        "camperPricingLogic": [
+          {
+            "var": "total",
+            "exp": {
+              "if": [
+                { "<": [{ "var": "date.month" }, 3] },
+                { "var": "pricing.early" },
+                { "var": "pricing.regular" }
+              ]
+            }
+          }
+        ]
+      },
+      "registration": {},
+      "campers": [{}],
+      "expected": {
+        "epoch": 1772335800,
+        "year": 2026,
+        "month": 3,
+        "day": 1,
+        "created_day": 1,
+        "total": 200,
+        "campers": [{ "total": 200 }]
+      }
+    },
+    {
+      "name": "a camper’s text line feeds later lines",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "early": 100, "regular": 200 },
+        "registrationPricingLogic": [],
+        "camperPricingLogic": [
+          { "var": "tier", "exp": { "if": [{ "var": "camper.early" }, "early", "regular"] } },
+          {
+            "var": "total",
+            "exp": {
+              "if": [
+                { "==": [{ "var": "tier" }, "early"] },
+                { "var": "pricing.early" },
+                { "var": "pricing.regular" }
+              ]
+            }
+          }
+        ]
+      },
+      "registration": {},
+      "campers": [{ "early": true }, {}],
+      "expected": {
+        "total": 300,
+        "campers": [
+          { "tier": "early", "total": 100 },
+          { "tier": "regular", "total": 200 }
+        ]
+      }
+    },
+    {
+      "name": "registration lines are to the cent, and a non-number is kept as it is",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": {},
+        "registrationPricingLogic": [
+          { "var": "third", "exp": { "/": [100, 3] } },
+          { "var": "half_cent", "exp": { "*": [2.675, 1] } },
+          { "var": "plan", "exp": { "var": "registration.plan" } },
+          { "var": "has_car", "exp": { "var": "registration.car" } },
+          { "var": "family_discount", "exp": { "if": [{ "==": [{ "var": "plan" }, "family"] }, -10, 0] } },
+          {
+            "var": "total",
+            "exp": {
+              "+": [{ "var": "third" }, { "var": "third" }, { "var": "third" }, { "var": "family_discount" }]
+            }
+          }
+        ],
+        "camperPricingLogic": []
+      },
+      "registration": { "plan": "family", "car": true },
+      "campers": [],
+      "expected": {
+        "third": 33.33,
+        "half_cent": 2.68,
+        "plan": "family",
+        "has_car": 1,
+        "family_discount": -10,
+        "total": 89.99,
+        "campers": []
+      }
+    },
+    {
+      "name": "camper lines sum to the cent, camper by camper",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "fee": 10.005 },
+        "registrationPricingLogic": [],
+        "camperPricingLogic": [
+          { "var": "fee", "exp": { "var": "pricing.fee" } },
+          { "var": "total", "exp": { "var": "fee" } }
+        ]
+      },
+      "registration": {},
+      "campers": [{}, {}],
+      "expected": {
+        "fee": 20.02,
+        "total": 20.02,
+        "campers": [
+          { "fee": 10.005, "total": 10.005 },
+          { "fee": 10.005, "total": 10.005 }
+        ]
+      }
+    },
+    {
+      "name": "a camper being registered has no custom charges",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "pricing": { "camp_fee": 200 },
+        "registrationPricingLogic": [],
+        "camperPricingLogic": [
+          { "var": "charges", "exp": { "var": ["camper.custom_charges", "none"] } },
+          {
+            "var": "total",
+            "exp": {
+              "+": [
+                { "var": "pricing.camp_fee" },
+                {
+                  "reduce": [
+                    { "var": "camper.custom_charges" },
+                    { "+": [{ "var": "accumulator" }, { "var": "current.amount" }] },
+                    0
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "registration": {},
+      "campers": [{}],
+      "expected": {
+        "total": 200,
+        "campers": [{ "charges": [], "total": 200 }]
+      }
+    },
+    {
+      "name": "a camper’s date properties are {year, month, day}",
+      "now": "2026-06-01T12:00:00Z",
+      "event": {
+        "camperSchema": {
+          "type": "object",
+          "properties": { "birthdate": { "type": "string", "format": "date" } }
+        },
+        "pricing": {},
+        "registrationPricingLogic": [],
+        "camperPricingLogic": [
+          { "var": "birth_month", "exp": { "var": "camper.birthdate.month" } },
+          { "var": "total", "exp": { "if": [{ "<": [{ "var": "camper.birthdate.year" }, 2010] }, 300, 150] } }
+        ]
+      },
+      "registration": {},
+      "campers": [{ "birthdate": "2015-06-01" }, { "birthdate": "1980-12-31" }],
+      "expected": {
+        "birth_month": 18,
+        "total": 450,
+        "campers": [
+          { "birth_month": 6, "total": 150 },
+          { "birth_month": 12, "total": 300 }
+        ]
+      }
+    }
+  ]
+}
