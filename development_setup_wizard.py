@@ -107,7 +107,7 @@ def create_env_files(args):
 
 
 def check_node_modules_folder(args):
-    dir_name = './client/node_modules'
+    dir_name = './client_v2/node_modules'
     contents = os.listdir(dir_name) if os.path.exists(dir_name) else []
 
     if args.preserve:

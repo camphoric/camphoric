@@ -4,7 +4,7 @@
  * registration/camper/lodging lookups and the report template-variable bundle.
  * The hooks that fetch and feed them live in `hooks/useReportData.ts`.
  *
- * Behavior mirrors the v1 client (`client/src/hooks/api.ts`) exactly, since the
+ * Behavior mirrors the v1 client (`client/src/hooks/api.ts`, since removed) exactly, since the
  * Handlebars helpers and reports depend on these shapes (DR-27): registration
  * totals (owed/payments/balance, from the server's ledger — §9.7), camper
  * filtering to completed registrations, and the lodging tree with

@@ -4,8 +4,6 @@
 #
 # Commit messages follow RELEASE.md: runtime dependencies as `fix(deps)` (a
 # patch release), development-only ones as `chore(deps-dev)` (no release).
-#
-# client/ (the v1 app) is left out: it's being retired, not updated.
 
 version: 2
 

@@ -23,14 +23,29 @@
         dest: "{{ camphoric_folder }}/server/camphoric_server/settings_override.py"
         mode: 0664
 
-    # These are static files built from the main branch
-    - name: Clone camphoric js-main repo
-      ansible.builtin.git:
-        repo: 'https://github.com/camphoric/camphoric.git'
+    # The frontend (client_v2/) is built from the checkout on the machine, so it
+    # always matches the server code beside it.
+    - name: Install the frontend's npm modules
+      ansible.builtin.shell:
+        chdir: "{{camphoric_folder}}/client_v2"
+        cmd: "npm ci"
+
+    - name: Build the frontend
+      ansible.builtin.shell:
+        chdir: "{{camphoric_folder}}/client_v2"
+        cmd: "npm run build"
+
+    # Emptied first: it may hold an older build (or the old js-build-main clone).
+    - name: Remove the previous frontend build
+      ansible.builtin.file:
+        path: "{{camphoric_folder}}/server/frontend_bootstrap/build/"
+        state: absent
+
+    - name: Install the frontend build where Django serves it
+      ansible.builtin.copy:
+        src: "{{camphoric_folder}}/client_v2/build/"
         dest: "{{camphoric_folder}}/server/frontend_bootstrap/build/"
-        version: js-build-main
-        depth: 1
-        force: yes
+        remote_src: yes
 
     - name: Run Django migrations
       ansible.builtin.shell:

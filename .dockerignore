@@ -31,9 +31,8 @@ server/frontend_bootstrap/build/
 *.sql
 *.log
 
-# Node artefacts (the frontend stage runs npm ci itself) and the v1 client
+# Node artefacts (the frontend stage runs npm ci itself)
 **/node_modules
-client/
 client_v2/build/
 client_v2/dist/
 client_v2/storybook-static/

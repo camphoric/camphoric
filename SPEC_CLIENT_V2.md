@@ -25,18 +25,18 @@ decision history.
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-114)
+- §15 — Decision Records (DR-1…DR-115)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
 ---
 
 This document specifies the behavior and architecture of the Camphoric web client
-(`client/`). It is written as a build specification for a fresh implementation of the
-frontend (a "V2"), reconstructed from the current implementation. It describes *what the
-client must do* and the contracts it depends on, rather than prescribing the exact code
-structure or UI presentation, so a new version is free to choose its own internal organization
-and interface design while preserving behavior.
+(`client_v2/`). It is written as a build specification for a fresh implementation of the
+frontend (a "V2"), reconstructed from the v1 implementation (`client/`, since removed — §15,
+DR-115). It describes *what the client must do* and the contracts it depends on, rather than
+prescribing the exact code structure or UI presentation, so a new version is free to choose
+its own internal organization and interface design while preserving behavior.
 
 Camphoric is a camp registration and administration system. The frontend is a single-page
 application with two distinct user-facing surfaces that share a common foundation:
@@ -4729,6 +4729,22 @@ semantics for screen readers in some browsers. Shrinking or wrapping the table t
 of prices is unreadable squeezed below its narrowest layout. Making every table's box focusable
 — a tab stop, and a region announced, even for the many tables that fit. Asking events to keep
 tables narrow — the text is theirs, and the client renders whatever the event defines (§11).
+
+### DR-115 — The v1 client is removed; client_v2 is the only frontend
+
+**Decision:** `client/` is deleted from the repository. `client_v2/` is the one frontend: the
+container image bakes it in, the Ansible role builds it from the checkout it deploys and installs
+the build into `server/frontend_bootstrap/build/`, the dev compose `react` service runs its Vite
+dev server, and releases attach only `frontend-build-v2.tar.gz`. The `js-build-main` branch and
+the workflow that published v1 to it are retired.
+**Context:** #798: the container image and the spec had already moved to v2, but Ansible still
+deployed v1 from `js-build-main` (#797), and v1 had fallen out of step with the API — it edited
+`confirmation_email_template`, which migration 0058 removed, so those edits were dropped, and it
+knew nothing of invoices, promo codes, edit leases or email templates.
+**Alternatives:** Keep v1 frozen alongside v2 — it would keep deploying through Ansible while
+silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
+Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
+doesn't yet check out (#797); building from the checkout keeps server and frontend together.
 
 ---
 

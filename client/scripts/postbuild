@@ -1,8 +1,0 @@
-#!/bin/sh
-
-rm -rf ../server/frontend_bootstrap/build
-mkdir ../server/frontend_bootstrap/build
-
-tar czf build.tar.gz build
-echo "Archive created successfully"
-cp -R ./build/* ../server/frontend_bootstrap/build/

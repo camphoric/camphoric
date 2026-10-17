@@ -45,8 +45,8 @@ components into separate files, inside their own directory.
 
 ## TypeScript
 
-- **Avoid `any`.** Prefer the shared API types (declared globally in
-  `client/src/global.d.ts`, e.g. `ApiEvent`, `ApiRegistration`, `ApiCamper`) and derive
+- **Avoid `any`.** Prefer the shared API types (in `client_v2/src/api-types.ts`, e.g.
+  `ApiEvent`, `ApiRegistration`, `ApiCamper`) and derive
   narrower types with utility types where useful.
 - Don't reach for `@ts-ignore` / `@ts-expect-error` to silence the compiler. If one is truly
   necessary (e.g. a third-party typing gap), leave a short comment explaining why.
@@ -83,15 +83,9 @@ components into separate files, inside their own directory.
 
 ---
 
-# Frontend-Specific Guidance (`client/`)
+# Frontend-Specific Guidance (`client_v2/`)
 
 See [`SPEC_CLIENT_V2.md`](./SPEC_CLIENT_V2.md) for the full picture. Key working rules:
-
-> **Note:** `SPEC_CLIENT_V2.md` describes the **planned V2 rebuild**, not the current `client/`
-> codebase (which still uses Redux Toolkit / RTK Query, React-Bootstrap, etc.). When working on
-> the **existing** client, follow its established patterns; the architecture guidance below is
-> the V2 direction and applies to the rebuild and to new code written against it. Once the
-> rebuild ships and the spec becomes the current spec, this note goes away.
 
 ## Architecture
 
@@ -101,7 +95,7 @@ See [`SPEC_CLIENT_V2.md`](./SPEC_CLIENT_V2.md) for the full picture. Key working
 - Separate **server state** from **client state**. Server data belongs in the data-fetching
   layer (cache + invalidation); genuine client state (the in-progress registration) is the only
   thing that needs a client store. Don't copy fetched data into component state "to be safe."
-- Use the path aliases (`components`, `hooks`, `navigation`, `pages`, `store`, `utils`) instead
+- Use the path aliases (`components`, `hooks`, `navigation`, `pages`, `pricing`, `store`, `utils`) instead
   of long relative imports.
 
 ## Pricing parity (critical)
@@ -258,7 +252,7 @@ do not change the API or backend code unless explicitly given permission to do s
 
 When an API change *is* authorized:
 
-- Update the backend serializer/view and the client's `global.d.ts` types in the same change so
+- Update the backend serializer/view and the client's `api-types.ts` in the same change so
   the contract stays consistent.
 - Preserve backward compatibility where the client depends on existing shapes, or update the
   client in lockstep.
@@ -268,7 +262,8 @@ When an API change *is* authorized:
 
 # Testing
 
-- Frontend tests run with Vitest (`npm test` in `client/`). Co-locate tests as `*.test.ts(x)`.
+- Frontend tests run with Vitest (`npm test` in `client_v2/`). Put a component's tests in the
+  `test/` directory inside its folder as `*.test.ts(x)`.
 - Prioritize tests for the highest-risk, highest-leverage logic: the **pricing engine**,
   template helpers, date/money utilities, and other pure functions.
 - Test behavior and public interfaces, not implementation details. Avoid brittle snapshot tests

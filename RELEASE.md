@@ -5,14 +5,13 @@ Camphoric is deployed by **version**. A release is a Git tag (`vX.Y.Z`) with a m
 
 - **Source archives** — `Source code (zip/tar.gz)`, attached automatically by GitHub (the repo at
   the tag).
-- **`frontend-build.tar.gz`** — the transpiled `client/` frontend (Vite build output).
-- **`frontend-build-v2.tar.gz`** — the transpiled `client_v2/` frontend (the v2 rebuild; present on
-  releases cut after it landed on `main`).
+- **`frontend-build-v2.tar.gz`** — the transpiled `client_v2/` frontend (Vite build output).
+  Releases cut before the v1 client was retired also carry `frontend-build.tar.gz`, the v1 build.
 - **Container image** — `ghcr.io/camphoric/camphoric:<tag>`, the server with the v2 frontend baked
   in (`latest` also moves, for stable releases only). See [CONTAINER.md](./CONTAINER.md).
 
-The deployment playbook is pointed at a tag and pulls the server code at that tag plus this
-frontend asset, instead of tracking `main`.
+The container image is the versioned deploy. The Ansible playbook builds the frontend from the
+checkout it deploys (see *Deploying a release*).
 
 Versions follow [Semantic Versioning](https://semver.org/) and the release automation is
 [release-please](https://github.com/googleapis/release-please). The current version lives in
@@ -30,7 +29,7 @@ Releases are **PR-gated** — nothing is released just by pushing to `main`:
    entries from the [Conventional Commits](https://www.conventionalcommits.org/) merged since the
    last release. More merges just keep updating that same PR.
 2. **Merge the release PR** when you're ready to ship. That creates the `vX.Y.Z` tag and the
-   GitHub Release, and the *Release assets* build attaches `frontend-build.tar.gz`.
+   GitHub Release, and the *Release assets* build attaches `frontend-build-v2.tar.gz`.
 
 You never create tags by hand for stable releases — merging the release PR is the deliberate
 "release now" action.
@@ -78,7 +77,7 @@ git push origin v0.2.0-alpha.1
 ```
 
 The *Pre-release* workflow creates a GitHub Release **flagged as a pre-release** (it is not shown
-as "Latest"), and the *Release assets* build attaches `frontend-build.tar.gz` — the same asset as
+as "Latest"), and the *Release assets* build attaches `frontend-build-v2.tar.gz` — the same asset as
 a stable release. Deploy it exactly like a stable tag.
 
 - Bump the trailing counter for the next iteration: `v0.2.0-alpha.2`, then `-beta.1`, `-rc.1`, etc.
@@ -89,26 +88,21 @@ a stable release. Deploy it exactly like a stable tag.
 
 ## Deploying a release
 
-Point the deployment playbook at the tag; it fetches the server code at that tag and downloads the
-frontend asset(s) from the release. The assets always have the same filenames, so their URLs vary
-only by tag:
+Run the container image for that tag — `ghcr.io/camphoric/camphoric:<tag>` — see
+[CONTAINER.md](./CONTAINER.md).
+
+The frontend asset has the same filename on every release, so its URL varies only by tag:
 
 ```
-https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build.tar.gz
 https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2.tar.gz
 ```
 
-Alternatively run the container image for that tag — `ghcr.io/camphoric/camphoric:<tag>` — see
-[CONTAINER.md](./CONTAINER.md).
-
-```bash
-# stable
---extra-vars '{"camphoric_release": "v0.2.0",         "camphoric_force_update": true}'
-# pre-release
---extra-vars '{"camphoric_release": "v0.2.0-alpha.1", "camphoric_force_update": true}'
-```
-
-Leaving `camphoric_release` at its default (`HEAD`) still deploys the tip of `main` as before.
+The Ansible playbook deploys the code already checked out on the host: it builds `client_v2/`
+there (`npm ci && npm run build`) and installs the build into
+`server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. The
+role does not yet check out `camphoric_release`
+([#797](https://github.com/camphoric/camphoric/issues/797)), so check out the tag on the host before
+running it.
 
 ### Host requirements
 
@@ -272,14 +266,13 @@ made-up event for this repository's tests, is the only event still in `data/even
 | ------------------------------------- | ------------------------------ | ---- |
 | `.github/workflows/release-please.yml`| push to `main`                 | maintains the release PRs (the app's and each package's); on merge, tags + creates the GitHub Release, then builds assets (app) or publishes (packages) |
 | `.github/workflows/prerelease.yml`    | push a `vX.Y.Z-*` tag          | creates the pre-release, then builds assets |
-| `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and `client_v2/` and attaches `frontend-build.tar.gz` + `frontend-build-v2.tar.gz` to the tag |
+| `.github/workflows/release-assets.yml`| called by the two above        | builds `client_v2/` and attaches `frontend-build-v2.tar.gz` to the tag |
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
 | `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to GitHub Packages |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks and tests the importer and the event packages, and smoke-tests the packed packages |
 | `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client_v2/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
 | `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from GitHub Packages to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
 | `.github/workflows/client-v2.yml`     | push/PR to `main` touching `client_v2/` | type-checks, lints and unit-tests the v2 client, and runs its Playwright e2e suite |
-| `.github/workflows/react.yml`         | push/PR to `main` touching `client/` | unchanged — the continuous `js-build-main` dev build |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`
 > trigger) because a release created with the default `GITHUB_TOKEN` does not start other
