@@ -8,7 +8,7 @@
  *
  * An event package runs them from its own tests, inside a describe:
  *
- *     describe('@camphoric/camphoric-event-lark', () => {
+ *     describe('@camphoric/camphoric-event-sample-camp', () => {
  *       describeEventModule(() => import('../index.ts'));
  *     });
  *
