@@ -126,6 +126,10 @@ server/staticfiles/
 server/static/
 server/camphoric_server/settings_override.py
 
+# A local compose override, e.g. one that republishes ports on every interface
+# (see "Reaching the stack from another device" in doc/development.md)
+docker-compose.override.yml
+
 # Camphoric frontend
 frontend_bootstrap/build/
 node_modules/
