@@ -45,12 +45,27 @@ export const Campers: StoryFn = () => {
   );
 };
 
-/** LodgingRequested — a cascading select over a lodging tree, leaf-only final choice. */
+/**
+ * LodgingRequested — a cascading select over a lodging tree, leaf-only final
+ * choice. The schema is the server's: the dropdowns are a group named by its
+ * title, each labelled by its parent's `children_title`, and all required.
+ */
 export const LodgingRequested: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   const schema: RJSFSchema = {
     type: 'object',
-    properties: { lodging_requested: { type: 'object', title: 'Requested lodging' } },
+    properties: {
+      lodging_requested: {
+        type: 'object',
+        title: 'Requested lodging',
+        required: ['id', 'choices'],
+        properties: {
+          id: { type: 'number' },
+          name: { type: 'string' },
+          choices: { type: 'array', minItems: 1, items: { type: 'number' } },
+        },
+      },
+    },
   };
   const lodgingNodes = [
     {
