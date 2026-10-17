@@ -1,7 +1,7 @@
 /**
  * Markdown the pipeline has rendered (SPEC §9.3), in its `.md-template`
  * wrapper. A table's box that scrolls (the table is wider than its column)
- * takes keyboard focus as a labelled region, so the keyboard can scroll it in
+ * takes keyboard focus as a labelled group, so the keyboard can scroll it in
  * every browser: Safari doesn't make a scrolling box focusable on its own. A
  * box that doesn't scroll takes no focus, adding no stop to the tab order.
  */
@@ -15,16 +15,20 @@ import { TABLE_SCROLL_CLASS } from './pipeline';
 /** What a scrolling table's box is called, to a screen reader. */
 export const SCROLLING_TABLE_LABEL = 'Table, scrolls sideways';
 
-/** Make a table's box focusable while it scrolls, and not otherwise. */
+/**
+ * Make a table's box focusable while it scrolls, and not otherwise. (A group,
+ * not a region: a page can hold several, and landmarks should differ by name.)
+ */
 function updateTableBox(box: HTMLElement) {
   const overflowX = getComputedStyle(box).overflowX;
   const scrolls =
     (overflowX === 'auto' || overflowX === 'scroll') && box.scrollWidth > box.clientWidth;
   if (scrolls) {
     box.tabIndex = 0;
-    box.setAttribute('role', 'region');
+    box.setAttribute('role', 'group');
     box.setAttribute('aria-label', SCROLLING_TABLE_LABEL);
-  } else {
+  } else if (box !== document.activeElement) {
+    // (One that has focus keeps it, for the keyboard not to lose its place)
     box.removeAttribute('tabindex');
     box.removeAttribute('role');
     box.removeAttribute('aria-label');

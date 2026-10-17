@@ -27,7 +27,7 @@ describe('RenderedMarkdown', () => {
     layOut({ content: 500, box: 300, overflowX: 'auto' });
     render(<RenderedMarkdown html={table} />);
 
-    const box = screen.getByRole('region', { name: SCROLLING_TABLE_LABEL });
+    const box = screen.getByRole('group', { name: SCROLLING_TABLE_LABEL });
     expect(box).toHaveAttribute('tabindex', '0');
     expect(box.querySelector('table')).not.toBeNull();
   });
@@ -37,7 +37,7 @@ describe('RenderedMarkdown', () => {
     const { container } = render(<RenderedMarkdown html={table} />);
 
     expect(container.querySelector('[tabindex]')).toBeNull();
-    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('group')).toBeNull();
   });
 
   it('adds none where the box lets its table overflow (a report scrolls it instead)', () => {
@@ -50,9 +50,9 @@ describe('RenderedMarkdown', () => {
   it('looks again at the tables when the HTML changes', () => {
     layOut({ content: 500, box: 300, overflowX: 'auto' });
     const { rerender } = render(<RenderedMarkdown html={markdownToHtml('No table yet')} />);
-    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('group')).toBeNull();
 
     rerender(<RenderedMarkdown html={table} />);
-    expect(screen.getByRole('region', { name: SCROLLING_TABLE_LABEL })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: SCROLLING_TABLE_LABEL })).toBeInTheDocument();
   });
 });

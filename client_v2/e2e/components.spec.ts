@@ -62,7 +62,7 @@ test.describe('Form engine', () => {
 
     // On a phone the tables are wider than their boxes, which scroll instead,
     // from the keyboard too; a box that doesn't scroll adds no tab stop
-    const scrolling = page.getByRole('region', { name: 'Table, scrolls sideways' });
+    const scrolling = page.getByRole('group', { name: 'Table, scrolls sideways' });
     if ((page.viewportSize()?.width ?? 1280) < 768) {
       for (const box of await boxes.all()) {
         expect(await box.evaluate(overflows)).toBe(true);
@@ -78,6 +78,11 @@ test.describe('Form engine', () => {
           .poll(() => first.evaluate((el: { scrollLeft: number }) => el.scrollLeft))
           .toBeGreaterThan(0);
       }
+
+      // Widened until the table fits (a tablet turned), the box keeps its focus
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await expect.poll(() => first.evaluate(overflows)).toBe(false);
+      await expect(first).toBeFocused();
     } else {
       await expect(scrolling).toHaveCount(0);
       await expect(boxes.and(page.locator('[tabindex]'))).toHaveCount(0);
@@ -130,7 +135,7 @@ test.describe('Templating', () => {
   test('a table box that scrolls takes keyboard focus, and one that fits does not', async ({
     page,
   }) => {
-    const scrolling = page.getByRole('region', { name: 'Table, scrolls sideways' });
+    const scrolling = page.getByRole('group', { name: 'Table, scrolls sideways' });
     await page.goto(story('rendered-markdown--table-scrolls'));
     await scrolling.focus();
     await expect(scrolling).toBeFocused();

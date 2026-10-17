@@ -1934,10 +1934,11 @@ and Handlebars reports:
 
 A table wider than the column it sits in — an event's rates, on a phone — scrolls sideways
 within its box, so templated text never makes the page wider than the screen (§15, DR-114).
-While a box scrolls, it takes keyboard focus as a region named "Table, scrolls sideways", so the
-keyboard can scroll it in every browser (Safari doesn't make a scrolling box focusable on its
-own); a box whose table fits takes no focus and adds no tab stop. It is checked again whenever
-the box or its table changes size.
+While a box scrolls, it takes keyboard focus as a group named "Table, scrolls sideways" (a group,
+not a landmark region, since a page can hold several), so the keyboard can scroll it in every
+browser (Safari doesn't make a scrolling box focusable on its own); a box whose table fits takes
+no focus and adds no tab stop. It is checked again whenever the box or its table changes size,
+except that a box with focus keeps it.
 In an area that already scrolls both ways and is at most about a window tall — a report's output
 (§8.7), the expanded template editor's preview (§9.6) — tables scroll with the rest of it
 instead, and in print no table is cut off at its box's edge.
@@ -4714,7 +4715,7 @@ Only Camphoric's classes — would take away print CSS HTML reports can already 
 cell) in a `div` that scrolls sideways, after sanitizing, so a table wider than its column
 scrolls there instead of widening the page. An area that scrolls both ways already, at most about a window tall (a report's output,
 the expanded template editor's preview), lets its tables lay out as before, as does print. A box
-that scrolls takes keyboard focus, as a labelled region, only while it scrolls.
+that scrolls takes keyboard focus, as a labelled group, only while it scrolls.
 **Context:** An event's text can hold a table wider than a phone: BACDS Family Week's six-column
 camper rates are 472px wide, on a 393px screen. The whole registration page grew that wide, so it
 scrolled sideways and taps could land on the wrong control. Registration is mobile-first
