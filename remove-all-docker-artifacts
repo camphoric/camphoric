@@ -2,10 +2,14 @@
 
 function usage() {
     cat <<EOF
-Usage: $0 [-yf] [image-name]
+Usage: $0 [-yf] [service...]
 
-This will PERMENANTLY delete images, volumes, and containers associated with
-${PWD##*/}.  If you omit the optional image name, it will delete all of them.
+This will PERMANENTLY delete the containers, volumes (the database included),
+networks and built images of this compose project (${PWD##*/}). Images pulled
+by tag (postgres, node) and other projects' artifacts are left alone.
+
+Given service names, it only removes those services' containers and their
+anonymous volumes; the database volume and the images are kept.
 EOF
 
 }
@@ -27,10 +31,13 @@ then
     RED='\033[1;31m'
     NC='\033[0m' # No Color
 
-    echo "$*"
-
     printf "${RED}WARNING: THIS CANNOT BE UNDONE${NC}\n"
-    echo "This will delete all images, volumes, and containers associate with ${PWD##*/}"
+    if [ $# -eq 0 ]
+    then
+        echo "This will delete the containers, volumes (the database included), networks and built images of ${PWD##*/}"
+    else
+        echo "This will delete the containers and anonymous volumes of: $*"
+    fi
 
     while true; do
         read -p "Do you wish to proceed [y/n]? " yn
@@ -42,5 +49,12 @@ then
     done
 fi
 
-docker compose rm -sf $*
-./remove-unused-docker-artifacts -f
+# Scoped to this compose project: `--rmi local` only removes the images it
+# built, not ones pulled by tag, so other projects' artifacts are untouched
+# (./remove-unused-docker-artifacts is the machine-wide prune).
+if [ $# -eq 0 ]
+then
+    docker compose down --rmi local --volumes --remove-orphans
+else
+    docker compose rm -sfv "$@"
+fi

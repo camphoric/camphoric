@@ -412,8 +412,9 @@ docker-compose logs -f django
 
 **Delete all containers**
 
-If you want to PERMENANTLY delete images, volumes, and containers associated
-with camphoric:
+If you want to PERMANENTLY delete camphoric's containers, volumes (the
+database included), network and built images (other projects' artifacts and
+pulled images such as postgres are left alone):
 
 ```
 ./remove-all-docker-artifacts
@@ -423,7 +424,8 @@ use `./remove-all-docker-artifacts -h` for more details
 
 **Delete unused artifacts**
 
-If you just want to clean up some hard drive space:
+If you just want to clean up some hard drive space (this prunes the unused
+images and volumes of every project on the machine, not only camphoric's):
 
 ```
 ./remove-unused-docker-artifacts
