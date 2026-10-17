@@ -173,6 +173,10 @@ nothing in the repository runs without it. Each event's `index.ts` default expor
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
 still checks the schema with Ajv at runtime. After pulling a change to the workspaces, rebuild the
 `data` Docker image (`docker compose build data`) before `docker compose run --rm data import`.
+Once `data/` installs events from GitHub Packages, `npm ci` there needs a token with
+`read:packages`: in `~/.npmrc` on your machine, `CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token)
+docker compose build data` for the image, and `CAMPHORIC_NPM_AUTH_TOKEN` or the vault for the
+Vagrant VM. See "A token for `data/`" in the [README](../README.md#a-token-for-data).
 
 A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
 and runs the offline suite, then smoke-tests the packed packages, on every pull request that

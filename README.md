@@ -42,7 +42,8 @@ released on their own versions (see [RELEASE.md](./RELEASE.md)):
 Their source is in [`data/packages/`](./data/packages). Within this repository the importer and
 the events use them as npm workspaces (from source), so **nothing here needs a token yet** — not
 local development, the `data` Docker image, the Vagrant VM or CI. You need one to install them
-anywhere else, such as an event's own repository.
+anywhere else, such as an event's own repository, and `data/` will need one once it installs
+events from GitHub Packages (see [below](#a-token-for-data)).
 
 GitHub Packages needs a token to install **even public packages**:
 
@@ -86,14 +87,43 @@ GitHub Packages needs a token to install **even public packages**:
    A repository outside the `camphoric` organization needs a token with `read:packages` stored as
    a secret instead.
 
-4. **In a Docker build**, pass the token as a build secret rather than an argument, so it isn't
-   kept in the image:
+4. **In a Docker build**, pass the token as a build secret rather than an argument or a file, so
+   it isn't kept in the image. The secret is only in the install step's environment, and a config
+   file on a tmpfs points npm at it (an `${CAMPHORIC_NPM_AUTH_TOKEN}` in the project's `.npmrc`
+   would break npm wherever the variable isn't set):
 
    ```dockerfile
-   RUN --mount=type=secret,id=npm_token \
-       NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" npm ci
+   # syntax=docker/dockerfile:1
+   RUN --mount=type=secret,id=npm_token,env=CAMPHORIC_NPM_AUTH_TOKEN,required=false \
+       --mount=type=tmpfs,target=/run/npm \
+       if [ -n "$CAMPHORIC_NPM_AUTH_TOKEN" ]; then \
+         echo '//npm.pkg.github.com/:_authToken=${CAMPHORIC_NPM_AUTH_TOKEN}' > /run/npm/npmrc; \
+         export NPM_CONFIG_USERCONFIG=/run/npm/npmrc; \
+       fi; \
+       npm ci
    ```
 
-   with an `.npmrc` holding `//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}` next to the
-   scope line, and `docker build --secret id=npm_token,env=NODE_AUTH_TOKEN …` (or `secrets:` in a
-   compose file's `build:`).
+   with `docker build --secret id=npm_token,env=CAMPHORIC_NPM_AUTH_TOKEN …`, or `secrets:` in a
+   compose file's `build:`. BuildKit doesn't count a secret in its cache key, so after adding a
+   token, rebuild with `--no-cache` if the install step was cached from a build without one.
+
+### A token for `data/`
+
+Once `data/` installs events from GitHub Packages, everything that runs its `npm ci` needs a token
+with `read:packages`. Each place is already wired up, and works without a token until then:
+
+- **CI** (`data.yml`, `docker.yml`, `release-packages.yml`): the job's own `GITHUB_TOKEN`, with
+  `packages: read`, as `NODE_AUTH_TOKEN` (the variable `actions/setup-node`'s npm config reads).
+  Nothing to set up.
+- **Your machine:** `~/.npmrc`, as in step 2 above.
+- **The `data` Docker image** (`docker-compose.yml`): the `npm_token` build secret, taken from
+  `CAMPHORIC_NPM_AUTH_TOKEN` when you build:
+
+  ```bash
+  CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) docker compose build data
+  ```
+
+- **The Vagrant VM** (ansible): `camphoric_npm_token`, from `CAMPHORIC_NPM_AUTH_TOKEN` where
+  ansible runs (`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) vagrant provision`), or else
+  `camphoric_vault_npm_token` in your vault (see [VM_DEV_SETUP.md](./VM_DEV_SETUP.md#vault-setup-instructions)). Before
+  `npm ci`, the playbook writes it to the VM user's `~/.npmrc`.

@@ -52,6 +52,8 @@ jobs:
           cache-dependency-path: data/package-lock.json
 
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Find the package and version the tag names
         id: package

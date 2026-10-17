@@ -329,6 +329,16 @@ camphoric_email_host_user: my.throwaway.account@gmail.com
 camphoric_email_host_password: aaaaaaaaaaaaaaaa 
 ```
 
+Once `data/` installs events from GitHub Packages, its `npm ci` also needs a token with
+`read:packages`. Either set `CAMPHORIC_NPM_AUTH_TOKEN` when you provision
+(`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) vagrant provision`), or keep one here:
+
+```yaml
+camphoric_vault_npm_token: <longstringofencrypedbullshithere>
+```
+
+The playbook writes it to the VM user's `~/.npmrc` before `npm ci`, and skips that without one.
+
 **ansible/.ansible-vault-pw**
 
 Make up a password to use to encrypt the file above, then put it into this file.

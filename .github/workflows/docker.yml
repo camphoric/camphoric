@@ -39,6 +39,9 @@ concurrency:
 
 permissions:
   contents: read
+  # the live import's npm ci installs any @camphoric package not in a workspace
+  # from GitHub Packages
+  packages: read
 
 jobs:
   build-and-smoke:
@@ -74,8 +77,16 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
+
+      - name: Install the importer
+        working-directory: data
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
 
       # The importer is a REST client, so it runs on the runner against the
       # published port. A non-zero exit (any event failing to import, including a
@@ -86,9 +97,7 @@ jobs:
           CAMPHORIC_URL: http://localhost:8000
           DJANGO_SUPERUSER_USERNAME: admin
           DJANGO_SUPERUSER_PASSWORD: admin
-        run: |
-          npm ci
-          npm run import
+        run: npm run import
 
       # Queue one message and require the worker service to deliver it (to its
       # log: the compose file forces the console backend). No message from the
