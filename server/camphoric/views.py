@@ -1361,7 +1361,14 @@ class RegisterView(APIView):
         raise ValidationError(
             {'step': 'Invalid value: must be one of ' + ', '.join(f'"{s}"' for s in self.STEPS)})
 
+    @transaction.atomic
     def post_registration(self, request, event):
+        '''
+        Save the registration, its invitation and its campers all or nothing
+        (#806). Each record is saved with its price already worked out, and the
+        registration is repriced once from what was saved, rather than once per
+        camper (which re-saved every camper before it).
+        '''
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
@@ -1393,7 +1400,7 @@ class RegisterView(APIView):
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
-        registration.save()
+        registration.save_without_recalc()
 
         if invitation:
             invitation.registration = registration
@@ -1403,7 +1410,8 @@ class RegisterView(APIView):
         for index, camper in enumerate(campers):
             camper.server_pricing_results = camper_pricing[index]
             camper.sequence = index
-            camper.save()
+            camper.save_without_recalc()
+        registration.recalculate_server_pricing()
 
         return Response({
             'registrationUUID': registration.uuid,
