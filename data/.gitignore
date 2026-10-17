@@ -1,1 +1,5 @@
 reportdump.json
+
+# Playwright output (an event's npm run e2e)
+test-results/
+playwright-report/
