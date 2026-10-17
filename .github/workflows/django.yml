@@ -5,11 +5,14 @@ on:
     branches: [main]
     paths:
       - 'server/**'
+      # the legacy report tests render the events' report templates
+      - 'data/events/*/reports/**'
       - '.github/workflows/django.yml'
   pull_request:
     branches: [main]
     paths:
       - 'server/**'
+      - 'data/events/*/reports/**'
       - '.github/workflows/django.yml'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on

@@ -23,6 +23,15 @@ async function main() {
     // per-event error instead of taking every event down before anything runs.
     const { default: e }: LoadedEventModule = await EVENTS[name]();
 
+    // An installed (compiled) event isn't type-checked here, so check the
+    // organization it declares before using it.
+    if (e.organization?.organization?.name !== e.data?.organization) {
+      throw new Error(
+        `event '${name}' must declare the organization its data names ('${e.data?.organization}'), `
+        + `not '${e.organization?.organization?.name}'`,
+      );
+    }
+
     const organization = await organizationFor(e.organization);
 
     const event = new CamphoricEventCreator({

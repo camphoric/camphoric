@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
 
+import { EVENTS } from '../../eventModules.ts';
+
 const DATA = fileURLToPath(new URL('../..', import.meta.url));
 
 // Every folder under packages/ and events/ that holds a package
@@ -50,6 +52,18 @@ function packageName(specifier: string): string {
 
 const isBuiltin = (specifier: string) => specifier.startsWith('node:')
   || builtinModules.includes(packageName(specifier));
+
+// Every event package is one the importer loads, so none escapes the import,
+// the conformance checks and the server's schema checks.
+test('the importer loads every event under events/, by its package name', async () => {
+  const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
+    .map(workspace => path.basename(workspace));
+  expect(Object.keys(EVENTS).sort()).toEqual(folders.sort());
+  for (const folder of folders) {
+    const pkg = JSON.parse(readFileSync(path.join(DATA, 'events', folder, 'package.json'), 'utf8'));
+    expect(pkg.name).toBe(`camphoric-event-${folder}`);
+  }
+});
 
 describe.each(WORKSPACES)('%s', (workspace) => {
   const root = path.join(DATA, workspace);
