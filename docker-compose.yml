@@ -1,6 +1,13 @@
 volumes:
     db:
 
+# A GitHub Packages token for the data image's npm ci, only needed once it
+# installs events from the registry (see README.md):
+#   CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) docker compose build data
+secrets:
+  npm_token:
+    environment: CAMPHORIC_NPM_AUTH_TOKEN
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -87,6 +94,8 @@ services:
     build:
       context: data
       shm_size: '2gb'
+      secrets:
+        - npm_token
     volumes:
       - ./data:/app
       - ./data/import:/usr/local/bin/import
