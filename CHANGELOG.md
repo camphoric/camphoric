@@ -1,5 +1,71 @@
 # Changelog
 
+## [0.15.0](https://github.com/camphoric/camphoric/compare/v0.14.0...v0.15.0) (2026-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** releases no longer carry frontend-build.tar.gz (the v1 build); use frontend-build-v2.tar.gz. Ansible deploys now serve the v2 client, and the js-build-main branch stops updating.
+* **server:** the image's CMD and the ansible service run camphoric_server.asgi:application with uvicorn_worker.UvicornWorker. A deployment that overrides the command, or passes --worker-class through GUNICORN_CMD_ARGS, must keep that worker class. gunicorn's --timeout no longer stops a slow request.
+
+### Features
+
+* **ansible:** add a playbook that only runs database migrations ([689aec8](https://github.com/camphoric/camphoric/commit/689aec8a7f8cbb01b8818fc244e7a5d0f81812cd))
+* **client:** retire the v1 client and serve client_v2 everywhere ([6016ff2](https://github.com/camphoric/camphoric/commit/6016ff2cc995bcf7b9a0d6b0324dc9877a43195e))
+* **concurrency:** refuse admin saves made from a stale record ([69db71a](https://github.com/camphoric/camphoric/commit/69db71a90ca54cdee21d06da805c56e55c892ce3)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **data:** add e2e scaffolding for testing an event's registration form ([e98f014](https://github.com/camphoric/camphoric/commit/e98f01486f51fa83773c2840bd32734ed3e61e67))
+* **data:** add Sample Camp, an anonymous event that exercises the import contract ([f88285e](https://github.com/camphoric/camphoric/commit/f88285e77c44cb70ed4b5ff2e7f98f76a953a935))
+* **data:** add scripts that generate bulk registrations for each camp ([3491112](https://github.com/camphoric/camphoric/commit/3491112cbb3213731a681301dc39632cce9a7dbf))
+* **data:** import every event when a dev environment starts ([122d61e](https://github.com/camphoric/camphoric/commit/122d61e9f170d67c5ff9ca9b4db0504183d70c07))
+* **data:** let each event declare the organization it belongs to ([70853bd](https://github.com/camphoric/camphoric/commit/70853bd5223b0134fd7e259a241c2dc05d22b6c1))
+* **data:** move the event creator and organization loader into import-tools ([c6e8468](https://github.com/camphoric/camphoric/commit/c6e8468a6b2326885a74e24eb036e3c57aa67c1e))
+* **data:** publish the event import spec and tools to GitHub Packages ([d26b182](https://github.com/camphoric/camphoric/commit/d26b182d5fe44cc31dbd1747572a267439053574))
+* **leases:** show who is editing a record, and let others take over ([9272505](https://github.com/camphoric/camphoric/commit/927250517ab38b65a660f2554e2376d382ade9f2)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **live:** mark records being edited in every admin list ([5603f9c](https://github.com/camphoric/camphoric/commit/5603f9cd67dc4e748c775913c6fe256f71b78832))
+* **live:** show what other admins change as they change it ([7a374ad](https://github.com/camphoric/camphoric/commit/7a374ad409dac402309c7396503c35c7aa95369d)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **promo-codes:** let a promo code leave out registration types ([e71a5fd](https://github.com/camphoric/camphoric/commit/e71a5fd5a7f70da7072db78f7530db21918795f5)), closes [#783](https://github.com/camphoric/camphoric/issues/783)
+* **promo-codes:** only Admins delete promo codes ([8137709](https://github.com/camphoric/camphoric/commit/8137709424fc491dae8ee245bcf11d601025c0e9)), closes [#783](https://github.com/camphoric/camphoric/issues/783)
+* **reports:** print a report's output by itself ([d2ac7f4](https://github.com/camphoric/camphoric/commit/d2ac7f42e83d46308b7f5541c6f6a4ec278b6c73)), closes [#728](https://github.com/camphoric/camphoric/issues/728)
+* **server:** run on ASGI with uvicorn workers and psycopg 3 ([e3bea45](https://github.com/camphoric/camphoric/commit/e3bea451a4939cb73634ee6cdede01311ea217be)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+
+
+### Bug Fixes
+
+* **ci:** never upload a v1 build as the v2 release asset ([b82aeba](https://github.com/camphoric/camphoric/commit/b82aebafe6af1bb4a1af6a742a075b2721fcc4bc))
+* **client_v2:** name scrolling table boxes as groups and keep their focus ([9f199dd](https://github.com/camphoric/camphoric/commit/9f199dd111f1642ca016770ae8ec1a3945c60606))
+* **client_v2:** scroll wide tables in event text instead of widening the page ([e585389](https://github.com/camphoric/camphoric/commit/e58538979fe69e585e1e9c7afd17db58cbe7e924))
+* **client_v2:** show a template's render error as text, never as HTML ([e585389](https://github.com/camphoric/camphoric/commit/e58538979fe69e585e1e9c7afd17db58cbe7e924))
+* **concurrency:** lock a family's rows in one order, and stop a false conflict ([ddd4b4c](https://github.com/camphoric/camphoric/commit/ddd4b4cfd909aadf7d1316a66be2f35cf8d6d099)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **data:** check the organization an event declares before importing it ([3e3e29b](https://github.com/camphoric/camphoric/commit/3e3e29b99c737f88f069d196d639c09a3b97e913))
+* **data:** copy reports before deleting in replace-live-reports ([b53d745](https://github.com/camphoric/camphoric/commit/b53d745106c7e5e0f029db60f2beb72089cbe642))
+* **data:** give Lark's two-bed Camp 2 cabins capacity 2 and stop creating cabins 32 and 33 ([ee1fd61](https://github.com/camphoric/camphoric/commit/ee1fd61688e00eb8aba4b0413a0867908fab4684))
+* **data:** keep reset-data-and-test from importing alongside docker compose up ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+* **data:** keep the event-import packages' versions independent ([fd96655](https://github.com/camphoric/camphoric/commit/fd96655bf7b707b7771c964a79781879e2a0c4af))
+* **data:** keep the legacy report comparison and harden Sample Camp's reports ([85fa7b8](https://github.com/camphoric/camphoric/commit/85fa7b888aa5a6c600fd2b17d9d81ae91efa660e))
+* **data:** keep the workspace spec when the weekly check updates events ([1e51231](https://github.com/camphoric/camphoric/commit/1e51231f43ba73e19e977c12ac77b274968403e8))
+* **data:** open an e2e event's registration before its sample registrations ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+* **data:** report an event module's validation errors when it has no event ([c6e8468](https://github.com/camphoric/camphoric/commit/c6e8468a6b2326885a74e24eb036e3c57aa67c1e))
+* **data:** stop a failed import request from ending the process ([7543433](https://github.com/camphoric/camphoric/commit/754343397c8cfdb94f473b0ebd98b7262db61534))
+* **data:** stop the importer crashing on an empty (204) response when re-importing lodging ([ee1fd61](https://github.com/camphoric/camphoric/commit/ee1fd61688e00eb8aba4b0413a0867908fab4684))
+* **data:** treat a report already gone as deleted in replace-live-reports ([5bd3042](https://github.com/camphoric/camphoric/commit/5bd304292ed7603624c0a7634e4e6668d5fb7d4c))
+* **dev:** publish the dev VM's and compose stacks' ports on localhost only ([0c0ded2](https://github.com/camphoric/camphoric/commit/0c0ded2651965114866def29e1993a64b3bbfc4b)), closes [#813](https://github.com/camphoric/camphoric/issues/813)
+* **leases:** give up late takeovers, and tie a lease to its user ([87deb23](https://github.com/camphoric/camphoric/commit/87deb232786d7ba94ffb1acd380f4d4b39c237f2)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **live:** clear a released lease's notice at once ([5603f9c](https://github.com/camphoric/camphoric/commit/5603f9cd67dc4e748c775913c6fe256f71b78832))
+* **live:** give up on a dropped listener connection within 30 seconds ([9af3fa6](https://github.com/camphoric/camphoric/commit/9af3fa6fd60d9ff467d037c47dd7c038b17a2da4))
+* **live:** give up the lease after taking theirs in an edit conflict ([5603f9c](https://github.com/camphoric/camphoric/commit/5603f9cd67dc4e748c775913c6fe256f71b78832))
+* **live:** keep a lodging move on screen until it's saved ([9af3fa6](https://github.com/camphoric/camphoric/commit/9af3fa6fd60d9ff467d037c47dd7c038b17a2da4))
+* **live:** keep editors open when their record is deleted elsewhere ([9af3fa6](https://github.com/camphoric/camphoric/commit/9af3fa6fd60d9ff467d037c47dd7c038b17a2da4))
+* **live:** notify sent invitations, and say plainly when the feed is down ([9ff6142](https://github.com/camphoric/camphoric/commit/9ff61422a6331bf19a53de56ab6cf150dec3daa6)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+* **lodging:** drop the stray space before commas in a unit's campers ([9af3fa6](https://github.com/camphoric/camphoric/commit/9af3fa6fd60d9ff467d037c47dd7c038b17a2da4))
+* **ops:** collect static files and restart Django on Ansible deploys ([278ebae](https://github.com/camphoric/camphoric/commit/278ebaebc2875a9b6eb4c85a697570edb521f9c9)), closes [#827](https://github.com/camphoric/camphoric/issues/827)
+* **ops:** fail a partial live-data restore and remove the dump from the VM ([c409d07](https://github.com/camphoric/camphoric/commit/c409d075ef01ae2eba455a09b8241dd8837757eb)), closes [#816](https://github.com/camphoric/camphoric/issues/816)
+* **ops:** keep a live-data restore from emailing real people ([c409d07](https://github.com/camphoric/camphoric/commit/c409d075ef01ae2eba455a09b8241dd8837757eb)), closes [#799](https://github.com/camphoric/camphoric/issues/799)
+* **ops:** leave no window where a restore's worker can send live email ([c3db1f5](https://github.com/camphoric/camphoric/commit/c3db1f52b4345fb2f9c024cf14d2d58a3ca7eb44)), closes [#799](https://github.com/camphoric/camphoric/issues/799)
+* **ops:** restart Django even when an Ansible deploy fails part-way ([a793192](https://github.com/camphoric/camphoric/commit/a7931921a1aa3049c26353ae16da67fc64b3d63a)), closes [#827](https://github.com/camphoric/camphoric/issues/827)
+* **register:** keep the invitation code on every register step change ([7ce020d](https://github.com/camphoric/camphoric/commit/7ce020de8308f6842936b8a905e2c10231f0614e))
+* **reports:** keep printed reports within the page and the print intact ([acac44d](https://github.com/camphoric/camphoric/commit/acac44d0e6583606eb2a9a2c8e2d15b6868fe3c2))
+* **server:** stop runaway recursion and filters, and bound queued requests ([46314a1](https://github.com/camphoric/camphoric/commit/46314a1208ca6595480a2b13b58d147efc5bf6ba)), closes [#770](https://github.com/camphoric/camphoric/issues/770)
+
 ## [0.14.0](https://github.com/camphoric/camphoric/compare/v0.13.0...v0.14.0) (2026-10-15)
 
 
