@@ -131,6 +131,32 @@ describe('PaymentStep', () => {
     expect(state.registration).toEqual(formData);
   });
 
+  it('doesn’t then resume a registration another tab sent since (#769)', () => {
+    const formData = { campers: [{ first_name: 'Pat' }] };
+    useRegistrationStore.getState().resumeSent({ paymentStep, formData, promo: null });
+    const since = { ...paymentStep, registrationUUID: 'uuid-2' };
+    const other = { campers: [{ first_name: 'Other' }] };
+    saveSentRegistration('Camp, 2026-7-1', { paymentStep: since, formData: other, promo: null });
+    refresh.mockImplementation((uuid: string, options: { onError: (e: unknown) => void }) => {
+      if (uuid === 'u') {
+        options.onError(new ApiError(404, 'Not Found', { code: 'registration_not_found' }));
+      }
+    });
+
+    renderWithProviders(<PaymentStep />);
+
+    expect(refresh.mock.calls.map(([uuid]) => uuid as string)).toEqual(['u']);
+    const state = useRegistrationStore.getState();
+    expect(state.sentNotFound).toBe(true);
+    expect(state.paymentStep).toBeUndefined();
+    expect(state.registration).toEqual(formData);
+    // The other tab's registration is still good.
+    expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(since);
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/events/$eventId/register/registration' }),
+    );
+  });
+
   it('keeps what was saved when asking again fails otherwise', () => {
     saveSentRegistration('Camp, 2026-7-1', {
       paymentStep,
