@@ -21,8 +21,6 @@ build phase:
   sandbox to verify.
 - **vite/tsconfig `pricing` alias asymmetry** — tsconfig has both `pricing` and `pricing/*`;
   vite has only the dir mapping. Align them.
-- **`window.location.search` in the register-config query key** — revisit when invitations
-  move into validated router search params.
 
 Intentionally left as-is: `PricingResults` open index signature (load-bearing for dynamic
 subtotals), the `Campers` template-injection block (intricate but correct — document, don't
