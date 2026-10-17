@@ -1,5 +1,0 @@
-last name,first name,email,{% for night in event.nights %}{{ night | date('%a') }},{% endfor %}
-{% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
-    "{{camper.attributes.last_name}}","{{camper.attributes.first_name}}","{{camper.attributes.email}}",
-    {%- for night in event.nights -%}{{ 'X,' if night in (camper.stay or []) else ',' }}{%- endfor %}
-{% endfor -%}
