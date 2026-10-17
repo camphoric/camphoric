@@ -85,7 +85,8 @@ GitHub Packages needs a token to install **even public packages**:
    ```
 
    That installs public packages, such as these two, in any repository. A private package
-   installs only in a repository it grants read access to under "Manage Actions access" in its
+   installs in the repository it's linked to (when it inherits that repository's access, the
+   default) and in any repository it grants read access to under "Manage Actions access" in its
    settings ([GitHub's docs](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package));
    anywhere else, store a token with `read:packages` as a secret instead.
 
@@ -119,6 +120,9 @@ with `read:packages`. Each place is already wired up, and works without a token 
   That's enough for public packages. A private package published from another repository, such
   as a camp's events, installs only if it grants this repository read access: in its settings,
   add `camphoric/camphoric` under "Manage Actions access" ([GitHub's docs](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package)).
+  This repository is public, and GitHub warns that forks of a public repository given access to
+  a private package may be able to read it, so grant that only to a package that can stand to
+  leak.
 - **Your machine:** `~/.npmrc`, as in step 2 above.
 - **The `data` Docker image** (`docker-compose.yml`): the `npm_token` build secret, taken from
   `CAMPHORIC_NPM_AUTH_TOKEN` when you build:
