@@ -47,6 +47,7 @@ describe('LodgingTimeline campers with no days', () => {
     ['no stay', null],
     ['an empty stay', []],
     ['a stay outside the event', ['2026-09-01']],
+    ['a stay of departure day alone', [DAYS[3]]],
   ])('lists a camper in a unit with %s in the sidebar, not as a bar', (_, stay) => {
     const annie = inUnit(3, 'Annie', stay);
     const placed = bob(STAY);

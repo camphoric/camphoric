@@ -1401,12 +1401,13 @@ across date ranges**, with capacity visibility. Required capabilities:
 - **See unassigned campers** — those not yet placed in a leaf unit for any of the event's days —
   with the context needed to place them: name, requested lodging, sharing preference/partner, and
   comments. A camper counts as **unassigned** when their `lodging` is null, *or* a non-leaf node,
-  *or* a leaf but their `stay` is null, empty, or has none of the event's days. Registration sets
-  a camper's `lodging` to the node they requested, with no stay: often a non-leaf (e.g.
-  "Cabins"), but sometimes a leaf (e.g. Lark's "Let registrar assign my lodging"). A camper
-  unassigned in a leaf still counts toward that leaf's occupancy, and their lodging details still
-  name it; being unassigned means only that they have no days placed. Placing them (with their
-  days) works as for any unassigned camper (§15, DR-116).
+  *or* a leaf but their `stay` is null, empty, or has none of the days a camper can be present
+  (the event's days but departure day). Registration sets a camper's `lodging` to the node they
+  requested, with no stay: often a non-leaf (e.g. "Cabins"), but sometimes a leaf (e.g. Lark's
+  "Let registrar assign my lodging"). A camper unassigned in a leaf still counts toward that
+  leaf's occupancy, and their lodging details still name it; being unassigned means only that
+  they have no days placed. Placing them (with their days) works as for any unassigned camper
+  (§15, DR-116).
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
   (and reserved count), each node's children listed by name in natural order, as the timeline
   lists units ("Cabin 2" before "Cabin 10"; §15, DR-63), any node with nodes under it but the
@@ -4761,10 +4762,11 @@ doesn't yet check out (#797); building from the checkout keeps server and fronte
 ### DR-116 — A camper in a leaf with no days counts as unassigned
 
 **Decision:** On the lodging screen a camper is unassigned when their `lodging` is null or a
-non-leaf node, or a leaf but their stay has none of the event's days. One shared client helper
-decides it, and the timeline lists such a camper with the unassigned and draws no bar for them.
-They still count toward the leaf's occupancy, and the camper's lodging details (on the lodging
-screen, in the camper editor and in the campers list) still name the leaf.
+non-leaf node, or a leaf but their stay has none of the days a camper can be present (the
+event's days but departure day, DR-65). One shared client helper decides it, and the timeline
+lists such a camper with the unassigned and draws no bar for them. They still count toward the
+leaf's occupancy, and the camper's lodging details (on the lodging screen, in the camper editor
+and in the campers list) still name the leaf.
 **Context:** #826: registration saves the node a camper chose as their `lodging`, with no stay.
 When that node is a leaf, such as Lark's "Let registrar assign my lodging", the camper counted as
 assigned but had no bar, so they couldn't be dragged in or out: the very campers the registrar
