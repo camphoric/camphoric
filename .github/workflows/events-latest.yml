@@ -1,7 +1,7 @@
 # Weekly: do the newest published versions of the events data/ installs from
 # GitHub Packages (each camp's own repository) still work here? The lockfile
 # pins the versions every other workflow tests; this one moves each such event
-# to the newest version its range allows (npm update), then runs the offline
+# to the newest version its range allows, then runs the offline
 # tests and imports every event into a freshly built image, as docker.yml does.
 # It also notes an event with a newer major than its range, and an event
 # repository in the camphoric org whose package the importer doesn't install.
@@ -29,7 +29,7 @@ concurrency:
 
 permissions:
   contents: read
-  # npm ci and npm update install the events from GitHub Packages
+  # npm ci and npm install fetch the events from GitHub Packages
   packages: read
   issues: write
 
@@ -55,12 +55,18 @@ jobs:
         working-directory: data
         run: npm ci
 
+      # npm install by range, not npm update <event>: in this workspace root,
+      # updating a named package drops the link to the workspace spec (and
+      # nests registry copies of it). --no-save leaves package.json and the
+      # lockfile as they are, for the steps below.
       - name: Move the registry events to their newest versions
         working-directory: data
         run: |
+          specs=$(node scripts/registry-events.mjs | awk '{ print $1 "@" $2 }')
           events=$(node scripts/registry-events.mjs | cut -d' ' -f1)
           if [ -n "$events" ]; then
-            npm update $events
+            npm install --no-save $specs
+            test -L node_modules/@camphoric/camphoric-event-import-spec
             {
               echo '### Events from GitHub Packages'
               echo '```'
