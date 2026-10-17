@@ -96,7 +96,28 @@ describe('auth hooks: the query cache follows the signed-in user (SPEC §6)', ()
     await signIn(result, admin);
 
     expect(client.getQueryData(USERS_KEY)).toEqual([admin]);
-    expect(result.current.user.data).toEqual(admin);
+    await waitFor(() => expect(result.current.user.data).toEqual(admin));
+  });
+
+  it('a whoami refetch that finds someone else signed in (in another tab) drops the last user’s data', async () => {
+    const { client, result } = setup(admin);
+    await expire(client);
+
+    api.whoami = reporter;
+    await act(() => client.invalidateQueries({ queryKey: WHOAMI_KEY }));
+
+    expect(client.getQueryData(USERS_KEY)).toBeUndefined();
+    await waitFor(() => expect(result.current.user.data).toEqual(reporter));
+  });
+
+  it('a whoami refetch that finds the same user signed back in keeps their cached data', async () => {
+    const { client } = setup(admin);
+    await expire(client);
+
+    api.whoami = admin;
+    await act(() => client.invalidateQueries({ queryKey: WHOAMI_KEY }));
+
+    expect(client.getQueryData(USERS_KEY)).toEqual([admin]);
   });
 
   it('a view still on screen refetches its data as the new user', async () => {

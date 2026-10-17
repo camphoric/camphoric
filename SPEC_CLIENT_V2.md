@@ -962,10 +962,12 @@ hooks):
   the public registration flow, is not treated as a lapsed session. A 401/403 on a registration
   submit surfaces a friendly error (see §15, DR-9).
 - **The query cache holds one user's data** (§15, DR-117). Signing out removes every cached query
-  except whoami, which becomes the anonymous user. Signing in as anyone other than the last user
-  seen signed in in that tab resets every cached query except whoami: cached data is dropped, and
-  anything still on screen refetches as the new user. Signing back in as the same user — after a
-  session expiry, say — keeps the cache, so in-place re-authentication (below) loses nothing.
+  except whoami, which becomes the anonymous user. Whenever whoami turns into a signed-in user
+  other than the last one seen in that tab — a sign-in there, or a whoami check that finds someone
+  else signed in from another tab — every cached query except whoami is reset before anything
+  renders as the new user: cached data is dropped, and anything still on screen refetches as the
+  new user. Signing back in as the same user — after a session expiry, say — keeps the cache, so
+  in-place re-authentication (below) loses nothing.
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin,
     and only a superuser changes the account of a user with Django access (§15, DR-116).
@@ -4839,9 +4841,10 @@ every user's token — would also void every link already sent to a regular user
 ### DR-117 — The query cache is emptied on sign-out and when another user signs in
 
 **Decision:** Signing out removes every cached query but whoami. A successful sign-in sets whoami
-from the login response, then resets every other query when the user isn't the last one seen
-signed in in the tab (tracked per query client, by user id); signing back in as that user keeps
-the cache (§6).
+from the login response. A watcher on the whoami query resets every other query whenever whoami
+becomes a signed-in user other than the last one seen in the tab (tracked per query client, by
+user id), whether by a sign-in or a refetch; whoami becoming that same user again keeps the cache
+(§6).
 **Context:** #809: neither sign-out nor sign-in touched the cache, so on a shared computer a
 Reporter signing in after an Admin signed out was shown the Admin's data (the users list,
 registrations) straight from the cache for up to the 30-second stale time. The last signed-in
@@ -4851,7 +4854,10 @@ in-place re-authentication's point (DR-26), or keep it when someone else does. A
 rather than removes, because a view still mounted under a re-authentication prompt keeps reading
 a removed query's data until it re-renders; a reset clears it and refetches. A sign-out removes,
 since the admin views unmount and a reset would refetch them as the anonymous user. Whoami is
-kept so the guard never sees an empty user and flashes its loading screen.
+kept so the guard never sees an empty user and flashes its loading screen. Watching whoami
+itself, rather than the sign-in, also catches someone signing in as another user in a second tab:
+this tab's next whoami check (on focus, activity or the interval, DR-26) brings the new identity,
+and the watcher runs as the cache changes, before anything renders with it.
 **Alternatives:** `queryClient.clear()` — also drops whoami (the guard flashes "Checking your
 session…") and leaves mounted views on the old data. Clearing on every sign-in — simpler, but
 re-authenticating after an expired session would refetch everything and could disturb edits in

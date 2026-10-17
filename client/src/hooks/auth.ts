@@ -3,8 +3,9 @@
  * endpoint (GET /api/user) is the source of truth for the current user and
  * doubles as the cheap session/keep-alive check.
  *
- * The query cache holds one user's data, so it is emptied on sign-out and when
- * someone other than the last signed-in user signs in (SPEC §6).
+ * The query cache holds one user's data (SPEC §6, DR-116): it is emptied on
+ * sign-out, and reset whenever whoami turns into a different signed-in user —
+ * by a sign-in here, or by a whoami refetch after a sign-in in another tab.
  */
 
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,28 +18,49 @@ export const WHOAMI_KEY = ['WhoAmI'] as const;
 /**
  * The id of the last user seen signed in, per query client. It outlives a
  * session that expires, so signing back in as the same user keeps their cached
- * data, while signing in as anyone else drops it.
+ * data, while anyone else's sign-in drops it.
  */
 const lastSignedIn = new WeakMap<QueryClient, number>();
+const watched = new WeakSet<QueryClient>();
 
+const isWhoAmI = (query: { queryKey: readonly unknown[] }) => query.queryKey[0] === WHOAMI_KEY[0];
 /** Every query but whoami, which the sign-in/out sets itself. */
-const allButWhoAmI = {
-  predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== WHOAMI_KEY[0],
-};
+const allButWhoAmI = { predicate: (query: { queryKey: readonly unknown[] }) => !isWhoAmI(query) };
+
+/**
+ * Watch whoami for a change of signed-in user, however it arrives (a sign-in,
+ * a refetch), and reset every other query when it does: cached data is
+ * dropped and anything on screen refetches as the new user. It runs as the
+ * cache changes, before anything renders with the new user.
+ */
+function watchSignedInUser(client: QueryClient) {
+  if (watched.has(client)) return;
+  watched.add(client);
+  const follow = (user: ApiUser | undefined) => {
+    if (!isAuthenticated(user) || user?.id == null) return;
+    const previous = lastSignedIn.get(client);
+    lastSignedIn.set(client, user.id);
+    if (previous !== undefined && previous !== user.id) void client.resetQueries(allButWhoAmI);
+  };
+  follow(client.getQueryData<ApiUser>(WHOAMI_KEY));
+  client.getQueryCache().subscribe((event) => {
+    if (event.type === 'updated' && event.action.type === 'success' && isWhoAmI(event.query)) {
+      follow(event.query.state.data as ApiUser | undefined);
+    }
+  });
+}
 
 /** The current user, or the anonymous user when logged out. */
 export function useCurrentUser() {
   const client = useQueryClient();
-  const query = useQuery({
+  useEffect(() => {
+    watchSignedInUser(client);
+  }, [client]);
+  return useQuery({
     queryKey: WHOAMI_KEY,
     queryFn: ({ signal }) => apiFetch<ApiUser>('/api/user', { signal }),
     staleTime: 10_000,
   });
-  const signedInId = isAuthenticated(query.data) ? (query.data?.id ?? null) : null;
-  useEffect(() => {
-    if (signedInId !== null) lastSignedIn.set(client, signedInId);
-  }, [client, signedInId]);
-  return query;
 }
 
 export function isAuthenticated(user: ApiUser | undefined): boolean {
@@ -57,12 +79,9 @@ export function useLogin() {
       apiFetch<ApiUser>('/api/login', { method: 'POST', body: credentials }),
     onSuccess: (user) => {
       // The login response is the new whoami, so the app goes straight to the
-      // signed-in user. Another user's data is reset (not removed) so any view
-      // still mounted drops it and refetches as the new user.
-      const previous = lastSignedIn.get(client);
+      // signed-in user (and another user's data is reset as it does).
+      watchSignedInUser(client);
       client.setQueryData(WHOAMI_KEY, user);
-      if (user.id !== null) lastSignedIn.set(client, user.id);
-      if (previous !== user.id) void client.resetQueries(allButWhoAmI);
       return client.invalidateQueries({ queryKey: WHOAMI_KEY });
     },
   });
