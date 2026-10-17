@@ -218,7 +218,16 @@ touches `data/` (`.github/workflows/data.yml`) and
 imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
 rejected sample registration fails that import. The same workflow runs Sample Camp's
 registration-form e2e tests against a throwaway server from that image, so a client change that
-breaks the import-tools page object fails there.
+breaks the import-tools page object fails there. The server's legacy report tests
+(`server/tests/test_templating_legacy.py`, in `django.yml`) render the reports of the events
+`data/` installs from GitHub Packages as well as those under `data/events/`. Those other workflows
+test the event versions the lockfile pins; every week, `.github/workflows/events-latest.yml` moves
+each to the newest version its range allows and tests and imports them again, opening an
+`event-compat` issue when they fail, when an event has a newer major than its range, or when the
+camphoric org has an event repository (`camphoric-event-<name>`) whose package `data/` doesn't
+install. `node scripts/registry-events.mjs`
+lists the events `data/` installs from GitHub Packages, and `scripts/latest-events-notes.sh` gives
+those notes.
 
 ### Create the Django superuser
 

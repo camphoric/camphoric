@@ -5,14 +5,18 @@ on:
     branches: [main]
     paths:
       - 'server/**'
-      # the legacy report tests render the events' report templates
+      # the legacy report tests render the events' report templates: those
+      # under data/events/ and those of the events data/ installs (the lockfile
+      # pins their versions)
       - 'data/events/*/reports/**'
+      - 'data/package-lock.json'
       - '.github/workflows/django.yml'
   pull_request:
     branches: [main]
     paths:
       - 'server/**'
       - 'data/events/*/reports/**'
+      - 'data/package-lock.json'
       - '.github/workflows/django.yml'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
@@ -20,6 +24,12 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  # npm ci installs the events published from their own repositories from
+  # GitHub Packages
+  packages: read
 
 env:
   SECRET_KEY: not-a-real-secret-key-really-not-a-real-secret-key
@@ -61,6 +71,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+      # The legacy report tests also render the reports of the events data/
+      # installs from GitHub Packages (data/node_modules)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@camphoric'
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+      - name: Install data/ (the events' report templates)
+        working-directory: ./data
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci --ignore-scripts
       - name: Set up Python ${{ matrix.python-version }}
         id: setup-python
         uses: actions/setup-python@v7

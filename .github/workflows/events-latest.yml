@@ -1,0 +1,166 @@
+# Weekly: do the newest published versions of the events data/ installs from
+# GitHub Packages (each camp's own repository) still work here? The lockfile
+# pins the versions every other workflow tests; this one moves each such event
+# to the newest version its range allows (npm update), then runs the offline
+# tests and imports every event into a freshly built image, as docker.yml does.
+# It also notes an event with a newer major than its range, and an event
+# repository in the camphoric org whose package the importer doesn't install.
+#
+# A failure or a note opens (or adds to) an issue labelled event-compat, which
+# a later clean run closes; a report the issue already has isn't repeated. On a
+# pull request that changes this workflow it runs as a check, without touching
+# issues.
+name: Latest events
+
+on:
+  schedule:
+    - cron: '0 15 * * 1'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/events-latest.yml'
+      - 'data/scripts/registry-events.mjs'
+      - 'data/scripts/latest-events-notes.sh'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  # npm ci and npm update install the events from GitHub Packages
+  packages: read
+  issues: write
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@camphoric'
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+
+      - name: Install the importer
+        working-directory: data
+        run: npm ci
+
+      - name: Move the registry events to their newest versions
+        working-directory: data
+        run: |
+          events=$(node scripts/registry-events.mjs | cut -d' ' -f1)
+          if [ -n "$events" ]; then
+            npm update $events
+            {
+              echo '### Events from GitHub Packages'
+              echo '```'
+              npm ls $events
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Notes
+        id: notes
+        working-directory: data
+        run: |
+          scripts/latest-events-notes.sh > "$RUNNER_TEMP/notes.md"
+          if [ -s "$RUNNER_TEMP/notes.md" ]; then
+            { echo '### Notes'; cat "$RUNNER_TEMP/notes.md"; } >> "$GITHUB_STEP_SUMMARY"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Type-check
+        working-directory: data
+        run: npm run typecheck
+
+      - name: Offline import validation
+        working-directory: data
+        run: npm test
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: camphoric:local
+          cache-from: type=gha
+
+      - name: Start the image with Postgres
+        run: docker compose -f docker-compose.image.yml up --wait --no-build
+
+      - name: Live import of every event
+        working-directory: data
+        env:
+          CAMPHORIC_URL: http://localhost:8000
+          DJANGO_SUPERUSER_USERNAME: admin
+          DJANGO_SUPERUSER_PASSWORD: admin
+        run: npm run import
+
+      - name: Check the imported templates
+        run: docker compose -f docker-compose.image.yml exec -T app python manage.py check_templates --all
+
+      - name: App logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.image.yml logs app worker
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.image.yml down -v
+
+      # One open event-compat issue at a time: a failure or a note adds to it
+      # (or opens it), unless its latest report says the same; a clean run
+      # closes it.
+      - name: Report in an event-compat issue
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        env:
+          OUTCOME: ${{ job.status }}
+          NOTES: ${{ steps.notes.outputs.found }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          open=$(gh issue list --label event-compat --state open --json number --jq '.[0].number // empty')
+          if [ "$OUTCOME" = success ] && [ "$NOTES" != true ]; then
+            if [ -n "$open" ]; then
+              gh issue close "$open" --comment "The latest published events pass again: $RUN"
+            fi
+            exit 0
+          fi
+          # The same outcome and notes as the issue's latest report: nothing new
+          touch "$RUNNER_TEMP/notes.md"
+          fingerprint=$( { echo "$OUTCOME"; cat "$RUNNER_TEMP/notes.md"; } | sha256sum | cut -c1-16)
+          {
+            if [ "$OUTCOME" != success ]; then
+              echo "The latest published events fail here: see [the run]($RUN)."
+            else
+              echo "The latest published events pass ([the run]($RUN)), with notes:"
+            fi
+            if [ -s "$RUNNER_TEMP/notes.md" ]; then echo; cat "$RUNNER_TEMP/notes.md"; fi
+            echo
+            echo "<!-- event-compat: $fingerprint -->"
+          } > "$RUNNER_TEMP/report.md"
+          if [ -n "$open" ]; then
+            latest=$(gh issue view "$open" --json body,comments \
+              --jq '([.body] + [.comments[].body]) | map(select(contains("<!-- event-compat:"))) | last // ""')
+            if echo "$latest" | grep -qF "<!-- event-compat: $fingerprint -->"; then
+              echo "issue #$open already reports this"
+              exit 0
+            fi
+            gh issue comment "$open" --body-file "$RUNNER_TEMP/report.md"
+          else
+            gh label create event-compat --color d93f0b \
+              --description 'The latest published events and this repository disagree' 2>/dev/null || true
+            gh issue create --title 'The latest published events need attention' \
+              --label event-compat --body-file "$RUNNER_TEMP/report.md"
+          fi

@@ -119,7 +119,7 @@ GitHub Packages needs a token to install **even public packages**:
 `data/` installs events from GitHub Packages, so everything that runs its `npm ci` needs a token
 with `read:packages`:
 
-- **CI** (`data.yml`, `docker.yml`, `release-packages.yml`): the job's own `GITHUB_TOKEN`, with
+- **CI** (`data.yml`, `docker.yml`, `django.yml`, `events-latest.yml`, `release-packages.yml`): the job's own `GITHUB_TOKEN`, with
   `packages: read`, as `NODE_AUTH_TOKEN` (the variable `actions/setup-node`'s npm config reads).
   That's enough for public packages. A private package published from another repository, such
   as a camp's events, installs only if it grants this repository read access: in its settings,
