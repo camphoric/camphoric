@@ -1,5 +1,5 @@
 /* eslint-disable indent */
-import type { LodgingLookup, Lodgings } from 'camphoric-event-import-spec';
+import type { LodgingLookup, Lodgings } from '@camphoric/camphoric-event-import-spec';
 import { dates } from './dates.ts';
 
 export default {

@@ -1,4 +1,4 @@
-import type { Report } from 'camphoric-event-import-spec';
+import type { Report } from '@camphoric/camphoric-event-import-spec';
 
 // Every report renders on the server from Camphoric's variables (DR-41).
 export default [

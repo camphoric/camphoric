@@ -3,18 +3,19 @@
  * imported on demand, so a broken module fails only its own event.
  */
 
-import type { LoadedEventModule } from 'camphoric-event-import-spec';
+import type { LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
 
 export const EVENTS = {
-  ltacampout: () => import('camphoric-event-ltacampout'),
-  lark: () => import('camphoric-event-lark'),
-  familyweek: () => import('camphoric-event-familyweek'),
-  harmony: () => import('camphoric-event-harmony'),
+  ltacampout: () => import('@camphoric/camphoric-event-ltacampout'),
+  lark: () => import('@camphoric/camphoric-event-lark'),
+  familyweek: () => import('@camphoric/camphoric-event-familyweek'),
+  harmony: () => import('@camphoric/camphoric-event-harmony'),
 } satisfies Record<string, () => Promise<LoadedEventModule>>;
 
 export type EventName = keyof typeof EVENTS;
 
-const PACKAGE_PREFIX = 'camphoric-event-';
+// An event's package name, scoped or not, ahead of its short name
+const PACKAGE_PREFIX = /^(@camphoric\/)?camphoric-event-/;
 
 /**
  * The events to import: those CAMPHORIC_EVENTS names (comma-separated short
@@ -25,7 +26,7 @@ export function selectedEvents(filter = process.env.CAMPHORIC_EVENTS): EventName
   if (!filter) return Object.keys(EVENTS) as EventName[];
 
   return filter.split(',').map(s => s.trim()).filter(Boolean).map((given) => {
-    const name = given.startsWith(PACKAGE_PREFIX) ? given.slice(PACKAGE_PREFIX.length) : given;
+    const name = given.replace(PACKAGE_PREFIX, '');
 
     if (!Object.hasOwn(EVENTS, name)) {
       throw new Error(

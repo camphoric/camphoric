@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from '@jest/globals';
-import type { Lodgings } from 'camphoric-event-import-spec';
+import type { Lodgings } from '@camphoric/camphoric-event-import-spec';
 
 import lark from '../index.ts';
 

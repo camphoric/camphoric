@@ -1,5 +1,8 @@
 {
-  "extends": "camphoric-event-import-spec/tsconfig.base.json",
+  "extends": "@camphoric/camphoric-event-import-spec/tsconfig.base.json",
+  // In this repository, resolve the @camphoric packages to their TypeScript
+  // source (the camphoric-source export condition), not their built dist/.
+  "compilerOptions": { "customConditions": ["camphoric-source"] },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }

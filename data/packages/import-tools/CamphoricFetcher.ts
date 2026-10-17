@@ -1,4 +1,4 @@
-import type { FetchMethod } from 'camphoric-event-import-spec';
+import type { FetchMethod } from '@camphoric/camphoric-event-import-spec';
 import { getAuthToken } from './getAuthInfo.ts';
 
 const tryFetchAgainAfterMs = 2000;

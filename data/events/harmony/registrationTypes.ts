@@ -1,4 +1,4 @@
-import type { RegistrationType } from 'camphoric-event-import-spec';
+import type { RegistrationType } from '@camphoric/camphoric-event-import-spec';
 
 // A registration type, before its invitation email is added
 type RegTypeBase = Omit<RegistrationType, 'invitation_email_subject' | 'invitation_email_template'>;

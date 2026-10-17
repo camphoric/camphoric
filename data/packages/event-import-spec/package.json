@@ -1,18 +1,43 @@
 {
-  "name": "camphoric-event-import-spec",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
+  "name": "@camphoric/camphoric-event-import-spec",
+  "version": "1.0.0",
   "description": "The contract a Camphoric event module satisfies: the event import object's TypeBox schema and types, its validator, and the shared conformance tests.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/camphoric/camphoric.git",
+    "directory": "data/packages/event-import-spec"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "index.ts",
+    "conformance.ts",
+    "tsconfig.base.json",
+    "CHANGELOG.md"
+  ],
   "exports": {
-    ".": "./index.ts",
-    "./conformance": "./conformance.ts",
+    ".": {
+      "camphoric-source": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./conformance": {
+      "camphoric-source": "./conformance.ts",
+      "types": "./dist/conformance.d.ts",
+      "default": "./dist/conformance.js"
+    },
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "ajv": "^8.17.1",

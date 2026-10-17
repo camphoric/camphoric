@@ -9,7 +9,7 @@
  */
 
 import lodash from 'lodash';
-import type { OrganizationImport } from 'camphoric-event-import-spec';
+import type { OrganizationImport } from '@camphoric/camphoric-event-import-spec';
 
 /** An organization as the server returned it, with its email account. */
 export type Organization = {

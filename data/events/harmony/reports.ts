@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import type { Report } from 'camphoric-event-import-spec';
+import type { Report } from '@camphoric/camphoric-event-import-spec';
 
 import { earlybirdCutoff } from './dates.ts';
 

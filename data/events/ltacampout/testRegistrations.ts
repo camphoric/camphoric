@@ -1,4 +1,4 @@
-import type { LodgingLookup, SampleRegistration } from 'camphoric-event-import-spec';
+import type { LodgingLookup, SampleRegistration } from '@camphoric/camphoric-event-import-spec';
 import { ageLookup } from './pricing/camperPricingLogic.ts';
 
 // age, first name, last name, lodging, chore, and who they share lodging with

@@ -1,21 +1,50 @@
 {
-  "name": "camphoric-event-import-tools",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
+  "name": "@camphoric/camphoric-event-import-tools",
+  "version": "1.0.0",
   "description": "Camphoric REST client, login, and the runner that posts generated registrations to an event.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/camphoric/camphoric.git",
+    "directory": "data/packages/import-tools"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "CamphoricFetcher.ts",
+    "getAuthInfo.ts",
+    "bulkRegistrations.ts",
+    "CHANGELOG.md"
+  ],
   "exports": {
-    "./fetcher": "./CamphoricFetcher.ts",
-    "./auth": "./getAuthInfo.ts",
-    "./bulk-registrations": "./bulkRegistrations.ts",
+    "./fetcher": {
+      "camphoric-source": "./CamphoricFetcher.ts",
+      "types": "./dist/CamphoricFetcher.d.ts",
+      "default": "./dist/CamphoricFetcher.js"
+    },
+    "./auth": {
+      "camphoric-source": "./getAuthInfo.ts",
+      "types": "./dist/getAuthInfo.d.ts",
+      "default": "./dist/getAuthInfo.js"
+    },
+    "./bulk-registrations": {
+      "camphoric-source": "./bulkRegistrations.ts",
+      "types": "./dist/bulkRegistrations.d.ts",
+      "default": "./dist/bulkRegistrations.js"
+    },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "camphoric-event-import-spec": "*",
+    "@camphoric/camphoric-event-import-spec": "^1.0.0",
     "dotenv": "^18.0.4",
     "inquirer": "^14.2.2"
   },
