@@ -59,10 +59,25 @@ class EmailAccountSerializer(ModelSerializer):
             'password': {'write_only': True, 'required': False, 'allow_blank': True},
         }
 
+    # Where and as whom the account logs in. Changing any of them needs the
+    # password again: otherwise the stored one would be sent to a server the
+    # editor chose (SPEC DR-116).
+    CONNECTION_FIELDS = ('host', 'port', 'username', 'security')
+
     def get_password_status(self, account):
         if account.password is None:
             return 'unreadable'
         return 'set' if account.password else 'unset'
+
+    def validate(self, data):
+        account = self.instance
+        if account is not None and account.password and not data.get('password'):
+            if any(name in data and data[name] != getattr(account, name)
+                   for name in self.CONNECTION_FIELDS):
+                raise ValidationError({'password': (
+                    'Enter the password again to change the server, port, security '
+                    'or username.')})
+        return data
 
     def update(self, instance, validated_data):
         if not validated_data.get('password'):

@@ -3,7 +3,9 @@
  * through, its credentials, and its sending limits. The password is
  * write-only — the server stores it encrypted and never returns it — so when
  * editing, a blank password keeps the stored one, unless it can no longer be
- * read (the encryption key changed) and must be entered again.
+ * read (the encryption key changed) or the server, port, security or username
+ * changes (the server refuses that without it, SPEC DR-116); then it must be
+ * entered again.
  */
 
 import {
@@ -58,6 +60,13 @@ interface EmailAccountFormProps {
 
 const limit = (value: number | string) => (value === '' ? null : Number(value));
 
+/** Whether the form changes where, or as whom, the account logs in. */
+const changesConnection = (account: ApiEmailAccount, values: Values) =>
+  values.host.trim() !== account.host ||
+  Number(values.port) !== account.port ||
+  values.security !== account.security ||
+  values.username.trim() !== account.username;
+
 export function EmailAccountForm({
   organizationId,
   account,
@@ -86,7 +95,14 @@ export function EmailAccountForm({
         values.backend !== SMTP_BACKEND || value.trim() ? null : 'Enter the mail server',
       port: (value) =>
         Number(value) >= 1 && Number(value) <= 65535 ? null : 'Enter a port from 1 to 65535',
-      password: (value) => (unreadable && !value ? 'Enter the password again' : null),
+      password: (value, values) => {
+        if (value) return null;
+        if (unreadable) return 'Enter the password again';
+        if (account?.password_status === 'set' && changesConnection(account, values)) {
+          return 'Enter the password again to change the server, port, security or username';
+        }
+        return null;
+      },
       default_reply_to: (value) =>
         !value || /^\S+@\S+\.\S+$/.test(value) ? null : 'Enter an email address',
     },
@@ -120,7 +136,8 @@ export function EmailAccountForm({
   const passwordHelp = !account
     ? 'Stored encrypted; it can’t be read back.'
     : account.password_status === 'set'
-      ? 'Leave blank to keep the stored password.'
+      ? 'Leave blank to keep the stored password, unless the server, port, security or ' +
+        'username changes.'
       : undefined;
 
   return (

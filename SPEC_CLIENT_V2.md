@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-115)
+- §15 — Decision Records (DR-1…DR-116)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -814,7 +814,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   (`starttls` | `ssl` | `none`), `timeout`, `username`, `max_per_minute?`, `max_per_day?`,
   `default_reply_to`, and `password`, which is write-only (stored encrypted; blank on an update
   keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
-  changed, so it must be entered again).
+  changed, so it must be entered again). An update that changes `host`, `port`, `security` or
+  `username` of an account with a stored password must give the password too, or it is a 400
+  with an error on `password` (§15, DR-116).
 - **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
   `page_report` | `payment_report` | `invitation` | `invoice` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
   `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
@@ -1588,7 +1590,10 @@ security (STARTTLS, SSL/TLS or none; changing the security moves a standard port
 timeout, username and password, its sending limits (most messages a minute and a day; blank is no
 limit), and a default Reply-To (blank: each email's From address; §15, DR-47). The password is
 never shown: when editing, a blank password keeps the stored one, and one the server can no longer
-read (its encryption key changed) is flagged and must be entered again (§15, DR-46). The admin can
+read (its encryption key changed) is flagged and must be entered again (§15, DR-46). Changing the
+server, port, security or username of an account with a stored password needs the password
+entered again; the form says so before saving, and the server refuses the change without it
+(§15, DR-116). The admin can
 send a test message through an account (to themselves; it appears in the Email history, §8.9) and
 delete an account no event or sent email uses (otherwise the server refuses, and the reason is
 shown).
@@ -4749,6 +4754,22 @@ which is gone. Keep v1 frozen alongside v2 — it would keep deploying through A
 silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
 doesn't yet check out (#797); building from the checkout keeps server and frontend together.
+
+### DR-116 — Changing where an email account connects needs its password again
+
+**Decision:** An update that changes an email account's `host`, `port`, `security` or `username`
+must give the password again when the account has a stored one; without it the server answers
+400 with an error on `password`. Fields sent with their current values don't count as changes,
+and an account with no stored password (or one the server can no longer read) can change them
+freely. The client checks the same rule before saving.
+**Context:** #802: a blank password on an update keeps the stored one (DR-46), so a Registrar
+could point an account at a server of their choosing, with security off, and send a test message:
+the worker would log in there with the real username and password in clear text. The same steps
+could probe internal hosts and ports, each failure's error shown in the email history.
+**Alternatives:** Make email accounts writable by Admins only, as organizations are — Registrars
+manage their event's email today, and re-entering the password closes the leak without taking
+that away. Refuse private and loopback hosts — a local relay is a legitimate mail server, and the
+password rule already keeps the stored password from going anywhere new.
 
 ---
 

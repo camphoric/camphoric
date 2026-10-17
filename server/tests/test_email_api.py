@@ -185,6 +185,48 @@ class AccountTests(EmailApiTestCase):
         self.account.refresh_from_db()
         self.assertEqual(self.account.password, 'new-secret')
 
+    def test_changing_the_connection_needs_the_password_again(self):
+        changes = [{'host': 'attacker.example'}, {'port': 25}, {'security': 'none'},
+                   {'username': 'someone@example.com'}]
+        for change in changes:
+            with self.subTest(change=change):
+                for password in (None, ''):
+                    data = change if password is None else {**change, 'password': password}
+                    response = self.client.patch(self.url(), data, format='json')
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn('password', response.data)
+                self.account.refresh_from_db()
+                self.assertEqual(self.account.host, 'smtp.example.com')
+                self.assertEqual(self.account.port, 587)
+                self.assertEqual(self.account.security, 'starttls')
+                self.assertEqual(self.account.username, 'camp@example.com')
+
+    def test_changing_the_connection_with_the_password(self):
+        response = self.client.patch(
+            self.url(), {'host': 'smtp.other.example', 'security': 'ssl', 'port': 465,
+                         'password': 'secret'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.host, 'smtp.other.example')
+        self.assertEqual(self.account.password, 'secret')
+
+    def test_other_changes_and_unchanged_connection_keep_the_password(self):
+        # The client sends every field on a save; unchanged ones don't count.
+        response = self.client.patch(
+            self.url(), {'name': 'Renamed', 'host': 'smtp.example.com', 'port': 587,
+                         'security': 'starttls', 'username': 'camp@example.com',
+                         'max_per_minute': 10}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.name, 'Renamed')
+        self.assertEqual(self.account.password, 'secret')
+
+    def test_an_account_without_a_password_can_change_its_server(self):
+        self.account.password = ''
+        self.account.save()
+        response = self.client.patch(self.url(), {'host': 'relay.example.com'}, format='json')
+        self.assertEqual(response.status_code, 200)
+
     def test_an_account_in_use_cannot_be_deleted(self):
         response = self.client.delete(self.url())
         self.assertEqual(response.status_code, 409)

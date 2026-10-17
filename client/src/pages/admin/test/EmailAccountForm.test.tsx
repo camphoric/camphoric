@@ -54,10 +54,34 @@ describe('EmailAccountForm', () => {
 
   it('keeps the stored password when it is left blank', async () => {
     const onSubmit = renderForm({ account: sampleAccount() });
-    expect(screen.getByText('Leave blank to keep the stored password.')).toBeInTheDocument();
+    expect(screen.getByText(/^Leave blank to keep the stored password/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.not.objectContaining({ password: '' }));
     expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('password');
+  });
+
+  it('asks for the password again when the server changes', async () => {
+    const onSubmit = renderForm({ account: sampleAccount() });
+    await userEvent.clear(screen.getByLabelText(/^Mail server/));
+    await userEvent.type(screen.getByLabelText(/^Mail server/), 'smtp.example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Enter the password again to change the server, port, security or username'),
+    ).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Password'), 'app-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ host: 'smtp.example.com', password: 'app-password' }),
+    );
+  });
+
+  it('asks for the password again when the security changes', async () => {
+    const onSubmit = renderForm({ account: sampleAccount() });
+    await userEvent.click(screen.getByText('SSL/TLS'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('asks for a password it can no longer read', async () => {
