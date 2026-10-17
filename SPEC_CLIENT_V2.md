@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-115)
+- §15 — Decision Records (DR-1…DR-116)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -406,7 +406,8 @@ Non-CRUD admin endpoints:
   codes are deleted by Admins only (§15, DR-93, DR-108). A signed-out caller gets 401, a
   signed-in one without the needed role 403, and user management (`/api/users/`) answers 404 to
   anyone who isn't an Admin.
-- `POST /api/login` — `{ username, password }`, invalidates whoami.
+- `POST /api/login` — `{ username, password }` → the signed-in user (the whoami shape); the
+  client sets whoami from it and refetches whoami (§6).
 - `POST /api/reports/{id}/render` — render a Jinja report → `{ report: string, error: string |
   null, diagnostics? }`. The body depends on the report's `variables_source` (§8.7): legacy
   (`client`) reports post the template-variable bundle; `server` reports post `{}`, render from
@@ -934,8 +935,9 @@ hooks):
 ## 6. Authentication
 
 - The admin guard requires a non-empty `username` on the current user. Anonymous users see a
-  **Login** form (username/password) that posts to `/api/login`; on success the whoami cache
-  is invalidated and the guarded content renders.
+  **Login** form (username/password) that posts to `/api/login`; on success the login response
+  (the same shape as whoami) becomes the current user, so the guarded content renders at once,
+  and whoami is refetched to confirm it.
 - The registration flow needs no authentication, but an **invitation code** in the query
   string grants access to otherwise-closed registration and pre-fills invitation context. The
   server enforces this too: outside the registration dates, only a submission carrying a valid
@@ -943,6 +945,13 @@ hooks):
 - A **logout** action (`POST /api/logout`) clears the session. A global handler bounces a 401 on
   any admin endpoint back to the login form, preserving the attempted URL; a 401/403 on a
   registration submit surfaces a friendly error (see §15, DR-9).
+- **The query cache holds one user's data** (§15, DR-116). Signing out removes every cached query
+  except whoami, which becomes the anonymous user. Whenever whoami turns into a signed-in user
+  other than the last one seen in that tab — a sign-in there, or a whoami check that finds someone
+  else signed in from another tab — every cached query except whoami is reset before anything
+  renders as the new user: cached data is dropped, and anything still on screen refetches as the
+  new user. Signing back in as the same user — after a session expiry, say — keeps the cache, so
+  in-place re-authentication (below) loses nothing.
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin.
   - **Registrar** — everything except users and organizations, and deleting payments, invoices
@@ -4753,6 +4762,32 @@ which is gone. Keep v1 frozen alongside v2 — it would keep deploying through A
 silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
 doesn't yet check out (#797); building from the checkout keeps server and frontend together.
+
+### DR-116 — The query cache is emptied on sign-out and when another user signs in
+
+**Decision:** Signing out removes every cached query but whoami. A successful sign-in sets whoami
+from the login response. A watcher on the whoami query resets every other query whenever whoami
+becomes a signed-in user other than the last one seen in the tab (tracked per query client, by
+user id), whether by a sign-in or a refetch; whoami becoming that same user again keeps the cache
+(§6).
+**Context:** #809: neither sign-out nor sign-in touched the cache, so on a shared computer a
+Reporter signing in after an Admin signed out was shown the Admin's data (the users list,
+registrations) straight from the cache for up to the 30-second stale time. The last signed-in
+user is remembered apart from whoami because an expired session turns whoami anonymous: comparing
+against whoami alone would either drop the cache when the same user signs back in, losing the
+in-place re-authentication's point (DR-26), or keep it when someone else does. A sign-in resets
+rather than removes, because a view still mounted under a re-authentication prompt keeps reading
+a removed query's data until it re-renders; a reset clears it and refetches. A sign-out removes,
+since the admin views unmount and a reset would refetch them as the anonymous user. Whoami is
+kept so the guard never sees an empty user and flashes its loading screen. Watching whoami
+itself, rather than the sign-in, also catches someone signing in as another user in a second tab:
+this tab's next whoami check (on focus, activity or the interval, DR-26) brings the new identity,
+and the watcher runs as the cache changes, before anything renders with it.
+**Alternatives:** `queryClient.clear()` — also drops whoami (the guard flashes "Checking your
+session…") and leaves mounted views on the old data. Clearing on every sign-in — simpler, but
+re-authenticating after an expired session would refetch everything and could disturb edits in
+progress. Reloading the page on sign-out — clears everything, but repeats the bootstrap (§3)
+and does nothing for a sign-in after an expired session.
 
 ---
 

@@ -1,7 +1,7 @@
 /**
  * Admin login form (SPEC §6). Posts username/password to /api/login; on success
- * the whoami cache is invalidated and the guarded content renders. "Forgot
- * password?" switches to asking for a set-password link (DR-52).
+ * the response becomes the current user (useLogin) and the guarded content
+ * renders. "Forgot password?" switches to asking for a set-password link (DR-52).
  */
 
 import {
