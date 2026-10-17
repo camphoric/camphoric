@@ -9,7 +9,7 @@
     - name: Install virtual environment
       ansible.builtin.shell:
         chdir: "{{ camphoric_folder }}/server"
-        cmd: pipenv install --dev
+        cmd: "pipenv install {{ '--dev' if camphoric_environment == 'development' else '--deploy' }}"
       notify: Restart camphoric
 
     - name: Create Django.env
