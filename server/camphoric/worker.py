@@ -5,7 +5,8 @@ camphoric_worker` wires these into django-tasks-db's worker.
 - The reconciler, a task that runs every minute by re-enqueueing itself. It
   recovers the email outbox (camphoric.mail.outbox.recover), marks tasks whose
   worker died as failed, prunes old task results and heartbeats, and sends
-  the confirmations nobody triggered (camphoric.confirmations, SPEC DR-91). The
+  the confirmations nobody triggered (camphoric.confirmations, SPEC DR-91),
+  first recording any PayPal capture the payment flow didn't (#804). The
   nightly clean-up (camphoric.cleanup) is a chain like it.
 - The heartbeat a worker writes as it finishes tasks (the reconciler's run
   makes one at least every minute). The admin warns when no worker has
@@ -63,15 +64,18 @@ def _task_results():
 @task(priority=90)
 def reconcile():
     from camphoric.confirmations import send_overdue_confirmations
+    from camphoric.invoices import check_unrecorded_captures
     from camphoric.mail import outbox
 
     try:
         requeued, rewoken = outbox.recover(pending_ids=_pending_message_ids())
         abandoned = _fail_abandoned_tasks()
         _prune()
+        # Before the confirmations, so one sent late says what was paid.
+        captures = check_unrecorded_captures()
         confirmations = send_overdue_confirmations()
         return {'requeued': requeued, 'rewoken': rewoken, 'abandoned': abandoned,
-                'confirmations': confirmations}
+                'captures': captures, 'confirmations': confirmations}
     finally:
         schedule_reconcile(delay=RECONCILE_EVERY)
 

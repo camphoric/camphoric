@@ -847,6 +847,10 @@ class Invoice(TimeStampedModel):
     notes = models.TextField(blank=True, default='', help_text='Internal')
     # A PayPal order made for it and not yet captured.
     pending_paypal_order_id = models.CharField(max_length=64, null=True, blank=True)
+    # A capture started and not yet settled: the order and when. Unsettled 15
+    # minutes on, the worker asks PayPal about it (invoices.check_unrecorded_captures).
+    paypal_capture_order_id = models.CharField(max_length=64, null=True, blank=True)
+    paypal_capture_started_at = models.DateTimeField(null=True, blank=True)
     # When a registrar or admin last changed what it asks (amount, description,
     # handling) or cancelled or reopened it. The registration's payment step
     # doesn't rewrite it after that (SPEC DR-105).

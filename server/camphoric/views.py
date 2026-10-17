@@ -1428,16 +1428,20 @@ class RegisterView(APIView):
         return usable_promo_code(event, code, registration_type)
 
     @staticmethod
-    def locked_registration(request):
+    def named_registration(request, registrations=models.Registration.objects):
+        '''The registration the request names.'''
+        registration_uuid = request.data.get('registrationUUID')
+        if registration_uuid is None:
+            raise ValidationError({'registrationUUID': 'This field is required.'})
+        return get_object_or_404(registrations, uuid=registration_uuid)
+
+    @classmethod
+    def locked_registration(cls, request):
         '''
         The registration the request names, locked: a repeated or concurrent POST
         (a retry, a double click) waits for the first, then sees what it did.
         '''
-        registration_uuid = request.data.get('registrationUUID')
-        if registration_uuid is None:
-            raise ValidationError({'registrationUUID': 'This field is required.'})
-        return get_object_or_404(
-            models.Registration.objects.select_for_update(), uuid=registration_uuid)
+        return cls.named_registration(request, models.Registration.objects.select_for_update())
 
     @staticmethod
     def payment_type(request, event, online=None):
@@ -1555,11 +1559,11 @@ class RegisterView(APIView):
         from before they changed it, is refused (DR-105).
         '''
         payment_type = request.data.get('paymentType') or models.PaymentType.CHECK
+        if payment_type in invoices.ONLINE_TYPES:
+            self.payment_type(request, event, online=True)
+            return self.capture(request, payment_type)
         with transaction.atomic():
             registration = self.locked_registration(request)
-            if payment_type in invoices.ONLINE_TYPES:
-                self.payment_type(request, event, online=True)
-                return self.capture(request, registration, payment_type)
             self.payment_type(request, event, online=False)
             if registration.completed and not self.payable(registration):
                 # Already paid: the same result again, without a second email.
@@ -1575,27 +1579,39 @@ class RegisterView(APIView):
             confirmations.send_confirmation(registration, request)
             return Response(self.payment_result(request, registration))
 
-    def capture(self, request, registration, payment_type):
+    def capture(self, request, payment_type):
+        '''
+        Capture the approved PayPal order. As on the pay page, no transaction is
+        open, so capture_paypal_order's own commits (holding the registration and
+        invoice meanwhile): once PayPal has the money, the payment, or the problem
+        email, is on record whatever goes wrong after (#804). The confirmation and
+        the reply follow, with the registration locked again.
+        '''
         order_id = request.data.get('paypalOrderId')
         if not order_id:
             if 'payPalResponse' in request.data:
                 raise serializers.Conflict(
                     'This page is out of date. Please reload it and try again.')
             raise ValidationError({'paypalOrderId': 'This field is required.'})
+        registration = self.named_registration(request)
         invoice = invoices.registration_invoice(registration)
         if invoice is None or not registration.completed:
             raise serializers.Conflict('There\'s no PayPal payment waiting for this registration.')
+        problem = None
         try:
             invoices.capture_paypal_order(
                 invoice, order_id, payment_type, notes='Initial payment', request=request)
-        except invoices.PaymentProblem as problem:
-            if problem.code == 'unknown':
-                # Money may have moved: the registrant is told not to pay again,
-                # and gets their confirmation now.
+        except invoices.PaymentProblem as raised:
+            problem = raised
+        with transaction.atomic():
+            registration = self.locked_registration(request)
+            if problem is None or problem.code == 'unknown':
+                # After a lost answer money may have moved: the registrant is
+                # told not to pay again, and gets their confirmation now.
                 confirmations.send_confirmation(registration, request)
-            return self.problem_response(request, registration, problem)
-        confirmations.send_confirmation(registration, request)
-        return Response(self.payment_result(request, registration))
+            if problem is not None:
+                return self.problem_response(request, registration, problem)
+            return Response(self.payment_result(request, registration))
 
     def post_finish(self, request, event):
         '''Finish without paying now: the confirmation says what's still due.'''

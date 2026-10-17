@@ -11,10 +11,12 @@ Invoices, payments and the balance (SPEC §9.7; DR-87 to DR-90, DR-94).
   rather than in the browser (#675).
 - PayPal: the server creates each order for an invoice, checks it and captures
   it, so no money moves until the server says so (DR-90); it also refunds
-  captures. When PayPal's answer is lost, the event is emailed the details.
+  captures. When PayPal's answer is lost, the event is emailed the details; a
+  capture that never got recorded is found by the worker (#804).
 '''
 
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import json
 import logging
@@ -29,6 +31,7 @@ from json_logic import jsonLogic
 from camphoric import models, pricing
 from camphoric.confirmations import queue_report
 from camphoric.paypal import PayPalClient, PayPalError
+from camphoric.worker import still_working
 from camphoric.templating.urls import admin_registration_url
 
 logger = logging.getLogger(__name__)
@@ -41,6 +44,13 @@ FULL_PAYMENT = 'Full payment'
 PAYMENT_RECEIVED_DESCRIPTION = 'Payment received'
 # PayPal's limit on an item's name and an order's description.
 PAYPAL_TEXT_LIMIT = 127
+# A capture still pending this long after it started may have taken the money
+# unrecorded (the process died); the worker then asks PayPal (#804).
+UNRECORDED_CAPTURE_AFTER = timedelta(minutes=15)
+UNRECORDED_CAPTURE_RETRIES_FOR = timedelta(days=1)
+UNRECORDED_CAPTURES_PER_RUN = 5
+CAPTURE_UNSETTLED = ('A PayPal payment on this invoice is still being confirmed. Please don\'t '
+                     'pay again; check back in a few minutes.')
 
 
 def money(value):
@@ -329,6 +339,8 @@ def prepare_registration_invoice(registration, option, payment_type):
         invoice = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
     if invoice is not None and invoice.cancelled_at is not None:
         raise PaymentProblem('cancelled', INVOICE_CANCELLED)
+    if invoice is not None and capture_unsettled(invoice):
+        raise PaymentProblem('not_payable', CAPTURE_UNSETTLED)
     if invoice is not None and invoice.organizer_changed_at is not None \
             and option.name != invoice_option(invoice).name:
         # An organizer changed it after the option was chosen: the page shows
@@ -479,6 +491,8 @@ def create_paypal_order(invoice, payment_type):
         raise PaymentProblem('not_configured', 'This event doesn\'t take payments online.')
     if invoice.cancelled_at is not None:
         raise PaymentProblem('not_payable', 'This invoice has been cancelled.')
+    if capture_unsettled(invoice):
+        raise PaymentProblem('not_payable', CAPTURE_UNSETTLED)
     due, fee = order_amounts(invoice)
     if due <= 0:
         raise PaymentProblem('not_payable', 'Nothing is due on this invoice.')
@@ -559,18 +573,61 @@ def capture_paypal_order(invoice, order_id, payment_type, notes='', request=None
     Raises PaymentProblem when it doesn't go through; when PayPal's answer is
     lost the order stays pending and the event is emailed the details.
     '''
+    # The views call this with no transaction open, so each write here commits
+    # before they go on (#804). This one first: should the process die after
+    # PayPal takes the money and before it's recorded, the worker still finds
+    # the order (check_unrecorded_captures), even once another is pending.
+    models.Invoice.all_objects.filter(pk=invoice.pk, pending_paypal_order_id=order_id).update(
+        paypal_capture_order_id=order_id, paypal_capture_started_at=timezone.now())
     try:
-        # A savepoint: a problem undoes anything half done here, but not the
-        # caller's work (the registration it completed).
+        # Then the capture, all or nothing: once PayPal has the money, the
+        # payment is on record whatever the caller does next.
         with transaction.atomic():
+            _lock_registration_of(invoice)
             locked = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
-            return _capture(locked, order_id, payment_type, notes)
+            payment = _capture(locked, order_id, payment_type, notes)
+            _capture_settled(invoice, order_id)
+            return payment
     except PaymentProblem as problem:
         if problem.code == 'unknown':
             send_paypal_problem_report(
                 invoice, what='capture', error=problem.message, order_id=order_id,
                 payment_type=payment_type, request=request)
+        else:
+            _capture_settled(invoice, order_id)  # PayPal said no: no money moved
         raise
+
+
+def _capture_settled(invoice, order_id, started_at=None):
+    '''
+    The capture of `order_id` has an outcome: the worker needn't ask about it.
+    With `started_at`, only that attempt (a retry since started another).
+    '''
+    match = {'paypal_capture_order_id': order_id}
+    if started_at is not None:
+        match['paypal_capture_started_at'] = started_at
+    models.Invoice.all_objects.filter(pk=invoice.pk, **match).update(
+        paypal_capture_order_id=None, paypal_capture_started_at=None)
+
+
+def capture_unsettled(invoice, now=None):
+    '''
+    A capture on the invoice started and has no outcome yet: PayPal may have
+    taken the money, so no other payment starts until it's known (the worker
+    asks 15 minutes on), and its mark isn't overwritten by another order's (#804).
+    '''
+    since = (now or timezone.now()) - UNRECORDED_CAPTURE_RETRIES_FOR
+    return invoice.paypal_capture_order_id is not None and \
+        invoice.paypal_capture_started_at >= since
+
+
+def _lock_registration_of(invoice):
+    '''
+    Lock the invoice's registration, before the invoice: the registration's
+    payment steps take it first, so none of them can rewrite the invoice
+    while it's being paid, and none waits on a lock the other holds.
+    '''
+    models.Registration.all_objects.select_for_update().filter(pk=invoice.registration_id).first()
 
 
 def _capture(invoice, order_id, payment_type, notes):
@@ -616,7 +673,8 @@ def check_paypal_order(invoice):
     '''
     A registrar's "Check PayPal order": ask PayPal about the invoice's pending
     order; record it if it was captured, else clear it (no money was taken).
-    Returns `(result, payment)`.
+    Either way a capture of it that hadn't settled has (#804). Returns
+    `(result, payment)`.
     '''
     order_id = invoice.pending_paypal_order_id
     if not order_id:
@@ -628,12 +686,86 @@ def check_paypal_order(invoice):
         except PayPalError as e:
             raise PaymentProblem('unknown' if e.unknown else 'mismatch', str(e))
         _check_belongs(invoice, order)
+        _capture_settled(invoice, order_id)
         if order.get('status') == 'COMPLETED':
             return 'recorded', record_capture(invoice, order, invoice.payment_type,
                                               'Recorded by checking PayPal')
         invoice.pending_paypal_order_id = None
         invoice.save(update_fields=['pending_paypal_order_id', 'updated_at'])
         return 'not_captured', None
+
+
+def check_unrecorded_captures(now=None):
+    '''
+    The worker's sweep (#804): ask PayPal about each order whose capture
+    started over 15 minutes ago and never settled (the process may have died
+    after PayPal took the money), and record it if PayPal captured it, even
+    when another order has been made pending on the invoice since. An order
+    PayPal says wasn't captured, doesn't know, or isn't this invoice's is
+    settled: it's asked about once, and stays pending for "Check PayPal order"
+    if it still is. Anything less definite (PayPal down, busy, or refusing our
+    credentials) is asked again next time, for a day. A few are asked each
+    run. Returns how many it recorded.
+    '''
+    now = now or timezone.now()
+    unsettled = models.Invoice.all_objects.filter(
+        paypal_capture_order_id__isnull=False,
+        paypal_capture_started_at__lt=now - UNRECORDED_CAPTURE_AFTER,
+        paypal_capture_started_at__gte=now - UNRECORDED_CAPTURE_RETRIES_FOR)
+    recorded = 0
+    # A few per run, in no fixed order: each PayPal call may take a minute when
+    # PayPal is struggling, and the reconciler mustn't look stuck, nor marks
+    # that keep failing hold up the rest. The others wait for the next run.
+    some = unsettled.select_related('registration__event').order_by('?')
+    for invoice in some[:UNRECORDED_CAPTURES_PER_RUN]:
+        try:
+            recorded += _record_unrecorded_capture(invoice)
+        except Exception:
+            logger.exception(f'Checking PayPal order {invoice.paypal_capture_order_id} for '
+                             f'invoice {invoice.id} failed; trying again next time')
+        still_working()
+    return recorded
+
+
+def _record_unrecorded_capture(invoice):
+    '''
+    The sweep's check of one order. PayPal is asked with nothing locked; only
+    recording what it captured takes the locks. Returns whether it recorded it.
+    '''
+    order_id = invoice.paypal_capture_order_id
+    started_at = invoice.paypal_capture_started_at
+    about = f'PayPal order {order_id} for invoice {invoice.id}'
+    try:
+        order = paypal_client(invoice.registration.event).fetch_order_details(order_id)
+    except PayPalError as e:
+        if e.status != 404:
+            logger.warning(f'Checking {about}: {e}; trying again next time')
+            return False
+        logger.error(f'Checking {about}: PayPal doesn\'t know it; left for "Check PayPal order"')
+        _capture_settled(invoice, order_id, started_at)
+        return False
+    try:
+        _check_belongs(invoice, order)
+    except PaymentProblem as problem:
+        logger.error(f'Checking {about}: {problem}; left for "Check PayPal order"')
+        _capture_settled(invoice, order_id, started_at)
+        return False
+    if order.get('status') != 'COMPLETED':
+        _capture_settled(invoice, order_id, started_at)
+        return False
+    capture_id = (_capture_of(order) or {}).get('id')
+    with transaction.atomic():
+        _lock_registration_of(invoice)
+        locked = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
+        # Recorded meanwhile (the payer's retry, "Check PayPal order"): nothing to add.
+        known = bool(capture_id) and models.Payment.all_objects.filter(
+            paypal_transaction_id=capture_id).exists()
+        record_capture(locked, order, locked.payment_type, 'Recorded by the worker checking PayPal')
+        _capture_settled(invoice, order_id)
+    if known:
+        return False
+    logger.warning(f'{about} was captured but never recorded; recorded it now')
+    return True
 
 
 def refund_paypal_payment(payment, amount, reason, request_id, request=None):
