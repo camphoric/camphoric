@@ -1866,13 +1866,15 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   those for its `id`/`choices`) under the last dropdown. The server's lodging nodes (on the
   field's uiSchema as `lodging_nodes`) carry `full`; a full option is labelled "(full)" and
   can't be chosen (DR-57). Without `full` (an older server), a node with no
-  `remaining_unreserved_capacity` is full. The dropdowns form a group named by the field's
-  title (`ui:title`, else the schema's; hidden by `ui:label: false`), and each dropdown has its
-  own label — its parent node's `children_title`, else the field's title at the top level and
-  the parent's name below — so assistive technology announces what each one is, before and
-  after a choice. When a finished choice is needed (the field is required, or its schema
-  requires `id` or `choices`, as the server's lodging schema does), the group's title carries
-  the required mark and every dropdown is marked required; the placeholder carries no marker
+  `remaining_unreserved_capacity` is full. The dropdowns form a group whose accessible name is
+  the field's title (`ui:title`, else the schema's, else "Lodging"; none with `ui:label:
+  false`); the title isn't shown again, since the lodging section around the picker already
+  heads it. Each dropdown is labelled by its parent node's `children_title`, below the top level
+  by the parent's name, so assistive technology announces what each one is, before and after a
+  choice; a top-level dropdown with no `children_title` has the field's title as its accessible
+  name and no visible label. When a finished choice is needed (the field is required, or its
+  schema requires `id` or `choices`, as the server's lodging schema does), every dropdown is
+  marked required, its label carrying the required mark; the placeholder carries no marker
   (§15, DR-118).
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
@@ -4886,25 +4888,30 @@ re-authenticating after an expired session would refetch everything and could di
 progress. Reloading the page on sign-out — clears everything, but repeats the bootstrap (§3)
 and does nothing for a sign-in after an expired session.
 
-### DR-118 — The lodging picker is a labelled group of labelled dropdowns
+### DR-118 — The lodging picker is a named group of labelled dropdowns
 
-**Decision:** The lodging picker (§9.1) names its dropdowns as a group by the field's title, the
-way a group of checkboxes is named, and gives each dropdown a visible label: the parent node's
-`children_title`, else the field's title at the top level and the parent's name below. Whether
-a choice is required comes from the schema — the field's own `required`, or its schema requiring
-`id` or `choices` — and is shown by the label's required mark and the controls' `required`
-state, not by text in the placeholder.
+**Decision:** The lodging picker (§9.1) is a group named by the field's title for assistive
+technology, without showing the title. Each dropdown has a visible label — the parent node's
+`children_title`, below the top level the parent's name — and a top-level dropdown without a
+`children_title` is named by the field's title without a visible label. Whether a choice is
+required comes from the schema — the field's own `required`, or its schema requiring `id` or
+`choices` — and is shown by the labels' required mark and the controls' `required` state, not
+by text in the placeholder.
 **Context:** #811: the picker never showed the schema's title, and its dropdowns had only a
 placeholder ("Area *"). Once a value was picked the placeholder was gone, so a screen reader
-announced nothing about what the dropdown was, and the "*" was read as part of the text. A
-dropdown is read-only text to the browser, so marking it required leaves its own validation to
-the form's, as before.
-**Alternatives:** A section heading for the title, as the Address field has — the lodging
-object around the picker already has a section heading, usually the same word. A `fieldset`
-with a `legend` — the same semantics, but the form's other groups (checkboxes, lists) use
-Mantine's labelled group rather than a bordered fieldset (DR-49). `aria-label`s on the dropdowns
-alone — named for assistive technology, but sighted users would still lose the level's name
-once a value is picked.
+announced nothing about what the dropdown was, and the "*" was read as part of the text. The
+server's lodging schema titles both the lodging section and the picker "Lodging", and the
+section's heading already shows it, so showing the picker's title too — as a group label or as
+the top dropdown's label — would repeat the same word two or three times. A dropdown is
+read-only text to the browser, so marking it required leaves its own validation to the form's,
+as before.
+**Alternatives:** A visible group title — a section heading, as the Address field has, or a
+label above the dropdowns, as a checkbox group has — repeats the section heading the server's
+schema already gives. A `fieldset` with a `legend` — the same semantics, but a visible legend
+repeats the heading too, and the form doesn't draw its groups as bordered fieldsets (even
+lists, which the theme draws that way, are shown as sections; DR-49). `aria-label`s on the
+dropdowns alone — named for assistive technology, but sighted users would still lose the
+level's name once a value is picked.
 
 ---
 
