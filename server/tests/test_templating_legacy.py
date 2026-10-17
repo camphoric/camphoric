@@ -6,8 +6,15 @@ Sample Camp (data/events/sample-camp) keeps legacy reports here that use the
 legacy environment's extensions and filters ({% do %}, {% continue %},
 regex_replace, money_fmt; {% break %} is only parsed), whichever camps'
 reports are in the repository.
+
+The events data/ installs from GitHub Packages (each camp's own repository)
+are checked too, from data/node_modules, wherever data/ has been installed
+(CI's django.yml installs it), so a server change that changes how one of
+their reports renders shows up here.
 '''
 
+import json
+import os
 from pathlib import Path
 import unittest
 
@@ -19,9 +26,32 @@ from camphoric.pricing import money_fmt
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.filters import regex_replace
 
-DATA_DIR = Path(settings.BASE_DIR).parent / 'data'
+DATA_DIR = (Path(settings.BASE_DIR).parent / 'data').resolve()
 EVENTS_DIR = DATA_DIR / 'events'
-REPORTS = sorted(EVENTS_DIR.glob('*/reports/*.j2'))
+NODE_MODULES = DATA_DIR / 'node_modules'
+
+
+def registry_events():
+    '''
+    The events data/ installs from GitHub Packages: its @camphoric/camphoric-event-*
+    dependencies that aren't workspaces (which the lockfile marks as links), as
+    data/scripts/registry-events.mjs finds them.
+    '''
+    try:
+        dependencies = json.loads((DATA_DIR / 'package.json').read_text())['dependencies']
+        packages = json.loads((DATA_DIR / 'package-lock.json').read_text())['packages']
+    except FileNotFoundError:
+        return []
+    return [name for name in sorted(dependencies)
+            if name.startswith('@camphoric/camphoric-event-')
+            and not packages.get(f'node_modules/{name}', {}).get('link')]
+
+
+REGISTRY_EVENTS = registry_events()
+REPORTS = sorted([
+    *EVENTS_DIR.glob('*/reports/*.j2'),
+    *(report for name in REGISTRY_EVENTS for report in (NODE_MODULES / name).glob('reports/*.j2')),
+])
 
 
 def old_environment():
@@ -79,6 +109,22 @@ class LegacyReportsFoundTests(SimpleTestCase):
         # The tests below skip without reports, so a move of the event packages
         # must not quietly turn them off.
         self.assertTrue(REPORTS, f'no reports match {EVENTS_DIR}/*/reports/*.j2')
+
+    # In CI (django.yml installs data/), always; elsewhere, where data/ is installed
+    @unittest.skipUnless(os.environ.get('CI') == 'true' or NODE_MODULES.is_dir(),
+                         'data/ not installed (npm ci in data/)')
+    def test_the_registry_events_reports_are_found(self):
+        # Each event data/ installs from GitHub Packages is installed, and the
+        # reports it publishes are among those checked, so none stops being
+        # checked quietly (a stale node_modules, or reports moved in a release).
+        for name in REGISTRY_EVENTS:
+            with self.subTest(event=name):
+                package = NODE_MODULES / name / 'package.json'
+                self.assertTrue(package.is_file(), f'{name} is not installed: npm ci in data/')
+                if 'reports' in json.loads(package.read_text()).get('files', []):
+                    self.assertTrue(any(report.is_relative_to(NODE_MODULES / name)
+                                        for report in REPORTS),
+                                    f'{name} publishes reports/, but none were found')
 
 
 @unittest.skipUnless(REPORTS, 'data/events/ reports not available')
