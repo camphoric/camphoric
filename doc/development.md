@@ -146,9 +146,9 @@ event is its own package, ready to move to a repository of its own (#780):
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
 | `data/events/<name>` | `@camphoric/camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
-| `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. It stays in this repository and is never published |
+| `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
-An event depends only on the spec package (and import-tools, for its bulk script), imports only its
+An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
 own files, and is loaded by package name from `data/eventModules.ts`. A root test checks that
 every workspace imports only its own files and the packages it declares.
 
@@ -164,6 +164,11 @@ every workspace imports only its own files and the packages it declares.
     npm run import -- --wait                    # wait for the server to start first
     CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
     COUNT=10 npm run bulk -w events/lark        # add generated registrations to an imported event
+    CAMPHORIC_E2E_IMAGE=camphoric:local npm run e2e -w events/sample-camp
+                                                # Sample Camp's registration-form e2e tests, against a
+                                                # throwaway server from a locally built image
+                                                # (docker build -t camphoric:local .; Playwright's
+                                                # browsers: npx playwright install chromium)
     npm run build                               # compile the spec and import-tools to dist/ (for publishing)
     scripts/smoke-test-packages.sh              # pack them and use them with plain Node
     scripts/smoke-test-event-package.sh events/lark   # build, pack and load an event from its build
@@ -206,7 +211,9 @@ A syntax error or a bad schema in any single event fails only that event's block
 and runs the offline suite, then smoke-tests the packed packages, on every pull request that
 touches `data/` (`.github/workflows/data.yml`) and
 imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
-rejected sample registration fails that import.
+rejected sample registration fails that import. The same workflow runs Sample Camp's
+registration-form e2e tests against a throwaway server from that image, so a client change that
+breaks the import-tools page object fails there.
 
 ### Create the Django superuser
 

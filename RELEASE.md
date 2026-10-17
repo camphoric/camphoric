@@ -209,7 +209,7 @@ authoritative record. A new row is added with each spec major:
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
 | `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to GitHub Packages |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks and tests the importer and the event packages, and smoke-tests the packed packages |
-| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client_v2/`, `data/` or the Docker files | builds the image (never pushed) and smoke-tests it against Postgres |
+| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client_v2/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
 | `.github/workflows/client-v2.yml`     | push/PR to `main` touching `client_v2/` | type-checks, lints and unit-tests the v2 client, and runs its Playwright e2e suite |
 | `.github/workflows/react.yml`         | push/PR to `main` touching `client/` | unchanged — the continuous `js-build-main` dev build |
 

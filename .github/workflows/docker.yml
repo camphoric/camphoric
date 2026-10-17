@@ -3,7 +3,9 @@
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
 # every event the importer installs (data/events) is imported into it (the live
-# import test).
+# import test). Alongside, Sample Camp's registration-form e2e tests run
+# against a throwaway server from the same image, through the import-tools
+# page object every event repository's tests use.
 # Publishing to ghcr.io happens separately in release-image.yml. See CONTAINER.md.
 name: Docker image
 
@@ -150,3 +152,64 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose -f docker-compose.image.yml down -v
+
+  # Sample Camp's e2e tests (data/events/sample-camp/e2e) drive the client's
+  # registration form through the import-tools page object
+  # (data/packages/import-tools/e2eRegistrationForm.ts), so a client change
+  # that breaks the page object fails here, not only in the event repositories
+  # that use its published release. camphoricServer() starts its own
+  # throwaway Camphoric from this image, on a free port.
+  registration-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # The same build as build-and-smoke's, side by side with it: from the
+      # shared cache when nothing it builds from has changed, else in full
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: camphoric:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@camphoric'
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+
+      - name: Install the importer
+        working-directory: data
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      # Chromium for the config's Desktop and Mobile Chrome projects
+      - name: Install Playwright browsers
+        working-directory: data
+        run: npx playwright install --with-deps chromium
+
+      - name: Sample Camp's registration-form e2e tests
+        working-directory: data
+        env:
+          CAMPHORIC_E2E_IMAGE: camphoric:local
+        run: npm run e2e -w @camphoric/camphoric-event-sample-camp
+
+      # Traces are recorded on the first retry of a failing test.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sample-camp-e2e-results
+          path: |
+            data/events/sample-camp/test-results/
+            data/events/sample-camp/playwright-report/
+          retention-days: 7
