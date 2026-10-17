@@ -201,9 +201,11 @@ ending in `/` to the non-slash form.
 - `/events/:eventId/register/registration` — Step 1, the registration form.
 - `/events/:eventId/register/payment` — Step 2, payment.
 - `/events/:eventId/register/finished` — Step 3, confirmation.
-- Moving between the registration steps keeps the query string, so an invitation code in it
-  stays in the address bar on every step and the register config (fetched with that query
-  string, §5) stays the same.
+- Moving between the registration steps keeps the query string's params, so an invitation code
+  in it stays in the address bar on every step. The register config (§5) is requested with the
+  query string as the router reads it (plain strings, a JSON-quoted value unquoted; §15, DR-83),
+  re-written in the router's form, so it's the same request on every step however the URL
+  spelled it (`@` or `%40`, say).
 - `/invoices/:token` — an invoice's public pay page, reached by its unguessable link (§9.7;
   §15, DR-95). No sign-in.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link

@@ -9,6 +9,7 @@
  */
 
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useRouterState } from '@tanstack/react-router';
 import type {
   ApiPayPalOrder,
   ApiRegister,
@@ -21,12 +22,17 @@ import type {
   PricingResults,
   RegistrationFormData,
 } from 'api-types';
+import { stringifySearch } from 'navigation/search';
 import { ApiError, apiFetch } from 'utils/fetch';
 
 const registerUrl = (eventId: string, search = '') => `/api/events/${eventId}/register${search}`;
 
-export function useRegistrationConfig(eventId: string, search = window.location.search) {
-  // The query string may carry an invitation code, so it's part of the key.
+export function useRegistrationConfig(eventId: string) {
+  // The query string may carry an invitation code, so it's part of the key. It's
+  // written from the router's parsed search, not the address bar, so it reads the
+  // same however the URL spelled it (`@` or `%40`, a JSON-quoted value) and stays
+  // the same when a step change re-writes the URL.
+  const search = useRouterState({ select: (s) => stringifySearch(s.location.search) });
   return useQuery({
     queryKey: ['RegisterConfig', eventId, search],
     queryFn: ({ signal }) => apiFetch<ApiRegister>(registerUrl(eventId, search), { signal }),
