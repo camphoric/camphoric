@@ -832,7 +832,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   (`starttls` | `ssl` | `none`), `timeout`, `username`, `max_per_minute?`, `max_per_day?`,
   `default_reply_to`, and `password`, which is write-only (stored encrypted; blank on an update
   keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
-  changed, so it must be entered again).
+  changed, so it must be entered again). An update that changes `host`, `port`, `security` or
+  `username` of an account with a stored password must give the password too, or it is a 400
+  with an error on `password` (§15, DR-126).
 - **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
   `page_report` | `payment_report` | `invitation` | `invoice` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
   `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
@@ -1660,10 +1662,12 @@ security (STARTTLS, SSL/TLS or none; changing the security moves a standard port
 timeout, username and password, its sending limits (most messages a minute and a day; blank is no
 limit), and a default Reply-To (blank: each email's From address; §15, DR-47). The password is
 never shown: when editing, a blank password keeps the stored one, and one the server can no longer
-read (its encryption key changed) is flagged and must be entered again (§15, DR-46). The admin can
-send a test message through an account (to themselves; it appears in the Email history, §8.9) and
-delete an account no event or sent email uses (otherwise the server refuses, and the reason is
-shown).
+read (its encryption key changed) is flagged and must be entered again (§15, DR-46). Changing the
+server, port, security or username of an account with a stored password needs the password
+entered again; the form says so before saving, and the server refuses the change without it
+(§15, DR-126). The admin can send a test message through an account (to themselves; it appears in
+the Email history, §8.9) and delete an account no event or sent email uses (otherwise the server
+refuses, and the reason is shown).
 
 ### 8.9 Email
 
@@ -4991,6 +4995,22 @@ on a page that can't succeed, and starting over clears what they entered. Check 
 registration exists before offering "Continue to payment" — an extra request on every visit to
 the form, and it still needs this handling for one deleted while the payment page is open. Key
 on the server's message — it's Django's default wording, not a contract.
+
+### DR-126 — Changing where an email account connects needs its password again
+
+**Decision:** An update that changes an email account's `host`, `port`, `security` or `username`
+must give the password again when the account has a stored one; without it the server answers
+400 with an error on `password`. Fields sent with their current values don't count as changes,
+and an account with no stored password (or one the server can no longer read) can change them
+freely. The client checks the same rule before saving.
+**Context:** #802: a blank password on an update keeps the stored one (DR-46), so a Registrar
+could point an account at a server of their choosing, with security off, and send a test message:
+the worker would log in there with the real username and password in clear text. The same steps
+could probe internal hosts and ports, each failure's error shown in the email history.
+**Alternatives:** Make email accounts writable by Admins only, as organizations are — Registrars
+manage their event's email today, and re-entering the password closes the leak without taking
+that away. Refuse private and loopback hosts — a local relay is a legitimate mail server, and the
+password rule already keeps the stored password from going anywhere new.
 
 ### DR-128 — Pricing reads the date in UTC
 
