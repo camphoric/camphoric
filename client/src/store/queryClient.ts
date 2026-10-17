@@ -7,11 +7,15 @@
  * Individual mutations opt out with `meta: { suppressErrorNotification: true }`,
  * or, for a save refused because someone else changed the record first,
  * `meta: { handlesVersionConflict: true }` (DR-109).
+ *
+ * A 401 means the admin's session has lapsed: rather than report it, both caches
+ * re-check who's signed in, so the auth guard asks them to sign in again without
+ * navigating away from the URL (SPEC §6, DR-9).
  */
 
 import { notifications } from '@mantine/notifications';
-import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
-import type { TemplateDiagnostic } from 'api-types';
+import { hashKey, MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
+import type { ApiUser, TemplateDiagnostic } from 'api-types';
 import { ApiError, versionConflict } from 'utils/fetch';
 
 /**
@@ -67,10 +71,52 @@ function passwordChangeRequired(error: unknown) {
 // Mirrors hooks/auth WHOAMI_KEY (importing it here would pull hooks into the store).
 const WHOAMI = ['WhoAmI'];
 
+/** Whether the cached whoami answer has someone signed in. */
+const signedIn = () => {
+  const user = queryClient.getQueryData<ApiUser>(WHOAMI);
+  return !!user && user.username !== '';
+};
+
+/**
+ * A 401 in the admin: the session has lapsed (DR-9). Only the admin's auth guard
+ * watches who's signed in, so a 401 in the anonymous registration flow never counts.
+ */
+function sessionLapsed(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 401) return false;
+  return !!queryClient.getQueryCache().find({ queryKey: WHOAMI, exact: true })?.isActive();
+}
+
+/**
+ * Re-check who's signed in, as the session monitor does (DR-26). When the session
+ * is gone the guard shows the sign-in form, without navigating, so the attempted
+ * URL is kept. Resolves to whether someone is still signed in.
+ */
+async function recheckSession(): Promise<boolean> {
+  // Several requests can fail together: share the check in flight, don't restart it.
+  await queryClient.invalidateQueries({ queryKey: WHOAMI, exact: true }, { cancelRefetch: false });
+  return signedIn();
+}
+
+function reportFailure(error: unknown, meta: Record<string, unknown> | undefined) {
+  if (meta?.suppressErrorNotification) return;
+  if (meta?.handlesVersionConflict && versionConflict(error)) return;
+  notifications.show({
+    color: 'red',
+    title: 'Request failed',
+    message: describeError(error),
+  });
+}
+
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error) => {
-      if (passwordChangeRequired(error)) void queryClient.invalidateQueries({ queryKey: WHOAMI });
+    onError: (error, query) => {
+      if (passwordChangeRequired(error)) {
+        void queryClient.invalidateQueries({ queryKey: WHOAMI });
+      } else if (sessionLapsed(error) && query.queryHash !== hashKey(WHOAMI) && signedIn()) {
+        // (Never for the whoami check itself: re-checking it would loop. Nor once
+        // the check has already found them signed out.)
+        void recheckSession();
+      }
     },
   }),
   mutationCache: new MutationCache({
@@ -79,13 +125,18 @@ export const queryClient = new QueryClient({
         void queryClient.invalidateQueries({ queryKey: WHOAMI });
         return;
       }
-      if (mutation.meta?.suppressErrorNotification) return;
-      if (mutation.meta?.handlesVersionConflict && versionConflict(error)) return;
-      notifications.show({
-        color: 'red',
-        title: 'Request failed',
-        message: describeError(error),
-      });
+      if (sessionLapsed(error)) {
+        // The sign-in form takes the toast's place, unless the server says they're
+        // still signed in. When an earlier check already found them signed out, the
+        // form is showing: there's nothing to re-check or report.
+        if (signedIn()) {
+          void recheckSession().then((still) => {
+            if (still) reportFailure(error, mutation.meta);
+          });
+        }
+        return;
+      }
+      reportFailure(error, mutation.meta);
     },
   }),
   defaultOptions: {

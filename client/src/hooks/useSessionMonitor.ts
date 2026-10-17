@@ -5,7 +5,7 @@
  * also acts as keep-alive (the backend slides the session expiry on each
  * request), so an actively-working admin stays logged in.
  *
- * The reactive 401-bounce-to-login (DR-9) remains the backstop. The public
+ * The reactive 401 handling (DR-9) remains the backstop. The public
  * registration flow is anonymous and does not use this.
  */
 

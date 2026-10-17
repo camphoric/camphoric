@@ -940,9 +940,17 @@ hooks):
   string grants access to otherwise-closed registration and pre-fills invitation context. The
   server enforces this too: outside the registration dates, only a submission carrying a valid
   invitation for the event is accepted (§5).
-- A **logout** action (`POST /api/logout`) clears the session. A global handler bounces a 401 on
-  any admin endpoint back to the login form, preserving the attempted URL; a 401/403 on a
-  registration submit surfaces a friendly error (see §15, DR-9).
+- A **logout** action (`POST /api/logout`) clears the session.
+- A **401** on any admin request (query or mutation) means the session has lapsed. A global
+  handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
+  and, when the session is gone, the admin asks the user to sign in again without navigating, so
+  the attempted URL is kept. Keeping in-progress edits across that sign-in is the in-place
+  re-authentication requirement below. A failed save is not also reported as a "Request failed"
+  error unless that check finds the user still signed in, and once a check has found them signed
+  out, further 401s are neither re-checked nor reported. The handler acts only on the admin
+  surface (where the guard watches who is signed in): a 401 from the whoami check itself, or in
+  the public registration flow, is not treated as a lapsed session. A 401/403 on a registration
+  submit surfaces a friendly error (see §15, DR-9).
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin.
   - **Registrar** — everything except users and organizations, and deleting payments, invoices
@@ -2340,7 +2348,8 @@ hasn't seen (§15, DR-109).
   success/failure via a shared TanStack Query `MutationCache.onError` (opt-out per call), plus
   inline field errors on forms (§15, DR-10). A 403 reads "You don't have permission to do that."
   (§6). A 412 reads "Someone else changed this since you opened it, so your change wasn't saved.",
-  unless the screen resolves the conflict itself (§9.8).
+  unless the screen resolves the conflict itself (§9.8). A 401 from a lapsed admin session asks
+  the user to sign in again instead of showing a failure toast (§6).
 - **Data freshness & optimistic updates:** admin queries use a short `staleTime` and refetch on
   window focus; the registration config does not refetch on focus. Drag/reorder mutations
   (lodging assignment, camper `sequence`) are optimistic with rollback on error; other mutations
@@ -2816,12 +2825,28 @@ handles report templates, so standardizing on it cuts bundle size and concepts.
 
 ### DR-9 — Session, logout, and 401 handling
 
-**Decision:** Add a `logout` action (`POST /api/logout`); a global handler bounces a 401 on any
-admin endpoint back to the login form, preserving the attempted URL, and clears the cached user.
-Public registration is anonymous and unaffected, but a 401/403 on submit surfaces a friendly
-error (§6, §10).
+**Decision:** Add a `logout` action (`POST /api/logout`). A global handler in the shared
+TanStack Query caches (`QueryCache` and `MutationCache` `onError`) treats a 401 on any admin
+request as a lapsed session: it invalidates the whoami query — the path session monitoring
+already takes (DR-26) — so the guard shows sign-in at the attempted URL once the server confirms
+nobody is signed in. Keeping in-progress edits across that sign-in is DR-26's in-place
+re-authentication, not this handler's. Concurrent 401s share one whoami check. The failed
+mutation's error toast (DR-10) is withheld unless the check finds the user still signed in; a
+401 that arrives after the cached whoami already reads signed-out is neither re-checked nor
+reported, since the sign-in form is already showing. The handler acts only while the whoami
+query is being watched (the admin guard is mounted), and never re-checks on a 401 from the
+whoami query itself. Public registration is
+anonymous and unaffected, but a 401/403 on submit surfaces a friendly error (§6, §10).
 **Context:** Login existed but there was no logout, timeout, or expired-session recovery.
-Session auth + CSRF can expire server-side; the admin must recover gracefully.
+Session auth + CSRF can expire server-side; the admin must recover gracefully. The server tries
+token authentication first, so a request without a valid session is refused with 401; without a
+global handler a save then failed with a generic error and the user stayed put until the next
+session check, up to five minutes later.
+**Alternatives:** Clearing the cached user at once — signs the user out on any stray 401, even
+one the server didn't mean as "signed out", and drops the page before the server confirms.
+Navigating to a login route carrying a return URL — loses the screen and its in-progress edits
+outright, where in-place re-auth (DR-26) can keep them. Re-checking on a 401 from the whoami
+query itself — loops.
 
 ### DR-10 — Error & notification strategy
 
@@ -3008,7 +3033,7 @@ alive: check session validity (via the whoami endpoint, `GET /api/user`) on wind
 **throttled user activity**, and on a **regular interval**, treating that traffic as keep-alive.
 When the session has expired, present an **in-place re-authentication** affordance (e.g. a modal
 login over the current screen) and resume in context on success, preserving in-progress edits.
-The reactive 401-bounce-to-login (DR-9) is the fallback (§6).
+The reactive 401 handling (DR-9) is the fallback (§6).
 **Context:** Admin sessions (Django session auth) can expire while an organizer is working;
 discovering that only when a save fails — and losing the edit — is a poor experience. Proactive
 checks plus keep-alive keep an active user logged in, and in-place re-auth avoids losing work or
