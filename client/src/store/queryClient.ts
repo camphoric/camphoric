@@ -6,7 +6,9 @@
  * A shared MutationCache surfaces mutation failures as notifications (DR-10).
  * Individual mutations opt out with `meta: { suppressErrorNotification: true }`,
  * or, for a save refused because someone else changed the record first,
- * `meta: { handlesVersionConflict: true }` (DR-109).
+ * `meta: { handlesVersionConflict: true }` (DR-109), or, for a registration step
+ * whose registration the server no longer has, `meta: { handlesRegistrationNotFound:
+ * true }` (§7.1).
  *
  * A 401 means the admin's session has lapsed: rather than report it, both caches
  * re-check who's signed in, so the auth guard asks them to sign in again without
@@ -16,6 +18,7 @@
 import { notifications } from '@mantine/notifications';
 import { hashKey, MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import type { ApiUser, TemplateDiagnostic } from 'api-types';
+import { registrationNotFound } from 'store/registrationApi';
 import { ApiError, versionConflict } from 'utils/fetch';
 
 /**
@@ -100,6 +103,7 @@ async function recheckSession(): Promise<boolean> {
 function reportFailure(error: unknown, meta: Record<string, unknown> | undefined) {
   if (meta?.suppressErrorNotification) return;
   if (meta?.handlesVersionConflict && versionConflict(error)) return;
+  if (meta?.handlesRegistrationNotFound && registrationNotFound(error)) return;
   notifications.show({
     color: 'red',
     title: 'Request failed',

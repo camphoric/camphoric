@@ -175,6 +175,11 @@ flowchart TD
   sent with (`pages/register/storage.ts`), so a reload — or coming back after closing PayPal's
   window — resumes paying for the same registration, still showing what was entered. Coming back
   to the form offers "Continue to payment" or "Start a new registration".
+- **A saved registration the server no longer has (#769)** — an organizer deleted it, or it was
+  purged as incomplete — gets 404 `registration_not_found` from every step after `registration`
+  (`RegisterView.named_registration`), and nothing is changed or charged. The browser forgets
+  the saved one and goes back to the form, keeping what was entered, and asks for it to be sent
+  again (`pages/register/useForgetSentRegistration.ts`).
 - While nothing is paid on the registration invoice, the registrant can change option or method;
   `prepare_registration_invoice` rewrites it in place (and does nothing on an identical repeat).
 - **An organizer's change sticks (#766).** When a registrar or admin changes the registration
@@ -495,7 +500,7 @@ flowchart LR
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
   `PaymentOptions/`, `PaymentNotFinished.tsx`, `components/PayPalCheckout/`.
 - `pages/register/storage.ts` — the saved payment step.
-- `store/registrationApi.ts` — the register steps and `paymentProblem`.
+- `store/registrationApi.ts` — the register steps, `paymentProblem` and `registrationNotFound`.
 - `pages/admin/registrations/invoices/` — the admin's ledger, invoices, payments and refunds;
   `store/invoices.ts` — their actions; `NewInvoiceModal.tsx` — making an invoice.
 - `pages/invoice/` — the public pay page (`InvoicePayPage`, `InvoiceSummary`);

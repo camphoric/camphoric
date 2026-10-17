@@ -163,4 +163,19 @@ describe('RegistrationStep', () => {
       expect(localStorage.getItem('Event 1: Camp,  (payment)')).toBeNull();
     });
   });
+
+  it('asks to send again a registration the server no longer has, keeping it (#769)', () => {
+    useRegistrationStore.getState().setRegistration({
+      registrant_email: 'pat@example.com',
+      campers: [],
+    });
+    useRegistrationStore.getState().forgetSent();
+
+    renderWithProviders(<RegistrationStep />);
+
+    expect(screen.getByText('We couldn’t find your earlier registration')).toBeInTheDocument();
+    expect(screen.getByText('Please send the form again.')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveValue('pat@example.com');
+    expect(screen.queryByText('You’ve already sent this registration')).toBeNull();
+  });
 });
