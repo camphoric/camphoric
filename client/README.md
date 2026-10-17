@@ -1,4 +1,4 @@
-# Camphoric Client (V2)
+# Camphoric Client
 
 The Camphoric web client, built per [`SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md). It is a
 ground-up rebuild of the v1 client, which it has replaced (it lived in `client_v2/` until then).
@@ -14,23 +14,6 @@ React + TypeScript on **Vite**; **Mantine** (CSS Modules + PostCSS) for UI; **Ta
 for server state and **TanStack Router** for typed routes/search params; **Zustand** for the only
 genuine client state (the in-progress registration); **Luxon** for dates. See the spec's Decision
 Records (§15) for the rationale behind each choice.
-
-## Status — Phase 1 (scaffold + foundations)
-
-This is the foundation pass: a runnable shell with the build tooling, app bootstrap, routing
-skeleton, auth guard, data-layer primitives, and shared UI shells. **Feature screens render
-placeholders** and land in later phases (form + pricing + templating engines → registration flow
-→ admin sections). See [`../SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md) Appendix B for the build order.
-
-What works now:
-
-- CSRF → user bootstrap gate before the router mounts (§3).
-- Public/admin route split with an auth guard + login, typed admin search params, and trailing-
-  slash normalization (§4, §6).
-- `createEntityHooks` factory over TanStack Query with multi-key invalidation, and the Zustand
-  registration store shell (§5).
-- Session lifecycle: login/logout, proactive whoami keep-alive (§6, DR-26).
-- Shared error boundary, loading indicators, and JSON viewer (§9.6).
 
 ## Develop
 
