@@ -1,5 +1,5 @@
 | Registrant | Balance |
 | ---------- | ------- |
 {% for r in registrations -%}
-| {{ r.registrant_email | regex_replace('@.*$', '@…') }} | ${{ r.total_balance | money_fmt }} |
+| {{ r.registrant_email | regex_replace('@.*$', '@…') }} | ${{ '%.2f' | format(r.total_balance | money_fmt | float) }} |
 {% endfor %}

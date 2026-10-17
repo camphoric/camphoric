@@ -57,6 +57,9 @@ describe('Sample Camp covers the import contract', () => {
   test('every report output and variable source', () => {
     const report = itemProperties(contract.reports);
     for (const field of ['output', 'variables_source']) {
+      // A change to how the schema lists the values must fail here, not pass
+      // with nothing to check
+      expect(report[field].anyOf?.length).toBeGreaterThan(0);
       const values = (report[field].anyOf ?? []).map(option => option.const as string)
         .filter(value => !RETIRED_OUTPUTS.includes(value));
       const used = new Set(data.reports.map(r => (r as Record<string, unknown>)[field]));

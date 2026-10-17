@@ -1,5 +1,6 @@
 | Registrant | Total | Paid | Balance |
 | ---------- | ----- | ---- | ------- |
 {% for r in registrations | sort(attribute="balance") | reverse -%}
-| {{ r.campers[0].attributes.first_name }} {{ r.campers[0].attributes.last_name }} ({{ r.registrant_email }}) | {{ r.total_owed | money }} | {{ r.total_paid | money }} | {{ r.balance | money }} |
+{%- set first = r.campers | first -%}
+| {{ (first.attributes.first_name ~ ' ' ~ first.attributes.last_name) if first else '(no campers)' }} ({{ r.registrant_email }}) | {{ r.total_owed | money }} | {{ r.total_paid | money }} | {{ r.balance | money }} |
 {% endfor %}

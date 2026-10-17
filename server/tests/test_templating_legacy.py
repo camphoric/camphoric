@@ -32,8 +32,11 @@ def old_environment():
     return env
 
 
-def bundle():
-    '''A tiny legacy variable bundle in the client's shape.'''
+def bundle(with_unnamed_camper=False):
+    '''
+    A tiny legacy variable bundle in the client's shape; optionally with a
+    second camper who has no answers yet, so reports' branches for one run.
+    '''
     root = {'id': 1, 'name': 'Camp', 'parent': None, 'pathParts': [], 'fullPath': '',
             'children': [], 'campers': [], 'capacity': 0}
     cabin = {'id': 2, 'name': 'Cabin', 'parent': 1, 'pathParts': ['Cabin'], 'fullPath': 'Cabin',
@@ -49,23 +52,23 @@ def bundle():
               'stay': ['2026-12-30'], 'attributes': {'first_name': 'Pat', 'last_name': 'A'},
               'admin_attributes': {}, 'server_pricing_results': {'total': 100}}
     registration['campers'] = [camper]
-    # A camper with no answers yet, so reports' branches for one run too
     unnamed = {'id': 21, 'registration': 10, 'lodging': None, 'sequence': 1, 'stay': [],
                'attributes': {}, 'admin_attributes': {}, 'server_pricing_results': {}}
+    campers = [camper, unnamed] if with_unnamed_camper else [camper]
     return {
         'event': {'id': 1, 'name': 'Camp', 'registration_end': '2026-12-15'},
-        'campers': [camper, unnamed],
+        'campers': campers,
         'registrations': [registration],
-        'camperLookup': {'20': camper, '21': unnamed},
+        'camperLookup': {str(c['id']): c for c in campers},
         'registrationLookup': {'10': registration},
         'lodgingLookup': {'1': root, '2': cabin},
         'registrationTypeLookup': {},
     }
 
 
-def outcome(env, source):
+def outcome(env, source, variables):
     try:
-        return ('ok', env.from_string(source).render(**bundle()))
+        return ('ok', env.from_string(source).render(**variables))
     except Exception as exc:  # compare failures too: same kind of failure either way
         return ('error', type(exc).__name__)
 
@@ -89,5 +92,23 @@ class LegacyReportTests(SimpleTestCase):
         old = old_environment()
         for path in REPORTS:
             source = path.read_text()
-            with self.subTest(report=str(path.relative_to(DATA_DIR))):
-                self.assertEqual(outcome(LEGACY_REPORT_ENV, source), outcome(old, source))
+            # With the unnamed camper too, many real reports fail the same way in both
+            # environments (e.g. sorting by an answer the camper lacks), so the
+            # bundle without it is what compares their output.
+            for unnamed in (False, True):
+                variables = bundle(with_unnamed_camper=unnamed)
+                with self.subTest(report=str(path.relative_to(DATA_DIR)), unnamed_camper=unnamed):
+                    self.assertEqual(outcome(LEGACY_REPORT_ENV, source, variables),
+                                     outcome(old, source, variables))
+
+    def test_sample_camp_reports_render(self):
+        # Sample Camp's legacy reports exist to run the legacy environment's
+        # extensions and filters, so they must render, not just fail alike.
+        reports = [path for path in REPORTS if path.parent.parent.name == 'sample-camp']
+        self.assertTrue(reports)
+        for path in reports:
+            for unnamed in (False, True):
+                with self.subTest(report=path.name, unnamed_camper=unnamed):
+                    result = outcome(LEGACY_REPORT_ENV, path.read_text(),
+                                     bundle(with_unnamed_camper=unnamed))
+                    self.assertEqual(result[0], 'ok', result)
