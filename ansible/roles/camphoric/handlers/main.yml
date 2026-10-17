@@ -1,3 +1,12 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # handlers file for camphoric
+
+# Django (gunicorn) reads its code, settings and the collected static files
+# only at start (with DEBUG off, WhiteNoise indexes STATIC_ROOT then), so a
+# deploy restarts it. The reload picks up a changed unit file.
+- name: Restart camphoric
+  ansible.builtin.systemd:
+    name: camphoric
+    state: restarted
+    daemon_reload: yes

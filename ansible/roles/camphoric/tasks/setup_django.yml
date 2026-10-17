@@ -2,10 +2,14 @@
   become: true
   become_user: "{{ camphoric_user }}"
   block:
+    # Every task that changes what Django runs (its code, dependencies,
+    # settings or static files) restarts it, once its service is set up
+    # (handlers/main.yml, flushed in setup_django_service.yml).
     - name: Install virtual environment
       ansible.builtin.shell:
         chdir: "{{ camphoric_folder }}/server"
         cmd: pipenv install --dev
+      notify: Restart camphoric
 
     - name: Create Django.env
       template:
@@ -14,6 +18,7 @@
         src: "templates/django.env.j2"
         dest: "{{ camphoric_folder }}/server/.env"
         mode: 0700
+      notify: Restart camphoric
 
     - name: Create settings.py
       template:
@@ -22,6 +27,7 @@
         src: "templates/settings.py.j2"
         dest: "{{ camphoric_folder }}/server/camphoric_server/settings_override.py"
         mode: 0664
+      notify: Restart camphoric
 
     # The frontend (client/) is built from the checkout on the machine, so it
     # always matches the server code beside it.
@@ -46,6 +52,16 @@
         src: "{{camphoric_folder}}/client/build/"
         dest: "{{camphoric_folder}}/server/frontend_bootstrap/build/"
         remote_src: yes
+      notify: Restart camphoric
+
+    # With DEBUG off (any environment but development), Django serves static
+    # files only from STATIC_ROOT, through WhiteNoise; this copies the
+    # frontend's bundles there from the build installed above.
+    - name: Collect Django's static files
+      ansible.builtin.shell:
+        chdir: "{{camphoric_folder}}/server"
+        cmd: "pipenv run python manage.py collectstatic --noinput"
+      notify: Restart camphoric
 
     - name: Run Django migrations
       ansible.builtin.shell:

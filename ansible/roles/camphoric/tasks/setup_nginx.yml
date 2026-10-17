@@ -24,8 +24,3 @@
   service:
     name: nginx
     state: restarted
-
-- name: Start camphoric service
-  service:
-    name: camphoric
-    state: restarted
