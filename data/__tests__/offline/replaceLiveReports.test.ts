@@ -26,14 +26,18 @@ const newCamp = [report(3, 8, 'Old roster')];
 const options = { fromEventId: '7', toEventId: '8', yes: true };
 
 // A stand-in for the server: records each request, failing those `failOn` names
-function serverFailing(failOn: (method: string, path: string, data?: unknown) => boolean = () => false) {
+// with CamphoricFetcher's error for `status`
+function serverFailing(
+  failOn: (method: string, path: string, data?: unknown) => boolean = () => false,
+  status = 400,
+) {
   const requests: string[] = [];
   let nextId = 100;
   const fetcher: ReportFetcher = {
     async fetch(method, path, data) {
       const title = (data as { title?: string } | undefined)?.title;
       requests.push(title ? `${method} ${path} ${title}` : `${method} ${path}`);
-      if (failOn(method, path, data)) throw new Error('server responded 400');
+      if (failOn(method, path, data)) throw new Error(`server responded ${status}`);
       return method === 'POST' ? { id: nextId++ } : undefined;
     },
   };
@@ -137,7 +141,7 @@ describe('replaceReports', () => {
     }]);
   });
 
-  test('deletes nothing when a copy fails, and names the copies to clean up', async () => {
+  test('deletes nothing when a copy fails, and names the copies made', async () => {
     const { fetcher, requests } = serverFailing(
       (method, path, data) => method === 'POST' && (data as { title: string }).title === 'Rooms',
     );
@@ -146,7 +150,8 @@ describe('replaceReports', () => {
 
     await expect(replacing).rejects.toThrow(
       'failed to copy report 2 \'Rooms\', so nothing was deleted. '
-      + 'Delete the copies already made to clean up: 100 \'Roster\'',
+      + 'Copies made: 100 \'Roster\', and the failed copy may have been saved too. '
+      + 'Running the replacement again replaces them all',
     );
     // and keeps the server's error
     await expect(replacing).rejects.toHaveProperty('cause.message', 'server responded 400');
@@ -156,7 +161,7 @@ describe('replaceReports', () => {
   test('says when no copy was made', async () => {
     const { fetcher } = serverFailing(method => method === 'POST');
 
-    await expect(replaceReports(fetcher, plan, '8', quiet)).rejects.toThrow('No copies were made.');
+    await expect(replaceReports(fetcher, plan, '8', quiet)).rejects.toThrow('Copies made: none,');
   });
 
   test('deletes what it can, then fails naming the old reports left', async () => {
@@ -167,5 +172,12 @@ describe('replaceReports', () => {
       'failed to delete the old reports 3 \'Old roster\': delete them by hand',
     );
     expect(requests).toContain('DELETE /api/reports/5/');
+  });
+
+  // as when a retried DELETE's first try went through
+  test('counts an old report already gone as deleted', async () => {
+    const { fetcher } = serverFailing((method, path) => path === '/api/reports/3/', 404);
+
+    await expect(replaceReports(fetcher, plan, '8', quiet)).resolves.toBeUndefined();
   });
 });
