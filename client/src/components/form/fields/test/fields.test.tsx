@@ -67,8 +67,8 @@ describe('LodgingRequested field', () => {
     const onChange = vi.fn();
     renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
 
-    // Level 0: the root's children (placeholder from children_title).
-    await user.click(screen.getByPlaceholderText('Area *'));
+    // Level 0: the root's children (labelled by the root's children_title).
+    await user.click(screen.getByRole('textbox', { name: 'Area' }));
     await user.click(screen.getByText('Cabins'));
 
     type LodgingForm = { lodging_requested?: { choices?: number[]; id?: number; name?: string } };
@@ -78,7 +78,7 @@ describe('LodgingRequested field', () => {
     expect(last.lodging_requested?.id).toBeUndefined();
 
     // Level 1 appears; pick a leaf.
-    await user.click(screen.getByPlaceholderText('Cabin *'));
+    await user.click(screen.getByRole('textbox', { name: 'Cabin' }));
     await user.click(screen.getByText('Cabin A'));
 
     last = onChange.mock.calls.at(-1)?.[0] as LodgingForm;
@@ -97,7 +97,7 @@ describe('LodgingRequested field', () => {
       />,
     );
 
-    await user.click(screen.getByPlaceholderText('Cabin *'));
+    await user.click(screen.getByRole('textbox', { name: 'Cabin' }));
     const fullOption = screen.getByText('Cabin B (full)').closest('[role="option"]');
     expect(fullOption).toHaveAttribute('data-combobox-disabled', 'true');
   });
@@ -117,12 +117,98 @@ describe('LodgingRequested field', () => {
       />,
     );
 
-    await user.click(screen.getByPlaceholderText('Cabin *'));
+    await user.click(screen.getByRole('textbox', { name: 'Cabin' }));
     // Cabin A has room but is marked full; Cabin B has none but is marked open.
     const cabinA = screen.getByText('Cabin A (full)').closest('[role="option"]');
     expect(cabinA).toHaveAttribute('data-combobox-disabled', 'true');
     const cabinB = screen.getByText('Cabin B').closest('[role="option"]');
     expect(cabinB).not.toHaveAttribute('data-combobox-disabled');
+  });
+
+  it('names the group by its title and each dropdown by its level, keeping the name once picked (#811)', () => {
+    const titled: RJSFSchema = {
+      type: 'object',
+      properties: { lodging_requested: { type: 'object', title: 'Requested lodging' } },
+    };
+    renderForm(
+      <JsonSchemaForm
+        schema={titled}
+        uiSchema={uiSchema}
+        formData={{ lodging_requested: { choices: [2, 3], id: 3, name: 'Cabin A' } }}
+      />,
+    );
+
+    expect(screen.getByRole('group', { name: 'Requested lodging' })).toBeInTheDocument();
+    // Named for assistive technology only: the section around it shows the title.
+    expect(screen.queryByText('Requested lodging')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Area' })).toHaveValue('Cabins');
+    expect(screen.getByRole('textbox', { name: 'Cabin' })).toHaveValue('Cabin A');
+    // Optional here: nothing is required and no placeholder carries a "*".
+    expect(screen.getByRole('textbox', { name: 'Area' })).not.toBeRequired();
+    expect(screen.queryByPlaceholderText(/\*/)).not.toBeInTheDocument();
+  });
+
+  it('marks every dropdown required when the schema requires a finished choice', () => {
+    const required: RJSFSchema = {
+      type: 'object',
+      properties: {
+        lodging_requested: {
+          type: 'object',
+          title: 'Lodging',
+          required: ['id', 'choices'],
+          properties: { id: { type: 'number' }, choices: { type: 'array', minItems: 1 } },
+        },
+      },
+    };
+    renderForm(
+      <JsonSchemaForm
+        schema={required}
+        uiSchema={uiSchema}
+        formData={{ lodging_requested: { choices: [2] } }}
+      />,
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Area' })).toBeRequired();
+    expect(screen.getByRole('textbox', { name: 'Cabin' })).toBeRequired();
+    expect(screen.queryByPlaceholderText(/\*/)).not.toBeInTheDocument();
+  });
+
+  it('labels a level without a children_title by its parent', () => {
+    const untitled = lodgingNodes.map((node) => ({ ...node, children_title: '' }));
+    renderForm(
+      <JsonSchemaForm
+        schema={{
+          type: 'object',
+          properties: { lodging_requested: { type: 'object', title: 'Lodging' } },
+        }}
+        uiSchema={{
+          lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: untitled },
+        }}
+        formData={{ lodging_requested: { choices: [2] } }}
+      />,
+    );
+
+    // The top level is named by the field's title without showing it again;
+    // the next is labelled by the chosen parent's name.
+    expect(screen.getByRole('textbox', { name: 'Lodging' })).toHaveValue('Cabins');
+    expect(screen.queryByText('Lodging')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Cabins' })).toHaveValue('');
+    expect(screen.getByText('Cabins', { selector: 'label' })).toBeVisible();
+  });
+
+  it('drops the group name for ui:label false', () => {
+    renderForm(
+      <JsonSchemaForm
+        schema={{
+          type: 'object',
+          properties: { lodging_requested: { type: 'object', title: 'Lodging' } },
+        }}
+        uiSchema={{ lodging_requested: { ...uiSchema.lodging_requested, 'ui:label': false } }}
+      />,
+    );
+
+    expect(screen.getByRole('group')).not.toHaveAccessibleName();
+    expect(screen.getByRole('textbox', { name: 'Area' })).toBeInTheDocument();
   });
 });
 
