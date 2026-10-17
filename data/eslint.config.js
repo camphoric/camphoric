@@ -28,7 +28,7 @@ const eventIsolation = (depth) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['node_modules/', 'packages/*/dist/'] },
+  { ignores: ['node_modules/', 'packages/*/dist/', 'events/*/dist/'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

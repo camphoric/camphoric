@@ -4,14 +4,24 @@
   "private": true,
   "type": "module",
   "description": "BACDS Family Week's Camphoric event: its import object, organization and reports.",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "exports": {
-    ".": "./index.ts",
+    ".": {
+      "camphoric-source": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit && eslint ."
+    "lint": "tsc --noEmit && eslint .",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@camphoric/camphoric-event-import-spec": "*"

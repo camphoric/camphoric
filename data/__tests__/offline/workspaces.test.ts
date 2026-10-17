@@ -181,6 +181,20 @@ describe.each(WORKSPACES)('%s', (workspace) => {
   });
 
   if (workspace.startsWith('events/')) {
+    // So it can be packed and published as it is when it moves to a
+    // repository of its own (scripts/smoke-test-event-package.sh)
+    test('builds from its index.ts to dist/, and packs its build and report templates', () => {
+      expect(pkg.exports['.']).toEqual({
+        [SOURCE_CONDITION]: './index.ts',
+        types: './dist/index.d.ts',
+        default: './dist/index.js',
+      });
+      expect(pkg.files).toContain('dist');
+      if (existsSync(path.join(root, 'reports'))) expect(pkg.files).toContain('reports');
+      expect(pkg.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json');
+      expect(readFileSync(path.join(root, 'tsconfig.build.json'), 'utf8')).toMatch('"files": ["index.ts"]');
+    });
+
     test('depends on no other event', () => {
       const events = [...declared].filter(name => name.startsWith('@camphoric/camphoric-event-')
         && !SHARED_PACKAGES.includes(name));

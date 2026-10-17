@@ -158,6 +158,8 @@ every workspace imports only its own files and the packages it declares.
     COUNT=10 npm run bulk -w events/lark        # add generated registrations to an imported event
     npm run build                               # compile the spec and import-tools to dist/ (for publishing)
     scripts/smoke-test-packages.sh              # pack them and use them with plain Node
+    scripts/smoke-test-event-package.sh events/lark   # build, pack and load an event from its build
+                                                # (npm run build -w events/<name> needs the spec built first)
 
 To add an event, create `data/events/<name>` with a `package.json` named `@camphoric/camphoric-event-<name>`
 (start from a copy of Sample Camp, including its configs and `__tests__/conformance.test.ts`, but
@@ -171,7 +173,11 @@ to JS (their `exports` point at `dist/`; see "Event import packages" in the
 their source, with no build: the `camphoric-source` export condition, which the tsconfigs
 (`customConditions`), Jest configs (`customExportConditions`) and every `tsx
 --conditions=camphoric-source` run set, resolves them to their `.ts` files. A test checks that
-nothing in the repository runs without it. Each event's `index.ts` default export
+nothing in the repository runs without it. Each event builds the same way (`npm run build -w
+events/<name>` after `npm run build`, from its `index.ts` to `dist/`), packing its build and its
+`reports/` templates, and finds its report templates from its package root (`packagePath.ts`), which
+works from either. The packed event is what its own repository will publish, less the
+`camphoric-source` export (its source isn't packed, so that repository drops it). Each event's `index.ts` default export
 `satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
 still checks the schema with Ajv at runtime. After pulling a change to the workspaces, rebuild the
