@@ -2,6 +2,7 @@ import type { ApiRegisterPaymentStep } from 'api-types';
 import { useRegistrationStore } from 'store/registration';
 import { makeRegisterConfig } from 'test/fixtures';
 import { renderWithProviders, screen } from 'test/utils';
+import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PaymentStep } from '../PaymentStep';
@@ -38,7 +39,9 @@ const config = makeRegisterConfig({
   event: { is_open: true, start: { epoch: 0, year: 2026, month: 7, day: 1 } },
 });
 
-vi.mock('store/registrationApi', () => ({
+vi.mock('store/registrationApi', async (importOriginal) => ({
+  registrationNotFound: (await importOriginal<typeof import('store/registrationApi')>())
+    .registrationNotFound,
   useRegistrationConfig: () => ({ data: config }),
   useRefreshPaymentStep: () => ({ mutate: refresh }),
 }));
@@ -103,6 +106,72 @@ describe('PaymentStep', () => {
     expect(refresh).toHaveBeenCalledWith('u', expect.any(Object));
     expect(useRegistrationStore.getState().paymentStep).toEqual(now);
     expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(now);
+  });
+
+  it('forgets a sent registration the server no longer has, and goes back to step 1 (#769)', () => {
+    const formData = { campers: [{ first_name: 'Pat' }] };
+    saveSentRegistration('Camp, 2026-7-1', { paymentStep, formData, promo: null });
+    refresh.mockImplementation((_uuid: string, options: { onError: (e: unknown) => void }) =>
+      options.onError(
+        new ApiError(404, 'Not Found', {
+          code: 'registration_not_found',
+          detail: 'We couldn’t find your earlier registration. Please send the form again.',
+        }),
+      ),
+    );
+
+    renderWithProviders(<PaymentStep />);
+
+    expect(loadSentRegistration('Camp, 2026-7-1')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/events/$eventId/register/registration' }),
+    );
+    const state = useRegistrationStore.getState();
+    expect(state.sentNotFound).toBe(true);
+    expect(state.registration).toEqual(formData);
+  });
+
+  it('doesn’t then resume a registration another tab sent since (#769)', () => {
+    const formData = { campers: [{ first_name: 'Pat' }] };
+    useRegistrationStore.getState().resumeSent({ paymentStep, formData, promo: null });
+    const since = { ...paymentStep, registrationUUID: 'uuid-2' };
+    const other = { campers: [{ first_name: 'Other' }] };
+    saveSentRegistration('Camp, 2026-7-1', { paymentStep: since, formData: other, promo: null });
+    refresh.mockImplementation((uuid: string, options: { onError: (e: unknown) => void }) => {
+      if (uuid === 'u') {
+        options.onError(new ApiError(404, 'Not Found', { code: 'registration_not_found' }));
+      }
+    });
+
+    renderWithProviders(<PaymentStep />);
+
+    expect(refresh.mock.calls.map(([uuid]) => uuid as string)).toEqual(['u']);
+    const state = useRegistrationStore.getState();
+    expect(state.sentNotFound).toBe(true);
+    expect(state.paymentStep).toBeUndefined();
+    expect(state.registration).toEqual(formData);
+    // The other tab's registration is still good.
+    expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(since);
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/events/$eventId/register/registration' }),
+    );
+  });
+
+  it('keeps what was saved when asking again fails otherwise', () => {
+    saveSentRegistration('Camp, 2026-7-1', {
+      paymentStep,
+      formData: { campers: [{ first_name: 'Pat' }] },
+      promo: null,
+    });
+    refresh.mockImplementation((_uuid: string, options: { onError: (e: unknown) => void }) =>
+      options.onError(new ApiError(500, 'Internal Server Error', null)),
+    );
+
+    renderWithProviders(<PaymentStep />);
+
+    expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(paymentStep);
+    expect(useRegistrationStore.getState().paymentStep).toEqual(paymentStep);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('goes back to step 1 when nothing was sent', () => {

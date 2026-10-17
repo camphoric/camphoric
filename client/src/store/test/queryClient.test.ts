@@ -73,4 +73,27 @@ describe('the shared failure toast (DR-10, DR-109)', () => {
     await fail({ handlesVersionConflict: true });
     expect(notifications.show).not.toHaveBeenCalled();
   });
+
+  it('stays quiet about a registration the page goes back to send again (#769)', async () => {
+    const notFound = new ApiError(404, 'Not Found', {
+      detail: 'We couldn’t find your earlier registration. Please send the form again.',
+      code: 'registration_not_found',
+    });
+    const failWith = (error: ApiError) =>
+      queryClient
+        .getMutationCache()
+        .build(queryClient, {
+          mutationFn: () => Promise.reject(error),
+          meta: { handlesRegistrationNotFound: true },
+          retry: false,
+        })
+        .execute(undefined)
+        .catch(() => undefined);
+
+    vi.mocked(notifications.show).mockClear();
+    await failWith(notFound);
+    expect(notifications.show).not.toHaveBeenCalled();
+    await failWith(new ApiError(500, 'Server Error', null));
+    expect(notifications.show).toHaveBeenCalledTimes(1);
+  });
 });
