@@ -223,9 +223,11 @@ camphoric_email_force_backend: ''
 ```
 
 `./overwrite-with-live-data.sh` keeps a restored dump from emailing anyone even then: it
-stops the worker while it restores, switches every restored email account to the console
-backend, and marks the email that was waiting to go out as failed. It starts the worker
-again only if the restore succeeded; otherwise it says so, and exits non-zero.
+stops and disables the worker while it restores, switches every restored email account to
+the console backend, and marks the email that was waiting to go out as failed. It puts the
+worker back as it was only if the restore succeeded; otherwise it leaves the worker stopped
+and disabled, says how to start it, and exits non-zero. (`vagrant provision` starts the
+worker again too.)
 
 
 The VM's own node_modules

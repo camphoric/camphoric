@@ -13,10 +13,13 @@
 #
 # A live dump holds the organization's email accounts (with their passwords) and
 # any email still waiting to go out, so the restore must not let the VM email real
-# people: the email worker is stopped before restoring, every restored email
-# account is switched to the console backend (messages go to the worker's log),
-# and queued messages are marked failed. The worker is started again only once
-# all of that has succeeded.
+# people: the email worker is stopped and disabled (so a reboot or `vagrant
+# reload` can't start it) before restoring; in the same psql session as the
+# dump, every restored email account is switched to the console backend
+# (messages go to the worker's log) and queued messages are marked failed; and
+# if the restore fails partway, that is tried again on the way out. The worker
+# is enabled and started again, as it was before, only once all of that has
+# succeeded.
 #
 # The dump, and the restore's error log, are removed from the VM however the
 # script ends. It exits non-zero if the restore reported errors.
@@ -62,12 +65,45 @@ set -euo pipefail
 DUMP="$1"; DB="$2"; DB_USER="$3"; ERR="$4"
 WORKER="camphoric-worker"
 
+# Keep the VM from emailing anyone in the dump: send as every restored account
+# through the console backend, and fail what was waiting to go out. Names are
+# schema-qualified because the dump empties search_path. A dump from before
+# these tables existed skips them.
+NEUTRALISE=$(cat <<'SQL'
+DO $$
+BEGIN
+  IF to_regclass('public.camphoric_emailaccount') IS NOT NULL THEN
+    UPDATE public.camphoric_emailaccount
+       SET backend = 'django.core.mail.backends.console.EmailBackend';
+  END IF;
+  IF to_regclass('public.camphoric_emailmessage') IS NOT NULL THEN
+    UPDATE public.camphoric_emailmessage
+       SET status = 'failed', lease_until = NULL,
+           last_error = 'Not sent: restored into a development VM.'
+     WHERE status IN ('queued', 'sending');
+  END IF;
+END
+$$;
+SQL
+)
+neutralise() {
+  psql -U "$DB_USER" -d "$DB" -v ON_ERROR_STOP=1 -q -c "$NEUTRALISE"
+}
+
+worker_held=""; was_enabled=""; was_active=""; restoring=""
 cleanup() {
   local status=$?
+  set +e
+  if [ "$status" -ne 0 ] && [ -n "$restoring" ]; then
+    # The restore may have stopped after loading the email tables; try again.
+    neutralise >/dev/null 2>&1 \
+      || echo "  - couldn't switch the restored email accounts to the console backend" >&2
+  fi
   rm -f "$DUMP" "$ERR"
-  if [ "$status" -ne 0 ] && [ -n "${worker_stopped:-}" ]; then
-    echo "  - $WORKER left stopped; start it once the database is right:" >&2
-    echo "      sudo systemctl start $WORKER" >&2
+  if [ "$status" -ne 0 ] && [ -n "$worker_held" ]; then
+    echo "  - $WORKER left stopped and disabled; once the database is right:" >&2
+    [ -n "$was_enabled" ] && echo "      sudo systemctl enable $WORKER" >&2
+    [ -n "$was_active" ] && echo "      sudo systemctl start $WORKER" >&2
   fi
   exit "$status"
 }
@@ -75,12 +111,17 @@ trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+# With no terminal, a lost connection shows up as SIGPIPE on the next write, which
+# would end bash without running the EXIT trap; ignored, the write fails instead
+# and `set -e` exits through it.
+trap '' PIPE
 
-worker_stopped=""
 if systemctl cat "$WORKER.service" >/dev/null 2>&1; then
-  echo "  - stopping $WORKER (so it can't send the restored email)"
-  sudo systemctl stop "$WORKER"
-  worker_stopped=1
+  systemctl is-enabled --quiet "$WORKER" && was_enabled=1
+  systemctl is-active --quiet "$WORKER" && was_active=1
+  echo "  - stopping and disabling $WORKER (so nothing starts it on the restored data)"
+  worker_held=1
+  sudo systemctl disable --now --quiet "$WORKER"
 fi
 
 echo "  - terminating other connections to $DB"
@@ -91,35 +132,22 @@ psql -U "$DB_USER" -d postgres -tAc \
 echo "  - dropping everything owned by $DB_USER"
 psql -U "$DB_USER" -d "$DB" -v ON_ERROR_STOP=1 -q -c "DROP OWNED BY $DB_USER CASCADE;"
 
-echo "  - restoring the dump (ownership camphoric -> $DB_USER)"
+echo "  - restoring the dump (ownership camphoric -> $DB_USER), then switching email"
+echo "    accounts to the console backend and failing queued email"
 # The dump's own leading DROPs now hit an empty schema (benign "does not exist");
-# CREATE/COPY then apply cleanly, so ON_ERROR_STOP=0 tolerates only those.
-sed 's/OWNER TO camphoric/OWNER TO '"$DB_USER"'/g' "$DUMP" \
-  | psql -U "$DB_USER" -d "$DB" -v ON_ERROR_STOP=0 -q 2>"$ERR"
+# CREATE/COPY then apply cleanly, so ON_ERROR_STOP=0 tolerates only those. The
+# email statements follow the dump in the same session, so they run as soon as it
+# has loaded.
+restoring=1
+{
+  sed 's/OWNER TO camphoric/OWNER TO '"$DB_USER"'/g' "$DUMP"
+  printf '\n%s\n' "$NEUTRALISE"
+} | psql -U "$DB_USER" -d "$DB" -v ON_ERROR_STOP=0 -q >/dev/null 2>"$ERR"
 non_benign=$(grep -i 'ERROR' "$ERR" | grep -ivc 'does not exist' || true)
 non_benign=${non_benign:-0}
 echo "  - restore errors (excluding benign 'does not exist'): $non_benign"
-
-# Keep the VM from emailing anyone in the dump: send as every restored account
-# through the console backend, and fail what was waiting to go out. A dump from
-# before these tables existed skips them.
-echo "  - switching email accounts to the console backend; failing queued email"
-psql -U "$DB_USER" -d "$DB" -v ON_ERROR_STOP=1 -q <<'SQL'
-DO $$
-BEGIN
-  IF to_regclass('public.camphoric_emailaccount') IS NOT NULL THEN
-    UPDATE camphoric_emailaccount
-       SET backend = 'django.core.mail.backends.console.EmailBackend';
-  END IF;
-  IF to_regclass('public.camphoric_emailmessage') IS NOT NULL THEN
-    UPDATE camphoric_emailmessage
-       SET status = 'failed', lease_until = NULL,
-           last_error = 'Not sent: restored into a development VM.'
-     WHERE status IN ('queued', 'sending');
-  END IF;
-END
-$$;
-SQL
+# Again on its own, so an error in it stops the script here.
+neutralise
 
 echo "  - restored. Row counts:"
 for t in event registration camper; do
@@ -132,7 +160,10 @@ if [ "$non_benign" -gt 0 ]; then
   exit 1
 fi
 
-if [ -n "$worker_stopped" ]; then
+if [ -n "$was_enabled" ]; then
+  sudo systemctl enable --quiet "$WORKER"
+fi
+if [ -n "$was_active" ]; then
   echo "  - starting $WORKER"
   sudo systemctl start "$WORKER"
 fi
