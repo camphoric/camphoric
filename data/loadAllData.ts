@@ -3,9 +3,9 @@
 import 'dotenv/config';
 
 import { getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
-import { Organizations, organizationLoader } from './organizations.ts';
-import CamphoricEventCreator from './CamphoricEventCreator.ts';
-import type { LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
+import CamphoricEventCreator from '@camphoric/camphoric-event-import-tools/creator';
+import { Organizations, organizationLoader } from '@camphoric/camphoric-event-import-tools/organizations';
+import { validateEventImport, type LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
 import { EVENTS, selectedEvents } from './eventModules.ts';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';
@@ -36,6 +36,7 @@ async function main() {
 
     const event = new CamphoricEventCreator({
       data: e.data,
+      validate: validateEventImport,
       sampleRegGenerator: e.sampleRegGenerator,
       overrides: e.overrides,
       organizations: new Organizations([organization]),

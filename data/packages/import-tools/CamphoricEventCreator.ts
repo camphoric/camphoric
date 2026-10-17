@@ -17,8 +17,8 @@
  * Arguments
  * ---------
  *
- * data: an EventImport, which conforms to the JSON schema in
- * @camphoric/camphoric-event-import-spec. Every field of `data.event` is sent to the
+ * data: an event import object (the spec's EventImport), checked first with
+ * `validate`, the spec's validateEventImport. Every field of `data.event` is sent to the
  * events API as-is, including optional ones such as
  * `registration_error_messages` (custom validation messages for the
  * registration form).
@@ -37,23 +37,27 @@ import { oraPromise } from 'ora';
 import cliProgress from 'cli-progress';
 import lodash from 'lodash';
 
+import Fetcher from './CamphoricFetcher.ts';
 import { Organizations, type Organization } from './organizations.ts';
+import type {
+  ImportData,
+  ImportResults,
+  LodgingNode,
+  Override,
+  SampleRegGenerator,
+  SampleRegistration,
+  Saved,
+  SavedResults,
+} from './types.ts';
 import { formatDate, formatDateTime } from './utils.ts';
-import {
-  validateEventImport,
-  type EventImport,
-  type EventModule,
-  type ImportResults,
-  type LodgingNode,
-  type Override,
-  type SampleRegGenerator,
-  type SampleRegistration,
-  type Saved,
-  type SavedResults,
-} from '@camphoric/camphoric-event-import-spec';
-import Fetcher from '@camphoric/camphoric-event-import-tools/fetcher';
 
-export interface CamphoricEventCreatorOptions extends Omit<EventModule, 'organization'> {
+export interface CamphoricEventCreatorOptions {
+  data: ImportData;
+  // Checks the data before anything is sent, returning its problems (none
+  // when it's valid): pass the spec's validateEventImport.
+  validate: (data: unknown) => unknown[];
+  sampleRegGenerator?: SampleRegGenerator;
+  overrides?: Override[];
   // The organizations already loaded; fetched from the server when not given
   organizations?: Organizations;
   url?: string;
@@ -63,18 +67,18 @@ export interface CamphoricEventCreatorOptions extends Omit<EventModule, 'organiz
 type PostedRegistration = SampleRegistration & { response: Record<string, unknown> };
 
 export default class CamphoricEventCreator extends Fetcher {
-  declare data: EventImport;
+  declare data: ImportData;
   sampleRegGenerator?: SampleRegGenerator;
   overrides: Override[];
   results: ImportResults;
   organization?: Promise<Organization | undefined>;
 
-  constructor({ data, organizations, sampleRegGenerator, overrides = [], url }: CamphoricEventCreatorOptions) {
+  constructor({ data, validate, organizations, sampleRegGenerator, overrides = [], url }: CamphoricEventCreatorOptions) {
     super(url);
 
     this.data = data;
 
-    const errors = validateEventImport(data);
+    const errors = validate(data);
 
     if (errors.length) {
       throw this.error(

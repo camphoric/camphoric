@@ -36,6 +36,13 @@ describe('CamphoricFetcher.fetch', () => {
     expect(body.response).toBe(response);
   });
 
+  // An event module with no event mustn't hide its validation errors
+  test('names no event in its errors when it has none', () => {
+    const fetcher = new CamphoricFetcher('http://camphoric.test');
+    fetcher.data = {} as never;
+    expect(fetcher.error('bad data').eventName).toBe('NoEventSet');
+  });
+
   test('rejects a response with an error status', async () => {
     const fetcher = fetcherAnswering(Response.json({ detail: 'nope' }, { status: 400 }));
     await expect(fetcher.fetch('GET', '/api/lodgings/')).rejects.toThrow('server responded 400');

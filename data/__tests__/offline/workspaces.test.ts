@@ -12,13 +12,25 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
 import type {
+  EventImport as SpecEventImport,
   FetchMethod as SpecFetchMethod,
+  OrganizationImport as SpecOrganizationImport,
+  Override as SpecOverride,
+  SampleRegGenerator as SpecSampleRegGenerator,
+  SampleRegistration as SpecSampleRegistration,
   Saved as SpecSaved,
+  SavedResults as SpecSavedResults,
 } from '@camphoric/camphoric-event-import-spec';
 import type {
   FetchMethod as ToolsFetchMethod,
+  ImportData as ToolsImportData,
+  OrganizationImport as ToolsOrganizationImport,
+  Override as ToolsOverride,
+  SampleRegGenerator as ToolsSampleRegGenerator,
+  SampleRegistration as ToolsSampleRegistration,
   Saved as ToolsSaved,
-} from '@camphoric/camphoric-event-import-tools/fetcher';
+  SavedResults as ToolsSavedResults,
+} from '@camphoric/camphoric-event-import-tools/types';
 
 import { EVENTS } from '../../eventModules.ts';
 
@@ -63,13 +75,25 @@ const isBuiltin = (specifier: string) => specifier.startsWith('node:')
 
 // Every event package is one the importer loads, so none escapes the import,
 // the conformance checks and the server's schema checks.
-// import-tools keeps its own copies of these spec types, so that it depends
-// on no spec version; the type-check fails when they drift apart.
+// import-tools keeps its own copies of the spec types it uses, so that it
+// depends on no spec version; the type-check fails when they drift apart.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-const toolsTypesMatchTheSpec: [Same<SpecFetchMethod, ToolsFetchMethod>, Same<SpecSaved, ToolsSaved>] = [true, true];
+type Fits<A, B> = [A] extends [B] ? true : false;
+// (Annotated, not asserted: `true as false` would type-check.)
+const toolsTypesMatchTheSpec: [
+  Same<SpecFetchMethod, ToolsFetchMethod>,
+  Same<SpecSaved, ToolsSaved>,
+  Same<SpecOrganizationImport, ToolsOrganizationImport>,
+  Same<SpecSampleRegistration, ToolsSampleRegistration>,
+  Same<SpecSavedResults, ToolsSavedResults>,
+  // what an event module gives, the importer takes
+  Fits<SpecEventImport, ToolsImportData>,
+  Fits<SpecOverride, ToolsOverride>,
+  Fits<SpecSampleRegGenerator, ToolsSampleRegGenerator>,
+] = [true, true, true, true, true, true, true, true];
 
-test("import-tools' FetchMethod and Saved are the spec's", () => {
-  expect(toolsTypesMatchTheSpec).toEqual([true, true]);
+test('import-tools\' copies of the spec\'s types match the spec', () => {
+  expect(toolsTypesMatchTheSpec.every(Boolean)).toBe(true);
 });
 
 test('the importer is private, and uses the workspace copies by "*"', () => {
@@ -190,7 +214,7 @@ describe.each(WORKSPACES)('%s', (workspace) => {
         default: './dist/index.js',
       });
       expect(pkg.files).toContain('dist');
-      if (existsSync(path.join(root, 'reports'))) expect(pkg.files).toContain('reports');
+      expect(pkg.files.includes('reports')).toBe(existsSync(path.join(root, 'reports')));
       expect(pkg.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json');
       expect(readFileSync(path.join(root, 'tsconfig.build.json'), 'utf8')).toMatch('"files": ["index.ts"]');
     });

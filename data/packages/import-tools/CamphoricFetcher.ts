@@ -117,7 +117,7 @@ export default class CamphoricFetcher {
   error(e: unknown, ...data: unknown[]): CamphoricFetcherError {
     const err = (e instanceof Error ? e : new Error(String(e))) as CamphoricFetcherError;
 
-    err.eventName = this.data?.event.name || 'NoEventSet';
+    err.eventName = this.data?.event?.name || 'NoEventSet';
     err.data = [
       ...(err.data || []),
       ...data,
@@ -128,7 +128,7 @@ export default class CamphoricFetcher {
   };
 
   log(...data: unknown[]) {
-    const eventName = this.data?.event.name || 'NoEventSet';
+    const eventName = this.data?.event?.name || 'NoEventSet';
 
     data.forEach(
       (item) => console.log(`[${eventName}]`, item)
