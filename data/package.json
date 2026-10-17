@@ -16,7 +16,7 @@
     "build": "npm run build -w packages/event-import-spec && npm run build -w packages/import-tools"
   },
   "dependencies": {
-    "@camphoric/camphoric-event-familyweek": "*",
+    "@camphoric/camphoric-event-familyweek": "^1.0.0",
     "@camphoric/camphoric-event-harmony": "*",
     "@camphoric/camphoric-event-import-spec": "*",
     "@camphoric/camphoric-event-import-tools": "*",

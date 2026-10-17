@@ -138,19 +138,16 @@ http://127.0.0.1:8000/api/
 
 ## Loading Sample Data
 
-Once your server is running, use the scripts in data directory to seed sample data.
+Once your server is running, import the sample events with the importer in `data/` (installing
+it needs a GitHub Packages token: see "A token for `data/`" in the [README](../README.md#a-token-for-data)),
+logging in as your superuser:
 ```
 cd data
-npm install
-cd lark
-node loadData.mjs
-``` 
-
-To load the family week fixture data:
+npm ci
+CAMPHORIC_URL=http://localhost:8000 DJANGO_SUPERUSER_USERNAME=<you> DJANGO_SUPERUSER_PASSWORD=<yours> npm run import -- --if-empty
 ```
-cd server
-./manage.py loaddata ../data/familyweek-seed-data.json
-```
+(`--if-empty` leaves a database that already has events alone: importing again replaces each
+event's lodging, unassigning its campers.)
 
 ## Authentication
 
