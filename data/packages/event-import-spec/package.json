@@ -42,7 +42,7 @@
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "typebox": "^1.3.34"
+    "typebox": "^1.3.37"
   },
   "peerDependencies": {
     "@jest/globals": "^30.5.2"
@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",
-    "@swc/core": "^1.16.13",
+    "@swc/core": "^1.16.18",
     "@swc/jest": "^0.2.39",
     "@types/node": "^22.20.5",
     "jest": "^30.5.2",
