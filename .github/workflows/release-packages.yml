@@ -68,25 +68,6 @@ jobs:
           echo "package=$package" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # A package must not be published before the @camphoric packages it
-      # depends on (the tools need a published spec in their range).
-      - name: Its @camphoric dependencies are published
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE: ${{ steps.package.outputs.package }}
-        run: |
-          folder=$(npm query ".workspace[name='$PACKAGE']" | node -pe 'JSON.parse(require("fs").readFileSync(0))[0].location')
-          node -e '
-            const deps = require("./" + process.argv[1] + "/package.json").dependencies ?? {};
-            for (const [name, range] of Object.entries(deps)) {
-              if (name.startsWith("@camphoric/")) console.log(name + "@" + range);
-            }' "$folder" | while read -r wanted; do
-            if [ -z "$(npm view "$wanted" version 2>/dev/null)" ]; then
-              echo "$wanted isn't published yet: release and publish it first" >&2; exit 1
-            fi
-          done
-
-      # Builds both packages, spec first: the tools build against its dist/.
       - run: npm run build
 
       - name: Publish, unless that version is already published

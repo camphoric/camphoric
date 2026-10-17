@@ -14,7 +14,7 @@
     "lint": "tsc --noEmit && eslint ."
   },
   "dependencies": {
-    "@camphoric/camphoric-event-import-spec": "^1.0.0"
+    "@camphoric/camphoric-event-import-spec": "*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

@@ -1,7 +1,6 @@
 {
   // Compiles the package to dist/ (JavaScript, declarations and maps) for
-  // publishing. It resolves other packages as a consumer would (their dist/),
-  // not by the camphoric-source condition, so build the spec first.
+  // publishing.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": false,

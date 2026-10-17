@@ -19,6 +19,12 @@ permissions:
   pull-requests: write
   packages: write
 
+# One run at a time, in order, so release PRs merged in quick succession don't
+# race each other (a run is never cancelled: it may be publishing).
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -62,7 +68,7 @@ jobs:
       packages: write
 
   # Publish an event-import package when its release PR was just merged. The
-  # tools depend on the spec, so a release of both publishes the spec first.
+  # packages don't depend on each other, so either can publish first.
   publish-spec:
     needs: release-please
     if: ${{ needs.release-please.outputs.spec_release_created == 'true' }}
@@ -74,8 +80,8 @@ jobs:
       packages: write
 
   publish-tools:
-    needs: [release-please, publish-spec]
-    if: ${{ !failure() && !cancelled() && needs.release-please.outputs.tools_release_created == 'true' }}
+    needs: release-please
+    if: ${{ needs.release-please.outputs.tools_release_created == 'true' }}
     uses: ./.github/workflows/release-packages.yml
     with:
       tag: ${{ needs.release-please.outputs.tools_tag_name }}

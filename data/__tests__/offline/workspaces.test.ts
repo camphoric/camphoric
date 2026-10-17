@@ -11,6 +11,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
+import type {
+  FetchMethod as SpecFetchMethod,
+  Saved as SpecSaved,
+} from '@camphoric/camphoric-event-import-spec';
+import type {
+  FetchMethod as ToolsFetchMethod,
+  Saved as ToolsSaved,
+} from '@camphoric/camphoric-event-import-tools/fetcher';
 
 import { EVENTS } from '../../eventModules.ts';
 
@@ -55,8 +63,20 @@ const isBuiltin = (specifier: string) => specifier.startsWith('node:')
 
 // Every event package is one the importer loads, so none escapes the import,
 // the conformance checks and the server's schema checks.
-test('the importer is private', () => {
-  expect(readJson('package.json').private).toBe(true);
+// import-tools keeps its own copies of these spec types, so that it depends
+// on no spec version; the type-check fails when they drift apart.
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+const toolsTypesMatchTheSpec: [Same<SpecFetchMethod, ToolsFetchMethod>, Same<SpecSaved, ToolsSaved>] = [true, true];
+
+test("import-tools' FetchMethod and Saved are the spec's", () => {
+  expect(toolsTypesMatchTheSpec).toEqual([true, true]);
+});
+
+test('the importer is private, and uses the workspace copies by "*"', () => {
+  const pkg = readJson('package.json');
+  expect(pkg.private).toBe(true);
+  expect(Object.entries(pkg.dependencies)
+    .filter(([name, range]) => name.startsWith('@camphoric/') && range !== '*')).toEqual([]);
 });
 
 test('the importer loads every event under events/, by its package name', async () => {
@@ -125,6 +145,14 @@ describe.each(WORKSPACES)('%s', (workspace) => {
   });
 
   if (SHARED_PACKAGES.includes(pkg.name)) {
+    // So a published package never waits on another's release, and no
+    // release can leave a range the workspace copy doesn't satisfy
+    test('depends on no other @camphoric package when installed', () => {
+      const runtime = Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies })
+        .filter(name => name.startsWith('@camphoric/'));
+      expect(runtime).toEqual([]);
+    });
+
     test('publishes its built dist/, with its source for this repository', () => {
       const entries = Object.values(pkg.exports as Record<string, string | Record<string, string>>)
         .filter(target => typeof target === 'object');
@@ -143,6 +171,14 @@ describe.each(WORKSPACES)('%s', (workspace) => {
       expect(pkg.private).toBe(true);
     });
   }
+
+  // A workspace always uses the workspace copy of the others, whatever version
+  // a release gives it
+  test('depends on the other workspaces by "*"', () => {
+    const ranges = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })
+      .filter(([name, range]) => name.startsWith('@camphoric/') && range !== '*');
+    expect(ranges).toEqual([]);
+  });
 
   if (workspace.startsWith('events/')) {
     test('depends on no other event', () => {
