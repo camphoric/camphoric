@@ -166,6 +166,74 @@ class HiddenTests(UsersApiTestCase):
         self.assertEqual(self.client.get('/api/emailmessages/').data['count'], 1)
 
 
+class SuperuserAccountTests(UsersApiTestCase):
+    '''Only superusers change a superuser or get a link for one (#794).'''
+
+    def setUp(self):
+        super().setUp()
+        self.other = User.objects.create_superuser('other', 'other@example.com', 'password')
+
+    def test_admins_cant_change_delete_or_get_links_for_superusers(self):
+        self.as_user(self.boss)
+        url = f'/api/users/{self.root.id}/'
+        refused = {
+            'PATCH email': lambda: self.client.patch(
+                url, {'email': 'boss2@example.com'}, format='json'),
+            'PATCH deactivate': lambda: self.client.patch(
+                url, {'is_active': False}, format='json'),
+            'PUT': lambda: self.client.put(
+                url, {'username': 'root', 'email': 'boss2@example.com', 'role': 'admin'},
+                format='json'),
+            'DELETE': lambda: self.client.delete(url),
+            'delete-preview': lambda: self.client.get(f'{url}delete-preview/'),
+            'send-password-link': lambda: self.client.post(f'{url}send-password-link/'),
+            'password-link': lambda: self.client.post(f'{url}password-link/'),
+        }
+        for name, request in refused.items():
+            with self.subTest(name):
+                # As if there were no such user.
+                self.assertEqual(request().status_code, 404)
+        self.root.refresh_from_db()
+        self.assertEqual((self.root.email, self.root.is_active), ('root@example.com', True))
+        self.assertEqual(mail.outbox, [])
+        self.assertFalse(models.EmailMessage.objects.exists())
+
+    def test_admins_still_see_superusers(self):
+        self.as_user(self.boss)
+        usernames = [user['username'] for user in self.client.get('/api/users/').data]
+        self.assertIn('root', usernames)
+        self.assertEqual(self.client.get(f'/api/users/{self.root.id}/').status_code, 200)
+        self.assertEqual(
+            self.client.get(f'/api/users/{self.root.id}/history/').status_code, 200)
+
+    def test_superusers_manage_superusers(self):
+        self.as_user(self.root)
+        url = f'/api/users/{self.other.id}/'
+        response = self.client.patch(url, {'first_name': 'Other'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.client.post(f'{url}password-link/').status_code, 200)
+        self.assertEqual(self.client.post(f'{url}send-password-link/').status_code, 202)
+        self.assertEqual(self.client.get(f'{url}delete-preview/').status_code, 200)
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.assertFalse(User.objects.filter(id=self.other.id).exists())
+
+    def test_superusers_account_email_is_hidden_from_admins(self):
+        pat = make_user(roles.REPORTER, 'pat')
+        for user in (pat, self.root):
+            accounts.send_password_link(user, base='https://reg.example.org')
+        roots = models.EmailMessage.objects.get(to='root@example.com')
+        self.as_user(self.boss)
+        listed = self.client.get('/api/emailmessages/').data
+        self.assertEqual([message['to'] for message in listed['results']],
+                         ['pat@example.com'])
+        self.assertEqual(
+            self.client.get(f'/api/emailmessages/{roots.id}/').status_code, 404)
+        self.as_user(self.root)
+        self.assertEqual(self.client.get('/api/emailmessages/').data['count'], 2)
+        self.assertEqual(
+            self.client.get(f'/api/emailmessages/{roots.id}/').status_code, 200)
+
+
 class LinkTests(UsersApiTestCase):
     def setUp(self):
         super().setUp()
