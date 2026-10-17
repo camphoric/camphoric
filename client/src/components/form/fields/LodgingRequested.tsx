@@ -15,10 +15,17 @@
  * Validation errors — the field's own, and those on its `id` / `choices`
  * (e.g. a non-leaf choice such as "RV Camping" with no length picked yet) —
  * show under the last dropdown, so the unfinished choice is marked.
+ *
+ * The dropdowns form a group named by the field's title (`ui:title`, else the
+ * schema's; `ui:label: false` hides it). Each dropdown is labelled by its
+ * parent's `children_title` — else, at the top, the field's title, and below,
+ * the parent's name — so a screen reader still says what it is once a value is
+ * picked. When the field must be finished (it's required, or its schema
+ * requires `id` or `choices`, as the server's does) every dropdown is required.
  */
 
-import { Select, Stack } from '@mantine/core';
-import type { FieldProps } from '@rjsf/utils';
+import { Input, Select, Stack } from '@mantine/core';
+import { type FieldProps, getUiOptions, titleId } from '@rjsf/utils';
 
 export interface LodgingNode {
   id: number;
@@ -53,6 +60,12 @@ function lodgingErrors(props: FieldProps): string[] {
   return [...new Set(all)];
 }
 
+/** Whether a lodging must be chosen: the field is required, or its own schema requires a choice. */
+function isRequired(props: FieldProps): boolean {
+  const required = props.schema.required ?? [];
+  return Boolean(props.required) || required.includes('id') || required.includes('choices');
+}
+
 export function LodgingRequested(props: FieldProps) {
   const uiSchema = props.uiSchema as { lodging_nodes?: LodgingNode[] } | undefined;
   const nodes = uiSchema?.lodging_nodes ?? [];
@@ -81,6 +94,10 @@ export function LodgingRequested(props: FieldProps) {
   if (!root) return null;
 
   const errors = lodgingErrors(props);
+  const required = isRequired(props);
+  const uiOptions = getUiOptions(props.uiSchema);
+  const title = uiOptions.label === false ? undefined : uiOptions.title || props.schema.title;
+  const labelId = titleId(props.fieldPathId);
 
   // Build the chain of selects: the root, then one per chosen non-leaf node
   // (a chosen node with children opens the next level).
@@ -92,7 +109,18 @@ export function LodgingRequested(props: FieldProps) {
 
   return (
     // The field's rjsf id lets a failed submit focus the picker (focusFirstError).
-    <Stack id={props.fieldPathId.$id} className="field-lodging-requested" gap="sm">
+    <Stack
+      id={props.fieldPathId.$id}
+      className="field-lodging-requested"
+      gap="sm"
+      role="group"
+      aria-labelledby={title ? labelId : undefined}
+    >
+      {title && (
+        <Input.Label id={labelId} labelElement="div" required={required} mb={0}>
+          {title}
+        </Input.Label>
+      )}
       {parents.map((parent, level) => {
         const optionNodes = nodes
           .filter((node) => node.parent === parent.id)
@@ -105,7 +133,11 @@ export function LodgingRequested(props: FieldProps) {
         return (
           <Select
             key={parent.id}
-            placeholder={`${parent.children_title || 'Please make a selection'} *`}
+            label={parent.children_title || (level === 0 ? title : parent.name) || 'Lodging'}
+            placeholder="Please make a selection"
+            required={required}
+            // The group's title already carries the required mark.
+            withAsterisk={title ? false : undefined}
             data={data}
             value={choices[level] !== undefined ? String(choices[level]) : null}
             onChange={(next) => handleSelect(next ? Number(next) : undefined, level)}
