@@ -104,7 +104,7 @@ export const leavesWith = (campers: ApiCamper[]): AugmentedLodging[] =>
 
 const LOOKUP: LodgingLookup = Object.fromEntries(FILTER_NODES.map((n) => [n.id, n]));
 
-/** The campers not placed in a leaf with days in the event (SPEC §8.6). */
+/** The campers not placed in a leaf with days present in the event (SPEC §8.6). */
 export const unassignedIn = (campers: ApiCamper[]): ApiCamper[] =>
   campers.filter((c) => isUnassigned(c, LOOKUP, DAYS));
 

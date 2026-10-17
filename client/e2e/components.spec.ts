@@ -531,6 +531,14 @@ test.describe('Lodging timeline', () => {
 
     await expect(sidebar).toHaveText('Unassigned (3)');
     await expect(inara).toHaveCount(1);
+    // She's now a bar in Off Site's row: right of its name, in the slot under Kaylee's bar.
+    const bar = (await inara.boundingBox())!;
+    const kaylee = (await page.getByRole('button', { name: 'Kaylee Frye' }).boundingBox())!;
+    const offSite = (await page
+      .getByRole('button', { name: 'Off Site', exact: true })
+      .boundingBox())!;
+    expect(bar.x).toBeGreaterThan(offSite.x + offSite.width);
+    expect(bar.y - kaylee.y).toBeCloseTo(30, 0); // a bar's height and the gap below it
   });
 
   test('the view narrows to any lodging, a top-level unit included', async ({ page }) => {
