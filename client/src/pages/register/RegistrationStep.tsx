@@ -20,15 +20,21 @@ import { useGoToStep } from 'hooks/useGoToStep';
 import { calculatePrice } from 'pricing';
 import { useEffect, useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
-import { useRegistrationConfig, useSubmitRegistration } from 'store/registrationApi';
+import {
+  useCheckSentRegistration,
+  useRegistrationConfig,
+  useSubmitRegistration,
+} from 'store/registrationApi';
 import { debug } from 'utils/debug';
 
 import { PriceTicker } from './PriceTicker';
 import { PromoCodeEntry, usePromoCodeEntry } from './PromoCodeEntry';
 import {
+  adoptLegacySentRegistration,
   clearRegistrationFormData,
   clearSentRegistration,
   getRegistrationStorageKey,
+  loadLegacySentRegistration,
   loadRegistrationFormData,
   loadSentRegistration,
   saveRegistrationFormData,
@@ -55,9 +61,25 @@ export function RegistrationStep() {
   const [sentBefore, setSentBefore] = useState(() =>
     storageKey ? loadSentRegistration(storageKey) : null,
   );
+  // One saved before the storage key carried the event id may be another
+  // event's: offer it only once the server confirms it's this event's.
+  const { mutate: checkSent, isPending: checkingSent } = useCheckSentRegistration(eventId);
   useEffect(() => {
-    if (storageKey) setSentBefore(loadSentRegistration(storageKey));
-  }, [storageKey]);
+    if (!storageKey) return;
+    const sent = loadSentRegistration(storageKey);
+    setSentBefore(sent);
+    const legacy = sent ? null : loadLegacySentRegistration(storageKey);
+    if (!legacy) return;
+    checkSent(legacy.paymentStep.registrationUUID, {
+      onSuccess: (paymentStep) => {
+        // Unless one was sent, or the legacy one cleared, meanwhile.
+        if (loadSentRegistration(storageKey) || !loadLegacySentRegistration(storageKey)) return;
+        const adopted = { ...legacy, paymentStep };
+        adoptLegacySentRegistration(storageKey, adopted);
+        setSentBefore(adopted);
+      },
+    });
+  }, [storageKey, checkSent]);
 
   const debouncedSave = useDebouncedCallback((data: RegistrationFormData) => {
     if (storageKey) saveRegistrationFormData(storageKey, data);
@@ -182,7 +204,8 @@ export function RegistrationStep() {
           ) : null}
           <Template markdown={config.preSubmitTemplate} templateVars={templateData} />
           {config.hasPromoCodes && <PromoCodeEntry {...promoEntry.props} />}
-          <Button type="submit" loading={submit.isPending}>
+          {/* Not while checking one sent before, which would be sent again. */}
+          <Button type="submit" loading={submit.isPending || checkingSent}>
             Continue to payment
           </Button>
         </Stack>

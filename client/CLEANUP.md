@@ -19,6 +19,9 @@ build phase:
   vite has only the dir mapping. Align them.
 - **`window.location.search` in the register-config query key** — revisit when invitations
   move into validated router search params.
+- **Legacy registration storage key** — `storage.ts` still reads (and clears) data saved under
+  the key without the event id, and `RegistrationStep` checks a sent registration found there
+  with `useCheckSentRegistration`. Remove both once that data has aged out (after a season).
 
 Intentionally left as-is: `PricingResults` open index signature (load-bearing for dynamic
 subtotals), the `Campers` template-injection block (intricate but correct — document, don't
