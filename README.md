@@ -4,7 +4,7 @@ Camphoric is a camp registration and administration system. It has two parts:
 
 - **`server/`** — a Django + Django REST Framework backend (the source of truth for data, pricing,
   persistence, and email).
-- **`client_v2/`** — a React + TypeScript single-page app with two surfaces: a public
+- **`client/`** — a React + TypeScript single-page app with two surfaces: a public
   **registration** flow and an authenticated **admin** back-office.
 
 ## Documentation

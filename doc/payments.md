@@ -1,7 +1,7 @@
 # Payments: how money moves through Camphoric
 
 This guide is for developers. It follows a registrant's money from the registration form to the
-admin's ledger: what the person sees, what the browser (`client_v2`) does, and what the server
+admin's ledger: what the person sees, what the browser (`client`) does, and what the server
 (and PayPal) do. The binding rules are in [`SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md): §5 (the API
 contracts), §7.2 (the payment step), §8.4 (the admin), §9.7 (invoices, payments and balance) and
 decision records DR-87 to DR-96. When the two disagree, the spec wins — and this guide should be
@@ -453,7 +453,7 @@ flowchart LR
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
   email template.
 
-**Client** (`client_v2/src/`)
+**Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
   `PaymentOptions/`, `PaymentNotFinished.tsx`, `components/PayPalCheckout/`.
 - `pages/register/storage.ts` — the saved payment step.

@@ -277,13 +277,13 @@ Go to [http://localhost:3000/](http://localhost:3000/)
 Frontend development process
 ----------------------------
 
-The `react` service runs the frontend (`client_v2/`) on
+The `react` service runs the frontend (`client/`) on
 [Vite's dev server](https://vite.dev/guide/), which reloads when it detects edits
 and proxies `/api` to the `django` service. See
-[`client_v2/README.md`](../client_v2/README.md) for the frontend's own commands.
+[`client/README.md`](../client/README.md) for the frontend's own commands.
 
 The service installs its npm modules (`npm ci`) each time it starts, so after
-`client_v2/package.json` or its lockfile changes, restart it:
+`client/package.json` or its lockfile changes, restart it:
 
 ```
 docker compose restart react

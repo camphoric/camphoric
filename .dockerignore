@@ -1,4 +1,4 @@
-# Build context for the root Dockerfile: only server/ and client_v2/ (plus docker/) are
+# Build context for the root Dockerfile: only server/ and client/ (plus docker/) are
 # needed. Everything else is excluded — most importantly secrets and local environment
 # files, which must never end up in a published image.
 
@@ -33,9 +33,9 @@ server/frontend_bootstrap/build/
 
 # Node artefacts (the frontend stage runs npm ci itself)
 **/node_modules
-client_v2/build/
-client_v2/dist/
-client_v2/storybook-static/
-client_v2/test-results/
-client_v2/playwright-report/
-client_v2/*.tsbuildinfo
+client/build/
+client/dist/
+client/storybook-static/
+client/test-results/
+client/playwright-report/
+client/*.tsbuildinfo

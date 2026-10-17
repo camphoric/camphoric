@@ -1,6 +1,6 @@
-# Running the backend for client_v2 development
+# Running the backend for client development
 
-`client_v2` is a static SPA that talks to the Django API at `/api`. In dev the Vite server
+The client (`client/`) is a static SPA that talks to the Django API at `/api`. In dev the Vite server
 proxies `/api` to the backend (default `http://localhost:8000/`, override with `VITE_API_PROXY`).
 So all you need running locally is the Django API on `:8000` — you do **not** need the full VM.
 
@@ -9,8 +9,9 @@ So all you need running locally is the Django API on `:8000` — you do **not** 
 ## Recommended: Docker Compose (daily driver)
 
 The repo's `docker-compose.yml` (at the repo root) already defines `postgres` + `django` services.
-For frontend work, bring up **only those two** — skip the `react`/`data` services (the `react`
-service targets the old `client/`, and `client_v2` runs via Vite locally).
+For frontend work, bring up **only those two** — skip the `react`/`data` services and run the
+client's Vite dev server locally instead (the `react` service runs the same dev server in a
+container).
 
 ```sh
 # from the repo root
@@ -20,7 +21,7 @@ docker compose up postgres django
 Then, in another terminal:
 
 ```sh
-cd client_v2
+cd client
 npm run dev          # Vite on :3000, proxies /api -> http://localhost:8000
 ```
 

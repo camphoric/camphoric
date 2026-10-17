@@ -634,7 +634,7 @@ class TestHandlingFeeRounding(unittest.TestCase):
     '''
     Money rounds to the cent a half cent up, and so does the handling fee on an
     invoice paid online (SPEC §9.7; GitHub #622). The fee cases are in
-    client_v2/src/pricing/test/handlingFee.fixtures.ts too; keep the two in step.
+    client/src/pricing/test/handlingFee.fixtures.ts too; keep the two in step.
     '''
 
     def test_a_half_cent_fee_rounds_up(self):
@@ -660,7 +660,7 @@ class TestHandlingFeeRounding(unittest.TestCase):
 class TestPromoCodePricing(unittest.TestCase):
     '''
     A promo code's discount (SPEC §9.2, DR-67). The same cases, with the same
-    inputs and results, are in client_v2/src/pricing/test/fixtures.ts.
+    inputs and results, are in client/src/pricing/test/fixtures.ts.
     '''
 
     def setUp(self):
@@ -736,7 +736,7 @@ class TestPromoCodePricing(unittest.TestCase):
 class TestNoNegativeTotals(unittest.TestCase):
     '''
     No total is negative (SPEC §9.2, DR-68). The same cases, with the same
-    inputs and results, are in client_v2/src/pricing/test/fixtures.ts.
+    inputs and results, are in client/src/pricing/test/fixtures.ts.
     '''
 
     def setUp(self):

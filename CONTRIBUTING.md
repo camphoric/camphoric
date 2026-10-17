@@ -45,7 +45,7 @@ components into separate files, inside their own directory.
 
 ## TypeScript
 
-- **Avoid `any`.** Prefer the shared API types (in `client_v2/src/api-types.ts`, e.g.
+- **Avoid `any`.** Prefer the shared API types (in `client/src/api-types.ts`, e.g.
   `ApiEvent`, `ApiRegistration`, `ApiCamper`) and derive
   narrower types with utility types where useful.
 - Don't reach for `@ts-ignore` / `@ts-expect-error` to silence the compiler. If one is truly
@@ -83,7 +83,7 @@ components into separate files, inside their own directory.
 
 ---
 
-# Frontend-Specific Guidance (`client_v2/`)
+# Frontend-Specific Guidance (`client/`)
 
 See [`SPEC_CLIENT_V2.md`](./SPEC_CLIENT_V2.md) for the full picture. Key working rules:
 
@@ -262,7 +262,7 @@ When an API change *is* authorized:
 
 # Testing
 
-- Frontend tests run with Vitest (`npm test` in `client_v2/`). Put a component's tests in the
+- Frontend tests run with Vitest (`npm test` in `client/`). Put a component's tests in the
   `test/` directory inside its folder as `*.test.ts(x)`.
 - Prioritize tests for the highest-risk, highest-leverage logic: the **pricing engine**,
   template helpers, date/money utilities, and other pure functions.

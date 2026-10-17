@@ -1,7 +1,7 @@
 # Running Camphoric as a container
 
 The application image bundles the Django/DRF server (served by gunicorn) with the **v2
-frontend** (`client_v2/`) baked in and served from the same origin. It is built by the root
+frontend** (`client/`) baked in and served from the same origin. It is built by the root
 [`Dockerfile`](./Dockerfile) and published on every release to GitHub Container Registry:
 
 ```
