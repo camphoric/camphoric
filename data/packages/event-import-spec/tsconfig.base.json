@@ -1,0 +1,23 @@
+{
+  // Compiler options shared by every camphoric-event-* package and the
+  // loader. They run with tsx (no build yet): .ts files are imported by name,
+  // and the syntax only needs its types stripped, so a later tsc build (with
+  // rewriteRelativeImportExtensions) needs no code changes.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+
+    /* Linting */
+    "strict": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}

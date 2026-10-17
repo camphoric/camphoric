@@ -132,20 +132,40 @@ docker-compose exec django python manage.py test
 
 ### Validating the event data
 
-The event definitions under `data/` have their own checks (`data/__tests__`):
+`data/` is an npm workspace root. The root package is the importer (`loadAllData.ts`), and each
+event is its own package, ready to move to a repository of its own (#780):
+
+| Folder | Package | What it is |
+| --- | --- | --- |
+| `data/packages/event-import-spec` | `camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`camphoric-event-import-spec/conformance`) |
+| `data/packages/import-tools` | `camphoric-event-import-tools` | the REST client, login, and the bulk-registration runner |
+| `data/events/<name>` | `camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
+
+An event depends only on the spec package (and import-tools, for its bulk script), imports only its
+own files, and is loaded by package name from `data/eventModules.ts`. A root test checks that
+every workspace imports only its own files and the packages it declares.
 
     cd data
-    npm run typecheck     # tsc --noEmit over the import tooling and every event
-    npm test              # offline: every event module loads, matches the import schema,
-                          # and carries well-formed JSON Schemas — no server needed
-    npm run import        # import every event into a running server (CAMPHORIC_URL)
+    npm ci                                      # installs every workspace
+    npm run typecheck                           # tsc --noEmit: the importer and every workspace
+    npm test                                    # offline, no server needed: every event passes the
+                                                # conformance checks and the server's schema checks,
+                                                # then each workspace's own tests
+    npm test -w camphoric-event-lark            # one package's tests
+    npm run import                              # import every event into a running server (CAMPHORIC_URL)
+    CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
+    COUNT=10 npm run bulk -w camphoric-event-lark   # add generated registrations to an imported event
 
-The tooling and events are TypeScript, run with [tsx](https://tsx.is) (no build step). Each
-event's `index.ts` default export `satisfies EventModule`, and the import object's type
-(`EventImport`) and its JSON Schema both come from the TypeBox schema in
-`data/eventImportObjectSchema.ts`, so a mistake shows up in the editor; the importer still
-checks the schema with Ajv at runtime. A `data` Docker image built before the switch to TypeScript
-has no tsx: rebuild it (`docker compose build data`) before `docker compose run --rm data import`.
+To add an event, create `data/events/<name>` with a `package.json` named `camphoric-event-<name>`
+(copy an existing event's, including its configs and `__tests__/conformance.test.ts`), add it to
+`data/package.json`'s dependencies and to `EVENTS` in `data/eventModules.ts`, and run `npm install`.
+
+The packages are TypeScript, run with [tsx](https://tsx.is) (no build step yet; they will be
+compiled to JS when they are published). Each event's `index.ts` default export
+`satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
+from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
+still checks the schema with Ajv at runtime. After pulling a change to the workspaces, rebuild the
+`data` Docker image (`docker compose build data`) before `docker compose run --rm data import`.
 
 A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
 and runs the offline suite on every pull request that touches `data/` (`.github/workflows/data.yml`) and

@@ -1,0 +1,30 @@
+{
+  "name": "camphoric-event-import-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Camphoric REST client, login, and the runner that posts generated registrations to an event.",
+  "exports": {
+    "./fetcher": "./CamphoricFetcher.ts",
+    "./auth": "./getAuthInfo.ts",
+    "./bulk-registrations": "./bulkRegistrations.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "camphoric-event-import-spec": "*",
+    "dotenv": "^18.0.4",
+    "inquirer": "^14.2.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@swc/core": "^1.16.13",
+    "@swc/jest": "^0.2.39",
+    "@types/node": "^22.20.5",
+    "jest": "^30.5.2",
+    "typescript": "^5.9.3"
+  }
+}

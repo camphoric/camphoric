@@ -18,7 +18,7 @@
  * ---------
  *
  * data: an EventImport, which conforms to the JSON schema in
- * ./eventImportObjectSchema.ts. Every field of `data.event` is sent to the
+ * camphoric-event-import-spec. Every field of `data.event` is sent to the
  * events API as-is, including optional ones such as
  * `registration_error_messages` (custom validation messages for the
  * registration form).
@@ -37,7 +37,7 @@ import { oraPromise } from 'ora';
 import cliProgress from 'cli-progress';
 import lodash from 'lodash';
 
-import { Organizations, type Organization } from './organizations/index.ts';
+import { Organizations, type Organization } from './organizations.ts';
 import { formatDate, formatDateTime } from './utils.ts';
 import {
   validateEventImport,
@@ -50,10 +50,10 @@ import {
   type SampleRegistration,
   type Saved,
   type SavedResults,
-} from './eventImportObjectSchema.ts';
-import Fetcher from './CamphoricFetcher.ts';
+} from 'camphoric-event-import-spec';
+import Fetcher from 'camphoric-event-import-tools/fetcher';
 
-export interface CamphoricEventCreatorOptions extends EventModule {
+export interface CamphoricEventCreatorOptions extends Omit<EventModule, 'organization'> {
   // The organizations already loaded; fetched from the server when not given
   organizations?: Organizations;
   url?: string;

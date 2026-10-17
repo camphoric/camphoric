@@ -6,6 +6,8 @@
 const config = {
   verbose: true,
   testEnvironment: 'node',
+  // the workspaces under packages/ and events/ run their own tests
+  roots: ['<rootDir>/__tests__'],
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['@swc/jest', {

@@ -1,11 +1,14 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
-# that touches it:
-# the TypeScript must type-check (tsc --noEmit), and
-# every event module must load, satisfy eventImportObjectSchema, carry
+# that touches it. data/ is an npm workspace root (the importer) with the
+# camphoric-event-* packages under packages/ and events/; its scripts run
+# every workspace's too:
+# the TypeScript must type-check (tsc --noEmit), every event module must load,
+# satisfy the event import schema (camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
 # (server/camphoric/schema_checks.py, run with the runner's python3)
-# (data/__tests__/offline). The live import against the built image runs in
-# docker.yml.
+# (data/__tests__/offline), and each workspace must import only its own files
+# and the packages it declares. The live import against the built image runs
+# in docker.yml.
 name: Data import validation
 
 on:
@@ -47,6 +50,12 @@ jobs:
           cache-dependency-path: data/package-lock.json
 
       - run: npm ci
+
+      # Every workspace's packages are hoisted into data/node_modules, which the
+      # data image installs for its own platform: a workspace with a
+      # node_modules of its own has drifted from the others' versions.
+      - name: The workspaces share one node_modules
+        run: test -z "$(find packages events -mindepth 2 -maxdepth 2 -name node_modules)"
 
       - name: Type-check
         run: npm run typecheck

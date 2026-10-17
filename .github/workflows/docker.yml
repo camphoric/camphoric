@@ -2,7 +2,8 @@
 # inputs (server/, client_v2/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
-# every event under data/ is imported into it (the live import test).
+# every event the importer installs (data/events) is imported into it (the live
+# import test).
 # Publishing to ghcr.io happens separately in release-image.yml. See CONTAINER.md.
 name: Docker image
 
@@ -79,7 +80,7 @@ jobs:
       # The importer is a REST client, so it runs on the runner against the
       # published port. A non-zero exit (any event failing to import, including a
       # rejected sample registration) fails the job.
-      - name: Live import of every event under data/
+      - name: Live import of every event
         working-directory: data
         env:
           CAMPHORIC_URL: http://localhost:8000
