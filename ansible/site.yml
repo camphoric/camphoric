@@ -1,6 +1,11 @@
 ---
 - hosts: all
   become: true
+  # Run notified handlers even when a task fails. The old Django process
+  # serves the newly installed index.html (it reads it per request), but not
+  # its new bundles (WhiteNoise indexes them at start), so a deploy that
+  # fails before restarting it would leave the site blank.
+  force_handlers: true
   roles:
     - common
     - nodesource.node

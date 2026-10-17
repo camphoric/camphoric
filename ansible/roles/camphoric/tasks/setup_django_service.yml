@@ -40,7 +40,8 @@
     daemon_reload: yes
 
 # Restart Django now, if setup_django.yml or the unit file above changed
-# anything, rather than at the end of the play, so a later task's failure
-# (e.g. the sample data import) doesn't leave the old code running.
+# anything, rather than at the end of the play, so the site runs the new
+# code while the remaining tasks (nginx, the sample data import) run. If a
+# task before this one fails, site.yml's force_handlers restarts it.
 - name: Restart camphoric if its code, settings or unit changed
   ansible.builtin.meta: flush_handlers
