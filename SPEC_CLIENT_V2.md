@@ -201,6 +201,9 @@ ending in `/` to the non-slash form.
 - `/events/:eventId/register/registration` — Step 1, the registration form.
 - `/events/:eventId/register/payment` — Step 2, payment.
 - `/events/:eventId/register/finished` — Step 3, confirmation.
+- Moving between the registration steps keeps the query string, so an invitation code in it
+  stays in the address bar on every step and the register config (fetched with that query
+  string, §5) stays the same.
 - `/invoices/:token` — an invoice's public pay page, reached by its unguessable link (§9.7;
   §15, DR-95). No sign-in.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
@@ -2329,7 +2332,8 @@ hasn't seen (§15, DR-109).
 - **Loading discipline:** components render a spinner until their required queries resolve;
   detail panes render nothing until a selection exists.
 - **URL as state:** admin selections live in query params; registration step lives in the
-  path; invitation code lives in the query string and is threaded through redirects.
+  path; invitation code lives in the query string and is threaded through redirects and every
+  step change.
 - **Cache invalidation:** rely on TanStack Query key invalidation; mutations that affect
   derived totals must invalidate `Registration`/`Camper` query keys as appropriate.
 - **Errors & notifications:** one strategy — Mantine `@mantine/notifications` toasts for mutation

@@ -1,6 +1,7 @@
 /**
  * Navigate between registration steps (SPEC §7) without repeating the route path
- * and `eventId` params at each call site.
+ * and `eventId` params at each call site. The query string goes along: it may
+ * carry an invitation code, and the register config is fetched (and keyed) by it.
  */
 
 import { useNavigate } from '@tanstack/react-router';
@@ -19,7 +20,7 @@ export function useGoToStep() {
   const navigate = useNavigate();
   const eventId = useEventId();
   return useCallback(
-    (step: RegisterStep) => void navigate({ to: ROUTES[step], params: { eventId } }),
+    (step: RegisterStep) => void navigate({ to: ROUTES[step], params: { eventId }, search: true }),
     [navigate, eventId],
   );
 }
