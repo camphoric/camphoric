@@ -571,8 +571,8 @@ class InvoiceSerializer(ModelSerializer):
 
     class Meta:
         model = models.Invoice
-        # When a PayPal capture started is the worker's bookkeeping (#804).
-        exclude = ['token', 'paypal_capture_started_at']
+        # A PayPal capture not yet settled is the worker's bookkeeping (#804).
+        exclude = ['token', 'paypal_capture_order_id', 'paypal_capture_started_at']
         read_only_fields = ['origin', 'payment_type', 'pending_paypal_order_id',
                             'organizer_changed_at', 'cancelled_at', 'cancel_reason',
                             'created_by', 'created_at', 'updated_at']

@@ -68,6 +68,7 @@ erDiagram
         decimal handling "added when paid online"
         string payment_type "how the payer chose to pay it (empty: not settled)"
         string pending_paypal_order_id
+        string paypal_capture_order_id "a capture not yet settled"
         datetime paypal_capture_started_at "the worker checks it 15 min on"
         datetime organizer_changed_at "the payment step stops rewriting it"
         datetime cancelled_at
@@ -212,7 +213,7 @@ sequenceDiagram
     R->>P: approves
     P-->>B: onApprove(orderID)
     B->>S: POST register {step: 'payment', paypalOrderId}
-    S->>S: invoice.paypal_capture_started_at = now (committed)
+    S->>S: invoice.paypal_capture_order_id, _started_at = order id, now (committed)
     S->>P: GET the order
     alt already COMPLETED (a retry, or a lost reply)
         S->>S: record_capture: return the payment, or record the missing one
@@ -246,14 +247,24 @@ sequenceDiagram
   transaction. An error there can't undo a payment PayPal has already taken; the registrant's
   confirmation then comes from the worker's half-hour sweep.
 - **A capture that never got recorded (#804).** Before it asks PayPal, `capture_paypal_order`
-  notes `paypal_capture_started_at`, committed at once. Should the process die after PayPal
-  takes the money and before the payment is recorded, the order is still pending 15 minutes
-  later; the worker's `reconcile` then asks PayPal about it
-  (`invoices.check_unrecorded_captures`) and records a captured order ("Recorded by the worker
-  checking PayPal"). Each order is asked about once: one that wasn't captured stays pending (it
-  still marks an online payment not finished, and "Check PayPal order" still settles it). When
-  PayPal can't answer it's asked again each minute, for up to a day. Orders whose capture never
-  started — the registrant closed PayPal's window — aren't asked about.
+  marks the invoice with the order it's capturing and when (`paypal_capture_order_id`,
+  `paypal_capture_started_at`), committed at once, and clears the mark when the capture has an
+  outcome: recorded, or refused by PayPal (no money moved). A lost answer, or a process that dies
+  after PayPal takes the money and before the payment is recorded, leaves the mark. 15 minutes
+  on, the worker's `reconcile` asks PayPal about the marked order
+  (`invoices.check_unrecorded_captures`, with no rows locked while it waits) and records it if
+  it was captured ("Recorded by the worker checking PayPal") — even if another order is pending
+  on the invoice by then. A definite answer settles the mark: captured and recorded, not
+  captured (the order stays pending: it still marks an online payment not finished, and "Check
+  PayPal order" still settles it), unknown to PayPal (404), or not this invoice's. Anything else
+  (PayPal down, rate-limited or refusing our credentials) is asked again each minute, for up to
+  a day. Orders whose capture never started — the registrant closed PayPal's window — aren't
+  asked about.
+- **No new payment while a capture is unsettled.** While an invoice carries that mark (up to a
+  day), a new PayPal order on it — from the payment step or the pay page — and the payment
+  step's pay-by-check are refused with 409 `not_payable` ("still being confirmed … don't pay
+  again"): PayPal may have the money, and a second order would also overwrite the mark. The
+  worker normally settles it within about 16 minutes.
 - **Why `paypal_transaction_id` is unique.** It's PayPal's capture id (or refund id). Fetching the
   order first means a retried call, a double click, a lost capture reply or "Check PayPal order"
   after a capture all find it already captured and return the existing payment — one PayPal
@@ -314,7 +325,8 @@ flowchart LR
 
 `confirmations.send_confirmation` does the sending; `confirmations.send_overdue_confirmations`
 is the sweep, called from the worker's `reconcile` task — after `check_unrecorded_captures`
-(§6), so a confirmation sent late says what was paid. Registrations converted by migration 0076
+(§6). The sweep skips a registration while one of its invoices has a capture not yet settled
+(for up to a day), so a confirmation sent late says what was paid. Registrations converted by migration 0076
 have `confirmation_sent_at` set, so the sweep never emails anyone from before.
 
 ## 9. Recording a payment (admin)
@@ -472,7 +484,8 @@ flowchart LR
 - `templating/graph.py`, `templating/registry.py` — the template variables;
   `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
-  email template; `0084` — the invoice's `paypal_capture_started_at`.
+  email template; `0084` — the invoice's `paypal_capture_order_id` and
+  `paypal_capture_started_at`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;

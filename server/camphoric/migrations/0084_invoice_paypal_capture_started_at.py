@@ -12,6 +12,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='invoice',
+            name='paypal_capture_order_id',
+            field=models.CharField(blank=True, max_length=64, null=True),
+        ),
+        migrations.AddField(
+            model_name='invoice',
             name='paypal_capture_started_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
