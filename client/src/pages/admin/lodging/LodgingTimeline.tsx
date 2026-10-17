@@ -5,8 +5,8 @@
  * Each assigned camper is a bar spanning their stay, offset by half a day
  * (campers arrive midday of their first day and depart midday of the day after
  * their last). Unassigned campers — those with no bar: not in a leaf unit, or in
- * one with none of the event's days (`isUnassigned`) — sit in a sidebar and are dragged
- * into a leaf×day cell; bars are dragged between cells (preserving duration) and
+ * one with no stay day before departure day (`isUnassigned`) — sit in a sidebar
+ * and are dragged into a leaf×day cell; bars are dragged between cells (preserving duration) and
  * resized from the right edge to change the stay length; dragging a bar back to
  * the sidebar unassigns. Clicking a camper selects them (their details show
  * beside the timeline) rather than leaving the page, so a click that falls short
@@ -484,8 +484,9 @@ const LeafRow = memo(function LeafRow({
   isSelected: boolean;
   onSelectLodging?: (lodgingId: number) => void;
 }) {
-  // A camper with no days in the event has no bar: they're in the sidebar (and
-  // a draggable there), though they still count toward the unit.
+  // A camper with no stay day in the event (departure day isn't one) has no
+  // bar: they're in the sidebar (and a draggable there), though they still
+  // count toward the unit.
   const placed = leaf.campers.filter((c) => hasStayDays(c.stay, days));
   const rowHeight = ROW_PAD * 2 + Math.max(1, placed.length) * (BAR_HEIGHT + BAR_GAP);
   const stayDayCount = stayableDays(days).length;

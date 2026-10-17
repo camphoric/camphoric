@@ -3,9 +3,10 @@
  * lodging nodes and completed campers, builds the augmented tree (occupancy,
  * capacity, full paths), the flat lookup, the leaf list in tree order (campers
  * attach only to leaves), and the unassigned campers: those with no bar on the
- * timeline — not in a leaf unit, or in one with none of the event's `days` in
- * their stay. Registration sets a camper's `lodging` to the node they requested,
- * with no stay, so a non-null `lodging` doesn't mean they've been placed.
+ * timeline — not in a leaf unit, or in one with no stay day before the last of
+ * `days`, departure day (`isUnassigned`). Registration sets a camper's
+ * `lodging` to the node they requested, with no stay, so a non-null `lodging`
+ * doesn't mean they've been placed.
  */
 
 import type { ApiCamper, AugmentedLodging, LodgingLookup } from 'api-types';

@@ -67,6 +67,13 @@ describe('hasStayDays', () => {
     expect(hasStayDays([], DAYS)).toBe(false);
     expect(hasStayDays(['2026-10-01', '2026-10-02'], DAYS)).toBe(false);
   });
+  it('doesn’t count departure day, which no one stays over', () => {
+    expect(hasStayDays(['2026-10-19'], DAYS)).toBe(false);
+    expect(hasStayDays(['2026-10-18', '2026-10-19'], DAYS)).toBe(true);
+  });
+  it('counts a one-day event’s only day', () => {
+    expect(hasStayDays(['2026-10-16'], ['2026-10-16'])).toBe(true);
+  });
 });
 
 describe('isUnassigned', () => {
@@ -91,6 +98,9 @@ describe('isUnassigned', () => {
     expect(isUnassigned(camper(10, null), lookup, DAYS)).toBe(true);
     expect(isUnassigned(camper(10, []), lookup, DAYS)).toBe(true);
     expect(isUnassigned(camper(10, ['2026-09-01']), lookup, DAYS)).toBe(true);
+  });
+  it('is true in a leaf with only departure day', () => {
+    expect(isUnassigned(camper(10, ['2026-10-19']), lookup, DAYS)).toBe(true);
   });
 });
 
