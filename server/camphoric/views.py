@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.core import signing
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
@@ -574,6 +574,11 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
         if roles.role_of(self.request.user) != roles.ADMIN:
             # Account email holds live set-password links (SPEC DR-52).
             messages = messages.exclude(kind=models.EmailMessageKind.ACCOUNT)
+        elif not self.request.user.is_superuser:
+            # A superuser's link would hand an Admin their account.
+            messages = messages.exclude(
+                Exists(User.objects.filter(is_superuser=True, email__iexact=OuterRef('to'))),
+                kind=models.EmailMessageKind.ACCOUNT)
         search = self.request.query_params.get('q', '').strip()
         if search:
             messages = messages.filter(Q(to__icontains=search) | Q(subject__icontains=search))
@@ -999,11 +1004,29 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     User management: Admins only, and a 404 for everyone else (SPEC DR-50,
     DR-52). Setting someone's password directly is for superusers only.
+
+    Only a superuser may change a superuser, delete one, or get a set-password
+    link for one: to anyone else those superusers aren't there (404, as for a
+    user who doesn't exist). Otherwise an Admin could take over a superuser's
+    account — and with it Django's admin and the database.
     '''
     queryset = User.objects.all().order_by('username')
     serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
     delete_permission_classes = [IsAdmin]
+    # What only a superuser may do to a superuser. Admins still see them (the
+    # list, their history).
+    ACCOUNT_TAKEOVER_ACTIONS = frozenset({
+        'update', 'partial_update', 'destroy', 'delete_preview',
+        'send_password_link', 'password_link',
+    })
+
+    def get_queryset(self):
+        users = super().get_queryset()
+        if self.action in self.ACCOUNT_TAKEOVER_ACTIONS and \
+                not self.request.user.is_superuser:
+            users = users.exclude(is_superuser=True)
+        return users
 
     def delete_checks(self):
         return (partial(deletes.not_yourself, self.request.user),)
