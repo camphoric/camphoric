@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
+import semver from 'semver';
 import type {
   EventImport as SpecEventImport,
   EventModule as SpecEventModule,
@@ -38,6 +39,12 @@ import { EVENTS } from '../../eventModules.ts';
 
 const DATA = fileURLToPath(new URL('../..', import.meta.url));
 
+// The export condition that, in this repository, resolves the @camphoric
+// packages to their TypeScript source rather than their built dist/
+const SOURCE_CONDITION = 'camphoric-source';
+
+const readJson = (file: string) => JSON.parse(readFileSync(path.join(DATA, file), 'utf8'));
+
 // Every folder under packages/ and events/ that holds a package
 const WORKSPACES = ['packages', 'events'].flatMap(dir => readdirSync(path.join(DATA, dir))
   .map(name => path.join(dir, name))
@@ -45,7 +52,9 @@ const WORKSPACES = ['packages', 'events'].flatMap(dir => readdirSync(path.join(D
 
 // The shared packages an event may use; any other @camphoric/camphoric-event-* package
 // is another event
-const SHARED_PACKAGES = ['@camphoric/camphoric-event-import-spec', '@camphoric/camphoric-event-import-tools'];
+const SPEC = '@camphoric/camphoric-event-import-spec';
+const SHARED_PACKAGES = [SPEC, '@camphoric/camphoric-event-import-tools'];
+const EVENT_PREFIX = '@camphoric/camphoric-event-';
 
 // Every .ts file in a workspace, outside its node_modules
 function sourceFiles(dir: string): string[] {
@@ -99,28 +108,130 @@ test('import-tools\' copies of the spec\'s types match the spec', () => {
   expect(toolsTypesMatchTheSpec.every(Boolean)).toBe(true);
 });
 
+// The importer's events that aren't workspaces: those installed from GitHub
+// Packages, each from a repository of its own
+const IMPORTER = readJson('package.json');
+const WORKSPACE_NAMES = new Set(WORKSPACES.map(w => readJson(path.join(w, 'package.json')).name));
+const REGISTRY_EVENTS = Object.keys(IMPORTER.dependencies).filter(name => name.startsWith(EVENT_PREFIX)
+  && !SHARED_PACKAGES.includes(name) && !WORKSPACE_NAMES.has(name));
+const LOCKFILE = readJson('package-lock.json');
+const SPEC_VERSION: string = readJson('packages/event-import-spec/package.json').version;
+
 test('the importer is private, and uses the workspace copies by "*"', () => {
-  const pkg = readJson('package.json');
-  expect(pkg.private).toBe(true);
-  expect(Object.entries(pkg.dependencies)
-    .filter(([name, range]) => name.startsWith('@camphoric/') && range !== '*')).toEqual([]);
+  expect(IMPORTER.private).toBe(true);
+  expect(Object.entries(IMPORTER.dependencies)
+    .filter(([name, range]) => WORKSPACE_NAMES.has(name) && range !== '*')).toEqual([]);
 });
 
-test('the importer loads every event under events/, by its package name', async () => {
-  const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
-    .map(workspace => path.basename(workspace));
-  expect(Object.keys(EVENTS).sort()).toEqual(folders.sort());
-  for (const folder of folders) {
-    const pkg = JSON.parse(readFileSync(path.join(DATA, 'events', folder, 'package.json'), 'utf8'));
-    expect(pkg.name).toBe(`@camphoric/camphoric-event-${folder}`);
+// So npm update picks up an event's fixes and features but never a new major,
+// and the lockfile pins the version CI tested
+test('any other @camphoric package the importer installs is an event from GitHub Packages, by a caret range', () => {
+  const others = Object.keys(IMPORTER.dependencies)
+    .filter(name => name.startsWith('@camphoric/') && !WORKSPACE_NAMES.has(name));
+  expect(others).toEqual(REGISTRY_EVENTS);
+  for (const name of REGISTRY_EVENTS) {
+    expect({ name, range: IMPORTER.dependencies[name] })
+      .toEqual({ name, range: expect.stringMatching(/^\^\d+\.\d+\.\d+$/) });
+    expect({ name, resolved: LOCKFILE.packages[`node_modules/${name}`]?.resolved })
+      .toEqual({ name, resolved: expect.stringMatching(/^https:\/\/npm\.pkg\.github\.com\//) });
   }
 });
 
-// The export condition that, in this repository, resolves the @camphoric
-// packages to their TypeScript source rather than their built dist/
-const SOURCE_CONDITION = 'camphoric-source';
+test('the importer loads every event under events/ and every registry event, by its package name', () => {
+  const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
+    .map(workspace => path.basename(workspace));
+  for (const folder of folders) {
+    expect(readJson(path.join('events', folder, 'package.json')).name).toBe(`${EVENT_PREFIX}${folder}`);
+  }
+  const registry = REGISTRY_EVENTS.map(name => name.slice(EVENT_PREFIX.length));
+  expect(Object.keys(EVENTS).sort()).toEqual([...folders, ...registry].sort());
+});
 
-const readJson = (file: string) => JSON.parse(readFileSync(path.join(DATA, file), 'utf8'));
+// The importer and every event share one spec, so each event is checked
+// against the contract the importer follows; a second copy would be an
+// event written for a spec major the importer doesn't follow.
+test('one copy of the spec is installed', () => {
+  const copies = Object.keys(LOCKFILE.packages)
+    .filter(key => key.endsWith(`node_modules/${SPEC}`));
+  expect(copies).toEqual([`node_modules/${SPEC}`]);
+});
+
+type Manifest = Record<string, unknown> & {
+  dependencies?: Record<string, string>,
+  peerDependencies?: Record<string, string>,
+};
+
+// What's wrong with how an event takes the spec: it must be a peer, by a
+// range the spec in this repository satisfies, so the event shares the
+// importer's copy (and a spec major it doesn't follow fails npm ci, rather
+// than nesting a second copy)
+function specPeerProblems(pkg: Manifest): string[] {
+  const range = pkg.peerDependencies?.[SPEC];
+  const problems = [];
+  if (pkg.dependencies?.[SPEC]) problems.push('depends on the spec rather than taking it as a peer');
+  if (!range) problems.push('takes no spec as a peer');
+  else if (!semver.satisfies(SPEC_VERSION, range)) {
+    problems.push(`takes the spec by ${range}, which ${SPEC_VERSION} doesn't satisfy`);
+  }
+  return problems;
+}
+
+// What's wrong with an event as installed from GitHub Packages: it must be
+// the published build, loading from dist/, never its TypeScript source
+function installedEventProblems(pkg: Manifest): string[] {
+  const exports = pkg.exports as Record<string, Record<string, string> | string> | undefined;
+  const main = exports?.['.'];
+  const problems = [];
+  if (pkg.private) problems.push('is private');
+  if (JSON.stringify(exports ?? {}).includes(`"${SOURCE_CONDITION}"`)) {
+    problems.push(`names the ${SOURCE_CONDITION} export`);
+  }
+  if (typeof main !== 'object' || !/^\.\/dist\/.+\.js$/.test(main.default ?? '')) {
+    problems.push('does not load from dist/');
+  }
+  return [...problems, ...specPeerProblems(pkg)];
+}
+
+describe('an event installed from GitHub Packages', () => {
+  const published = {
+    name: `${EVENT_PREFIX}example`,
+    version: '1.2.0',
+    exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
+    dependencies: { luxon: '^3.7.2' },
+    peerDependencies: { [SPEC]: `^${semver.major(SPEC_VERSION)}.0.0` },
+  };
+
+  test('passes as published', () => {
+    expect(installedEventProblems(published)).toEqual([]);
+  });
+
+  test.each([
+    ['private', { ...published, private: true }, 'is private'],
+    ['with its source export',
+      { ...published, exports: { '.': { [SOURCE_CONDITION]: './index.ts', ...published.exports['.'] } } },
+      `names the ${SOURCE_CONDITION} export`],
+    ['loading its source', { ...published, exports: { '.': { default: './index.ts' } } },
+      'does not load from dist/'],
+    ['depending on the spec', { ...published, dependencies: { [SPEC]: `^${SPEC_VERSION}` } },
+      'depends on the spec rather than taking it as a peer'],
+    ['without the spec as a peer', { ...published, peerDependencies: {} }, 'takes no spec as a peer'],
+    ['on another spec major',
+      { ...published, peerDependencies: { [SPEC]: `^${semver.major(SPEC_VERSION) + 1}.0.0` } },
+      expect.stringMatching(/^takes the spec by .+, which .+ doesn't satisfy$/)],
+  ])('fails %s', (_, pkg, problem) => {
+    expect(installedEventProblems(pkg as Manifest)).toEqual([problem]);
+  });
+
+  // Each one the importer installs
+  for (const name of REGISTRY_EVENTS) {
+    test(`${name} is its published build`, () => {
+      const root = path.join(DATA, 'node_modules', name);
+      const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+      expect(installedEventProblems(pkg)).toEqual([]);
+      expect(existsSync(path.join(root, pkg.exports['.'].default))).toBe(true);
+    });
+  }
+});
 
 // Everything that runs tsx: package scripts, script shebangs and data/import
 function tsxInvocations(): { where: string, command: string }[] {
@@ -222,8 +333,13 @@ describe.each(WORKSPACES)('%s', (workspace) => {
       expect(readFileSync(path.join(root, 'tsconfig.build.json'), 'utf8')).toMatch('"files": ["index.ts"]');
     });
 
+    test('takes the spec as a peer, and the workspace copy for its own checks', () => {
+      expect(specPeerProblems(pkg)).toEqual([]);
+      expect(pkg.devDependencies[SPEC]).toBe('*');
+    });
+
     test('depends on no other event', () => {
-      const events = [...declared].filter(name => name.startsWith('@camphoric/camphoric-event-')
+      const events = [...declared].filter(name => name.startsWith(EVENT_PREFIX)
         && !SHARED_PACKAGES.includes(name));
       expect(events).toEqual([]);
     });

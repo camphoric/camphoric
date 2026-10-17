@@ -172,6 +172,13 @@ To add an event, create `data/events/<name>` with a `package.json` named `@camph
 drop its `__tests__/coverage.test.ts` and `__tests__/dates.test.ts`, and its "never published"
 description and comments), add it to
 `data/package.json`'s dependencies and to `EVENTS` in `data/eventModules.ts`, and run `npm install`.
+Each event takes the spec as a peer dependency, so the importer and every event share one copy (see
+"What a spec version means" in [RELEASE.md](../RELEASE.md)). An event published from a repository
+of its own is added the same way, by its package name in `EVENTS`, but installed from GitHub
+Packages by a caret range (`npm install @camphoric/camphoric-event-<name>`). The offline tests check
+that it's the published build, from `dist/`, resolved from GitHub Packages and taking a spec range
+this repository's spec satisfies, and that events naming the same organization declare it
+identically.
 
 The packages are TypeScript. The spec and import-tools are published to GitHub Packages compiled
 to JS (their `exports` point at `dist/`; see "Event import packages" in the

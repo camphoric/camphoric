@@ -12,6 +12,8 @@ The contract a [Camphoric](https://github.com/camphoric/camphoric) event module 
 - `@camphoric/camphoric-event-import-spec/tsconfig.base.json`: the compiler options event
   packages extend.
 
-A major version is a change an event module must follow. See the Camphoric repository's
+An event package takes this package as a **peer dependency** (`"^1.0.0"`), with the same range as a
+devDependency for its own checks, so it shares the importer's copy. A major version is a change an
+event module must follow. See the Camphoric repository's
 `RELEASE.md` for which spec versions each Camphoric release supports, and its `README.md` for
 installing from GitHub Packages.

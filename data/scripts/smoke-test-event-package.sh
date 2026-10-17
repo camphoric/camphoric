@@ -1,7 +1,8 @@
 #!/bin/sh
 # Smoke-test an event package as it would be published: build the spec and
 # the event, pack them, install the tarballs into a fresh project (no
-# registry needed for @camphoric: the spec tarball satisfies the event), then
+# registry needed for @camphoric: the spec tarball satisfies the event's peer
+# range), then
 # load the event from its build with plain Node (no tsx, no TypeScript
 # source) and check what the importer relies on.
 #
@@ -46,6 +47,10 @@ npm pkg set type=module
 # Packages, never resolve to npmjs.
 cp "$DATA/.npmrc" .npmrc
 npm install --silent --no-audit --no-fund ./camphoric-camphoric-event-import-spec-*.tgz "$EVENT_TARBALL"
+
+# The event takes the spec as a peer, so it uses the project's copy
+node -e "assert.ok(require('$EVENT/package.json').peerDependencies['@camphoric/camphoric-event-import-spec'])"
+test ! -e "node_modules/$EVENT/node_modules/@camphoric/camphoric-event-import-spec"
 
 EVENT="$EVENT" node --input-type=module -e "
 import assert from 'node:assert/strict';
