@@ -459,8 +459,8 @@ Non-CRUD admin endpoints:
     `status__in` (comma-separated), `registration`, `invitation`, `account`, `batch`,
     `template`; `q` searches the recipient and subject. Each result is an `EmailMessage` without
     `text` / `html`. Account email (set-password links) is listed only for Admins, and account
-    email to a superuser's address only for superusers (§15, DR-52, DR-116); to anyone else those
-    messages don't exist (404).
+    email to the address of a user with Django access (staff or superuser) only for superusers
+    (§15, DR-52, DR-116); to anyone else those messages don't exist (404).
   - `GET /api/emailmessages/{id}/` — one message, with the `text` and `html` that were sent.
   - `POST /api/emailmessages/{id}/retry/` — queue a `failed` message again → the message; 409
     `{ detail }` when it isn't failed or its address can't be emailed.
@@ -532,10 +532,10 @@ Non-CRUD admin endpoints:
   - `POST /api/users/{id}/set-password/` `{ password, require_change? (default true) }` —
     superusers only (404 for anyone else): set the password, ending the user's sessions → 204;
     400 `{ password: [...] }` when the password rules refuse it; 409 for your own account.
-  - A superuser's account is only for superusers to act on: to anyone else, `PATCH`/`PUT`/`DELETE
-    /api/users/{id}/`, `GET …/delete-preview/`, `send-password-link` and `password-link` on a
-    superuser answer 404, as for a user who doesn't exist. Reading them — the list, the user,
-    their history — is unaffected (§15, DR-116).
+  - The account of a user with Django access (staff or superuser) is only for superusers to act
+    on: to anyone else, `PATCH`/`PUT`/`DELETE /api/users/{id}/`, `GET …/delete-preview/`,
+    `send-password-link` and `password-link` on them answer 404 `{ detail }`. Reading them — the
+    list, the user, their history — is unaffected (§15, DR-116).
   - `POST /api/user/password` `{ current_password, new_password }` — change your own password
     (you stay signed in; it clears a must-change flag) → 204, or 400 keyed by field.
   - `POST /api/password-reset` `{ email }` (public) — always 202 `{ detail }` with the same
@@ -729,8 +729,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   may instead give `password` and `require_change` (default `true`). `is_staff`,
   `is_superuser`, groups and permissions can't be written. Nobody may change their own `role`
   or `django_access`, deactivate or delete themselves (409 `{ detail }`); a superuser's `role`
-  can't change while they're a superuser (400). Only a superuser may change or delete a
-  superuser (404 to anyone else; §15, DR-116). Deactivating ends the user's sessions and API
+  can't change while they're a superuser (400). Only a superuser may change or delete a user
+  with Django access (404 to anyone else; §15, DR-116). Deactivating ends the user's sessions and
+  API
   tokens.
 - **Event:** `id`, `name`; `registration_start`/`registration_end` (the registration window:
   ISO instants, which the server answers in UTC, `…Z`, or `null` when unbounded; registration is
@@ -952,7 +953,7 @@ hooks):
   registration submit surfaces a friendly error (see §15, DR-9).
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin,
-    and only a superuser changes a superuser's account (§15, DR-116).
+    and only a superuser changes the account of a user with Django access (§15, DR-116).
   - **Registrar** — everything except users and organizations, and deleting payments, invoices
     and promo codes (§15, DR-93, DR-108).
   - **Reporter** — read-only: they can open every section, render and download reports, and use
@@ -1767,8 +1768,9 @@ within Users (editing a user, …), not Users itself.
   confirming — deactivating keeps the account and its history instead); and, for superusers,
   **set their password** (twice, with "Require a password change at next sign-in", on by
   default), which signs them out everywhere. Only a superuser may edit, deactivate, delete, or
-  email or copy a link for a superuser; anyone else is refused by the server, and the refusal is
-  shown (§15, DR-116). They still see superusers in the list, with their change history.
+  email or copy a link for a user with Django access (staff or superuser); anyone else is refused
+  by the server, and the refusal is shown (§15, DR-116). They still see those users in the list,
+  with their change history.
 - **A user's change history** — choosing a user (their row, or *Change history* in their menu)
   shows, beside the list, what they changed (§15, DR-80): in every event, newest first, the
   changes one save made together, each named in full (which registration, event, report, …)
@@ -3608,7 +3610,8 @@ use: it stops working once the password changes or the user signs in; it expires
 (`/account/set-password/:uid/:token`). Asking for a link answers the same whatever the address,
 and is throttled. Account email goes through the outbox (DR-44) from `DEFAULT_FROM_EMAIL` and
 the default mailer, and is hidden from the email history for anyone who isn't an Admin (it holds
-live links; a superuser's is hidden from Admins who aren't superusers too, DR-116). When email doesn't work, an Admin can copy a link to hand over, and
+live links; that of a user with Django access is hidden from Admins who aren't superusers too,
+DR-116). When email doesn't work, an Admin can copy a link to hand over, and
 `manage.py camphoric_password_link` prints one (or sets a password). A superuser can set a
 password directly, by default requiring a change at the next sign-in; until then the server
 refuses everything but changing it, and the client shows only that form.
@@ -4764,26 +4767,35 @@ silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
 doesn't yet check out (#797); building from the checkout keeps server and frontend together.
 
-### DR-116 — Only superusers act on superusers' accounts
+### DR-116 — Only superusers act on the accounts of users with Django access
 
-**Decision:** Changing, deactivating or deleting a superuser, and making or emailing a
-set-password link for one, is for superusers only; to anyone else the server answers 404, as if
-there were no such user. The email history leaves out account email to a superuser's address for
-anyone who isn't a superuser (matched on the address, ignoring case). Admins still see superusers
-in the users list, and their change history. The client knows who is a superuser only when the
-viewer is one (`django_access`, DR-50), so for other Admins it offers those actions and shows the
-server's refusal.
+**Decision:** Changing, deactivating or deleting a user with Django access (staff or superuser),
+and making or emailing a set-password link for one, is for superusers only; to anyone else the
+server answers 404 with a `detail` saying only a superuser can manage the account. The email
+history leaves out account email to such a user's address for anyone who isn't a superuser
+(matched on the address, ignoring case). Admins still see these users in the users list, and
+their change history. A set-password link also stops working when the user's Django access
+changes, so a link an Admin made for someone can't be used once they're made staff or a
+superuser; a regular user's link is Django's token unchanged. The client knows who has Django
+access only when the viewer is a superuser (`django_access`, DR-50), so for other Admins it
+offers those actions and shows the server's refusal.
 **Context:** #794: only setting a password was kept to superusers. An Admin could get a working
 set-password link for a superuser, or change their email and then ask for a reset, and sign in as
-them — gaining Django's admin and the database, which DR-50 keeps from Admins. The account email
-in the history held the same live links.
-**Alternatives:** A 403 with a message — clearer to the Admin, but user management answers 404 to
-what a caller may not reach (the API itself, setting a password). Hiding superusers from Admins
-altogether — Admins would lose sight of who can sign in. Telling the client which users are
-superusers so it can hide the actions — reveals the Django access that only superusers see.
-Leaving the link out of the stored message — the history shows exactly what was sent (DR-44), and
-an Admin can make a link for anyone else anyway. A message sent to a superuser's earlier address
-stays listed; its link stopped working when the address changed (Django's token covers it).
+them — gaining Django's admin and the database, which DR-50 keeps from Admins. Staff accounts
+(including those kept from before roles) open Django's admin the same way, and DR-50 makes Django
+access a superuser's to grant. The account email in the history held the same live links, and a
+link made for a user before a superuser promoted them kept working (Django's token doesn't cover
+Django access).
+**Alternatives:** A 403 — user management answers 404 to what a caller may not reach (the API
+itself, setting a password); the `detail` says why, which tells an Admin no more than the
+refusal itself, since the list already shows the user. Protecting superusers only — leaves staff
+accounts, and Django's admin, open to Admins. Hiding these users from Admins altogether — Admins
+would lose sight of who can sign in. Telling the client which users have Django access so it can
+hide the actions — reveals what DR-50 shows only to superusers. Leaving the link out of the stored
+message — the history shows exactly what was sent (DR-44), and an Admin can make a link for any
+regular user anyway. A message sent to such a user's earlier address stays listed; its link
+stopped working when the address changed (Django's token covers it). Adding Django access to
+every user's token — would also void every link already sent to a regular user.
 
 ---
 
@@ -4800,8 +4812,8 @@ must be coordinated with the backend. Grouped by status.
 - **Users, organizations and passwords:** `/api/users/` with its actions, organization writes for
   Admins, `POST /api/user/password`, `/api/password-reset` and
   `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
-  §5 (§8.1, §8.10; DR-50, DR-52); the 404 for anyone but a superuser acting on a superuser
-  (DR-116).
+  §5 (§8.1, §8.10; DR-50, DR-52); the 404 for anyone but a superuser acting on a user with
+  Django access (DR-116).
 - **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
   shapes in §5 (DR-56).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
