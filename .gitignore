@@ -132,5 +132,9 @@ node_modules/
 
 # Claude Code local preview/launch config
 .claude/launch.json
-live-data.sql
-vm-data.sql
+
+# Database dumps saved at the repo root (local.sql, live-data.sql,
+# vm-data.sql, ...). postgres-initdb.sql is the compose database's init
+# script, not a dump.
+/*.sql
+!/postgres-initdb.sql

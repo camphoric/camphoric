@@ -109,5 +109,8 @@ jobs:
         run: pipenv install --dev
       - name: Run flake8
         run: pipenv run flake8
+      # Fails when a model change has no migration written for it.
+      - name: Check for missing migrations
+        run: pipenv run python manage.py makemigrations --check --dry-run
       - name: Run Tests
         run: pipenv run python manage.py test
