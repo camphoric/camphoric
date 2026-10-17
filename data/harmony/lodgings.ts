@@ -1,5 +1,5 @@
 /* eslint-disable indent */
-import type { LodgingNode } from '../eventImportObjectSchema.ts';
+import type { LodgingLookup, LodgingNode, Lodgings } from '../eventImportObjectSchema.ts';
 
 const cabinFactory = (parentKey: string, notes: string, capacity = 4, visible = false) => (
   acc: Record<string, LodgingNode>,
@@ -234,7 +234,7 @@ export default {
 	// RV
 	rv: { parentKey: 'root', name: 'RV Camping', visible: true },
     rvsm: {parentKey: 'rv', name:'RV under 15\' long', visible:true },
-    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+    ...Array.apply(null, Array(10)).map(function () {}).reduce<LodgingLookup>(
       (acc, _v, i) => {
         return {
           ...acc,
@@ -250,7 +250,7 @@ export default {
     ),
       
     rvmd: {parentKey: 'rv', name:'RV 15\'-20\' long',visible:true },
-    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+    ...Array.apply(null, Array(10)).map(function () {}).reduce<LodgingLookup>(
       (acc, _v, i) => {
         return {
           ...acc,
@@ -266,7 +266,7 @@ export default {
     ),
 
     rvlg: {parentKey: 'rv', name:'RV 21+\' long', visible:true },
-    ...Array.apply(null, Array(10)).map(function () {}).reduce(
+    ...Array.apply(null, Array(10)).map(function () {}).reduce<LodgingLookup>(
       (acc, _v, i) => {
         return {
           ...acc,
@@ -283,7 +283,7 @@ export default {
 
 	// TENT
 	tent: { parentKey: 'root', name: 'Tent Camping', visible: true },
-    ...Array.apply(null, Array(20)).map(function () {}).reduce(
+    ...Array.apply(null, Array(20)).map(function () {}).reduce<LodgingLookup>(
       (acc, _v, i) => {
         return {
           ...acc,
@@ -297,4 +297,4 @@ export default {
       },
       {},
     ),
-};
+} satisfies Lodgings;

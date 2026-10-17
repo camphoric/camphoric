@@ -81,6 +81,8 @@ export const LodgingNodeSchema = Type.Object({
   visible: opt(bool('whether this shows up on the reg form')),
   name: opt(str('name of this lodging node')),
   notes: opt(str('notes about this lodging node')),
+}, {
+  additionalProperties: false,
 });
 
 /**

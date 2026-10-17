@@ -1,3 +1,4 @@
+import type { LodgingLookup, Lodgings } from '../eventImportObjectSchema.ts';
 //event = models.ForeignKey(Event, on_delete=models.CASCADE)
 //parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
 //name = models.CharField(max_length=255)
@@ -164,7 +165,7 @@ export default {
 
   camp1_cabin: { parentKey: 'camp1', name: 'Cabin', visible: true, children_title: 'Select your cabin preference' },
 
-  ...Array.apply(null, Array(46)).map(function () {}).reduce(
+  ...Array.apply(null, Array(46)).map(function () {}).reduce<LodgingLookup>(
     (acc, v, i) => {
       const cabinNum = (i + 1).toString().padStart(2, '0');
 
@@ -314,7 +315,7 @@ export default {
 
   camp2_cabin: { parentKey: 'camp2', name: 'Cabin', visible: true, children_title: 'Select your cabin preference' },
 
-  ...Array.apply(null, Array(35)).map(function () {}).reduce(
+  ...Array.apply(null, Array(35)).map(function () {}).reduce<LodgingLookup>(
     (acc, v, i) => {
       const cabinNumber = i + 1;
       const cabinNum = cabinNumber.toString().padStart(2, '0');
@@ -446,7 +447,7 @@ export default {
   camp3_rv_lg_05: {'parentKey':'camp3_rv_lg','capacity':1,'visible':false,'name':'Spot 3LRV05'},
 
   camp3_cabin: { parentKey: 'camp3', name: 'Cabin', visible: true, children_title: 'Select your cabin preference' },
-  ...Array.apply(null, Array(21)).map(function () {}).reduce(
+  ...Array.apply(null, Array(21)).map(function () {}).reduce<LodgingLookup>(
     (acc, v, i) => {
       const cabinNum = (i + 1).toString().padStart(2, '0');
       let capacity = 4;
@@ -465,4 +466,4 @@ export default {
   ),
 
 	offsite: { parentKey: 'root', capacity: 50, name: 'Off Site', visible: false },
-};
+} satisfies Lodgings;
