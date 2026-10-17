@@ -237,11 +237,13 @@ Keep non-trivial logic in dedicated modules, not in fat views or models:
 ## Migrations and tooling
 
 - Any model change needs a migration (`manage.py makemigrations`); keep them reviewable and
-  reversible. Migrations live in `camphoric/migrations/`.
+  reversible. Migrations live in `camphoric/migrations/`. CI fails a change whose models have
+  no migration (`makemigrations --check --dry-run`).
 - **Linting is flake8 only** (`server/setup.cfg`: `max_line_length = 100`, migrations excluded).
-  There is no black/isort/ruff/mypy and no pre-commit or CI wired up — so **run `flake8` before
-  pushing** and keep imports/formatting tidy by hand. (Introducing an autoformatter/CI is a
-  reasonable improvement, but propose it rather than reformatting the tree in an unrelated PR.)
+  There is no black/isort/ruff/mypy and no pre-commit hook; CI (`django.yml`) runs `flake8`,
+  but **run it before pushing** anyway and keep imports/formatting tidy by hand. (Introducing an
+  autoformatter is a reasonable improvement, but propose it rather than reformatting the tree in
+  an unrelated PR.)
 
 ---
 
