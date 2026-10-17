@@ -444,20 +444,23 @@ docker-compose logs -f django
 
 **Delete all containers**
 
-If you want to PERMANENTLY delete camphoric's containers, volumes (the
-database included), network and built images (other projects' artifacts and
+If you want to PERMANENTLY delete camphoric's containers, anonymous volumes,
+network and built images (the database volume, other projects' artifacts and
 pulled images such as postgres are left alone):
 
 ```
 ./remove-all-docker-artifacts
 ```
 
+Add `-d` to delete the database volume too.
+
 use `./remove-all-docker-artifacts -h` for more details
 
 **Delete unused artifacts**
 
 If you just want to clean up some hard drive space (this prunes the unused
-images and volumes of every project on the machine, not only camphoric's):
+images and unused anonymous volumes of every project on the machine, not only
+camphoric's; named volumes such as the database are kept):
 
 ```
 ./remove-unused-docker-artifacts

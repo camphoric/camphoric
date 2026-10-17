@@ -4,7 +4,8 @@ function usage() {
     cat <<EOF
 Usage: $0 [-yf]
 
-This will PERMENANTLY delete ALL unused images and volumes.
+This will PERMANENTLY delete ALL unused images and anonymous volumes, of every
+project on this machine (named volumes, such as databases, are kept).
 EOF
 
 }
@@ -25,7 +26,7 @@ then
     NC='\033[0m' # No Color
     
     printf "${RED}WARNING: THIS CANNOT BE UNDONE${NC}\n"
-    echo "This will delete all unused images and volumes"
+    echo "This will delete all unused images and anonymous volumes, of every project on this machine"
     
     while true; do
         read -p "Do you wish to proceed [y/n]? " yn

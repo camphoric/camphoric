@@ -2,11 +2,15 @@
 
 function usage() {
     cat <<EOF
-Usage: $0 [-yf] [service...]
+Usage: $0 [-yfd] [service...]
 
-This will PERMANENTLY delete the containers, volumes (the database included),
-networks and built images of this compose project (${PWD##*/}). Images pulled
-by tag (postgres, node) and other projects' artifacts are left alone.
+This will PERMANENTLY delete the containers, anonymous volumes, network and
+built images of this compose project (${PWD##*/}). The database volume is
+kept unless you pass -d. Images pulled by tag (postgres, node) and other
+projects' artifacts are left alone.
+
+  -y, -f  don't ask for confirmation
+  -d      also delete the database volume (and everything in it)
 
 Given service names, it only removes those services' containers and their
 anonymous volumes; the database volume and the images are kept.
@@ -14,11 +18,12 @@ EOF
 
 }
 
-while getopts yfh flag
+while getopts yfdh flag
 do
     case "${flag}" in
         y) force=1;;
         f) force=1;;
+        d) with_database=1;;
         h) usage && exit 0;;
         [?]) echo >&2 "$(usage)" && exit 1;;
     esac
@@ -26,17 +31,26 @@ done
 
 shift $((OPTIND-1)) # remove all flag arguments
 
+if [ -n "$with_database" ] && [ $# -gt 0 ]
+then
+    echo >&2 "-d removes the whole project's database volume; it can't be combined with service names."
+    exit 1
+fi
+
 if [ -z "$force" ]
 then
     RED='\033[1;31m'
     NC='\033[0m' # No Color
 
     printf "${RED}WARNING: THIS CANNOT BE UNDONE${NC}\n"
-    if [ $# -eq 0 ]
+    if [ $# -gt 0 ]
     then
-        echo "This will delete the containers, volumes (the database included), networks and built images of ${PWD##*/}"
-    else
         echo "This will delete the containers and anonymous volumes of: $*"
+    elif [ -n "$with_database" ]
+    then
+        echo "This will delete the containers, volumes (the database included), network and built images of ${PWD##*/}"
+    else
+        echo "This will delete the containers, anonymous volumes, network and built images of ${PWD##*/} (the database is kept)"
     fi
 
     while true; do
@@ -52,9 +66,15 @@ fi
 # Scoped to this compose project: `--rmi local` only removes the images it
 # built, not ones pulled by tag, so other projects' artifacts are untouched
 # (./remove-unused-docker-artifacts is the machine-wide prune).
-if [ $# -eq 0 ]
+if [ $# -gt 0 ]
+then
+    docker compose rm -sfv "$@"
+elif [ -n "$with_database" ]
 then
     docker compose down --rmi local --volumes --remove-orphans
 else
-    docker compose rm -sfv "$@"
+    # `rm -v` takes the containers' anonymous volumes (node_modules) with
+    # them; `down` without --volumes then leaves the named database volume.
+    docker compose rm -sfv
+    docker compose down --rmi local --remove-orphans
 fi
