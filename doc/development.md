@@ -168,7 +168,8 @@ every workspace imports only its own files and the packages it declares.
                                                 # Sample Camp's registration-form e2e tests, against a
                                                 # throwaway server from a locally built image
                                                 # (docker build -t camphoric:local .; Playwright's
-                                                # browsers: npx playwright install chromium)
+                                                # browsers: npx playwright install chromium; not npx
+                                                # playwright test, which would load the packages' dist/)
     npm run build                               # compile the spec and import-tools to dist/ (for publishing)
     scripts/smoke-test-packages.sh              # pack them and use them with plain Node
     scripts/smoke-test-event-package.sh events/lark   # build, pack and load an event from its build
