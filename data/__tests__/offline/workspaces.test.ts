@@ -233,11 +233,16 @@ describe('an event installed from GitHub Packages', () => {
   }
 });
 
-// Everything that runs tsx: package scripts, script shebangs and data/import
-function tsxInvocations(): { where: string, command: string }[] {
-  const scripts = ['package.json', ...WORKSPACES.map(w => path.join(w, 'package.json'))]
+// Every package script: the importer's and each workspace's
+function packageScripts(): { where: string, command: string }[] {
+  return ['package.json', ...WORKSPACES.map(w => path.join(w, 'package.json'))]
     .flatMap(file => Object.entries(readJson(file).scripts ?? {})
       .map(([name, command]) => ({ where: `${file} ${name}`, command: String(command) })));
+}
+
+// Everything that runs tsx: package scripts, script shebangs and data/import
+function tsxInvocations(): { where: string, command: string }[] {
+  const scripts = packageScripts();
   const shebangs = [DATA, ...WORKSPACES.map(w => path.join(DATA, w))]
     .flatMap(dir => readdirSync(dir).filter(name => name.endsWith('.ts'))
       .map(name => path.join(dir, name)))
@@ -261,6 +266,14 @@ describe('in this repository, the @camphoric packages run from their source', ()
   test('every tsx run passes the source condition', () => {
     const missing = tsxInvocations()
       .filter(({ command }) => !command.includes(`tsx --conditions=${SOURCE_CONDITION}`));
+    expect(missing).toEqual([]);
+  });
+
+  // (Playwright loads the tests, their setup and the config itself)
+  test('every Playwright run passes the source condition', () => {
+    const missing = packageScripts()
+      .filter(({ command }) => /\bplaywright\b/.test(command))
+      .filter(({ command }) => !command.includes(`NODE_OPTIONS=--conditions=${SOURCE_CONDITION}`));
     expect(missing).toEqual([]);
   });
 });

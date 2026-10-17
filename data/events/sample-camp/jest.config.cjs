@@ -12,6 +12,8 @@ const config = {
   testEnvironmentOptions: {
     customExportConditions: ['camphoric-source', 'node', 'node-addons'],
   },
+  // e2e/ is Playwright's (npm run e2e)
+  roots: ['<rootDir>/__tests__'],
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['@swc/jest', {
