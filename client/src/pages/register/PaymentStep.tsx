@@ -35,10 +35,10 @@ export function PaymentStep() {
 
   useEffect(() => {
     if (paymentStep || !config) return;
-    const saved = loadSentRegistration(getRegistrationStorageKey(config));
+    const saved = loadSentRegistration(getRegistrationStorageKey(eventId, config));
     if (saved) resumeSent(saved);
     else goToStep('registration');
-  }, [paymentStep, config, resumeSent, goToStep]);
+  }, [paymentStep, eventId, config, resumeSent, goToStep]);
 
   // Once per registration: what's due now, not what was due when it was sent.
   const { mutate: refreshPaymentStep } = useRefreshPaymentStep(eventId);
