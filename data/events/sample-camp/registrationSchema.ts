@@ -1,6 +1,28 @@
-import { year } from './dates.ts';
+import { dates, year } from './dates.ts';
 
 export const howHeard = ['A friend', 'Social media', 'A poster', 'I have been before'];
+
+// The week at camp, a day to a column. It's wider than a phone's screen, as
+// some events' tables are, so the e2e tests check that it scrolls in a box of
+// its own rather than widening the page.
+const week = [
+  { afternoon: 'Arrival', evening: 'Potluck' },
+  { morning: 'Classes', afternoon: 'Workshops', evening: 'Dance' },
+  { morning: 'Classes', afternoon: 'Workshops', evening: 'Concert' },
+  { morning: 'Classes', afternoon: 'Swimming', evening: 'Dance' },
+  { morning: 'Classes', afternoon: 'Workshops', evening: 'Talent show' },
+  { morning: 'Classes', afternoon: 'Workshops', evening: 'Farewell dance' },
+  { morning: 'Departure' },
+];
+const day = (index: number) => dates.start.plus({ days: index }).toFormat('ccc', { locale: 'en-US' });
+const row = (cells: string[]) => `| ${cells.join(' | ')} |`;
+const schedule = [
+  row(['', ...week.map((_, index) => day(index))]),
+  row(['', ...week].map(() => '---')),
+  row(['Morning', ...week.map(({ morning }) => morning ?? '')]),
+  row(['Afternoon', ...week.map(({ afternoon }) => afternoon ?? '')]),
+  row(['Evening', ...week.map(({ evening }) => evening ?? '')]),
+].join('\n');
 
 // The registration form. Descriptions are Handlebars, rendered with the
 // event's template variables (templateVars.ts) and its prices.
@@ -14,6 +36,10 @@ export default {
 | Meadow Cabins | \${{pricing.adult_cabin}} | \${{pricing.youth_cabin}} | free |
 | Tent Field | \${{pricing.adult_tent}} | \${{pricing.youth_tent}} | free |
 | Day Visitor | \${{pricing.adult_day}} | \${{pricing.youth_day}} | free |
+
+**The week at camp:**
+
+${schedule}
 
 Fields marked with an asterisk (*) are required.
 `,

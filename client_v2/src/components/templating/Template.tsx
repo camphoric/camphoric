@@ -4,9 +4,8 @@
  * page (CONTRIBUTING: don't let template rendering take down the page).
  */
 
-import './markdown.css';
-
 import { templateToHtml } from './pipeline';
+import { RenderedMarkdown } from './RenderedMarkdown';
 
 interface TemplateProps {
   markdown?: string;
@@ -18,11 +17,15 @@ export function Template({ markdown, templateVars = {} }: TemplateProps) {
 
   let html;
   try {
-    html = templateToHtml(source, templateVars);
+    html = templateToHtml(source, templateVars).__html;
   } catch (error) {
-    html = { __html: `<pre>error with template render\n\n${String(error)}\n</pre>` };
+    // As text, never HTML: the error quotes the template, markup and all.
+    return (
+      <div className="md-template">
+        <pre>{`error with template render\n\n${String(error)}\n`}</pre>
+      </div>
+    );
   }
 
-  // Safe: the HTML is sanitized by rehype-sanitize in the pipeline (§11).
-  return <div className="md-template" dangerouslySetInnerHTML={html} />;
+  return <RenderedMarkdown html={html} />;
 }

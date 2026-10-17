@@ -320,7 +320,12 @@ export function TemplateEditorView({
           }}
         >
           <Box h="100%">{editor('100%', expandedPath)}</Box>
-          {previewShown && <Box style={{ overflow: 'auto' }}>{previewPanel}</Box>}
+          {previewShown && (
+            // Its markdown tables don't scroll on their own (markdown.css).
+            <Box className="camphoric-scrolls-both-ways" style={{ overflow: 'auto' }}>
+              {previewPanel}
+            </Box>
+          )}
         </Box>
       </Modal>
       {helpDrawer}

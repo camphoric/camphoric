@@ -11,7 +11,7 @@
 
 import { Stack, Title } from '@mantine/core';
 import { ErrorBoundary } from 'components/ErrorBoundary';
-import { markdownToHtml } from 'components/templating';
+import { markdownToHtml, RenderedMarkdown } from 'components/templating';
 import { useEventId } from 'hooks/useEventId';
 import { useGoToStep } from 'hooks/useGoToStep';
 import { useEffect, useRef, useState } from 'react';
@@ -59,8 +59,7 @@ export function ConfirmationStep() {
     <Stack>
       <Title order={3}>You're registered!</Title>
       <ErrorBoundary>
-        {/* Safe: markdownToHtml sanitizes via rehype-sanitize (§11). */}
-        <div className="md-template" dangerouslySetInnerHTML={{ __html: snapshot }} />
+        <RenderedMarkdown html={snapshot} />
       </ErrorBoundary>
     </Stack>
   );

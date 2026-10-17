@@ -4,7 +4,7 @@
  */
 
 import { Select, Stack } from '@mantine/core';
-import { markdownToHtml } from 'components/templating';
+import { markdownToHtml, RenderedMarkdown } from 'components/templating';
 import { useMemo } from 'react';
 
 import { GUIDE_TOPICS, guideTopic } from './guides';
@@ -27,8 +27,7 @@ export function TemplateGuide({ topic, onTopicChange }: TemplateGuideProps) {
         onChange={(value) => value && onTopicChange(value)}
         allowDeselect={false}
       />
-      {/* Safe: markdownToHtml sanitizes via rehype-sanitize (§11). */}
-      <div className="md-template" dangerouslySetInnerHTML={{ __html: html }} />
+      <RenderedMarkdown html={html} />
     </Stack>
   );
 }

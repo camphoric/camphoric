@@ -8,4 +8,5 @@ export {
   renderPlainTextTemplate,
   templateToHtml,
 } from './pipeline';
+export { RenderedMarkdown, SCROLLING_TABLE_LABEL } from './RenderedMarkdown';
 export { Template } from './Template';

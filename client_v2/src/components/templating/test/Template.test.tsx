@@ -16,6 +16,13 @@ describe('Template', () => {
     expect(container.querySelector('pre')).not.toBeNull();
   });
 
+  it('shows a render error as text, so markup the error quotes never runs', () => {
+    // A parse error quotes the template around it, this <img> included.
+    const { container } = render(<Template markdown="<img src onerror={{}}alert(1)>" />);
+    expect(container.textContent).toContain('error with template render');
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('renders nothing meaningful for an empty template', () => {
     const { container } = render(<Template markdown={undefined} />);
     expect(container.querySelector('.md-template')).not.toBeNull();

@@ -24,7 +24,7 @@ import { CsvTable } from 'components/CsvTable';
 import { HtmlFrame } from 'components/HtmlFrame';
 import { InlineLoading } from 'components/Loading';
 import { TemplateDiagnostics } from 'components/TemplateEditor';
-import { markdownToHtml, Template } from 'components/templating';
+import { markdownToHtml, RenderedMarkdown, Template } from 'components/templating';
 import { useReportTemplateVars } from 'hooks/useReportData';
 import type { ReactNode } from 'react';
 import { useRenderedReport, useServerRenderedReport } from 'store/reportRender';
@@ -46,6 +46,8 @@ function OutputScroll({ children }: { children: ReactNode }) {
     <Box
       role="region"
       aria-label="Report output"
+      // Its markdown tables don't scroll on their own (markdown.css).
+      className="camphoric-scrolls-both-ways"
       // Focusable, so the keyboard can scroll it.
       tabIndex={0}
       style={{ overflow: 'auto', maxHeight: 'max(20rem, calc(100dvh - 16rem))' }}
@@ -105,13 +107,7 @@ function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedRe
       </Group>
       <OutputScroll>
         {report.output === 'csv' && <CsvTable csv={output} stickyHeader />}
-        {report.output === 'md' && (
-          // Safe: markdownToHtml sanitizes via rehype-sanitize (§11).
-          <div
-            className="md-template"
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(output) }}
-          />
-        )}
+        {report.output === 'md' && <RenderedMarkdown html={markdownToHtml(output)} />}
         {report.output === 'html' && (
           <HtmlFrame title={report.title} html={output} minHeight={400} />
         )}

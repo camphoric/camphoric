@@ -8,6 +8,7 @@
  */
 
 import Handlebars from 'handlebars';
+import type { Element, Root } from 'hast';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -36,12 +37,40 @@ const sanitizeSchema = {
   },
 };
 
+/** The class of the box each rendered table sits in (styled in markdown.css). */
+export const TABLE_SCROLL_CLASS = 'md-table-scroll';
+
+/**
+ * Put each table in a box of its own that scrolls sideways (markdown.css), so
+ * a table wider than the screen — an event's rates, on a phone — scrolls there
+ * instead of widening the page.
+ */
+function rehypeScrollableTables() {
+  const wrapTables = (parent: Root | Element) => {
+    parent.children = parent.children.map((child) => {
+      if (child.type !== 'element') return child;
+      if (child.tagName !== 'table') {
+        wrapTables(child);
+        return child;
+      }
+      return {
+        type: 'element',
+        tagName: 'div',
+        properties: { className: [TABLE_SCROLL_CLASS] },
+        children: [child],
+      } satisfies Element;
+    });
+  };
+  return wrapTables;
+}
+
 const markdownProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeRaw)
   .use(rehypeSanitize, sanitizeSchema)
+  .use(rehypeScrollableTables)
   .use(rehypeExternalLinks, { target: '_blank' })
   .use(rehypeStringify);
 

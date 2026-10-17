@@ -7,7 +7,7 @@
 import { ActionIcon, Code, Divider, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCornerDownLeft } from '@tabler/icons-react';
 import type { TemplateContextName } from 'api-types';
-import { markdownToHtml } from 'components/templating';
+import { markdownToHtml, RenderedMarkdown } from 'components/templating';
 import { Fragment, useMemo } from 'react';
 
 import { InlineDoc } from './InlineDoc';
@@ -65,8 +65,7 @@ export function MarkdownReference({ context, query = '', onInsert }: MarkdownRef
             </Code>
             {entry.html !== undefined && (
               <Paper withBorder p="xs">
-                {/* Safe: markdownToHtml sanitizes via rehype-sanitize (§11). */}
-                <div className="md-template" dangerouslySetInnerHTML={{ __html: entry.html }} />
+                <RenderedMarkdown html={entry.html} />
               </Paper>
             )}
           </Stack>
