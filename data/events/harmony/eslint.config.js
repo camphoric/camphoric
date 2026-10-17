@@ -6,8 +6,8 @@ import tseslint from 'typescript-eslint';
 // An event package imports only its own files, the spec and import-tools, so
 // its folder works as a repository of its own: no relative import may climb
 // out of the package (from a file `depth` folders down), and no other
-// camphoric-event-* package (such as another event) may be imported.
-const MESSAGE = 'An event package imports only its own files, camphoric-event-import-spec and camphoric-event-import-tools.';
+// @camphoric/camphoric-event-* package (such as another event) may be imported.
+const MESSAGE = 'An event package imports only its own files, @camphoric/camphoric-event-import-spec and @camphoric/camphoric-event-import-tools.';
 const isolation = (depth) => ({
   files: [[...Array(depth).fill('*'), '*.ts'].join('/')],
   rules: {
@@ -16,9 +16,9 @@ const isolation = (depth) => ({
         { group: [`${'../'.repeat(depth + 1)}*`], message: MESSAGE },
         {
           group: [
-            'camphoric-event-*',
-            '!camphoric-event-import-spec', '!camphoric-event-import-spec/*',
-            '!camphoric-event-import-tools', '!camphoric-event-import-tools/*',
+            '@camphoric/camphoric-event-*',
+            '!@camphoric/camphoric-event-import-spec', '!@camphoric/camphoric-event-import-spec/*',
+            '!@camphoric/camphoric-event-import-tools', '!@camphoric/camphoric-event-import-tools/*',
           ],
           message: MESSAGE,
         },

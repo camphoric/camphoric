@@ -1,6 +1,6 @@
 import { describe } from '@jest/globals';
-import { describeEventModule } from 'camphoric-event-import-spec/conformance';
+import { describeEventModule } from '@camphoric/camphoric-event-import-spec/conformance';
 
-describe('camphoric-event-harmony', () => {
+describe('@camphoric/camphoric-event-harmony', () => {
   describeEventModule(() => import('../index.ts'));
 });

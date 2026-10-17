@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
 /**
  * USAGE
@@ -6,7 +6,7 @@
  * 1. Run this util like ./replace-live-reports.ts <fromEventId> <toEventId>
  */
 
-import Fetcher from 'camphoric-event-import-tools/fetcher';
+import Fetcher from '@camphoric/camphoric-event-import-tools/fetcher';
 
 // A report, as the reports API lists it
 interface LiveReport {

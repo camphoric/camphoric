@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
 /**
  * Add generated registrations to Jughandle Campout
@@ -42,19 +42,19 @@
  *
  *   vagrant ssh -c 'cd /vagrant/data && CAMPHORIC_URL=http://localhost:8000 \
  *     DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=admin \
- *     COUNT=75 SEED=42 npm run bulk -w camphoric-event-ltacampout'
+ *     COUNT=75 SEED=42 npm run bulk -w @camphoric/camphoric-event-ltacampout'
  *
  * In Docker (from the repo root, with the django service up; the data service
  * reaches it as http://django:8000 and gets the login from env/local/shared.env):
  *
- *   docker compose run --rm data npm run bulk -w camphoric-event-ltacampout
+ *   docker compose run --rm data npm run bulk -w @camphoric/camphoric-event-ltacampout
  *
  * See also the other events' addRegistrations.ts
- * (camphoric-event-harmony, camphoric-event-lark); the shared
- * plumbing is in camphoric-event-import-tools/bulk-registrations.
+ * (@camphoric/camphoric-event-harmony, @camphoric/camphoric-event-lark); the shared
+ * plumbing is in @camphoric/camphoric-event-import-tools/bulk-registrations.
  */
 
-import { main, lastNames, type Gen } from 'camphoric-event-import-tools/bulk-registrations';
+import { main, lastNames, type Gen } from '@camphoric/camphoric-event-import-tools/bulk-registrations';
 import { eventName } from './index.ts';
 import { ageLookup } from './pricing/camperPricingLogic.ts';
 

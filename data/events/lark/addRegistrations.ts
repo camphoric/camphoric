@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
 /**
  * Add generated registrations to Lark Camp
@@ -43,19 +43,19 @@
  *
  *   vagrant ssh -c 'cd /vagrant/data && CAMPHORIC_URL=http://localhost:8000 \
  *     DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=admin \
- *     COUNT=75 SEED=42 npm run bulk -w camphoric-event-lark'
+ *     COUNT=75 SEED=42 npm run bulk -w @camphoric/camphoric-event-lark'
  *
  * In Docker (from the repo root, with the django service up; the data service
  * reaches it as http://django:8000 and gets the login from env/local/shared.env):
  *
- *   docker compose run --rm data npm run bulk -w camphoric-event-lark
+ *   docker compose run --rm data npm run bulk -w @camphoric/camphoric-event-lark
  *
  * See also the other events' addRegistrations.ts
- * (camphoric-event-harmony, camphoric-event-ltacampout); the shared
- * plumbing is in camphoric-event-import-tools/bulk-registrations.
+ * (@camphoric/camphoric-event-harmony, @camphoric/camphoric-event-ltacampout); the shared
+ * plumbing is in @camphoric/camphoric-event-import-tools/bulk-registrations.
  */
 
-import { main, lastNames, type Gen, type LodgingChoice } from 'camphoric-event-import-tools/bulk-registrations';
+import { main, lastNames, type Gen, type LodgingChoice } from '@camphoric/camphoric-event-import-tools/bulk-registrations';
 import { eventName } from './index.ts';
 import { ageLookup, mealsLookup } from './pricing/camperPricingLogic.ts';
 import { sessionTypes } from './camperSchema.ts';

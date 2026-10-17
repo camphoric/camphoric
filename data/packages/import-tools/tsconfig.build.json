@@ -1,0 +1,16 @@
+{
+  // Compiles the package to dist/ (JavaScript, declarations and maps) for
+  // publishing. It resolves other packages as a consumer would (their dist/),
+  // not by the camphoric-source condition, so build the spec first.
+  "extends": "@camphoric/camphoric-event-import-spec/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["*.ts"]
+}

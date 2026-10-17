@@ -3,6 +3,11 @@
 # Conventional Commits since the last release. Merging that PR creates the
 # vX.Y.Z tag + GitHub Release; build-assets then attaches the frontend tarballs and
 # build-image publishes the container image to ghcr.io. See RELEASE.md / CONTAINER.md.
+#
+# The event-import packages under data/packages/ are release-please components
+# of their own, each with its own release PR and tag
+# (camphoric-event-import-spec-vX.Y.Z, camphoric-event-import-tools-vX.Y.Z);
+# merging one publishes that package to GitHub Packages (release-packages.yml).
 name: Release Please
 
 on:
@@ -23,6 +28,10 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      spec_release_created: ${{ steps.release.outputs['data/packages/event-import-spec--release_created'] }}
+      spec_tag_name: ${{ steps.release.outputs['data/packages/event-import-spec--tag_name'] }}
+      tools_release_created: ${{ steps.release.outputs['data/packages/import-tools--release_created'] }}
+      tools_tag_name: ${{ steps.release.outputs['data/packages/import-tools--tag_name'] }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v5
@@ -50,4 +59,26 @@ jobs:
       tag: ${{ needs.release-please.outputs.tag_name }}
     permissions:
       contents: read
+      packages: write
+
+  # Publish an event-import package when its release PR was just merged. The
+  # tools depend on the spec, so a release of both publishes the spec first.
+  publish-spec:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.spec_release_created == 'true' }}
+    uses: ./.github/workflows/release-packages.yml
+    with:
+      tag: ${{ needs.release-please.outputs.spec_tag_name }}
+    permissions:
+      contents: write
+      packages: write
+
+  publish-tools:
+    needs: [release-please, publish-spec]
+    if: ${{ !failure() && !cancelled() && needs.release-please.outputs.tools_release_created == 'true' }}
+    uses: ./.github/workflows/release-packages.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tools_tag_name }}
+    permissions:
+      contents: write
       packages: write

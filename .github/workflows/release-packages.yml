@@ -1,0 +1,118 @@
+# Reusable workflow: publish an event-import package (data/packages/*) to
+# GitHub Packages at its release tag, e.g. camphoric-event-import-spec-v1.0.0
+# publishes @camphoric/camphoric-event-import-spec@1.0.0.
+#
+# Called directly (via `uses:`) by release-please.yml rather than triggered by
+# `release: published`, because releases created with the default GITHUB_TOKEN
+# don't start other workflows (see release-assets.yml). Also runnable on demand
+# to (re)publish a released tag:
+#   gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0
+name: Release packages
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The package release tag to publish (<package>-vX.Y.Z).
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The package release tag to publish (<package>-vX.Y.Z).
+        required: true
+        type: string
+
+permissions:
+  # contents: write only to mark the app's release as Latest again (below)
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@camphoric'
+          cache: npm
+          cache-dependency-path: data/package-lock.json
+
+      - run: npm ci
+
+      - name: Find the package and version the tag names
+        id: package
+        run: |
+          name="${TAG%-v*}"
+          version="${TAG##*-v}"
+          package="@camphoric/$name"
+          folder=$(npm query ".workspace[name='$package']" | node -pe 'JSON.parse(require("fs").readFileSync(0))[0]?.location ?? ""')
+          if [ -z "$folder" ]; then echo "no workspace is $package" >&2; exit 1; fi
+          actual=$(node -p "require('./$folder/package.json').version")
+          if [ "$actual" != "$version" ]; then
+            echo "$folder/package.json is version $actual, not the tag's $version" >&2; exit 1
+          fi
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # A package must not be published before the @camphoric packages it
+      # depends on (the tools need a published spec in their range).
+      - name: Its @camphoric dependencies are published
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE: ${{ steps.package.outputs.package }}
+        run: |
+          folder=$(npm query ".workspace[name='$PACKAGE']" | node -pe 'JSON.parse(require("fs").readFileSync(0))[0].location')
+          node -e '
+            const deps = require("./" + process.argv[1] + "/package.json").dependencies ?? {};
+            for (const [name, range] of Object.entries(deps)) {
+              if (name.startsWith("@camphoric/")) console.log(name + "@" + range);
+            }' "$folder" | while read -r wanted; do
+            if [ -z "$(npm view "$wanted" version 2>/dev/null)" ]; then
+              echo "$wanted isn't published yet: release and publish it first" >&2; exit 1
+            fi
+          done
+
+      # Builds both packages, spec first: the tools build against its dist/.
+      - run: npm run build
+
+      - name: Publish, unless that version is already published
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE: ${{ steps.package.outputs.package }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "$PACKAGE@$VERSION" version > /dev/null 2>&1; then
+            echo "$PACKAGE@$VERSION is already published"
+            exit 0
+          fi
+          # Republishing an older release mustn't move the latest dist-tag back.
+          newest=$(npm view "$PACKAGE" version 2>/dev/null || true)
+          if [ -n "$newest" ] && [ -n "$(node_modules/.bin/semver -r ">$VERSION" "$newest" || true)" ]; then
+            npm publish -w "$PACKAGE" --tag "republished-$VERSION"
+          else
+            npm publish -w "$PACKAGE"
+          fi
+
+      # A package's GitHub Release would otherwise show as the repository's
+      # Latest release; keep that the newest app release (vX.Y.Z).
+      - name: Keep the app's release as Latest
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- - | head -n 1)
+          if [ -n "$latest" ]; then gh release edit "$latest" --latest; fi

@@ -1,8 +1,8 @@
 {
-  // Compiler options shared by every camphoric-event-* package and the
-  // loader. They run with tsx (no build yet): .ts files are imported by name,
-  // and the syntax only needs its types stripped, so a later tsc build (with
-  // rewriteRelativeImportExtensions) needs no code changes.
+  // Compiler options shared by every @camphoric/camphoric-event-* package and the
+  // importer. The source runs with tsx: .ts files are imported by name, and the
+  // syntax only needs its types stripped. Published packages are compiled from
+  // the same source (tsconfig.build.json, with rewriteRelativeImportExtensions).
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023"],

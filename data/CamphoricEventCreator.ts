@@ -18,7 +18,7 @@
  * ---------
  *
  * data: an EventImport, which conforms to the JSON schema in
- * camphoric-event-import-spec. Every field of `data.event` is sent to the
+ * @camphoric/camphoric-event-import-spec. Every field of `data.event` is sent to the
  * events API as-is, including optional ones such as
  * `registration_error_messages` (custom validation messages for the
  * registration form).
@@ -50,8 +50,8 @@ import {
   type SampleRegistration,
   type Saved,
   type SavedResults,
-} from 'camphoric-event-import-spec';
-import Fetcher from 'camphoric-event-import-tools/fetcher';
+} from '@camphoric/camphoric-event-import-spec';
+import Fetcher from '@camphoric/camphoric-event-import-tools/fetcher';
 
 export interface CamphoricEventCreatorOptions extends Omit<EventModule, 'organization'> {
   // The organizations already loaded; fetched from the server when not given

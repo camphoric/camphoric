@@ -129,14 +129,72 @@ PostgreSQL 16 or newer.
 
 ---
 
+## Event-import packages
+
+The event-import packages in `data/packages/` are published to GitHub Packages (see "Event import
+packages" in the [README](./README.md)) and released on their own versions, as release-please
+components alongside the app:
+
+| Package | Folder | Tag |
+| --- | --- | --- |
+| `@camphoric/camphoric-event-import-spec` | `data/packages/event-import-spec` | `camphoric-event-import-spec-vX.Y.Z` |
+| `@camphoric/camphoric-event-import-tools` | `data/packages/import-tools` | `camphoric-event-import-tools-vX.Y.Z` |
+
+- **Separate release PRs.** Each package gets its own release PR (and `CHANGELOG.md` in its
+  folder), from the Conventional Commits touching its folder. Merging it tags the release and
+  publishes that version (`release-packages.yml`), so a package can be released without releasing
+  the app, and the other way round.
+- **The app ignores package-only changes.** A commit that only touches `data/packages/` doesn't
+  bump the app's version (`exclude-paths` in `release-please-config.json`); one that also touches
+  anything else does. The app's tags stay `vX.Y.Z`.
+- **Merge the spec's release PR before the tools'.** The tools depend on the spec, so the
+  publish job refuses to publish a tools version whose spec range has no published version yet
+  (a release of both in one push publishes the spec first).
+- **Republishing.** To publish a released tag again (if the publish job failed), run
+  `gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0`; a version
+  that's already published is skipped, and one older than the newest published version doesn't
+  move the `latest` dist-tag.
+
+### What a spec version means
+
+`@camphoric/camphoric-event-import-spec` is the contract between Camphoric and every camp's event
+module, so its versions follow what an event module has to do:
+
+- **patch / minor** — no event module needs to change (a fix, or a new optional field).
+- **major** (`feat(data)!:`) — event modules must change to follow it (a field removed or now
+  required, a type narrowed).
+
+The importer and the events in this repository depend on the spec by a caret range (`^1.0.0`);
+npm uses the workspace copy while its version satisfies that range. A spec major therefore takes
+two steps:
+
+1. The breaking PR updates the importer and the events, and widens every range on the spec to
+   cover both majors (`^1.0.0 || ^2.0.0`), so `npm ci` keeps working once the release PR moves
+   the spec to `2.0.0`.
+2. After that release, a follow-up narrows the ranges to `^2.0.0`, and adds a row to the table
+   below.
+
+### Spec versions each Camphoric release supports
+
+The importer's range on the spec in `data/package.json` at a release's tag is the authoritative
+record. A new row is added with each spec major:
+
+| Camphoric release | Event import spec |
+| --- | --- |
+| the first release containing the published packages, and later | `^1.0.0` |
+
+---
+
 ## Workflows involved
 
 | Workflow                              | Trigger                        | Does |
 | ------------------------------------- | ------------------------------ | ---- |
-| `.github/workflows/release-please.yml`| push to `main`                 | maintains the release PR; on merge, tags + creates the GitHub Release, then builds assets |
+| `.github/workflows/release-please.yml`| push to `main`                 | maintains the release PRs (the app's and each package's); on merge, tags + creates the GitHub Release, then builds assets (app) or publishes (packages) |
 | `.github/workflows/prerelease.yml`    | push a `vX.Y.Z-*` tag          | creates the pre-release, then builds assets |
 | `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and `client_v2/` and attaches `frontend-build.tar.gz` + `frontend-build-v2.tar.gz` to the tag |
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
+| `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to GitHub Packages |
+| `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks and tests the importer and the event packages, and smoke-tests the packed packages |
 | `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client_v2/`, `data/` or the Docker files | builds the image (never pushed) and smoke-tests it against Postgres |
 | `.github/workflows/client-v2.yml`     | push/PR to `main` touching `client_v2/` | type-checks, lints and unit-tests the v2 client, and runs its Playwright e2e suite |
 | `.github/workflows/react.yml`         | push/PR to `main` touching `client/` | unchanged — the continuous `js-build-main` dev build |

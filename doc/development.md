@@ -137,9 +137,9 @@ event is its own package, ready to move to a repository of its own (#780):
 
 | Folder | Package | What it is |
 | --- | --- | --- |
-| `data/packages/event-import-spec` | `camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`camphoric-event-import-spec/conformance`) |
-| `data/packages/import-tools` | `camphoric-event-import-tools` | the REST client, login, and the bulk-registration runner |
-| `data/events/<name>` | `camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
+| `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
+| `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, and the bulk-registration runner |
+| `data/events/<name>` | `@camphoric/camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
 
 An event depends only on the spec package (and import-tools, for its bulk script), imports only its
 own files, and is loaded by package name from `data/eventModules.ts`. A root test checks that
@@ -151,24 +151,32 @@ every workspace imports only its own files and the packages it declares.
     npm test                                    # offline, no server needed: every event passes the
                                                 # conformance checks and the server's schema checks,
                                                 # then each workspace's own tests
-    npm test -w camphoric-event-lark            # one package's tests
+    npm test -w events/lark                     # one package's tests
     npm run import                              # import every event into a running server (CAMPHORIC_URL)
     CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
-    COUNT=10 npm run bulk -w camphoric-event-lark   # add generated registrations to an imported event
+    COUNT=10 npm run bulk -w events/lark        # add generated registrations to an imported event
+    npm run build                               # compile the spec and import-tools to dist/ (for publishing)
+    scripts/smoke-test-packages.sh              # pack them and use them with plain Node
 
-To add an event, create `data/events/<name>` with a `package.json` named `camphoric-event-<name>`
+To add an event, create `data/events/<name>` with a `package.json` named `@camphoric/camphoric-event-<name>`
 (copy an existing event's, including its configs and `__tests__/conformance.test.ts`), add it to
 `data/package.json`'s dependencies and to `EVENTS` in `data/eventModules.ts`, and run `npm install`.
 
-The packages are TypeScript, run with [tsx](https://tsx.is) (no build step yet; they will be
-compiled to JS when they are published). Each event's `index.ts` default export
+The packages are TypeScript. The spec and import-tools are published to GitHub Packages compiled
+to JS (their `exports` point at `dist/`; see "Event import packages" in the
+[README](../README.md) and [RELEASE.md](../RELEASE.md)), but in this repository everything runs from
+their source, with no build: the `camphoric-source` export condition, which the tsconfigs
+(`customConditions`), Jest configs (`customExportConditions`) and every `tsx
+--conditions=camphoric-source` run set, resolves them to their `.ts` files. A test checks that
+nothing in the repository runs without it. Each event's `index.ts` default export
 `satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
 still checks the schema with Ajv at runtime. After pulling a change to the workspaces, rebuild the
 `data` Docker image (`docker compose build data`) before `docker compose run --rm data import`.
 
 A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
-and runs the offline suite on every pull request that touches `data/` (`.github/workflows/data.yml`) and
+and runs the offline suite, then smoke-tests the packed packages, on every pull request that
+touches `data/` (`.github/workflows/data.yml`) and
 imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
 rejected sample registration fails that import.
 

@@ -1,5 +1,5 @@
 {
-  "name": "camphoric-event-familyweek",
+  "name": "@camphoric/camphoric-event-familyweek",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "lint": "tsc --noEmit && eslint ."
   },
   "dependencies": {
-    "camphoric-event-import-spec": "*"
+    "@camphoric/camphoric-event-import-spec": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

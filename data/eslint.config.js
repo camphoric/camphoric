@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 // since linting from data/ uses only this config: an event imports only its
 // own files (no relative import climbs out of events/<name>, from a file
 // `depth` folders down), the spec and import-tools.
-const MESSAGE = 'An event package imports only its own files, camphoric-event-import-spec and camphoric-event-import-tools.';
+const MESSAGE = 'An event package imports only its own files, @camphoric/camphoric-event-import-spec and @camphoric/camphoric-event-import-tools.';
 const eventIsolation = (depth) => ({
   files: [['events', '*', ...Array(depth).fill('*'), '*.ts'].join('/')],
   rules: {
@@ -16,9 +16,9 @@ const eventIsolation = (depth) => ({
         { group: [`${'../'.repeat(depth + 1)}*`], message: MESSAGE },
         {
           group: [
-            'camphoric-event-*',
-            '!camphoric-event-import-spec', '!camphoric-event-import-spec/*',
-            '!camphoric-event-import-tools', '!camphoric-event-import-tools/*',
+            '@camphoric/camphoric-event-*',
+            '!@camphoric/camphoric-event-import-spec', '!@camphoric/camphoric-event-import-spec/*',
+            '!@camphoric/camphoric-event-import-tools', '!@camphoric/camphoric-event-import-tools/*',
           ],
           message: MESSAGE,
         },
@@ -28,7 +28,7 @@ const eventIsolation = (depth) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['node_modules/'] },
+  { ignores: ['node_modules/', 'packages/*/dist/'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

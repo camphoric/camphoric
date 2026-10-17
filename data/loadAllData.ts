@@ -1,11 +1,11 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
 import 'dotenv/config';
 
-import { getAuthToken } from 'camphoric-event-import-tools/auth';
+import { getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
 import { Organizations, organizationLoader } from './organizations.ts';
 import CamphoricEventCreator from './CamphoricEventCreator.ts';
-import type { LoadedEventModule } from 'camphoric-event-import-spec';
+import type { LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
 import { EVENTS, selectedEvents } from './eventModules.ts';
 
 const urlBase = process.env.CAMPHORIC_URL || 'http://django:8000';

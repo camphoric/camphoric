@@ -4,7 +4,7 @@ import {
   type EventModule,
   type Override,
   type SampleRegGenerator,
-} from 'camphoric-event-import-spec';
+} from '@camphoric/camphoric-event-import-spec';
 import camper_schema from './camperSchema.ts';
 import organization from './organization.ts';
 import confirmation_page_template from './confirmationPageTemplate.ts';

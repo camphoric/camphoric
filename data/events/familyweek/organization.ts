@@ -1,4 +1,4 @@
-import type { OrganizationImport } from 'camphoric-event-import-spec';
+import type { OrganizationImport } from '@camphoric/camphoric-event-import-spec';
 
 export default {
   organization: {

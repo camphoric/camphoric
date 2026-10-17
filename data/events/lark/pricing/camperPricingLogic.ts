@@ -1,4 +1,4 @@
-import type { PricingLogicItem } from 'camphoric-event-import-spec';
+import type { PricingLogicItem } from '@camphoric/camphoric-event-import-spec';
 import { regTypes } from '../registrationTypes.ts';
 import {
   freeCamp,

@@ -1,6 +1,6 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
-import type { LodgingNode } from 'camphoric-event-import-spec';
+import type { LodgingNode } from '@camphoric/camphoric-event-import-spec';
 
 const items: Record<string, LodgingNode> = {
   // paste items that you want to split into sub-items here.  It will create a

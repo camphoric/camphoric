@@ -1,4 +1,4 @@
-import type { LodgingLookup, PricingLogicItem } from 'camphoric-event-import-spec';
+import type { LodgingLookup, PricingLogicItem } from '@camphoric/camphoric-event-import-spec';
 import pricingValues from './pricing.ts';
 
 export const ageLookup = {

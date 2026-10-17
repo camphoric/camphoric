@@ -15,6 +15,11 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
   — GitHub Packages is **free for public repositories** (unlimited storage and transfer, no
   pull-rate limits), which `camphoric/camphoric` is.
 
+The image needs no npm token: it doesn't include the event importer (`data/`). The importer's
+own `data` image (docker-compose.yml) gets the event-import packages from its npm workspaces, so
+it needs none either. Once events are installed from GitHub Packages instead, its build will need
+a token passed as a build secret; see "Event import packages" in the [README](./README.md).
+
 The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL 16 (or newer) server.
 That's the version Camphoric is tested against; Django 6.1 itself needs 15 or newer.
 

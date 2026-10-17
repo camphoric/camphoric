@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd /app
-exec node_modules/.bin/tsx loadAllData.ts
+exec node_modules/.bin/tsx --conditions=camphoric-source loadAllData.ts

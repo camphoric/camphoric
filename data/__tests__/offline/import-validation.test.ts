@@ -3,7 +3,7 @@
  * server needed.
  *
  * Each event must pass the conformance checks every event package runs
- * (camphoric-event-import-spec/conformance), so an event that is installed
+ * (@camphoric/camphoric-event-import-spec/conformance), so an event that is installed
  * here, rather than developed here, is held to them too. The event, as its
  * overrides leave it, must also pass the server's form and pricing checks
  * (server/camphoric/schema_checks.py, run with python3): no default outside
@@ -21,7 +21,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
-import { describeEventModule, importedEvent } from 'camphoric-event-import-spec/conformance';
+import { describeEventModule, importedEvent } from '@camphoric/camphoric-event-import-spec/conformance';
 
 import { EVENTS, type EventName } from '../../eventModules.ts';
 

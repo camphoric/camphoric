@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env -S npx tsx --conditions=camphoric-source
 
 /**
  * USAGE
@@ -71,7 +71,7 @@ async function writeReportIndex(reports: ReportFile[], dir: string) {
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import type { Report } from 'camphoric-event-import-spec';
+import type { Report } from '@camphoric/camphoric-event-import-spec';
 
 const cwd = path.dirname(fileURLToPath(import.meta.url));
 

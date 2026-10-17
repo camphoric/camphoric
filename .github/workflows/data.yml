@@ -1,14 +1,16 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it. data/ is an npm workspace root (the importer) with the
-# camphoric-event-* packages under packages/ and events/; its scripts run
+# @camphoric/camphoric-event-* packages under packages/ and events/; its scripts run
 # every workspace's too:
 # the TypeScript must type-check (tsc --noEmit), every event module must load,
-# satisfy the event import schema (camphoric-event-import-spec), carry
+# satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
 # (server/camphoric/schema_checks.py, run with the runner's python3)
 # (data/__tests__/offline), and each workspace must import only its own files
-# and the packages it declares. The live import against the built image runs
-# in docker.yml.
+# and the packages it declares. All of that runs from the packages' TypeScript
+# source; then the published packages are built, packed and used with plain
+# Node (scripts/smoke-test-packages.sh). The live import against the built
+# image runs in docker.yml.
 name: Data import validation
 
 on:
@@ -62,6 +64,11 @@ jobs:
 
       - name: Offline import validation
         run: npm test
+
+      # The steps above ran from the packages' TypeScript source; this builds
+      # and packs the published ones and uses them with plain Node.
+      - name: The packed event-import packages work under plain Node
+        run: scripts/smoke-test-packages.sh
 
       # Advisory until the pre-existing lint issues in data/ are cleaned up; flip
       # to blocking (remove continue-on-error) after an `eslint --fix` pass. (The

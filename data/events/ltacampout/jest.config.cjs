@@ -6,6 +6,12 @@
 const config = {
   verbose: true,
   testEnvironment: 'node',
+  // In this repository, resolve the @camphoric packages to their TypeScript
+  // source (the camphoric-source export condition), not their built dist/.
+  // (The list replaces Jest's defaults, so it keeps them.)
+  testEnvironmentOptions: {
+    customExportConditions: ['camphoric-source', 'node', 'node-addons'],
+  },
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['@swc/jest', {
