@@ -1,4 +1,8 @@
 ---
+- name: Check secrets
+  tags: [always]
+  import_tasks: check_secrets.yml
+
 - name: Install camphoric prereqs
   tags: [camphoric_install]
   include_tasks: install_prereqs.yml

@@ -102,7 +102,11 @@ there (`npm ci && npm run build`) and installs the build into
 `server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. The
 role does not yet check out `camphoric_release`
 ([#797](https://github.com/camphoric/camphoric/issues/797)), so check out the tag on the host before
-running it.
+running it. Set `camphoric_environment` to `production` and override the role's placeholder
+secrets in `host_vars` (vault-encrypted) or an inventory `group_vars/<group>.yml` file, not in
+the inventory file itself, which `ansible/group_vars/all.yml` outranks: outside development the camphoric role fails at
+its first task while one is left at its default (see
+[the role's README](./ansible/roles/camphoric/README.md#secrets)).
 
 ### Host requirements
 
