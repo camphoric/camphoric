@@ -165,9 +165,27 @@ module, so its versions follow what an event module has to do:
 - **major** (`feat(data)!:`) — event modules must change to follow it (a field removed or now
   required, a type narrowed).
 
-A breaking change to the spec is made in one PR that also updates the importer and the events in
-this repository (which use the workspace copy), so `main` always holds a spec, an importer and
-events that work together. Event repositories (#780) then move to the new major on their own.
+Every event package takes the spec as a **peer dependency** (`"^1.0.0"`), so the importer loads
+one copy of the spec and checks each event against it. An event installed from an event
+repository (#780) whose range the spec in this repository doesn't satisfy is refused by `npm
+install` and fails the tests, never a second, nested copy. In this repository the events also take the
+workspace copy as a devDependency (`"*"`); an event repository's devDependency is its peer range.
+
+A breaking change to the spec keeps `main` holding a spec, an importer and events that work
+together:
+
+1. **Each event repository releases a version that meets both majors**, with the peer range
+   `"^1.0.0 || ^2.0.0"`. So land a breaking change in two steps an event can follow: first, in a
+   minor, add what replaces the old form (a new field, optional); then, in the major, remove or
+   require it.
+2. **One PR here** changes the spec, the importer and the events in `data/events/` (widening their
+   peer range the same way), and raises the importer's ranges for the event repositories' packages
+   to those releases. This repository's tests then check every event against the new spec.
+3. **Merge the spec's release PR**, which publishes the new major. Until it bumps the spec's
+   version, the tests check peer ranges against the old major, so an event that skipped step 1
+   first fails this PR's checks.
+4. Each event repository then takes the new major as its devDependency and may narrow its peer
+   range to it.
 
 ### Spec versions each Camphoric release supports
 

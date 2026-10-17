@@ -65,6 +65,12 @@ jobs:
       - name: The workspaces share one node_modules
         run: test -z "$(find packages events -mindepth 2 -maxdepth 2 -name node_modules)"
 
+      # Events installed from GitHub Packages take the spec as a peer, so they
+      # share the importer's copy; one nested under an event was written for a
+      # spec major the importer doesn't follow.
+      - name: One copy of the spec is installed
+        run: test -z "$(find node_modules -path 'node_modules/*/node_modules/@camphoric/camphoric-event-import-spec')"
+
       - name: Type-check
         run: npm run typecheck
 
