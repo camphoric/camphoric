@@ -67,6 +67,36 @@ describe('ConfirmationStep', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  describe('data saved under the key without the event id', () => {
+    const sent = (registrationUUID: string) =>
+      JSON.stringify({
+        paymentStep: { registrationUUID, paymentOptions: { options: [] } },
+        formData: { campers: [] },
+      });
+
+    it('is cleared too, the sent registration only when it’s this one', () => {
+      confirm();
+      localStorage.setItem('Event 1: Camp, 2026-7-1 (payment)', sent('u'));
+      localStorage.setItem('Camp, 2026-7-1', '{"campers":[{}]}');
+      localStorage.setItem('Camp, 2026-7-1 (payment)', sent('u'));
+
+      renderWithProviders(<ConfirmationStep />);
+
+      expect(localStorage.getItem('Camp, 2026-7-1')).toBeNull();
+      expect(localStorage.getItem('Camp, 2026-7-1 (payment)')).toBeNull();
+    });
+
+    it('keeps a sent registration that another event with the same title saved', () => {
+      confirm();
+      localStorage.setItem('Event 1: Camp, 2026-7-1 (payment)', sent('u'));
+      localStorage.setItem('Camp, 2026-7-1 (payment)', sent('other'));
+
+      renderWithProviders(<ConfirmationStep />);
+
+      expect(localStorage.getItem('Camp, 2026-7-1 (payment)')).toBe(sent('other'));
+    });
+  });
+
   it('still shows the page when site data is blocked', () => {
     confirm();
     vi.spyOn(console, 'error').mockImplementation(() => {});

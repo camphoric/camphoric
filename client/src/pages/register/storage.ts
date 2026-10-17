@@ -10,6 +10,14 @@
  * confirmation unless the KEEP_REG_DATA debug flag is set. Every storage access
  * is guarded: with site data blocked, reading `window.localStorage` throws, and
  * that mustn't break the page.
+ *
+ * Data saved before the key carried the event id sits under the same key minus
+ * its `Event <id>: ` prefix (the legacy key), which two events with the same
+ * title and dates shared. Saved form data falls back to it, moving to the new
+ * key once read; a sent registration under it is only offered through
+ * {@link loadLegacySentRegistration}, for the caller to check with the server
+ * before adopting it. Clearing a key clears its legacy form data too, and its
+ * legacy sent registration when that's the same registration.
  */
 
 import type { ApiRegister, RegistrationFormData } from 'api-types';
@@ -20,6 +28,12 @@ export function getRegistrationStorageKey(eventId: string, config: ApiRegister):
   const start = config.event.start;
   const date = start ? `${start.year}-${start.month}-${start.day}` : '';
   return `Event ${eventId}: ${title}, ${date}`;
+}
+
+/** The key without its event id, as it was saved under before (or null when there isn't one). */
+function legacyKey(key: string): string | null {
+  const legacy = key.replace(/^Event [^:]*: /, '');
+  return legacy === key ? null : legacy;
 }
 
 /** The KEEP_REG_DATA debug flag preserves the data across confirmation (debugging/autofill). */
@@ -37,7 +51,16 @@ export function saveRegistrationFormData(key: string, formData: RegistrationForm
 
 export function loadRegistrationFormData(key: string): RegistrationFormData | null {
   try {
-    const saved = window.localStorage.getItem(key);
+    let saved = window.localStorage.getItem(key);
+    const legacy = legacyKey(key);
+    if (saved === null && legacy !== null) {
+      // Saved under the legacy key: move it to this one.
+      saved = window.localStorage.getItem(legacy);
+      if (saved !== null) {
+        window.localStorage.setItem(key, saved);
+        window.localStorage.removeItem(legacy);
+      }
+    }
     return saved ? (JSON.parse(saved) as RegistrationFormData) : null;
   } catch (error) {
     console.error('Failed to read saved registration form data', error);
@@ -49,6 +72,8 @@ export function clearRegistrationFormData(key: string): void {
   try {
     if (keepRegData()) return;
     window.localStorage.removeItem(key);
+    const legacy = legacyKey(key);
+    if (legacy !== null) window.localStorage.removeItem(legacy);
   } catch (error) {
     console.error('Failed to clear registration form data', error);
   }
@@ -82,8 +107,41 @@ export function loadSentRegistration(key: string): SentRegistration | null {
 export function clearSentRegistration(key: string): void {
   try {
     if (keepRegData()) return;
+    // The legacy one goes too, but only if it's the same registration: another
+    // event with the same title and dates may have saved it.
+    const uuid = loadSentRegistration(key)?.paymentStep.registrationUUID;
+    const legacy = legacyKey(key);
+    if (
+      uuid &&
+      legacy !== null &&
+      loadSentRegistration(legacy)?.paymentStep.registrationUUID === uuid
+    ) {
+      window.localStorage.removeItem(sentKey(legacy));
+    }
     window.localStorage.removeItem(sentKey(key));
   } catch (error) {
     console.error('Failed to clear the sent registration', error);
+  }
+}
+
+/**
+ * The sent registration saved under the legacy key, if any. Another event with
+ * the same title and dates may have saved it, so check with the server that
+ * it's this event's before {@link adoptLegacySentRegistration}.
+ */
+export function loadLegacySentRegistration(key: string): SentRegistration | null {
+  const legacy = legacyKey(key);
+  return legacy === null ? null : loadSentRegistration(legacy);
+}
+
+/** Saves a sent registration the server confirmed as this event's under this key, dropping the legacy one. */
+export function adoptLegacySentRegistration(key: string, sent: SentRegistration): void {
+  saveSentRegistration(key, sent);
+  const legacy = legacyKey(key);
+  if (legacy === null) return;
+  try {
+    window.localStorage.removeItem(sentKey(legacy));
+  } catch (error) {
+    console.error('Failed to clear the legacy sent registration', error);
   }
 }
