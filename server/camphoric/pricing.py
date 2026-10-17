@@ -213,6 +213,15 @@ def calculate_price(registration, campers):
     overrides = _load_overrides(registration)
     overridden = {}
     camper_contexts = []
+    # One query for every camper's charges, and each lodging's path walked
+    # once, rather than per camper. A camper that isn't saved yet (pricing
+    # during registration) has no charges.
+    custom_charges = defaultdict(list)
+    camper_ids = [camper.pk for camper in campers if camper.pk is not None]
+    if camper_ids:
+        for charge in models.CustomCharge.objects.filter(camper_id__in=camper_ids).values():
+            custom_charges[charge['camper_id']].append(charge)
+    lodging_choices = {}
 
     for reg_component in event.registration_pricing_logic:
         var = reg_component["var"]
@@ -247,7 +256,9 @@ def calculate_price(registration, campers):
             lodging = models.Lodging.objects.get(id=camper.lodging_requested_id)
 
         if lodging:
-            choices = list(map(lambda ld: ld.id, lodging.get_parents()[1:]))
+            if lodging.id not in lodging_choices:
+                lodging_choices[lodging.id] = [ld.id for ld in lodging.get_parents()[1:]]
+            choices = list(lodging_choices[lodging.id])
 
         # Mimic the data structure at the time of registration
         data["camper"]["lodging"] = {
@@ -258,12 +269,7 @@ def calculate_price(registration, campers):
             }
         }
 
-        # A camper that isn't saved yet (pricing during registration) has no charges.
-        custom_charges = (
-            list(models.CustomCharge.objects.filter(camper=camper).values())
-            if camper.pk is not None else []
-        )
-        data["camper"]["custom_charges"] = custom_charges
+        data["camper"]["custom_charges"] = custom_charges.get(camper.pk, [])
 
         camper_results = {}
         camper_overridden = {}
