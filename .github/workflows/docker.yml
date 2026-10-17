@@ -1,5 +1,5 @@
 # Build the application image (never pushed) on every push/PR that touches its
-# inputs (server/, client_v2/, data/, the Docker files) and prove it works:
+# inputs (server/, client/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
 # every event the importer loads (data/events and those from GitHub Packages) is
@@ -15,7 +15,7 @@ on:
     branches: [main]
     paths:
       - 'server/**'
-      - 'client_v2/**'
+      - 'client/**'
       - 'data/**'
       - 'Dockerfile'
       - '.dockerignore'
@@ -26,7 +26,7 @@ on:
     branches: [main]
     paths:
       - 'server/**'
-      - 'client_v2/**'
+      - 'client/**'
       - 'data/**'
       - 'Dockerfile'
       - '.dockerignore'

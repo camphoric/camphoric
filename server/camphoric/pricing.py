@@ -34,7 +34,7 @@ def handling_fee(amount, percent):
     `amount`, to the cent, a half cent up (SPEC §9.7, DR-88). It's worked out
     in cents (amount × percent), where a fee of exactly half a cent (2.5% of
     an odd number of dollars) is exact, so this and `handlingFee` in
-    client_v2/src/pricing/handlingFee.ts round alike.
+    client/src/pricing/handlingFee.ts round alike.
     '''
     cents = Decimal(repr(float(amount) * float(percent))).quantize(Decimal(1), ROUND_HALF_UP)
     return (cents / 100).quantize(CENT)
@@ -190,7 +190,7 @@ def calculate_price(registration, campers):
             camper components)
 
         This should produce identical results to `calculatePrice` in
-        client_v2/src/pricing/calculatePrice.ts.
+        client/src/pricing/calculatePrice.ts.
     '''
     results = defaultdict(int)
     results['campers'] = []

@@ -4,7 +4,7 @@ Camphoric is a camp registration and administration system. It has two parts:
 
 - **`server/`** — a Django + Django REST Framework backend (the source of truth for data,
   pricing, persistence, and email).
-- **`client_v2/`** — a React + TypeScript single-page app with two surfaces: a public
+- **`client/`** — a React + TypeScript single-page app with two surfaces: a public
   **registration** flow and an authenticated **admin** back-office.
 
 ## Front-end Client Spec
@@ -60,7 +60,7 @@ Abide by all principles in the [CONTRIBUTING.md](./CONTRIBUTING.md) document.
 
 ## Component Stories (Storybook)
 
-The V2 client (`client_v2/`) uses [Storybook](https://storybook.js.org) as its component workbench
+The client (`client/`) uses [Storybook](https://storybook.js.org) as its component workbench
 (`npm run storybook`). **Every form widget — and any other reusable UI component — must ship with a
 story when it's added.** Put the story in the `test/` directory inside the component's
 folder as `test/<Component>.stories.tsx` (tests and fixtures go there too), wrap usage in a story that exercises the component's states (and, for

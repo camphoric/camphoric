@@ -38,7 +38,7 @@ Restart the camphoric service
 Run the frontend development server at localhost:3000
 (NOTE: it is recommended that you run this locally, not in a VM.
 This is because vite's watch-rebuild functionality won't work)
-  vagrant ssh -c "cd /vagrant/client_v2; npm run dev"
+  vagrant ssh -c "cd /vagrant/client; npm run dev"
 
 Run flake8
   vagrant ssh -c "cd /vagrant/server; pipenv run flake8"

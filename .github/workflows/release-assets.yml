@@ -1,4 +1,4 @@
-# Reusable workflow: build the frontend (client_v2/) at a given tag and attach it
+# Reusable workflow: build the frontend (client/) at a given tag and attach it
 # to that tag's GitHub Release as `frontend-build-v2.tar.gz`.
 #
 # Called directly (via `uses:`) by release-please.yml (stable releases) and
@@ -41,17 +41,17 @@ jobs:
         with:
           node-version: 22.x
           cache: npm
-          cache-dependency-path: client_v2/package-lock.json
+          cache-dependency-path: client/package-lock.json
 
-      - name: Build the frontend (client_v2/)
-        working-directory: client_v2
+      - name: Build the frontend (client/)
+        working-directory: client
         run: |
           npm ci
           npm run build
 
       - name: Package the frontend build
-        # Contents of client_v2/build (Vite outDir) at the archive root.
-        run: tar -czf frontend-build-v2.tar.gz -C client_v2/build .
+        # Contents of client/build (Vite outDir) at the archive root.
+        run: tar -czf frontend-build-v2.tar.gz -C client/build .
 
       - name: Attach the frontend asset to the release
         env:

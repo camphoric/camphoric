@@ -9,7 +9,7 @@ version: 2
 
 updates:
   - package-ecosystem: npm
-    directory: /client_v2
+    directory: /client
     schedule:
       interval: monthly
     groups:

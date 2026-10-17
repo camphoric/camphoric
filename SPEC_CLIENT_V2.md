@@ -32,9 +32,9 @@ decision history.
 ---
 
 This document specifies the behavior and architecture of the Camphoric web client
-(`client_v2/`). It is written as a build specification for a fresh implementation of the
-frontend (a "V2"), reconstructed from the v1 implementation (`client/`, since removed — §15,
-DR-115). It describes *what the client must do* and the contracts it depends on, rather than
+(`client/`). It is written as a build specification for a fresh implementation of the
+frontend (a "V2"), reconstructed from the v1 implementation, since removed (§15, DR-115). It
+describes *what the client must do* and the contracts it depends on, rather than
 prescribing the exact code structure or UI presentation, so a new version is free to choose
 its own internal organization and interface design while preserving behavior.
 
@@ -2408,8 +2408,8 @@ hasn't seen (§15, DR-109).
   smoke against the dev server; every test runs on desktop and two mobile devices (§15, DR-31,
   DR-59). The
   registration smoke skips when no backend is reachable (as in CI).
-- **Gates:** type-check, lint, unit tests and the e2e suite pass in CI (the *Client v2* workflow,
-  on every push/PR that touches `client_v2/`) and in the pre-commit hook (§15, DR-15).
+- **Gates:** type-check, lint, unit tests and the e2e suite pass in CI (the *Client* workflow,
+  on every push/PR that touches `client/`) and in the pre-commit hook (§15, DR-15).
 
 ---
 
@@ -4730,18 +4730,22 @@ of prices is unreadable squeezed below its narrowest layout. Making every table'
 — a tab stop, and a region announced, even for the many tables that fit. Asking events to keep
 tables narrow — the text is theirs, and the client renders whatever the event defines (§11).
 
-### DR-115 — The v1 client is removed; client_v2 is the only frontend
+### DR-115 — The v1 client is removed; the v2 client takes over `client/`
 
-**Decision:** `client/` is deleted from the repository. `client_v2/` is the one frontend: the
-container image bakes it in, the Ansible role builds it from the checkout it deploys and installs
-the build into `server/frontend_bootstrap/build/`, the dev compose `react` service runs its Vite
-dev server, and releases attach only `frontend-build-v2.tar.gz`. The `js-build-main` branch and
+**Decision:** The v1 client is deleted from the repository, and the v2 client moves from
+`client_v2/` into `client/` in its place. It is the one frontend: the container image bakes it
+in, the Ansible role builds it from the checkout it deploys and installs the build into
+`server/frontend_bootstrap/build/`, the dev compose `react` service runs its Vite dev server, and
+releases attach only `frontend-build-v2.tar.gz`. The `js-build-main` branch and
 the workflow that published v1 to it are retired.
 **Context:** #798: the container image and the spec had already moved to v2, but Ansible still
 deployed v1 from `js-build-main` (#797), and v1 had fallen out of step with the API — it edited
 `confirmation_email_template`, which migration 0058 removed, so those edits were dropped, and it
 knew nothing of invoices, promo codes, edit leases or email templates.
-**Alternatives:** Keep v1 frozen alongside v2 — it would keep deploying through Ansible while
+The release asset keeps the name `frontend-build-v2.tar.gz`, since `frontend-build.tar.gz` names
+the v1 build on older releases.
+**Alternatives:** Keep the v2 client in `client_v2/` — the suffix only distinguished it from v1,
+which is gone. Keep v1 frozen alongside v2 — it would keep deploying through Ansible while
 silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
 doesn't yet check out (#797); building from the checkout keeps server and frontend together.

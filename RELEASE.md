@@ -5,7 +5,7 @@ Camphoric is deployed by **version**. A release is a Git tag (`vX.Y.Z`) with a m
 
 - **Source archives** — `Source code (zip/tar.gz)`, attached automatically by GitHub (the repo at
   the tag).
-- **`frontend-build-v2.tar.gz`** — the transpiled `client_v2/` frontend (Vite build output).
+- **`frontend-build-v2.tar.gz`** — the transpiled `client/` frontend (Vite build output).
   Releases cut before the v1 client was retired also carry `frontend-build.tar.gz`, the v1 build.
 - **Container image** — `ghcr.io/camphoric/camphoric:<tag>`, the server with the v2 frontend baked
   in (`latest` also moves, for stable releases only). See [CONTAINER.md](./CONTAINER.md).
@@ -97,7 +97,7 @@ The frontend asset has the same filename on every release, so its URL varies onl
 https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2.tar.gz
 ```
 
-The Ansible playbook deploys the code already checked out on the host: it builds `client_v2/`
+The Ansible playbook deploys the code already checked out on the host: it builds `client/`
 there (`npm ci && npm run build`) and installs the build into
 `server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. The
 role does not yet check out `camphoric_release`
@@ -266,13 +266,13 @@ made-up event for this repository's tests, is the only event still in `data/even
 | ------------------------------------- | ------------------------------ | ---- |
 | `.github/workflows/release-please.yml`| push to `main`                 | maintains the release PRs (the app's and each package's); on merge, tags + creates the GitHub Release, then builds assets (app) or publishes (packages) |
 | `.github/workflows/prerelease.yml`    | push a `vX.Y.Z-*` tag          | creates the pre-release, then builds assets |
-| `.github/workflows/release-assets.yml`| called by the two above        | builds `client_v2/` and attaches `frontend-build-v2.tar.gz` to the tag |
+| `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and attaches `frontend-build-v2.tar.gz` to the tag |
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
 | `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to GitHub Packages |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks and tests the importer and the event packages, and smoke-tests the packed packages |
-| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client_v2/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
+| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
 | `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from GitHub Packages to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
-| `.github/workflows/client-v2.yml`     | push/PR to `main` touching `client_v2/` | type-checks, lints and unit-tests the v2 client, and runs its Playwright e2e suite |
+| `.github/workflows/client.yml`        | push/PR to `main` touching `client/` | type-checks, lints and unit-tests the client, and runs its Playwright e2e suite |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`
 > trigger) because a release created with the default `GITHUB_TOKEN` does not start other

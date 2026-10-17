@@ -167,11 +167,11 @@ There are two options now.
 
 ## Run the Client development server
 
-From the `client_v2/` directory, install dependencies and run the client server using
+From the `client/` directory, install dependencies and run the client server using
 npm
 
 ```
-cd ./client_v2/
+cd ./client/
 npm install
 npm run dev
 ```
@@ -186,7 +186,7 @@ http://127.0.0.1:3000/
 ## Building for Production
 
 In order to build the production version of Camphoric client, run `npm run build`
-in the `client_v2/` folder. This builds into `client_v2/build/`; copy its contents
+in the `client/` folder. This builds into `client/build/`; copy its contents
 into `server/frontend_bootstrap/build/` for the server to serve them. After that,
 running `python manage.py runserver` will serve the newly built frontend
 from the appropriate bootstrap urls.

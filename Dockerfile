@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
 #
 # Camphoric application image: the Django/DRF server (gunicorn) with the v2
-# frontend (client_v2/) baked in and served from the same origin. See CONTAINER.md
+# frontend (client/) baked in and served from the same origin. See CONTAINER.md
 # for the environment variables, mount points and how to run it.
 #
 # Stages:
-#   frontend     - builds client_v2 with Vite -> /frontend/build (index.html + static/)
+#   frontend     - builds client with Vite -> /frontend/build (index.html + static/)
 #   python-deps  - resolves server/Pipfile.lock into a venv (runtime deps only)
 #   app          - slim runtime image: venv + server/ + built frontend, non-root, gunicorn
 #                  running the ASGI app on uvicorn workers
@@ -13,13 +13,13 @@
 ARG NODE_VERSION=22
 ARG PYTHON_VERSION=3.12
 
-# ---- frontend: build client_v2 -------------------------------------------------
+# ---- frontend: build client -------------------------------------------------
 FROM node:${NODE_VERSION}-alpine AS frontend
 WORKDIR /frontend
 # Lockfile first so the npm ci layer is cached across source edits.
-COPY client_v2/package.json client_v2/package-lock.json ./
+COPY client/package.json client/package-lock.json ./
 RUN npm ci
-COPY client_v2/ ./
+COPY client/ ./
 # tsc -b && vite build; vite-plugin-checker (typescript + eslint) gates the image build.
 RUN npm run build
 

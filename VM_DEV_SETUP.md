@@ -68,7 +68,7 @@ You should now have a [working copy of camphoric at http://localhost:8000](http:
 If you are doing frontend development you can start the server at
 localhost:3000 using the following command:
 
-`vagrant ssh -c "cd /vagrant/client_v2; npm run dev"`
+`vagrant ssh -c "cd /vagrant/client; npm run dev"`
 
 
 Setup instructions for Windows
@@ -174,7 +174,7 @@ You should now have a [working copy of camphoric at http://localhost:8000](http:
 If you are doing frontend development you can start the server at
 localhost:3000 using the following command:
 
-`vagrant ssh -c "cd /vagrant/client_v2; npm run dev"`
+`vagrant ssh -c "cd /vagrant/client; npm run dev"`
 
 
 Email and the task worker
@@ -203,7 +203,7 @@ The VM's own node_modules
 The VM shares your checkout at `/vagrant`, but not its `node_modules`: on every
 `vagrant up`, before provisioning, a folder of the VM's own (under
 `/home/vagrant/node_modules/`) is mounted over `node_modules`,
-`client_v2/node_modules` and `data/node_modules`. So `npm ci` in the VM installs
+`client/node_modules` and `data/node_modules`. So `npm ci` in the VM installs
 Linux builds there, and the `npm` and Vite dev server on your own computer keep
 theirs. If an older VM left Linux builds in your checkout's `node_modules`, run
 `npm ci` in those folders on your computer once to put your own back.

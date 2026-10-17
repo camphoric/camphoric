@@ -66,7 +66,7 @@ services:
       django:
         condition: service_started
 
-  # The frontend (client_v2/): Vite's dev server on :3000, proxying /api to django.
+  # The frontend (client/): Vite's dev server on :3000, proxying /api to django.
   react:
     env_file:
       - ./env/local/shared.env
@@ -76,7 +76,7 @@ services:
     image: node:22-bookworm
     working_dir: /app
     volumes:
-      - ./client_v2:/app
+      - ./client:/app
       - /app/node_modules
     ports:
       - "3000:3000"

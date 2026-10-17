@@ -1,7 +1,7 @@
 # Camphoric Client (V2)
 
 The Camphoric web client, built per [`SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md). It is a
-ground-up rebuild of the v1 client (`client/`), which it has replaced.
+ground-up rebuild of the v1 client, which it has replaced (it lived in `client_v2/` until then).
 
 Two surfaces share one foundation:
 
