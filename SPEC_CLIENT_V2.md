@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-115)
+- §15 — Decision Records (DR-1…DR-116)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -615,8 +615,8 @@ Non-CRUD admin endpoints:
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
   paymentOptions, handlingPercent, invoiceCancelled }`, the last true when the organizers
-  cancelled the registration invoice); 404 for a registration that isn't this event's (or an id
-  that isn't one). Once a registrar or
+  cancelled the registration invoice); 404 `{ detail, code: 'registration_not_found' }` for a
+  registration that isn't this event's (or an id that isn't one). Once a registrar or
   admin has changed the registration invoice, its options are that invoice alone:
   `{ name: 'invoice:{id}', title: <its description>, amount: <what it asks now>, handling: <the
   fee online> }` (§15, DR-105).
@@ -661,6 +661,10 @@ Non-CRUD admin endpoints:
   has its `payment_type` cleared — the registrant hasn't settled on how to pay — while any
   pending PayPal order stays on it (§15, DR-104). The worker's half-hour confirmation (§7.3)
   does the same.
+- Every step after `registration` (`payment-step`, `paypal-order`, `payment`, `finish`) answers
+  404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names no
+  registration the server has — an organizer deleted it, or it was purged as incomplete (§15,
+  DR-76) — or isn't a registration id at all. Nothing is changed or charged (§7.1; §15, DR-116).
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter. Every
@@ -1053,6 +1057,13 @@ Before any step renders, the app loads the registration config (`GET …/registe
   closing the tab doesn't lead to a second registration from the same browser. Resuming restores
   the payment step, the form data and the promo code that were sent, so the payment step's
   review shows what was entered — not edits made to the form afterward, which weren't sent.
+- **Sent registration gone:** the server may no longer have the registration this browser saved
+  (an organizer deleted it, or it was purged as incomplete — §15, DR-76). When a payment-step
+  request for it (`payment-step`, `paypal-order`, `payment` or `finish`) answers
+  `registration_not_found` — or any 404 — the browser forgets the saved sent registration (if
+  it's still that one: another tab may have sent a new one) and returns to this step with the
+  form data and promo code kept, saying the earlier registration couldn't be found and asking
+  the registrant to send the form again. The server's raw message isn't shown (§15, DR-116).
 
 ### 7.2 Step 2 — Payment
 
@@ -1123,6 +1134,11 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
     checkout, an SDK error, or a failed capture releases the block; an error also tells the
     registrant that the payment didn't go through (§15, DR-77).
+- **When the server no longer has the registration** (`registration_not_found`, or any 404,
+  from asking for the payment step again when the step opens, any payment button, the PayPal
+  capture or finishing — owed or not): the step forgets the saved sent registration and goes
+  back to step 1, which keeps what was entered and asks for the form to be sent again (§7.1;
+  §15, DR-116).
 - On success the step stores the confirmation-step payload and navigates to the confirmation
   step. If the payment step data is missing and none is saved, it redirects back to step 1.
 
@@ -4749,6 +4765,26 @@ which is gone. Keep v1 frozen alongside v2 — it would keep deploying through A
 silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
 doesn't yet check out (#797); building from the checkout keeps server and frontend together.
+
+### DR-116 — A sent registration the server no longer has sends the registrant back to the form
+
+**Decision:** When a payment-step request names a registration the server doesn't have, the
+server answers 404 `{ detail, code: 'registration_not_found' }`, and the browser forgets the
+sent registration it saved and returns to step 1 with the form data and promo code kept, asking
+the registrant to send the form again (§7.1, §7.2). The browser acts on that code, and on any
+404 from those steps: apart from the registration, the only thing they look up is the event,
+and without it step 1 can't load either. It forgets the saved one only when it is the
+registration that wasn't found — another tab may have sent a new one since.
+**Context:** #769: the browser saves the sent registration and resumes it on a reload or
+"Continue to payment" without asking whether the server still has it. When an organizer had
+deleted it, or it had been purged as incomplete (DR-76), every payment button failed with
+Django's "No Registration matches the given query.", and only clearing the site's data by hand
+got the registrant out.
+**Alternatives:** Show the error with a "Start a new registration" action — leaves the registrant
+on a page that can't succeed, and starting over clears what they entered. Check that the
+registration exists before offering "Continue to payment" — an extra request on every visit to
+the form, and it still needs this handling for one deleted while the payment page is open. Key
+on the server's message — it's Django's default wording, not a contract.
 
 ---
 

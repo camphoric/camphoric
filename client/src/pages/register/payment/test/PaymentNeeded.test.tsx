@@ -8,6 +8,11 @@ import { renderWithProviders, screen } from 'test/utils';
 import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  getRegistrationStorageKey,
+  loadSentRegistration,
+  saveSentRegistration,
+} from '../../storage';
 import { PaymentNeeded } from '../PaymentNeeded';
 import { DEPOSIT_OPTIONS } from '../PaymentOptions/test/fixtures';
 
@@ -41,6 +46,8 @@ const config = makeRegisterConfig({
 
 vi.mock('store/registrationApi', async (importOriginal) => ({
   paymentProblem: (await importOriginal<typeof import('store/registrationApi')>()).paymentProblem,
+  registrationNotFound: (await importOriginal<typeof import('store/registrationApi')>())
+    .registrationNotFound,
   useRegistrationConfig: () => ({ data: config }),
   useSubmitPayment: () => ({ mutate: submitMutate, isPending: false }),
   useCreatePayPalOrder: () => createOrder,
@@ -235,6 +242,93 @@ describe('PaymentNeeded', () => {
       expect(screen.getByText(message)).toBeInTheDocument();
       expect(screen.getByText(/Pay \$512\.50 online/)).toBeInTheDocument();
       expect(screen.queryByText(/PayPal ran into a problem/)).toBeNull();
+    });
+  });
+
+  describe('when the server no longer has the registration (#769)', () => {
+    const storageKey = getRegistrationStorageKey(config);
+    const notFound = () =>
+      new ApiError(404, 'Not Found', {
+        code: 'registration_not_found',
+        detail: 'We couldn’t find your earlier registration. Please send the form again.',
+      });
+
+    beforeEach(() => {
+      localStorage.clear();
+      saveSentRegistration(storageKey, {
+        paymentStep,
+        formData: { campers: [{ first_name: 'Pat' }] },
+        promo: null,
+      });
+      useRegistrationStore.getState().resumeSent(loadSentRegistration(storageKey)!);
+    });
+
+    /** It forgot the saved registration and went back to step 1, keeping what was entered. */
+    function expectBackAtTheForm() {
+      expect(loadSentRegistration(storageKey)).toBeNull();
+      expect(navigate).toHaveBeenCalledWith(
+        expect.objectContaining({ to: '/events/$eventId/register/registration' }),
+      );
+      const state = useRegistrationStore.getState();
+      expect(state.sentNotFound).toBe(true);
+      expect(state.paymentStep).toBeUndefined();
+      expect(state.registration).toEqual({ campers: [{ first_name: 'Pat' }] });
+    }
+
+    it('pay by check goes back to the form', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      failWith(notFound());
+      await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+      expectBackAtTheForm();
+      expect(screen.queryByText(/couldn’t find/)).toBeNull();
+    });
+
+    it('a PayPal button does too, without a PayPal error', async () => {
+      const props = renderPage();
+      createOrder.mutateAsync.mockRejectedValue(notFound());
+      await act(async () => {
+        await props.createOrder('PayPal').catch(() => undefined);
+      });
+      act(() => props.onError?.(new Error('createOrder failed')));
+      expectBackAtTheForm();
+      expect(screen.queryByText(/PayPal ran into a problem/)).toBeNull();
+    });
+
+    it('so does a PayPal capture', () => {
+      const props = renderPage();
+      failWith(notFound());
+      act(() => props.onApprove('ORDER-1', 'PayPal'));
+      expectBackAtTheForm();
+      expect(screen.queryByText(/your payment didn’t go through/)).toBeNull();
+    });
+
+    it('keeps a registration another tab has sent since', async () => {
+      const user = userEvent.setup();
+      const since = { ...paymentStep, registrationUUID: 'uuid-2' };
+      saveSentRegistration(storageKey, {
+        paymentStep: since,
+        formData: { campers: [] },
+        promo: null,
+      });
+      renderPage();
+      failWith(notFound());
+      await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+      expect(loadSentRegistration(storageKey)?.paymentStep).toEqual(since);
+      expect(useRegistrationStore.getState().sentNotFound).toBe(true);
+    });
+
+    it('so does finishing, and any 404 from the server', async () => {
+      const user = userEvent.setup();
+      const props = renderPage();
+      createOrder.isSuccess = true;
+      act(() => props.onCancel!());
+      finishMutate.mockImplementation(
+        (_uuid: unknown, options: { onError: (e: unknown) => void }) =>
+          options.onError(new ApiError(404, 'Not Found', { detail: 'No Registration matches.' })),
+      );
+      await user.click(screen.getByRole('button', { name: 'Finish and pay later' }));
+      expectBackAtTheForm();
     });
   });
 

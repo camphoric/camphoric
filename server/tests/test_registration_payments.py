@@ -97,14 +97,36 @@ class OptionsTests(FlowTestCase):
         self.assertEqual(str(data['registrationUUID']), str(self.uuid))
 
     def test_the_payment_step_of_an_unknown_registration(self):
-        self.post(404, step='payment-step', registrationUUID='00000000-0000-0000-0000-000000000000')
-        self.post(404, step='payment-step', registrationUUID='nope')
+        for registration_uuid in ('00000000-0000-0000-0000-000000000000', 'nope'):
+            response = self.post(404, step='payment-step', registrationUUID=registration_uuid)
+            self.assertEqual(response.data['code'], 'registration_not_found')
 
     def test_the_payment_step_only_for_its_own_event(self):
         other = models.Event.objects.create(organization=self.event.organization, name='Other')
         response = self.client.post(f'/api/events/{other.id}/register', {
             'step': 'payment-step', 'registrationUUID': self.uuid}, format='json')
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data['code'], 'registration_not_found')
+
+    def test_every_step_says_when_the_registration_is_gone(self):
+        # An organizer deleted it, or it was purged as incomplete: the browser
+        # that saved it is told to send the form again (SPEC §7.1).
+        self.registration.soft_delete()
+        for data in (
+            {'step': 'payment-step'},
+            {'step': 'paypal-order', 'paymentOption': 'Full Payment', 'paymentType': 'PayPal'},
+            {'step': 'payment', 'paymentType': 'Check'},
+            {'step': 'payment', 'paymentType': 'PayPal', 'paypalOrderId': paypal_mocks.ORDER_ID},
+            {'step': 'finish'},
+        ):
+            response = self.post(404, registrationUUID=self.uuid, **data)
+            self.assertEqual(response.data, {
+                'detail': 'We couldn\'t find your earlier registration. Please send the form '
+                          'again.',
+                'code': 'registration_not_found',
+            }, data)
+            self.assertEqual(self.post(404, registrationUUID='nope', **data).data['code'],
+                             'registration_not_found', data)
 
     def test_an_out_of_date_page_is_asked_to_reload(self):
         self.post(409, step='payment', registrationUUID=self.uuid, paymentType='Check',

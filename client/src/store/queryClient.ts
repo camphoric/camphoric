@@ -6,12 +6,15 @@
  * A shared MutationCache surfaces mutation failures as notifications (DR-10).
  * Individual mutations opt out with `meta: { suppressErrorNotification: true }`,
  * or, for a save refused because someone else changed the record first,
- * `meta: { handlesVersionConflict: true }` (DR-109).
+ * `meta: { handlesVersionConflict: true }` (DR-109), or, for a registration step
+ * whose registration the server no longer has, `meta: { handlesRegistrationNotFound:
+ * true }` (§7.1).
  */
 
 import { notifications } from '@mantine/notifications';
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import type { TemplateDiagnostic } from 'api-types';
+import { registrationNotFound } from 'store/registrationApi';
 import { ApiError, versionConflict } from 'utils/fetch';
 
 /**
@@ -81,6 +84,7 @@ export const queryClient = new QueryClient({
       }
       if (mutation.meta?.suppressErrorNotification) return;
       if (mutation.meta?.handlesVersionConflict && versionConflict(error)) return;
+      if (mutation.meta?.handlesRegistrationNotFound && registrationNotFound(error)) return;
       notifications.show({
         color: 'red',
         title: 'Request failed',

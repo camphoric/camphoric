@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_
 
 import jsonschema
 from rest_framework import permissions, status
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
@@ -1193,6 +1193,19 @@ class InvitationRejected(APIException):
     default_code = 'invitation'
 
 
+class RegistrationNotFound(NotFound):
+    '''
+    A register step names a registration the server doesn't have: an organizer
+    deleted it, or it was purged as incomplete (DR-76). The `code` tells the
+    browser to forget the one it saved and send the form again (SPEC §7.1).
+    '''
+    def __init__(self):
+        super().__init__({
+            'detail': 'We couldn\'t find your earlier registration. Please send the form again.',
+            'code': 'registration_not_found',
+        })
+
+
 class EventList(APIView):
     permission_classes = [permissions.AllowAny]
     filterset_fields = ['organization']
@@ -1318,6 +1331,9 @@ class RegisterView(APIView):
           approved PayPal order.
         - `finish`: finish without paying now, after a PayPal attempt didn't go
           through.
+
+        A step after `registration` naming a registration the server doesn't have
+        is a 404 with the code `registration_not_found`.
         '''
         event = get_object_or_404(models.Event, id=event_id)
         step = request.data.get('step', 'registration')
@@ -1386,14 +1402,8 @@ class RegisterView(APIView):
 
     def post_payment_step(self, request, event):
         '''The registration's payment step as it is now (DR-105); 404 if it isn't this event's.'''
-        registration_uuid = request.data.get('registrationUUID')
-        if registration_uuid is None:
-            raise ValidationError({'registrationUUID': 'This field is required.'})
-        try:
-            registration_uuid = uuid.UUID(str(registration_uuid))
-        except ValueError:
-            raise Http404('No such registration.')
-        registration = get_object_or_404(models.Registration, uuid=registration_uuid, event=event)
+        registration = self.named_registration(
+            request, models.Registration.objects.filter(event=event))
         return Response(self.payment_step(registration))
 
     def payment_step(self, registration):
@@ -1428,16 +1438,27 @@ class RegisterView(APIView):
         return usable_promo_code(event, code, registration_type)
 
     @staticmethod
-    def locked_registration(request):
+    def named_registration(request, registrations):
         '''
-        The registration the request names, locked: a repeated or concurrent POST
-        (a retry, a double click) waits for the first, then sees what it did.
+        The registration the request's `registrationUUID` names, from
+        `registrations`; one that isn't there (or an id that isn't one) is
+        `registration_not_found`.
         '''
         registration_uuid = request.data.get('registrationUUID')
         if registration_uuid is None:
             raise ValidationError({'registrationUUID': 'This field is required.'})
-        return get_object_or_404(
-            models.Registration.objects.select_for_update(), uuid=registration_uuid)
+        try:
+            return registrations.get(uuid=uuid.UUID(str(registration_uuid)))
+        except (ValueError, models.Registration.DoesNotExist):
+            raise RegistrationNotFound()
+
+    @classmethod
+    def locked_registration(cls, request):
+        '''
+        The registration the request names, locked: a repeated or concurrent POST
+        (a retry, a double click) waits for the first, then sees what it did.
+        '''
+        return cls.named_registration(request, models.Registration.objects.select_for_update())
 
     @staticmethod
     def payment_type(request, event, online=None):

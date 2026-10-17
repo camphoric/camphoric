@@ -21,6 +21,9 @@
  *  - If they changed it since this page loaded, a payment button is refused
  *    (`invoice_changed`) with the payment step as it is now: the page takes it,
  *    so its options and amounts are the invoice's, and says why (DR-105).
+ *  - If the server no longer has the registration (deleted, or purged as
+ *    incomplete), any button forgets the one saved and goes back to step 1,
+ *    which keeps what was entered and says to send it again (§7.1).
  */
 
 import { Alert, Box, Button, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
@@ -31,6 +34,7 @@ import { useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import {
   paymentProblem,
+  registrationNotFound,
   useCreatePayPalOrder,
   useFinishRegistration,
   useRegistrationConfig,
@@ -38,6 +42,7 @@ import {
 } from 'store/registrationApi';
 import { formatMoney } from 'utils/money';
 
+import { useForgetSentRegistration } from '../useForgetSentRegistration';
 import { useReplacePaymentStep } from '../useReplacePaymentStep';
 import { PaymentNotFinished } from './PaymentNotFinished';
 import { PaymentOptions } from './PaymentOptions';
@@ -76,6 +81,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   // A PayPal order refused that way isn't also "PayPal ran into a problem".
   const refusedOrder = useRef(false);
   const replacePaymentStep = useReplacePaymentStep();
+  const forgetSentRegistration = useForgetSentRegistration();
 
   const clientId = config?.payPalOptions?.clientId as string | undefined;
 
@@ -84,8 +90,12 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     goToStep('finished');
   };
 
-  /** Show why a payment button was refused; true when it was a cancelled invoice. */
+  /** Show why a payment button was refused; true when the page has dealt with it otherwise. */
   const refused = (e: unknown) => {
+    if (registrationNotFound(e)) {
+      forgetSentRegistration(registrationUUID);
+      return true;
+    }
     const problem = paymentProblem(e);
     if (problem.code === 'cancelled') {
       setNotFinished({ reason: problem.message, invoiceCancelled: true });
@@ -141,6 +151,11 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         onSuccess: confirmed,
         onError: (e) => {
           setLoading(false);
+          // Gone before the capture: nothing was taken, and the form is sent again.
+          if (registrationNotFound(e)) {
+            forgetSentRegistration(registrationUUID);
+            return;
+          }
           const problem = paymentProblem(e);
           setNotFinished({ reason: problem.message, unknown: problem.code === 'unknown' });
         },
@@ -169,6 +184,9 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const finishNow = () =>
     finish.mutate(registrationUUID, {
       onSuccess: confirmed,
+      onError: (e) => {
+        if (registrationNotFound(e)) forgetSentRegistration(registrationUUID);
+      },
     });
 
   // Cancelled by the organizers: refused at a button, or already so when the
