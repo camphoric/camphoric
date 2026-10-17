@@ -18,11 +18,10 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
 The image is a blank slate: it boots with no events and never imports any (CI checks both), unlike
 the development environments, which import every camp into a fresh database. It needs no npm
 token: it doesn't include the event importer (`data/`). The importer's
-own `data` image (docker-compose.yml) gets the event-import packages from its npm workspaces, so
-it needs none either. Once events are installed from GitHub Packages instead, its build needs a
+own `data` image (docker-compose.yml) installs events from GitHub Packages, so its build needs a
 token, passed as the `npm_token` build secret from `CAMPHORIC_NPM_AUTH_TOKEN`
-(`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) docker compose build data`); see "A token for
-`data/`" in the [README](./README.md#a-token-for-data).
+(`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) docker compose build data`); without one the build
+stops and says so. See "A token for `data/`" in the [README](./README.md#a-token-for-data).
 
 The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL 16 (or newer) server.
 That's the version Camphoric is tested against; Django 6.1 itself needs 15 or newer.

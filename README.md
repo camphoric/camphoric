@@ -42,10 +42,12 @@ released on their own versions (see [RELEASE.md](./RELEASE.md)):
   the bulk-registration runner. It depends on no spec version.
 
 Their source is in [`data/packages/`](./data/packages). Within this repository the importer and
-the events use them as npm workspaces (from source), so **nothing here needs a token yet** — not
-local development, the `data` Docker image, the Vagrant VM or CI. You need one to install them
-anywhere else, such as an event's own repository, and `data/` will need one once it installs
-events from GitHub Packages (see [below](#a-token-for-data)).
+the events in `data/events/` use them as npm workspaces (from source). The camps that have moved to
+repositories of their own (`camphoric/camphoric-event-<name>`, such as
+[the Jughandle Campout](https://github.com/camphoric/camphoric-event-ltacampout)) are published
+there as `@camphoric/camphoric-event-<name>`, and `data/` installs them from GitHub Packages, so
+**installing `data/` needs a token** (see [below](#a-token-for-data)), as does installing any of
+these packages anywhere else.
 
 GitHub Packages needs a token to install **even public packages**:
 
@@ -114,8 +116,8 @@ GitHub Packages needs a token to install **even public packages**:
 
 ### A token for `data/`
 
-Once `data/` installs events from GitHub Packages, everything that runs its `npm ci` needs a token
-with `read:packages`. Each place is already wired up, and works without a token until then:
+`data/` installs events from GitHub Packages, so everything that runs its `npm ci` needs a token
+with `read:packages`:
 
 - **CI** (`data.yml`, `docker.yml`, `release-packages.yml`): the job's own `GITHUB_TOKEN`, with
   `packages: read`, as `NODE_AUTH_TOKEN` (the variable `actions/setup-node`'s npm config reads).

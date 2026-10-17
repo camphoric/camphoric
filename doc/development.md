@@ -145,7 +145,8 @@ event is its own package, ready to move to a repository of its own (#780):
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
-| `data/events/<name>` | `@camphoric/camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
+| `data/events/<name>` | `@camphoric/camphoric-event-<name>` | an event still developed here (`lark`, `harmony`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
+| (GitHub Packages) | `@camphoric/camphoric-event-<name>` | an event developed in a repository of its own, `camphoric/camphoric-event-<name>` (`ltacampout`), and installed from GitHub Packages by a caret range |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
@@ -201,9 +202,12 @@ works from either. The packed event is what its own repository will publish, les
 `camphoric-source` export (its source isn't packed, so that repository drops it). Each event's `index.ts` default export
 `satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
-still checks the schema with Ajv at runtime. After pulling a change to the workspaces, rebuild the
-`data` Docker image (`docker compose build data`) before `docker compose run --rm data import`.
-Once `data/` installs events from GitHub Packages, `npm ci` there needs a token with
+still checks the schema with Ajv at runtime. After pulling a change to the workspaces or to the
+events `data/` installs (such as an event moving to GitHub Packages), rebuild the `data` Docker
+image (`docker compose build data`) before `docker compose run --rm data import`, and start the
+stack with `docker compose up -d -V`: `-V` gives the `data` service a fresh `node_modules` volume,
+where an old one would still hold the previous install.
+`data/` installs events from GitHub Packages, so `npm ci` there needs a token with
 `read:packages`: in `~/.npmrc` on your machine, `CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token)
 docker compose build data` for the image, and `CAMPHORIC_NPM_AUTH_TOKEN` or the vault for the
 Vagrant VM. See "A token for `data/`" in the [README](../README.md#a-token-for-data).
