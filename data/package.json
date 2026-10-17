@@ -20,7 +20,7 @@
     "@camphoric/camphoric-event-harmony": "^1.0.0",
     "@camphoric/camphoric-event-import-spec": "*",
     "@camphoric/camphoric-event-import-tools": "*",
-    "@camphoric/camphoric-event-lark": "*",
+    "@camphoric/camphoric-event-lark": "^1.0.0",
     "@camphoric/camphoric-event-ltacampout": "^1.0.0",
     "@camphoric/camphoric-event-sample-camp": "*",
     "dotenv": "^18.0.4",
