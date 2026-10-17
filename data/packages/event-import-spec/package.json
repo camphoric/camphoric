@@ -1,6 +1,6 @@
 {
   "name": "@camphoric/camphoric-event-import-spec",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The contract a Camphoric event module satisfies: the event import object's TypeBox schema and types, its validator, and the shared conformance tests.",
   "license": "MIT",
   "repository": {
