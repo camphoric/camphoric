@@ -74,7 +74,7 @@ CONTAINER ID   IMAGE                COMMAND                  CREATED         STA
 9221cf257ca2   postgres:16-alpine   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:5434->5432/tcp             camphoric-postgres-1
 9e5b365574e6   camphoric-worker     "./manage.py camphor…"   6 minutes ago   Up 4 minutes                                                camphoric-worker-1
 df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   Up 4 minutes             0.0.0.0:8000->8000/tcp             camphoric-django-1
-1e66e583199e   camphoric-react      "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             0.0.0.0:3000-3001->3000-3001/tcp   camphoric-react-1
+1e66e583199e   node:22-bookworm     "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             0.0.0.0:3000-3001->3000-3001/tcp   camphoric-react-1
 ```
 
 Run the following command to get your secret key:
@@ -277,23 +277,16 @@ Go to [http://localhost:3000/](http://localhost:3000/)
 Frontend development process
 ----------------------------
 
-The frontend was created using [CRA](https://create-react-app.dev/), and will
-automatically reload when it detects edits.  The react server is running the
-[development server](https://create-react-app.dev/docs/available-scripts#npm-start).
-It doesn’t handle backend logic or databases; it just creates a frontend build
-pipeline.  Under the hood, it uses Babel and webpack, but you don’t need to
-know anything about them.
+The `react` service runs the frontend (`client_v2/`) on
+[Vite's dev server](https://vite.dev/guide/), which reloads when it detects edits
+and proxies `/api` to the `django` service. See
+[`client_v2/README.md`](../client_v2/README.md) for the frontend's own commands.
 
-If for some reason you need to restart the service you can run this command:
-
-```
-docker-compose restart react
-```
-
-If you need to do a full rebuild of the container, you can do this:
+The service installs its npm modules (`npm ci`) each time it starts, so after
+`client_v2/package.json` or its lockfile changes, restart it:
 
 ```
-docker-compose up -d --no-deps --build react
+docker compose restart react
 ```
 
 Server development process
@@ -376,12 +369,12 @@ the -d.
 ### Rebuilding only one service
 
 If you need to just rebuild one service (ex you're iterating on the
-docker-compose file or the client/package.json) you can use the `--no-deps`
+docker-compose file or the server's Pipfile) you can use the `--no-deps`
 flag and specify the service to rebuild a service individually.  Example of
-rebuilding only the web service:
+rebuilding only the django service:
 
 ```
-docker-compose up -d --no-deps --build react
+docker compose up -d --no-deps --build django
 ```
 
 Additional flags that may be handy here:

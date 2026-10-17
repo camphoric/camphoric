@@ -15,11 +15,6 @@
   tags: [camphoric_nginx, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_nginx.yml
 
-- name: Setup React development
-  tags: [camphoric_development, camphoric_install, camphoric_update, camphoric_reset]
-  include_tasks: setup_react_development.yml
-  when: camphoric_environment == 'development'
-
 - name: Import sample data
   tags: [camphoric_data, camphoric_install, camphoric_reset, camphoric_data_reset]
   include_tasks: import_sample_data.yml

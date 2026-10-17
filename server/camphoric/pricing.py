@@ -190,8 +190,7 @@ def calculate_price(registration, campers):
             camper components)
 
         This should produce identical results to `calculatePrice` in
-        client_v2/src/pricing/calculatePrice.ts (and the legacy
-        client/src/components/RegisterPage/utils.ts, which has no promo codes).
+        client_v2/src/pricing/calculatePrice.ts.
     '''
     results = defaultdict(int)
     results['campers'] = []

@@ -66,22 +66,22 @@ services:
       django:
         condition: service_started
 
+  # The frontend (client_v2/): Vite's dev server on :3000, proxying /api to django.
   react:
     env_file:
       - ./env/local/shared.env
       - ./env/local/react.env
     environment:
       VITE_API_PROXY: 'http://django:8000/'
-    build:
-      context: client
-      shm_size: '2gb'
+    image: node:22-bookworm
+    working_dir: /app
     volumes:
-      - ./client:/app
+      - ./client_v2:/app
       - /app/node_modules
     ports:
       - "3000:3000"
       - "3001:3001"
-    command: npm start
+    command: sh -c "npm ci && npm run dev"
 #   depends_on:
 #     django:
 #       condition: service_healthy

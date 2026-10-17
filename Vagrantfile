@@ -58,7 +58,7 @@ Vagrant.configure("2") do |config|
   # in the VM and npm on the host each have theirs.
   config.vm.provision "own-node-modules", type: "shell", run: "always", inline: <<~SHELL
     set -e
-    for dir in root client client_v2 data; do
+    for dir in root client_v2 data; do
       if [ "$dir" = root ]; then target=/vagrant/node_modules; else target=/vagrant/$dir/node_modules; fi
       own=/home/vagrant/node_modules/$dir
       mkdir -p "$own" "$target"

@@ -1,7 +1,7 @@
 # Check the v2 client (client_v2/) on every push/PR that touches it: types,
 # lint and the vitest unit suite, plus the Playwright end-to-end suite on
 # desktop and mobile browsers. (The production build itself runs inside the
-# image build in docker.yml; the v1 client, client/, is covered by react.yml.)
+# image build in docker.yml.)
 name: Client v2
 
 on:
