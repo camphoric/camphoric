@@ -100,18 +100,20 @@ docker-compose up -d --force-recreate --no-deps --build django
 
 The `postgres` service runs PostgreSQL 16. A `db` volume created by an older version (15) can't
 be opened by 16, and the service fails to start ("database files are incompatible with
-server"). Either start over with fresh sample data:
+server"). Either start over with fresh sample data (the stack imports it when it starts on an
+empty database):
 
 ```
 docker-compose down -v
 docker-compose up --build -d -V
-./reset-db
 ```
 
 or keep your data by dumping it with the old version first: before pulling this change, run
 `docker-compose exec postgres pg_dump -U camphoric camphoric > local.sql`; then, after
-`docker-compose down -v` and `docker-compose up -d`, restore it with
-`docker-compose exec -T postgres psql -U camphoric camphoric < local.sql`.
+`docker-compose down -v` and `docker-compose up -d --wait postgres` (the database alone, so
+nothing is created or imported before your data is back), restore it with
+`docker-compose exec -T postgres psql -U camphoric camphoric < local.sql`, and start the rest
+with `docker-compose up -d` (it finds your events, so imports nothing).
 
 ### Running the released image
 

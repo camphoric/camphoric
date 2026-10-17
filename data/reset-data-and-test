@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Stop the data service's own import (docker compose up starts one on a fresh
+# database), so it can't run alongside this one and create everything twice.
+# (Its node is PID 1, which ignores SIGTERM, so don't wait out the grace period;
+# -v removes its node_modules volume with it.)
+docker compose stop -t 1 data
+docker compose rm -fv data
+
 docker compose exec -T django python manage.py migrate
 docker compose exec -T django python manage.py flush --noinput
 docker compose exec -T django python manage.py createsuperuser --noinput
