@@ -147,9 +147,10 @@ components alongside the app:
 - **The app ignores package-only changes.** A commit that only touches `data/packages/` doesn't
   bump the app's version (`exclude-paths` in `release-please-config.json`); one that also touches
   anything else does. The app's tags stay `vX.Y.Z`.
-- **Merge the spec's release PR before the tools'.** The tools depend on the spec, so the
-  publish job refuses to publish a tools version whose spec range has no published version yet
-  (a release of both in one push publishes the spec first).
+- **Independent versions.** Neither package depends on the other once installed (the tools keep
+  their own copies of the two spec types they use, and a test keeps those identical), so their
+  release PRs can be merged in any order. In this repository, the importer, the events and the
+  tools use each other's workspace copies (`"*"`), whatever version a release gives them.
 - **Republishing.** To publish a released tag again (if the publish job failed), run
   `gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0`; a version
   that's already published is skipped, and one older than the newest published version doesn't
@@ -164,24 +165,19 @@ module, so its versions follow what an event module has to do:
 - **major** (`feat(data)!:`) — event modules must change to follow it (a field removed or now
   required, a type narrowed).
 
-The importer and the events in this repository depend on the spec by a caret range (`^1.0.0`);
-npm uses the workspace copy while its version satisfies that range. A spec major therefore takes
-two steps:
-
-1. The breaking PR updates the importer and the events, and widens every range on the spec to
-   cover both majors (`^1.0.0 || ^2.0.0`), so `npm ci` keeps working once the release PR moves
-   the spec to `2.0.0`.
-2. After that release, a follow-up narrows the ranges to `^2.0.0`, and adds a row to the table
-   below.
+A breaking change to the spec is made in one PR that also updates the importer and the events in
+this repository (which use the workspace copy), so `main` always holds a spec, an importer and
+events that work together. Event repositories (#780) then move to the new major on their own.
 
 ### Spec versions each Camphoric release supports
 
-The importer's range on the spec in `data/package.json` at a release's tag is the authoritative
-record. A new row is added with each spec major:
+A Camphoric release imports events written against the major of the spec in its tree
+(`data/packages/event-import-spec/package.json` at the release's tag); that file is the
+authoritative record. A new row is added with each spec major:
 
 | Camphoric release | Event import spec |
 | --- | --- |
-| the first release containing the published packages, and later | `^1.0.0` |
+| the first release containing the published packages, and later | `1.x` |
 
 ---
 

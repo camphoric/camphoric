@@ -23,8 +23,7 @@ import path from 'node:path';
 
 import dotenv from 'dotenv';
 
-import Fetcher from './CamphoricFetcher.ts';
-import type { Saved } from '@camphoric/camphoric-event-import-spec';
+import Fetcher, { type Saved } from './CamphoricFetcher.ts';
 
 // npm runs a workspace's script in that workspace, so read the .env from
 // where the command was run (INIT_CWD), such as data/.

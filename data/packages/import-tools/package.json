@@ -44,11 +44,11 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@camphoric/camphoric-event-import-spec": "^1.0.0",
     "dotenv": "^18.0.4",
     "inquirer": "^14.2.2"
   },
   "devDependencies": {
+    "@camphoric/camphoric-event-import-spec": "*",
     "@jest/globals": "^30.5.2",
     "@swc/core": "^1.16.13",
     "@swc/jest": "^0.2.39",

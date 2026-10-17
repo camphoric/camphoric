@@ -1,5 +1,12 @@
-import type { FetchMethod } from '@camphoric/camphoric-event-import-spec';
 import { getAuthToken } from './getAuthInfo.ts';
+
+// The same as the spec's FetchMethod and Saved (a test in the importer keeps
+// them so), kept here so these tools depend on no particular spec version.
+
+export type FetchMethod = 'POST' | 'GET' | 'PUT' | 'PATCH' | 'DELETE';
+
+/** A record the server saved, as it returned it. */
+export type Saved = { id: number } & Record<string, unknown>;
 
 const tryFetchAgainAfterMs = 2000;
 const tryFetchAgainOnTheseErrors = ['ECONNRESET', 'UND_ERR_SOCKET'];
