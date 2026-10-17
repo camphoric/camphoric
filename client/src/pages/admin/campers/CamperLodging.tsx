@@ -4,7 +4,7 @@
  * with the camper (§15, DR-103) — the unit's notes, and the other campers in
  * that unit with their stays, each opening that camper; plus a way to the
  * lodging screen with this camper selected. Placing campers happens there
- * (§8.6), so a camper not yet placed has no days to set.
+ * (§8.6), so a camper not in a leaf unit has no days to set.
  */
 
 import { Anchor, Button, Group, Stack, Text } from '@mantine/core';

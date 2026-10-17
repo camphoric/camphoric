@@ -3,7 +3,10 @@
  * placed and for which days, the unit's notes, and who else is in that unit.
  * A camper counts as placed only in a leaf unit (as on the lodging screen,
  * §8.6), so one on a non-leaf node — where registration leaves the lodging
- * they asked for — reads as unassigned.
+ * they asked for — reads as unassigned. One in a leaf with no days in their stay
+ * (as registration leaves a "Let registrar assign" choice) still shows that
+ * unit, with no days ticked: the lodging screen lists them as unassigned until
+ * they have days (§8.6), and ticking some here places them.
  */
 
 import type { ApiCamper, LodgingLookup } from 'api-types';

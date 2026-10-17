@@ -4,7 +4,8 @@
  * ("Camp 1 → Cabin"), with the sections and the units in them sorted by name.
  * Each assigned camper is a bar spanning their stay, offset by half a day
  * (campers arrive midday of their first day and depart midday of the day after
- * their last). Unassigned campers sit in a sidebar and are dragged
+ * their last). Unassigned campers — those with no bar: not in a leaf unit, or in
+ * one with none of the event's days (`isUnassigned`) — sit in a sidebar and are dragged
  * into a leaf×day cell; bars are dragged between cells (preserving duration) and
  * resized from the right edge to change the stay length; dragging a bar back to
  * the sidebar unassigns. Clicking a camper selects them (their details show
@@ -61,6 +62,7 @@ import { camperName } from 'utils/camper';
 import { LodgingNameButton, NotesMarker } from './LodgingNameButton';
 import {
   dayLabel,
+  hasStayDays,
   leafSections,
   leavesUnder,
   lodgingPathLabel,
@@ -482,7 +484,10 @@ const LeafRow = memo(function LeafRow({
   isSelected: boolean;
   onSelectLodging?: (lodgingId: number) => void;
 }) {
-  const rowHeight = ROW_PAD * 2 + Math.max(1, leaf.campers.length) * (BAR_HEIGHT + BAR_GAP);
+  // A camper with no days in the event has no bar: they're in the sidebar (and
+  // a draggable there), though they still count toward the unit.
+  const placed = leaf.campers.filter((c) => hasStayDays(c.stay, days));
+  const rowHeight = ROW_PAD * 2 + Math.max(1, placed.length) * (BAR_HEIGHT + BAR_GAP);
   const stayDayCount = stayableDays(days).length;
 
   return (
@@ -521,7 +526,7 @@ const LeafRow = memo(function LeafRow({
           dayWidth={dayWidth}
           pointerX={pointerX}
         />
-        {leaf.campers.map((c, row) => (
+        {placed.map((c, row) => (
           <CamperBar
             key={c.id}
             camper={c}

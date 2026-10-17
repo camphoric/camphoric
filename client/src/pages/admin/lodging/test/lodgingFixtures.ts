@@ -5,7 +5,9 @@
  * Some siblings are out of name order, as they come from the API in id order.
  */
 
-import type { ApiCamper, AugmentedLodging } from 'api-types';
+import type { ApiCamper, AugmentedLodging, LodgingLookup } from 'api-types';
+
+import { isUnassigned } from '../timelineUtils';
 
 export const DAYS = ['2026-10-16', '2026-10-17', '2026-10-18', '2026-10-19'];
 
@@ -88,18 +90,23 @@ export const CAMPERS: ApiCamper[] = [
   camper(5, 'Malcolm', 'Reynolds', null, null),
   // Registration leaves a camper on the node they requested, often a branch: still unassigned.
   camper(6, 'River', 'Tam', 3, null),
+  // Or a unit with no sub-units (as Lark's "Let registrar assign"), with no days: unassigned too,
+  // though they count toward the unit.
+  camper(8, 'Inara', 'Serra', 13, null),
 ];
 
-/** The leaves with the given campers placed in them (counts included). */
+/** The leaves with the given campers in them (counts included), days placed or not. */
 export const leavesWith = (campers: ApiCamper[]): AugmentedLodging[] =>
   LEAVES.map((leaf) => {
     const assigned = campers.filter((c) => c.lodging === leaf.id);
     return { ...leaf, campers: assigned, count: assigned.length };
   });
 
-/** The campers not placed in a leaf. */
+const LOOKUP: LodgingLookup = Object.fromEntries(FILTER_NODES.map((n) => [n.id, n]));
+
+/** The campers not placed in a leaf with days in the event (SPEC §8.6). */
 export const unassignedIn = (campers: ApiCamper[]): ApiCamper[] =>
-  campers.filter((c) => !LEAVES.some((leaf) => leaf.id === c.lodging));
+  campers.filter((c) => isUnassigned(c, LOOKUP, DAYS));
 
 /** The whole tree with the given campers placed, each node's count summing its units'. */
 export function treeWith(campers: ApiCamper[], node: AugmentedLodging = ROOT): AugmentedLodging {
