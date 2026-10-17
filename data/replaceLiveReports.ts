@@ -92,6 +92,11 @@ export function describePlan(plan: ReplacementPlan, { fromEventId, toEventId }: 
   ];
 }
 
+// CamphoricFetcher names the response's status only in its error's message
+const isNotFound = (error: unknown): boolean => (
+  error instanceof Error && error.message === 'server responded 404'
+);
+
 const reportNames = (reports: { id: number, title: string }[]): string => reports
   .map(r => `${r.id} '${r.title}'`)
   .join(', ');
@@ -131,11 +136,14 @@ export async function replaceReports(
       created.push({ id: saved.id, title });
       log(`copied ${report.id} '${title}' to ${saved.id}`);
     } catch (e) {
+      // A failed request doesn't prove nothing was saved (a 502 from a proxy
+      // after the server committed, say). Running again settles it either way,
+      // since a replacement deletes every report the target event had.
       throw new Error(
         `failed to copy report ${report.id} '${title}', so nothing was deleted. `
-        + (created.length
-          ? `Delete the copies already made to clean up: ${reportNames(created)}`
-          : 'No copies were made.'),
+        + `Copies made: ${created.length ? reportNames(created) : 'none'}, `
+        + 'and the failed copy may have been saved too. Running the replacement again '
+        + `replaces them all, since it deletes every report event ${toEventId} has once its copies are saved.`,
         { cause: e },
       );
     }
@@ -149,6 +157,12 @@ export async function replaceReports(
       await fetcher.fetch('DELETE', `/api/reports/${report.id}/`);
       log(`deleted ${report.id} '${report.title}'`);
     } catch (error) {
+      // Gone already: as when the fetcher retries a DELETE whose first try
+      // went through before the connection dropped
+      if (isNotFound(error)) {
+        log(`${report.id} '${report.title}' was already deleted`);
+        continue;
+      }
       notDeleted.push({ report, error });
     }
   }
