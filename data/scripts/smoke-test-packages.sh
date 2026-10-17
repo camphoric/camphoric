@@ -111,8 +111,10 @@ export const config = defineEventE2EConfig({ globalSetup: './e2e/global-setup.ts
 export const setup = setUpEvent({ event, validate: validateEventImport });
 test('the form opens', async ({ registration }) => {
   await registration.open();
-  const [lodging] = await registration.camper(1).chooseLodging('Cabins');
+  const camper = registration.camper(1);
+  const [lodging] = await camper.chooseLodging('Cabins');
   expect(lodging).toContain('Cabins');
+  await expect(camper.lodgingLevels()).toHaveCount(2);
   await registration.expectTotal(100);
 });
 TS
