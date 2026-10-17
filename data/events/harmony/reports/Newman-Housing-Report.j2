@@ -1,9 +1,0 @@
-building,room,last name, first name,{% for night in event.nights %}{{ night | date('%a') }},{% endfor %}
-{% for cat in lodgings | sort(attribute="name") if cat.parent and cat.parent.id == lodging.id -%}
-  {%- for spot in lodgings | sort(attribute="name") if spot.is_leaf and cat.name in spot.path_names -%}
-      {%- for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") if camper.lodging and camper.lodging.id == spot.id -%}
-          "{{ cat.name }}","{{ spot.name }}","{{camper.attributes.last_name}}","{{camper.attributes.first_name}}",
-          {%- for night in event.nights -%}{{ 'X,' if camper.stay and night in camper.stay else ',' }}{%- endfor %}
-{% endfor -%}
-  {%- endfor -%}
-{%- endfor %}

@@ -1,5 +1,0 @@
-Name,Emergency Contact,Phone
-{% for camper in campers | sort(attribute="attributes.last_name,attributes.first_name") -%}
-{%- set contact = camper.attributes.emergency_contact or {} -%}
-"{{camper.attributes.last_name}}, {{camper.attributes.first_name}}","{{contact.name}}","{{contact.phone}}"
-{% endfor -%}
