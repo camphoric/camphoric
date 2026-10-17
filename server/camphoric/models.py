@@ -518,6 +518,9 @@ class Registration(TimeStampedModel):
         # Tags audit entries for the registration's history (camphoric.audit).
         return {'registration': self.id}
 
+    def save_without_recalc(self, **kwargs):
+        super().save(**kwargs)
+
     def save(self, **kwargs):
         super().save(**kwargs)
         self.recalculate_server_pricing()
