@@ -17,6 +17,9 @@ build phase:
   (currently bare `Hash`); consider `ForeignKey = number` instead of `Scalar` for read-only PKs.
 - **vite/tsconfig `pricing` alias asymmetry** — tsconfig has both `pricing` and `pricing/*`;
   vite has only the dir mapping. Align them.
+- **Legacy registration storage key** — `storage.ts` still reads (and clears) data saved under
+  the key without the event id, and `RegistrationStep` checks a sent registration found there
+  with `useCheckSentRegistration`. Remove both once that data has aged out (after a season).
 
 Intentionally left as-is: `PricingResults` open index signature (load-bearing for dynamic
 subtotals), the `Campers` template-injection block (intricate but correct — document, don't

@@ -132,6 +132,26 @@ export function useRefreshPaymentStep(eventId: string) {
   });
 }
 
+/**
+ * The same `payment-step` request, to check that a registration belongs to this
+ * event (the server answers 404 for another event's): a sent registration saved
+ * under the legacy storage key may be another event's (§7.1). A refusal is
+ * expected, so there's no error notification.
+ */
+export function useCheckSentRegistration(eventId: string) {
+  return useMutation({
+    mutationFn: (registrationUUID: string) =>
+      apiFetch<ApiRegisterPaymentStep>(registerUrl(eventId), {
+        method: 'POST',
+        body: { step: 'payment-step', registrationUUID },
+      }),
+    // A 404 is the answer; anything else may pass, so try again.
+    retry: (failures, error) =>
+      !(error instanceof ApiError && error.status === 404) && failures < 3,
+    meta: { suppressErrorNotification: true },
+  });
+}
+
 /** Finish without paying now, after a PayPal attempt didn't go through. */
 export function useFinishRegistration(eventId: string) {
   return useMutation({

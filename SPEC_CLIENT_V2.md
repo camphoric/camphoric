@@ -1018,11 +1018,21 @@ Before any step renders, the app loads the registration config (`GET …/registe
   data to localStorage (debounced). The running price total is shown and updates live as the
   form changes, with a progress indication while it recalculates.
 - **Local persistence:** form data is saved to localStorage under a key derived from the
-  event id, the schema title and the event start date, so two events never share saved data.
+  event id, the schema title and the event start date, so two events don't share data saved
+  under it.
   Every read and write of it tolerates storage being unavailable (site data blocked), losing
   only the persistence, never the page. On mount the step rehydrates from localStorage (if
   present) and recomputes the price. After successful submission/confirmation the stored data
   is cleared (unless a `KEEP_REG_DATA` localStorage flag is set, used for debugging).
+- **Data saved under the earlier key:** data saved before the key carried the event id sits
+  under the title-and-date key alone, which events with the same title and dates shared. Saved
+  form data falls back to it when the event's own key has none, and moves to the event's key
+  once read. A sent registration saved under it is offered (see *Already sent*) only after the
+  server's `payment-step` answer for this event confirms the registration is this event's (a
+  failure other than "not found" is retried); it then moves to the event's key with that
+  payment step. While that check is in flight the form can't be sent. Clearing the saved data
+  (confirmation, starting over) clears the earlier key's form data too, and its sent
+  registration only when it is the same registration.
 - **Validation:** switches to live validation after the first failed submit. On error it
   surfaces the validation problems prominently — in a list at the top of the form and under
   each affected field — and takes the registrant to the first problem: the first field *on the
