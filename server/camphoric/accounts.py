@@ -4,7 +4,7 @@ User accounts and passwords (SPEC §6, DR-52).
 - A set-password link lets someone choose their password: emailed to a new
   user, or to anyone who asks to reset theirs. It's Django's password-reset
   token, so it stops working once the password changes, the user signs in, or
-  PASSWORD_RESET_TIMEOUT passes.
+  PASSWORD_RESET_TIMEOUT passes — and, here, once their Django access changes.
 - A superuser can set a password for someone and require them to change it at
   their next sign-in; until they do, the API refuses everything but changing it
   (camphoric.permissions).
@@ -14,13 +14,13 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
-from camphoric import models
+from camphoric import models, roles
 from camphoric.mail import outbox
 from camphoric.templating.urls import admin_url
 
@@ -62,13 +62,30 @@ def set_password(user, password, *, must_change=False):
 
 # --- Set-password links -----------------------------------------------------------
 
+class SetPasswordTokenGenerator(PasswordResetTokenGenerator):
+    '''
+    Django's password-reset token, which also stops working when the user's
+    Django access changes (SPEC DR-116): a link an Admin made for someone
+    mustn't open their account once a superuser has promoted them. A regular
+    user's token is exactly Django's, so links already sent keep working.
+    '''
+
+    def _make_hash_value(self, user, timestamp):
+        value = super()._make_hash_value(user, timestamp)
+        access = roles.django_access_of(user)
+        return value if access == roles.REGULAR else f'{value}{access}'
+
+
+token_generator = SetPasswordTokenGenerator()
+
+
 def password_link(user, request=None, base=None):
     '''
     The set-password page for this user, or '' when there's no public address to
     link to (no CAMPHORIC_PUBLIC_URL, no request and no `base`).
     '''
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    path = f'/account/set-password/{uid}/{default_token_generator.make_token(user)}'
+    path = f'/account/set-password/{uid}/{token_generator.make_token(user)}'
     if base:
         return f'{base.rstrip("/")}{path}'
     return admin_url(path, request)
@@ -85,7 +102,7 @@ def user_from_link(uidb64, token):
         user = get_user_model().objects.get(pk=user_id)
     except (TypeError, ValueError, OverflowError, get_user_model().DoesNotExist):
         return None
-    if not user.is_active or not default_token_generator.check_token(user, token):
+    if not user.is_active or not token_generator.check_token(user, token):
         return None
     return user
 

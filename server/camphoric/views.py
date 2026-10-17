@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.core import signing
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_
 
 import jsonschema
 from rest_framework import permissions, status
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
@@ -574,6 +574,12 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
         if roles.role_of(self.request.user) != roles.ADMIN:
             # Account email holds live set-password links (SPEC DR-52).
             messages = messages.exclude(kind=models.EmailMessageKind.ACCOUNT)
+        elif not self.request.user.is_superuser:
+            # The link to a user with Django access would hand an Admin their account.
+            with_django_access = User.objects.filter(
+                Q(is_superuser=True) | Q(is_staff=True), email__iexact=OuterRef('to'))
+            messages = messages.exclude(
+                Exists(with_django_access), kind=models.EmailMessageKind.ACCOUNT)
         search = self.request.query_params.get('q', '').strip()
         if search:
             messages = messages.filter(Q(to__icontains=search) | Q(subject__icontains=search))
@@ -999,11 +1005,32 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     '''
     User management: Admins only, and a 404 for everyone else (SPEC DR-50,
     DR-52). Setting someone's password directly is for superusers only.
+
+    Only a superuser may change, delete, or get a set-password link for a user
+    with Django access (staff or superuser): anyone else gets a 404, as user
+    management does for what a caller may not reach. Otherwise an Admin could
+    take over their account — and with it Django's admin, and for a superuser
+    the database.
     '''
     queryset = User.objects.all().order_by('username')
     serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
     delete_permission_classes = [IsAdmin]
+    # What only a superuser may do to a user with Django access. Admins still
+    # see them (the list, their history).
+    ACCOUNT_TAKEOVER_ACTIONS = frozenset({
+        'update', 'partial_update', 'destroy', 'delete_preview',
+        'send_password_link', 'password_link',
+    })
+
+    def get_object(self):
+        user = super().get_object()
+        if self.action in self.ACCOUNT_TAKEOVER_ACTIONS and \
+                not self.request.user.is_superuser and \
+                roles.django_access_of(user) != roles.REGULAR:
+            # The list already shows them, so saying why gives nothing away.
+            raise NotFound('Only a superuser can manage this account.')
+        return user
 
     def delete_checks(self):
         return (partial(deletes.not_yourself, self.request.user),)

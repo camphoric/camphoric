@@ -7,6 +7,7 @@ links, and superuser-set passwords.
 import re
 
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -164,6 +165,120 @@ class HiddenTests(UsersApiTestCase):
         self.assertEqual(self.client.get('/api/emailmessages/').data['count'], 0)
         self.as_user(self.boss)
         self.assertEqual(self.client.get('/api/emailmessages/').data['count'], 1)
+
+
+class DjangoAccessAccountTests(UsersApiTestCase):
+    '''
+    Only superusers change a user with Django access (staff or superuser) or
+    get a link for one (#794).
+    '''
+
+    def setUp(self):
+        super().setUp()
+        self.other = User.objects.create_superuser('other', 'other@example.com', 'password')
+        self.dev = make_user(roles.REGISTRAR, 'dev', django_access=roles.STAFF)
+
+    def refusals(self, target):
+        url = f'/api/users/{target.id}/'
+        return {
+            'PATCH email': lambda: self.client.patch(
+                url, {'email': 'boss2@example.com'}, format='json'),
+            'PATCH deactivate': lambda: self.client.patch(
+                url, {'is_active': False}, format='json'),
+            'PUT': lambda: self.client.put(
+                url, {'username': target.username, 'email': 'boss2@example.com',
+                      'role': 'admin'}, format='json'),
+            'DELETE': lambda: self.client.delete(url),
+            'delete-preview': lambda: self.client.get(f'{url}delete-preview/'),
+            'send-password-link': lambda: self.client.post(f'{url}send-password-link/'),
+            'password-link': lambda: self.client.post(f'{url}password-link/'),
+        }
+
+    def test_admins_cant_change_delete_or_get_links_for_them(self):
+        self.as_user(self.boss)
+        for target in (self.root, self.dev):
+            for name, request in self.refusals(target).items():
+                with self.subTest(target=target.username, request=name):
+                    response = request()
+                    self.assertEqual(response.status_code, 404)
+                    self.assertEqual(response.data['detail'],
+                                     'Only a superuser can manage this account.')
+            target.refresh_from_db()
+            self.assertEqual((target.email, target.is_active),
+                             (f'{target.username}@example.com', True))
+        self.assertEqual(mail.outbox, [])
+        self.assertFalse(models.EmailMessage.objects.exists())
+
+    def test_admins_still_see_them(self):
+        self.as_user(self.boss)
+        usernames = [user['username'] for user in self.client.get('/api/users/').data]
+        for target in (self.root, self.dev):
+            self.assertIn(target.username, usernames)
+            self.assertEqual(self.client.get(f'/api/users/{target.id}/').status_code, 200)
+            self.assertEqual(
+                self.client.get(f'/api/users/{target.id}/history/').status_code, 200)
+
+    def test_superusers_manage_them(self):
+        self.as_user(self.root)
+        for target in (self.other, self.dev):
+            with self.subTest(target=target.username):
+                url = f'/api/users/{target.id}/'
+                response = self.client.patch(url, {'first_name': 'Other'}, format='json')
+                self.assertEqual(response.status_code, 200, response.data)
+                self.assertEqual(self.client.post(f'{url}password-link/').status_code, 200)
+                self.assertEqual(
+                    self.client.post(f'{url}send-password-link/').status_code, 202)
+                self.assertEqual(self.client.get(f'{url}delete-preview/').status_code, 200)
+                self.assertEqual(self.client.delete(url).status_code, 204)
+                self.assertFalse(User.objects.filter(id=target.id).exists())
+
+    def test_a_link_stops_working_when_a_superuser_gives_django_access(self):
+        for access in (roles.STAFF, roles.SUPERUSER):
+            with self.subTest(access=access):
+                pat = make_user(roles.ADMIN, f'pat-{access}')
+                self.as_user(self.boss)
+                url = self.client.post(f'/api/users/{pat.id}/password-link/').data['url']
+                uid, token = re.search(
+                    r'/account/set-password/([^/]+)/([^/]+)$', url).groups()
+                self.as_user(self.root)
+                response = self.client.patch(
+                    f'/api/users/{pat.id}/', {'django_access': access}, format='json')
+                self.assertEqual(response.status_code, 200, response.data)
+                self.client.force_authenticate(user=None)
+                self.assertEqual(
+                    self.client.get(f'/api/password-reset/{uid}/{token}').status_code, 400)
+                response = self.client.post(f'/api/password-reset/{uid}/{token}',
+                                            {'new_password': GOOD_PASSWORD}, format='json')
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(User.objects.get(id=pat.id).check_password(GOOD_PASSWORD))
+
+    def test_a_regular_users_link_is_djangos_own(self):
+        # So links sent before links checked Django access still work.
+        pat = make_user(roles.REPORTER, 'pat')
+        self.assertTrue(accounts.token_generator.check_token(
+            pat, default_token_generator.make_token(pat)))
+        for user in (self.root, self.dev):
+            self.assertFalse(accounts.token_generator.check_token(
+                user, default_token_generator.make_token(user)))
+
+    def test_their_account_email_is_hidden_from_admins(self):
+        pat = make_user(roles.REPORTER, 'pat')
+        for user in (pat, self.root, self.dev):
+            accounts.send_password_link(user, base='https://reg.example.org')
+        hidden = list(models.EmailMessage.objects.exclude(to='pat@example.com'))
+        self.assertEqual(len(hidden), 2)
+        self.as_user(self.boss)
+        listed = self.client.get('/api/emailmessages/').data
+        self.assertEqual([message['to'] for message in listed['results']],
+                         ['pat@example.com'])
+        for message in hidden:
+            self.assertEqual(
+                self.client.get(f'/api/emailmessages/{message.id}/').status_code, 404)
+        self.as_user(self.root)
+        self.assertEqual(self.client.get('/api/emailmessages/').data['count'], 3)
+        for message in hidden:
+            self.assertEqual(
+                self.client.get(f'/api/emailmessages/{message.id}/').status_code, 200)
 
 
 class LinkTests(UsersApiTestCase):
