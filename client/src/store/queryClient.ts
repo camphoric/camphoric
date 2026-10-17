@@ -9,8 +9,8 @@
  * `meta: { handlesVersionConflict: true }` (DR-109).
  *
  * A 401 means the admin's session has lapsed: rather than report it, both caches
- * re-check who's signed in, so the auth guard asks them to sign in again in place,
- * at the same URL (SPEC §6, DR-9).
+ * re-check who's signed in, so the auth guard asks them to sign in again without
+ * navigating away from the URL (SPEC §6, DR-9).
  */
 
 import { notifications } from '@mantine/notifications';
@@ -71,28 +71,30 @@ function passwordChangeRequired(error: unknown) {
 // Mirrors hooks/auth WHOAMI_KEY (importing it here would pull hooks into the store).
 const WHOAMI = ['WhoAmI'];
 
-const signedIn = (user: ApiUser | undefined) => !!user && user.username !== '';
+/** Whether the cached whoami answer has someone signed in. */
+const signedIn = () => {
+  const user = queryClient.getQueryData<ApiUser>(WHOAMI);
+  return !!user && user.username !== '';
+};
 
 /**
- * A 401 while the admin is signed in: the session has lapsed (DR-9). Only the
- * admin's auth guard watches who's signed in, so a 401 in the anonymous
- * registration flow, or for a visitor already at the sign-in form, never counts.
+ * A 401 in the admin: the session has lapsed (DR-9). Only the admin's auth guard
+ * watches who's signed in, so a 401 in the anonymous registration flow never counts.
  */
 function sessionLapsed(error: unknown): boolean {
   if (!(error instanceof ApiError) || error.status !== 401) return false;
-  const whoami = queryClient.getQueryCache().find<ApiUser>({ queryKey: WHOAMI, exact: true });
-  return !!whoami?.isActive() && signedIn(whoami.state.data);
+  return !!queryClient.getQueryCache().find({ queryKey: WHOAMI, exact: true })?.isActive();
 }
 
 /**
  * Re-check who's signed in, as the session monitor does (DR-26). When the session
- * is gone the guard shows the sign-in form in place, without navigating, so the
- * attempted URL is kept. Resolves to whether someone is still signed in.
+ * is gone the guard shows the sign-in form, without navigating, so the attempted
+ * URL is kept. Resolves to whether someone is still signed in.
  */
 async function recheckSession(): Promise<boolean> {
   // Several requests can fail together: share the check in flight, don't restart it.
   await queryClient.invalidateQueries({ queryKey: WHOAMI, exact: true }, { cancelRefetch: false });
-  return signedIn(queryClient.getQueryData<ApiUser>(WHOAMI));
+  return signedIn();
 }
 
 function reportFailure(error: unknown, meta: Record<string, unknown> | undefined) {
@@ -110,8 +112,9 @@ export const queryClient = new QueryClient({
     onError: (error, query) => {
       if (passwordChangeRequired(error)) {
         void queryClient.invalidateQueries({ queryKey: WHOAMI });
-      } else if (sessionLapsed(error) && query.queryHash !== hashKey(WHOAMI)) {
-        // (Never for the whoami check itself: re-checking it would loop.)
+      } else if (sessionLapsed(error) && query.queryHash !== hashKey(WHOAMI) && signedIn()) {
+        // (Never for the whoami check itself: re-checking it would loop. Nor once
+        // the check has already found them signed out.)
         void recheckSession();
       }
     },
@@ -123,10 +126,14 @@ export const queryClient = new QueryClient({
         return;
       }
       if (sessionLapsed(error)) {
-        // The sign-in form replaces the toast, unless the server says they're still signed in.
-        void recheckSession().then((still) => {
-          if (still) reportFailure(error, mutation.meta);
-        });
+        // The sign-in form takes the toast's place, unless the server says they're
+        // still signed in. When an earlier check already found them signed out, the
+        // form is showing: there's nothing to re-check or report.
+        if (signedIn()) {
+          void recheckSession().then((still) => {
+            if (still) reportFailure(error, mutation.meta);
+          });
+        }
         return;
       }
       reportFailure(error, mutation.meta);

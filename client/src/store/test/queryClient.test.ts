@@ -139,6 +139,30 @@ describe('a lapsed session (DR-9)', () => {
     expect(notifications.show).not.toHaveBeenCalled();
   });
 
+  it('stays quiet when an earlier check already found them signed out', async () => {
+    const whoami = vi.fn(() => Promise.resolve(anonymousUser));
+    signedInAdmin(whoami);
+    let refuse: (error: Error) => void = () => {};
+    const save = queryClient
+      .getMutationCache()
+      .build(queryClient, {
+        mutationFn: () => new Promise((_resolve, reject) => (refuse = reject)),
+        retry: false,
+      })
+      .execute(undefined)
+      .catch(() => undefined);
+
+    // The session monitor's check lands while the save is still in flight.
+    await queryClient.invalidateQueries({ queryKey: WHOAMI });
+    expect(queryClient.getQueryData(WHOAMI)).toEqual(anonymousUser);
+    refuse(unauthorized());
+    await save;
+    await settle();
+
+    expect(notifications.show).not.toHaveBeenCalled();
+    expect(whoami).toHaveBeenCalledTimes(1);
+  });
+
   it('asks who is signed in when a query is refused', async () => {
     const whoami = vi.fn(() => Promise.resolve(anonymousUser));
     signedInAdmin(whoami);
