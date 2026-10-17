@@ -3,6 +3,30 @@ import jest from 'eslint-plugin-jest';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// The isolation rule each event's own eslint.config.js has, applied here too,
+// since linting from data/ uses only this config: an event imports only its
+// own files (no relative import climbs out of events/<name>, from a file
+// `depth` folders down), the spec and import-tools.
+const MESSAGE = 'An event package imports only its own files, camphoric-event-import-spec and camphoric-event-import-tools.';
+const eventIsolation = (depth) => ({
+  files: [['events', '*', ...Array(depth).fill('*'), '*.ts'].join('/')],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        { group: [`${'../'.repeat(depth + 1)}*`], message: MESSAGE },
+        {
+          group: [
+            'camphoric-event-*',
+            '!camphoric-event-import-spec', '!camphoric-event-import-spec/*',
+            '!camphoric-event-import-tools', '!camphoric-event-import-tools/*',
+          ],
+          message: MESSAGE,
+        },
+      ],
+    }],
+  },
+});
+
 export default tseslint.config(
   { ignores: ['node_modules/'] },
   js.configs.recommended,
@@ -21,6 +45,7 @@ export default tseslint.config(
       'no-duplicate-imports': 'error',
     },
   },
+  ...[0, 1, 2, 3, 4].map(eventIsolation),
   {
     // pasted into a browser console, not run by node
     files: ['snippetToReplaceLodgingTree.js'],

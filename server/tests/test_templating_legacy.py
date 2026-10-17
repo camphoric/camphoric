@@ -1,5 +1,5 @@
 '''
-The legacy reports under data/ still work in the sandboxed legacy environment
+The legacy reports under data/events/ still work in the sandboxed legacy environment
 (DR-37): every one parses, and each renders exactly as it did in the old,
 unsandboxed environment against the same (small) set of posted variables.
 '''
@@ -16,7 +16,8 @@ from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.filters import regex_replace
 
 DATA_DIR = Path(settings.BASE_DIR).parent / 'data'
-REPORTS = sorted(DATA_DIR.glob('*/reports/*.j2'))
+EVENTS_DIR = DATA_DIR / 'events'
+REPORTS = sorted(EVENTS_DIR.glob('*/reports/*.j2'))
 
 
 def old_environment():
@@ -62,7 +63,15 @@ def outcome(env, source):
         return ('error', type(exc).__name__)
 
 
-@unittest.skipUnless(REPORTS, 'data/ reports not available')
+@unittest.skipUnless(EVENTS_DIR.is_dir(), 'data/events/ not available')
+class LegacyReportsFoundTests(SimpleTestCase):
+    def test_the_event_reports_are_found(self):
+        # The tests below skip without reports, so a move of the event packages
+        # must not quietly turn them off.
+        self.assertTrue(REPORTS, f'no reports match {EVENTS_DIR}/*/reports/*.j2')
+
+
+@unittest.skipUnless(REPORTS, 'data/events/ reports not available')
 class LegacyReportTests(SimpleTestCase):
     def test_every_report_parses(self):
         for path in REPORTS:
