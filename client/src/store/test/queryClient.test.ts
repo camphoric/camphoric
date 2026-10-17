@@ -1,6 +1,8 @@
 import { notifications } from '@mantine/notifications';
+import { QueryObserver } from '@tanstack/react-query';
+import { anonymousUser, type ApiUser } from 'api-types';
 import { ApiError } from 'utils/fetch';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { describeError, queryClient } from '../queryClient';
 
@@ -72,5 +74,124 @@ describe('the shared failure toast (DR-10, DR-109)', () => {
     vi.mocked(notifications.show).mockClear();
     await fail({ handlesVersionConflict: true });
     expect(notifications.show).not.toHaveBeenCalled();
+  });
+});
+
+describe('a lapsed session (DR-9)', () => {
+  const WHOAMI = ['WhoAmI'];
+  const pat: ApiUser = { ...anonymousUser, id: 3, username: 'pat', is_active: true, role: 'admin' };
+  const unauthorized = () =>
+    new ApiError(401, 'Unauthorized', {
+      detail: 'Authentication credentials were not provided.',
+    });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  let unsubscribe = () => {};
+
+  /** Pat is signed in, and the admin's guard is watching who's signed in. */
+  function signedInAdmin(whoami: () => Promise<ApiUser>) {
+    queryClient.setQueryData(WHOAMI, pat);
+    const observer = new QueryObserver(queryClient, {
+      queryKey: WHOAMI,
+      queryFn: whoami,
+      staleTime: 10_000,
+      retry: false,
+    });
+    unsubscribe = observer.subscribe(() => undefined);
+  }
+
+  const failSave = (error: Error, meta?: Record<string, unknown>) =>
+    queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationFn: () => Promise.reject(error), meta, retry: false })
+      .execute(undefined)
+      .catch(() => undefined);
+
+  afterEach(() => {
+    unsubscribe();
+    queryClient.clear();
+    vi.mocked(notifications.show).mockClear();
+  });
+
+  it('asks who is signed in instead of reporting a failed save, and stays on the page', async () => {
+    const whoami = vi.fn(() => Promise.resolve(anonymousUser));
+    signedInAdmin(whoami);
+    const url = window.location.href;
+
+    await failSave(unauthorized());
+    await vi.waitFor(() => expect(queryClient.getQueryData(WHOAMI)).toEqual(anonymousUser));
+    await settle();
+
+    expect(whoami).toHaveBeenCalledTimes(1);
+    expect(notifications.show).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(url);
+  });
+
+  it('asks once when several requests fail together', async () => {
+    const whoami = vi.fn(
+      () => new Promise<ApiUser>((resolve) => setTimeout(() => resolve(anonymousUser), 10)),
+    );
+    signedInAdmin(whoami);
+
+    await Promise.all([failSave(unauthorized()), failSave(unauthorized())]);
+    await vi.waitFor(() => expect(queryClient.getQueryData(WHOAMI)).toEqual(anonymousUser));
+
+    expect(whoami).toHaveBeenCalledTimes(1);
+    expect(notifications.show).not.toHaveBeenCalled();
+  });
+
+  it('asks who is signed in when a query is refused', async () => {
+    const whoami = vi.fn(() => Promise.resolve(anonymousUser));
+    signedInAdmin(whoami);
+
+    await queryClient
+      .fetchQuery({
+        queryKey: ['Registrations'],
+        queryFn: () => Promise.reject(unauthorized()),
+        retry: false,
+      })
+      .catch(() => undefined);
+
+    await vi.waitFor(() => expect(queryClient.getQueryData(WHOAMI)).toEqual(anonymousUser));
+  });
+
+  it('reports the failure after all when the server says they are still signed in', async () => {
+    const whoami = vi.fn(() => Promise.resolve(pat));
+    signedInAdmin(whoami);
+
+    await failSave(unauthorized());
+
+    await vi.waitFor(() => expect(notifications.show).toHaveBeenCalledTimes(1));
+    expect(whoami).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a hidden failure hidden when they are still signed in', async () => {
+    const whoami = vi.fn(() => Promise.resolve(pat));
+    signedInAdmin(whoami);
+
+    await failSave(unauthorized(), { suppressErrorNotification: true });
+    await vi.waitFor(() => expect(whoami).toHaveBeenCalledTimes(1));
+    await settle();
+
+    expect(notifications.show).not.toHaveBeenCalled();
+  });
+
+  it('does not re-check the whoami check itself', async () => {
+    const whoami = vi.fn(() => Promise.reject(unauthorized()));
+    signedInAdmin(whoami);
+
+    await queryClient.refetchQueries({ queryKey: WHOAMI });
+    await settle();
+
+    expect(whoami).toHaveBeenCalledTimes(1);
+  });
+
+  it('just reports a 401 where nobody is watching who is signed in (registration)', async () => {
+    queryClient.setQueryData(WHOAMI, pat);
+
+    await failSave(unauthorized());
+    await settle();
+
+    expect(notifications.show).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryData(WHOAMI)).toEqual(pat);
   });
 });
