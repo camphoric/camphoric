@@ -4,7 +4,8 @@
   block:
     # Every task that changes what Django runs (its code, dependencies,
     # settings or static files) restarts it, once its service is set up
-    # (handlers/main.yml, flushed in setup_django_service.yml).
+    # (handlers/main.yml, flushed in setup_django_service.yml), or at the
+    # end of a failed run (site.yml's force_handlers).
     - name: Install virtual environment
       ansible.builtin.shell:
         chdir: "{{ camphoric_folder }}/server"
