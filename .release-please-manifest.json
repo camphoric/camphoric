@@ -1,4 +1,5 @@
 {
   ".": "0.14.0",
+  "data/packages/event-import-spec": "1.0.0",
   "data/packages/import-tools": "1.0.0"
 }
