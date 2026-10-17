@@ -1,8 +1,8 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it. data/ is an npm workspace root (the importer) with the
-# @camphoric/camphoric-event-* packages under packages/ and events/ (and installs
-# the events published from repositories of their own from GitHub Packages); its
-# scripts run every workspace's too:
+# @camphoric/camphoric-event-* packages under packages/ and Sample Camp under
+# events/, and it installs the camps' events, published from repositories of
+# their own, from GitHub Packages; its scripts run every workspace's too:
 # the TypeScript must type-check (tsc --noEmit), every event module must load,
 # satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
@@ -83,8 +83,8 @@ jobs:
       - name: The packed event-import packages work under plain Node
         run: scripts/smoke-test-packages.sh
 
-      # Each event packs and loads from its build, as it will once it's
-      # published from a repository of its own.
+      # Each event here (Sample Camp) packs and loads from its build, as a camp's
+      # repository publishes its event.
       - name: Each packed event works under plain Node
         run: for event in events/*/; do scripts/smoke-test-event-package.sh "$event"; done
 

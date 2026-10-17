@@ -8,6 +8,11 @@
  * 3. Run this util like ./dump-new-reports.ts <eventId> <dir>, where <dir> is the
  *    event package's folder, relative to data/ (such as a camp's repository
  *    cloned beside this one: ../../camphoric-event-lark)
+ *
+ * The reports.ts it writes finds the templates from the package root, so the
+ * event package needs packagePath.ts (copy it from an event repository that has
+ * one, such as the Jughandle Campout's) and `reports` in its package.json
+ * `files`, so the published build can find them.
  */
 
 import * as fs from 'fs/promises';
@@ -68,9 +73,9 @@ async function main() {
 
 async function writeReportIndex(reports: ReportFile[], dir: string) {
   const fullFileName = path.join(cwd, dir, 'reports.ts');
-  // Templates are found from the package root (packagePath.ts, which every
-  // event package has), so the published build, which runs from dist/, finds
-  // them too
+  // Templates are found from the package root (packagePath.ts, which the event
+  // package needs: see USAGE), so the published build, which runs from dist/,
+  // finds them too
   return fs.writeFile(fullFileName, `import fs from 'fs';
 
 import type { Report } from '@camphoric/camphoric-event-import-spec';
