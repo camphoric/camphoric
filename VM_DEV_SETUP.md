@@ -329,6 +329,9 @@ camphoric_email_host_user: my.throwaway.account@gmail.com
 camphoric_email_host_password: aaaaaaaaaaaaaaaa 
 ```
 
+Provisioning onto an empty database imports every event (the camps and Sample Camp); a database
+that already has events is left as it is.
+
 Once `data/` installs events from GitHub Packages, its `npm ci` also needs a token with
 `read:packages`. Either set `CAMPHORIC_NPM_AUTH_TOKEN` when you provision
 (`CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) vagrant provision`), or keep one here:

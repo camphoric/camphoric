@@ -32,9 +32,13 @@ services:
     build: server/
     volumes:
       - ./server:/app
+    # On a fresh database, also creates the admin the data service imports as
+    # (DJANGO_SUPERUSER_* in env/local/shared.env); once it exists,
+    # createsuperuser refuses and that's ignored.
     command: >
       bash -c "./manage.py migrate &&
                ./manage.py collectstatic --no-input &&
+               { ./manage.py createsuperuser --no-input > /dev/null 2>&1 || true; } &&
                uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
@@ -100,6 +104,11 @@ services:
       - ./data:/app
       - ./data/import:/usr/local/bin/import
       - /app/node_modules
-#   depends_on:
-#     django:
-#       condition: service_healthy
+    # On `docker compose up`, import every event into a fresh database (once
+    # the server answers: the import script waits), and exit; a database
+    # that has events is left alone (--if-empty), like the Vagrant VM's.
+    # `docker compose run --rm data import` imports regardless, and
+    # reset-data-and-test flushes and re-imports.
+    command: import --if-empty
+    depends_on:
+      - django

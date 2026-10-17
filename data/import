@@ -1,4 +1,5 @@
 #!/bin/sh
 
 cd /app
-exec node_modules/.bin/tsx --conditions=camphoric-source loadAllData.ts
+# --wait: in the dev stack the server may still be starting
+exec node_modules/.bin/tsx --conditions=camphoric-source loadAllData.ts --wait "$@"
