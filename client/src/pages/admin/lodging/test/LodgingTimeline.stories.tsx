@@ -2,7 +2,9 @@
  * Story for the LodgingTimeline (SPEC §8.6, DR-6). Seeds a small lodging tree
  * and campers in local state so dragging a camper into a day cell, moving a
  * bar, resizing it, dragging back to "Unassigned", narrowing the view, and
- * selecting a camper all visibly update. The units sit under section headings
+ * selecting a camper all visibly update. Inara Serra is in "Off Site" with no
+ * days, so she's listed as unassigned, and dragging her in gives her days. The
+ * units sit under section headings
  * ("Camp 1 → Cabins"); "Off Site" is a top-level unit with no sub-units. Cabin
  * A, Tent 1, and the Cabins section carry notes, marked by an icon; selecting a
  * unit or section by its name shows its details, notes included, alongside.

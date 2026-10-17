@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-118)
+- §15 — Decision Records (DR-1…DR-119)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1406,8 +1406,9 @@ deleted (the server's 409 says so).
 The admin finds a camper (the campers list is a sortable/filterable table — columns such as
 name, registration, lodging, the lodging they asked for, the other campers on the same
 registration) and works with the selected one. The lodging shown is the camper's leaf unit; a
-camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the lodging screen
-(§8.6). For the selected camper, the admin can:
+camper whose `lodging` is null or a non-leaf node reads "Unassigned". A camper in a leaf with no
+days in their stay shows that leaf, though the lodging screen lists them as unassigned (§8.6;
+§15, DR-119). For the selected camper, the admin can:
 
 - **Edit the camper** — `camper_schema` in admin mode (admin-transformed UI schema; includes
   `registration_schema.definitions` for referenced types). Persists via PATCH `attributes`. The
@@ -1422,8 +1423,9 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
   event days they're present ticked off, and the admin can change them (the days derive from
   event start/end; the last is departure day and can't be chosen, §8.6). The days are saved with
   the camper's other edits, in day order, and only when they've changed: PATCH `stay` (the
-  selected days). A camper not yet placed has no days to set; placing them, with their days,
-  happens on the lodging screen (§15, DR-103).
+  selected days). A camper not in a leaf unit has no days to set; placing them, with their days,
+  happens on the lodging screen (§15, DR-103). A camper in a leaf with no days has none ticked,
+  and ticking some places them there.
 - **Review fees and custom charges** — fee breakdown from the camper's `server_pricing_results`
   (labels via `camper_pricing_logic`); list custom charges (date, type, amount, notes) with the
   ability to add (`camper`, `custom_charge_type`, `amount`, `notes`; a negative `amount` is a
@@ -1440,10 +1442,15 @@ camper whose `lodging` is null or a non-leaf node reads "Unassigned", as on the 
 This function manages the event's **lodging hierarchy** and **assigns campers to lodging units
 across date ranges**, with capacity visibility. Required capabilities:
 
-- **See unassigned campers** — those not yet placed in a leaf unit — with the context needed to
-  place them: name, requested lodging, sharing preference/partner, and comments. Registration
-  sets a camper's `lodging` to the node they requested, often a non-leaf (e.g. "Cabins"), so a
-  camper whose `lodging` is null *or* a non-leaf node counts as unassigned.
+- **See unassigned campers** — those not yet placed in a leaf unit for any of the event's days —
+  with the context needed to place them: name, requested lodging, sharing preference/partner, and
+  comments. A camper counts as **unassigned** when their `lodging` is null, *or* a non-leaf node,
+  *or* a leaf but their `stay` is null, empty, or has none of the event's days. Registration sets
+  a camper's `lodging` to the node they requested, with no stay: often a non-leaf (e.g.
+  "Cabins"), but sometimes a leaf (e.g. Lark's "Let registrar assign my lodging"). A camper
+  unassigned in a leaf still counts toward that leaf's occupancy, and their lodging details still
+  name it; being unassigned means only that they have no days placed. Placing them (with their
+  days) works as for any unassigned camper (§15, DR-119).
 - **Manage the lodging hierarchy** — view it as a tree showing, per node, occupancy vs. capacity
   (and reserved count), each node's children listed by name in natural order, as the timeline
   lists units ("Cabin 2" before "Cabin 10"; §15, DR-63), any node with nodes under it but the
@@ -4534,7 +4541,8 @@ arranging its own — how the screens came to differ.
 
 **Decision:** The camper record's lodging section (DR-72) ticks off the days a placed camper is
 present, as checkboxes the admin can change; the camper's Save sends the new `stay` with the
-rest of its edits, and leaves it out when unchanged. A camper not yet placed has none to set.
+rest of its edits, and leaves it out when unchanged. A camper not in a leaf unit has none to
+set (DR-119).
 **Context:** The old client's camper editor set the stay with a checkbox for each night, and
 organizers asked for it back: a change of plans is usually handled from the camper's record, not
 by finding their bar on the timeline. Sending the stay only when it changed means saving the
@@ -4912,6 +4920,24 @@ repeats the heading too, and the form doesn't draw its groups as bordered fields
 lists, which the theme draws that way, are shown as sections; DR-49). `aria-label`s on the
 dropdowns alone — named for assistive technology, but sighted users would still lose the
 level's name once a value is picked.
+
+### DR-119 — A camper in a leaf with no days counts as unassigned
+
+**Decision:** On the lodging screen a camper is unassigned when their `lodging` is null or a
+non-leaf node, or a leaf but their stay has none of the event's days. One shared client helper
+decides it, and the timeline lists such a camper with the unassigned and draws no bar for them.
+They still count toward the leaf's occupancy, and the camper's lodging details (on the lodging
+screen, in the camper editor and in the campers list) still name the leaf.
+**Context:** #826: registration saves the node a camper chose as their `lodging`, with no stay.
+When that node is a leaf, such as Lark's "Let registrar assign my lodging", the camper counted as
+assigned but had no bar, so they couldn't be dragged in or out: the very campers the registrar
+has to place. The days are what put a camper on the timeline, so a camper with none is not
+placed, wherever they are.
+**Alternatives:** Count only campers on a non-leaf as unassigned, and have registration build
+such choices as branches — every event's form would have to avoid leaf choices, and data already
+saved would stay stuck. Have registration set a stay — the days aren't known until the registrar
+places the camper. Show "Unassigned" in the camper's lodging details too — it would hide the
+unit they asked for, and the camper editor's days could no longer place them.
 
 ---
 
