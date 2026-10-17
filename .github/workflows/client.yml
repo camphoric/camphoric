@@ -1,7 +1,9 @@
 # Check the client (client/) on every push/PR that touches it: types,
 # lint and the vitest unit suite, plus the Playwright end-to-end suite on
 # desktop and mobile browsers. (The production build itself runs inside the
-# image build in docker.yml.)
+# image build in docker.yml.) A change to the server's pricing or the shared
+# pricing parity fixtures runs it too, since the client checks those fixtures
+# (SPEC DR-14).
 name: Client
 
 on:
@@ -9,11 +11,15 @@ on:
     branches: [main]
     paths:
       - 'client/**'
+      - 'server/camphoric/pricing.py'
+      - 'server/tests/data/pricing_parity.json'
       - '.github/workflows/client.yml'
   pull_request:
     branches: [main]
     paths:
       - 'client/**'
+      - 'server/camphoric/pricing.py'
+      - 'server/tests/data/pricing_parity.json'
       - '.github/workflows/client.yml'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on

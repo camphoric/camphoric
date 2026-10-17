@@ -1,32 +1,10 @@
 import type { ApiRegister, RegisterConfigEvent, RegistrationFormData } from 'api-types';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { calculatePrice } from '../calculatePrice';
-import { pricingFixtures } from './fixtures';
 
-describe('calculatePrice — golden parity fixtures', () => {
-  pricingFixtures.forEach((fixture) => {
-    it(fixture.name, () => {
-      const results = calculatePrice(fixture.config, fixture.formData, fixture.promo);
-
-      // Per-camper breakdown is exact.
-      expect(results.campers).toEqual(fixture.expectedCampers);
-
-      // Money fields compared with cent tolerance (float arithmetic).
-      Object.entries(fixture.expectedMoney).forEach(([key, value]) => {
-        expect(results[key]).toBeCloseTo(value as number, 2);
-      });
-
-      // The handling fee is never a price line (§15, DR-88).
-      expect(results.handling).toBeUndefined();
-      // Likewise the promo line, without a promo code.
-      if (fixture.promo === undefined) {
-        expect(results.promo).toBeUndefined();
-      }
-    });
-  });
-});
-
+// The engine's results, case by case, are in the parity fixtures shared with
+// the server (./pricingParity.test.ts; §15, DR-14).
 describe('calculatePrice — mechanics', () => {
   const baseEvent = (overrides: Partial<RegisterConfigEvent> = {}): RegisterConfigEvent => ({
     is_open: true,
@@ -87,5 +65,42 @@ describe('calculatePrice — mechanics', () => {
     expect(results.surcharge).toBe(10);
     // total = (10 + 5) per camper, accumulated across 2 campers = 30
     expect(results.total).toBe(30);
+  });
+
+  describe('in a browser west of UTC', () => {
+    const browserZone = process.env.TZ;
+
+    afterEach(() => {
+      if (browserZone === undefined) delete process.env.TZ;
+      else process.env.TZ = browserZone;
+      vi.useRealTimers();
+    });
+
+    it('takes the date in UTC, as the server does (§15, DR-128)', () => {
+      process.env.TZ = 'America/Los_Angeles';
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 7:30 PM on Feb 28 in Los Angeles.
+      vi.setSystemTime(new Date('2026-03-01T03:30:00Z'));
+      const config: ApiRegister = {
+        dataSchema: { definitions: { camper: { type: 'object', properties: {} } } },
+        uiSchema: {},
+        preSubmitTemplate: '',
+        templateVars: {},
+        event: baseEvent(),
+        pricing: {},
+        pricingLogic: {
+          registration: [
+            { var: 'day', exp: { var: 'date.day' } },
+            { var: 'month', exp: { var: 'date.month' } },
+            { var: 'created_day', exp: { var: 'registration.created_at.day' } },
+          ],
+          camper: [],
+        },
+      };
+
+      const results = calculatePrice(config, { campers: [] });
+
+      expect([results.month, results.day, results.created_day]).toEqual([3, 1, 1]);
+    });
   });
 });

@@ -6,7 +6,8 @@
  * server recomputes and returns `serverPricingResults`, which the client adopts
  * after submission — this function exists only for live UX while the registrant
  * edits the form. Any change here must mirror the server (and vice versa), and
- * is guarded by the shared parity fixtures (DR-14, see ./fixtures.ts).
+ * is guarded by the shared parity fixtures (DR-14), in
+ * server/tests/data/pricing_parity.json, which both engines run.
  *
  * Pricing rules work in whole dollars by convention. The e-payment handling
  * fee isn't part of the price: it's charged on each invoice paid online, by
@@ -24,6 +25,7 @@ import type {
 import jsonLogic, { type RulesLogic } from 'json-logic-js';
 import type { JSONSchema7 } from 'json-schema';
 import { dateStringToParts } from 'utils/dates';
+import { roundMoney } from 'utils/money';
 
 /** The mutable json-logic evaluation context shared across components. */
 interface PricingContext extends Hash {
@@ -41,13 +43,17 @@ interface DateContext {
   year: number;
 }
 
+/**
+ * Now, as the server's `timezone.now()` gives it: the day, month and year are
+ * UTC's, not the browser's (§9.2; §15, DR-128).
+ */
 function nowAsDateContext(): DateContext {
   const date = new Date();
   return {
     epoch: Math.floor(date.getTime() / 1000),
-    day: date.getDate(),
-    month: date.getMonth() + 1,
-    year: date.getFullYear(),
+    day: date.getUTCDate(),
+    month: date.getUTCMonth() + 1,
+    year: date.getUTCFullYear(),
   };
 }
 
@@ -96,11 +102,13 @@ export function calculatePrice(
   applyRegistrationComponents(pricingLogic.registration, data, results);
 
   // Camper-level components run per camper; numeric/boolean results accumulate
-  // into the registration-level totals (a running total across campers).
+  // into the registration-level totals (a running total across campers, to the
+  // cent). Every result, a number or not, feeds into the context.
   const camperContexts: Hash[] = [];
   formData.campers.forEach((camper, index) => {
     const camperResults: Hash = {};
-    const camperData: Hash = { ...camper, index };
+    // A camper being registered has no custom charges yet; the server says so.
+    const camperData: Hash = { ...camper, index, custom_charges: [] };
     camperDateProps
       .filter((prop) => camperData[prop])
       .forEach((prop) => {
@@ -113,10 +121,9 @@ export function calculatePrice(
       const value = component.var === 'total' ? floored(result) : result;
       camperResults[component.var] = value;
       if (typeof value === 'number' || typeof value === 'boolean') {
-        const subtotal = asNumber(results[component.var]) + Number(value);
-        results[component.var] = subtotal;
-        data[component.var] = value;
+        results[component.var] = roundMoney(asNumber(results[component.var]) + Number(value));
       }
+      data[component.var] = value;
     });
 
     results.campers.push(camperResults);
@@ -138,10 +145,22 @@ function applyRegistrationComponents(
   results: PricingResults,
 ): void {
   components.forEach((component) => {
-    const value: unknown = jsonLogic.apply(component.exp as RulesLogic, data);
-    results[component.var] = typeof value === 'number' && Number.isNaN(value) ? 0 : asNumber(value);
+    const value = moneyFmt(jsonLogic.apply(component.exp as RulesLogic, data));
+    // json-logic-js gives NaN where the server's json-logic raises (arithmetic
+    // on a field not filled in yet); the live price shows it as 0 meanwhile.
+    results[component.var] = Number.isNaN(value) ? 0 : value;
     data[component.var] = value;
   });
+}
+
+/**
+ * A pricing line as `money_fmt` in server/camphoric/pricing.py leaves it: a
+ * number to the cent (a boolean, being a number in Python, as 1 or 0), and
+ * anything else as it is.
+ */
+function moneyFmt(value: unknown): unknown {
+  if (typeof value === 'boolean') return Number(value);
+  return typeof value === 'number' ? roundMoney(value) : value;
 }
 
 /**
@@ -169,7 +188,7 @@ function applyPromo(
         Math.max(0, cap),
       );
       camperResults[PROMO_LINE] = negated(camperDiscount);
-      if (isAmount(camperTotal)) camperResults.total = camperTotal - camperDiscount;
+      if (isAmount(camperTotal)) camperResults.total = roundMoney(camperTotal - camperDiscount);
       remaining -= camperDiscount;
       discount += camperDiscount;
     });
@@ -177,14 +196,17 @@ function applyPromo(
     const { campers: _campers, ...lines } = results;
     discount = promoDiscount(promo.pricingLogic, { ...data, ...lines }, remaining);
   }
-  results[PROMO_LINE] = negated(discount);
-  results.total = asNumber(results.total) - discount;
+  results[PROMO_LINE] = negated(roundMoney(discount));
+  results.total = roundMoney(asNumber(results.total) - discount);
 }
 
-/** The discount the logic works out: never negative, and never more than `cap`. */
+/**
+ * The discount the logic works out, to the cent: never negative, and never
+ * more than `cap`.
+ */
 function promoDiscount(logic: unknown, data: Hash, cap: number): number {
   const value: unknown = jsonLogic.apply(logic as RulesLogic, data);
-  return isAmount(value) ? Math.max(0, Math.min(value, cap)) : 0;
+  return isAmount(value) ? roundMoney(Math.max(0, Math.min(value, cap))) : 0;
 }
 
 /** A total, never below zero (§15, DR-68); a non-number is left as it is. */

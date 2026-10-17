@@ -712,7 +712,11 @@ export interface PricingResults {
    * SPEC DR-56). Each camper's results can have its own.
    */
   overridden?: Record<string, number>;
-  [namedSubtotal: string]: number | Hash[] | Record<string, number> | undefined;
+  /**
+   * A named line: an amount, as a rule, but whatever its logic gives otherwise
+   * (a text tier, say), which the server keeps as it is (§9.2).
+   */
+  [namedSubtotal: string]: unknown;
 }
 
 // ---------------------------------------------------------------------------
