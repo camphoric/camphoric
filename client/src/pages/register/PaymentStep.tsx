@@ -37,14 +37,18 @@ export function PaymentStep() {
   const resumeSent = useRegistrationStore((state) => state.resumeSent);
   const registration = useRegistrationStore((state) => state.registration);
   const promo = useRegistrationStore((state) => state.promo);
+  const sentNotFound = useRegistrationStore((state) => state.sentNotFound);
   const { data: config } = useRegistrationConfig(eventId);
 
   useEffect(() => {
     if (paymentStep || !config) return;
-    const saved = loadSentRegistration(getRegistrationStorageKey(eventId, config));
+    // Just found gone: back to step 1 to say so, not on to one another tab saved since.
+    const saved = sentNotFound
+      ? null
+      : loadSentRegistration(getRegistrationStorageKey(eventId, config));
     if (saved) resumeSent(saved);
     else goToStep('registration');
-  }, [paymentStep, eventId, config, resumeSent, goToStep]);
+  }, [paymentStep, eventId, config, sentNotFound, resumeSent, goToStep]);
 
   // Once per registration: what's due now, not what was due when it was sent.
   const { mutate: refreshPaymentStep } = useRefreshPaymentStep(eventId);
