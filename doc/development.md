@@ -363,8 +363,19 @@ services:
       - "3001:3001"
 ```
 
-Remove it, and run `docker compose up -d` again, when you're done. The Vagrant
-VM's forwarded ports are bound the same way; see [VM_DEV_SETUP.md](../VM_DEV_SETUP.md).
+That's enough to load the frontend and register anonymously. Signing in from
+the device is a POST that Django's CSRF check refuses (403) until the device's
+origin is trusted: set `CSRF_TRUSTED_ORIGINS` in `env/local/django.env` and run
+`docker compose up -d django` (a plain restart doesn't reread the file). The
+variable replaces the default list in
+`server/camphoric_server/settings_default.py`, so repeat those defaults and add
+`http://<your-LAN-IP>:3000`. If you republish `django`'s 8000 as well, also set
+`ALLOWED_HOSTS` (again, the defaults plus your LAN IP); otherwise Django answers
+requests on that port with a 400 (DisallowedHost).
+
+Remove the override and those settings, and run `docker compose up -d` again,
+when you're done. The Vagrant VM's forwarded ports are bound the same way; see
+[VM_DEV_SETUP.md](../VM_DEV_SETUP.md).
 
 Tips for working with docker
 ============================

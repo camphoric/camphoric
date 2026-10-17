@@ -72,10 +72,22 @@ localhost:3000 using the following command:
 
 The VM's forwarded ports (Django on 8000, the frontend on 3000 and 3001,
 Postgres on 5432, nginx on 8080) listen on your machine's localhost only, so
-nothing else on your network can reach them. To try the app from another
-device, such as a phone on your LAN, change that port's `host_ip` to
-`"0.0.0.0"` in the `Vagrantfile`, run `vagrant reload`, and don't commit the
-change.
+nothing else on your network can reach them. Vagrant sets up forwarded ports
+only when the VM boots: a VM that was running before you pulled a change to
+them keeps its old forwards until you run `vagrant reload`.
+
+To try the app from another device, such as a phone on your LAN, change that
+port's `host_ip` to `"0.0.0.0"` in the `Vagrantfile`, run `vagrant reload`,
+and don't commit the change. That's enough to load the frontend on 3000 and
+register anonymously. Anything more needs the device trusted in
+`server/camphoric_server/settings_override.py`, which provisioning writes from
+`ansible/roles/camphoric/templates/settings.py.j2` (overwriting your edits):
+
+- To sign in from the device through the frontend on 3000, add
+  `http://<your-LAN-IP>:3000` to `CSRF_TRUSTED_ORIGINS`; otherwise the login
+  is refused with a 403.
+- To use Django on 8000 directly, add your LAN IP to `ALLOWED_HOSTS`;
+  otherwise every request gets a 400 (DisallowedHost).
 
 
 Setup instructions for Windows
