@@ -1,7 +1,9 @@
 import userEvent from '@testing-library/user-event';
+import type { AppliedPromo } from 'api-types';
+import { calculatePrice } from 'pricing';
 import { useRegistrationStore } from 'store/registration';
 import { makeRegisterConfig } from 'test/fixtures';
-import { renderWithProviders, screen } from 'test/utils';
+import { act, renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RegistrationStep } from '../RegistrationStep';
@@ -12,6 +14,11 @@ const { checkMutate, useCheckPromoCode } = vi.hoisted(() => {
     checkMutate,
     useCheckPromoCode: vi.fn(() => ({ mutate: checkMutate, isPending: false })),
   };
+});
+
+vi.mock('pricing', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('pricing')>();
+  return { ...actual, calculatePrice: vi.fn(actual.calculatePrice) };
 });
 
 vi.mock('@tanstack/react-router', () => ({
@@ -58,5 +65,29 @@ describe('RegistrationStep', () => {
 
     expect(useCheckPromoCode).toHaveBeenLastCalledWith('1', INVITATION);
     expect(checkMutate).toHaveBeenCalledWith('spring', expect.any(Object));
+  });
+
+  it('prices an applied promo code against the form as it is when the check returns', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegistrationStep />);
+    await user.type(screen.getByRole('textbox', { name: 'Promo code' }), 'spring');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    const [, { onSuccess }] = checkMutate.mock.lastCall as [
+      string,
+      { onSuccess: (promo: AppliedPromo) => void },
+    ];
+
+    // The registrant edits the form while the code is being checked.
+    const edited = { registrant_email: 'pat@example.com', campers: [] };
+    act(() => useRegistrationStore.getState().setRegistration(edited));
+    const promo: AppliedPromo = {
+      code: 'SPRING',
+      label: 'Spring',
+      scope: 'registration',
+      pricingLogic: null,
+    };
+    act(() => onSuccess(promo));
+
+    expect(calculatePrice).toHaveBeenLastCalledWith(config, edited, promo);
   });
 });

@@ -59,7 +59,7 @@ beforeEach(() => {
 
 describe('PaymentStep', () => {
   it('resumes a sent registration after a reload, still showing what was entered (#761)', () => {
-    saveSentRegistration('Camp, 2026-7-1', {
+    saveSentRegistration('Event 1: Camp, 2026-7-1', {
       paymentStep,
       formData: {
         registrant_email: 'pat@example.com',
@@ -78,7 +78,7 @@ describe('PaymentStep', () => {
   });
 
   it('asks the server for the payment step as it is now, and keeps it (DR-105)', () => {
-    saveSentRegistration('Camp, 2026-7-1', {
+    saveSentRegistration('Event 1: Camp, 2026-7-1', {
       paymentStep,
       formData: { campers: [{ first_name: 'Pat' }] },
       promo: null,
@@ -102,7 +102,7 @@ describe('PaymentStep', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(refresh).toHaveBeenCalledWith('u', expect.any(Object));
     expect(useRegistrationStore.getState().paymentStep).toEqual(now);
-    expect(loadSentRegistration('Camp, 2026-7-1')?.paymentStep).toEqual(now);
+    expect(loadSentRegistration('Event 1: Camp, 2026-7-1')?.paymentStep).toEqual(now);
   });
 
   it('goes back to step 1 when nothing was sent', () => {

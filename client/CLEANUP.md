@@ -15,10 +15,6 @@ build phase:
   `useRegistrationActions()` hook; keep the value selectors granular.
 - **api-types tightening** — type `*_admin_schema` / `*_ui_schema` as `JSONSchema7` / `UiSchema`
   (currently bare `Hash`); consider `ForeignKey = number` instead of `Scalar` for read-only PKs.
-- **PayPal capture-error feedback** — `PaymentNeeded.onApprove` catches with `console.error`
-  only; surface a notification for parity with the global mutation-error toast. Also: derive
-  Card-vs-PayPal from the capture response (currently always reports `'PayPal'`) — needs the
-  sandbox to verify.
 - **vite/tsconfig `pricing` alias asymmetry** — tsconfig has both `pricing` and `pricing/*`;
   vite has only the dir mapping. Align them.
 

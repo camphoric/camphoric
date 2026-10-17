@@ -1,22 +1,30 @@
 /**
  * localStorage persistence for the in-progress registration (SPEC §7.1, §7.2,
- * §12). The key is derived from the schema title and the event start date so a
- * registrant's progress survives a reload — but stale data doesn't bleed across
- * events. Once the form is submitted, what was sent — the payment step, with the
- * form data and promo code it was sent with — is saved too, so a reload (or a
- * return after closing a PayPal window) resumes paying for the same registration,
- * still showing what was entered, instead of starting a second one. Both are
- * cleared after confirmation unless the KEEP_REG_DATA debug flag is set.
+ * §12). The key is derived from the event id, schema title and event start date
+ * so a registrant's progress survives a reload — but stale data doesn't bleed
+ * across events, even two with the same title and dates. Once the form is
+ * submitted, what was sent — the payment step, with the form data and promo code
+ * it was sent with — is saved too, so a reload (or a return after closing a
+ * PayPal window) resumes paying for the same registration, still showing what
+ * was entered, instead of starting a second one. Both are cleared after
+ * confirmation unless the KEEP_REG_DATA debug flag is set. Every storage access
+ * is guarded: with site data blocked, reading `window.localStorage` throws, and
+ * that mustn't break the page.
  */
 
 import type { ApiRegister, RegistrationFormData } from 'api-types';
 import type { SentRegistration } from 'store/registration';
 
-export function getRegistrationStorageKey(config: ApiRegister): string {
+export function getRegistrationStorageKey(eventId: string, config: ApiRegister): string {
   const title = config.dataSchema.title ?? 'formData';
   const start = config.event.start;
   const date = start ? `${start.year}-${start.month}-${start.day}` : '';
-  return `${title}, ${date}`;
+  return `Event ${eventId}: ${title}, ${date}`;
+}
+
+/** The KEEP_REG_DATA debug flag preserves the data across confirmation (debugging/autofill). */
+function keepRegData(): boolean {
+  return Boolean(window.localStorage.getItem('KEEP_REG_DATA'));
 }
 
 export function saveRegistrationFormData(key: string, formData: RegistrationFormData): void {
@@ -38,9 +46,8 @@ export function loadRegistrationFormData(key: string): RegistrationFormData | nu
 }
 
 export function clearRegistrationFormData(key: string): void {
-  // KEEP_REG_DATA preserves the data across confirmation (debugging/autofill).
-  if (window.localStorage.getItem('KEEP_REG_DATA')) return;
   try {
+    if (keepRegData()) return;
     window.localStorage.removeItem(key);
   } catch (error) {
     console.error('Failed to clear registration form data', error);
@@ -73,8 +80,8 @@ export function loadSentRegistration(key: string): SentRegistration | null {
 }
 
 export function clearSentRegistration(key: string): void {
-  if (window.localStorage.getItem('KEEP_REG_DATA')) return;
   try {
+    if (keepRegData()) return;
     window.localStorage.removeItem(sentKey(key));
   } catch (error) {
     console.error('Failed to clear the sent registration', error);
