@@ -1,0 +1,6 @@
+Last name,First name,Age,Lodging,Custom charges,Registration balance
+{% for camper in campers | sort(attribute="attributes.last_name") -%}
+"{{ camper.attributes.last_name }}","{{ camper.attributes.first_name }}","{{ camper.attributes.age }}","{{ camper.lodging.full_name if camper.lodging }}",{{ camper.custom_charges | length }},{{ camper.registration.balance if camper.registration else '' }}
+{% endfor -%}
+Custom charge types: {{ custom_charge_types | map(attribute="label") | join("; ") }}
+Invoices due: {{ invoices | sum(attribute="amount_due") }}

@@ -140,6 +140,7 @@ event is its own package, ready to move to a repository of its own (#780):
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, and the bulk-registration runner |
 | `data/events/<name>` | `@camphoric/camphoric-event-<name>` | an event (`lark`, `harmony`, `ltacampout`, `familyweek`): its import object, organization, reports, sample and bulk registrations |
+| `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script), imports only its
 own files, and is loaded by package name from `data/eventModules.ts`. A root test checks that
@@ -159,7 +160,9 @@ every workspace imports only its own files and the packages it declares.
     scripts/smoke-test-packages.sh              # pack them and use them with plain Node
 
 To add an event, create `data/events/<name>` with a `package.json` named `@camphoric/camphoric-event-<name>`
-(copy an existing event's, including its configs and `__tests__/conformance.test.ts`), add it to
+(start from a copy of Sample Camp, including its configs and `__tests__/conformance.test.ts`, but
+drop its `__tests__/coverage.test.ts` and `__tests__/dates.test.ts`, and its "never published"
+description and comments), add it to
 `data/package.json`'s dependencies and to `EVENTS` in `data/eventModules.ts`, and run `npm install`.
 
 The packages are TypeScript. The spec and import-tools are published to GitHub Packages compiled

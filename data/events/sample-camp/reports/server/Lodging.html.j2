@@ -1,0 +1,17 @@
+<h2>{{ event.name }}: lodging</h2>
+<ul>
+{%- for node in [lodging] recursive %}
+  <li>
+    {{ node.name }}
+    {%- if node.capacity %} ({{ node.campers | length }} of {{ node.capacity }}){% endif %}
+    {%- if node.campers %}
+    <ul>
+      {%- for camper in node.campers %}
+      <li>{{ camper.attributes.first_name }} {{ camper.attributes.last_name }}</li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    {%- if node.children %}<ul>{{ loop(node.children) }}</ul>{% endif %}
+  </li>
+{%- endfor %}
+</ul>
