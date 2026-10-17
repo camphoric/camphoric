@@ -2228,9 +2228,9 @@ section is the contract.
   else the payment step does, so a later error can't undo it. A capture whose outcome isn't
   known — the answer was lost, or the server stopped before recording it — is asked about by
   the worker 15 minutes after it started; PayPal's capture is then recorded as a payment noted
-  "Recorded by the worker checking PayPal". Until that outcome is known (for up to a day), the
-  invoice takes no new PayPal order and the payment step refuses paying by check (409
-  `not_payable`), and the payer is asked not to pay again.
+  "Recorded by the worker checking PayPal" ("Check PayPal order" settles it too). Until that
+  outcome is known (for up to a day), the invoice takes no new PayPal order and the payment step
+  refuses paying by check (409 `not_payable`), and the payer is asked not to pay again.
 - **The pay page** (#670, #623; §15, DR-95). Every invoice has an unguessable link code and a
   public page at `/invoices/{code}` (its `pay_url`). Anyone with the link sees the event's name,
   the invoice — number, description, memo, due date, amount, handling, paid and due, and its
