@@ -7,7 +7,8 @@
  * submitting. Submitting posts the registration, saves what was sent with the
  * payment step it got back (so a reload resumes paying for it) and advances to
  * the payment step. A registration already sent from this browser offers to
- * continue paying for it instead.
+ * continue paying for it instead; one the server turned out not to have brings
+ * the registrant back here, with what they entered, to send it again.
  */
 
 import { Alert, Button, Stack } from '@mantine/core';
@@ -55,6 +56,7 @@ export function RegistrationStep() {
   const setUpdating = useRegistrationStore((state) => state.setUpdating);
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
   const resumeSent = useRegistrationStore((state) => state.resumeSent);
+  const sentNotFound = useRegistrationStore((state) => state.sentNotFound);
 
   const storageKey = config ? getRegistrationStorageKey(eventId, config) : '';
   // A registration already sent from this browser: offer to go on paying for it.
@@ -172,6 +174,11 @@ export function RegistrationStep() {
   return (
     // The class lets an event's uiSchema hide fields during registration only (SPEC §7.1).
     <Stack className="camphoric-registration">
+      {sentNotFound && (
+        <Alert variant="light" color="yellow" title="We couldn’t find your earlier registration">
+          Please send the form again.
+        </Alert>
+      )}
       {sentBefore && (
         <Alert variant="light" color="blue" title="You’ve already sent this registration">
           <Stack gap="xs" align="flex-start">

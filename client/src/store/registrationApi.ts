@@ -6,6 +6,10 @@
  *
  * The config is server-authoritative and must not refetch mid-edit, so it uses
  * an infinite staleTime and no refetch-on-focus (DR-16).
+ *
+ * The steps after `registration` name the registration they're for; when the
+ * server no longer has it ({@link registrationNotFound}) the page goes back to
+ * the form, so those that would notify (`payment-step`, `finish`) don't then.
  */
 
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -135,6 +139,7 @@ export function useRefreshPaymentStep(eventId: string) {
         method: 'POST',
         body: { step: 'payment-step', registrationUUID },
       }),
+    meta: { handlesRegistrationNotFound: true },
   });
 }
 
@@ -166,7 +171,19 @@ export function useFinishRegistration(eventId: string) {
         method: 'POST',
         body: { step: 'finish', registrationUUID },
       }),
+    meta: { handlesRegistrationNotFound: true },
   });
+}
+
+/**
+ * The server no longer has the registration a step names (`registration_not_found`, §7.1):
+ * an organizer deleted it, or it was purged as incomplete (§15, DR-76). Any other 404 from
+ * these steps counts too, so the page never depends on the server's wording.
+ */
+export function registrationNotFound(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  const body = error.body as { code?: unknown } | null;
+  return body?.code === 'registration_not_found' || error.status === 404;
 }
 
 /**

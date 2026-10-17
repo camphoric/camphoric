@@ -35,6 +35,8 @@ export interface RegistrationState {
   /** The promo code the registrant has applied, checked with the server (§7.1). */
   promo: AppliedPromo | null;
   updating: boolean;
+  /** The server no longer has the registration this browser sent: step 1 says to send it again. */
+  sentNotFound: boolean;
 
   setRegistration: (registration: RegistrationFormData) => void;
   setTotals: (totals: PricingResults) => void;
@@ -44,6 +46,8 @@ export interface RegistrationState {
   setPromo: (promo: AppliedPromo | null) => void;
   /** Go on with a registration already sent: what it was sent with, and its payment step. */
   resumeSent: (sent: SentRegistration) => void;
+  /** The server no longer has the sent registration: drop its payment step, keep what was entered. */
+  forgetSent: () => void;
   reset: () => void;
 }
 
@@ -52,11 +56,12 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   totals: emptyTotals,
   promo: null,
   updating: false,
+  sentNotFound: false,
 
   setRegistration: (registration) => set({ registration }),
   setTotals: (totals) => set({ totals }),
   setUpdating: (updating) => set({ updating }),
-  setPaymentStep: (paymentStep) => set({ paymentStep }),
+  setPaymentStep: (paymentStep) => set({ paymentStep, sentNotFound: false }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
   setPromo: (promo) => set({ promo }),
   resumeSent: ({ paymentStep, formData, promo }) =>
@@ -65,7 +70,9 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       registration: formData,
       promo,
       totals: paymentStep.serverPricingResults,
+      sentNotFound: false,
     }),
+  forgetSent: () => set({ paymentStep: undefined, sentNotFound: true }),
   reset: () =>
     set({
       registration: emptyRegistration,
@@ -74,5 +81,6 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       confirmationStep: undefined,
       promo: null,
       updating: false,
+      sentNotFound: false,
     }),
 }));
