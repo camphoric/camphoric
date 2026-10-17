@@ -68,6 +68,7 @@ erDiagram
         decimal handling "added when paid online"
         string payment_type "how the payer chose to pay it (empty: not settled)"
         string pending_paypal_order_id
+        datetime paypal_capture_started_at "the worker checks it 15 min on"
         datetime organizer_changed_at "the payment step stops rewriting it"
         datetime cancelled_at
         string token "for a pay link (#670)"
@@ -158,6 +159,7 @@ flowchart TD
         I1 -->|outcome unknown| U[Keeps the order pending,<br/>emails the event,<br/>sends the confirmation]
         FIN --> F3[Sends the confirmation]
         S[Worker, every minute:<br/>completed 30 min ago, no confirmation?] --> S1[Sends it]
+        W[Worker, every minute:<br/>capture started 15 min ago, still pending?] --> W1[Asks PayPal;<br/>records it if captured]
     end
     F1 --> M
     F2 --> M
@@ -210,14 +212,15 @@ sequenceDiagram
     R->>P: approves
     P-->>B: onApprove(orderID)
     B->>S: POST register {step: 'payment', paypalOrderId}
+    S->>S: invoice.paypal_capture_started_at = now (committed)
     S->>P: GET the order
     alt already COMPLETED (a retry, or a lost reply)
         S->>S: record_capture: return the payment, or record the missing one
     else APPROVED, for what the invoice asks now
         S->>P: capture (PayPal-Request-Id = order id)
         P-->>S: COMPLETED, capture id
-        S->>S: invoice.handling += fee, record the payment<br/>(paypal_transaction_id = capture id)
-        S->>S: send the confirmation
+        S->>S: invoice.handling += fee, record the payment<br/>(paypal_transaction_id = capture id), commit
+        S->>S: lock the registration again: send the confirmation
         S-->>B: confirmation page, invoice, ledger
     else the invoice changed since the order was made
         S-->>B: 409 amount_changed (nothing captured)
@@ -235,6 +238,22 @@ sequenceDiagram
   where money moves, after the server has checked the order is this invoice's and for the amount
   it asks *now*. So a stale page, a tampered amount or an invoice edited meanwhile can't take the
   wrong amount (#675).
+- **The capture commits on its own (#804).** The `payment` step, like the pay page, calls
+  `capture_paypal_order` with no transaction open. It locks the registration, then the invoice
+  (the order every payment step takes them in), and fetches, captures and records in one
+  transaction that commits; for a lost answer, the PayPal problem email commits too. Only then
+  does the step lock the registration again and send the confirmation and the reply, in a second
+  transaction. An error there can't undo a payment PayPal has already taken; the registrant's
+  confirmation then comes from the worker's half-hour sweep.
+- **A capture that never got recorded (#804).** Before it asks PayPal, `capture_paypal_order`
+  notes `paypal_capture_started_at`, committed at once. Should the process die after PayPal
+  takes the money and before the payment is recorded, the order is still pending 15 minutes
+  later; the worker's `reconcile` then asks PayPal about it
+  (`invoices.check_unrecorded_captures`) and records a captured order ("Recorded by the worker
+  checking PayPal"). Each order is asked about once: one that wasn't captured stays pending (it
+  still marks an online payment not finished, and "Check PayPal order" still settles it). When
+  PayPal can't answer it's asked again each minute, for up to a day. Orders whose capture never
+  started — the registrant closed PayPal's window — aren't asked about.
 - **Why `paypal_transaction_id` is unique.** It's PayPal's capture id (or refund id). Fetching the
   order first means a retried call, a double click, a lost capture reply or "Check PayPal order"
   after a capture all find it already captured and return the existing payment — one PayPal
@@ -294,7 +313,8 @@ flowchart LR
 ```
 
 `confirmations.send_confirmation` does the sending; `confirmations.send_overdue_confirmations`
-is the sweep, called from the worker's `reconcile` task. Registrations converted by migration 0076
+is the sweep, called from the worker's `reconcile` task — after `check_unrecorded_captures`
+(§6), so a confirmation sent late says what was paid. Registrations converted by migration 0076
 have `confirmation_sent_at` set, so the sweep never emails anyone from before.
 
 ## 9. Recording a payment (admin)
@@ -438,10 +458,11 @@ flowchart LR
 - `invoices.py` — the ledger (`ledgers`, `ledger`), `invoice_for_payment`,
   `match_received_invoice`, `refundable`, payment options (`payment_options`, `find_option`),
   the registration invoice (`prepare_registration_invoice`), PayPal (`create_paypal_order`,
-  `capture_paypal_order`, `record_capture`, `check_paypal_order`, `refund_paypal_payment`) and the
-  problem email.
+  `capture_paypal_order`, `record_capture`, `check_paypal_order`, `check_unrecorded_captures`,
+  `refund_paypal_payment`) and the problem email.
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
+- `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
   `refund-paypal`), and `InvoicePayView`, the public pay page's API.
@@ -451,7 +472,7 @@ flowchart LR
 - `templating/graph.py`, `templating/registry.py` — the template variables;
   `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
-  email template.
+  email template; `0084` — the invoice's `paypal_capture_started_at`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
