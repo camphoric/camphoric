@@ -203,6 +203,69 @@ authoritative record. A new row is added with each spec major:
 
 ---
 
+## Event repositories
+
+Each camp's event is a package of its own, developed and released in its own public repository and
+published to GitHub Packages, which Camphoric's importer (`data/`) installs (#780). Sample Camp, a
+made-up event for this repository's tests, is the only event still in `data/events/`.
+
+| Event | Repository | Package |
+| --- | --- | --- |
+| Lark Camp | [camphoric/camphoric-event-lark](https://github.com/camphoric/camphoric-event-lark) | `@camphoric/camphoric-event-lark` |
+| Jughandle Campout | [camphoric/camphoric-event-ltacampout](https://github.com/camphoric/camphoric-event-ltacampout) | `@camphoric/camphoric-event-ltacampout` |
+| Family Week | [camphoric/camphoric-event-familyweek](https://github.com/camphoric/camphoric-event-familyweek) | `@camphoric/camphoric-event-familyweek` |
+| Camp Harmony | [camphoric/camphoric-event-harmony](https://github.com/camphoric/camphoric-event-harmony) | `@camphoric/camphoric-event-harmony` |
+
+- **Releases.** Each repository releases with release-please from its Conventional Commits (tags
+  `vX.Y.Z`; `feat:` and `fix:` release, `feat!:` is a major), and merging its release PR publishes
+  that version. Its CI type-checks, runs the spec's conformance tests, lints and smoke-tests the
+  packed package; its e2e tests drive the registration form against the latest Camphoric image, on
+  pull requests and weekly. The Actions bot opens the release PR, so its CI and e2e runs wait for
+  someone to approve them.
+- **Publishing access.** As for the packages above, each repository keeps the Write (or Admin)
+  role in its package's "Manage Actions access".
+- **In Camphoric.** The importer installs each event by a caret range, and the lockfile pins the
+  version every workflow tests; a new minor or patch reaches it with a lockfile update. Every week,
+  `events-latest.yml` tests the newest versions the ranges allow, and opens an `event-compat` issue
+  when one fails, when an event publishes a major beyond its range, or when the org has an event
+  repository whose package `data/` doesn't install. A new event major needs the importer's range
+  raised; a new spec major is rolled out as described in "What a spec version means" above.
+
+### Adding a camp's event
+
+1. **Start the repository from the event repository most like the new event** (the Jughandle
+   Campout's has report files, a bulk script and `packagePath.ts`; Family Week's has none of them):
+   copy its configs, `.github/workflows/`, `scripts/`, `e2e/` setup, `__tests__/conformance.test.ts`
+   (with the new package's name), `README.md`, `LICENSE`, `.npmrc` and `.gitignore`, but not its
+   `CHANGELOG.md`, and put the new event's source in place of its event files. Sample Camp
+   (`data/events/sample-camp`) shows every part of the import contract; don't bring its
+   `coverage.test.ts` or `dates.test.ts`, which only fit Sample Camp. Then reset what the copy's own
+   releases set:
+   - `package.json`: the name (`@camphoric/camphoric-event-<name>`), description and repository,
+     version `0.0.0`, the `dependencies` the event's source imports, and `files` with `reports`
+     only if it has report templates;
+   - `.release-please-manifest.json`: `{}`;
+   - `release-please-config.json`: drop `bootstrap-sha`, which only skipped history brought over
+     from this repository.
+2. **Write its first e2e tests** of the camp's form (the copied `e2e/registration.spec.ts` shows
+   the page object), and run `npm test`, `npm run lint`, `scripts/smoke-test-package.sh` and
+   `npm run e2e` (Docker).
+3. **Commit it as a feature** (`feat(event): publish <the camp> as its own package`) with a
+   `Release-As: 1.0.0` footer, so the first release is 1.0.0, then create and push the repository:
+   `gh repo create camphoric/camphoric-event-<name> --public --source . --remote origin --push`.
+   Release-please opens its release PR on that push; if it can't, allow GitHub Actions to create
+   pull requests in the repository's settings (Actions → General → Workflow permissions), as the
+   other event repositories do, and re-run the Release Please workflow.
+4. **Release it.** Approve the release PR's CI and e2e runs, then merge it: that tags `v1.0.0`
+   and publishes the package. Check that the package is public and that the repository has Write
+   (or Admin) under its "Manage Actions access".
+5. **Add it to Camphoric:** in `data/`, `npm install @camphoric/camphoric-event-<name>` (a caret
+   range from GitHub Packages), add it to `EVENTS` in `data/eventModules.ts`, and add a row to the
+   table above. The offline tests then check that it's the published build, and `docker.yml`
+   imports it.
+
+---
+
 ## Workflows involved
 
 | Workflow                              | Trigger                        | Does |
