@@ -58,9 +58,15 @@ class LoginTests(APITestCase):
         self.assertEqual(response.data['is_superuser'], True)
         self.assertEqual(response.data['last_name'], '')
         self.assertEqual(response.data['username'], 'tom')
+        # The client uses the login response as whoami, so it carries the same fields.
+        self.assertEqual(response.data['id'], self.admin_user.id)
+        self.assertEqual(response.data['role'], 'admin')
+        self.assertEqual(response.data['must_change_password'], False)
+        login_data = response.data
 
         response = self.client.get('/api/user')
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, login_data)
         self.assertEqual(response.data['email'], 'tom@example.com')
         self.assertEqual(response.data['first_name'], '')
         self.assertEqual(response.data['is_active'], True)
