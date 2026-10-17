@@ -7,10 +7,11 @@ confirmation is sent.
 
 import datetime
 from decimal import Decimal
+from unittest import mock
 
 from django.core import mail
 from django.utils import timezone
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APITransactionTestCase
 
 from camphoric import confirmations, invoices, models, roles
 from tests import paypal_mocks
@@ -29,7 +30,7 @@ DEPOSITS = {
 }
 
 
-class FlowTestCase(paypal_mocks.PayPalServerMixin, APITestCase):
+class Flow(paypal_mocks.PayPalServerMixin):
     def setUp(self):
         super().setUp()
         organization = models.Organization.objects.create(name='Org')
@@ -72,6 +73,10 @@ class FlowTestCase(paypal_mocks.PayPalServerMixin, APITestCase):
 
     def confirmations(self):
         return [m for m in mail.outbox if m.to == ['pat@example.com']]
+
+
+class FlowTestCase(Flow, APITestCase):
+    pass
 
 
 class OptionsTests(FlowTestCase):
@@ -488,3 +493,133 @@ class ConfirmationSweepTests(FlowTestCase):
         later = timezone.now() + datetime.timedelta(minutes=31)
         self.assertEqual(confirmations.send_overdue_confirmations(later), 0)
         self.assertEqual(self.confirmations(), [])
+
+
+class CaptureCommitTests(Flow, APITransactionTestCase):
+    '''
+    Once PayPal has the money, the payment is committed: an error after the
+    capture doesn't undo it, and a capture that dies before it's recorded is
+    found by the worker (#804). Real commits, so not inside a test's transaction.
+    '''
+
+    def test_an_error_after_the_capture_keeps_the_payment(self):
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')),
+                   paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        with mock.patch.object(confirmations, 'send_confirmation',
+                               side_effect=RuntimeError('mail is down')):
+            with self.assertRaises(RuntimeError):
+                self.approve()
+        invoice = self.invoice()
+        self.assertEqual((invoice.status, invoice.handling, invoice.pending_paypal_order_id),
+                         ('paid', D('10.00'), None))
+        self.assertEqual(invoice.payments.get().paypal_transaction_id, paypal_mocks.CAPTURE_ID)
+        # The confirmation wasn't sent: the worker's sweep sends it later.
+        self.assertIsNone(self.registration.confirmation_sent_at)
+
+    def test_an_error_after_a_lost_answer_keeps_the_problem_email(self):
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.paypal.add_mock_response(503, {}, {})
+        with mock.patch.object(confirmations, 'send_confirmation',
+                               side_effect=RuntimeError('mail is down')):
+            with self.assertRaises(RuntimeError):
+                self.approve()
+        self.assertTrue(models.EmailMessage.objects.filter(
+            kind=models.EmailMessageKind.PAYMENT_REPORT).exists())
+        self.assertEqual(self.invoice().pending_paypal_order_id, paypal_mocks.ORDER_ID)
+
+    def test_a_capture_that_dies_before_its_recorded_is_found_by_the_worker(self):
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')),
+                   paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        # PayPal takes the money, then the process dies before it's recorded.
+        with mock.patch.object(invoices, 'record_capture', side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                self.approve()
+        invoice = self.invoice()
+        self.assertEqual(invoice.pending_paypal_order_id, paypal_mocks.ORDER_ID)
+        self.assertFalse(invoice.payments.exists())
+
+        # Not yet: it may still be being captured.
+        self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        later = timezone.now() + datetime.timedelta(minutes=16)
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        with self.assertLogs('camphoric.invoices', level='WARNING'):
+            self.assertEqual(invoices.check_unrecorded_captures(later), 1)
+        invoice = self.invoice()
+        self.assertEqual((invoice.status, invoice.handling, invoice.pending_paypal_order_id,
+                          invoice.payment_type), ('paid', D('10.00'), None, 'PayPal'))
+        self.assertEqual(invoice.payments.get().notes, 'Recorded by the worker checking PayPal')
+        self.assertEqual(invoices.check_unrecorded_captures(later), 0)
+
+
+class UnrecordedCaptureSweepTests(FlowTestCase):
+    '''The worker asks PayPal about a capture still pending 15 minutes on (#804).'''
+
+    def started_capture(self, minutes_ago):
+        self.start_paypal()
+        models.Invoice.objects.filter(pk=self.invoice().pk).update(
+            paypal_capture_started_at=timezone.now() - datetime.timedelta(minutes=minutes_ago))
+        return self.invoice()
+
+    def test_a_capture_marks_when_it_started(self):
+        self.start_paypal()
+        invoice = self.invoice()
+        self.assertIsNone(invoice.paypal_capture_started_at)
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.paypal.add_mock_response(422, {}, {
+            'name': 'UNPROCESSABLE_ENTITY', 'details': [{'issue': 'INSTRUMENT_DECLINED'}]})
+        self.approve(status=402)
+        self.assertIsNotNone(self.invoice().paypal_capture_started_at)
+
+    def test_an_order_paypal_didnt_capture_stays_pending_and_is_asked_about_once(self):
+        invoice = self.started_capture(minutes_ago=20)
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        invoice = self.invoice()
+        # Still an online payment not finished, for "Check PayPal order" (DR-104).
+        self.assertEqual((invoice.pending_paypal_order_id, invoice.paypal_capture_started_at),
+                         (paypal_mocks.ORDER_ID, None))
+        asked = len(self.paypal.requests)
+        self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        self.assertEqual(len(self.paypal.requests), asked)
+
+    def test_when_paypal_cant_answer_it_is_asked_again(self):
+        invoice = self.started_capture(minutes_ago=20)
+        self.paypal.add_mock_response(503, {}, {})
+        with self.assertLogs('camphoric.invoices', level='WARNING'):
+            self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        self.assertIsNotNone(self.invoice().paypal_capture_started_at)
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        with self.assertLogs('camphoric.invoices', level='WARNING'):
+            self.assertEqual(invoices.check_unrecorded_captures(), 1)
+        self.assertEqual(self.invoice().status, 'paid')
+
+    def test_an_order_for_another_registration_is_left_for_a_registrar(self):
+        invoice = self.started_capture(minutes_ago=20)
+        other = paypal_mocks.captured(self.registration, invoice, D('410.00'))
+        other['purchase_units'][0]['reference_id'] = 'someone-else'
+        self.reply(other)
+        with self.assertLogs('camphoric.invoices', level='ERROR'):
+            self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        invoice = self.invoice()
+        self.assertEqual((invoice.pending_paypal_order_id, invoice.paypal_capture_started_at),
+                         (paypal_mocks.ORDER_ID, None))
+        self.assertFalse(invoice.payments.exists())
+
+    def test_a_capture_just_started_or_a_day_old_is_left_alone(self):
+        self.started_capture(minutes_ago=5)
+        self.assertEqual(invoices.check_unrecorded_captures(), 0)
+        later = timezone.now() + datetime.timedelta(days=1)
+        self.assertEqual(invoices.check_unrecorded_captures(later), 0)
+        self.assertEqual(len(self.paypal.requests), 1)  # only the order was made
+
+    def test_an_order_whose_capture_never_started_isnt_asked_about(self):
+        self.start_paypal()
+        later = timezone.now() + datetime.timedelta(minutes=16)
+        self.assertEqual(invoices.check_unrecorded_captures(later), 0)
+        self.assertEqual(len(self.paypal.requests), 1)
