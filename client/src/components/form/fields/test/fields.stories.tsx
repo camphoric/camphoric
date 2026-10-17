@@ -47,22 +47,30 @@ export const Campers: StoryFn = () => {
 
 /**
  * LodgingRequested — a cascading select over a lodging tree, leaf-only final
- * choice. The schema is the server's: the dropdowns are a group named by its
- * title, each labelled by its parent's `children_title`, and all required.
+ * choice. The schema is laid out as the server's: a "Lodging" section whose
+ * heading names the picker, which is a group (named by its own title for
+ * assistive technology) of dropdowns, each labelled by its parent's
+ * `children_title`, and all required.
  */
 export const LodgingRequested: StoryFn = () => {
   const [formData, setFormData] = useState<unknown>({});
   const schema: RJSFSchema = {
     type: 'object',
     properties: {
-      lodging_requested: {
+      lodging: {
         type: 'object',
-        title: 'Requested lodging',
-        required: ['id', 'choices'],
+        title: 'Lodging',
         properties: {
-          id: { type: 'number' },
-          name: { type: 'string' },
-          choices: { type: 'array', minItems: 1, items: { type: 'number' } },
+          lodging_requested: {
+            type: 'object',
+            title: 'Lodging',
+            required: ['id', 'choices'],
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string' },
+              choices: { type: 'array', minItems: 1, items: { type: 'number' } },
+            },
+          },
         },
       },
     },
@@ -94,11 +102,12 @@ export const LodgingRequested: StoryFn = () => {
     { id: 6, parent: 3, name: 'Spot 1', children_title: '', remaining_unreserved_capacity: 2 },
   ];
   const uiSchema: UiSchema = {
-    lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: lodgingNodes },
+    lodging: {
+      lodging_requested: { 'ui:field': 'LodgingRequested', lodging_nodes: lodgingNodes },
+    },
   };
   return (
     <Stack maw={560} p="md">
-      <Title order={4}>Requested lodging</Title>
       <JsonSchemaForm
         schema={schema}
         uiSchema={uiSchema}
@@ -147,7 +156,6 @@ export const LodgingRequestedMarked: StoryFn = () => {
   };
   return (
     <Stack maw={560} p="md">
-      <Title order={4}>Requested lodging</Title>
       <JsonSchemaForm
         schema={schema}
         uiSchema={uiSchema}
@@ -221,7 +229,6 @@ export const LodgingRequestedUnfinished: StoryFn = () => {
   };
   return (
     <Stack maw={560} p="md">
-      <Title order={4}>Requested lodging (unfinished)</Title>
       <JsonSchemaForm
         schema={schema}
         uiSchema={uiSchema}

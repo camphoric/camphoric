@@ -138,8 +138,9 @@ describe('LodgingRequested field', () => {
       />,
     );
 
-    const group = screen.getByRole('group', { name: 'Requested lodging' });
-    expect(group).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Requested lodging' })).toBeInTheDocument();
+    // Named for assistive technology only: the section around it shows the title.
+    expect(screen.queryByText('Requested lodging')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Area' })).toHaveValue('Cabins');
     expect(screen.getByRole('textbox', { name: 'Cabin' })).toHaveValue('Cabin A');
     // Optional here: nothing is required and no placeholder carries a "*".
@@ -187,9 +188,27 @@ describe('LodgingRequested field', () => {
       />,
     );
 
-    // The top level takes the field's title; the next, the chosen parent's name.
+    // The top level is named by the field's title without showing it again;
+    // the next is labelled by the chosen parent's name.
     expect(screen.getByRole('textbox', { name: 'Lodging' })).toHaveValue('Cabins');
+    expect(screen.queryByText('Lodging')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Cabins' })).toHaveValue('');
+    expect(screen.getByText('Cabins', { selector: 'label' })).toBeVisible();
+  });
+
+  it('drops the group name for ui:label false', () => {
+    renderForm(
+      <JsonSchemaForm
+        schema={{
+          type: 'object',
+          properties: { lodging_requested: { type: 'object', title: 'Lodging' } },
+        }}
+        uiSchema={{ lodging_requested: { ...uiSchema.lodging_requested, 'ui:label': false } }}
+      />,
+    );
+
+    expect(screen.getByRole('group')).not.toHaveAccessibleName();
+    expect(screen.getByRole('textbox', { name: 'Area' })).toBeInTheDocument();
   });
 });
 
