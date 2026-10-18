@@ -176,7 +176,7 @@ export function EmailAccountForm({
                   { value: 'none', label: 'None' },
                 ]}
                 value={form.values.security}
-                onChange={(value) => setSecurity(value as EmailAccountSecurity)}
+                onChange={(value) => setSecurity(value)}
                 aria-label="Security"
               />
             </Stack>

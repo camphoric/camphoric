@@ -53,7 +53,7 @@ describe('EmailTemplateEditor', () => {
       }),
     );
 
-    await user.click(screen.getByRole('textbox', { name: 'Preview for' }));
+    await user.click(screen.getByRole('combobox', { name: 'Preview for' }));
     await user.click(await screen.findByRole('option', { name: 'Sam', hidden: true }));
     expect(templateEditor).toHaveBeenLastCalledWith(
       expect.objectContaining({ sample: { registration_type_id: 9, invitation_id: 2 } }),

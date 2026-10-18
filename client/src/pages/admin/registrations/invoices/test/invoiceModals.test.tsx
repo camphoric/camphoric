@@ -158,7 +158,7 @@ describe('RecordPaymentModal', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByRole('textbox', { name: 'Apply to' })).toHaveValue(
+    expect(screen.getByRole('combobox', { name: 'Apply to' })).toHaveValue(
       'On its own (a new “Payment received” invoice)',
     );
     await user.type(screen.getByRole('textbox', { name: 'Amount' }), '25');
@@ -263,7 +263,7 @@ describe('RefundModal', () => {
     );
     const refund = () => user.click(screen.getByRole('button', { name: 'Refund through PayPal' }));
     const choosePayment = async (label: RegExp) => {
-      await user.click(screen.getByRole('textbox', { name: 'From payment' }));
+      await user.click(screen.getByRole('combobox', { name: 'From payment' }));
       // The dropdown is still mid-transition in jsdom, so its options count as hidden.
       await user.click(screen.getByRole('option', { name: label, hidden: true }));
     };

@@ -36,7 +36,7 @@ describe('Address field (plain inputs)', () => {
     expect(screen.getByLabelText('City')).toBeInTheDocument();
     expect(screen.getByLabelText('State')).toBeInTheDocument();
     expect(screen.getByLabelText('ZIP')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Country' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Country' })).toBeInTheDocument();
   });
 
   it('writes edits to the scoped address object', async () => {
@@ -55,7 +55,7 @@ describe('Address field (plain inputs)', () => {
     const onChange = vi.fn();
     renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
 
-    await user.click(screen.getByRole('textbox', { name: 'Country' }));
+    await user.click(screen.getByRole('combobox', { name: 'Country' }));
     await user.click(screen.getByText('Canada'));
 
     const last = onChange.mock.calls.at(-1)?.[0] as { address?: { country?: string } };
@@ -66,6 +66,6 @@ describe('Address field (plain inputs)', () => {
     renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} disabled />);
     for (const label of ['Street', 'City', 'State', 'ZIP'])
       expect(screen.getByLabelText(label)).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: 'Country' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Country' })).toBeDisabled();
   });
 });

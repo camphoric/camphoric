@@ -28,7 +28,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import type { AudienceResolution, EmailAudience, EmailRecipientSource } from 'api-types';
+import type { AudienceResolution, EmailAudience } from 'api-types';
 import { RecipientFilterBuilder } from 'components/RecipientFilterBuilder';
 import { useState } from 'react';
 import { useRecipientFields } from 'store/groupEmail';
@@ -111,7 +111,7 @@ export function AudienceEditor({
               // Conditions name the source's fields, so they don't carry over.
               onChange({
                 ...audience,
-                recipient_source: value as EmailRecipientSource,
+                recipient_source: value,
                 filter: { combinator: 'and', rules: [] },
               })
             }
@@ -165,7 +165,7 @@ export function AudienceEditor({
               </Text>
             </Group>
           </UnstyledButton>
-          <Collapse in={advanced}>
+          <Collapse expanded={advanced}>
             <Stack gap="sm">
               <TextInput
                 label="Also only those where (Jinja expression)"

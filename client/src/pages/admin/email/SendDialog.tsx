@@ -354,7 +354,7 @@ export function SendDialog({
             { value: 'later', label: 'Later' },
           ]}
           value={when}
-          onChange={(value) => setWhen(value as 'now' | 'later')}
+          onChange={(value) => setWhen(value)}
         />
         {later && (
           <DateTimePicker

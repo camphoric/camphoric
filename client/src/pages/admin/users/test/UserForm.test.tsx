@@ -15,7 +15,7 @@ function setup(props: Partial<UserFormProps> = {}) {
 describe('UserForm', () => {
   it('adds a Reporter by default, emailing them a link', async () => {
     const { user, onSubmit } = setup();
-    expect(screen.queryByRole('textbox', { name: 'Django access' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Django access' })).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Email them a link/ })).toBeChecked();
     await user.type(screen.getByRole('textbox', { name: /Username/ }), 'lee');
     await user.type(screen.getByRole('textbox', { name: /Email/ }), 'lee@example.com');
@@ -32,7 +32,7 @@ describe('UserForm', () => {
 
   it('shows Django access and password choices to a superuser', async () => {
     const { user, onSubmit } = setup({ isSuperuser: true });
-    expect(screen.getByRole('textbox', { name: 'Django access' })).toHaveValue('Regular user');
+    expect(screen.getByRole('combobox', { name: 'Django access' })).toHaveValue('Regular user');
     await user.type(screen.getByRole('textbox', { name: /Username/ }), 'lee');
     await user.type(screen.getByRole('textbox', { name: /Email/ }), 'lee@example.com');
     await user.click(screen.getByRole('radio', { name: 'Set a password now' }));
@@ -56,14 +56,14 @@ describe('UserForm', () => {
 
   it('won’t let you change your own group, access or active state', () => {
     setup({ user: sampleUser({ role: 'admin' }), isSelf: true, isSuperuser: true });
-    expect(screen.getByRole('textbox', { name: 'Camphoric permission group' })).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: 'Django access' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Camphoric permission group' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Django access' })).toBeDisabled();
     expect(screen.queryByRole('switch', { name: /Active/ })).not.toBeInTheDocument();
   });
 
   it('keeps a superuser an Admin', () => {
     setup({ user: sampleUser({ role: 'admin', django_access: 'superuser' }), isSuperuser: true });
-    const group = screen.getByRole('textbox', { name: 'Camphoric permission group' });
+    const group = screen.getByRole('combobox', { name: 'Camphoric permission group' });
     expect(group).toBeDisabled();
     expect(group).toHaveValue('Admin: everything, including users');
   });

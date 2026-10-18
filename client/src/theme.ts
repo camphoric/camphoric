@@ -3,12 +3,13 @@
  * design system firms up.
  */
 
-import { createTheme } from '@mantine/core';
+import { createTheme, v8CssVariablesResolver } from '@mantine/core';
 
 export const theme = createTheme({
   primaryColor: 'teal',
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  // Mantine 9 rounds corners to md (8px) by default; keep 8.x's sm (4px).
+  defaultRadius: 'sm',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   // Text 4px larger than Mantine's defaults (12/14/16/18/20px) for
   // readability; spacing and control heights are unchanged. Most body text,
   // labels and inputs use `sm`; the page body uses `md`. Description colour:
@@ -31,3 +32,9 @@ export const theme = createTheme({
     },
   },
 });
+
+// Mantine 9 paints the light variant in solid colours, and in dark mode its
+// text in a near-white shade, so subtle and light controls lose their hue (a
+// red delete icon turns white). This keeps 8.x's light-variant colours. Pass it
+// to every MantineProvider given the theme.
+export const cssVariablesResolver = v8CssVariablesResolver;

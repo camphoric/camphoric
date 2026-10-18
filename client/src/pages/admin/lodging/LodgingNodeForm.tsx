@@ -217,9 +217,7 @@ export function LodgingNodeForm({
                 description="Full options are shown as “(full)” and can’t be chosen. Marking it full or open overrides its count, which is kept as it is."
                 data={AVAILABILITY}
                 value={availability}
-                onChange={(value) =>
-                  setAvailability((value as LodgingAvailability | null) ?? 'auto')
-                }
+                onChange={(value) => setAvailability(value ?? 'auto')}
                 allowDeselect={false}
               />
               <Textarea

@@ -233,14 +233,14 @@ export function ReportEditForm({
               }
               data={SOURCE_OPTIONS}
               value={source}
-              onChange={(value) => value && changeSource(value as ReportVariablesSource)}
+              onChange={(value) => value && changeSource(value)}
               allowDeselect={false}
             />
             <Select
               label="Output format"
               data={OUTPUT_OPTIONS.filter((option) => !isServer || !option.legacyOnly)}
               value={output}
-              onChange={(value) => value && setOutput(value as ReportOutputType)}
+              onChange={(value) => value && setOutput(value)}
               allowDeselect={false}
             />
           </Stack>
