@@ -20,7 +20,7 @@ export default defineConfig({
   build: {
     // Output matches the existing client so the deploy/Dockerfile can swap in.
     outDir: 'build',
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         assetFileNames: 'static/[name]-[hash][extname]',
         chunkFileNames: 'static/[name]-[hash].js',
@@ -31,7 +31,7 @@ export default defineConfig({
   // Web workers (Monaco's) go to static/ too: the server serves only that.
   worker: {
     format: 'es',
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         assetFileNames: 'static/[name]-[hash][extname]',
         chunkFileNames: 'static/[name]-[hash].js',

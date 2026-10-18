@@ -41,12 +41,6 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
-      # Vite 8 (#725): @vitejs/plugin-react 6 needs it, and the plugin-react
-      # 4 we have stops at Vite 7. Vite 7 and plugin-react 5 still come.
-      - dependency-name: vite
-        versions: ['>=8.0.0']
-      - dependency-name: '@vitejs/plugin-react'
-        versions: ['>=6.0.0']
     commit-message:
       prefix: fix
       prefix-development: chore
