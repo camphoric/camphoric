@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-133)
+- §15 — Decision Records (DR-1…DR-134)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -133,9 +133,10 @@ behaviors specified throughout this document.
 - **Drag and drop:** `dnd-kit` (`@dnd-kit/core` + `@dnd-kit/sortable`) for the unassigned-
   camper → lodging-grid drops and the camper reorder lists. See §8.6 for the timeline/resize
   consideration.
-- **Linting & formatting:** ESLint v9 (flat config) + `typescript-eslint` (type-checked) +
-  Prettier, with `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`,
-  `@tanstack/eslint-plugin-query`, import sorting, and `eslint-config-prettier`. Surface it in
+- **Linting & formatting:** ESLint v10 (flat config) + `typescript-eslint` (type-checked) +
+  Prettier, with `eslint-plugin-react-hooks` (its `rules-of-hooks` and `exhaustive-deps` rules,
+  not its React Compiler rules), `@tanstack/eslint-plugin-query`, import sorting, and
+  `eslint-config-prettier`. No accessibility lint plugin runs (§15, DR-134). Surface it in
   the dev server (`vite-plugin-checker`) and enforce in CI and a pre-commit hook
   (`husky` + `lint-staged`). See §15 (Decision Records) for rationale and alternatives.
 - **Styling:** Mantine CSS Modules + PostCSS (`postcss-preset-mantine`) — not Sass (see §15,
@@ -3107,6 +3108,9 @@ Trello-grade performance. **Avoid** `react-beautiful-dnd` (deprecated) and a fre
 
 ### DR-7 — Linting & formatting: ESLint + Prettier
 
+*For `eslint-plugin-jsx-a11y` and the ESLint version, amended by DR-134: ESLint 10, without
+jsx-a11y.*
+
 **Decision:** ESLint v9 (flat config) + `typescript-eslint` (type-checked) + Prettier, with
 `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `@tanstack/eslint-plugin-query`, import
 sorting, and `eslint-config-prettier` (§2).
@@ -5580,6 +5584,28 @@ hours or days). Letting the invoice be paid again once the watch ends, and keepi
 in a field of its own for "Check PayPal order" (a second order to track and check, and the payer
 may still pay twice). Asking about a held capture forever (calls to PayPal for one that only a
 person can settle).
+
+### DR-134 — ESLint 10 without `eslint-plugin-jsx-a11y`
+
+**Decision:** The client lints with ESLint 10 and `@eslint/js` 10, and drops
+`eslint-plugin-jsx-a11y`, so no accessibility lint plugin runs (§2). `eslint-plugin-react-hooks`
+moves to 7 (its first major that supports ESLint 10) with only `rules-of-hooks` (error) and
+`exhaustive-deps` (warning) on, the two rules its earlier `recommended` config had; its React
+Compiler rules are off (#921). Amends DR-7.
+**Context:** ESLint 9 reached end of life on 2026-08-06. `eslint-plugin-jsx-a11y`'s latest
+release, 6.10.2 (January 2025), declares an ESLint peer of at most `^9`, so ESLint 10 fails
+`npm ci` with it installed; upstream's ESLint 10 issue (jsx-eslint/eslint-plugin-jsx-a11y#1075)
+and the pull requests that add support have been open since February 2026 with no release. v7's
+`recommended` config adds the React Compiler rules, which report 35 errors on the existing code;
+fixing them is work of its own (#921). Restoring accessibility checks is #922.
+**Alternatives:** Staying on ESLint 9 until jsx-a11y supports 10 — no date to plan around, and
+every other ESLint plugin's majors wait with it. Installing jsx-a11y anyway with
+`--legacy-peer-deps` or an `overrides` entry — every install then ignores peer conflicts, and the
+plugin may call APIs ESLint 10 removed. Switching to a fork that supports ESLint 10
+(`eslint-plugin-jsx-a11y-x`) in the same change — weighed with Oxlint, Biome and axe-core
+checks in #922 rather than chosen as part of the upgrade. Turning on all of v7's `recommended`
+rules and fixing their findings here — a refactor of form, modal and PayPal code that doesn't
+belong in a toolchain upgrade.
 
 ---
 

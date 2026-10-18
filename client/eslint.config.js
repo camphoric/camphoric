@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import pluginQuery from '@tanstack/eslint-plugin-query';
 import configPrettier from 'eslint-config-prettier';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
 import reactHooks from 'eslint-plugin-react-hooks';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
@@ -29,12 +28,15 @@ export default tseslint.config(
     },
     plugins: {
       'react-hooks': reactHooks,
-      'jsx-a11y': jsxA11y,
       'simple-import-sort': simpleImportSort,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      ...jsxA11y.flatConfigs.recommended.rules,
+      // react-hooks 7's recommended config adds the React Compiler rules (refs,
+      // set-state-in-effect, static-components, …), which report findings the
+      // code doesn't fix yet. Until #921 turns them on, only the two classic
+      // rules run.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
       '@typescript-eslint/no-unused-vars': [

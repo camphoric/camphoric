@@ -115,7 +115,7 @@ Filter an array of objects by comparing a path's value to the given value`,
           return compareByOperator(getByPath(item, path), operator, b);
         });
       } catch (e) {
-        throw new Error(`helper {{filter}}: ${(e as Error).message}`);
+        throw new Error(`helper {{filter}}: ${(e as Error).message}`, { cause: e });
       }
     },
   },
@@ -138,7 +138,7 @@ Render the block when comparing the first and third args (via the operator) is t
       try {
         return compareByOperator(a, operator, b) ? options.fn(this) : '';
       } catch (e) {
-        throw new Error(`helper {{compare}}: ${(e as Error).message}`);
+        throw new Error(`helper {{compare}}: ${(e as Error).message}`, { cause: e });
       }
     },
   },
