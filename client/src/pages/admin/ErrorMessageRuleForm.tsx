@@ -105,7 +105,7 @@ export function ErrorMessageRuleForm({
   };
   const valid = !errors.path && !errors.keyword && !errors.message;
 
-  const preview = useMemo(() => {
+  const renderPreview = () => {
     if (!message.trim() || templateError) return undefined;
     const isCamperField = trimmedPath.startsWith('campers.');
     try {
@@ -118,7 +118,8 @@ export function ErrorMessageRuleForm({
     } catch (error) {
       return `Couldn't render: ${String(error)}`;
     }
-  }, [message, templateError, trimmedPath, field, keyword]);
+  };
+  const preview = renderPreview();
 
   const save = () => {
     setSubmitted(true);

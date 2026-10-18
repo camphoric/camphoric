@@ -102,6 +102,13 @@ export function PromoCodeForm({
   saving,
   errors = {},
 }: PromoCodeFormProps) {
+  const form = useForm<Values>({
+    initialValues: valuesOf(latest),
+    validate: {
+      label: (value) => (value.trim() ? null : 'Give the code a label'),
+      code: (value) => (value.trim() ? null : 'Enter the code registrants type'),
+    },
+  });
   // The version shown: a newer one shows while nothing here is unsaved.
   const [promoCode] = useLatestWhileUnchanged<ApiPromoCode>(
     latest,
@@ -113,13 +120,6 @@ export function PromoCodeForm({
       form.resetDirty(values);
     },
   );
-  const form = useForm<Values>({
-    initialValues: valuesOf(promoCode),
-    validate: {
-      label: (value) => (value.trim() ? null : 'Give the code a label'),
-      code: (value) => (value.trim() ? null : 'Enter the code registrants type'),
-    },
-  });
   const logicError = useMemo(() => jsonError(form.values.logic), [form.values.logic]);
 
   const handleSubmit = (values: Values) => {

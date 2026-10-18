@@ -109,6 +109,8 @@ export function JsonSchemaForm({
   useLayoutEffect(() => {
     messageContext.current = { ...errorMessages, schema, uiSchema };
   });
+  // It reads the ref when rjsf validates, not to build the validator.
+  // eslint-disable-next-line react-hooks/refs
   const validator = useMemo(() => createMessagingValidator(() => messageContext.current), []);
   const formUiSchema = useMemo(() => withFormDefaults(uiSchema), [uiSchema]);
   // An admin who can't change data (a Reporter) sees every form read-only (DR-51).

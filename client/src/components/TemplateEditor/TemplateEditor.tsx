@@ -154,8 +154,8 @@ export function TemplateEditorView({
   // Insert at the cursor (replacing any selection); tag snippets expand.
   const insert = useCallback<InsertHandler>(
     (text, options) => {
-      if (!mounted) return;
-      const { editor } = mounted;
+      const editor = mounted?.editor;
+      if (!editor) return;
       editor.focus();
       if (options?.snippet) {
         const snippets = editor.getContribution<

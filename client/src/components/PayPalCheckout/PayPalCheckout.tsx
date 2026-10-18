@@ -29,7 +29,7 @@ import {
   usePayPalScriptReducer,
 } from '@paypal/react-paypal-js';
 import type { PaymentType } from 'api-types';
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 /** PayPal caps its buttons at 750px wide; every payment button shares that cap. */
 export const PAYMENT_BUTTON_WIDTH = 750;
@@ -65,7 +65,9 @@ export function PayPalCheckout({
 
   // PayPal's buttons close over their first render's callbacks; read the latest.
   const latest = useRef({ createOrder, onApprove, onCancel, onError, onStart });
-  latest.current = { createOrder, onApprove, onCancel, onError, onStart };
+  useLayoutEffect(() => {
+    latest.current = { createOrder, onApprove, onCancel, onError, onStart };
+  });
 
   const handleClick: PayPalButtonOnClick = (data) => {
     fundingSourceRef.current = data.fundingSource as string | undefined;

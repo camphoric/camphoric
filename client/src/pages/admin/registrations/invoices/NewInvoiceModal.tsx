@@ -9,6 +9,7 @@ import { Button, Group, Modal, NumberInput, Stack, Text, Textarea, TextInput } f
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiInvoice, Scalar } from 'api-types';
+import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useState } from 'react';
 import { useCreateInvoice } from 'store/invoices';
 import { apiErrorMessage, apiFieldErrors } from 'utils/fetch';
@@ -37,16 +38,18 @@ export function NewInvoiceModal({
   const [memo, setMemo] = useState('');
   const [notes, setNotes] = useState('');
 
-  useEffect(() => {
-    if (!opened) return;
+  // Start afresh each time it opens.
+  const opening = useHasChanged(opened) && opened;
+  if (opening) {
     // Most invoices are for what's left to pay.
     setDescription(uninvoicedBalance > 0 ? 'Registration balance' : '');
     setAmount(uninvoicedBalance > 0 ? roundMoney(uninvoicedBalance) : 0);
     setDueOn('');
     setMemo('');
     setNotes('');
-    create.reset();
-    // Start afresh each time it opens.
+  }
+  useEffect(() => {
+    if (opened) create.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 

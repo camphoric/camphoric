@@ -14,6 +14,7 @@ import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiEvent, ApiInvoice, Hash, PaymentType, Scalar } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
+import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useState } from 'react';
 import { useRecordPayment } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
@@ -56,8 +57,9 @@ export function RecordPaymentModal({
   const [attributes, setAttributes] = useState<Hash>({});
   const [applyTo, setApplyTo] = useState<string>(ON_ITS_OWN);
 
-  useEffect(() => {
-    if (!opened) return;
+  // Start afresh each time it opens.
+  const opening = useHasChanged(opened) && opened;
+  if (opening) {
     const first = open[0];
     setApplyTo(first ? String(first.id) : ON_ITS_OWN);
     setAmount(first ? Number(first.amount_due) : 0);
@@ -65,8 +67,9 @@ export function RecordPaymentModal({
     setPaidOn('');
     setNotes('');
     setAttributes({});
-    record.reset();
-    // Start afresh each time it opens.
+  }
+  useEffect(() => {
+    if (opened) record.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 

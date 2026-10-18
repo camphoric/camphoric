@@ -27,6 +27,7 @@ export function ArrayFieldItemTemplate(props: ArrayFieldItemTemplateProps) {
           right={8}
           className="rjsf-array-item-toolbar"
         >
+          {/* eslint-disable-next-line react-hooks/static-components -- the registry's template, the same component every render */}
           <ArrayFieldItemButtonsTemplate {...buttonsProps} />
         </Group>
       )}

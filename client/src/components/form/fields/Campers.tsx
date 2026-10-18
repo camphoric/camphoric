@@ -38,6 +38,7 @@ function CampersItemTemplate(props: ArrayFieldItemTemplateProps) {
     >
       <Group justify="space-between" align="flex-end" mb="xs">
         <Title order={5}>{ordinal(index + 1)} Camper</Title>
+        {/* eslint-disable-next-line react-hooks/static-components -- the registry's template, the same component every render */}
         {hasToolbar && <ItemButtons {...buttonsProps} />}
       </Group>
       <Divider mb="sm" />

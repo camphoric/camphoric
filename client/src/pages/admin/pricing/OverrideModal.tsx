@@ -9,7 +9,8 @@ import type { ApiPricingOverride, Scalar } from 'api-types';
 import type { FeeLine } from 'components/FeeBreakdown';
 import { FormActions } from 'components/FormActions';
 import { useConflictAwareSave } from 'hooks/useEditableRecord';
-import { useEffect, useState } from 'react';
+import { useHasChanged } from 'hooks/useHasChanged';
+import { useState } from 'react';
 import { pricingOverrideHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
@@ -45,10 +46,11 @@ export function OverrideModal({ registration, camper, line, onClose }: OverrideM
     setReason(fields.reason);
   };
 
-  useEffect(() => {
+  const lineChanged = useHasChanged(line);
+  if (lineChanged) {
     setAmount(line?.override ? Number(line.override.amount) : '');
     setReason(line?.override?.reason ?? '');
-  }, [line]);
+  }
 
   const ready = line !== null && amount !== '' && reason.trim() !== '';
   const saving = create.isPending || update.isPending;

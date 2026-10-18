@@ -33,12 +33,7 @@ export default tseslint.config(
       'simple-import-sort': simpleImportSort,
     },
     rules: {
-      // react-hooks 7's recommended config adds the React Compiler rules (refs,
-      // set-state-in-effect, static-components, …), which report findings the
-      // code doesn't fix yet. Until #921 turns them on, only the two classic
-      // rules run.
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
