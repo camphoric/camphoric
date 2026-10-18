@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-129)
+- §15 — Decision Records (DR-1…DR-130)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 

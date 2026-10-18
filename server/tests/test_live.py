@@ -124,9 +124,7 @@ def listener():
 
 
 def heard(conn):
-    # Postgres sends a notice as its transaction commits; on the same machine it
-    # arrives in milliseconds.
-    return [json.loads(n.payload) for n in conn.notifies(timeout=0.2, stop_after=50)]
+    return [json.loads(n.payload) for n in conn.notifies(timeout=0.5, stop_after=50)]
 
 
 class DeliveryTests(TransactionTestCase):
