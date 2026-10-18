@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22-bookworm
+FROM node:26-bookworm
 
 # Now install the CRA
 ENV PATH="/app/node_modules/.bin:${PATH}"

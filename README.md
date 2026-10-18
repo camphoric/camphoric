@@ -82,7 +82,7 @@ GitHub Packages needs a token to install **even public packages**:
    steps:
      - uses: actions/setup-node@v7
        with:
-         node-version: 22
+         node-version: 26
          registry-url: https://npm.pkg.github.com
          scope: '@camphoric'
      - run: npm ci

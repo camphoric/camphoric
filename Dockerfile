@@ -10,7 +10,7 @@
 #   app          - slim runtime image: venv + server/ + built frontend, non-root, gunicorn
 #                  running the ASGI app on uvicorn workers
 
-ARG NODE_VERSION=22
+ARG NODE_VERSION=26
 ARG PYTHON_VERSION=3.12
 
 # ---- frontend: build client -------------------------------------------------

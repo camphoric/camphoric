@@ -75,7 +75,7 @@ CONTAINER ID   IMAGE                COMMAND                  CREATED         STA
 9221cf257ca2   postgres:16-alpine   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes (healthy)   127.0.0.1:5434->5432/tcp           camphoric-postgres-1
 9e5b365574e6   camphoric-worker     "./manage.py camphor…"   6 minutes ago   Up 4 minutes                                                camphoric-worker-1
 df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   Up 4 minutes             127.0.0.1:8000->8000/tcp           camphoric-django-1
-1e66e583199e   node:22-bookworm     "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             127.0.0.1:3000-3001->3000-3001/tcp camphoric-react-1
+1e66e583199e   node:26-bookworm     "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes             127.0.0.1:3000-3001->3000-3001/tcp camphoric-react-1
 ```
 
 Run the following command to get your secret key:

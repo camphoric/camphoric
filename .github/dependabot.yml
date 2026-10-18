@@ -30,7 +30,8 @@ updates:
       # Mantine 9 (#870): every @mantine/* package pins the others' version.
       - dependency-name: '@mantine/*'
         update-types: ['version-update:semver-major']
-      # @types/node follows the runtime's major, which moves with #871.
+      # @types/node follows the runtime's major (Node 26), which moves
+      # with the Node pins listed at the base images below, not on its own.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
       # ESLint 10 (#725): @eslint/js needs the same major; no
@@ -64,7 +65,8 @@ updates:
         patterns: [eslint, '@eslint/js']
         update-types: [major]
     ignore:
-      # @types/node follows the runtime's major, which moves with #871.
+      # @types/node follows the runtime's major (Node 26), which moves
+      # with the Node pins listed at the base images below, not on its own.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
     commit-message:
@@ -96,14 +98,22 @@ updates:
       prefix: chore
       include: scope
 
-  # Base images. Python 3.12, Node 22 and Postgres 16 are pinned together
+  # Base images. Python 3.12, Node 26 and Postgres 16 are pinned together
   # across the Pipfile, CI and the Dockerfiles (the root Dockerfile's
   # NODE_VERSION/PYTHON_VERSION ARGs, which Dependabot can't update), so an
   # image PR is a reminder to move them all, not a change to merge alone.
+  # Node also sits in docker-compose.yml, ansible/group_vars/all.yml's
+  # nodejs_version (and nodejs_supported_versions), the CI workflows'
+  # node-version, README.md, doc/development.md and every package.json's
+  # @types/node. Its majors are ignored here and in docker-compose below, so
+  # Node moves only when every pin moves at once.
   - package-ecosystem: docker
     directories: [/server, /data]
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
       include: scope
@@ -116,6 +126,10 @@ updates:
       # A new Postgres major needs the data upgraded (dump and restore or
       # pg_upgrade), not a tag bump.
       - dependency-name: postgres
+        update-types: ['version-update:semver-major']
+      # Node's majors move with every other Node pin (see the base images
+      # above).
+      - dependency-name: node
         update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
