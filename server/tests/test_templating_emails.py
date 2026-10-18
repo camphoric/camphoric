@@ -63,6 +63,27 @@ class JinjaConfirmationEmailTests(APITestCase):
                          '# Thanks!\n* Pat: $100.00\n* Sam: $100.00\nPaying now: $200.00')
         self.assertIn('<h1>Thanks!</h1>', message.alternatives[0][0])
 
+    def test_a_markdown_table_becomes_an_html_table(self):
+        set_email(self.event.confirmation_template, body=(
+            '| Name | Total |\n| ---- | ----- |\n'
+            '{% for camper in campers %}| {{ camper.attributes.first_name }} | '
+            '{{ camper.pricing.total }} |\n{% endfor %}'))
+        self.register(campers=[{'first_name': 'Pat'}, {'first_name': 'Sam'}])
+        [message] = mail.outbox
+        self.assertEqual(message.alternatives[0][1], 'text/html')
+        self.assertEqual(message.alternatives[0][0], (
+            '<table>\n<thead>\n<tr>\n<th>Name</th>\n<th>Total</th>\n</tr>\n</thead>\n'
+            '<tbody>\n<tr>\n<td>Pat</td>\n<td>100</td>\n</tr>\n'
+            '<tr>\n<td>Sam</td>\n<td>100</td>\n</tr>\n</tbody>\n</table>\n'))
+
+    def test_the_handling_fee_is_no_longer_in_the_pricing(self):
+        # Older templates may still use it: it renders blank (SPEC DR-88).
+        set_email(self.event.confirmation_template, body='handling:{{ pricing.handling }}')
+        response = self.register()
+        self.assertFalse(response.data['emailError'])
+        [message] = mail.outbox
+        self.assertEqual(message.body, 'handling:')
+
     @override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
     def test_a_broken_template_reports_to_the_from_address(self):
         set_email(self.event.confirmation_template, body='Hello\n{{ registration.nope.deeper }}')
@@ -128,6 +149,13 @@ class JinjaInvitationEmailTests(APITestCase):
             message.body,
             f'Hi Lee: http://testserver/events/{self.event.id}/register'
             '?email=lee@example.com&code=abcd2345')
+        self.assertEqual(message.from_email, 'reg@camp.org')
+        self.assertEqual(message.to, ['"Lee" <lee@example.com>'])
+        # The HTML part links the address.
+        link = (f'http://testserver/events/{self.event.id}/register'
+                '?email=lee@example.com&amp;code=abcd2345')
+        self.assertEqual(message.alternatives, [
+            (f'<p>Hi Lee: <a href="{link}">{link}</a></p>\n', 'text/html')])
         self.invitation.refresh_from_db()
         self.assertIsNotNone(self.invitation.sent_time)
 
@@ -202,10 +230,11 @@ class EmailTemplateApiTests(APITestCase):
 
 
 class EmailCheckTests(APITestCase):
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         from tests.factories import create_template_event
-        self.made = create_template_event()
-        self.event = self.made.event
+        cls.made = create_template_event()
+        cls.event = cls.made.event
 
     def result(self, kind):
         return [r for r in check_event_templates(self.event) if r.kind == kind]

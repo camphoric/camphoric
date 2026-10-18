@@ -14,11 +14,14 @@ def fields_of(payload, type_name):
 
 
 class TemplateDescribeTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.url = f'/api/events/{cls.made.event.id}/templates/describe'
+        cls.admin = User.objects.create_superuser('admin', 'admin@example.com', 'pw')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.url = f'/api/events/{self.made.event.id}/templates/describe'
-        self.client.force_authenticate(
-            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        self.client.force_authenticate(user=self.admin)
 
     def test_requires_admin(self):
         self.client.force_authenticate(user=None)
@@ -81,11 +84,14 @@ class TemplateDescribeTests(APITestCase):
 
 
 class TemplatePreviewTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.url = f'/api/events/{cls.made.event.id}/templates/preview'
+        cls.admin = User.objects.create_superuser('admin', 'admin@example.com', 'pw')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.url = f'/api/events/{self.made.event.id}/templates/preview'
-        self.client.force_authenticate(
-            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        self.client.force_authenticate(user=self.admin)
 
     def preview(self, **body):
         return self.client.post(self.url, body, format='json')
@@ -170,10 +176,13 @@ class TemplatePreviewTests(APITestCase):
 class LegacyReportRenderTests(APITestCase):
     '''Reports whose variables the client posts still render — now sandboxed.'''
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.admin = User.objects.create_superuser('admin', 'admin@example.com', 'pw')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(
-            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        self.client.force_authenticate(user=self.admin)
 
     def render(self, template, data):
         report = models.Report.objects.create(
@@ -205,10 +214,13 @@ class LegacyReportRenderTests(APITestCase):
 class ServerReportTests(APITestCase):
     '''Reports that use the server's variables (variables_source = server).'''
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.admin = User.objects.create_superuser('admin', 'admin@example.com', 'pw')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(
-            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
+        self.client.force_authenticate(user=self.admin)
 
     def create(self, **fields):
         return self.client.post('/api/reports/', {
@@ -252,23 +264,26 @@ class ServerReportTests(APITestCase):
 
 
 class TemplateCheckTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(
-            user=User.objects.create_superuser('admin', 'admin@example.com', 'pw'))
-        event = self.made.event
-        self.good = models.Report.objects.create(
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.admin = User.objects.create_superuser('admin', 'admin@example.com', 'pw')
+        event = cls.made.event
+        cls.good = models.Report.objects.create(
             event=event, title='Good', output='csv', variables_source='server',
             template='{{ campers | length }}')
-        self.typo = models.Report.objects.create(
+        cls.typo = models.Report.objects.create(
             event=event, title='Typo', output='md', variables_source='server',
             template='{{ campers[0].frist_name }}')
-        self.broken_legacy = models.Report.objects.create(
+        cls.broken_legacy = models.Report.objects.create(
             event=event, title='Legacy broken', output='csv', template='{% if %}',
             variables_source='client')
-        self.handlebars = models.Report.objects.create(
+        cls.handlebars = models.Report.objects.create(
             event=event, title='Hbs', output='hbs', template='{{#each campers}}{{/each}}',
             variables_source='client')
+
+    def setUp(self):
+        self.client.force_authenticate(user=self.admin)
 
     def test_endpoint(self):
         data = self.client.get(f'/api/events/{self.made.event.id}/templates/check').json()

@@ -16,8 +16,11 @@ from tests.factories import create_template_event
 
 
 class RenderTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+
     def setUp(self):
-        self.made = create_template_event()
         self.context = report_context(build_event_graph(self.made.event))
 
     def render(self, source, **kwargs):
@@ -154,7 +157,7 @@ class RenderTests(TestCase):
     def test_timeout(self):
         result = self.render(
             '{% for i in range(100000) %}{% for j in range(100000) %}{% endfor %}{% endfor %}',
-            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            limits=RenderLimits(timeout_s=0.05, max_output_chars=100))
         [error] = self.errors(result)
         self.assertEqual(error.kind, 'timeout')
 
@@ -163,7 +166,7 @@ class RenderTests(TestCase):
         results = []
         worker = threading.Thread(daemon=True, target=lambda: results.append(self.render(
             '{% for i in range(100000) %}{% for j in range(100000) %}{% endfor %}{% endfor %}',
-            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))))
+            limits=RenderLimits(timeout_s=0.05, max_output_chars=100))))
         worker.start()
         worker.join(10)
         self.assertFalse(worker.is_alive(), 'the render ran on past its limit')
@@ -177,7 +180,7 @@ class RenderTests(TestCase):
             result = self.render(
                 '{% set r = range(100000) %}{% for i in r %}{% for j in r %}'
                 + body + '{% endfor %}{% endfor %}',
-                limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+                limits=RenderLimits(timeout_s=0.05, max_output_chars=100))
             [error] = self.errors(result)
             self.assertEqual(error.kind, 'timeout', body)
 
@@ -185,7 +188,7 @@ class RenderTests(TestCase):
         result = self.render(
             '{% macro spin() %}{% for i in range(100000) %}{% for j in range(100000) %}'
             '{% endfor %}{% endfor %}{% endmacro %}{{ spin() }}',
-            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            limits=RenderLimits(timeout_s=0.05, max_output_chars=100))
         [error] = self.errors(result)
         self.assertEqual(error.kind, 'timeout')
 
@@ -195,14 +198,15 @@ class RenderTests(TestCase):
             '{{ f(40) }}',
             '{% macro f(n) %}{{ n > 0 and (f(n-1) ~ f(n-1)) }}{% endmacro %}{{ f(40) }}',
         ):
-            result = self.render(template, limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            result = self.render(
+                template, limits=RenderLimits(timeout_s=0.05, max_output_chars=100))
             [error] = self.errors(result)
             self.assertEqual(error.kind, 'timeout', template)
 
     def test_timeout_inside_a_filter(self):
         result = self.render(
             '{% set r = range(100000) | list %}{{ r | select("in", r) | list | length }}',
-            limits=RenderLimits(timeout_s=0.2, max_output_chars=100))
+            limits=RenderLimits(timeout_s=0.05, max_output_chars=100))
         [error] = self.errors(result)
         self.assertEqual(error.kind, 'timeout')
 

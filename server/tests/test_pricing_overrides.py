@@ -18,9 +18,12 @@ from tests.factories import create_template_event, make_user
 
 
 class OverrideTestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
         self.client.force_authenticate(self.registrar)
 
     def override(self, status=201, **fields):

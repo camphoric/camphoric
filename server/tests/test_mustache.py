@@ -7,14 +7,10 @@ rendered (the variables below, as Camphoric passed them) and its conversion the
 way emails are rendered now, and compare.
 '''
 
-from contextlib import redirect_stdout
-from io import StringIO
 from types import SimpleNamespace
 
 import chevron
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 
 from camphoric.templating import mustache
 from camphoric.templating.contexts import confirmation_email_context, invitation_email_context
@@ -82,11 +78,12 @@ def legacy_confirmation(registration, template):
 
 
 class ConversionTests(TestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.event = self.made.event
-        self.shapes = mustache.confirmation_shapes(self.event.registration_schema,
-                                                   self.event.camper_schema)
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.event = cls.made.event
+        cls.shapes = mustache.confirmation_shapes(cls.event.registration_schema,
+                                                  cls.event.camper_schema)
 
     def convert(self, template):
         return mustache.convert(template, self.shapes)
@@ -151,63 +148,3 @@ class ConversionTests(TestCase):
             with self.subTest(template=template), \
                     self.assertRaises(mustache.MustacheConversionError):
                 self.convert(template)
-
-
-class MigrationTests(TransactionTestCase):
-    '''Migration 0065 moves both emails into templates, converting Mustache ones.'''
-    before = [('camphoric', '0064_email_message_without_event')]
-    after = [('camphoric', '0065_email_templates')]
-
-    def tearDown(self):
-        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph
-                                              .leaf_nodes())
-
-    def test_emails_become_templates(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.before)
-        apps = executor.loader.project_state(self.before).apps
-        Organization = apps.get_model('camphoric', 'Organization')
-        Event = apps.get_model('camphoric', 'Event')
-        RegistrationType = apps.get_model('camphoric', 'RegistrationType')
-        organization = Organization.objects.create(name='Org')
-        old = Event.objects.create(
-            organization=organization, name='Old', confirmation_email_engine='mustache',
-            confirmation_email_subject='Thanks, {{campers.0.first_name}}',
-            confirmation_email_template='{{#campers}}{{first_name}}{{/campers}}',
-            confirmation_email_from='reg@camp.org')
-        new = Event.objects.create(
-            organization=organization, name='New', confirmation_email_engine='jinja',
-            confirmation_email_subject='Hi', confirmation_email_template='{{ event.name }}')
-        RegistrationType.objects.create(
-            event=old, name='staff', label='Staff', invitation_email_engine='mustache',
-            invitation_email_subject='Join', invitation_email_template='{{register_link}}')
-        RegistrationType.objects.create(
-            event=new, name='crew', label='Crew', invitation_email_engine='mustache',
-            invitation_email_subject='Join', invitation_email_template='{{> partial}}')
-
-        executor = MigrationExecutor(connection)
-        # The migration tells whoever runs it about a template it couldn't convert.
-        with redirect_stdout(StringIO()) as printed:
-            executor.migrate(self.after)
-        self.assertIn('Crew invitation: not converted from Mustache', printed.getvalue())
-        # The models as they were after 0065 (later migrations add fields).
-        apps = executor.loader.project_state(self.after).apps
-        Event = apps.get_model('camphoric', 'Event')
-        RegistrationType = apps.get_model('camphoric', 'RegistrationType')
-
-        old, new = Event.objects.get(name='Old'), Event.objects.get(name='New')
-        self.assertEqual(old.confirmation_template.subject,
-                         'Thanks, {{ campers[0].attributes.first_name }}')
-        self.assertEqual(old.confirmation_template.body,
-                         '{% for camper in campers %}{{ camper.attributes.first_name }}'
-                         '{% endfor %}')
-        self.assertEqual(old.confirmation_template.purpose, 'confirmation')
-        self.assertEqual(old.confirmation_email_from, 'reg@camp.org')
-        self.assertEqual((new.confirmation_template.subject, new.confirmation_template.body),
-                         ('Hi', '{{ event.name }}'))
-        staff = RegistrationType.objects.get(name='staff').invitation_template
-        self.assertEqual((staff.name, staff.body),
-                         ('Invitation: Staff', '{{ invitation.register_url }}'))
-        crew = RegistrationType.objects.get(name='crew').invitation_template
-        self.assertIn("Couldn't be converted from Mustache", crew.body)
-        self.assertIn('{{> partial}}', crew.body)

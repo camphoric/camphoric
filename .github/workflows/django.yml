@@ -113,4 +113,5 @@ jobs:
       - name: Check for missing migrations
         run: pipenv run python manage.py makemigrations --check --dry-run
       - name: Run Tests
-        run: pipenv run python manage.py test
+        # A worker per CPU, each on its own copy of the test database.
+        run: pipenv run python manage.py test --parallel auto

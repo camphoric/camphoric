@@ -50,8 +50,11 @@ def objects_in(value, seen=None):
 
 
 class RegistryDriftTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+
     def setUp(self):
-        self.made = create_template_event()
         self.graph = build_event_graph(self.made.event)
 
     def test_every_graph_object_has_exactly_its_described_fields(self):

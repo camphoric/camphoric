@@ -83,17 +83,20 @@ class RuleTests(SimpleTestCase):
 
 
 class GroupEmailTestCase(APITestCase):
-    def setUp(self):
-        clear_deferred_tasks()
-        self.admin = User.objects.create_superuser('admin', 'admin@camp.org', 'pw')
-        self.client.force_authenticate(user=self.admin)
-        self.made = create_template_event()
-        self.event = self.made.event
-        self.template = models.EmailTemplate.objects.create(
-            event=self.event, purpose='group', name='Packing list',
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_superuser('admin', 'admin@camp.org', 'pw')
+        cls.made = create_template_event()
+        cls.event = cls.made.event
+        cls.template = models.EmailTemplate.objects.create(
+            event=cls.event, purpose='group', name='Packing list',
             subject='Packing for {{ event.name }}',
             body='Hi {{ recipient.name or recipient.email }}!',
             recipient_source='campers')
+
+    def setUp(self):
+        clear_deferred_tasks()
+        self.client.force_authenticate(user=self.admin)
 
     def url(self, suffix):
         return f'/api/emailtemplates/{self.template.id}/{suffix}'

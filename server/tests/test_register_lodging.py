@@ -73,6 +73,20 @@ class RegisterLodgingTests(APITestCase):
         self.assertEqual([c.lodging_requested_id for c in campers],
                          [self.cabin_a.id, self.tent.id])
 
+    def test_sharing_and_comments_are_kept(self):
+        data = form_data(self, self.cabin_a, self.tent)
+        data['campers'][1]['lodging'].update({
+            'lodging_shared': True, 'lodging_shared_with': 'my buddy',
+            'lodging_comments': 'my buddy and me'})
+        response = self.client.post(f'/api/events/{self.event.id}/register',
+                                    {'formData': data, 'pricingResults': {}}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        first, second = models.Camper.objects.order_by('sequence')
+        self.assertEqual((first.lodging_shared, first.lodging_shared_with), (False, ''))
+        self.assertEqual(
+            (second.lodging_shared, second.lodging_shared_with, second.lodging_comments),
+            (True, 'my buddy', 'my buddy and me'))
+
     def test_campers_without_lodging_need_no_room(self):
         response = self.register(None, None)
         self.assertEqual(response.status_code, 200, response.data)
@@ -198,7 +212,7 @@ class SimultaneousRegistrationTests(TransactionTestCase):
         # Each waits here, after taking the lock and counting, for the other: with
         # the lock the second is still queued, so the first gives up waiting and
         # goes on; without it both would count the same free bed.
-        barrier = threading.Barrier(2, timeout=2)
+        barrier = threading.Barrier(2, timeout=1)
         check = lodging.registration_lodging_problem
 
         def meet_then_check(tree, requested_ids):

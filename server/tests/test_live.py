@@ -21,8 +21,11 @@ KEYS = {'type', 'model', 'id', 'event', 'action', 'actor'}
 
 
 class NoticeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+
     def setUp(self):
-        self.made = create_template_event()
         self.sent = []
         patcher = mock.patch.object(live, 'notify', side_effect=self.sent.append)
         patcher.start()
@@ -121,7 +124,9 @@ def listener():
 
 
 def heard(conn):
-    return [json.loads(n.payload) for n in conn.notifies(timeout=0.5, stop_after=50)]
+    # Postgres sends a notice as its transaction commits; on the same machine it
+    # arrives in milliseconds.
+    return [json.loads(n.payload) for n in conn.notifies(timeout=0.2, stop_after=50)]
 
 
 class DeliveryTests(TransactionTestCase):
@@ -146,9 +151,10 @@ class DeliveryTests(TransactionTestCase):
 
 
 class StreamAccessTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.path = f'/api/events/{self.made.event.id}/stream/'
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.path = f'/api/events/{cls.made.event.id}/stream/'
 
     def test_who_may_watch(self):
         self.assertEqual(self.client.get(self.path).status_code, 401)
