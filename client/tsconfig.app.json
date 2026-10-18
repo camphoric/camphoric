@@ -22,7 +22,6 @@
     "noUncheckedSideEffectImports": true,
 
     /* Path aliases — mirror vite.config.ts */
-    "baseUrl": ".",
     "paths": {
       "api-types": ["./src/api-types.ts"],
       "components/*": ["./src/components/*"],
