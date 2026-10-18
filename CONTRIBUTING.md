@@ -269,6 +269,11 @@ When an API change *is* authorized:
 
 - Frontend tests run with Vitest (`npm test` in `client/`). Put a component's tests in the
   `test/` directory inside its folder as `*.test.ts(x)`.
+- The Playwright e2e (`npm run e2e` in `client/`) runs every test on Desktop Chrome and two
+  mobile devices. Tag a test `DESKTOP_ONLY` (`@desktop-only`) only when it's of an admin screen,
+  a Vitest test already checks the same thing, and the test depends on nothing about the screen
+  or browser; it then runs on Desktop Chrome alone. Public registration tests always run on the
+  phones too (it's mobile-first).
 - Prioritize tests for the highest-risk, highest-leverage logic: the **pricing engine**,
   template helpers, date/money utilities, and other pure functions.
 - Test behavior and public interfaces, not implementation details. Avoid brittle snapshot tests

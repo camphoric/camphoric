@@ -193,10 +193,31 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
+      # The browsers are cached by Playwright's version and the runner's OS release
+      # (they're built for it); their system packages aren't, so a cached run still
+      # installs those.
+      - name: Playwright version
+        id: playwright
+        working-directory: data
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ env.ImageOS }}-playwright-${{ steps.playwright.outputs.version }}-chromium
+
       # Chromium for the config's Desktop and Mobile Chrome projects
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: data
         run: npx playwright install --with-deps chromium
+
+      - name: Install the browsers' system packages
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: data
+        run: npx playwright install-deps chromium
 
       - name: Sample Camp's registration-form e2e tests
         working-directory: data
