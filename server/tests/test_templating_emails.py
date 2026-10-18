@@ -78,6 +78,8 @@ class JinjaConfirmationEmailTests(APITestCase):
 
     def test_the_handling_fee_is_no_longer_in_the_pricing(self):
         # Older templates may still use it: it renders blank (SPEC DR-88).
+        self.event.epayment_handling = 2.5
+        self.event.save()
         set_email(self.event.confirmation_template, body='handling:{{ pricing.handling }}')
         response = self.register()
         self.assertFalse(response.data['emailError'])
