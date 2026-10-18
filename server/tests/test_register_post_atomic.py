@@ -20,9 +20,11 @@ class RegisterPostAtomicTests(APITestCase):
         root = self.event.lodging_set.create(name='Lodging', visible=True)
         self.cabin = self.event.lodging_set.create(name='Cabin', parent=root, visible=True)
         tent = self.event.lodging_set.create(name='Tent', parent=root, visible=True)
+        # Registration only takes lodging with room (#795).
         self.cabin_1 = self.event.lodging_set.create(
-            name='Cabin 1', parent=self.cabin, visible=True)
-        self.tent_1 = self.event.lodging_set.create(name='Tent 1', parent=tent, visible=True)
+            name='Cabin 1', parent=self.cabin, visible=True, capacity=4)
+        self.tent_1 = self.event.lodging_set.create(
+            name='Tent 1', parent=tent, visible=True, capacity=4)
 
         # A camper's price depends on where they come in the registration and
         # on their lodging's place in the tree, so each is priced among the rest.
