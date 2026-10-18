@@ -196,17 +196,19 @@ jobs:
       # The browsers are cached by Playwright's version and the runner's OS release
       # (they're built for it); their system packages aren't, so a cached run still
       # installs those.
-      - name: Playwright version
+      - name: Playwright version and runner OS
         id: playwright
         working-directory: data
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ env.ImageOS }}-playwright-${{ steps.playwright.outputs.version }}-chromium
+          key: ${{ runner.os }}-${{ steps.playwright.outputs.os }}-playwright-${{ steps.playwright.outputs.version }}-chromium
 
       # Chromium for the config's Desktop and Mobile Chrome projects
       - name: Install Playwright browsers
