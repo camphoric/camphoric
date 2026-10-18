@@ -19,6 +19,9 @@ def test_settings():
         CAMPHORIC_EMAIL_FORCE_BACKEND='django.core.mail.backends.locmem.EmailBackend',
         CAMPHORIC_PUBLIC_URL='',
         PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'],
+        # So a test module that sets Django up again (the ASGI app does) doesn't
+        # reconfigure logging and undo quiet_logging.
+        LOGGING_CONFIG=None,
     )
 
 

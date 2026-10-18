@@ -16,7 +16,7 @@ from rest_framework.test import APITestCase, APITransactionTestCase
 
 from camphoric import confirmations, invoices, models, roles
 from tests import paypal_mocks
-from tests.factories import make_user
+from tests.factories import make_user, set_email
 
 D = Decimal
 
@@ -160,6 +160,9 @@ class OptionsTests(FlowTestCase):
 
 class CheckTests(FlowTestCase):
     def test_pay_by_check_completes_with_an_open_invoice_and_confirms(self):
+        set_email(self.event.confirmation_template, body=(
+            'Due now: {{ initial_payment.total | money }}, '
+            'then {{ initial_payment.balance }}'))
         response = self.post(step='payment', registrationUUID=self.uuid, paymentType='Check',
                              paymentOption='Deposit')
         registration = self.registration
@@ -172,7 +175,9 @@ class CheckTests(FlowTestCase):
         self.assertFalse(registration.payment_set.exists())
         self.assertFalse(registration.pricing_overrides.exists())
         self.assertEqual(response.data['ledger']['balance'], 400)
-        self.assertEqual(len(self.confirmations()), 1)
+        [confirmation] = self.confirmations()
+        # The deposit is what's due now; the rest comes later.
+        self.assertEqual(confirmation.body, 'Due now: $200.00, then 200.00')
         # It's in the admin lists now.
         self.assertTrue(models.Registration.objects.filter(completed=True).exists())
 
