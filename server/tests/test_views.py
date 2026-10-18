@@ -3,13 +3,16 @@ from decimal import Decimal
 import json
 from unittest import mock
 
+from django.conf import settings
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
 import jsonschema  # Using Draft-7
+from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
+from rest_framework.throttling import ScopedRateThrottle
 
 from camphoric import models, serializers, views
 from camphoric.lodging import LODGING_SCHEMA
@@ -1305,6 +1308,73 @@ Due now: $200.00""".lstrip())
 - **Amount you are paying now: 102.27**
 - Due by June 20th: 0.00
 - Your total: 102.27""".lstrip(), message.body)
+
+
+class RegisterThrottleTests(APITestCase):
+    '''Anonymous registration steps are throttled per client address (#801).'''
+
+    def setUp(self):
+        organization = models.Organization.objects.create(name='Test Organization')
+        self.event = models.Event.objects.create(organization=organization, name='Event')
+        self.url = f'/api/events/{self.event.id}/register'
+        rate = settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['register']
+        self.limit, _ = ScopedRateThrottle().parse_rate(rate)
+
+    def post(self, forwarded_for=None, data=None):
+        # Any step counts, even one that's refused.
+        headers = {'X-Forwarded-For': forwarded_for} if forwarded_for else {}
+        return self.client.post(
+            self.url, data or {'step': 'nope'}, format='json', headers=headers)
+
+    def test_signed_in_users_are_not_throttled(self):
+        # The event importer and bulk tools post many registrations with a token.
+        admin = User.objects.create_superuser('tom', 'tom@example.com', 'password')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=admin)}')
+        statuses = {self.post().status_code for _ in range(self.limit + 5)}
+        self.assertEqual(statuses, {400})
+
+    def test_a_paypal_capture_is_not_throttled(self):
+        # A 429 there would throw away the payer's approval.
+        for _ in range(self.limit):
+            self.post()
+        self.assertEqual(self.post().status_code, 429)
+        for payment_type in ('PayPal', 'Card'):
+            capture = self.post(data={'step': 'payment', 'paymentType': payment_type})
+            self.assertNotEqual(capture.status_code, 429)
+        check = self.post(data={'step': 'payment', 'paymentType': 'Check'})
+        self.assertEqual(check.status_code, 429)
+
+    def test_throttled_past_the_rate(self):
+        statuses = [self.post().status_code for _ in range(self.limit + 1)]
+        self.assertEqual(statuses, [400] * self.limit + [429])
+        refused = self.post()
+        self.assertRegex(
+            refused.data['detail'],
+            r'^Too many registration requests .* Please wait \d+ seconds? and try again\.$')
+        self.assertIn('Retry-After', refused.headers)
+        # Reading the form isn't throttled.
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    @override_settings(REST_FRAMEWORK={
+        **settings.REST_FRAMEWORK, 'NUM_PROXIES': 0})
+    def test_without_a_proxy_the_header_is_ignored(self):
+        # NUM_PROXIES=0, the default: the client wrote the header, so the
+        # connection's address is counted.
+        for n in range(self.limit):
+            self.post(f'10.0.0.{n}')
+        self.assertEqual(self.post('10.0.0.99').status_code, 429)
+
+    @override_settings(REST_FRAMEWORK={
+        **settings.REST_FRAMEWORK, 'NUM_PROXIES': 1})
+    def test_behind_a_proxy_counted_by_the_address_it_saw(self):
+        # A client can put anything in X-Forwarded-For; the proxy appends the
+        # address it saw, and that last entry is the one counted.
+        for n in range(self.limit):
+            self.post(f'10.0.0.{n}, 203.0.113.1')
+        forged = self.post('10.0.0.99, 203.0.113.1')
+        self.assertEqual(forged.status_code, 429)
+        other = self.post('10.0.0.1, 203.0.113.2')
+        self.assertEqual(other.status_code, 400)
 
 
 class SendInvitationPostTests(APITestCase):

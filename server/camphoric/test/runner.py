@@ -1,8 +1,37 @@
 import logging
 import os
+import unittest
 
-from django.test.runner import DiscoverRunner
+from django.core.cache import caches
+from django.test.runner import (
+    DiscoverRunner, ParallelTestSuite, RemoteTestResult, RemoteTestRunner)
 from django.test.utils import override_settings
+
+
+class ClearCachesResult:
+    '''
+    A test result mixin that empties the caches as each test starts, so one
+    test's requests don't count toward the next one's throttles (the API's
+    per-client rate limits keep their counts in the default cache).
+    '''
+
+    def startTest(self, test):
+        for cache in caches.all(initialized_only=True):
+            cache.clear()
+        super().startTest(test)
+
+
+class ClearCachesRemoteResult(ClearCachesResult, RemoteTestResult):
+    pass
+
+
+class ClearCachesRemoteRunner(RemoteTestRunner):
+    resultclass = ClearCachesRemoteResult
+
+
+class ClearCachesParallelSuite(ParallelTestSuite):
+    # With --parallel, each worker process runs its tests with this runner.
+    runner_class = ClearCachesRemoteRunner
 
 
 class CamphoricTestRunner(DiscoverRunner):
@@ -17,7 +46,14 @@ class CamphoricTestRunner(DiscoverRunner):
     and a failing test reports itself. Set CAMPHORIC_TEST_LOG_LEVEL (e.g.
     `CAMPHORIC_TEST_LOG_LEVEL=DEBUG python manage.py test tests.test_outbox`) to
     see them while debugging. Loggers are left alone, so `assertLogs` still works.
+
+    Starts every test with empty caches (ClearCachesResult).
     '''
+    parallel_test_suite = ClearCachesParallelSuite
+
+    def get_resultclass(self):
+        base = super().get_resultclass() or unittest.TextTestResult
+        return type('ClearCaches' + base.__name__, (ClearCachesResult, base), {})
 
     def setup_test_environment(self, **kwargs):
         super().setup_test_environment(**kwargs)

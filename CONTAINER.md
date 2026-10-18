@@ -85,7 +85,8 @@ is unused). Values marked *required* have no default; the container will not boo
 | `USE_X_FORWARDED_PROTO` | `false`                              | Set `true` behind a proxy that terminates TLS (nginx, an ingress) so Django treats requests as https.                    |
 | `SECURE_HSTS_SECONDS`   | `3600` (`0` with `DEBUG` on)         | HSTS: how long browsers that reached the site over https keep to https. Raise it once https is settled; `0` turns it off. |
 | `SECURE_SSL_REDIRECT`   | `false`                              | Django redirects http to https. Leave off behind a TLS-terminating proxy (it redirects itself); there it needs `USE_X_FORWARDED_PROTO=true` or every request redirects forever. |
-| `NUM_PROXIES`           | `0`                                  | How many proxies sit in front of the app. **Set `1` behind one nginx or ingress**: with `0` the throttles (sign-in, password reset, promo codes, invoice payment) count the connecting address, which behind a proxy is the proxy's, so every visitor shares one count. With `1` they count the address the proxy saw, which a client can't forge with its own `X-Forwarded-For`. |
+| `NUM_PROXIES`           | `0`                                  | How many proxies in front of the app append the client's address to `X-Forwarded-For`. The public endpoints' throttles count requests by the address the last of them saw. **Must match the deployment:** `0` (clients reach the container's port directly, as with `docker-compose.image.yml`) ignores the header; **behind a reverse proxy set it to `1`** (see below), or every request counts as the proxy's. Too high a number lets a client forge the header and choose which address it's counted as. |
+| `CAMPHORIC_REGISTER_RATE` | `10/minute`                        | How many registration steps (the public form's posts, except the PayPal capture) one client address may make when not signed in. A registration makes 3 or 4. Counted per gunicorn worker (see below). |
 | `DJANGO_LOG_LEVEL`      | `INFO` (`DEBUG` when `DEBUG=true`)   | Console log level. Logs go to stdout/stderr.                                                                             |
 | `STATIC_ROOT`           | `/app/static`                        | Where static files were collected at build time. Leave as is.                                                            |
 | `CORS_ORIGIN_WHITELIST` | `= CSRF_TRUSTED_ORIGINS`             | **Unused** (`django-cors-headers` is not installed); accepted only for compatibility with old override files.            |
@@ -305,6 +306,18 @@ CSRF_TRUSTED_ORIGINS=https://register.example.org
 
 Proxy `/` to the container's port 8000; the image serves the SPA and `/static/*` itself
 (whitenoise), so no separate static file root is needed.
+
+The proxy must append the client's address to `X-Forwarded-For` (nginx: `proxy_set_header
+X-Forwarded-For $proxy_add_x_forwarded_for;`, which `include proxy_params` does), and the
+container must be told it's there: `NUM_PROXIES=1`. The public endpoints are throttled per client
+address, taken from the last entry of that header; with two proxies that each append (a CDN in
+front of nginx), set `NUM_PROXIES=2`. Left at the default `0`, every request seems to come from
+the proxy, so all registrants share one throttle. A container reached directly, with no proxy,
+keeps `0`.
+
+Throttle counts are kept in each gunicorn worker's memory (there's no shared cache), so with
+the image's 3 workers a client may get up to 3 times a rate before it's refused, depending on
+which worker each request reaches.
 
 The admin's live updates are a long-lived response on `/api/events/<id>/stream/` (Server-Sent
 Events). The proxy must pass it on as it comes rather than buffering it — the app sends
