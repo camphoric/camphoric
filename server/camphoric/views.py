@@ -123,8 +123,8 @@ class LoginView(APIView):
 class ObtainTokenView(ObtainAuthToken):
     '''
     POST /api-token-auth/ `username`, `password` → `{token}`, for scripts such
-    as the importer (data/). Throttled like LoginView. The token is good for
-    CAMPHORIC_API_TOKEN_TTL from this sign-in (camphoric.authentication).
+    as the importer (data/). Throttled like LoginView. The token has at least
+    half of CAMPHORIC_API_TOKEN_TTL left (camphoric.authentication).
     '''
     throttle_classes = LOGIN_THROTTLES
     # Signing in checks only the username and password, so a script still

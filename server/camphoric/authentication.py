@@ -1,8 +1,8 @@
 '''
 API tokens that expire (SPEC §6, DR-131). Scripts such as the importer (data/)
 get a token from /api-token-auth/; it works for CAMPHORIC_API_TOKEN_TTL seconds
-from that sign-in. An expired token is refused (401) and deleted, and signing in
-again gives a new one.
+from when it was issued. An expired token is refused (401) and deleted. Signing
+in returns a token with at least half that left, a new one when need be.
 '''
 
 from datetime import timedelta
@@ -24,23 +24,25 @@ def is_token_expired(token):
     return timezone.now() >= token_expires_at(token)
 
 
+def has_half_its_lifetime_left(token):
+    remaining = token_expires_at(token) - timezone.now()
+    return remaining >= timedelta(seconds=settings.CAMPHORIC_API_TOKEN_TTL) / 2
+
+
 def issue_token(user):
     '''
-    The user's token, good for a full lifetime from now. A token that's still
-    good keeps its key, so another script signed in as the same user keeps
-    working; an expired one is replaced by a new key.
+    The user's token, good for at least half its lifetime. A key never outlives
+    its lifetime from when it was issued, however often the user signs in: a
+    token with half its lifetime or more left is kept, so another script
+    signed in as the user keeps working; one nearer its end, or expired, is
+    replaced by a new key.
     '''
     with transaction.atomic():
         token, created = Token.objects.select_for_update().get_or_create(user=user)
-        if created:
+        if created or has_half_its_lifetime_left(token):
             return token
-        if is_token_expired(token):
-            token.delete()
-            return Token.objects.create(user=user)
-        # `created` is set only when the row is added, so set it here by hand.
-        token.created = timezone.now()
-        token.save(update_fields=['created'])
-        return token
+        token.delete()
+        return Token.objects.create(user=user)
 
 
 class ExpiringTokenAuthentication(TokenAuthentication):

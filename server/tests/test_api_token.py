@@ -1,7 +1,8 @@
 '''
 API tokens from /api-token-auth/ expire (SPEC §6, DR-131): a token works for
-CAMPHORIC_API_TOKEN_TTL seconds from its last sign-in; past that it's refused
-(401) and deleted, and signing in again gives a new one.
+CAMPHORIC_API_TOKEN_TTL seconds from when it was issued; past that it's refused
+(401) and deleted. Signing in returns a token with at least half its lifetime
+left, issuing a new one when need be.
 '''
 
 from datetime import datetime, timedelta, timezone
@@ -74,18 +75,39 @@ class ApiTokenTests(APITestCase):
             new_key = self.sign_in()
         self.assertNotEqual(new_key, old_key)
 
-    def test_signing_in_again_restarts_a_live_tokens_lifetime(self):
-        # A run that signs in just before the token would expire gets its full
-        # lifetime, keeping the key another script signed in as the user holds.
+    def test_signing_in_keeps_a_token_with_half_its_lifetime_left(self):
+        # Another script signed in as the user keeps working.
         with freeze_time(SIGNED_IN):
             key = self.sign_in()
-        signed_in_again = SIGNED_IN + timedelta(seconds=TTL - 60)
-        with freeze_time(signed_in_again):
+        with freeze_time(SIGNED_IN + timedelta(seconds=TTL / 2)):
             self.assertEqual(self.sign_in(), key)
-        with freeze_time(signed_in_again + timedelta(seconds=TTL - 1)):
-            self.assertEqual(self.get_events(key).status_code, 200)
-        with freeze_time(signed_in_again + timedelta(seconds=TTL)):
+        # Signing in didn't lengthen its life.
+        with freeze_time(SIGNED_IN + timedelta(seconds=TTL)):
             self.assertEqual(self.get_events(key).status_code, 401)
+
+    def test_signing_in_replaces_a_token_near_its_end(self):
+        # A run that starts just before the token would expire gets a new key
+        # with its full lifetime; the old key still ends on time.
+        with freeze_time(SIGNED_IN):
+            old_key = self.sign_in()
+        signed_in_again = SIGNED_IN + timedelta(seconds=TTL / 2 + 1)
+        with freeze_time(signed_in_again):
+            new_key = self.sign_in()
+        self.assertNotEqual(new_key, old_key)
+        with freeze_time(signed_in_again + timedelta(seconds=TTL - 1)):
+            self.assertEqual(self.get_events(new_key).status_code, 200)
+            self.assertEqual(self.get_events(old_key).status_code, 401)
+
+    def test_a_key_never_outlives_its_lifetime(self):
+        # However often someone signs in, a leaked key ends a lifetime after it
+        # was issued.
+        with freeze_time(SIGNED_IN):
+            leaked_key = self.sign_in()
+        for minutes in range(0, TTL // 60, 10):
+            with freeze_time(SIGNED_IN + timedelta(minutes=minutes)):
+                self.sign_in()
+        with freeze_time(SIGNED_IN + timedelta(seconds=TTL)):
+            self.assertEqual(self.get_events(leaked_key).status_code, 401)
 
     def test_a_token_made_elsewhere_expires_too(self):
         # The Django admin can add tokens; they count from when they were made.

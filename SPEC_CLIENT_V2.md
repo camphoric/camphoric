@@ -1014,11 +1014,12 @@ hooks):
 - The client authenticates with the session alone; it never asks for an API token. Scripts such
   as the importer (`data/`) sign in at `POST /api-token-auth/` (`username`, `password` →
   `{ token }`; it checks only those, ignoring any token sent with them) and send
-  `Authorization: Token <key>`. A token works for
-  `CAMPHORIC_API_TOKEN_TTL` seconds (a day by default) from the sign-in that returned it; after
-  that a request carrying it is refused with 401 (`Token has expired.`) and the token is
-  deleted. Signing in while the user's token still works returns the same key with its lifetime
-  restarted; signing in after it expired returns a new key (§15, DR-131).
+  `Authorization: Token <key>`. A token works for `CAMPHORIC_API_TOKEN_TTL` seconds (a day by
+  default) from when it was issued, however often the user signs in; after that a request
+  carrying it is refused with 401 (`Token has expired.`) and the token is deleted. Signing in
+  returns the user's token while it has at least half its lifetime left, and otherwise (nearer
+  its end, or expired) replaces it with a new key, so every sign-in gets at least half a
+  lifetime (§15, DR-131).
 - A **401** on any admin request (query or mutation) means the session has lapsed. A global
   handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
   and, when the session is gone, the admin asks the user to sign in again without navigating, so
@@ -2129,7 +2130,12 @@ A `style` keeps only these properties: `color`, `background-color`, `font-size`,
 `font-variant`, `font-weight`, `text-align`, `text-decoration` and `text-transform`. A value
 holds only words, numbers, units, `#` colors and the color functions `rgb()`, `rgba()`, `hsl()`
 and `hsla()` — no quotes, slashes, backslashes, `!important` or other functions (`url()` among
-them). Any other declaration is dropped, and a `style` left empty is removed. A `class` keeps
+them). Two properties are narrower still, since their size can reach past their text:
+`font-size` is an absolute keyword (`xx-small` … `xxx-large`) or a size of at most `72px` or
+`4rem` — no viewport units, and none relative to the parent (`em`, `%`, `smaller`, `larger`),
+which nesting would multiply; `text-decoration` holds only keywords (`underline`,
+`line-through`, `wavy` and the like) and colors, so no thickness. Any other declaration is
+dropped, and a `style` left empty is removed. A `class` keeps
 only the print classes `page-break` and `no-break` (§8.7); any other class — the app's own
 stylesheets, Mantine's among them, have classes that fix a box over the whole page — is dropped.
 So templated text can change how its words look but can't position, size or move a box over the
@@ -5356,26 +5362,30 @@ form against a server.
 but layouts on mobile would then be covered only where a test checks them). Deleting the
 duplicated e2e tests (they still prove the story renders in a real browser).
 
-### DR-131 — API tokens expire a day after the sign-in that issued them
+### DR-131 — API tokens expire a day after they're issued
 
 **Decision:** A token from `POST /api-token-auth/` works for `CAMPHORIC_API_TOKEN_TTL` seconds
-(86400, a day, by default; it must be positive) from the sign-in that returned it. A request
-with an expired token is refused with 401 and the token is deleted. Signing in again while the
-token still works returns the same key with its lifetime restarted; signing in after it expired
-returns a new key, even when the expired token is sent along with the password. A token added
-another way (the Django admin) counts from when it was made. Changing or resetting a password
-still deletes the user's token.
+(86400, a day, by default; it must be positive) from when it was issued, however often its user
+signs in. A request with an expired token is refused with 401 and the token is deleted. Signing
+in returns the user's token while it has at least half its lifetime left; otherwise — nearer its
+end, or expired — it replaces the token with a new key, even when the old token is sent along
+with the password. Every sign-in therefore gets at least half a lifetime (12 hours by default).
+A token added another way (the Django admin) counts from when it was made. Changing or
+resetting a password still deletes the user's token.
 **Context:** #818: tokens never expired, so one copied from a script's environment or log worked
 for good. Tokens are used only by scripts — the importer (`data/`) signs in once per server per
 run and keeps the token for the whole run (DR-124); the admin client uses its session. An import
-takes minutes, so a day covers any run, and restarting the lifetime at each sign-in means a run
-that starts just before an old token would lapse still gets a full day. Keeping a live token's
-key lets two scripts signed in as the same user at once both keep working.
-**Alternatives:** A new key at every sign-in — the other script's token would stop working
-mid-run. A lifetime that slides with each request — a write on every request, and a token in
-steady use would never expire. Counting only from when the token was made — a run that started
-just before it lapsed would fail part-way through. The importer signing in again on a 401 — the
-server-side lifetime already covers a run, and a prompted password would be asked for again.
+takes minutes, so half a day covers any run, including one that starts just before an old token
+would lapse. Handing back a live token's key while it has half its life left lets two scripts
+signed in as the same user at once both keep working; a key that's never renewed means a leaked
+one ends on time even while its user keeps signing in.
+**Alternatives:** Restarting a live token's lifetime at each sign-in, keeping its key — a leaked
+key would never expire while anyone signed in as that user within every lifetime. A new key at
+every sign-in — another script's token would stop working mid-run. A lifetime that slides with
+each request — a write on every request, and a token in steady use would never expire. Counting
+only from when the token was made and handing it back until then — a run that started just
+before it lapsed would fail part-way through. The importer signing in again on a 401 — the
+half-lifetime guarantee already covers a run, and a prompted password would be asked for again.
 django-rest-knox (per-client, hashed, expiring tokens) — a new dependency and a change to the
 importer's sign-in for a single script user.
 
@@ -5384,9 +5394,10 @@ importer's sign-in for a single script user.
 **Decision:** The markdown pipeline (§9.3) still lets `div` and `span` carry `style`, but after
 sanitizing keeps only declarations of color, background color, font size, style, variant and
 weight, and text alignment, decoration and case, with plain values (words, numbers, units, `#`
-colors and the `rgb`/`hsl` functions). Everything else — position, offsets, `z-index`, sizes,
-margins, transforms, `url()` and the like — is dropped. A `class` keeps only `page-break` and
-`no-break`, the print classes a template has a use for.
+colors and the `rgb`/`hsl` functions). A font size is an absolute keyword or at most `72px` or
+`4rem`, and a text decoration takes keywords and colors only, no thickness. Everything else —
+position, offsets, `z-index`, sizes, margins, transforms, `url()` and the like — is dropped. A
+`class` keeps only `page-break` and `no-break`, the print classes a template has a use for.
 **Context:** #818: the sanitizer let a `style` through whole, so an organizer's template (an
 event description, the confirmation page, a Markdown report) could lay a fixed box over the
 registration page — a fake Pay button, or a cover over the real form. Real events use `style`
@@ -5395,13 +5406,18 @@ three events' Payments reports colour a balance with `color`; nothing in `data/`
 packages uses positioning or a `class`. A class reaches the same overlay without any `style`:
 the app loads all of Mantine's stylesheet, whose stable class names include boxes fixed over the
 whole viewport, and a template can't bring a stylesheet of its own, so the print classes are the
-only ones that do a template any good.
+only ones that do a template any good. Two kept properties have a size of their own: a
+`text-decoration` thickness paints a bar as thick as it says (`overline black 400px` covers
+whatever is above the text), and an unbounded `font-size` (`100vw`, `40000px`) fills the screen
+with one glyph. A cap on `em` or `%` sizes wouldn't hold, as each nested element multiplies its
+parent's, so only `px` and `rem`, which don't compound, take a number.
 **Alternatives:** Drop `style` altogether — breaks those reports, and templates have no other
 way to colour text. Keep it whole — the overlay stays possible. Drop only Mantine's classes
 (`m_…`, `mantine-…`) — any other global class with positioning, now or later, would get
-through. Match the whole `style` against one regular expression in the sanitizer's schema — one
-declaration it doesn't like drops the others with it, and the rule is hard to read. A full CSS
-parser — more than a short allowlist of properties and plain values needs.
+through. Cap `em` and `%` font sizes too — nesting multiplies past any cap. Match the whole
+`style` against one regular expression in the sanitizer's schema — one declaration it doesn't
+like drops the others with it, and the rule is hard to read. A full CSS parser — more than a
+short allowlist of properties and plain values needs.
 
 ---
 

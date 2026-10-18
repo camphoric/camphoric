@@ -126,7 +126,8 @@ export const MARKDOWN_ENTRIES: MarkdownEntry[] = [
       'a little HTML: `div` and `span` with `class` and `style`, and other harmless tags; ' +
       'scripts and the like are removed. `class` keeps only `page-break` and `no-break`, and ' +
       '`style` only color, background color, font and text settings (size, weight, style, ' +
-      'alignment, decoration, case); positions, sizes and margins are dropped. Emails drop ' +
+      'alignment, decoration, case); positions, sizes and margins are dropped. A font size ' +
+      'is a keyword such as `x-large` or at most `72px` or `4rem`. Emails drop ' +
       'every HTML tag (the text between them stays), so write them in Markdown.',
     '<span style="color: green">Paid in full</span>',
   ),

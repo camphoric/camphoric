@@ -127,7 +127,7 @@ records the message.
 | `PASSWORD_RESET_TIMEOUT`        | `259200` (3 days) | How long a set-password link works, in seconds. A link also stops working once it's used or the user signs in. |
 | `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
 | `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
-| `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after the sign-in that issued it, in seconds; must be positive. An expired token gets a 401 and is deleted; signing in again issues a new one. |
+| `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after it's issued, in seconds; must be positive. An expired token gets a 401 and is deleted. Signing in hands back the current token while it has half this left, and otherwise issues a new one. |
 | `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the Django admin) one client address may make; more get a 429. |
 | `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
 
