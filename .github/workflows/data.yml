@@ -88,9 +88,6 @@ jobs:
       - name: Each packed event works under plain Node
         run: for event in events/*/; do scripts/smoke-test-event-package.sh "$event"; done
 
-      # Advisory until the pre-existing lint issues in data/ are cleaned up; flip
-      # to blocking (remove continue-on-error) after an `eslint --fix` pass. (The
-      # type-check it starts with already ran, blocking, above.)
-      - name: Lint (advisory)
-        run: npm run lint
-        continue-on-error: true
+      # ESLint alone: `npm run lint`'s type-check already ran above.
+      - name: Lint
+        run: npx eslint . --max-warnings 0
