@@ -38,11 +38,32 @@ export function assertLocalServer(url: string, env: NodeJS.ProcessEnv = process.
   );
 }
 
-// Every tool logs in here before it changes anything, so this is where a
-// remote server is refused.
+// One token per server for the whole process. Camphoric throttles sign-in, and
+// an import would otherwise sign in once per event (and ask for the password
+// each time when the environment doesn't give it).
+const tokens = new Map<string, Promise<string>>();
+
+/**
+ * A token for the server at `url`, signing in on the first call; a failed
+ * sign-in isn't kept, so a later call tries again.
+ *
+ * Every tool logs in here before it changes anything, so this is where a
+ * remote server is refused. The check comes before the cached token, so a
+ * token kept from an earlier call can't get past it.
+ */
 export async function getAuthToken(url = urlBase): Promise<string> {
   assertLocalServer(url);
 
+  let token = tokens.get(url);
+  if (!token) {
+    token = requestAuthToken(url);
+    tokens.set(url, token);
+    token.catch(() => tokens.delete(url));
+  }
+  return token;
+}
+
+async function requestAuthToken(url: string): Promise<string> {
   let username = process.env.DJANGO_SUPERUSER_USERNAME;
   let password = process.env.DJANGO_SUPERUSER_PASSWORD;
 

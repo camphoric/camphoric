@@ -7,7 +7,8 @@ importer:
   for the Camphoric REST API (at `CAMPHORIC_URL`, default `http://django:8000`). A request whose
   connection is reset is sent again only if it's a GET, PUT or DELETE: a POST the server may
   already have acted on could otherwise create a second record.
-- `@camphoric/camphoric-event-import-tools/auth`: `getAuthToken()`, which logs in with
+- `@camphoric/camphoric-event-import-tools/auth`: `getAuthToken()`, which logs in (once per server
+  per process, since Camphoric throttles sign-in) with
   `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` (or asks for them). It only logs in to
   a local server (`localhost`, `127.0.0.1`, `::1`, `*.localhost`, `*.test`, or the development
   stack's `django`), so nothing that logs in through it (the fetcher, the creator, bulk
