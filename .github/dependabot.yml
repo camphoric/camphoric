@@ -23,9 +23,6 @@ updates:
     # These majors move several packages at once, which a one-package PR can't
     # do (it fails npm ci on a peer conflict). Each goes when its issue lands.
     ignore:
-      # Mantine 9 (#870): every @mantine/* package pins the others' version.
-      - dependency-name: '@mantine/*'
-        update-types: ['version-update:semver-major']
       # @types/node follows the runtime's major (Node 26), which moves
       # with the Node pins listed at the base images below, not on its own.
       - dependency-name: '@types/node'
