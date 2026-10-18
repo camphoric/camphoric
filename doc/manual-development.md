@@ -147,7 +147,9 @@ npm ci
 CAMPHORIC_URL=http://localhost:8000 DJANGO_SUPERUSER_USERNAME=<you> DJANGO_SUPERUSER_PASSWORD=<yours> npm run import -- --if-empty
 ```
 (`--if-empty` leaves a database that already has events alone: importing again replaces each
-event's lodging, unassigning its campers.)
+event's lodging, unassigning its campers.) The importer only imports into a local server
+(`localhost`, `127.0.0.1`, `::1`, `*.localhost`, `*.test`, or the Docker stack's `django`); it
+refuses any other `CAMPHORIC_URL` unless `CAMPHORIC_ALLOW_REMOTE=1` is set.
 
 ## Authentication
 

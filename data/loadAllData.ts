@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 
-import { getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
+import { assertLocalServer, getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
 import CamphoricEventCreator from '@camphoric/camphoric-event-import-tools/creator';
 import { Organizations, organizationLoader } from '@camphoric/camphoric-event-import-tools/organizations';
 import { validateEventImport, type LoadedEventModule } from '@camphoric/camphoric-event-import-spec';
@@ -17,14 +17,18 @@ const RETRY = 'If an import into a fresh database failed partway, start again wi
 // Every event in eventModules.ts, in import order. Restrict the run with
 // CAMPHORIC_EVENTS=harmony,lark (comma-separated event names). Options:
 // --if-empty imports only into a server with no events, and --wait waits for
-// the server to start first.
+// the server to start first. Only a local server is imported into, unless
+// CAMPHORIC_ALLOW_REMOTE=1.
 async function main() {
   const { ifEmpty, wait } = importOptions(process.argv.slice(2));
   const selected = selectedEvents();
 
+  // (Logging in checks this too, but a remote server shouldn't be waited for)
+  assertLocalServer(urlBase);
+
   if (wait) await waitForServer(urlBase);
 
-  const authToken = await getAuthToken();
+  const authToken = await getAuthToken(urlBase);
 
   if (ifEmpty) {
     const existing = await serverEventNames(urlBase, authToken);

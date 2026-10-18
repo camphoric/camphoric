@@ -161,7 +161,8 @@ every workspace imports only its own files and the packages it declares.
                                                 # conformance checks and the server's schema checks,
                                                 # then each workspace's own tests
     npm test -w events/sample-camp              # one package's tests
-    npm run import                              # import every event into a running server (CAMPHORIC_URL)
+    npm run import                              # import every event into a running server (CAMPHORIC_URL,
+                                                # default http://django:8000; a local one only, see below)
     npm run import -- --if-empty                # only into a server with no events
     npm run import -- --wait                    # wait for the server to start first
     CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
@@ -175,6 +176,15 @@ every workspace imports only its own files and the packages it declares.
     scripts/smoke-test-packages.sh              # pack them and use them with plain Node
     scripts/smoke-test-event-package.sh events/sample-camp   # build, pack and load an event from its build
                                                 # (npm run build -w events/<name> needs the spec built first)
+
+The importer, and every other tool that logs in through import-tools (the bulk-registration
+scripts, an e2e run's import), only uses a local server: `localhost`, `127.0.0.1`, `::1`, a
+`*.localhost` or `*.test` name, or the development stack's `django` service, so the Vagrant VM's
+and the Docker data service's imports work as they are. Importing replaces any event with the same
+name and deletes its lodging, so a stray `CAMPHORIC_URL` (say, in `data/.env`) mustn't reach a live
+server: any other server is refused before anything is sent to it. Set `CAMPHORIC_ALLOW_REMOTE=1`
+to use one deliberately. A request whose connection is reset is sent again only when that's safe
+(GET, PUT and DELETE): a POST or PATCH the server may already have applied fails instead.
 
 A camp's event lives in a repository of its own: see "Event repositories" in
 [RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. In this repository, an
