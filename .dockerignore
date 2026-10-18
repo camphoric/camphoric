@@ -10,7 +10,6 @@
 doc/
 ansible/
 data/
-logs/
 Vagrantfile
 *.md
 

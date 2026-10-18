@@ -1,6 +1,6 @@
-Camphoric is implemented using the Django REST framework, postgres, and
-Create React App.  This guide assumes that you're running on a MacOS or Linux
-development machine.
+Camphoric is implemented using the Django REST framework, postgres, and a
+React client built with Vite.  This guide assumes that you're running on a
+MacOS or Linux development machine.
 
 Prerequisites
 =============
@@ -47,6 +47,7 @@ cp -R .env.example env
 
 This will result in these env files.
 
+- env/local/shared.env (settings every service reads, such as the `DJANGO_SUPERUSER_*` admin)
 - env/local/django.env
 - env/local/postgres.env
 - env/local/react.env
@@ -62,7 +63,7 @@ doing, but it's probably best to just keep them the same for development.
 First you'll need to build the web and db docker containers for the server:
 
 ```
-docker-compose up --build -d -V
+docker compose up --build -d -V
 ```
 
 After this finishes, run `docker ps`. You should now see your postgres,
@@ -80,7 +81,7 @@ df608d221bb8   camphoric-django     "bash -c './manage.p…"   6 minutes ago   U
 Run the following command to get your secret key:
 
 ```
-docker-compose exec django python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+docker compose exec django python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
 Copy the resulting secret key.  Open the 'env/local/django' file and replace
@@ -93,7 +94,7 @@ things.
 Run the following to rebuild the django services with your new key:
 
 ```
-docker-compose up -d --force-recreate --no-deps --build django
+docker compose up -d --force-recreate --no-deps --build django
 ```
 
 ### Upgrading the local database to PostgreSQL 16
@@ -104,16 +105,16 @@ server"). Either start over with fresh sample data (the stack imports it when it
 empty database):
 
 ```
-docker-compose down -v
-docker-compose up --build -d -V
+docker compose down -v
+docker compose up --build -d -V
 ```
 
 or keep your data by dumping it with the old version first: before pulling this change, run
-`docker-compose exec postgres pg_dump -U camphoric camphoric > local.sql`; then, after
-`docker-compose down -v` and `docker-compose up -d --wait postgres` (the database alone, so
+`docker compose exec postgres pg_dump -U camphoric camphoric > local.sql`; then, after
+`docker compose down -v` and `docker compose up -d --wait postgres` (the database alone, so
 nothing is created or imported before your data is back), restore it with
-`docker-compose exec -T postgres psql -U camphoric camphoric < local.sql`, and start the rest
-with `docker-compose up -d` (it finds your events, so imports nothing).
+`docker compose exec -T postgres psql -U camphoric camphoric < local.sql`, and start the rest
+with `docker compose up -d` (it finds your events, so imports nothing).
 
 ### Running the released image
 
@@ -133,7 +134,7 @@ environment variable and mount point.
 To test that the setup went correctly run:
 
 ```
-docker-compose exec django python manage.py test
+docker compose exec django python manage.py test
 ```
 
 ### Validating the event data
@@ -234,7 +235,7 @@ Camphoric Admin). The `django` service creates it from `DJANGO_SUPERUSER_*` in
 follow the onscreen instructions (with a different username):
 
 ```
-docker-compose exec django bash -c "./manage.py createsuperuser"
+docker compose exec django bash -c "./manage.py createsuperuser"
 ```
 
 Other users are added on the admin's Users screen, each with a Camphoric permission group
@@ -251,7 +252,7 @@ imports, and exits. A database that already has events is left alone, as the Vag
 it's provisioned (importing an event again deletes and recreates its lodging and unassigns its
 campers). If that first import is interrupted or fails, `docker compose logs data` says so; start
 again with `./data/reset-data-and-test`, which flushes the database first. Rebuild with
-`docker-compose up --build -d -V`: the `-V` gives the `data` service a fresh `node_modules` for the
+`docker compose up --build -d -V`: the `-V` gives the `data` service a fresh `node_modules` for the
 rebuilt image (otherwise it keeps the old container's).
 
 To import again, into a database that already has events:
@@ -299,7 +300,7 @@ The Django server will automatically reload when you change any .py files.
 Run the following to rebuild the database and django containers:
 
 ```
-docker-compose up --build -d -V
+docker compose up --build -d -V
 ```
 
 You'll want to do this every time when you start development.
@@ -311,7 +312,7 @@ Note:
 ### Writing tests
 
 It is recommended that you write tests. All tests are run when you run the
-`docker-compose exec django python manage.py test` command.
+`docker compose exec django python manage.py test` command.
 
 It is recommended that you look at the existing tests in the 'server/tests/'
 directory.  These should give you a good idea about what tests exist, and how
@@ -331,9 +332,9 @@ permissions on the migations directory. Here's the sequence of commands you
 might use after editing models.py:
 
     chmod 777 server/camphoric/migrations
-    docker-compose exec django python manage.py makemigrations
+    docker compose exec django python manage.py makemigrations
     chmod 755 server/camphoric/migrations
-    docker-compose exec django python manage.py migrate
+    docker compose exec django python manage.py migrate
 
 ### Connecting to the database from the host
 
@@ -385,14 +386,14 @@ Official docs
 
 - [docker official documentation home](https://docs.docker.com/)
 - [docker cli](https://docs.docker.com/engine/reference/commandline/cli/)
-- [docker-compose cli](https://docs.docker.com/compose/reference/)
+- [docker compose cli](https://docs.docker.com/compose/reference/)
 
 Helpful Hints and How-Tos
 -------------------------
 
 ### Detached vs non-detached
 
-When running `docker-compose up --build -d`, the -d means run it "detached", or
+When running `docker compose up --build -d`, the -d means run it "detached", or
 in the background.  This means that you'll not see any logging output in your
 terminal, but see the section on log output below on how to view it.  If you
 would rather just see the output continuously, just run this command without
@@ -401,7 +402,7 @@ the -d.
 ### Rebuilding only one service
 
 If you need to just rebuild one service (ex you're iterating on the
-docker-compose file or the server's Pipfile) you can use the `--no-deps`
+docker-compose.yml file or the server's Pipfile) you can use the `--no-deps`
 flag and specify the service to rebuild a service individually.  Example of
 rebuilding only the django service:
 
@@ -416,13 +417,13 @@ Additional flags that may be handy here:
 
 ### Running commands in a container
 
-You can use the [docker-compose exec](https://docs.docker.com/compose/reference/exec/)
+You can use the [docker compose exec](https://docs.docker.com/compose/reference/exec/)
 command to run arbitrary commands inside of a container:
 
-- Open a shell in the web container: `docker-compose exec django bash`
-- Run a command (like `ls`): `docker-compose exec django ls -la`
-- Find out what npm version we're running: `docker-compose exec react npm --version`
-- Install a new npm package for the client: `docker-compose exec react npm install <pkgname>`
+- Open a shell in the web container: `docker compose exec django bash`
+- Run a command (like `ls`): `docker compose exec django ls -la`
+- Find out what npm version we're running: `docker compose exec react npm --version`
+- Install a new npm package for the client: `docker compose exec react npm install <pkgname>`
 
 ### Seeing server log output
 
@@ -437,7 +438,7 @@ Here you can view the logs, stats, environment variables, mount points, etc.
 If you'd prefer to use the command line, you can use the [docker logs command](https://docs.docker.com/engine/reference/commandline/logs/).
 
 ```
-docker-compose logs -f django
+docker compose logs -f django
 ```
 
 ### Container/image/volume removal

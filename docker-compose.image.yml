@@ -7,7 +7,7 @@
 #     docker compose -f docker-compose.image.yml up --wait            # run a published image
 #
 # The regular docker-compose.yml is the *development* stack (bind-mounted source,
-# runserver) and is unchanged.
+# uvicorn with --reload) and is unchanged.
 name: camphoric-image
 
 volumes:
