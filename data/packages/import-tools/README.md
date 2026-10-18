@@ -4,9 +4,16 @@ Tools for Camphoric event packages and the [Camphoric](https://github.com/campho
 importer:
 
 - `@camphoric/camphoric-event-import-tools/fetcher`: `CamphoricFetcher`, an authenticated client
-  for the Camphoric REST API.
+  for the Camphoric REST API (at `CAMPHORIC_URL`, default `http://django:8000`). A request whose
+  connection is reset is sent again only if it's a GET, PUT or DELETE: a POST the server may
+  already have acted on could otherwise create a second record.
 - `@camphoric/camphoric-event-import-tools/auth`: `getAuthToken()`, which logs in with
-  `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` (or asks for them).
+  `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` (or asks for them). It only logs in to
+  a local server (`localhost`, `127.0.0.1`, `::1`, `*.localhost`, `*.test`, or the development
+  stack's `django`), so nothing that logs in through it (the fetcher, the creator, bulk
+  registrations, an e2e import) changes a live server by accident: any other server is refused
+  unless `CAMPHORIC_ALLOW_REMOTE=1` is set. `assertLocalServer(url)` and `isLocalServer(url)` make
+  the same check.
 - `@camphoric/camphoric-event-import-tools/creator`: `CamphoricEventCreator`, which imports an
   event module into a Camphoric server. Pass it the spec's `validateEventImport` as `validate`;
   the tools don't depend on any particular spec version.
@@ -37,7 +44,8 @@ importer:
     server when the tests end.
   - **An existing server:** `CAMPHORIC_E2E_SERVER_URL`, with `CAMPHORIC_E2E_SERVER_USERNAME` /
     `_PASSWORD` for its admin, makes it import into that server instead. Not `CAMPHORIC_URL`, so
-    tests never import into a development server by accident.
+    tests never import into a development server by accident. One that isn't local also needs
+    `CAMPHORIC_ALLOW_REMOTE=1` (see `/auth` above).
   - **Registration is opened:** the imported copy's registration window is opened, so the form
     can be tested whatever its dates say (`openRegistration: false` keeps them).
   - **One shared event:** every test, on desktop and mobile Chrome, shares the one imported event.

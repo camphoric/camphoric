@@ -48,3 +48,40 @@ describe('CamphoricFetcher.fetch', () => {
     await expect(fetcher.fetch('GET', '/api/lodgings/')).rejects.toThrow('server responded 400');
   });
 });
+
+describe('CamphoricFetcher.fetch, when the connection is reset', () => {
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  // A fetcher whose first request is reset (as undici reports it), answering
+  // the rest with `{ id: 1 }`; `sent.requests` counts every request it sends
+  function fetcherResetOnce() {
+    const sent = { requests: 0 };
+    globalThis.fetch = async () => {
+      sent.requests += 1;
+      if (sent.requests === 1) {
+        throw new TypeError('fetch failed', { cause: Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }) });
+      }
+      return Response.json({ id: 1 });
+    };
+    const fetcher = new CamphoricFetcher('http://camphoric.test');
+    fetcher.token = 'token';
+    fetcher.wait = async () => {};
+    return { fetcher, sent };
+  }
+
+  test.each(['GET', 'PUT', 'DELETE'] as const)('tries a %s again', async (method) => {
+    const { fetcher, sent } = fetcherResetOnce();
+    await expect(fetcher.fetch(method, '/api/lodgings/1/', method === 'PUT' ? { name: 'Cabin' } : undefined))
+      .resolves.toMatchObject({ id: 1 });
+    expect(sent.requests).toBe(2);
+  });
+
+  // The server may have created the record before the connection dropped
+  test.each(['POST', 'PATCH'] as const)('fails a %s without sending it again', async (method) => {
+    const { fetcher, sent } = fetcherResetOnce();
+    await expect(fetcher.fetch(method, '/api/lodgings/', { name: 'Cabin' })).rejects.toThrow('fetch failed');
+    expect(sent.requests).toBe(1);
+  });
+});

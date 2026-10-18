@@ -59,7 +59,10 @@ function importSampleCamp(...args: string[]): Promise<{ status: number, stdout: 
   return runImporter(args);
 }
 
-function runImporter(args: string[], { sampleRegistrations = false } = {}): Promise<{ status: number, stdout: string, stderr: string }> {
+function runImporter(
+  args: string[],
+  { sampleRegistrations = false, serverUrl = url } = {},
+): Promise<{ status: number, stdout: string, stderr: string }> {
   requests = [];
   return new Promise(resolve => execFile('node_modules/.bin/tsx', ['--conditions=camphoric-source', 'loadAllData.ts', ...args], {
     cwd: DATA,
@@ -67,7 +70,8 @@ function runImporter(args: string[], { sampleRegistrations = false } = {}): Prom
     timeout: 60_000,
     env: {
       ...process.env,
-      CAMPHORIC_URL: url,
+      CAMPHORIC_URL: serverUrl,
+      CAMPHORIC_ALLOW_REMOTE: '',
       CAMPHORIC_EVENTS: 'sample-camp',
       DJANGO_SUPERUSER_USERNAME: 'admin',
       DJANGO_SUPERUSER_PASSWORD: 'admin',
@@ -118,4 +122,15 @@ test('a rejected sample registration fails the import through its error handling
   } finally {
     registrationClosed = false;
   }
+}, 60_000);
+
+// A stray CAMPHORIC_URL (say, in data/.env) mustn't aim the importer at a live
+// server: it fails at once, without waiting for that server (--wait) or
+// logging in to it.
+test('refuses a server that isn\'t local', async () => {
+  const run = await runImporter(['--wait'], { serverUrl: 'https://registration.example.org' });
+  expect(run.status).toBe(1);
+  expect(run.stderr).toContain('refusing to use https://registration.example.org');
+  expect(run.stderr).toContain('CAMPHORIC_ALLOW_REMOTE=1');
+  expect(run.stdout).not.toContain('waiting for');
 }, 60_000);

@@ -10,6 +10,10 @@ export type Saved = { id: number } & Record<string, unknown>;
 
 const tryFetchAgainAfterMs = 2000;
 const tryFetchAgainOnTheseErrors = ['ECONNRESET', 'UND_ERR_SOCKET'];
+// The server may have acted on a request before its connection dropped, so
+// only these are tried again: sending one twice changes nothing more, while a
+// POST sent again could create a second record.
+const tryFetchAgainMethods: FetchMethod[] = ['GET', 'PUT', 'DELETE'];
 
 const fetchMethods: FetchMethod[] = ['POST', 'GET', 'PUT', 'PATCH', 'DELETE'];
 
@@ -68,7 +72,10 @@ export default class CamphoricFetcher {
         return { response, text };
       } catch(e) {
         const code = ((e as Error).cause as { code?: string } | undefined)?.code;
-        if (attempt <= 5 && code && tryFetchAgainOnTheseErrors.includes(code)) {
+        if (
+          attempt <= 5 && code && tryFetchAgainOnTheseErrors.includes(code)
+          && tryFetchAgainMethods.includes(method)
+        ) {
           this.logVerbose(`got ECONNRESET on ${method} ${url}, trying again in ${tryFetchAgainAfterMs}ms`);
           await this.wait(tryFetchAgainAfterMs);
 
