@@ -19,13 +19,10 @@ https://support.google.com/mail/answer/185833
 
 ## Secrets
 
-`defaults/main.yml` (and `ansible/group_vars/all.yml`) ship placeholder secrets so a
-development VM provisions without a vault. Any other `camphoric_environment` must override
-them, and `camphoric_environment` itself, somewhere that outranks the playbook's
-`group_vars/all.yml`: `host_vars/<host>.yml` (vault-encrypted, as in VM_DEV_SETUP.md), an
-inventory `group_vars/<group>.yml` file, or `-e`. Variables in the inventory file itself
-(`[all:vars]`, `[<group>:vars]`) or in an inventory `group_vars/all.yml` lose to it and are
-silently ignored.
+`defaults/main.yml` ships placeholder secrets, and `camphoric_environment: development`, so a
+development VM provisions without a vault. Any other environment sets `camphoric_environment`
+and overrides these in its inventory (the inventory file, `group_vars`), `host_vars`
+(vault-encrypted, as in VM_DEV_SETUP.md) or `-e`:
 
 - `camphoric_postgresql_password`
 - `camphoric_django_secret_key`
@@ -36,6 +33,10 @@ silently ignored.
 The role's first task fails, naming the variables, when any of these still holds its
 placeholder (`this-should-be-…`, or `admin` for the superuser password) and
 `camphoric_environment` is not `development`.
+
+The playbook's `ansible/group_vars/all.yml` outranks variables in the inventory file and in
+an inventory `group_vars/all.yml`, so it leaves `camphoric_environment` and these secrets to
+the role's defaults. Keep them out of it.
 
 ## Logs
 
