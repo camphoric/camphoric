@@ -37,12 +37,20 @@ export function useInvoiceStatusAction(action: 'cancel' | 'reopen') {
 }
 
 export interface CheckPayPalResult {
-  result: 'recorded' | 'not_captured';
+  /**
+   * `recorded`: PayPal captured it; `pending`: PayPal captured it and is still
+   * processing the capture, so it isn't recorded yet (DR-133); `not_captured`:
+   * no money was taken, and the order is cleared.
+   */
+  result: 'recorded' | 'pending' | 'not_captured';
   payment: ApiPayment | null;
   invoice: ApiInvoice;
 }
 
-/** Ask PayPal about an invoice's pending order: recorded if captured, else cleared. */
+/**
+ * Ask PayPal about an invoice's pending order: recorded if captured, kept while
+ * PayPal is still processing the capture, else cleared.
+ */
 export function useCheckPayPalOrder() {
   const invalidate = useInvalidate();
   return useMutation({

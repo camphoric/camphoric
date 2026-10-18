@@ -1,7 +1,8 @@
 /**
  * Stories for what the payment page says when a payment didn't go through
- * (SPEC §7.2; §15, DR-91): cancelled or declined, PayPal's answer lost, and an
- * invoice the organizers cancelled (DR-105).
+ * (SPEC §7.2; §15, DR-91): cancelled or declined, PayPal's answer lost, a
+ * payment PayPal is still processing (DR-133), and an invoice the organizers
+ * cancelled (DR-105).
  * Run `npm run storybook`.
  */
 
@@ -33,6 +34,12 @@ export const Declined: StoryFn = () => (
 export const OutcomeUnknown: StoryFn = () => (
   <Box p="md" maw={600}>
     <PaymentNotFinished amountDue={550} unknown onFinish={noop} />
+  </Box>
+);
+
+export const Processing: StoryFn = () => (
+  <Box p="md" maw={600}>
+    <PaymentNotFinished amountDue={550} processing onFinish={noop} />
   </Box>
 );
 

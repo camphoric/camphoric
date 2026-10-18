@@ -4,7 +4,9 @@
  * event takes payments online, can pay it with PayPal's buttons: the server
  * creates the order (with the handling fee, added to the invoice only once
  * it's captured) and captures it on approval (DR-90). A check registrant's
- * invoice can be paid here too (#623). No sign-in.
+ * invoice can be paid here too (#623). No sign-in. A payment PayPal took but is
+ * still processing isn't recorded yet: the page says so, and offers no other
+ * payment meanwhile (DR-133).
  */
 
 import { Alert, Box, Container, LoadingOverlay, Stack, Text } from '@mantine/core';
@@ -32,6 +34,8 @@ export function InvoicePayPage() {
   const capture = useCaptureInvoiceOrder(token);
   const [message, setMessage] = useState<{ color: string; text: string } | null>(null);
   const [unknown, setUnknown] = useState(false);
+  // The capture just made is one PayPal is still processing (DR-133).
+  const [capturePending, setCapturePending] = useState(false);
 
   useDocumentTitle(page ? `Invoice #${page.invoice.id} — ${page.event.name}` : 'Invoice');
 
@@ -67,6 +71,10 @@ export function InvoicePayPage() {
         onSuccess: () => setMessage({ color: 'green', text: 'Thank you — your payment is in.' }),
         onError: (error) => {
           const problem = invoicePayProblem(error);
+          if (problem?.code === 'pending') {
+            setCapturePending(true);
+            return;
+          }
           if (problem?.code === 'unknown') setUnknown(true);
           setMessage({
             color: problem?.code === 'unknown' ? 'yellow' : 'red',
@@ -82,6 +90,7 @@ export function InvoicePayPage() {
 
   const { online, invoice } = page;
   const settled = invoice.status === 'paid' || invoice.status === 'overpaid';
+  const processing = invoice.processing || capturePending;
 
   return (
     <Container size="sm" py="xl">
@@ -105,13 +114,19 @@ export function InvoicePayPage() {
                 This invoice is paid. Thank you!
               </Alert>
             )}
-            {invoice.pending && !unknown && !settled && (
+            {processing && !settled && (
+              <Alert color="blue" variant="light" title="Your payment is processing">
+                PayPal has a payment on this invoice but is still processing it, which can take a
+                few days. Please don’t pay again: it shows here once PayPal completes it.
+              </Alert>
+            )}
+            {invoice.pending && !processing && !unknown && !settled && (
               <Alert color="yellow" variant="light">
                 A payment on this invoice is waiting to be confirmed. If you’ve paid, please don’t
                 pay again.
               </Alert>
             )}
-            {online && !unknown && (
+            {online && !unknown && !processing && (
               <Stack gap="xs">
                 <Text size="sm">
                   Pay {formatMoney(online.total)} online with your PayPal account, or choose “Debit
@@ -138,7 +153,7 @@ export function InvoicePayPage() {
                 />
               </Stack>
             )}
-            {!online && !settled && invoice.status !== 'cancelled' && (
+            {!online && !settled && !processing && invoice.status !== 'cancelled' && (
               <Text size="sm" c="dimmed">
                 This invoice can’t be paid online. Please contact the organizers to pay.
               </Text>

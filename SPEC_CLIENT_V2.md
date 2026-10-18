@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-132)
+- §15 — Decision Records (DR-1…DR-133)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -648,8 +648,9 @@ Non-CRUD admin endpoints:
   that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
-  paymentOptions, handlingPercent, invoiceCancelled }`, the last true when the organizers
-  cancelled the registration invoice); 404 `{ detail, code: 'registration_not_found' }` for a
+  paymentOptions, handlingPercent, invoiceCancelled, paymentProcessing }`: `invoiceCancelled`
+  true when the organizers cancelled the registration invoice, `paymentProcessing` true while
+  PayPal is still processing a payment on it, §9.7; §15, DR-133); 404 `{ detail, code: 'registration_not_found' }` for a
   registration that isn't this event's (or an id that isn't one). Once a registrar or
   admin has changed the registration invoice, its options are that invoice alone:
   `{ name: 'invoice:{id}', title: <its description>, amount: <what it asks now>, handling: <the
@@ -668,9 +669,12 @@ Non-CRUD admin endpoints:
     captured), with no second payment or email. When it doesn't go through, the registration
     stays completed and unpaid, and the response is an error `{ detail, code, invoice }`:
     `amount_changed` (409: the invoice changed since the order was made; nothing was captured),
-    `declined` (402: PayPal refused; nothing was captured), or `unknown` (502: PayPal's answer
-    was lost, so money may have moved — the order is kept pending on the invoice, the event is
-    emailed the details, and the confirmation is sent).
+    `declined` (402: PayPal refused, or declined the capture; nothing was taken), `pending`
+    (409: PayPal captured it but is still processing the capture, so it isn't a payment yet —
+    the order is kept pending on the invoice, nothing else can be paid on it meanwhile, and the
+    confirmation is sent; §9.7; §15, DR-133), or `unknown` (502: PayPal's answer was lost, so
+    money may have moved — the order is kept pending on the invoice, the event is emailed the
+    details, and the confirmation is sent).
   - `confirmationPage` is the event's confirmation page already rendered on the server, as
     markdown (§7.3); `invoice` is the registration invoice (or `null`) and `ledger` the
     registration's `{ price, handling_charges, total_owed, total_paid, balance,
@@ -721,23 +725,26 @@ Anyone may call these; they're throttled per client (scope `invoice_pay`), and a
 an invoice of a completed registration is a 404.
 
 - `GET /api/invoices/pay/{token}` → `ApiInvoicePay`: `{ event: { id, name }, invoice: { id,
-  description, memo, due_on, amount, handling, total, amount_paid, amount_due, status, pending },
-  campers, online }`. Money fields of `invoice` are decimal strings; `pending` says a PayPal order
-  on it hasn't been confirmed. `campers` are the registration's campers as first name and last
+  description, memo, due_on, amount, handling, total, amount_paid, amount_due, status, pending,
+  processing }, campers, online }`. Money fields of `invoice` are decimal strings; `pending` says
+  a PayPal order on it hasn't been confirmed, and `processing` that PayPal captured a payment on
+  it and is still processing it (§15, DR-133). `campers` are the registration's campers as first name and last
   initial ("Pat A."). It never carries the invoice's `notes`, the registrant's email or other
   registration details. `online` is `{ clientId, handling, total, handlingPercent }` — the
   PayPal client id, the handling fee paying online adds (0 when the invoice already carries one),
   the total PayPal would be asked for, and the event's percent — or `null` when it can't be paid
-  online: nothing is due, it's cancelled, or the event doesn't take payments online.
+  online: nothing is due, it's cancelled, PayPal is still processing a payment on it, or the
+  event doesn't take payments online.
 - `POST /api/invoices/pay/{token}/order` with `{ paymentType }` (`PayPal` | `Card`) →
   `{ orderID, …ApiInvoicePay }`: the server creates the PayPal order for the amount due plus the
   fee, as on the registration's payment step (§15, DR-90). 409 `{ detail, code: 'not_payable',
-  …ApiInvoicePay }` when nothing is due or it's cancelled; 400 on `paymentType` for any other
+  …ApiInvoicePay }` when nothing is due, it's cancelled, or a capture on it hasn't settled; 400 on `paymentType` for any other
   type.
 - `POST /api/invoices/pay/{token}/capture` with `{ orderID, paymentType }` → `ApiInvoicePay`
   after the server has checked and captured the order (the payment's notes say "Paid online").
   When it doesn't go through, the response is `{ detail, code, …ApiInvoicePay }` with the
   registration payment step's codes and statuses — `amount_changed` (409), `declined` (402),
+  `pending` (409; PayPal is still processing the capture, so nothing is recorded yet),
   `unknown` (502; the order stays pending and the event is emailed), and `mismatch` (400: the
   order isn't this invoice's).
 
@@ -881,7 +888,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   e-payment handling fee on it; adds to what's owed), `payment_type` (how the payer chose to pay
   it; empty once a registrant whose online payment didn't go through is confirmed without
   paying, §15, DR-104), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
-  `pending_paypal_order_id`, `organizer_changed_at` (when a registrar or admin last changed
+  `pending_paypal_order_id`, `paypal_capture_pending` (PayPal captured that order and is still
+  processing the capture; §9.7; §15, DR-133), `organizer_changed_at` (when a registrar or admin last changed
   its amount, description or handling, or cancelled or reopened it; §15, DR-105),
   `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`, timestamps; and, worked out
   from its live payments, read-only `total` (`amount + handling`),
@@ -908,8 +916,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     invoice. Cancelling one that still holds money (its payments don't net to 0) is a 409
     `{ detail }`; a cancelled invoice charges no handling.
   - `POST /api/invoices/{id}/check-paypal/` (Registrars and Admins): asks PayPal about the
-    invoice's pending order → `{ result: 'recorded' | 'not_captured', payment, invoice }`: a
-    captured order is recorded as a payment (once), one never captured is cleared.
+    invoice's pending order → `{ result: 'recorded' | 'pending' | 'not_captured', payment,
+    invoice }`: an order whose capture PayPal completed is recorded as a payment (once), one
+    PayPal is still processing stays pending (`payment` null; §15, DR-133), and one never
+    captured, or whose capture PayPal declined, is cleared.
   - `DELETE` (Admins only; §15, DR-93): only an invoice nothing was ever paid on (deleted payments
     count), and not a registration's own (`origin: 'registration'`), which is cancelled instead
     (§15, DR-105) — a 409 otherwise; a hard delete.
@@ -1250,6 +1260,11 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   - **When PayPal's answer was lost** (the `unknown` code): money may have moved, so the
     registrant is asked not to pay again — the organizers will check — and offered only to
     finish; the payment options and buttons aren't shown.
+  - **When PayPal is still processing the payment** (the `pending` code, or `paymentProcessing`
+    in the payment step asked for again): the registrant is told they're registered, that their
+    payment is processing and is recorded once PayPal completes it, and not to pay again; they're
+    offered only to finish, and the payment options and buttons aren't shown (§9.7; §15,
+    DR-133).
   - **When the organizers cancelled the invoice** (the `cancelled` code, from Pay by check or a
     PayPal or card button, or `invoiceCancelled` in the payment step asked for again): the
     registrant is told they're registered, given the server's message to contact the
@@ -2391,10 +2406,15 @@ section is the contract.
   the fee, with one item "Total for Invoice #{id} for {Event Name}", `reference_id` the
   registration's uuid and `custom_id` `invoice:{id}` — and keeps it as the invoice's pending
   order; nothing is owed for it until it's captured. On approval it fetches the order, checks it
-  belongs to the invoice, and captures it only if it's still for what the invoice asks now. A
-  capture is recorded as a payment with PayPal's capture id as `paypal_transaction_id` (unique);
-  an order found already captured is recorded (or returned) rather than captured again. Outcomes
-  that don't record a payment: *amount changed* and *declined* (no money taken), and *unknown*
+  belongs to the invoice, and captures it only if it's still for what the invoice asks now.
+  Each order asks PayPal for immediate payment (`payee_preferred: IMMEDIATE_PAYMENT_REQUIRED`),
+  so PayPal doesn't offer funding that leaves the capture pending, such as an eCheck (§15,
+  DR-133). A capture is a payment only once PayPal has completed it (capture status
+  `COMPLETED`; or since refunded, `PARTIALLY_REFUNDED` or `REFUNDED`): it's recorded with
+  PayPal's capture id as `paypal_transaction_id` (unique); an order found already captured is
+  recorded (or returned) rather than captured again. Outcomes that don't record a payment:
+  *amount changed* and *declined* (no money taken, including a capture PayPal declined or
+  failed), *pending* (below), and *unknown*
   (PayPal's answer was lost, or PayPal captured but recording the payment failed; money may have
   moved) — the order stays pending, and a **PayPal problem email** goes to the event's
   `confirmation_email_from`: what happened, who (registration, registrant, campers, an admin
@@ -2407,6 +2427,26 @@ section is the contract.
   "Recorded by the worker checking PayPal" ("Check PayPal order" settles it too). Until that
   outcome is known (for up to a day), the invoice takes no new PayPal order and the payment step
   refuses paying by check (409 `not_payable`), and the payer is asked not to pay again.
+- **A pending capture** (§15, DR-133). When PayPal captures an order but says the capture is
+  `PENDING` (its review, or the payee's receiving settings; the money isn't the event's yet, and
+  PayPal may still deny it), nothing is recorded: the order stays the invoice's pending order,
+  the invoice says how the payer chose to pay, and the registrant is told their payment is
+  processing and not to pay again (the payment step and the pay page). Meanwhile the invoice
+  takes no other payment — no new PayPal order, and the payment step refuses paying by check
+  (409 `not_payable`) — and the admin shows the invoice's PayPal payment as processing. The
+  worker asks PayPal about it every half hour, for 30 days from the capture: once PayPal has
+  completed it, it's recorded ("Recorded by the worker checking PayPal"); if PayPal declined it
+  instead, nothing is recorded, the invoice takes payments again (the order stays pending for
+  "Check PayPal order", which clears it), and the event gets a PayPal problem email saying the
+  payment didn't go through and to let the registrant know. "Check PayPal order" does the same at
+  once (without the email), and starts the 30 days again for one still pending after them. A
+  capture still pending after 30 days is reported the same way (once more asked about, then no
+  longer), and the invoice takes payments again. Repeating the capture of an order PayPal is
+  processing answers `pending` again without asking PayPal. Templates see
+  `invoice.payment_processing`, so a confirmation can say the payment is processing rather than
+  due. A capture PayPal completes and later reverses (a chargeback), or one it denies after it's
+  no longer asked about, isn't noticed automatically: that needs PayPal's webhooks, which the
+  server doesn't take.
 - **The pay page** (#670, #623; §15, DR-95). Every invoice has an unguessable link code and a
   public page at `/invoices/{code}` (its `pay_url`). Anyone with the link sees the event's name,
   the invoice — number, description, memo, due date, amount, handling, paid and due, and its
@@ -2416,8 +2456,9 @@ section is the contract.
   already carries one); the server creates and captures the order as on the payment step, with
   the same outcomes. So an invoice first meant for a check can be paid online, adding the fee
   only then; if PayPal's script can't load, the page says so, as on the payment step. Otherwise
-  the page says the invoice is paid, cancelled, or can't be paid online; and when a PayPal order
-  on it hasn't been confirmed, it asks the payer not to pay again.
+  the page says the invoice is paid, cancelled, or can't be paid online; when PayPal is still
+  processing a payment on it, it says so and offers no other payment; and when a PayPal order on
+  it hasn't been confirmed, it asks the payer not to pay again.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
   through PayPal's refund API on its capture (with a request id made once for each payment
@@ -2448,7 +2489,8 @@ section is the contract.
   which is cancelled instead (§15, DR-105).
 - **Confirmation email timing** (§15, DR-91): sent when the payment flow reaches a result, or by
   the worker 30 minutes after completion when nothing did — waiting, though, while a PayPal
-  capture's outcome isn't known, so it says what was paid, and while the invoice (not cancelled)
+  capture's outcome isn't known (but not for one PayPal says is pending, which may take days;
+  §15, DR-133), so it says what was paid, and while the invoice (not cancelled)
   has a PayPal order pending from the last three hours, since the payer may still approve it
   (§15, DR-121); once (`confirmation_sent_at`, and its dedupe key).
 
@@ -5418,6 +5460,46 @@ through. Cap `em` and `%` font sizes too — nesting multiplies past any cap. Ma
 `style` against one regular expression in the sanitizer's schema — one declaration it doesn't
 like drops the others with it, and the rule is hard to read. A full CSS parser — more than a
 short allowlist of properties and plain values needs.
+
+### DR-133 — A pending PayPal capture isn't a payment until PayPal completes it
+
+**Decision:** A PayPal capture is recorded as a payment only when its status is `COMPLETED` (or,
+since refunded, `PARTIALLY_REFUNDED` or `REFUNDED`). A `PENDING` capture records nothing: the
+order stays the invoice's pending order, marked (`paypal_capture_pending_at`) so the invoice
+takes no other payment, the registrant and the pay page are told it's processing, and the
+worker's sweep of unsettled captures (DR-90, #804) asks PayPal again every half hour for 30
+days, recording it once PayPal completes it and settling it if PayPal declines it. "Check PayPal
+order" answers `pending` for one still processing, and starts the watch again for one still
+pending after it; a denied capture, or one still pending when the watch ends, is emailed to the
+event, since the registrant was told it's processing. Templates get `invoice.payment_processing`.
+Orders are created with
+`application_context.payment_method.payee_preferred: IMMEDIATE_PAYMENT_REQUIRED`, so PayPal
+doesn't offer funding that would leave the capture pending.
+**Context:** #767: the server accepted `PENDING` as a captured payment and booked it in full,
+so an invoice showed paid for money the event didn't have, and nothing looked at it again if
+PayPal then denied it (an eCheck that bounced). PayPal's Orders v2 reference says an order's
+`COMPLETED` status can mean a capture that is pending or declined, and to check
+`purchase_units[].payments.captures[].status` before fulfilling; a `PENDING` capture's funds
+weren't yet credited to the payee, with a reason such as `ECHECK` or `PENDING_REVIEW`. Its
+`IMMEDIATE_PAYMENT_REQUIRED` preference accepts only immediate payment (card, PayPal balance,
+instant ACH) and "ensures that at the time of capture, the payment does not have the `pending`
+status" (Orders v2 API reference, developer.paypal.com/docs/api/orders/v2/, schemas
+`order_status`, `capture_status`, `capture_status_details` and
+`payee_payment_method_preference`, version 2.36). A capture can still be pending for reasons it
+doesn't cover (PayPal's review, the payee's receiving settings), so the capture status is
+checked whatever the order asked for. A month is well past the few business days an eCheck
+takes to clear; one still pending then is left to a registrar.
+**Alternatives:** The newer `payment_source.paypal.experience_context.payment_method_preference`
+(the reference marks `application_context` deprecated in its favor): it ties the order to the
+PayPal wallet, but the order is created before the server knows which of PayPal's buttons
+(PayPal, Card, Venmo, Pay Later) the payer finishes with, so it could refuse the others; moving
+to it needs the button's funding source sent to the server. Recording a pending capture and
+marking it (the ledger would still say paid for money not received). Handling `DENIED` and
+`REVERSED` captures as they happen through PayPal's webhooks (`PAYMENT.CAPTURE.COMPLETED`,
+`.DENIED`, `.REVERSED`): it would also catch a chargeback after a payment is recorded, but needs
+a public webhook endpoint with signature verification; left for later. Asking about a pending
+capture every minute with the unrecorded ones (more calls to PayPal for a state that changes in
+hours or days).
 
 ---
 

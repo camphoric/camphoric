@@ -583,17 +583,23 @@ class InvoiceSerializer(ModelSerializer):
     created_by_name = SerializerMethodField()
     # Its pay page (DR-95); the link code itself is never shown on its own.
     pay_url = SerializerMethodField()
+    # PayPal captured its pending order and is still processing it (#767).
+    paypal_capture_pending = SerializerMethodField()
 
     class Meta:
         model = models.Invoice
         # A PayPal capture not yet settled is the worker's bookkeeping (#804).
-        exclude = ['token', 'paypal_capture_order_id', 'paypal_capture_started_at']
+        exclude = ['token', 'paypal_capture_order_id', 'paypal_capture_started_at',
+                   'paypal_capture_pending_at']
         read_only_fields = ['origin', 'payment_type', 'pending_paypal_order_id',
                             'organizer_changed_at', 'cancelled_at', 'cancel_reason',
                             'created_by', 'created_at', 'updated_at']
 
     def get_pay_url(self, invoice):
         return invoice_pay_url(invoice.token, self.context.get('request'))
+
+    def get_paypal_capture_pending(self, invoice):
+        return invoices.capture_processing(invoice)
 
     def validate_registration(self, registration):
         if self.instance is not None and registration != self.instance.registration:

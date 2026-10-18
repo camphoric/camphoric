@@ -9,6 +9,7 @@ import {
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
   PENDING_PAYPAL,
+  PROCESSING_PAYPAL,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
@@ -125,5 +126,21 @@ describe('InvoiceCard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel invoice' }));
     expect(onCancel).toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Delete invoice #5' })).toBeInTheDocument();
+  });
+
+  it('says when PayPal is still processing a payment, and still offers to check it', async () => {
+    const onCheckPayPal = vi.fn();
+    renderWithProviders(
+      <InvoiceCard
+        invoice={PROCESSING_PAYPAL}
+        payments={[]}
+        canEdit
+        canDelete={false}
+        onCheckPayPal={onCheckPayPal}
+      />,
+    );
+    expect(screen.getByText(/PayPal is still processing a payment/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Check PayPal order' }));
+    expect(onCheckPayPal).toHaveBeenCalled();
   });
 });

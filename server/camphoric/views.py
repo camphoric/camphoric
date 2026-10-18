@@ -871,7 +871,10 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='check-paypal')
     def check_paypal(self, request, pk=None):
-        '''Ask PayPal about the invoice's pending order: record it if captured, else clear it.'''
+        '''
+        Ask PayPal about the invoice's pending order: record it if captured,
+        keep it if PayPal is still processing the capture, else clear it.
+        '''
         try:
             result, payment = invoices.check_paypal_order(self.get_object())
         except invoices.PaymentProblem as problem:
@@ -1586,6 +1589,9 @@ class RegisterView(APIView):
             'handlingPercent': float(event.epayment_handling) if online else None,
             # Nothing to pay: the page says to contact the organizers.
             'invoiceCancelled': invoices.cancelled_registration_invoice(registration),
+            # PayPal is still processing their payment: the page says not to pay again.
+            'paymentProcessing': invoices.capture_processing(
+                invoices.registration_invoice(registration)),
         }
 
     @staticmethod
@@ -1793,9 +1799,10 @@ class RegisterView(APIView):
             problem = raised
         with transaction.atomic():
             registration = self.locked_registration(request, event)
-            if problem is None or problem.code == 'unknown':
-                # After a lost answer money may have moved: the registrant is
-                # told not to pay again, and gets their confirmation now.
+            if problem is None or problem.code in ('unknown', 'pending'):
+                # After a lost answer money may have moved, and a pending
+                # capture did move it: the registrant is told not to pay
+                # again, and gets their confirmation now.
                 confirmations.send_confirmation(registration, request)
             if problem is not None:
                 return self.problem_response(request, registration, problem)
@@ -2023,7 +2030,8 @@ class InvoicePayView(APIView):
 
     - `GET /api/invoices/pay/<token>`: the event, the invoice (never its notes),
       the campers as "First L.", and `online`: what paying online costs, or null
-      when it can't be (paid, cancelled, or the event takes no payments online).
+      when it can't be (paid, cancelled, PayPal still processing a payment on
+      it, or the event takes no payments online).
     - `POST …/order` `{paymentType}`: create the PayPal order (DR-90).
     - `POST …/capture` `{orderID, paymentType}`: check and capture it; the same
       outcomes as the registration's payment step.
@@ -2054,7 +2062,9 @@ class InvoicePayView(APIView):
         due = invoice.amount_due
         status_ = invoice.status
         online = None
-        payable = status_ in (models.InvoiceStatus.OPEN, models.InvoiceStatus.PARTIALLY_PAID)
+        processing = invoices.capture_processing(invoice)
+        payable = status_ in (models.InvoiceStatus.OPEN, models.InvoiceStatus.PARTIALLY_PAID) \
+            and not processing
         if payable and due > 0 and event.paypal_enabled and event.paypal_client_id:
             fee = invoices.online_fee(event, due) if invoices.money(invoice.handling) == 0 \
                 else invoices.ZERO
@@ -2078,6 +2088,8 @@ class InvoicePayView(APIView):
                 'amount_due': f'{due:.2f}',
                 'status': status_,
                 'pending': bool(invoice.pending_paypal_order_id),
+                # PayPal captured a payment and is still processing it (#767).
+                'processing': processing,
             },
             'campers': [c for c in campers if c],
             'online': online,

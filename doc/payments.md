@@ -24,6 +24,9 @@ fixed.
   (yet). Nothing is owed for it until it is.
 - **Approve vs. capture** — a payer *approves* an order in PayPal's window; no money moves until
   the server *captures* it.
+- **Pending capture** — a capture PayPal took but hasn't completed (capture status `PENDING`):
+  the money isn't the event's yet, and PayPal may still deny it. It's not a payment until PayPal
+  completes it (SPEC DR-133).
 - **"Deposit" means two things.** The registrant's *deposit option* (a payment option, above)
   and the `Deposit` model — a *bank deposit* grouping payments, which has nothing to do with it.
 
@@ -70,6 +73,7 @@ erDiagram
         string pending_paypal_order_id
         string paypal_capture_order_id "a capture not yet settled"
         datetime paypal_capture_started_at "the worker checks it 15 min on"
+        datetime paypal_capture_pending_at "PayPal last said the capture is pending"
         datetime organizer_changed_at "the payment step stops rewriting it"
         datetime cancelled_at
         string token "for a pay link (#670)"
@@ -159,15 +163,17 @@ flowchart TD
         I1 -->|captured| I2[Adds the fee to the invoice,<br/>records the payment,<br/>sends the confirmation]
         I1 -->|amount changed / declined| NF
         I1 -->|outcome unknown| U[Keeps the order pending,<br/>emails the event,<br/>sends the confirmation]
+        I1 -->|capture pending| PP[Keeps the order pending, records nothing,<br/>sends the confirmation:<br/>'your payment is processing']
         FIN --> F3[Sends the confirmation]
         S[Worker, every minute:<br/>completed 30 min ago, no confirmation?] --> S1[Sends it]
-        W[Worker, every minute:<br/>capture started 15 min ago, still pending?] --> W1[Asks PayPal;<br/>records it if captured]
+        W[Worker, every minute:<br/>capture started 15 min ago, still pending?<br/>or PayPal said pending 30 min ago?] --> W1[Asks PayPal;<br/>records it once PayPal completes it]
     end
     F1 --> M
     F2 --> M
     I2 --> M
     F3 --> M
     U --> M
+    PP --> M
 ```
 
 - The registration is **started** when the form is sent, and **completed** the moment a payment
@@ -198,7 +204,8 @@ flowchart TD
   Card choice from the registration invoice first (`clear_unpaid_online_choice`, #759), so the
   confirmation doesn't say they chose to pay online. The pending PayPal order stays: it's what
   the admin list's "Online payment not finished" badge looks for, and what "Check PayPal order"
-  checks. After a lost PayPal answer the confirmation has already gone out, so PayPal stays.
+  checks. After a lost PayPal answer the confirmation has already gone out, so PayPal stays; and
+  a choice whose capture PayPal is still processing isn't cleared: they did pay that way (#767).
 - **Abuse (#801).** Anyone may post the steps, and a check payment emails a confirmation to the
   address the form gave, so anonymous posts are throttled per client address (scope `register`,
   `CAMPHORIC_REGISTER_RATE`, 10 a minute by default, counted per server process). A
@@ -218,7 +225,7 @@ sequenceDiagram
     R->>B: Clicks PayPal (or Debit or Credit Card)
     B->>S: POST register {step: 'paypal-order', paymentOption, paymentType}
     S->>S: complete the registration, make the registration invoice
-    S->>P: create order: amount due + fee, one item<br/>"Total for Invoice no. N for Event", custom_id invoice:N
+    S->>P: create order: amount due + fee, one item<br/>"Total for Invoice no. N for Event", custom_id invoice:N,<br/>payee_preferred IMMEDIATE_PAYMENT_REQUIRED
     P-->>S: order id
     S->>S: invoice.pending_paypal_order_id = order id
     S-->>B: {orderID, total, handling}
@@ -229,13 +236,21 @@ sequenceDiagram
     S->>S: invoice.paypal_capture_order_id, _started_at = order id, now (committed)
     S->>P: GET the order
     alt already COMPLETED (a retry, or a lost reply)
-        S->>S: record_capture: return the payment, or record the missing one
+        S->>S: as below, by the capture's status: return the payment,<br/>or record the missing one
     else APPROVED, for what the invoice asks now
         S->>P: capture (PayPal-Request-Id = order id)
-        P-->>S: COMPLETED, capture id
-        S->>S: invoice.handling += fee, record the payment<br/>(paypal_transaction_id = capture id), commit
-        S->>S: lock the registration again: send the confirmation
-        S-->>B: confirmation page, invoice, ledger
+        P-->>S: order COMPLETED, capture id and capture status
+        alt capture COMPLETED
+            S->>S: invoice.handling += fee, record the payment<br/>(paypal_transaction_id = capture id), commit
+            S->>S: lock the registration again: send the confirmation
+            S-->>B: confirmation page, invoice, ledger
+        else capture PENDING
+            S->>S: record nothing; keep the pending order,<br/>paypal_capture_pending_at = now, commit
+            S->>S: send the confirmation
+            S-->>B: 409 pending: "your payment is processing"
+        else capture DECLINED or FAILED
+            S-->>B: 402 declined (no money taken)
+        end
     else the invoice changed since the order was made
         S-->>B: 409 amount_changed (nothing captured)
     else PayPal declines
@@ -288,6 +303,39 @@ sequenceDiagram
   after a capture all find it already captured and return the existing payment — one PayPal
   transaction is never recorded twice. The `PayPal-Request-Id` header makes PayPal itself return
   its first answer to a retried create, capture or refund.
+- **A pending capture isn't a payment (#767, SPEC DR-133).** PayPal's order says `COMPLETED`
+  once it's captured, even when the capture itself is `PENDING` (PayPal's review, the payee's
+  receiving settings) or `DECLINED`, so the server reads the capture's status
+  (`invoices._capture_outcome`): `COMPLETED` — or `PARTIALLY_REFUNDED`/`REFUNDED`, money that
+  arrived and has since gone back — is recorded; `PENDING` records nothing; anything else took no
+  money. Orders are created with `application_context.payment_method.payee_preferred:
+  IMMEDIATE_PAYMENT_REQUIRED`, so PayPal doesn't offer an eCheck or other funding that stays
+  pending (it's set on the order rather than in `payment_source.paypal.experience_context`,
+  which would tie the order to the PayPal wallet when the payer may use the Card, Venmo or Pay
+  Later button); the capture's status is checked anyway.
+- **While a capture is pending.** `_capture_pending` keeps the order as the invoice's pending
+  order and keeps the capture's mark, adding `paypal_capture_pending_at`. The registrant is
+  told their payment is processing and not to pay again (`pending`, 409; the payment step's
+  `paymentProcessing` and the pay page's `processing` say so when the page is opened again), and
+  gets their confirmation. The invoice takes no other payment (`not_payable`, "PayPal is still
+  processing a payment …"), the pay page offers no buttons, and the admin's invoice shows
+  "PayPal is still processing a payment". The worker asks PayPal again each time
+  `paypal_capture_pending_at` is half an hour old (`PENDING_CAPTURE_ASK_EVERY`), for 30 days from
+  the capture (`PENDING_CAPTURE_WATCHED_FOR`): still pending, it notes when it asked; completed,
+  it records the payment ("Recorded by the worker checking PayPal") and clears the marks;
+  declined, it emails the event (the PayPal problem email, `capture_denied`: the registrant was
+  told it's processing, so someone should tell them it didn't go through) and clears the marks,
+  so the invoice takes payments again, and leaves the order for "Check PayPal order" to clear.
+  Still pending once the 30 days are up, it's asked about once more and then reported
+  (`capture_expired`) and settled the same way. "Check PayPal order" answers `pending` while
+  it's pending (starting the 30 days again if they'd run out), and otherwise does the same
+  without the email. A repeated capture of an order PayPal is processing answers `pending`
+  without asking PayPal, so a refusal then can't clear the watch. The confirmation sweep doesn't
+  wait for a pending capture, and doesn't clear the invoice's PayPal choice for one; templates
+  see `invoice.payment_processing`, so the confirmation can say it's processing.
+- **What isn't handled.** A capture PayPal completes and later reverses (a chargeback), or one
+  it denies after it's no longer asked about, isn't noticed: that needs PayPal's webhooks
+  (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the server doesn't take.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
   what's owed.
 - **PayPal or Card** is the button the payer pressed (`paymentType`), on the invoice and the
@@ -314,8 +362,11 @@ sequenceDiagram
   minutes on and records it (or "Check PayPal order" does). For a refund the registrar is asked
   to press "Refund through PayPal" again in the same dialog, which records it once (§11). The report is written after the
   rollback, with no transaction open, so it isn't lost with it.
-- **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) asks PayPal about the
-  pending order: COMPLETED is recorded; anything else is cleared (no money was taken).
+- **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) locks the
+  registration and then the invoice, the order every payment step takes them in (#819), and asks
+  PayPal about the pending order: a capture PayPal completed is recorded (`recorded`); one it's still processing
+  stays pending (`pending`); anything else — not captured, or a capture declined — is cleared
+  (`not_captured`: no money was taken).
 
 ## 7. Paying by check
 
@@ -345,6 +396,7 @@ flowchart LR
     C[Finish and pay later] --> Q
     D[Nothing to pay] --> Q
     E[PayPal outcome unknown] --> Q
+    PC[PayPal capture pending] --> Q
     W[Worker sweep:<br/>completed &gt; 30 min ago,<br/>confirmation_sent_at empty,<br/>no capture unsettled,<br/>no PayPal order from the last 3 h] --> Q
     Q{confirmation_sent_at set?} -->|no| S[Queue it<br/>dedupe key confirmation:ID<br/>set confirmation_sent_at]
     Q -->|yes| N[Nothing: it's sent once]
@@ -353,7 +405,8 @@ flowchart LR
 `confirmations.send_confirmation` does the sending; `confirmations.send_overdue_confirmations`
 is the sweep, called from the worker's `reconcile` task — after `check_unrecorded_captures`
 (§6). The sweep skips a registration while one of its invoices has a capture not yet settled
-(for up to a day), so a confirmation sent late says what was paid. Registrations converted by migration 0076
+(for up to a day), so a confirmation sent late says what was paid — but not one PayPal says is
+pending, which may take days (#767). Registrations converted by migration 0076
 have `confirmation_sent_at` set, so the sweep never emails anyone from before.
 
 It also passes over a registration whose invoice has a pending PayPal order made in the last
@@ -569,7 +622,7 @@ flowchart LR
   `match_received_invoice`, `refundable`, payment options (`payment_options`, `find_option`),
   the registration invoice (`prepare_registration_invoice`), PayPal (`create_paypal_order`,
   `capture_paypal_order`, `record_capture`, `check_paypal_order`, `check_unrecorded_captures`,
-  `refund_paypal_payment`) and the problem email.
+  `capture_processing`, `refund_paypal_payment`) and the problem email.
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`;
   `checked_order_id`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
@@ -682,6 +735,10 @@ sequenceDiagram
         else amount changed, declined, or another invoice's order
             S-->>B: 409 / 402 / 400 {detail, code, …}
             B->>R: the reason, and the buttons again
+        else PayPal is still processing the capture
+            S->>S: keep the pending order, record nothing
+            S-->>B: 409 pending, the invoice with processing true
+            B->>R: "Your payment is processing", no buttons
         else no clear answer
             S->>S: keep the pending order, email the event
             S-->>B: 502 unknown
@@ -708,3 +765,5 @@ sequenceDiagram
   random token isn't practical, and the throttle keeps anyone from trying wholesale.
 - **A pending order.** When an order on the invoice hasn't been confirmed (`pending`), the page
   asks the payer not to pay again; a registrar settles it with "Check PayPal order".
+- **A payment PayPal is still processing** (`processing`, #767). The page says so, and `online`
+  is null, so it offers no buttons until the worker finds PayPal has completed (or declined) it.

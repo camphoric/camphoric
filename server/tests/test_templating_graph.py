@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from camphoric import models
 from camphoric.templating.graph import build_event_graph
@@ -86,6 +87,18 @@ class EventGraphTests(TestCase):
         self.assertEqual(lee['invoice']['status'], 'overpaid')
         self.assertEqual(lee['invoice']['overpaid'], Decimal('50.50'))
         self.assertEqual(len(self.graph.invoices), 2)
+        self.assertFalse(invoice['payment_processing'])
+
+    def test_a_payment_paypal_is_processing(self):
+        # PayPal captured it but hasn't completed it: not paid yet (#767).
+        now = timezone.now()
+        models.Invoice.objects.filter(pk=self.made.i1.pk).update(
+            pending_paypal_order_id='ORDER', paypal_capture_order_id='ORDER',
+            paypal_capture_started_at=now, paypal_capture_pending_at=now)
+        invoice = build_event_graph(self.made.event).get('registration', self.made.r1.id)[
+            'invoice']
+        self.assertTrue(invoice['payment_processing'])
+        self.assertEqual(invoice['amount_due'], Decimal('725.00'))
 
     def test_handling_and_refunds(self):
         self.made.i2.handling = Decimal('10.00')

@@ -25,6 +25,7 @@ export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice 
     memo: '',
     notes: '',
     pending_paypal_order_id: null,
+    paypal_capture_pending: false,
     organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',
@@ -143,6 +144,18 @@ export const PENDING_PAYPAL = invoice({
   amount_due: '400.00',
   payment_type: 'Card',
   pending_paypal_order_id: '5O190127TN364715T',
+});
+
+/** PayPal captured its order and is still processing the capture (#767). */
+export const PROCESSING_PAYPAL = invoice({
+  id: 6,
+  description: 'Full Payment',
+  amount: '400.00',
+  total: '400.00',
+  amount_due: '400.00',
+  payment_type: 'PayPal',
+  pending_paypal_order_id: '5O190127TN364715T',
+  paypal_capture_pending: true,
 });
 
 export const LEDGER = {

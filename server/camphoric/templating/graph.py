@@ -334,6 +334,8 @@ def build_event_graph(event, *, registration_ids=None, request=None):
 
     # Invoices and their payments (SPEC §9.7): what a registration owes is its
     # price plus the handling on its invoices; refunds are negative payments.
+    from camphoric.invoices import capture_processing  # invoices imports templating
+
     invoices = {}
     for row in live(models.Invoice.all_objects.filter(registration_id__in=registration_row_ids)) \
             .order_by('created_at', 'id'):
@@ -351,6 +353,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             amount_paid=Decimal('0.00'),
             amount_due=Decimal('0.00'),
             overpaid=Decimal('0.00'),
+            payment_processing=capture_processing(row),
             due_on=row.due_on,
             memo=row.memo,
             pay_url=invoice_pay_url(row.token, request),

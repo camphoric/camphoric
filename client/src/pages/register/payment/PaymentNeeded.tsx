@@ -21,6 +21,10 @@
  *  - If they changed it since this page loaded, a payment button is refused
  *    (`invoice_changed`) with the payment step as it is now: the page takes it,
  *    so its options and amounts are the invoice's, and says why (DR-105).
+ *  - If PayPal took the payment but is still processing it (`pending`), or the
+ *    payment step asked for again says so (`paymentProcessing`), nothing is
+ *    recorded yet: the page says so, offers only to finish, and nothing else
+ *    can be paid meanwhile (§15, DR-133).
  *  - If the server no longer has the registration (deleted, or purged as
  *    incomplete), any button forgets the one saved and goes back to step 1,
  *    which keeps what was entered and says to send it again (§7.1).
@@ -56,6 +60,8 @@ interface PaymentNeededProps {
 interface NotFinished {
   reason?: string;
   unknown?: boolean;
+  /** PayPal took the payment and is still processing it. */
+  processing?: boolean;
   /** The organizers cancelled the invoice: nothing can be paid here. */
   invoiceCancelled?: boolean;
 }
@@ -157,7 +163,11 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
             return;
           }
           const problem = paymentProblem(e);
-          setNotFinished({ reason: problem.message, unknown: problem.code === 'unknown' });
+          setNotFinished({
+            reason: problem.message,
+            unknown: problem.code === 'unknown',
+            processing: problem.code === 'pending',
+          });
         },
       },
     );
@@ -189,23 +199,27 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       },
     });
 
-  // Cancelled by the organizers: refused at a button, or already so when the
-  // payment step was asked for again.
+  // Nothing more to pay here: an unknown outcome, a payment PayPal is still
+  // processing, or an invoice the organizers cancelled — found at a button, or
+  // already so when the payment step was asked for again.
   const stopped: NotFinished | null =
-    notFinished?.unknown || notFinished?.invoiceCancelled
+    notFinished?.unknown || notFinished?.processing || notFinished?.invoiceCancelled
       ? notFinished
       : paymentStep.invoiceCancelled
         ? {
             reason: 'The organizers cancelled this invoice. Please contact them.',
             invoiceCancelled: true,
           }
-        : null;
+        : paymentStep.paymentProcessing
+          ? { processing: true }
+          : null;
   if (stopped) {
     return (
       <PaymentNotFinished
         amountDue={option.amount}
         reason={stopped.reason}
         unknown={stopped.unknown}
+        processing={stopped.processing}
         invoiceCancelled={stopped.invoiceCancelled}
         onFinish={finishNow}
         finishing={finish.isPending}

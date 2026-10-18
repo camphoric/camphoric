@@ -6,7 +6,7 @@ import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InvoicePayPage } from '../InvoicePayPage';
-import { CANCELLED, DUE, NOT_ONLINE, PAID } from './fixtures';
+import { CANCELLED, DUE, NOT_ONLINE, PAID, PROCESSING } from './fixtures';
 
 const { state, createOrder, capture, checkout } = vi.hoisted(() => ({
   state: { page: null as ApiInvoicePay | null, isError: false },
@@ -70,6 +70,27 @@ describe('InvoicePayPage', () => {
     renderWithProviders(<InvoicePayPage />);
     act(() => checkout.props!.onApprove('ORDER-1', 'PayPal'));
     expect(screen.getByText(/Please don’t pay again/)).toBeInTheDocument();
+    expect(screen.queryByText('PayPal buttons')).toBeNull();
+  });
+
+  it('when PayPal is still processing the payment, says so and offers no other', () => {
+    capture.mutate.mockImplementation(
+      (_body: unknown, options: { onError: (e: unknown) => void }) =>
+        options.onError(new ApiError(409, 'Conflict', { ...DUE, code: 'pending', detail: 'x' })),
+    );
+    renderWithProviders(<InvoicePayPage />);
+    act(() => checkout.props!.onApprove('ORDER-1', 'PayPal'));
+    expect(screen.getByText('Your payment is processing')).toBeInTheDocument();
+    expect(screen.getByText(/Please don’t pay again/)).toBeInTheDocument();
+    expect(screen.queryByText('PayPal buttons')).toBeNull();
+  });
+
+  it('says a payment is processing when the page is opened again', () => {
+    state.page = PROCESSING;
+    renderWithProviders(<InvoicePayPage />);
+    expect(screen.getByText('Your payment is processing')).toBeInTheDocument();
+    expect(screen.queryByText(/waiting to be confirmed/)).toBeNull();
+    expect(screen.queryByText(/can’t be paid online/)).toBeNull();
     expect(screen.queryByText('PayPal buttons')).toBeNull();
   });
 
