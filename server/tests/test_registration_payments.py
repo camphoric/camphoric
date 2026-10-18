@@ -9,7 +9,6 @@ import datetime
 import threading
 import time
 from decimal import Decimal
-import threading
 from unittest import mock
 
 from django.core import mail
