@@ -798,7 +798,11 @@ class WhileACaptureIsUnderwayTests(Flow, APITransactionTestCase):
         self.assertEqual(response.data['invoice']['status'], 'paid')
         self.assertPaidOnce()
 
-    def test_check_paypal_order_waits_and_finds_the_payment(self):
+    def test_check_paypal_order_meanwhile_finds_the_payment(self):
+        # This pins the outcome, not check_paypal_order's own lock on the
+        # invoice: without that lock it still waits, at its first write to the
+        # invoice the capture holds, and record_capture finds the capture's
+        # payment by its id. The order its locks are taken in is tested with #767.
         self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
         invoice = self.invoice()
         response, captured = self.while_capturing(

@@ -763,7 +763,7 @@ class WhileARefundIsUnderwayTests(TransactionTestCase):
         self.assertEqual((answers[0]['id'], answers[0]['amount']), (refund.id, '-80.00'))
 
     def test_deleting_the_payment_waits(self):
-        # A refunded payment can't be deleted while its refund stays (DR-94).
+        # A refunded payment can't be deleted (SPEC §9.7, DR-93).
         def delete():
             response = self.client.delete(f'/api/payments/{self.paid.id}/')
             self.assertEqual(response.status_code, 409, getattr(response, 'data', None))
