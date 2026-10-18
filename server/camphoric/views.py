@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_
 
 import jsonschema
 from rest_framework import permissions, status
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.exceptions import APIException, NotFound, Throttled
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
@@ -1277,6 +1277,16 @@ class RegistrationNotFound(NotFound):
         })
 
 
+class RegistrationThrottled(Throttled):
+    '''
+    Too many registration steps from one address (the `register` throttle): a
+    429 whose `detail` is shown to the registrant, so it's in plain words.
+    '''
+    default_detail = 'Too many registration requests have come from your connection.'
+    extra_detail_singular = 'Please wait {wait} second and try again.'
+    extra_detail_plural = 'Please wait {wait} seconds and try again.'
+
+
 class EventList(APIView):
     permission_classes = [permissions.AllowAny]
     filterset_fields = ['organization']
@@ -1319,7 +1329,30 @@ queue_report = confirmations.queue_report
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [InvitationLookupThrottle]
+    # Two throttles, per client address: opening or submitting an invitation's
+    # email and code (any request, InvitationLookupThrottle), and the anonymous
+    # POST steps (`register`): anyone may post, and each registration can make
+    # campers and send a confirmation email (#801).
+    throttle_classes = [InvitationLookupThrottle, ScopedRateThrottle]
+    throttle_scope = 'register'
+
+    def get_throttles(self):
+        throttles = [InvitationLookupThrottle()]
+        request = self.request
+        if request.method != 'POST' or request.user.is_authenticated:
+            # Signed-in users (staff, the event importer, bulk tools) have
+            # accounts an admin gave them.
+            return throttles
+        if (request.data.get('step') == 'payment'
+                and request.data.get('paymentType') in invoices.ONLINE_TYPES):
+            # Capturing a PayPal order: a 429 would throw away the payer's
+            # approval, and it can only take an order the server made for a
+            # registration the throttled steps already completed.
+            return throttles
+        return throttles + [ScopedRateThrottle()]
+
+    def throttled(self, request, wait):
+        raise RegistrationThrottled(wait)
 
     def get(self, request, event_id=None, format=None):
         '''

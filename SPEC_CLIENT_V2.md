@@ -701,6 +701,13 @@ Non-CRUD admin endpoints:
   DR-76) — or isn't a registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
   A registration of another event counts as none: each step checks the registration against
   this event's settings.
+- Anonymous `POST` steps are throttled per client address (scope `register`, 10 a minute by
+  default, counted per server process), as well as the invitation lookup above; signed-in
+  users' posts, and the PayPal or card capture (`step: 'payment'` with `paymentType` `PayPal`
+  or `Card`), aren't counted by this one. Past it, a
+  step is refused with 429 `{ detail }` — "Too many registration requests have come from your
+  connection. Please wait N seconds and try again." — shown to the registrant like the step's
+  other errors (§15, DR-125).
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter. Every
@@ -5082,6 +5089,39 @@ username — a person's own correct sign-ins would use up their limit, and the l
 only a few requests a minute. No per-username limit — many addresses could guess at one account
 unchecked. Removing `/api-token-auth/` — the importer gets its token there.
 
+### DR-125 — Anonymous registration steps are throttled per client address
+
+**Decision:** The register endpoint's anonymous `POST` steps share one throttle per client
+address (DRF's `ScopedRateThrottle`, scope `register`, `CAMPHORIC_REGISTER_RATE`, 10 a minute by
+default). The `GET`, posts by signed-in users, and the PayPal or card capture are left alone. A
+refused step is a 429 whose `detail` asks the registrant, in plain words, to wait and try again.
+The client address is the connection's own (`NUM_PROXIES`, 0 by default, which ignores
+`X-Forwarded-For` so a client can't choose it); a proxied deployment sets `NUM_PROXIES` to its
+number of proxies (the Ansible role writes 1 for its nginx, and a container behind one reverse
+proxy sets 1), so the last entry of `X-Forwarded-For` is counted, since a client can write
+anything before it. Counts live in each server
+process's local-memory cache, so with several gunicorn workers a client may get up to that many
+times the rate, depending on which worker each request reaches.
+**Context:** #801: anyone could post the form, so junk registrations could fill the database,
+and the check payment step emails a confirmation, carrying text the poster typed, to whatever
+address the form gave. One honest registration makes 3 or 4 counted posts (the form; the
+payment step asked for again as the payment page opens; then a check payment or a PayPal order;
+and finishing unpaid if PayPal fails), more when PayPal is retried or the page reloaded, so 10 a
+minute leaves room for that or for a household's two registrations, and anyone throttled waits
+under a minute. Signed-in users have accounts an admin gave them, and the event importer and
+bulk-registration tools post many registrations with a token. The capture only takes an order
+the server made for a registration the counted steps already completed, and a 429 there would
+throw away the payer's approval. Without `NUM_PROXIES` DRF counts the whole `X-Forwarded-For`
+header, which a client can vary to dodge the throttle; and behind the Ansible host's gunicorn,
+which trusts nginx's forwarded headers, the request's own address is the header's first,
+forgeable entry.
+**Alternatives:** A CAPTCHA — a third-party dependency and friction for every registrant; not
+now. A cap on confirmations per address per event — stops the mail relay but not junk
+registrations; worth adding if the throttle proves too loose. A longer window (per hour) —
+stricter on spam, but shared addresses (an office, a camp's own network) would lock out honest
+registrants for much longer. A cache shared by the workers (the database cache, or Redis) —
+makes the count exact; worth adding as a follow-up, since every throttle would use it.
+
 ### DR-126 — Changing where an email account connects needs its password again
 
 **Decision:** An update that changes an email account's `host`, `port`, `security` or `username`
@@ -5177,7 +5217,8 @@ must be coordinated with the backend. Grouped by status.
 - **Registration/payment:** `GET`/`POST /api/events/{id}/register` — the `ApiRegister` config
   bundle (including `registrationErrorMessages`) and the `step: 'registration' |
   'paypal-order' | 'payment' | 'finish'` posts, with `paymentOptions`, the payment problem codes
-  and the confirmation's `invoice` and `ledger` (§5, §7; DR-89, DR-90, DR-91).
+  and the confirmation's `invoice` and `ledger` (§5, §7; DR-89, DR-90, DR-91). Anonymous posts
+  are throttled (`register`; DR-125).
 - **Invoices, payments and refunds:** `/api/invoices/` with `cancel`, `reopen` and
   `check-paypal`, payments' `invoice`, `refund_of` and `new_invoice`,
   `POST /api/payments/{id}/refund-paypal/`, and the registration's ledger fields, with the

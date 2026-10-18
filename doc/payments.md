@@ -199,6 +199,13 @@ flowchart TD
   confirmation doesn't say they chose to pay online. The pending PayPal order stays: it's what
   the admin list's "Online payment not finished" badge looks for, and what "Check PayPal order"
   checks. After a lost PayPal answer the confirmation has already gone out, so PayPal stays.
+- **Abuse (#801).** Anyone may post the steps, and a check payment emails a confirmation to the
+  address the form gave, so anonymous posts are throttled per client address (scope `register`,
+  `CAMPHORIC_REGISTER_RATE`, 10 a minute by default, counted per server process). A
+  registration makes 3 or 4 counted posts; past the limit a step is a 429 asking the
+  registrant to wait and try again. The PayPal or card capture isn't counted, so a payer's
+  approval is never thrown away, and signed-in users (the event importer) aren't throttled
+  (SPEC DR-125).
 
 ## 6. Paying online, step by step
 

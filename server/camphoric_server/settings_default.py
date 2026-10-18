@@ -278,11 +278,24 @@ REST_FRAMEWORK = {
         'invoice_pay': env.str('CAMPHORIC_INVOICE_PAY_RATE', default='60/minute'),
         # Opening the registration page with an invitation's email and code.
         'invitation_lookup': env.str('CAMPHORIC_INVITATION_LOOKUP_RATE', default='30/minute'),
+        # The public registration steps (RegisterView.post), anonymous posts only, and not
+        # the PayPal capture. One registration makes 3 or 4 counted posts (registration,
+        # payment-step as the payment page opens, then a check payment or paypal-order,
+        # then finish if PayPal failed), more when PayPal is retried or the page reloaded;
+        # 10 leaves room for that, or for two registrations from one household, while
+        # capping junk registrations and confirmation emails. Counts are kept per server
+        # process (no CACHES setting, so Django's local-memory cache): with several
+        # gunicorn workers a client may get up to that many times the rate before a 429.
+        # A cache shared by the workers (database or Redis) would make it exact.
+        'register': env.str('CAMPHORIC_REGISTER_RATE', default='10/minute'),
     },
-    # How many proxies sit in front of Django, so throttles count the client's
-    # address (the one the nearest proxy added to X-Forwarded-For) rather than a
-    # proxy's. 0: the connecting address, ignoring X-Forwarded-For, which the
-    # client could otherwise write to get a fresh count each time.
+    # How many proxies in front of the app append to X-Forwarded-For: the throttles
+    # count requests by the address the last of them saw (the one entry a client can't
+    # forge). 0, the default, ignores the header and counts REMOTE_ADDR, which is right
+    # when clients connect directly. A proxied deployment must set it (1 for one proxy;
+    # the Ansible role writes NUM_PROXIES=1 to server/.env for its nginx), or every
+    # request counts as the proxy's -- and on the Ansible host, whose gunicorn trusts
+    # forwarded headers, REMOTE_ADDR is the header's first, forgeable entry.
     'NUM_PROXIES': env.int('NUM_PROXIES', default=0),
 }
 
