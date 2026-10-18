@@ -395,6 +395,45 @@ class RefundThroughPayPalTests(PayPalTestCase):
         self.assertEqual(first['id'], second['id'])
         self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
 
+    def test_a_retried_full_refund_gets_the_recorded_refund(self):
+        # Nothing is left to refund after the first, so only the request id finds it.
+        request_id = uuid.uuid4().hex
+        self.reply(paypal_mocks.refund(value='102.50'), status=201)
+        first = self.refund('102.50', request_id)
+        second = self.refund('102.50', request_id)
+        self.assertEqual(first['id'], second['id'])
+        self.assertEqual(second['refund_request_id'], request_id)
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
+        self.assertEqual(len(self.paypal.requests), 1)
+        self.refund('102.50', status=409)  # a new request is still refused
+
+    def test_a_retry_for_another_amount_is_refused(self):
+        request_id = uuid.uuid4().hex
+        self.reply(paypal_mocks.refund(value='30.00'), status=201)
+        self.refund('30.00', request_id)
+        data = self.refund('50.00', request_id, status=409)
+        self.assertEqual(data['code'], 'refused')
+        self.assertIn('already made, for $30.00', data['detail'])
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
+        self.assertEqual(len(self.paypal.requests), 1)
+
+    def test_a_refund_recorded_without_a_request_id_is_found_by_paypals_refund_id(self):
+        # One recorded before refunds kept their request id: PayPal's reply to
+        # the retry names the same refund, which is returned, not recorded again.
+        recorded = models.Payment.objects.create(
+            registration=self.made.r1, invoice=self.invoice, payment_type='PayPal',
+            amount=D('-30.00'), refund_of=self.paid,
+            paypal_transaction_id=paypal_mocks.refund()['id'])
+        self.reply(paypal_mocks.refund(value='30.00'), status=201)
+        data = self.refund('30.00')
+        self.assertEqual(data['id'], recorded.id)
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
+        self.assertEqual(len(self.paypal.requests), 1)
+
+    def test_a_request_id_too_long_to_keep_is_refused_before_paypal(self):
+        self.refund('10.00', 'x' * 65, status=400)
+        self.assertEqual(self.paypal.requests, [])
+
     def test_not_more_than_is_left(self):
         data = self.refund('102.51', status=409)
         self.assertEqual(data['code'], 'refused')

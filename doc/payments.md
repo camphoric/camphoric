@@ -78,6 +78,7 @@ erDiagram
         decimal amount "negative: a refund"
         string payment_type "Check | PayPal | Card | Voucher"
         string paypal_transaction_id "capture or refund id; unique"
+        string refund_request_id "a PayPal refund's request id"
         json paypal_response
     }
 ```
@@ -400,17 +401,23 @@ sequenceDiagram
     A->>B: Refund (from a PayPal payment's row) — or "Refund the difference"
     B->>B: make a request id for this attempt
     B->>S: POST /api/payments/{id}/refund-paypal/ {amount, reason, request_id}
-    S->>S: check: a PayPal/card payment, a capture id, amount ≤ what's left
-    S->>P: refund the capture (PayPal-Request-Id = refund-request id)
-    alt COMPLETED or PENDING
-        P-->>S: refund id
-        S->>S: record a payment −amount, refund_of the payment,<br/>paypal_transaction_id = refund id
-        S-->>B: 201 the refund
-    else refused (fully refunded, past 180 days …)
-        S-->>B: 409 refused, with PayPal's message
-    else no clear answer
-        S->>S: email the event the details
-        S-->>B: 502 unknown: check PayPal before trying again
+    S->>S: check: a PayPal/card payment with a capture id
+    alt a refund of it already recorded with this request id (a retry)
+        S-->>B: 201 that refund (409 if the retry asks for another amount)
+    else amount > what's left
+        S-->>B: 409 refused
+    else within what's left
+        S->>P: refund the capture (PayPal-Request-Id = refund-request id)
+        alt COMPLETED or PENDING
+            P-->>S: refund id
+            S->>S: record a payment −amount, refund_of the payment,<br/>paypal_transaction_id = refund id,<br/>refund_request_id = request id
+            S-->>B: 201 the refund
+        else refused (fully refunded, past 180 days …)
+            S-->>B: 409 refused, with PayPal's message
+        else no clear answer
+            S->>S: email the event the details
+            S-->>B: 502 unknown: check PayPal before trying again
+        end
     end
 ```
 
@@ -424,6 +431,14 @@ flowchart LR
     H --> Paid
 ```
 
+- **A retried refund gets the one already recorded (#817).** The refund keeps the attempt's
+  `request_id` (`refund_request_id`, read-only in the API), and a retry with it — a timeout, a
+  double click — gets that refund back before the amount is checked, so retrying a full refund
+  isn't refused for having nothing left. A retry asking for a different amount is refused (409),
+  since that refund didn't give it back. A refund recorded before that field existed has no
+  request id: a retry of it is found by PayPal's refund id (`PayPal-Request-Id` makes PayPal
+  return its first refund) only if its amount still fits in what's left, so retrying such a
+  full refund is still refused.
 - A check mailed back is recorded by hand: a negative payment with `refund_of`.
 - Refunding doesn't change the handling fee: if the organizers' policy is to return the fee,
   the registrar edits the invoice's handling too.
@@ -488,13 +503,13 @@ flowchart LR
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
   `refund-paypal`), and `InvoicePayView`, the public pay page's API.
 - `serializers.py` — `InvoiceSerializer`, `PaymentSerializer`, the registration's ledger fields.
-- `models.py` — `Invoice`, `Payment` (`invoice`, `refund_of`, `paypal_transaction_id`), the
-  registration's `completed_at` and `confirmation_sent_at`.
+- `models.py` — `Invoice`, `Payment` (`invoice`, `refund_of`, `paypal_transaction_id`,
+  `refund_request_id`), the registration's `completed_at` and `confirmation_sent_at`.
 - `templating/graph.py`, `templating/registry.py` — the template variables;
   `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
   email template; `0084` — the invoice's `paypal_capture_order_id` and
-  `paypal_capture_started_at`.
+  `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;

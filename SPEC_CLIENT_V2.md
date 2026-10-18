@@ -884,8 +884,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `deposit?` (a bank deposit), `payment_type`, `paid_on`, `attributes`, `amount` (negative for a
   refund; §15, DR-94), `notes`, `refund_of` (for a refund: the payment it gives money back
   from), read-only `paypal_response` (PayPal's reply) and `paypal_transaction_id` (PayPal's
-  capture id, or refund id — unique, so one PayPal transaction is recorded once), `refunded`
-  (how much of a payment has been refunded) and `paypal_refundable`; write-only `new_invoice`.
+  capture id, or refund id — unique, so one PayPal transaction is recorded once), read-only
+  `refund_request_id` (for a refund made through PayPal: the `request_id` it was made with),
+  `refunded` (how much of a payment has been refunded) and `paypal_refundable`; write-only
+  `new_invoice`.
   Recording one (Registrars and Admins) without `invoice` puts it on the registration's oldest
   invoice with money due, or — with none, or `new_invoice` — on a new `payment_received` invoice
   for exactly it (§9.7). A refund names `refund_of` (its invoice is that payment's) or at least
@@ -895,9 +897,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   Admins.
   - `POST /api/payments/{id}/refund-paypal/` `{ amount, reason, request_id }` (Registrars and
     Admins): refunds some or all of a PayPal or card payment through PayPal and records the
-    refund → 201 with the refund payment. `request_id` is made once per refund attempt, so a
-    retry refunds once. 409 `{ detail, code: 'refused' }` when it can't (not a PayPal payment,
-    more than is left, or PayPal refused); 502 `{ code: 'unknown' }` when PayPal's answer was
+    refund → 201 with the refund payment. `request_id` (at most 64 characters; 400 otherwise) is
+    made once per refund attempt, so a retry refunds once: a retry of a refund already recorded
+    gets that refund back (201), even when nothing is left to refund. 409
+    `{ detail, code: 'refused' }` when it can't (not a PayPal payment, more than is left, a
+    retry asking for another amount than that refund, or PayPal refused); 502 `{ code: 'unknown' }` when PayPal's answer was
     lost (nothing is recorded, and the event is emailed the details).
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
