@@ -1276,6 +1276,19 @@ class PendingCaptureTests(FlowTestCase):
             pk=invoice.pk).update(amount=D('600.00')))
         self.assertEqual((invoice.handling, invoice.amount_due), (D('10.00'), D('200.00')))
 
+    def event_changes(self, **change):
+        return lambda invoice: models.Event.objects.filter(pk=self.event.pk).update(**change)
+
+    def test_its_fee_is_the_orders_though_the_events_percent_has_changed(self):
+        # The order asked 2.5% ($10); the event charges 1% by the time PayPal
+        # completes it (#767).
+        invoice = self.complete_after(self.event_changes(epayment_handling=D('1')))
+        self.assertEqual((invoice.handling, invoice.status), (D('10.00'), 'paid'))
+
+    def test_or_it_takes_no_payments_online(self):
+        invoice = self.complete_after(self.event_changes(paypal_enabled=False))
+        self.assertEqual((invoice.handling, invoice.status), (D('10.00'), 'paid'))
+
     def test_and_with_another_payment_on_it_meanwhile(self):
         invoice = self.complete_after(lambda invoice: models.Payment.objects.create(
             registration=self.registration, invoice=invoice, payment_type='Check',

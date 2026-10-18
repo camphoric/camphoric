@@ -223,10 +223,13 @@ def lock_registration_first(instance):
     record itself. Saving any of them reprices the whole registration, writing
     its campers and itself; taking the registration first, as every such write
     does, keeps two at once from each holding a row the other needs (DR-109).
+    An invoice too: the payment step, a capture and "Check PayPal order" take
+    the registration and then the invoice (#819, #767). (A payment's edit
+    takes the payment first, as a refund through PayPal does.)
     '''
     if isinstance(instance, models.CustomCharge):
         registration_id = instance.camper.registration_id
-    elif isinstance(instance, (models.Camper, models.PricingOverride)):
+    elif isinstance(instance, (models.Camper, models.PricingOverride, models.Invoice)):
         registration_id = instance.registration_id
     else:
         return
@@ -780,8 +783,12 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     def lock(pk):
         '''
         Hold the invoice's row for this change, so the registration's payment
-        step (which locks it too) can't undo it half way (DR-105).
+        step (which locks it too) can't undo it half way (DR-105). Its
+        registration first, as the payment step and a capture take them (#767).
         '''
+        invoice = models.Invoice.all_objects.filter(pk=pk).first()
+        if invoice is not None:
+            lock_registration_first(invoice)
         models.Invoice.all_objects.select_for_update().filter(pk=pk).first()
 
     def update(self, request, *args, **kwargs):
@@ -947,6 +954,13 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
                     # Its payment was lowered or refunded again meanwhile.
                     raise serializers.Conflict('Restoring this refund would give back more '
                                                'than is left of its payment.')
+            if restoring.amount > 0 and restoring.deleted_at is not None:
+                # A payment back on an invoice PayPal may yet record a payment
+                # on: recorded as what it asked then (#767).
+                held = invoices.locked_invoice(restoring.invoice)
+                if invoices.capture_unsettled(held):
+                    raise serializers.Conflict(invoices.held_message(
+                        held, 'no more can be recorded on it by hand'))
             response = super().restore(request, pk)
             invoices.match_received_invoice(self.get_any_object().invoice)
         return response

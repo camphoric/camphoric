@@ -14,6 +14,7 @@ from datetime import UTC, datetime, time, timedelta
 import logging
 
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from django.tasks import task
 from django.utils import timezone
 
@@ -29,10 +30,17 @@ _CLEAN_UP_LOCK = 0x436C6E55  # a Postgres advisory lock key
 
 
 def abandoned_registrations(now=None):
-    '''The incomplete registrations unchanged for the max age, with no payment.'''
+    '''
+    The incomplete registrations unchanged for the max age, with no payment,
+    nor a PayPal capture on one of their invoices that may yet be recorded as
+    one (#767).
+    '''
     cutoff = (now or timezone.now()) - INCOMPLETE_REGISTRATION_MAX_AGE
+    capturing = models.Invoice.all_objects.filter(
+        registration=OuterRef('pk'), paypal_capture_order_id__isnull=False)
     return models.Registration.all_objects.filter(
-        completed=False, updated_at__lt=cutoff, payment__isnull=True)
+        completed=False, updated_at__lt=cutoff, payment__isnull=True).exclude(
+        Exists(capturing))
 
 
 def delete_abandoned_registrations(now=None):
