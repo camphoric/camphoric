@@ -227,6 +227,11 @@ class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
         self.assertFalse(preview['can_delete'])
         self.assertEqual(response.status_code, 409)
         self.assertIn('still being confirmed', response.data['detail'])
+        # The admin knows it's held, though PayPal isn't processing it (yet).
+        shown = self.client.get(f'/api/invoices/{self.extra.id}/').data
+        self.assertEqual((shown['paypal_capture_held'], shown['paypal_capture_pending'],
+                          shown['paypal_order_to_check']),
+                         (True, False, paypal_mocks.ORDER_ID))
 
     def test_a_capture_that_starts_after_the_delete_was_planned(self):
         plan = deletes.plan(self.extra, InvoiceViewSet().delete_checks())

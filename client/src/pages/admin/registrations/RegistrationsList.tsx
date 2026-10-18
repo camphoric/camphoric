@@ -6,7 +6,8 @@
  *
  * A registration is listed once its registrant pressed a payment button (§15,
  * DR-91), paid or not. One whose PayPal or card payment didn't go through says
- * so; one owed money back shows "Refund due".
+ * so, as does one whose payment PayPal is still processing (DR-133); one owed
+ * money back shows "Refund due".
  */
 
 import { Badge, Group, Modal, Stack, Tooltip } from '@mantine/core';
@@ -54,16 +55,27 @@ const STATUS_COLOR: Record<PaymentStatus, string> = {
  * Registrations whose registrant started paying online and it didn't go
  * through: their registration invoice still has a PayPal order waiting, and
  * nothing has been paid on it. (Its payment type isn't a guide: it's cleared
- * once they finish to pay later, #759.)
+ * once they finish to pay later, #759.) Not one PayPal may yet record a payment
+ * on: they did pay (DR-133).
  */
 export function onlineNotFinished(invoices: ApiInvoice[] | undefined): Set<number> {
   return new Set(
     (invoices ?? [])
       .filter(
         (i) =>
-          i.origin === 'registration' && Boolean(i.pending_paypal_order_id) && i.status === 'open',
+          i.origin === 'registration' &&
+          Boolean(i.pending_paypal_order_id) &&
+          i.status === 'open' &&
+          !i.paypal_capture_held,
       )
       .map((i) => Number(i.registration)),
+  );
+}
+
+/** Registrations with a payment PayPal is still processing, on any of their invoices (DR-133). */
+export function paypalProcessing(invoices: ApiInvoice[] | undefined): Set<number> {
+  return new Set(
+    (invoices ?? []).filter((i) => i.paypal_capture_pending).map((i) => Number(i.registration)),
   );
 }
 
@@ -80,6 +92,7 @@ export function RegistrationsList() {
     registration__completed: 1,
   });
   const notFinished = useMemo(() => onlineNotFinished(invoices), [invoices]);
+  const processing = useMemo(() => paypalProcessing(invoices), [invoices]);
 
   const goToRegistrations = (patch: Record<string, string | undefined>) =>
     void navigate({
@@ -137,12 +150,19 @@ export function RegistrationsList() {
                   </Badge>
                 </Tooltip>
               )}
+              {processing.has(info.row.original.id) && (
+                <Tooltip label="It’s recorded once PayPal completes it">
+                  <Badge color="blue" variant="outline">
+                    PayPal processing
+                  </Badge>
+                </Tooltip>
+              )}
             </Group>
           );
         },
       },
     ],
-    [notFinished],
+    [notFinished, processing],
   );
 
   // Kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).

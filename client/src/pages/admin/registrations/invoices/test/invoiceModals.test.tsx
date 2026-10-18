@@ -8,6 +8,7 @@ import { NewInvoiceModal } from '../NewInvoiceModal';
 import { RecordPaymentModal } from '../RecordPaymentModal';
 import { RefundModal } from '../RefundModal';
 import {
+  CONFIRMING_PAYPAL,
   OPEN,
   OVERPAID,
   OVERPAID_PAYMENTS,
@@ -112,6 +113,18 @@ describe('EditInvoiceModal', () => {
     expect(screen.getByRole('button', { name: 'Calculate' })).toBeDisabled();
     expect(screen.getByRole('textbox', { name: /Memo/ })).toBeEnabled();
   });
+
+  it('nor while a PayPal capture on it is being confirmed', () => {
+    renderWithProviders(
+      <EditInvoiceModal
+        invoice={CONFIRMING_PAYPAL}
+        uninvoicedBalance={450}
+        handlingPercent={2.5}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Amount' })).toBeDisabled();
+  });
 });
 
 describe('RecordPaymentModal', () => {
@@ -140,7 +153,7 @@ describe('RecordPaymentModal', () => {
       <RecordPaymentModal
         event={event}
         registrationId={5}
-        invoices={[PROCESSING_PAYPAL]}
+        invoices={[PROCESSING_PAYPAL, CONFIRMING_PAYPAL]}
         opened
         onClose={vi.fn()}
       />,

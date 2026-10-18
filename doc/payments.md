@@ -361,9 +361,24 @@ sequenceDiagram
   first marked it pending gets past that first look, but its own first write
   (`paypal_capture_order_id`, `_started_at`) skips an invoice with `paypal_capture_pending_at`
   set, and it looks again once it holds the invoice's lock: it answers `pending` there too,
-  before asking PayPal, and leaves the marks alone. The confirmation sweep doesn't wait for a
-  pending capture, and doesn't clear the invoice's PayPal choice for one; templates see
-  `invoice.payment_processing`, so the confirmation can say it's processing.
+  before asking PayPal, and leaves the marks alone. The confirmation sweep doesn't wait for the
+  outcome of a pending capture, as it does for an unsettled one (§8) — though it still waits out
+  the three hours after the invoice's last change (`PENDING_PAYPAL_ORDER_WINDOW`, since the
+  invoice keeps a pending order) — and doesn't clear the invoice's PayPal choice for one;
+  templates see `invoice.payment_processing`, so the confirmation can say it's processing.
+- **An order made as another's capture goes pending** (two tabs). `create_paypal_order` asks
+  PayPal for the order with nothing held, then looks again with the registration and the invoice
+  locked (`locked_invoice`) before keeping it: a capture that went pending meanwhile refuses it
+  (`not_payable`), so the held capture's order stays the invoice's pending order. "Check PayPal
+  order" asks about the held capture's order in any case (`order_to_check`, the API's
+  `paypal_order_to_check`, which the admin's invoice shows and checks), and clears the pending
+  order only when it's the one it asked about.
+- **What the admin sees.** The invoice's `paypal_capture_held` says it's held (a capture PayPal
+  is processing, or one still being confirmed); the admin then offers no Cancel or Delete, keeps
+  its amount and fee as they are, and doesn't offer it for a payment recorded by hand. The
+  registrations list says "PayPal processing" for a registration with a payment PayPal is
+  processing, rather than "Online payment not finished" (`onlineNotFinished` leaves held
+  invoices out).
 - **What isn't handled.** A capture PayPal completes and later reverses (a chargeback) isn't
   noticed: that needs PayPal's webhooks (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the
   server doesn't take.
@@ -404,7 +419,7 @@ sequenceDiagram
   rollback, with no transaction open, so it isn't lost with it.
 - **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) locks the
   registration and then the invoice, the order every payment step takes them in (#819), and asks
-  PayPal about the pending order: a capture PayPal completed is recorded (`recorded`); one it's still processing
+  PayPal about the pending order (or a held capture's, `order_to_check`): a capture PayPal completed is recorded (`recorded`); one it's still processing
   stays pending (`pending`; watched for another 30 days if its watch had ended); anything else — not captured, or a capture declined — is cleared
   (`not_captured`: no money was taken). An order PayPal doesn't know, or that isn't the
   invoice's, is a 400 `mismatch`, and any capture of it is settled.

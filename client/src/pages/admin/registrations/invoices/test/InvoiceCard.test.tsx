@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { InvoiceCard } from '../InvoiceCard';
 import {
+  CONFIRMING_PAYPAL,
   OVERPAID,
   OVERPAID_PAYMENTS,
   PAYPAL_REFUNDED,
@@ -148,14 +149,34 @@ describe('InvoiceCard', () => {
     expect(screen.queryByRole('button', { name: /Delete invoice/ })).toBeNull();
   });
 
-  it('says when PayPal has been processing a payment longer than it’s asked about', () => {
+  it('offers neither Cancel nor Delete while a PayPal capture is being confirmed', () => {
+    // Held, though PayPal isn't known to be processing it (DR-133).
+    renderWithProviders(
+      <InvoiceCard invoice={CONFIRMING_PAYPAL} payments={[]} canEdit canDelete />,
+    );
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Delete invoice/ })).toBeNull();
+  });
+
+  it('offers to check the held order even when another is pending', async () => {
+    const onCheckPayPal = vi.fn();
     renderWithProviders(
       <InvoiceCard
-        invoice={PROCESSING_PAYPAL_LAPSED}
+        invoice={{ ...PROCESSING_PAYPAL, pending_paypal_order_id: null }}
         payments={[]}
         canEdit
         canDelete
+        onCheckPayPal={onCheckPayPal}
       />,
+    );
+    expect(screen.getByText(/order 5O190127TN364715T/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Check PayPal order' }));
+    expect(onCheckPayPal).toHaveBeenCalled();
+  });
+
+  it('says when PayPal has been processing a payment longer than it’s asked about', () => {
+    renderWithProviders(
+      <InvoiceCard invoice={PROCESSING_PAYPAL_LAPSED} payments={[]} canEdit canDelete />,
     );
     expect(screen.getByText(/no longer asked about it/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check PayPal order' })).toBeInTheDocument();

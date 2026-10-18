@@ -307,6 +307,14 @@ export interface ApiInvoice extends TimeStamped {
    */
   paypal_capture_lapsed: boolean;
   /**
+   * PayPal may yet record a payment on it — the capture above, or one still being
+   * confirmed — so it takes no other payment, what it asks doesn't change, and it's
+   * neither cancelled nor deleted (§15, DR-133).
+   */
+  paypal_capture_held: boolean;
+  /** The PayPal order "Check PayPal order" asks about: the held capture's, else the pending one. */
+  paypal_order_to_check: string | null;
+  /**
    * When a registrar or admin last changed what it asks (amount, description,
    * handling) or cancelled or reopened it; the payment step stops rewriting it (DR-105).
    */

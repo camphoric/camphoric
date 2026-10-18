@@ -1,7 +1,7 @@
 import type { ApiInvoice } from 'api-types';
 import { describe, expect, it } from 'vitest';
 
-import { onlineNotFinished } from '../RegistrationsList';
+import { onlineNotFinished, paypalProcessing } from '../RegistrationsList';
 
 function invoice(fields: Partial<ApiInvoice> = {}): ApiInvoice {
   return {
@@ -18,6 +18,8 @@ function invoice(fields: Partial<ApiInvoice> = {}): ApiInvoice {
     pending_paypal_order_id: 'ORDER',
     paypal_capture_pending: false,
     paypal_capture_lapsed: false,
+    paypal_capture_held: false,
+    paypal_order_to_check: 'ORDER',
     organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',
@@ -44,6 +46,24 @@ describe('onlineNotFinished', () => {
 
   it('still flags one finished to pay later, whose payment type is cleared (#759)', () => {
     expect(onlineNotFinished([invoice({ payment_type: null })])).toEqual(new Set([7]));
+  });
+
+  it('leaves out one PayPal may yet record a payment on: they did pay (DR-133)', () => {
+    expect(
+      onlineNotFinished([
+        invoice({ paypal_capture_pending: true, paypal_capture_held: true }),
+        invoice({ paypal_capture_held: true }),
+      ]),
+    ).toEqual(new Set());
+  });
+
+  it('says whose payment PayPal is processing', () => {
+    expect(
+      paypalProcessing([
+        invoice({ paypal_capture_pending: true, paypal_capture_held: true }),
+        invoice({ registration: 8 }),
+      ]),
+    ).toEqual(new Set([7]));
   });
 
   it('leaves out a check invoice, a paid one, and one whose order was cleared', () => {

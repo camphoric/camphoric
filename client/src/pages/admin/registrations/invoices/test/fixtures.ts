@@ -27,6 +27,8 @@ export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice 
     pending_paypal_order_id: null,
     paypal_capture_pending: false,
     paypal_capture_lapsed: false,
+    paypal_capture_held: false,
+    paypal_order_to_check: null,
     organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',
@@ -145,6 +147,7 @@ export const PENDING_PAYPAL = invoice({
   amount_due: '400.00',
   payment_type: 'Card',
   pending_paypal_order_id: '5O190127TN364715T',
+  paypal_order_to_check: '5O190127TN364715T',
 });
 
 /** PayPal captured its order and is still processing the capture (#767). */
@@ -157,6 +160,24 @@ export const PROCESSING_PAYPAL = invoice({
   payment_type: 'PayPal',
   pending_paypal_order_id: '5O190127TN364715T',
   paypal_capture_pending: true,
+  paypal_capture_held: true,
+  paypal_order_to_check: '5O190127TN364715T',
+});
+
+/**
+ * A PayPal capture on it is still being confirmed (PayPal's answer was lost):
+ * held, though PayPal isn't known to be processing it (#804, #767).
+ */
+export const CONFIRMING_PAYPAL = invoice({
+  id: 7,
+  description: 'Full Payment',
+  amount: '400.00',
+  total: '400.00',
+  amount_due: '400.00',
+  payment_type: 'PayPal',
+  pending_paypal_order_id: '5O190127TN364715T',
+  paypal_capture_held: true,
+  paypal_order_to_check: '5O190127TN364715T',
 });
 
 /** PayPal has been processing it for longer than the worker asks about it (#767). */

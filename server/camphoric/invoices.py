@@ -565,13 +565,20 @@ def create_paypal_order(invoice, payment_type):
     except PayPalError as e:
         logger.error(f'PayPal order for invoice {invoice.id} failed: {e}')
         raise PaymentProblem('declined', 'PayPal couldn\'t start this payment. Please try again.')
-    invoice.pending_paypal_order_id = order['id']
-    # Its capture may be recorded days later, after the event's percent has
-    # changed: the fee is the one this order asked (#767).
-    invoice.paypal_order_fee = fee
-    invoice.payment_type = payment_type
-    invoice.save(update_fields=['pending_paypal_order_id', 'paypal_order_fee', 'payment_type',
-                                'updated_at'])
+    with transaction.atomic():
+        # Looked at again with the invoice held: a capture of its earlier order
+        # (another tab) may have gone pending while PayPal made this one. That
+        # order stays the invoice's, so "Check PayPal order" finds it (#767).
+        held = locked_invoice(invoice)
+        if capture_unsettled(held):
+            raise PaymentProblem('not_payable', unsettled_message(held))
+        invoice.pending_paypal_order_id = order['id']
+        # Its capture may be recorded days later, after the event's percent has
+        # changed: the fee is the one this order asked (#767).
+        invoice.paypal_order_fee = fee
+        invoice.payment_type = payment_type
+        invoice.save(update_fields=['pending_paypal_order_id', 'paypal_order_fee',
+                                    'payment_type', 'updated_at'])
     return order['id']
 
 
@@ -939,7 +946,7 @@ def check_paypal_order(invoice):
     invoice's, it's a `mismatch`, and a capture of it is settled as the worker
     settles one: else a held invoice would stay held (#767).
     '''
-    order_id = invoice.pending_paypal_order_id
+    order_id = order_to_check(invoice)
     if not order_id:
         raise PaymentProblem('not_payable', 'No PayPal order is waiting on this invoice.')
     try:
@@ -981,9 +988,21 @@ def _check_paypal_order(invoice, order_id):
         if outcome == 'completed':
             return 'recorded', record_capture(invoice, order, invoice.payment_type,
                                               'Recorded by checking PayPal')
-        invoice.pending_paypal_order_id = None
-        invoice.save(update_fields=['pending_paypal_order_id', 'updated_at'])
+        if invoice.pending_paypal_order_id == order_id:
+            invoice.pending_paypal_order_id = None
+            invoice.save(update_fields=['pending_paypal_order_id', 'updated_at'])
         return 'not_captured', None
+
+
+def order_to_check(invoice):
+    '''
+    The PayPal order "Check PayPal order" asks about: the one whose capture
+    holds the invoice, while one does (should another order have become its
+    pending one, #767), else its pending order.
+    '''
+    if capture_unsettled(invoice):
+        return invoice.paypal_capture_order_id
+    return invoice.pending_paypal_order_id
 
 
 def check_unrecorded_captures(now=None):

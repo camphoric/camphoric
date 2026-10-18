@@ -84,7 +84,7 @@ export function EditInvoiceModal({
   if (!invoice) return null;
 
   // PayPal's payment is recorded as what it asked when the order was made.
-  const held = invoice.paypal_capture_pending;
+  const held = invoice.paypal_capture_held;
 
   // What's been paid toward the amount, before any fee (the server's rule).
   const paid = Number(invoice.amount_paid);
