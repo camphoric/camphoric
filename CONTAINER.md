@@ -85,6 +85,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | `USE_X_FORWARDED_PROTO` | `false`                              | Set `true` behind a proxy that terminates TLS (nginx, an ingress) so Django treats requests as https.                    |
 | `SECURE_HSTS_SECONDS`   | `3600` (`0` with `DEBUG` on)         | HSTS: how long browsers that reached the site over https keep to https. Raise it once https is settled; `0` turns it off. |
 | `SECURE_SSL_REDIRECT`   | `false`                              | Django redirects http to https. Leave off behind a TLS-terminating proxy (it redirects itself); there it needs `USE_X_FORWARDED_PROTO=true` or every request redirects forever. |
+| `NUM_PROXIES`           | `0`                                  | How many proxies sit in front of the app. **Set `1` behind one nginx or ingress**: with `0` the throttles (sign-in, password reset, promo codes, invoice payment) count the connecting address, which behind a proxy is the proxy's, so every visitor shares one count. With `1` they count the address the proxy saw, which a client can't forge with its own `X-Forwarded-For`. |
 | `DJANGO_LOG_LEVEL`      | `INFO` (`DEBUG` when `DEBUG=true`)   | Console log level. Logs go to stdout/stderr.                                                                             |
 | `STATIC_ROOT`           | `/app/static`                        | Where static files were collected at build time. Leave as is.                                                            |
 | `CORS_ORIGIN_WHITELIST` | `= CSRF_TRUSTED_ORIGINS`             | **Unused** (`django-cors-headers` is not installed); accepted only for compatibility with old override files.            |
@@ -125,6 +126,8 @@ records the message.
 | `PASSWORD_RESET_TIMEOUT`        | `259200` (3 days) | How long a set-password link works, in seconds. A link also stops working once it's used or the user signs in. |
 | `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
 | `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
+| `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the Django admin) one client address may make; more get a 429. |
+| `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
 
 ### The task worker
 
@@ -292,6 +295,7 @@ simpler and matches the existing convention.
 
 ```
 USE_X_FORWARDED_PROTO=true
+NUM_PROXIES=1                      # one proxy in front: throttles see the client's address
 SESSION_COOKIE_SECURE=true         # the default
 CSRF_COOKIE_SECURE=true            # the default
 CAMPHORIC_PUBLIC_URL=https://register.example.org

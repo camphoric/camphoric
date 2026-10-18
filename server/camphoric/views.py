@@ -26,6 +26,7 @@ from rest_framework.exceptions import APIException, NotFound
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, SimpleRateThrottle
 from rest_framework.serializers import ValidationError
@@ -58,6 +59,7 @@ from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
 from camphoric.templating.render import REPORT_LIMITS, render_template
 from camphoric.templating.urls import public_base
+from camphoric.throttles import LOGIN_THROTTLES
 
 
 logger = logging.getLogger(__name__)
@@ -82,12 +84,19 @@ class SetCSRFCookieView(APIView):
         return Response({'detail': 'CSRF cookie set'})
 
 
+# By default, Django REST Framework requires CSRF tokens for authenticated
+# views only, so we need to explicitly add CSRF protection for the login
+# endpoint. It's checked before the throttles, so a refused POST isn't counted.
+@method_decorator(csrf_protect, name='dispatch')
 class LoginView(APIView):
     '''
     Log in with session-cookie-based authentication. Requires a CSRF token. The
     request body should be JSON like:
 
         {"username": "myname", "password": "mypassword"}
+
+    Throttled (camphoric.throttles): 429 once the client's address has used up
+    the `login` rate, or the username its `login_username` rate of failures.
 
     See also:
     - https://docs.djangoproject.com/en/3.2/topics/auth/default/#django.contrib.auth.login
@@ -96,10 +105,8 @@ class LoginView(APIView):
 
     parser_classes = [JSONParser]
     permission_classes = [permissions.AllowAny]
+    throttle_classes = LOGIN_THROTTLES
 
-    # By default, Django REST Framework requires CSRF tokens for authenticated
-    # views only, so we need to explicitly add CSRF protection for the login endpoint
-    @method_decorator(csrf_protect)
     def post(self, request, format=None):
         user = authenticate(
             request,
@@ -110,6 +117,14 @@ class LoginView(APIView):
             return Response(serializers.CurrentUserSerializer(user).data)
 
         return Response({'detail': 'Login failed'}, status=400)
+
+
+class ObtainTokenView(ObtainAuthToken):
+    '''
+    POST /api-token-auth/ `username`, `password` → `{token}`, for scripts such
+    as the importer (data/). Throttled like LoginView.
+    '''
+    throttle_classes = LOGIN_THROTTLES
 
 
 class LogoutView(APIView):

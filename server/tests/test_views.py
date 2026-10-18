@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.cache import cache
 import jsonschema  # Using Draft-7
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
@@ -20,6 +21,7 @@ from tests.factories import set_email
 
 class LoginTests(APITestCase):
     def setUp(self):
+        cache.clear()  # the sign-in throttles' counts
         self.admin_user = User.objects.create_superuser(
             'tom', 'tom@example.com', 'password')
 
@@ -123,6 +125,7 @@ class VersionTests(APITestCase):
 
 class CSRFTests(APITestCase):
     def setUp(self):
+        cache.clear()  # the sign-in throttles' counts
         self.client = APIClient(enforce_csrf_checks=True)
         self.admin_user = User.objects.create_superuser(
             'tom', 'tom@example.com', 'password')

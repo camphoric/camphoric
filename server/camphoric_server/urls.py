@@ -15,17 +15,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from rest_framework.authtoken.views import obtain_auth_token
+
+from camphoric.throttles import throttle_login
+from camphoric.views import ObtainTokenView
 
 urlpatterns = [
+    # The admin's own login page, throttled (camphoric.throttles); it comes
+    # first, so it answers the admin's login URL.
+    path('django-admin/login/', throttle_login(admin.site.login)),
     path('django-admin/', admin.site.urls),
     path('api/', include('camphoric.urls')),
 
-    # Cookie based authentication for browsable API.
-    path('api-auth/', include('rest_framework.urls')),
-
-    # Token based authentication for JSON API.
-    path('api-token-auth/', obtain_auth_token),
+    # Token based authentication for JSON API (the importer, data/).
+    path('api-token-auth/', ObtainTokenView.as_view()),
 
     # Frontend Bootstrap
     path('', include('frontend_bootstrap.urls')),

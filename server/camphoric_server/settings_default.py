@@ -267,14 +267,23 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'camphoric.permissions.RolePermission',
     ],
-    # Asking for a password-reset link, per client address.
+    # Asking for a password-reset link, per client address; signing in, per
+    # client address, and failing to, per username (camphoric.throttles, SPEC
+    # DR-124).
     'DEFAULT_THROTTLE_RATES': {
         'password_reset': env.str('CAMPHORIC_PASSWORD_RESET_RATE', default='5/hour'),
+        'login': env.str('CAMPHORIC_LOGIN_RATE', default='10/minute'),
+        'login_username': env.str('CAMPHORIC_LOGIN_USERNAME_RATE', default='30/hour'),
         'promo_code_check': env.str('CAMPHORIC_PROMO_CODE_CHECK_RATE', default='30/minute'),
         'invoice_pay': env.str('CAMPHORIC_INVOICE_PAY_RATE', default='60/minute'),
         # Opening the registration page with an invitation's email and code.
         'invitation_lookup': env.str('CAMPHORIC_INVITATION_LOOKUP_RATE', default='30/minute'),
     },
+    # How many proxies sit in front of Django, so throttles count the client's
+    # address (the one the nearest proxy added to X-Forwarded-For) rather than a
+    # proxy's. 0: the connecting address, ignoring X-Forwarded-For, which the
+    # client could otherwise write to get a fresh count each time.
+    'NUM_PROXIES': env.int('NUM_PROXIES', default=0),
 }
 
 # The audit log (camphoric.audit, SPEC DR-53). One id per request groups the

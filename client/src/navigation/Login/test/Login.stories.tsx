@@ -1,7 +1,8 @@
 /**
- * Stories for signing in (SPEC §6): the sign-in form, and "Forgot
- * password?", whose answer is the same for any address (DR-52). The story
- * answers the requests itself. Run `npm run storybook`.
+ * Stories for signing in (SPEC §6): the sign-in form, where any password is
+ * wrong or, in Too Many Attempts, refused by the sign-in throttle (DR-124), and
+ * "Forgot password?", whose answer is the same for any address (DR-52). The
+ * stories answer the requests themselves. Run `npm run storybook`.
  */
 
 import type { Meta, StoryFn } from '@storybook/react-vite';
@@ -12,7 +13,7 @@ import { Login } from '../Login';
 
 const realFetch = window.fetch.bind(window);
 
-function stubAuth() {
+function stubAuth(login: { status: number; detail: string }) {
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const json = (data: unknown, status = 200) =>
@@ -29,16 +30,24 @@ function stubAuth() {
         202,
       );
     }
-    if (url.includes('/api/login')) return json({ detail: 'Login failed' }, 400);
+    if (url.includes('/api/login')) {
+      return new Response(JSON.stringify({ detail: login.detail }), {
+        status: login.status,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(login.status === 429 ? { 'Retry-After': '60' } : {}),
+        },
+      });
+    }
     return realFetch(input, init);
   };
 }
 
 export default { title: 'Login' } satisfies Meta;
 
-export const SignIn: StoryFn = () => {
+function LoginStory({ login }: { login: { status: number; detail: string } }) {
   const [client] = useState(() => {
-    stubAuth();
+    stubAuth(login);
     return new QueryClient();
   });
   return (
@@ -46,4 +55,12 @@ export const SignIn: StoryFn = () => {
       <Login />
     </QueryClientProvider>
   );
-};
+}
+
+export const SignIn: StoryFn = () => <LoginStory login={{ status: 400, detail: 'Login failed' }} />;
+
+export const TooManyAttempts: StoryFn = () => (
+  <LoginStory
+    login={{ status: 429, detail: 'Request was throttled. Expected available in 60 seconds.' }}
+  />
+);

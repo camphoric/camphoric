@@ -410,6 +410,10 @@ Non-CRUD admin endpoints:
   anyone who isn't an Admin.
 - `POST /api/login` — `{ username, password }` → the signed-in user (the whoami shape); the
   client sets whoami from it and refetches whoami (§6).
+  A wrong username or password is a 400. Sign-in is throttled across every way of signing in:
+  sign-in requests per client address, and failed sign-ins per username tried. Over either
+  limit, the answer is 429 with `Retry-After` (seconds), even for the right password (§6; §15,
+  DR-124).
 - `POST /api/reports/{id}/render` — render a Jinja report → `{ report: string, error: string |
   null, diagnostics? }`. The body depends on the report's `variables_source` (§8.7): legacy
   (`client`) reports post the template-variable bundle; `server` reports post `{}`, render from
@@ -978,6 +982,10 @@ hooks):
   **Login** form (username/password) that posts to `/api/login`; on success the login response
   (the same shape as whoami) becomes the current user, so the guarded content renders at once,
   and whoami is refetched to confirm it.
+  A refused sign-in (400) says the username or password is wrong; a throttled one (429: too
+  many attempts from the address, or failures at the username; §15, DR-124) says to try again
+  later, in the time its `Retry-After` gives when it gives one; any other failure says only
+  that sign-in failed.
 - The registration flow needs no authentication, but an **invitation code** in the query
   string grants access to otherwise-closed registration and pre-fills invitation context. The
   server enforces this too: outside the registration dates, only a submission carrying a valid
@@ -5044,6 +5052,36 @@ registration's campers together against the room left — stricter than the form
 lodging counted in spots a party shares: on the campouts a party of six sharing one RV was
 refused with every RV spot empty.
 
+### DR-124 — Signing in is throttled: requests per address, failures per username
+
+**Decision:** Every way of signing in with a password — the admin's `POST /api/login`, the token
+endpoint `POST /api-token-auth/` (used by the importer in `data/`) and the Django admin's login
+page — is throttled twice. Every sign-in POST counts against the client's address, at the `login`
+rate (`CAMPHORIC_LOGIN_RATE`, 10 a minute by default); a request refused for CSRF, and anything
+but a POST, doesn't count. Every **failed** sign-in counts against the username tried (normalized
+with NFKC and casefolded, since look-alikes sign in as the same user), from any address, at the
+`login_username` rate (`CAMPHORIC_LOGIN_USERNAME_RATE`, 30 an hour by default). Over either limit
+the server answers 429 with `Retry-After` without checking the password, and the sign-in form
+says how long to wait. The DRF browsable API's own login (`/api-auth/`) is removed: nothing used
+it, and the browsable API still works with a session from the admin. The throttles count the
+connecting address unless `NUM_PROXIES` says how many proxies are in front (the Ansible
+deployment sets 1), so a client can't get a fresh count by writing its own `X-Forwarded-For`.
+The importer signs in once per server per run.
+**Context:** #800: none of the sign-in paths was throttled, so passwords could be guessed without
+limit, and the token endpoint needs no CSRF token, which made it easy to script. Counting by
+address alone lets many addresses share the guessing at one username, so the username needs a
+count of its own — and any per-username limit lets whoever exceeds it keep the user out: anyone
+who fails at a known username 30 times an hour, from anywhere, keeps its owner from signing in,
+even with the right password. Counting only failures, at an hourly rate, makes that take a
+sustained effort, and a user's own correct sign-ins never count against them; whoever runs the
+server can raise the rate or restart the app to let someone in. The counts live in Django's cache, which is per process by
+default, so with several web workers the effective limits are that many times the rates.
+**Alternatives:** django-axes (locks accounts out after failures, with its own models and admin)
+— more than this needs, and it has the same lockout trade-off. Counting every attempt per
+username — a person's own correct sign-ins would use up their limit, and the lockout would take
+only a few requests a minute. No per-username limit — many addresses could guess at one account
+unchecked. Removing `/api-token-auth/` — the importer gets its token there.
+
 ### DR-126 — Changing where an email account connects needs its password again
 
 **Decision:** An update that changes an email account's `host`, `port`, `security` or `username`
@@ -5128,8 +5166,8 @@ must be coordinated with the backend. Grouped by status.
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
   (DR-80).
-- **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`,
-  `POST /api/logout` (§3, §6; DR-9, DR-26).
+- **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`
+  (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26).
 - **Server version:** `GET /api/version` with the shape in §5, read from the server's
   `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

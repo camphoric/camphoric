@@ -156,7 +156,8 @@ refuses any other `CAMPHORIC_URL` unless `CAMPHORIC_ALLOW_REMOTE=1` is set.
 ## Authentication
 
 There are two options now.
-* Its possible to login to the browsable API by clicking on the login link at the top right corner of the page.
+* To use the browsable API, sign in to the admin app or the Django admin (`/django-admin/`) first;
+  the browsable API then uses that session.
 
 * Or using curl (and jq if you have it) you can interact with JSON API by requesting the token for your previously created user with:
 	```

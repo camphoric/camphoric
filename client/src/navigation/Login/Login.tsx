@@ -22,11 +22,25 @@ import { ApiError } from 'utils/fetch';
 
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 
-/** A 401/400 means bad credentials; anything else (403 CSRF, network, 500) is a
+/** How long to wait, from a Retry-After in seconds: "in 45 seconds", "in 3 minutes". */
+function waitFor(seconds: number | null): string {
+  if (seconds === null) return 'later';
+  if (seconds < 90) {
+    const whole = Math.max(1, Math.ceil(seconds));
+    return `in ${whole} second${whole === 1 ? '' : 's'}`;
+  }
+  return `in ${Math.ceil(seconds / 60)} minutes`;
+}
+
+/** A 401/400 means bad credentials, and a 429 too many attempts (the server
+ * throttles sign-in, DR-124); anything else (403 CSRF, network, 500) is a
  * different failure and shouldn't be reported as "invalid credentials". */
 function loginErrorMessage(error: unknown): string {
   if (error instanceof ApiError && (error.status === 401 || error.status === 400)) {
     return 'Invalid username or password.';
+  }
+  if (error instanceof ApiError && error.status === 429) {
+    return `Too many sign-in attempts. Try again ${waitFor(error.retryAfter)}.`;
   }
   return 'Sign-in failed. Please try again.';
 }
