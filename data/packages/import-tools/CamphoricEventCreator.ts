@@ -402,7 +402,7 @@ export default class CamphoricEventCreator extends Fetcher {
       let json;
       try {
         json = JSON.parse(text);
-      } catch (e) {
+      } catch {
         throw this.error(
           `[reg step] test registration returned non-JSON (${res.status}), see Django logs`,
           { status: res.status, body: text },
@@ -451,7 +451,7 @@ export default class CamphoricEventCreator extends Fetcher {
       let json;
       try {
         json = JSON.parse(text);
-      } catch (e) {
+      } catch {
         throw this.error(
           `[pay step] test payment returned non-JSON (${res.status}), see Django logs`,
           { status: res.status, body: text },
