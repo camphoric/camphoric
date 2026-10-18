@@ -9,6 +9,9 @@ export const theme = createTheme({
   primaryColor: 'teal',
   // Mantine 9 rounds corners to md (8px) by default; keep 8.x's sm (4px).
   defaultRadius: 'sm',
+  // Mantine 9 sets labels and other medium text in 600 by default; 8.x used
+  // 500. Buttons and switches, which share the weight, keep 600: theme.css.
+  fontWeights: { medium: '500' },
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   // Text 4px larger than Mantine's defaults (12/14/16/18/20px) for
   // readability; spacing and control heights are unchanged. Most body text,
