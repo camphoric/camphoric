@@ -33,6 +33,12 @@ updates:
       # @types/node follows the runtime's major, which moves with #871.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # ESLint 10 (#725): @eslint/js needs the same major, and
+      # eslint-plugin-jsx-a11y doesn't support 10 yet.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
       prefix-development: chore
