@@ -287,6 +287,9 @@ TYPES = (
         F('total', 'money', 'amount + handling.', '{{ invoice.total | money }}'),
         F('amount_paid', 'money', 'Paid on it so far, less refunds.'),
         F('amount_due', 'money', 'Still due on it.', '{{ invoice.amount_due | money }}'),
+        F('payment_processing', 'bool', 'Whether PayPal has a payment on it that it is still '
+          'processing: not paid yet (not in `amount_paid`), but the payer shouldn\'t pay again.',
+          "{% if invoice.payment_processing %}Your PayPal payment is processing.{% endif %}"),
         F('overpaid', 'money', 'Paid beyond its total (a refund is due).'),
         F('due_on', 'date', 'When it is due.', nullable=True),
         F('memo', 'string', 'A message for the payer.'),

@@ -297,6 +297,11 @@ export interface ApiInvoice extends TimeStamped {
   /** A PayPal order made for it and not yet captured. */
   pending_paypal_order_id: string | null;
   /**
+   * PayPal captured that order but is still processing the capture: it isn't a
+   * payment until PayPal completes it, when it's recorded (§9.7; §15, DR-133).
+   */
+  paypal_capture_pending: boolean;
+  /**
    * When a registrar or admin last changed what it asks (amount, description,
    * handling) or cancelled or reopened it; the payment step stops rewriting it (DR-105).
    */
@@ -336,6 +341,8 @@ export interface ApiInvoicePay {
     status: InvoiceStatus;
     /** A PayPal payment on it is waiting to be confirmed. */
     pending: boolean;
+    /** PayPal captured a payment on it and is still processing it (§15, DR-133). */
+    processing: boolean;
   };
   campers: string[];
   /** What paying online costs now; null when it can't be paid online. */
@@ -818,6 +825,11 @@ export interface ApiRegisterPaymentStep {
    * (from `payment-step`; §15, DR-105).
    */
   invoiceCancelled?: boolean;
+  /**
+   * PayPal is still processing the registrant's payment: it isn't recorded yet,
+   * and nothing else can be paid here meanwhile (from `payment-step`; §15, DR-133).
+   */
+  paymentProcessing?: boolean;
 }
 
 /** The registration's ledger, as numbers (§9.7). */
@@ -870,7 +882,8 @@ export interface ApiPayPalOrder {
  * Why a payment didn't go through: `amount_changed`, `declined`, `not_payable`,
  * `cancelled` (the organizers cancelled the invoice) and `invoice_changed` (they
  * changed it since the page loaded; the response carries the fresh payment step)
- * took no money (DR-105); `unknown` may have (the event has been told).
+ * took no money (DR-105); `unknown` may have (the event has been told); `pending`
+ * did, but PayPal is still processing it, so it isn't recorded yet (DR-133).
  */
 export type PaymentProblemCode =
   | 'amount_changed'
@@ -882,7 +895,8 @@ export type PaymentProblemCode =
   | 'refused'
   | 'not_configured'
   | 'cancelled'
-  | 'invoice_changed';
+  | 'invoice_changed'
+  | 'pending';
 
 // ---------------------------------------------------------------------------
 // Augmented view models — domain logic derived from cached query data (SPEC §5)

@@ -4,7 +4,9 @@
  * registered already — the button completed the registration — so it says
  * what's still due, and offers to finish and pay later; they can also try
  * again or pay by check from the page. When PayPal's answer was lost
- * (`unknown`), money may have moved: it asks them not to pay again. When the
+ * (`unknown`), money may have moved: it asks them not to pay again. When PayPal
+ * took the payment but is still processing it (`processing`, §15 DR-133), it
+ * says so, and not to pay again: it's recorded once PayPal completes it. When the
  * organizers cancelled the invoice (the `cancelled` code, §15 DR-105), there's nothing
  * to pay here: it gives their message and offers only to finish.
  */
@@ -19,6 +21,8 @@ export interface PaymentNotFinishedProps {
   reason?: string;
   /** PayPal's answer was lost: don't offer to pay again. */
   unknown?: boolean;
+  /** PayPal took the payment and is still processing it: don't offer to pay again. */
+  processing?: boolean;
   /** The organizers cancelled the invoice: nothing can be paid here. */
   invoiceCancelled?: boolean;
   onFinish: () => void;
@@ -29,6 +33,7 @@ export function PaymentNotFinished({
   amountDue,
   reason,
   unknown,
+  processing,
   invoiceCancelled,
   onFinish,
   finishing,
@@ -39,6 +44,21 @@ export function PaymentNotFinished({
         <Stack gap="sm" align="flex-start">
           <Text size="sm">
             You’re registered. {reason ?? 'The organizers have changed what’s due.'}
+          </Text>
+          <Button onClick={onFinish} loading={finishing}>
+            Finish
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (processing) {
+    return (
+      <Alert color="blue" variant="light" title="Your payment is processing">
+        <Stack gap="sm" align="flex-start">
+          <Text size="sm">
+            You’re registered. PayPal has your payment but is still processing it, which can take a
+            few days. Please don’t pay again: it’s recorded once PayPal completes it.
           </Text>
           <Button onClick={onFinish} loading={finishing}>
             Finish

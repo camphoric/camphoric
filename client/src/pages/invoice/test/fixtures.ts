@@ -15,6 +15,7 @@ export const DUE: ApiInvoicePay = {
     amount_due: '1425.00',
     status: 'open',
     pending: false,
+    processing: false,
   },
   campers: ['Bob R.', 'Jane R.'],
   online: { clientId: 'sb', handling: 35.63, total: 1460.63, handlingPercent: 2.5 },
@@ -40,3 +41,10 @@ export const CANCELLED: ApiInvoicePay = {
 };
 
 export const NOT_ONLINE: ApiInvoicePay = { ...DUE, online: null };
+
+/** PayPal captured a payment on it and is still processing it (#767). */
+export const PROCESSING: ApiInvoicePay = {
+  ...DUE,
+  invoice: { ...DUE.invoice, pending: true, processing: true },
+  online: null,
+};

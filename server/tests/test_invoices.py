@@ -437,6 +437,21 @@ class CheckPayPalOrderTests(PayPalTestCase):
         self.assertIsNone(self.invoice(invoice).pending_paypal_order_id)
         self.assertFalse(invoice.payments.exists())
 
+    def test_a_pending_capture_is_reported_not_recorded(self):
+        # Captured, but PayPal hasn't completed it: not a payment yet (#767).
+        invoice = registration_invoice(self.made.r1, 'PayPal', D('40.00'))
+        invoice.pending_paypal_order_id = paypal_mocks.ORDER_ID
+        invoice.save()
+        self.reply(paypal_mocks.captured(self.made.r1, invoice, D('41.00'),
+                                         capture_status='PENDING'))
+        response = self.client.post(f'/api/invoices/{invoice.id}/check-paypal/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual((response.data['result'], response.data['payment']), ('pending', None))
+        self.assertTrue(response.data['invoice']['paypal_capture_pending'])
+        invoice = self.invoice(invoice)
+        self.assertEqual(invoice.pending_paypal_order_id, paypal_mocks.ORDER_ID)
+        self.assertFalse(invoice.payments.exists())
+
 
 class RefundThroughPayPalTests(PayPalTestCase):
     @classmethod

@@ -85,7 +85,8 @@ def register_models():
     # An invoice's link code is a secret (anyone with it may pay); a PayPal
     # capture not yet settled is the worker's bookkeeping.
     auditlog.register(models.Invoice, exclude_fields=TIMESTAMPS + [
-        'token', 'paypal_capture_order_id', 'paypal_capture_started_at'])
+        'token', 'paypal_capture_order_id', 'paypal_capture_started_at',
+        'paypal_capture_pending_at'])
     # PayPal's replies carry the payer's details, and are written once by the
     # payment flow rather than edited.
     auditlog.register(models.Payment, exclude_fields=TIMESTAMPS + ['paypal_response'])

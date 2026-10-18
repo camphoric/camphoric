@@ -19,7 +19,12 @@ import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
 import { useDeletedPayments, useRestore } from 'store/deletes';
 import { invoiceHooks, paymentHooks } from 'store/entities';
-import { useCheckPayPalOrder, useInvoiceStatusAction, useSendInvoice } from 'store/invoices';
+import {
+  type CheckPayPalResult,
+  useCheckPayPalOrder,
+  useInvoiceStatusAction,
+  useSendInvoice,
+} from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
 
 import { EditInvoiceModal } from './EditInvoiceModal';
@@ -33,6 +38,14 @@ interface RegistrationInvoicesProps {
   event: ApiEvent;
   registration: AugmentedRegistration;
 }
+
+/** What "Check PayPal order" found, for the notification. */
+const CHECK_RESULT_MESSAGES: Record<CheckPayPalResult['result'], string> = {
+  recorded: 'PayPal captured it: the payment is recorded.',
+  pending:
+    'PayPal captured it but is still processing it: it’s recorded here once PayPal completes it.',
+  not_captured: 'PayPal never captured it: no money was taken.',
+};
 
 export function RegistrationInvoices({ event, registration }: RegistrationInvoicesProps) {
   const { data: invoices } = invoiceHooks.useList({ registration: registration.id });
@@ -125,10 +138,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       onSuccess: ({ result }) =>
         notifications.show({
           color: result === 'recorded' ? 'green' : 'blue',
-          message:
-            result === 'recorded'
-              ? 'PayPal captured it: the payment is recorded.'
-              : 'PayPal never captured it: no money was taken.',
+          message: CHECK_RESULT_MESSAGES[result],
         }),
       onError: failed,
     });

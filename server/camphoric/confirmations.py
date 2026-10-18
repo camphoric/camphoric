@@ -126,7 +126,8 @@ def overdue_confirmations(now=None):
     '''
     Completed registrations whose confirmation nobody triggered in time. One
     with a PayPal capture not yet settled waits until the worker has asked
-    PayPal about it, so its confirmation says what was paid (#804). One whose
+    PayPal about it, so its confirmation says what was paid (#804) — but not
+    for one PayPal says is pending, which may take days (#767). One whose
     invoice has a PayPal order made in the last few hours waits too: the payer
     may still approve it, and an "unpaid" confirmation would then be wrong
     (#767). The invoice's `updated_at` stands in for when that order was made —
@@ -137,6 +138,7 @@ def overdue_confirmations(now=None):
     now = now or timezone.now()
     capturing = models.Invoice.all_objects.filter(
         registration=OuterRef('pk'), paypal_capture_order_id__isnull=False,
+        paypal_capture_pending_at__isnull=True,
         paypal_capture_started_at__gte=now - UNRECORDED_CAPTURE_RETRIES_FOR)
     paypal_order_pending = models.Invoice.objects.filter(
         registration=OuterRef('pk'), cancelled_at__isnull=True,

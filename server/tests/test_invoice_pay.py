@@ -141,6 +141,29 @@ class PayingTests(InvoicePayTestCase):
     def test_only_online_payments(self):
         self.post('order', status=400, paymentType='Check')
 
+    def test_a_pending_capture_shows_as_processing(self):
+        # Captured, but PayPal hasn't completed it: not a payment yet (#767).
+        self.reply(paypal_mocks.created())
+        self.post('order', paymentType='PayPal')
+        invoice = models.Invoice.objects.get(pk=self.invoice.pk)
+        self.reply(paypal_mocks.order(self.made.r1, invoice, D('743.13')),
+                   paypal_mocks.captured(self.made.r1, invoice, D('743.13'),
+                                         capture_status='PENDING'))
+        data = self.post('capture', status=409, orderID=paypal_mocks.ORDER_ID,
+                         paymentType='PayPal')
+        self.assertEqual(data['code'], 'pending')
+        self.assertEqual((data['invoice']['status'], data['invoice']['processing'],
+                          data['invoice']['pending'], data['online']),
+                         ('partially_paid', True, True, None))
+        self.assertTrue(self.page()['invoice']['processing'])
+        self.assertEqual(invoice.payments.count(), 1)  # only the $100 paid before
+        self.assertEqual(self.post('order', status=409, paymentType='PayPal')['code'],
+                         'not_payable')
+
+        self.client.force_authenticate(self.registrar)
+        self.assertTrue(self.client.get(f'/api/invoices/{invoice.id}/').data[
+            'paypal_capture_pending'])
+
 
 class AdminInvoiceTests(InvoicePayTestCase):
     def setUp(self):

@@ -854,6 +854,10 @@ class Invoice(TimeStampedModel):
     # minutes on, the worker asks PayPal about it (invoices.check_unrecorded_captures).
     paypal_capture_order_id = models.CharField(max_length=64, null=True, blank=True)
     paypal_capture_started_at = models.DateTimeField(null=True, blank=True)
+    # PayPal captured that order but hasn't completed the capture (PENDING): when
+    # it last said so. Nothing is recorded until it completes; the worker asks
+    # again every half hour for a month (#767).
+    paypal_capture_pending_at = models.DateTimeField(null=True, blank=True)
     # When a registrar or admin last changed what it asks (amount, description,
     # handling) or cancelled or reopened it. The registration's payment step
     # doesn't rewrite it after that (SPEC DR-105).

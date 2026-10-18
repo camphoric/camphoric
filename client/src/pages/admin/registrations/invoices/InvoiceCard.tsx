@@ -5,7 +5,9 @@
  * payment it gives money back from. Every role sees all of it, and can copy an
  * unpaid invoice's pay link (DR-95); the other actions are for those who may
  * take them: Registrars and Admins send it, edit, cancel and reopen it, check a
- * pending PayPal order and refund; only Admins delete (§15, DR-93).
+ * pending PayPal order and refund; only Admins delete (§15, DR-93). A PayPal
+ * payment PayPal is still processing shows as such: it isn't a payment until
+ * PayPal completes it (DR-133).
  */
 
 import { ActionIcon, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
@@ -258,7 +260,9 @@ export function InvoiceCard({
         {invoice.pending_paypal_order_id && (
           <Group gap="xs">
             <Text size="sm" c="orange">
-              A PayPal payment (order {invoice.pending_paypal_order_id}) hasn’t been confirmed.
+              {invoice.paypal_capture_pending
+                ? `PayPal is still processing a payment (order ${invoice.pending_paypal_order_id}). It’s recorded here once PayPal completes it.`
+                : `A PayPal payment (order ${invoice.pending_paypal_order_id}) hasn’t been confirmed.`}
             </Text>
             {canEdit && (
               <Button

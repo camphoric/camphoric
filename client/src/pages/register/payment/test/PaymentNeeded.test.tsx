@@ -160,6 +160,25 @@ describe('PaymentNeeded', () => {
     expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
   });
 
+  it('when PayPal is still processing the payment, says so and offers only to finish', () => {
+    const props = renderPage();
+    failWith(problem('pending', 'PayPal is still processing a payment on this invoice.'));
+    act(() => props.onApprove('ORDER-1', 'PayPal'));
+    expect(screen.getByText('Your payment is processing')).toBeInTheDocument();
+    expect(screen.getByText(/Please don’t pay again/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
+  });
+
+  it('a payment step that says PayPal is processing the payment says so', () => {
+    renderWithProviders(
+      <PaymentNeeded eventId="1" paymentStep={{ ...paymentStep, paymentProcessing: true }} />,
+    );
+    expect(screen.getByText('Your payment is processing')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /by check/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument();
+  });
+
   it('when the organizers cancelled the invoice, says so and offers only to finish', async () => {
     const user = userEvent.setup();
     renderPage();
