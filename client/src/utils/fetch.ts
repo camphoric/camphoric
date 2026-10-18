@@ -14,6 +14,8 @@ export class ApiError extends Error {
     public status: number,
     public statusText: string,
     public body: unknown,
+    /** The seconds a throttled (429) response's Retry-After asked to wait, when it gave them. */
+    public retryAfter: number | null = null,
   ) {
     super(`API ${status} ${statusText}`);
     this.name = 'ApiError';
@@ -102,10 +104,18 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
   const payload = await parseBody(response);
 
   if (!response.ok) {
-    throw new ApiError(response.status, response.statusText, payload);
+    throw new ApiError(response.status, response.statusText, payload, retryAfterSeconds(response));
   }
 
   return payload as T;
+}
+
+/** A response's Retry-After in seconds; null when it has none (or gives a date). */
+function retryAfterSeconds(response: Response): number | null {
+  const header = response.headers.get('Retry-After')?.trim();
+  if (!header) return null;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
 async function parseBody(response: Response): Promise<unknown> {

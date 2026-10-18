@@ -8,7 +8,6 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from django.urls import URLPattern, URLResolver, get_resolver
-from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APITestCase
 
@@ -89,7 +88,7 @@ class MigrationTests(TransactionTestCase):
 
 PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
-    views.EventList, views.RegisterView, ObtainAuthToken,
+    views.EventList, views.RegisterView, views.ObtainTokenView,
     views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
     views.InvoicePayView,
 }
