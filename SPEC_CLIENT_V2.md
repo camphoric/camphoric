@@ -617,7 +617,18 @@ Non-CRUD admin endpoints:
   which, shown to the registrant (the `GET` reports the same as `invitationError`). A
   non-blank `promoCode` the `checkpromo` check would refuse is a 400 with the same `{ detail }`
   and nothing is saved; a usable one is recorded on the registration and priced (§9.2). The code
-  travels outside `formData`, so it's never one of the registration's `attributes`.
+  travels outside `formData`, so it's never one of the registration's `attributes`. Each camper's
+  requested lodging must be one the form offers: a node of this event's lodging tree below its
+  root, shown on the form (`visible`, as is every node above it), a final choice (no visible
+  node under it; §9.1), and with room on every choice on the way to it — not offered as `full`
+  (DR-57), and, for a node counted by capacity with nothing marked open under it, the
+  registration's campers asking for it together fit its remaining capacity. Otherwise it's a
+  400 `{ 'campers.{index}.lodging.lodging_requested.id': [message] }` for the first camper
+  refused (the lodging isn't available, or it has no room left) and nothing is saved. The
+  remaining capacity counts every registration's campers, started ones included, as the form's
+  `full` does. Registrations asking for lodging are checked and saved one at a time, so two
+  can't both take the last place (§15, DR-123). Admins may still overbook through the camper
+  endpoints.
 - `POST /api/events/{eventId}/register` with `{ step: 'paypal-order', registrationUUID,
   paymentOption, paymentType }` (`PayPal` | `Card`) — what the PayPal or card button calls
   (§7.2; §15, DR-90, DR-91). It **completes** the registration (unpaid until money arrives),
@@ -1915,7 +1926,8 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   name and no visible label. When a finished choice is needed (the field is required, or its
   schema requires `id` or `choices`, as the server's lodging schema does), every dropdown is
   marked required, its label carrying the required mark; the placeholder carries no marker
-  (§15, DR-118).
+  (§15, DR-118). The register endpoint refuses a choice that has filled since the form
+  loaded (§5; DR-123).
 - **Description** — renders schema/ui descriptions as templated markdown (via the Template
   engine and the form's `templateData`).
 
@@ -5003,6 +5015,31 @@ on a page that can't succeed, and starting over clears what they entered. Check 
 registration exists before offering "Continue to payment" — an extra request on every visit to
 the form, and it still needs this handling for one deleted while the payment page is open. Key
 on the server's message — it's Django's default wording, not a contract.
+
+### DR-123 — Registration checks the requested lodging on the server, one registration at a time
+
+**Decision:** The register endpoint's `registration` step refuses a requested lodging the form
+wouldn't offer — another event's, one not shown, one with choices shown under it, or one without
+room — with the same notions the form uses: `visible`, and `full` with the remaining capacity
+from the lodging tree (DR-57). Started registrations hold their places, as they do for `full`, so
+a registrant who submits again for the last place (going back from the payment step) is refused
+by their own unfinished registration. The registration's campers count together, each taking
+its lodging's sharing multiplier on every choice above it, as the tree counts assigned campers.
+A registration asking for lodging locks the event's root lodging before counting, and keeps the
+lock until the step's transaction (which saves the registration all or nothing, #806) commits,
+so registrations for the same event's lodging queue up and each counts the ones before it.
+Admin changes to a camper's lodging aren't checked: they may overbook.
+**Context:** #795: "full" was only `ui:enumDisabled` on the form, and the server saved whatever
+lodging id it was sent. Two registrants who loaded the form while one bed was left could both take
+it, and a crafted request could book a full or hidden node, or another event's lodging, which
+then fed pricing and that event's counts.
+**Alternatives:** Locking only the requested nodes and their ancestors — finer-grained, but the
+lock order has to be managed to avoid deadlocks, and registrations are few enough that one lock
+per event costs nothing. Serializable transactions with retries — more machinery for the same
+result. A database constraint — capacity is a sum over a tree with availability overrides, which
+a constraint can't express. Checking without a lock — still lets two registrations take the last
+place. Leaving started registrations out of the count — the form's `full` counts them too, and the
+two must agree; a started registration that's never paid is cleaned up later.
 
 ### DR-126 — Changing where an email account connects needs its password again
 

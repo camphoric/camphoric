@@ -981,6 +981,7 @@ Due now: $300.00""".lstrip())
                 name=f'Cabin {i}',
                 parent=cabin,
                 visible=True,
+                capacity=4,
             )
             for i in range(2)
         ]
@@ -990,6 +991,7 @@ Due now: $300.00""".lstrip())
                 name=f'Tent area {i}',
                 parent=tent,
                 visible=True,
+                capacity=4,
             )
             for i in range(2)
         ]

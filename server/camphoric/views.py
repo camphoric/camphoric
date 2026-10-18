@@ -46,7 +46,7 @@ from camphoric import (
     serializers,
     tracked,
 )
-from camphoric.lodging import get_lodging_schema
+from camphoric.lodging import LodgingTree, get_lodging_schema, registration_lodging_problem
 from camphoric.mail import batches, outbox, unsubscribe
 from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
 from camphoric.templating import bulk, deadline, rules
@@ -1443,6 +1443,11 @@ class RegisterView(APIView):
         registration.promo_code = self.find_promo_code(
             request, event, registration.registration_type)
 
+        # The lodging check's lock holds until this transaction commits, so two
+        # registrations for the last bed take turns and the second sees the first.
+        # It comes before pricing, which reads the requested lodging.
+        self.check_requested_lodging(event, campers)
+
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.client_reported_pricing = client_reported_pricing
@@ -1464,6 +1469,25 @@ class RegisterView(APIView):
             'serverPricingResults': server_pricing_results,
             **self.payment_options(event, server_pricing_results),
         })
+
+    @staticmethod
+    def check_requested_lodging(event, campers):
+        '''
+        Refuse lodging the form wouldn't offer: another event's, a hidden one, or
+        one without room for these campers (#795). Locks the event's root lodging
+        first, so registrations asking for lodging wait their turn and count the
+        campers saved before them; call it in the transaction that saves the campers.
+        '''
+        requested_ids = [camper.lodging_id for camper in campers]
+        if all(lodging_id is None for lodging_id in requested_ids):
+            return
+        # No key update: it queues registrations without blocking campers saved into the root.
+        list(models.Lodging.objects.select_for_update(no_key=True)
+             .filter(event=event, parent__isnull=True))
+        problem = registration_lodging_problem(LodgingTree(event).build(), requested_ids)
+        if problem:
+            index, message = problem
+            raise ValidationError({f'campers.{index}.lodging.lodging_requested.id': [message]})
 
     def post_payment_step(self, request, event):
         '''The registration's payment step as it is now (DR-105); 404 if it isn't this event's.'''
