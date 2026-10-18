@@ -140,6 +140,8 @@ class OptionsTests(FlowTestCase):
                                             paypal_client_id='other')
         for data in ({'step': 'paypal-order', 'paymentType': 'PayPal'},
                      {'step': 'payment', 'paymentType': 'Check'},
+                     {'step': 'payment', 'paymentType': 'PayPal',
+                      'paypalOrderId': paypal_mocks.ORDER_ID},
                      {'step': 'finish'}):
             with self.subTest(step=data['step']):
                 response = self.client.post(f'/api/events/{other.id}/register', {
