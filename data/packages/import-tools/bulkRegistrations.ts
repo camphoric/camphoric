@@ -157,7 +157,9 @@ class BulkRegistrar extends Fetcher {
   async post(event: Saved, body: { step: string, formData?: unknown } & Record<string, unknown>): Promise<StepResponse> {
     const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': await this.getAuthToken() },
+      // Signed in, so the server's throttle on anonymous registration steps (#801)
+      // leaves a bulk run alone.
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${await this.getAuthToken()}` },
       body: JSON.stringify(body),
     });
     const text = await res.text();
