@@ -40,9 +40,8 @@ export function AdminFrame() {
             )}
             <Anchor component={Link} to="/admin" underline="never" c="inherit">
               <Title order={4} style={{ whiteSpace: 'nowrap' }}>
-                Camphoric
+                Camphoric{' '}
                 <Text span inherit visibleFrom="sm">
-                  {' '}
                   Admin
                 </Text>
               </Title>
