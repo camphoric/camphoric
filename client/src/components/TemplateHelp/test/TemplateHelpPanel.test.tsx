@@ -13,8 +13,9 @@ describe('TemplateHelpPanel', () => {
     expect(screen.getAllByText('this event').length).toBeGreaterThan(0);
   });
 
-  // Renders the whole reference with an Insert button on every entry, and again
-  // on each search: about 1s locally but up to 5s on CI runners, past the default.
+  // These two render the whole reference with an Insert button on every entry,
+  // and again on each search: about 1s locally but up to 5s on CI runners or
+  // alongside other heavy tests, past the default.
   it('searches, and inserts what’s chosen', { timeout: 15_000 }, async () => {
     const onInsert = vi.fn();
     const user = userEvent.setup();
@@ -34,7 +35,7 @@ describe('TemplateHelpPanel', () => {
     expect(onInsert).toHaveBeenLastCalledWith(' | money', { snippet: undefined });
   });
 
-  it('shows Markdown examples, and inserts one', async () => {
+  it('shows Markdown examples, and inserts one', { timeout: 15_000 }, async () => {
     const onInsert = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(

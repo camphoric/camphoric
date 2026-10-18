@@ -58,7 +58,8 @@ jobs:
         run: npm test
 
   # The component tests drive a static Storybook build of the stories; the
-  # registration smoke test needs the Django API, so it skips here (no backend).
+  # registration smoke test needs the Django API, so it's left out here (no
+  # backend; playwright.config.ts).
   e2e:
     runs-on: ubuntu-latest
     defaults:
@@ -75,9 +76,32 @@ jobs:
 
       - run: npm ci
 
+      # The browsers are cached by Playwright's version and the runner's OS release
+      # (they're built for it); their system packages aren't, so a cached run still
+      # installs those.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ env.ImageOS }}-playwright-${{ steps.playwright.outputs.version }}-chromium-webkit
+
       # Chromium for Desktop/Mobile Chrome, WebKit for Mobile Safari.
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium webkit
+
+      - name: Install the browsers' system packages
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium webkit
+
+      # The tests serve this build (playwright.config.ts).
+      - name: Build Storybook
+        run: npm run storybook:build
 
       - name: End-to-end tests
         run: npx playwright test

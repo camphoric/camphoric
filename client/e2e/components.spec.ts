@@ -8,6 +8,13 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { STORYBOOK_URL } from '../playwright.config';
 
+/**
+ * For an admin screen's test whose unit test already checks the same thing, and
+ * which depends on nothing about the screen or browser: it runs on Desktop
+ * Chrome only (playwright.config.ts). Public registration's run everywhere.
+ */
+const DESKTOP_ONLY = { tag: '@desktop-only' };
+
 /** Open a story on its own (Storybook's iframe, without the Storybook UI). */
 const story = (id: string) => `${STORYBOOK_URL}/iframe.html?id=${id}&viewMode=story`;
 
@@ -109,7 +116,7 @@ test.describe('Data table', () => {
     await expect(rows.first()).toContainText('Xander');
   });
 
-  test('pages through a table whose state is in the URL', async ({ page }) => {
+  test('pages through a table whose state is in the URL', DESKTOP_ONLY, async ({ page }) => {
     await page.goto(story('data-table--url-state'));
     const rows = tableRows(page);
     await expect(rows.first()).toContainText('Bob 1');
@@ -231,7 +238,7 @@ test.describe('Template editor', () => {
   });
 });
 
-test.describe('Template help', () => {
+test.describe('Template help', DESKTOP_ONLY, () => {
   test('searches the variables and inserts one', async ({ page }) => {
     await page.goto(story('template-help-panel--with-insert'));
     await page.getByLabel('Search help').fill('nights');
@@ -314,7 +321,7 @@ test.describe('Recipient filter builder', () => {
   });
 });
 
-test.describe('Send a group email', () => {
+test.describe('Send a group email', DESKTOP_ONLY, () => {
   // The story answers the API itself and prints what it posted.
   test('replaces the recipients with a filter, then confirms the send', async ({ page }) => {
     await page.goto(story('send-dialog--send'));
@@ -379,7 +386,7 @@ test.describe('Read-only for Reporters', () => {
   });
 });
 
-test.describe('User administration', () => {
+test.describe('User administration', DESKTOP_ONLY, () => {
   test('a new user is a regular user, and you can’t change your own group', async ({ page }) => {
     await page.goto(story('user-form--new-user-as-superuser'));
     await expect(page.getByRole('textbox', { name: 'Django access' })).toHaveValue('Regular user');
@@ -431,19 +438,29 @@ test.describe('Passwords', () => {
 });
 
 test.describe('Deletes and history', () => {
-  test('a delete that something blocks says why, with no Delete', async ({ page }) => {
-    await page.goto(story('confirm-delete--blocked'));
-    await expect(page.getByText('Campers still have this charge.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled();
-  });
+  test(
+    'a delete that something blocks says why, with no Delete',
+    DESKTOP_ONLY,
+    async ({ page }) => {
+      await page.goto(story('confirm-delete--blocked'));
+      await expect(page.getByText('Campers still have this charge.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    },
+  );
 
-  test('a delete says what it takes with it and who it unassigns', async ({ page }) => {
-    await page.goto(story('confirm-delete--unassigns-campers'));
-    await expect(page.getByText('2 lodgings: Cabin A, Cabin B')).toBeVisible();
-    await expect(page.getByText('23 campers will be unassigned from their lodging')).toBeVisible();
-    await expect(page.getByText(/and 3 more$/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Delete' })).toBeEnabled();
-  });
+  test(
+    'a delete says what it takes with it and who it unassigns',
+    DESKTOP_ONLY,
+    async ({ page }) => {
+      await page.goto(story('confirm-delete--unassigns-campers'));
+      await expect(page.getByText('2 lodgings: Cabin A, Cabin B')).toBeVisible();
+      await expect(
+        page.getByText('23 campers will be unassigned from their lodging'),
+      ).toBeVisible();
+      await expect(page.getByText(/and 3 more$/)).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Delete' })).toBeEnabled();
+    },
+  );
 
   test('a history shows who changed what', async ({ page }) => {
     await page.goto(story('history-list--registration'));
@@ -460,7 +477,7 @@ test.describe('Deletes and history', () => {
   });
 });
 
-test.describe('Pricing overrides', () => {
+test.describe('Pricing overrides', DESKTOP_ONLY, () => {
   test('a Registrar sees what an overridden line works out to, and can change it', async ({
     page,
   }) => {
@@ -889,7 +906,7 @@ test.describe('Form actions', () => {
   });
 });
 
-test.describe('Concurrent editing', () => {
+test.describe('Concurrent editing', DESKTOP_ONLY, () => {
   test('a refused save shows what both sides changed, and asks', async ({ page }) => {
     await page.goto(story('edit-conflict--same-field'));
     const row = page.getByRole('row', { name: /First name/ });
@@ -906,7 +923,7 @@ test.describe('Concurrent editing', () => {
   });
 });
 
-test.describe('Edit leases', () => {
+test.describe('Edit leases', DESKTOP_ONLY, () => {
   test('a record someone else is editing says who, and offers to edit anyway', async ({ page }) => {
     await page.goto(story('edit-lease-notice--someone-else-is-editing'));
     await expect(page.getByText('Alex Registrar is editing this registration')).toBeVisible();
@@ -920,7 +937,7 @@ test.describe('Edit leases', () => {
   });
 });
 
-test.describe('Being edited', () => {
+test.describe('Being edited', DESKTOP_ONLY, () => {
   test('a list row says who is editing it', async ({ page }) => {
     await page.goto(story('being-edited--in-a-list'));
     await expect(page.getByRole('img', { name: /^Alex Registrar is editing this/ })).toBeVisible();
@@ -934,7 +951,7 @@ test.describe('Record deleted', () => {
   });
 });
 
-test.describe('Live updates', () => {
+test.describe('Live updates', DESKTOP_ONLY, () => {
   test('the header says when live updates are off', async ({ page }) => {
     await page.goto(story('live-updates-status--off'));
     await expect(page.getByText('Live updates off')).toBeVisible();

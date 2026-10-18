@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-17
+**Last updated:** 2026-10-18
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -2544,8 +2544,10 @@ hasn't seen (§15, DR-109).
 - **E2E (Playwright):** component e2e drives the Storybook stories (the form engine, templating,
   the data table, and admin widgets) against a static Storybook build, plus a registration-flow
   smoke against the dev server; every test runs on desktop and two mobile devices (§15, DR-31,
-  DR-59). The
-  registration smoke skips when no backend is reachable (as in CI).
+  DR-59), except one tagged `@desktop-only`: an admin-side test whose unit test already checks the
+  same thing and which depends on nothing about the screen or browser runs on Desktop Chrome alone
+  (§15, DR-130). The registration smoke skips when no backend is reachable, and CI leaves it out, with
+  the dev server it needs (DR-130).
 - **Gates:** type-check, lint, unit tests and the e2e suite pass in CI (the *Client* workflow,
   on every push/PR that touches `client/`) and in the pre-commit hook (§15, DR-15).
 
@@ -3259,7 +3261,8 @@ was decided — DR-59). A **registration-flow smoke** drives the Vite dev
 server (which proxies to the Django backend) and skips gracefully when the registration config
 can't load, so it stays green without a backend and never submits (creates no data). Every test
 runs across three projects — **Desktop Chrome, Mobile Chrome (Pixel 5), Mobile Safari
-(iPhone 13)** — exercising layouts responsively (DR-17).
+(iPhone 13)** — exercising layouts responsively (DR-17); DR-130 narrows this for tests that
+duplicate a unit test, and leaves the smoke out of CI.
 **Context:** The stories already exercise the real components through their providers, so
 they're the natural e2e render targets (DR-7) — no backend, fast, deterministic. Driving the
 workbench's **dev** server proved flaky: Vite's on-demand per-story compile and dep-optimization reload made
@@ -5166,6 +5169,25 @@ to another site, where the link's token would be handed over.
 **Alternatives:** Keep the fallback and rely on `ALLOWED_HOSTS` (and the deploy check that warned
 when it allows any host) — one loose setting away from leaking reset tokens. Refuse only
 set-password links — the organizers' admin links invite a sign-in on whatever site they name.
+
+### DR-130 — Desktop-only e2e duplicates; no registration smoke in CI
+
+**Decision:** An e2e test of an admin screen whose unit test already checks the same behavior,
+and which depends on nothing about the screen or browser, is tagged `@desktop-only` and runs on
+Desktop Chrome only; the mobile projects skip it (`grepInvert`). Every other test still runs on
+all three projects (amends DR-31), the public registration's among them: registration is
+mobile-first (DR-17), and only a real phone-sized browser checks that its controls can be
+reached and used. CI leaves out the registration smoke and doesn't start the dev server for it; it still
+runs locally, against a development backend.
+**Context:** #910: the e2e suite ran 219 tests on two workers in about two and a half minutes.
+About 15 admin component tests repeat a Vitest assertion in a real browser; running them on
+three devices added nothing over one. In CI the registration smoke always skipped — there's no
+backend — after waiting up to 20 s on each project, while its dev server ran the type and lint
+checker alongside the browsers. The Sample Camp e2e (`docker.yml`) drives the real registration
+form against a server.
+**Alternatives:** Running only the viewport- or browser-dependent tests on mobile (a larger cut,
+but layouts on mobile would then be covered only where a test checks them). Deleting the
+duplicated e2e tests (they still prove the story renders in a real browser).
 
 ---
 

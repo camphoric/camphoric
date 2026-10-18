@@ -54,20 +54,28 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // Storybook reuses this config and leaves the checker out (.storybook/main.ts).
-    checker({
-      typescript: true,
-      eslint: {
-        lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-        useFlatConfig: true,
-      },
-    }),
+    // Storybook reuses this config and leaves the checker out (.storybook/main.ts),
+    // and so do the unit tests: CI type-checks and lints in steps of their own.
+    ...(process.env.VITEST
+      ? []
+      : [
+          checker({
+            typescript: true,
+            eslint: {
+              lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
+              useFlatConfig: true,
+            },
+          }),
+        ]),
   ],
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Each test file still runs in a context of its own, but a worker builds
+    // jsdom once rather than for every file: about a third of the time otherwise.
+    pool: 'vmThreads',
     // Unit tests live in src; the Playwright e2e suite (e2e/*.spec.ts) is run by
     // Playwright, not Vitest.
     include: ['src/**/*.test.{ts,tsx}'],
