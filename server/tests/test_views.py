@@ -7,7 +7,6 @@ from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
-from django.core.cache import cache
 import jsonschema  # Using Draft-7
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
