@@ -790,6 +790,9 @@ test.describe('Promo codes', () => {
 
   test('an admin chooses who can’t use a code', async ({ page }) => {
     await page.goto(story('promo-code-form--not-for-some'));
+    // The pricing-logic editor loads after the form and pushes the checkboxes
+    // down, so a click before it's in lands on whatever was there.
+    await expect(page.locator('.monaco-editor .view-lines')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Invited as Staff' })).toBeChecked();
     await page.getByRole('checkbox', { name: 'Registrants without an invitation' }).uncheck();
     await page.getByRole('checkbox', { name: 'Invited as Work-trade' }).check();
