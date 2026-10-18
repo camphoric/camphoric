@@ -49,12 +49,19 @@ export const Helpers: StoryFn = () => (
   </Stack>
 );
 
-/** Sanitization: scripts are stripped; class/style on div/span are kept; external links open in a new tab. */
+/**
+ * Sanitization: scripts are stripped; div/span keep the print classes and a style of color, type
+ * and text alignment only (DR-132); external links open in a new tab.
+ */
 export const Sanitization: StoryFn = () => (
   <Stack p="md" maw={640}>
     <Template
       markdown={[
-        '<div class="note" style="color: tomato">Styled div is allowed.</div>',
+        '<div class="no-break" style="color: tomato">Styled div is allowed.</div>',
+        '',
+        '<div style="position: fixed; inset: 0; z-index: 9999; font-weight: bold">',
+        'Bold, but not drawn over the page: its positioning is dropped.',
+        '</div>',
         '',
         "<script>alert('blocked')</script>",
         '',

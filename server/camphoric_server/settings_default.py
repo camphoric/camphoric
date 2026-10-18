@@ -144,6 +144,12 @@ SERVER_EMAIL = env.str('SERVER_EMAIL', default='root@localhost')
 DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default=SERVER_EMAIL)
 # How long a set-password link works, in seconds (default 3 days).
 PASSWORD_RESET_TIMEOUT = env.int('PASSWORD_RESET_TIMEOUT', default=3 * 24 * 60 * 60)
+# How long an API token from /api-token-auth/ (the importer's) works after that
+# sign-in, in seconds (camphoric.authentication, SPEC DR-131).
+CAMPHORIC_API_TOKEN_TTL = env.int('CAMPHORIC_API_TOKEN_TTL', default=24 * 60 * 60)
+if CAMPHORIC_API_TOKEN_TTL <= 0:
+    # Not "never": every token would be expired as soon as it was issued.
+    raise ImproperlyConfigured('CAMPHORIC_API_TOKEN_TTL must be a positive number of seconds')
 
 # Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
 # delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request
@@ -256,7 +262,7 @@ STORAGES = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'camphoric.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_FILTER_BACKENDS': [

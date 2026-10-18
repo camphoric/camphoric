@@ -124,8 +124,10 @@ export const MARKDOWN_ENTRIES: MarkdownEntry[] = [
     'HTML',
     'Pages (the registration form’s text, the confirmation page and Markdown reports) allow ' +
       'a little HTML: `div` and `span` with `class` and `style`, and other harmless tags; ' +
-      'scripts and the like are removed. Emails drop every HTML tag (the text between them ' +
-      'stays), so write them in Markdown.',
+      'scripts and the like are removed. `class` keeps only `page-break` and `no-break`, and ' +
+      '`style` only color, background color, font and text settings (size, weight, style, ' +
+      'alignment, decoration, case); positions, sizes and margins are dropped. Emails drop ' +
+      'every HTML tag (the text between them stays), so write them in Markdown.',
     '<span style="color: green">Paid in full</span>',
   ),
 ];
