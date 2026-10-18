@@ -27,10 +27,9 @@ import {
 import { IconCheck, IconLink, IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiInvitation } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
-import { DataTable } from 'components/DataTable';
+import { DataTable, type DataTableColumnDef } from 'components/DataTable';
 import { FullScreenLoading } from 'components/Loading';
 import { CanEdit } from 'hooks/permissions';
 import { useRegistrationTypeLookup } from 'hooks/useAdminData';
@@ -132,7 +131,7 @@ export function InvitationsPanel() {
     [invitations],
   );
 
-  const columns = useMemo<ColumnDef<ApiInvitation, unknown>[]>(
+  const columns = useMemo<DataTableColumnDef<ApiInvitation>[]>(
     () => [
       { accessorKey: 'recipient_name', header: 'Name' },
       { accessorKey: 'recipient_email', header: 'Email' },

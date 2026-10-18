@@ -1,11 +1,10 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { renderWithProviders, screen } from 'test/utils';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 import { describe, expect, it } from 'vitest';
 
-import { DataTable } from '../DataTable';
+import { DataTable, type DataTableColumnDef } from '../DataTable';
 
 interface Person {
   id: number;
@@ -15,7 +14,14 @@ interface Person {
 const people = (count: number): Person[] =>
   Array.from({ length: count }, (_, i) => ({ id: i + 1, name: `Person ${i + 1}` }));
 
-const columns: ColumnDef<Person, unknown>[] = [{ accessorKey: 'name', header: 'Name' }];
+/** The text of each body row's first cell, top to bottom. */
+const firstCells = () =>
+  screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => row.querySelector('td')?.textContent);
+
+const columns: DataTableColumnDef<Person>[] = [{ accessorKey: 'name', header: 'Name' }];
 
 /**
  * Holds the table's state the way an admin screen does: written to search
@@ -58,6 +64,32 @@ describe('DataTable', () => {
     const { rerender } = renderWithProviders(<UrlTable data={people(25)} initialPage="2" />);
     rerender(<UrlTable data={people(25)} initialPage="2" />);
     expect(screen.getByRole('cell', { name: 'Person 11' })).toBeInTheDocument();
+  });
+
+  it('sorts a text column ascending, in natural order, then descending', async () => {
+    renderWithProviders(<DataTable data={people(12)} columns={columns} />);
+
+    await userEvent.click(screen.getByRole('columnheader', { name: 'Name' }));
+    expect(firstCells().slice(0, 3)).toEqual(['Person 1', 'Person 2', 'Person 3']);
+
+    await userEvent.click(screen.getByRole('columnheader', { name: 'Name' }));
+    expect(firstCells().slice(0, 3)).toEqual(['Person 12', 'Person 11', 'Person 10']);
+  });
+
+  it('sorts a number column largest first on its first click', async () => {
+    const byId: DataTableColumnDef<Person>[] = [{ accessorKey: 'id', header: 'Id' }];
+    renderWithProviders(<DataTable data={people(3)} columns={byId} />);
+
+    await userEvent.click(screen.getByRole('columnheader', { name: 'Id' }));
+    expect(firstCells()).toEqual(['3', '2', '1']);
+  });
+
+  it('returns to the first page when re-sorted', async () => {
+    renderWithProviders(<UrlTable data={people(25)} initialPage="2" />);
+    expect(screen.getByRole('cell', { name: 'Person 11' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('columnheader', { name: 'Name' }));
+    expect(firstCells()[0]).toBe('Person 1');
   });
 
   it('shows the last page when the URL names a page past the end', () => {

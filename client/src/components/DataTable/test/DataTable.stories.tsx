@@ -7,11 +7,10 @@
 
 import { Stack, Title } from '@mantine/core';
 import type { Meta, StoryFn } from '@storybook/react-vite';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
-import { DataTable } from '../DataTable';
+import { DataTable, type DataTableColumnDef } from '../DataTable';
 
 interface Person {
   id: number;
@@ -27,7 +26,7 @@ const PEOPLE: Person[] = Array.from({ length: 45 }, (_, i) => ({
   age: 8 + (i % 50),
 }));
 
-const columns: ColumnDef<Person, unknown>[] = [
+const columns: DataTableColumnDef<Person>[] = [
   { accessorKey: 'name', header: 'Name' },
   { accessorKey: 'role', header: 'Role' },
   { accessorKey: 'age', header: 'Age' },

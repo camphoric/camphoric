@@ -12,9 +12,8 @@
 
 import { Badge, Group, Modal, Stack, Tooltip } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, ApiInvoice, AugmentedRegistration } from 'api-types';
-import { DataTable } from 'components/DataTable';
+import { DataTable, type DataTableColumnDef } from 'components/DataTable';
 import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useAugmentedRegistrations, useRegistrationTypeLookup } from 'hooks/useAdminData';
@@ -106,7 +105,7 @@ export function RegistrationsList() {
 
   const tableState = useMemo(() => tableStateFromSearch(search, 'reg'), [search]);
 
-  const columns = useMemo<ColumnDef<AugmentedRegistration, unknown>[]>(
+  const columns = useMemo<DataTableColumnDef<AugmentedRegistration>[]>(
     () => [
       {
         id: 'camper',
