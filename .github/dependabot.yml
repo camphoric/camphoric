@@ -15,6 +15,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+      # @eslint/js needs the ESLint of the same major, so their majors come as
+      # one PR; alone, either fails npm ci on a peer conflict.
+      eslint-major:
+        patterns: [eslint, '@eslint/js']
+        update-types: [major]
     # These majors move several packages at once, which a one-package PR can't
     # do (it fails npm ci on a peer conflict). Each goes when its issue lands.
     ignore:
@@ -32,13 +37,6 @@ updates:
         update-types: ['version-update:semver-major']
       # @types/node follows the runtime's major, which moves with #871.
       - dependency-name: '@types/node'
-        update-types: ['version-update:semver-major']
-      # ESLint 10 (#725): @eslint/js needs the same major; no
-      # eslint-plugin-jsx-a11y release supports 10 yet, and
-      # eslint-plugin-react-hooks needs its own major bump (to 7) first.
-      - dependency-name: eslint
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
