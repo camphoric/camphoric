@@ -583,8 +583,10 @@ class InvoiceSerializer(ModelSerializer):
     created_by_name = SerializerMethodField()
     # Its pay page (DR-95); the link code itself is never shown on its own.
     pay_url = SerializerMethodField()
-    # PayPal captured its pending order and is still processing it (#767).
+    # PayPal captured its pending order and is still processing it (#767); and
+    # has been for longer than the worker asks about it.
     paypal_capture_pending = SerializerMethodField()
+    paypal_capture_lapsed = SerializerMethodField()
 
     class Meta:
         model = models.Invoice
@@ -600,6 +602,9 @@ class InvoiceSerializer(ModelSerializer):
 
     def get_paypal_capture_pending(self, invoice):
         return invoices.capture_processing(invoice)
+
+    def get_paypal_capture_lapsed(self, invoice):
+        return invoices.capture_watch_lapsed(invoice)
 
     def validate_registration(self, registration):
         if self.instance is not None and registration != self.instance.registration:

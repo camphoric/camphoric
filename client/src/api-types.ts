@@ -302,6 +302,11 @@ export interface ApiInvoice extends TimeStamped {
    */
   paypal_capture_pending: boolean;
   /**
+   * PayPal has been processing that capture for longer than the worker asks about it:
+   * only "Check PayPal order" asks now, and the invoice stays held until it does (§15, DR-133).
+   */
+  paypal_capture_lapsed: boolean;
+  /**
    * When a registrar or admin last changed what it asks (amount, description,
    * handling) or cancelled or reopened it; the payment step stops rewriting it (DR-105).
    */

@@ -7,7 +7,8 @@
  * take them: Registrars and Admins send it, edit, cancel and reopen it, check a
  * pending PayPal order and refund; only Admins delete (§15, DR-93). A PayPal
  * payment PayPal is still processing shows as such: it isn't a payment until
- * PayPal completes it (DR-133).
+ * PayPal completes it, and the invoice can't be cancelled or deleted meanwhile
+ * (DR-133).
  */
 
 import { ActionIcon, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
@@ -108,6 +109,8 @@ export function InvoiceCard({
   const cancelled = invoice.status === 'cancelled';
   const handling = Number(invoice.handling);
   const holdsMoney = Number(invoice.amount_paid) !== 0;
+  // PayPal may yet record a payment on it: it's neither cancelled nor deleted (DR-133).
+  const processing = invoice.paypal_capture_pending;
   const payable =
     (invoice.status === 'open' || invoice.status === 'partially_paid') &&
     Number(invoice.amount_due) > 0;
@@ -137,7 +140,7 @@ export function InvoiceCard({
                   Edit
                 </Button>
               )}
-              {!cancelled && !holdsMoney && (
+              {!cancelled && !holdsMoney && !processing && (
                 <Button size="compact-sm" variant="subtle" color="gray" onClick={onCancel}>
                   Cancel invoice
                 </Button>
@@ -147,7 +150,7 @@ export function InvoiceCard({
                   Reopen
                 </Button>
               )}
-              {canDelete && payments.length === 0 && (
+              {canDelete && payments.length === 0 && !processing && (
                 <Tooltip label="Delete invoice">
                   <ActionIcon
                     variant="subtle"
@@ -260,9 +263,11 @@ export function InvoiceCard({
         {invoice.pending_paypal_order_id && (
           <Group gap="xs">
             <Text size="sm" c="orange">
-              {invoice.paypal_capture_pending
-                ? `PayPal is still processing a payment (order ${invoice.pending_paypal_order_id}). It’s recorded here once PayPal completes it.`
-                : `A PayPal payment (order ${invoice.pending_paypal_order_id}) hasn’t been confirmed.`}
+              {invoice.paypal_capture_lapsed
+                ? `PayPal is still processing a payment (order ${invoice.pending_paypal_order_id}), and has been for over 30 days, so it’s no longer asked about it. Settle it in PayPal, then check it here.`
+                : processing
+                  ? `PayPal is still processing a payment (order ${invoice.pending_paypal_order_id}). It’s recorded here once PayPal completes it.`
+                  : `A PayPal payment (order ${invoice.pending_paypal_order_id}) hasn’t been confirmed.`}
             </Text>
             {canEdit && (
               <Button

@@ -317,25 +317,53 @@ sequenceDiagram
   order and keeps the capture's mark, adding `paypal_capture_pending_at`. The registrant is
   told their payment is processing and not to pay again (`pending`, 409; the payment step's
   `paymentProcessing` and the pay page's `processing` say so when the page is opened again), and
-  gets their confirmation. The invoice takes no other payment (`not_payable`, "PayPal is still
-  processing a payment …"), the pay page offers no buttons, and the admin's invoice shows
-  "PayPal is still processing a payment". The worker asks PayPal again each time
-  `paypal_capture_pending_at` is half an hour old (`PENDING_CAPTURE_ASK_EVERY`), for 30 days from
-  the capture (`PENDING_CAPTURE_WATCHED_FOR`): still pending, it notes when it asked; completed,
-  it records the payment ("Recorded by the worker checking PayPal") and clears the marks;
-  declined, it emails the event (the PayPal problem email, `capture_denied`: the registrant was
-  told it's processing, so someone should tell them it didn't go through) and clears the marks,
-  so the invoice takes payments again, and leaves the order for "Check PayPal order" to clear.
-  Still pending once the 30 days are up, it's asked about once more and then reported
-  (`capture_expired`) and settled the same way. "Check PayPal order" answers `pending` while
-  it's pending (starting the 30 days again if they'd run out), and otherwise does the same
-  without the email. A repeated capture of an order PayPal is processing answers `pending`
-  without asking PayPal, so a refusal then can't clear the watch. The confirmation sweep doesn't
-  wait for a pending capture, and doesn't clear the invoice's PayPal choice for one; templates
-  see `invoice.payment_processing`, so the confirmation can say it's processing.
-- **What isn't handled.** A capture PayPal completes and later reverses (a chargeback), or one
-  it denies after it's no longer asked about, isn't noticed: that needs PayPal's webhooks
-  (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the server doesn't take.
+  gets their confirmation. Until the marks are cleared the invoice is **held**
+  (`capture_processing`, however long it takes): it takes no other payment (`not_payable`,
+  "PayPal is still processing a payment …"), the pay page offers no buttons, it can't be
+  cancelled or deleted (409, `held_message`; the admin's invoice offers neither, and shows
+  "PayPal is still processing a payment"), since the payment may yet be recorded on it. The
+  worker asks PayPal again each time `paypal_capture_pending_at` is half an hour old
+  (`PENDING_CAPTURE_ASK_EVERY`), for 30 days from the capture (`PENDING_CAPTURE_WATCHED_FOR`):
+  still pending, it notes when it asked; completed, it records the payment ("Recorded by the
+  worker checking PayPal") and clears the marks; declined, it emails the event (the PayPal
+  problem email, `capture_denied`: the registrant was told it's processing, so someone should
+  tell them it didn't go through) and clears the marks, so the invoice takes payments again, and
+  leaves the order for "Check PayPal order" to clear. PayPal no longer finding the order (404),
+  or finding it isn't this invoice's, is emailed (`capture_lost`) and settled the same way.
+- **When the 30 days are up.** The sweep picks a pending capture only while it was last asked
+  about within its watch (`paypal_capture_pending_at` before `paypal_capture_started_at` + 30
+  days), so one still pending is asked about once more after the watch: it's reported
+  (`capture_expired`), its `paypal_capture_pending_at` set to then, and it's asked about no more.
+  When PayPal can't be asked then (it's down, or refuses our credentials), it's asked each run
+  for up to a day past the watch, then reported the same way with that error.
+  Its marks and order stay, so the invoice stays held (`capture_watch_lapsed`; the admin's
+  `paypal_capture_lapsed` says it's no longer asked about): PayPal still has the payment and may
+  yet complete it, and a payable invoice would get a new order in place of the old one, which
+  "Check PayPal order" could then no longer find. A registrar settles it in PayPal and presses
+  "Check PayPal order": it records the payment, clears the order, or — still pending — starts
+  another 30 days (`_capture_pending` restarts `paypal_capture_started_at` once the watch has
+  ended). The problem emails about a pending capture are deduplicated per order, kind and watch
+  (`paypal_capture_started_at` is in the key), so each watch's end is reported.
+- **"Check PayPal order" and repeats.** It answers `pending` while the capture is pending, and
+  otherwise does what the worker does, without the email: an order PayPal no longer knows (404),
+  or one that isn't this invoice's, answers `mismatch` (400) and settles the capture's marks
+  (`PaymentProblem.not_this_order`), so a held invoice is released; its message then gives the
+  registrar the `capture_lost` email's advice (record the payment by hand if PayPal took the
+  money). Any other refusal (401, 403: the event's PayPal credentials) settles nothing; the fix
+  is the event's PayPal settings, then another check. The worker's emails go only
+  when its own write still matched the marks it read (`_capture_settled` and `_asked` say
+  whether they did), so a check that settled the capture, or began another watch, while the
+  worker was asking PayPal isn't followed by stale news. A repeated capture of an order PayPal
+  is processing answers `pending` without asking PayPal. One that read the invoice before the
+  first marked it pending gets past that first look, but its own first write
+  (`paypal_capture_order_id`, `_started_at`) skips an invoice with `paypal_capture_pending_at`
+  set, and it looks again once it holds the invoice's lock: it answers `pending` there too,
+  before asking PayPal, and leaves the marks alone. The confirmation sweep doesn't wait for a
+  pending capture, and doesn't clear the invoice's PayPal choice for one; templates see
+  `invoice.payment_processing`, so the confirmation can say it's processing.
+- **What isn't handled.** A capture PayPal completes and later reverses (a chargeback) isn't
+  noticed: that needs PayPal's webhooks (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the
+  server doesn't take.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
   what's owed.
 - **PayPal or Card** is the button the payer pressed (`paymentType`), on the invoice and the
@@ -349,7 +377,8 @@ sequenceDiagram
   up; the fix is the event's client id (it must belong to the same PayPal app as the server's
   `PAYPAL_SECRET`, on the same sandbox or live `PAYPAL_BASE_URL`).
 - **The PayPal problem email** (`invoices.send_paypal_problem_report`, kind `payment_report`) goes
-  to the event's `confirmation_email_from`, once per order: what happened, who (registration,
+  to the event's `confirmation_email_from`, once per order (and, for news of a pending capture —
+  `capture_denied`, `capture_expired`, `capture_lost` — once per kind and watch): what happened, who (registration,
   registrant, campers, an admin link when `CAMPHORIC_PUBLIC_URL` is set), what for (invoice,
   amounts, payment type), PayPal's references and error, what the registrant was told, and what
   to do. Without an event address it's only logged (always at ERROR).
@@ -365,8 +394,9 @@ sequenceDiagram
 - **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) locks the
   registration and then the invoice, the order every payment step takes them in (#819), and asks
   PayPal about the pending order: a capture PayPal completed is recorded (`recorded`); one it's still processing
-  stays pending (`pending`); anything else — not captured, or a capture declined — is cleared
-  (`not_captured`: no money was taken).
+  stays pending (`pending`; watched for another 30 days if its watch had ended); anything else — not captured, or a capture declined — is cleared
+  (`not_captured`: no money was taken). An order PayPal doesn't know, or that isn't the
+  invoice's, is a 400 `mismatch`, and any capture of it is settled.
 
 ## 7. Paying by check
 
@@ -476,6 +506,14 @@ stateDiagram-v2
 
 Status is never stored: `Invoice.status` (and `templating/graph.invoice_status`) work it out from
 `cancelled_at`, the total and the live payments' net.
+
+**Neither cancelled nor deleted while PayPal may pay it (#767).** An invoice whose capture hasn't
+settled (`invoices.capture_unsettled`: a capture under way, or one PayPal is processing, §6) is
+refused a cancel or a delete with a 409 saying why (`held_message`): the worker or "Check PayPal
+order" may still record PayPal's payment on it, which would land on a cancelled invoice, or be
+lost with a deleted one. The cancel looks with the invoice's row locked; the delete's plan
+(`deletes.invoice_has_no_paypal_payment_underway`) blocks it in the preview, and looks again with
+the row locked inside the delete, for a capture that started since.
 
 **An edit made from a stale invoice is refused (#770).** Every invoice counts its saves in
 `version`, and the payment step's rewrites count too. An organizer's edit, cancel or reopen sends
@@ -622,7 +660,10 @@ flowchart LR
   `match_received_invoice`, `refundable`, payment options (`payment_options`, `find_option`),
   the registration invoice (`prepare_registration_invoice`), PayPal (`create_paypal_order`,
   `capture_paypal_order`, `record_capture`, `check_paypal_order`, `check_unrecorded_captures`,
-  `capture_processing`, `refund_paypal_payment`) and the problem email.
+  `capture_processing`, `capture_unsettled`, `capture_watch_lapsed`, `refund_paypal_payment`)
+  and the problem email.
+- `deletes.py` — `invoice_has_no_payments` and `invoice_has_no_paypal_payment_underway`, the
+  rules for deleting an invoice.
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`;
   `checked_order_id`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
@@ -766,4 +807,5 @@ sequenceDiagram
 - **A pending order.** When an order on the invoice hasn't been confirmed (`pending`), the page
   asks the payer not to pay again; a registrar settles it with "Check PayPal order".
 - **A payment PayPal is still processing** (`processing`, #767). The page says so, and `online`
-  is null, so it offers no buttons until the worker finds PayPal has completed (or declined) it.
+  is null, so it offers no buttons until the worker, or a registrar's "Check PayPal order", finds
+  PayPal has completed (or declined) it.

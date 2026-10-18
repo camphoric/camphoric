@@ -835,7 +835,8 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
                          'to': message.to})
 
     def delete_checks(self):
-        return (deletes.not_a_registration_invoice, deletes.invoice_has_no_payments)
+        return (deletes.not_a_registration_invoice, deletes.invoice_has_no_payments,
+                deletes.invoice_has_no_paypal_payment_underway)
 
     @action(detail=True, methods=['post'])
     @transaction.atomic
@@ -849,6 +850,9 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
         if invoice.amount_paid != 0:
             raise serializers.Conflict(
                 'This invoice still holds money. Refund or move its payments first.')
+        if invoices.capture_unsettled(invoice):
+            # The worker would record PayPal's payment on it once known (#767).
+            raise serializers.Conflict(invoices.held_message(invoice, 'cancelled'))
         invoice.cancelled_at = invoice.organizer_changed_at = timezone.now()
         invoice.cancel_reason = (request.data.get('reason') or '').strip()
         invoice.save()

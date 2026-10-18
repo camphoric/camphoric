@@ -2,7 +2,9 @@
  * Stories for an invoice (SPEC §8.4, §9.7): open, paid by two checks, paid by
  * PayPal with its handling fee and a partial refund, overpaid (with "Refund the
  * difference"), cancelled, with a PayPal payment not yet confirmed, with one
- * PayPal is still processing, and as a Reporter sees one (everything, no actions). Run `npm run storybook`.
+ * PayPal is still processing (no Cancel or Delete), with one PayPal has been
+ * processing longer than the worker asks about it, and as a Reporter sees one
+ * (everything, no actions). Run `npm run storybook`.
  */
 
 import { Box } from '@mantine/core';
@@ -18,6 +20,7 @@ import {
   PAYPAL_REFUNDED_PAYMENTS,
   PENDING_PAYPAL,
   PROCESSING_PAYPAL,
+  PROCESSING_PAYPAL_LAPSED,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
@@ -79,6 +82,12 @@ export const PayPalNotConfirmed: StoryFn = () => (
 export const PayPalProcessing: StoryFn = () => (
   <Box p="md" maw={720}>
     <InvoiceCard invoice={PROCESSING_PAYPAL} payments={[]} {...actions} />
+  </Box>
+);
+
+export const PayPalProcessingNoLongerWatched: StoryFn = () => (
+  <Box p="md" maw={720}>
+    <InvoiceCard invoice={PROCESSING_PAYPAL_LAPSED} payments={[]} {...actions} />
   </Box>
 );
 

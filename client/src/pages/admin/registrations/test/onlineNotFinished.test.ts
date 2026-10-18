@@ -17,6 +17,7 @@ function invoice(fields: Partial<ApiInvoice> = {}): ApiInvoice {
     notes: '',
     pending_paypal_order_id: 'ORDER',
     paypal_capture_pending: false,
+    paypal_capture_lapsed: false,
     organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',

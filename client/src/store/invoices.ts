@@ -56,7 +56,8 @@ export function useCheckPayPalOrder() {
   return useMutation({
     mutationFn: (id: Scalar) =>
       apiFetch<CheckPayPalResult>(`/api/invoices/${id}/check-paypal/`, { method: 'POST' }),
-    onSuccess: invalidate,
+    // Even after an error: an order PayPal no longer knows releases the invoice (DR-133).
+    onSettled: invalidate,
   });
 }
 
