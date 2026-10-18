@@ -262,7 +262,7 @@ test.describe('Email template editor', () => {
     const preview = page.getByRole('region', { name: 'Template preview' });
     await expect(preview).toContainText('Your invitation to Lee');
 
-    await page.getByRole('textbox', { name: 'Preview for' }).click();
+    await page.getByRole('combobox', { name: 'Preview for' }).click();
     await page.getByRole('option', { name: 'Sam <sam@example.com>' }).click();
     await expect(preview).toContainText('Your invitation to Sam');
   });
@@ -296,9 +296,9 @@ test.describe('Recipient filter builder', () => {
 
     await page.getByRole('button', { name: 'Add condition' }).click();
     const row = page.getByRole('group', { name: 'Condition 1' });
-    await row.getByRole('textbox', { name: 'Field' }).click();
+    await row.getByRole('combobox', { name: 'Field' }).click();
     await page.getByRole('option', { name: 'Balance' }).click();
-    await row.getByRole('textbox', { name: 'Operator' }).click();
+    await row.getByRole('combobox', { name: 'Operator' }).click();
     await page.getByRole('option', { name: '>', exact: true }).click();
     await row.getByRole('textbox', { name: 'Value' }).fill('25');
     await expect(json).toContainText('"op": "gt"');
@@ -306,11 +306,11 @@ test.describe('Recipient filter builder', () => {
 
     await page.getByRole('button', { name: 'Add condition' }).click();
     const second = page.getByRole('group', { name: 'Condition 2' });
-    await second.getByRole('textbox', { name: 'Field' }).click();
+    await second.getByRole('combobox', { name: 'Field' }).click();
     await page.getByRole('option', { name: 'Meals' }).click();
-    await second.getByRole('textbox', { name: 'Operator' }).click();
+    await second.getByRole('combobox', { name: 'Operator' }).click();
     await page.getByRole('option', { name: 'is any of' }).click();
-    await second.getByRole('textbox', { name: 'Value' }).click();
+    await second.getByRole('combobox', { name: 'Value' }).click();
     await page.getByRole('option', { name: 'Vegan' }).click();
     await expect(json).toContainText('"Vegan"');
 
@@ -330,9 +330,9 @@ test.describe('Send a group email', DESKTOP_ONLY, () => {
     await page.getByRole('button', { name: 'Choose more recipients' }).click();
     await page.getByRole('button', { name: 'Add condition' }).click();
     const row = page.getByRole('group', { name: 'Condition 1' });
-    await row.getByRole('textbox', { name: 'Field' }).click();
+    await row.getByRole('combobox', { name: 'Field' }).click();
     await page.getByRole('option', { name: 'Balance' }).click();
-    await row.getByRole('textbox', { name: 'Operator' }).click();
+    await row.getByRole('combobox', { name: 'Operator' }).click();
     await page.getByRole('option', { name: '>', exact: true }).click();
     await row.getByRole('textbox', { name: 'Value' }).fill('10');
     await page.getByRole('button', { name: 'Replace the list with 2' }).click();
@@ -389,15 +389,15 @@ test.describe('Read-only for Reporters', () => {
 test.describe('User administration', DESKTOP_ONLY, () => {
   test('a new user is a regular user, and you can’t change your own group', async ({ page }) => {
     await page.goto(story('user-form--new-user-as-superuser'));
-    await expect(page.getByRole('textbox', { name: 'Django access' })).toHaveValue('Regular user');
+    await expect(page.getByRole('combobox', { name: 'Django access' })).toHaveValue('Regular user');
     await page.getByRole('textbox', { name: 'Username' }).fill('lee');
     await page.getByRole('textbox', { name: 'Email' }).fill('lee@example.com');
     await page.getByRole('button', { name: 'Add user' }).click();
     await expect(page.getByTestId('saved')).toContainText('"django_access": "regular"');
 
     await page.goto(story('user-form--edit-yourself'));
-    await expect(page.getByRole('textbox', { name: 'Camphoric permission group' })).toBeDisabled();
-    await expect(page.getByRole('textbox', { name: 'Django access' })).toBeDisabled();
+    await expect(page.getByRole('combobox', { name: 'Camphoric permission group' })).toBeDisabled();
+    await expect(page.getByRole('combobox', { name: 'Django access' })).toBeDisabled();
   });
 
   test('an Admin adds and renames an organization', async ({ page }) => {
@@ -441,7 +441,7 @@ test.describe('Passwords', () => {
     const dialog = page.getByRole('dialog', { name: 'Sign in again' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('textbox', { name: 'Username' })).toHaveValue('pat');
-    await expect(dialog.getByLabel('Password')).toBeFocused();
+    await expect(dialog.getByLabel('Password', { exact: true })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeVisible();
     await expect(page.locator('[inert]').getByLabel('Welcome message')).toHaveCount(1);
@@ -527,13 +527,13 @@ test.describe('Pricing overrides', DESKTOP_ONLY, () => {
 test.describe('Lodging marked full or open', () => {
   test('marked full can’t be chosen, whatever its room', async ({ page }) => {
     await page.goto(story('fields--lodging-requested-marked'));
-    await page.getByRole('textbox', { name: 'Area' }).click();
+    await page.getByRole('combobox', { name: 'Area' }).click();
     await expect(page.getByRole('option', { name: 'Tent Field (full)' })).toHaveAttribute(
       'data-combobox-disabled',
       'true',
     );
     await page.getByRole('option', { name: 'Cabins' }).click();
-    await page.getByRole('textbox', { name: 'Cabin' }).click();
+    await page.getByRole('combobox', { name: 'Cabin' }).click();
     // Cabin B has no room but is marked open.
     await expect(page.getByRole('option', { name: 'Cabin B', exact: true })).not.toHaveAttribute(
       'data-combobox-disabled',
@@ -587,7 +587,7 @@ test.describe('Lodging timeline', () => {
 
   test('the view narrows to any lodging, a top-level unit included', async ({ page }) => {
     await page.goto(story('lodging-timeline--assignment'));
-    await page.getByRole('textbox', { name: 'Show lodging' }).fill('Off');
+    await page.getByRole('combobox', { name: 'Show lodging' }).fill('Off');
     await page.getByRole('option', { name: 'Off Site' }).click();
     await expect(page.getByRole('button', { name: 'Kaylee Frye' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Bob Ross' })).toHaveCount(0);

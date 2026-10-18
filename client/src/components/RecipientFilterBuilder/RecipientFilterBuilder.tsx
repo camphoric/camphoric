@@ -191,7 +191,7 @@ export function RecipientFilterBuilder({
             { value: 'or', label: 'any' },
           ]}
           value={combinator}
-          onChange={(next) => onChange({ combinator: next as 'and' | 'or', rules })}
+          onChange={(next) => onChange({ combinator: next, rules })}
           disabled={disabled}
         />
         <Text size="sm">of these conditions</Text>
@@ -232,7 +232,7 @@ export function RecipientFilterBuilder({
               placeholder="Operator"
               data={OPERATORS[type].map(({ value: v, label }) => ({ value: v, label }))}
               value={def ? rule.op : null}
-              onChange={(op) => op && chooseOperator(index, op as EmailRuleOp, rule)}
+              onChange={(op) => op && chooseOperator(index, op, rule)}
               allowDeselect={false}
               style={{ flex: '1 1 130px' }}
               disabled={disabled || !rule.field}

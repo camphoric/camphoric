@@ -104,7 +104,7 @@ describe('ReportEditForm', () => {
       <ReportEditForm eventId="7" report={legacyReport} onSaved={vi.fn()} onCancel={vi.fn()} />,
     );
 
-    await user.click(screen.getByRole('textbox', { name: 'Variables' }));
+    await user.click(screen.getByRole('combobox', { name: 'Variables' }));
     await user.click(
       await screen.findByRole('option', { name: /Camphoric variables/, hidden: true }),
     );

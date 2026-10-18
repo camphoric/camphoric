@@ -6,7 +6,7 @@ import '../src/theme.css';
 import { MantineProvider } from '@mantine/core';
 import type { Preview } from '@storybook/react-vite';
 
-import { theme } from '../src/theme';
+import { cssVariablesResolver, theme } from '../src/theme';
 
 const preview: Preview = {
   // A toolbar switch for the colour scheme: System follows the OS, as the app
@@ -37,6 +37,7 @@ const preview: Preview = {
       return (
         <MantineProvider
           theme={theme}
+          cssVariablesResolver={cssVariablesResolver}
           defaultColorScheme="auto"
           forceColorScheme={scheme === 'light' || scheme === 'dark' ? scheme : undefined}
         >

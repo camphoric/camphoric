@@ -49,7 +49,7 @@ describe('RecipientFilterBuilder', () => {
     const { user, last } = setup();
     await user.click(screen.getByRole('button', { name: 'Add condition' }));
     const row = screen.getByRole('group', { name: 'Condition 1' });
-    await pick(user, within(row).getByRole('textbox', { name: 'Field' }), 'Balance');
+    await pick(user, within(row).getByRole('combobox', { name: 'Field' }), 'Balance');
     expect(last()).toEqual({
       combinator: 'and',
       rules: [{ field: 'registration.balance', op: 'eq', value: null }],
@@ -61,7 +61,7 @@ describe('RecipientFilterBuilder', () => {
       combinator: 'and',
       rules: [{ field: 'registration.created_at', op: 'before', value: '2026-01-01' }],
     });
-    const box = screen.getByRole('textbox', { name: 'Operator' });
+    const box = screen.getByRole('combobox', { name: 'Operator' });
     await user.click(box);
     const listbox = document.getElementById(box.getAttribute('aria-controls')!)!;
     const options = within(listbox)
@@ -84,10 +84,10 @@ describe('RecipientFilterBuilder', () => {
       combinator: 'and',
       rules: [{ field: 'camper.attributes.meals', op: 'is', value: 'Vegan' }],
     });
-    await pick(user, screen.getByRole('textbox', { name: 'Operator' }), 'is any of');
+    await pick(user, screen.getByRole('combobox', { name: 'Operator' }), 'is any of');
     // A single value doesn't carry over to a several-value operator.
     expect(last()?.rules?.[0]).toMatchObject({ op: 'any_of', value: null });
-    await pick(user, screen.getByRole('textbox', { name: 'Value' }), 'Vegetarian');
+    await pick(user, screen.getByRole('combobox', { name: 'Value' }), 'Vegetarian');
     expect(last()?.rules?.[0].value).toEqual(['Vegetarian']);
   });
 
@@ -99,7 +99,7 @@ describe('RecipientFilterBuilder', () => {
         { field: 'registration.completed', op: 'is_true', value: null },
       ],
     });
-    expect(screen.queryByRole('textbox', { name: 'Value' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Value')).not.toBeInTheDocument();
   });
 
   it('switches between all and any, and removes a condition', async () => {

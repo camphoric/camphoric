@@ -59,7 +59,7 @@ describe('EmailSettings', () => {
 
   it("changes the event's sending account", async () => {
     renderWithProviders(<EmailSettings event={EVENT} />);
-    await userEvent.click(screen.getByRole('textbox', { name: /sent through/ }));
+    await userEvent.click(screen.getByRole('combobox', { name: /sent through/ }));
     await userEvent.click(
       await screen.findByRole('option', {
         name: 'No account: the server’s default mailer',
@@ -83,7 +83,7 @@ describe('EmailSettings', () => {
     );
     // The accounts are listed, but nothing can be changed or sent.
     expect(screen.getAllByText('smtp.gmail.com:587, STARTTLS')).toHaveLength(2);
-    expect(screen.getByRole('textbox', { name: /sent through/ })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /sent through/ })).toBeDisabled();
     for (const name of ['Add account', 'Edit', 'Send test', 'Delete']) {
       expect(screen.queryAllByRole('button', { name })).toHaveLength(0);
     }

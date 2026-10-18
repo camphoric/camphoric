@@ -135,7 +135,7 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
         {canPayPal && (
           <SegmentedControl
             value={mode}
-            onChange={(value) => setMode(value as Mode)}
+            onChange={(value) => setMode(value)}
             data={[
               { value: 'paypal', label: 'Refund through PayPal' },
               { value: 'record', label: 'Record a refund' },
@@ -164,7 +164,7 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
               label="Refunded by"
               data={PAYMENT_TYPES}
               value={type}
-              onChange={(value) => setType((value as PaymentType | null) ?? 'Check')}
+              onChange={(value) => setType(value ?? 'Check')}
               allowDeselect={false}
             />
             <DateInput

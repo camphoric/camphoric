@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-134)
+- §15 — Decision Records (DR-1…DR-135)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -107,10 +107,11 @@ behaviors specified throughout this document.
 - **Pricing logic:** `json-logic-js` to evaluate server-provided pricing expressions.
 - **Templating:** `handlebars` for variable substitution + a `unified`/`remark`/`rehype`
   markdown→HTML pipeline with sanitization.
-- **UI kit:** Mantine **v8** (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
+- **UI kit:** Mantine **v9** (core + `@mantine/hooks`; `@mantine/dates` for date inputs,
   `@mantine/modals` for dialogs; `@mantine/form` for non-schema forms like login), with
-  `@tabler/icons-react` for icons. v8 is required by the official `@rjsf/mantine` v6 theme
-  (§15, DR-4) and keeps the CSS-Modules/PostCSS styling model (DR-24).
+  `@tabler/icons-react` for icons. The official `@rjsf/mantine` v6 theme needs Mantine 8 or
+  later (§15, DR-4); the theme keeps Mantine 8's default radius (`sm`) and light-variant colours
+  (§15, DR-135), and the CSS-Modules/PostCSS styling model is unchanged (DR-24).
 - **Payments:** PayPal JS SDK (`@paypal/react-paypal-js`).
 - **Search:** `match-sorter` for lightweight client-side filtering/ranking of smaller admin
   lists (predictable starts-with → contains → acronym → fuzzy ranking). See §15, DR-20.
@@ -3069,7 +3070,7 @@ Mantine primitives without a kit switch (see DR-19).
 
 **Decision:** Keep React JSON Schema Form, on the official `@rjsf/mantine` theme, **rjsf v6**
 (the latest major) (§9.1). `@rjsf/mantine` v6 requires **Mantine ≥8**, which sets the project's
-Mantine major (§2, DR-24).
+lowest Mantine major (§2, DR-24); the client runs Mantine 9 (DR-135).
 **Context:** The form engine drives both surfaces and is the highest-leverage component.
 `@rjsf/mantine` is an officially supported rjsf theme (an earlier assumption that no official
 Mantine theme existed was incorrect), so the base widgets come for free. The substantive work
@@ -3251,11 +3252,11 @@ TanStack Table composes natively with TanStack Query (which fetches the per-even
 TanStack Router (table state as typed search params — the admin URL-as-state pattern, DR-2). It
 does **not** justify switching UI kits — see DR-3. The turnkey wrapper `mantine-react-table` was
 the original choice, but its stable line requires Mantine v6 and its v2 beta targets Mantine v7;
-neither supports the Mantine **v8** this client runs on (DR-4). The headless library — the lean
+neither supports the Mantine 8 or later this client needs (DR-4). The headless library — the lean
 fallback named below — has no Mantine peer constraint, so it's the realized choice; the extra
 wiring (column defs, a small reusable `DataTable`) is modest.
 **Alternatives:** `mantine-react-table` (turnkey, but Mantine ≤7 only — incompatible with our
-v8, the reason it was dropped). **Ant Design Table** (turnkey, but would mean an antd kit switch
+Mantine 8+, the reason it was dropped). **Ant Design Table** (turnkey, but would mean an antd kit switch
 with the rjsf/public-surface costs in DR-3, rejected). `match-sorter` (DR-20) handles lightweight
 client-side filtering on smaller lists.
 
@@ -3314,11 +3315,11 @@ non-deprecated API. The field stays optional (no key ⇒ plain address inputs).
 
 **Decision:** Style with Mantine's approach — CSS Modules + PostCSS (`postcss-preset-mantine`,
 which provides Mantine's mixins/variables) — rather than Sass (§2).
-**Context:** The current client uses Sass. Mantine (v7 and v8) is built around CSS Modules +
+**Context:** The current client uses Sass. Mantine (v7 onward) is built around CSS Modules +
 PostCSS; adopting it keeps styling consistent with the component library, drops the Sass
 toolchain, and provides Mantine's responsive/color-scheme mixins. Component-scoped styles avoid
-global leakage. The project tracks Mantine **v8** (required by `@rjsf/mantine` v6 — DR-4); the
-styling model is unchanged across the two majors.
+global leakage. The project tracks Mantine **v9** (`@rjsf/mantine` v6 needs 8 or later — DR-4,
+DR-135); the styling model is unchanged across these majors.
 **Alternatives:** Sass/SCSS (works, but a parallel styling system to Mantine's; dropped).
 CSS-in-JS (Mantine moved away from it in v7 for performance).
 
@@ -5621,6 +5622,29 @@ with axe-core in the Playwright suites — they check the rendered DOM rather th
 only on the screens tested; a complement, not a replacement. Turning on only `rules-of-hooks` and
 `exhaustive-deps` — the rules react-hooks 5 ran, but it leaves the compiler's checks off for code
 written from now on.
+
+### DR-135 — Mantine 9, keeping Mantine 8's radius and light-variant colours
+
+**Decision:** The client runs Mantine 9 (every `@mantine/*` package on one version, since they
+pin each other's), on React 19. The theme sets `defaultRadius: 'sm'`, and every
+`MantineProvider` given the theme also gets Mantine's `v8CssVariablesResolver` (exported from
+`theme.ts` as `cssVariablesResolver`), so corners and the light/subtle variants look as they did
+on Mantine 8. Notifications take Mantine 9's default for hover: hovering pauses every visible
+notification's timer, not just the hovered one's.
+**Context:** #870. Mantine 9 needs React 19.2 or later (#869). Two of its default changes alter
+the look rather than behaviour: the default radius grows from `sm` (4px) to `md` (8px), and the
+light variant's colours turn solid. In dark mode that variant's text becomes a near-white shade,
+so subtle and light controls lose their hue — a red delete icon, a teal "Copy pay link" turn
+white — which drops the colour cue that marks a destructive action. Comparing the computed
+styles of the admin and registration stories on Mantine 8 and on Mantine 9 with these two
+settings, in light and dark mode, the only differences left are a `SegmentedControl`'s corners
+(4px to about 1px). `Select` inputs now have the ARIA `combobox` role (they were `textbox`),
+which tests and the e2e suite look them up by.
+**Alternatives:** Take Mantine 9's look as it comes (rounder corners, solid light variants):
+a restyle nobody asked for, and the dark-mode light variants lose their colour. Restyle the
+affected controls one by one (`color` on each subtle `ActionIcon`): many call sites, and each
+new one must remember. Stay on Mantine 8 (it supports React 19): falls behind the version
+`@rjsf/mantine` and Mantine's fixes now target.
 
 ---
 

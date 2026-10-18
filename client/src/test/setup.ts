@@ -27,6 +27,12 @@ class ResizeObserverMock {
 }
 window.ResizeObserver = ResizeObserverMock;
 
+// Mantine's autosizing Textarea resizes again once web fonts load, listening on
+// document.fonts, which jsdom doesn't have.
+Object.defineProperty(document, 'fonts', {
+  value: { addEventListener: vi.fn(), removeEventListener: vi.fn() },
+});
+
 // jsdom's localStorage is unavailable at the default about:blank origin; provide
 // a simple in-memory implementation for tests.
 class LocalStorageMock implements Storage {

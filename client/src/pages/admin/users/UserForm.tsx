@@ -138,7 +138,7 @@ export function UserForm({
           }
           data={GROUP_OPTIONS}
           value={superuser ? 'admin' : (values.role ?? 'none')}
-          onChange={(value) => set('role', !value || value === 'none' ? null : (value as Role))}
+          onChange={(value) => set('role', !value || value === 'none' ? null : value)}
           allowDeselect={false}
           disabled={isSelf || superuser}
           error={errors.role}
@@ -153,7 +153,7 @@ export function UserForm({
               label: DJANGO_ACCESS_LABEL[value],
             }))}
             value={values.django_access}
-            onChange={(value) => set('django_access', (value ?? 'regular') as DjangoAccess)}
+            onChange={(value) => set('django_access', value ?? 'regular')}
             allowDeselect={false}
             disabled={isSelf}
             error={errors.django_access}
@@ -173,7 +173,7 @@ export function UserForm({
             <Radio.Group
               label="How they get a password"
               value={values.passwordMode}
-              onChange={(value) => set('passwordMode', value as PasswordMode)}
+              onChange={(value) => set('passwordMode', value)}
             >
               <Stack gap={6} mt={4}>
                 <Radio value="link" label="Email them a link to choose a password" />

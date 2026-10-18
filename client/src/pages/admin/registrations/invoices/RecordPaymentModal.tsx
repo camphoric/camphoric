@@ -119,7 +119,7 @@ export function RecordPaymentModal({
           label="Type"
           data={PAYMENT_TYPES}
           value={type}
-          onChange={(value) => setType((value as PaymentType | null) ?? 'Check')}
+          onChange={(value) => setType(value ?? 'Check')}
           allowDeselect={false}
         />
         <DateInput

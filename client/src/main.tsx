@@ -21,7 +21,7 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
 import { queryClient } from './store/queryClient';
-import { theme } from './theme';
+import { cssVariablesResolver, theme } from './theme';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -30,7 +30,11 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="auto">
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={cssVariablesResolver}
+      defaultColorScheme="auto"
+    >
       <QueryClientProvider client={queryClient}>
         <ModalsProvider>
           <Notifications />
