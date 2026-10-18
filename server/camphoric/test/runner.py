@@ -9,7 +9,8 @@ class CamphoricTestRunner(DiscoverRunner):
     '''
     Runs tasks as they're queued (camphoric.test.tasks), so queued email is
     delivered straight into django.core.mail.outbox, and sends every account's
-    mail there instead of to its server.
+    mail there instead of to its server. CAMPHORIC_PUBLIC_URL starts empty, as in
+    CI, whatever the development environment sets; tests that need it set it.
 
     Keeps log messages out of the test output: many tests deliberately take the
     paths that log (refused requests, failing mail servers, broken templates),
@@ -26,6 +27,7 @@ class CamphoricTestRunner(DiscoverRunner):
                 'QUEUES': ['email', 'default'],
             }},
             CAMPHORIC_EMAIL_FORCE_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+            CAMPHORIC_PUBLIC_URL='',
         )
         self._camphoric_settings.enable()
         # Every task logs its start and finish at INFO; too noisy for test output.

@@ -9,10 +9,10 @@ from django.core.checks import Tags, Warning, register
 @register(Tags.security, deploy=True)
 def password_links(app_configs, **kwargs):
     problems = []
-    if '*' in settings.ALLOWED_HOSTS and not getattr(settings, 'CAMPHORIC_PUBLIC_URL', ''):
+    if not getattr(settings, 'CAMPHORIC_PUBLIC_URL', ''):
         problems.append(Warning(
-            'ALLOWED_HOSTS allows any host and CAMPHORIC_PUBLIC_URL is empty, so a '
-            'password-reset request could make the emailed link point at another site.',
+            'CAMPHORIC_PUBLIC_URL is empty, so no set-password or password-reset link can '
+            'be made, and organizers\' reports leave out their admin links.',
             hint='Set CAMPHORIC_PUBLIC_URL to the site\'s address.',
             id='camphoric.W001'))
     smtp = settings.MAILERS['default']['BACKEND'] == 'django.core.mail.backends.smtp.EmailBackend'

@@ -33,6 +33,11 @@ services:
     env_file:
       - ./env/local/shared.env
       - ./env/local/django.env
+    environment:
+      # Set-password and other admin links are made only from this (never the
+      # request's host): the react service's Vite server. To change it, set it
+      # in your shell or the root .env (this overrides env/local/django.env).
+      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:3000}
     build: server/
     volumes:
       - ./server:/app
@@ -63,6 +68,8 @@ services:
     build: server/
     volumes:
       - ./server:/app
+    environment:
+      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:3000}
     command: ./manage.py camphoric_worker --queue-name '*' --reload
     # Retries while the django service is still migrating.
     restart: unless-stopped

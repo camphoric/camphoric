@@ -1,6 +1,5 @@
 from decimal import Decimal
 import logging
-import random
 import secrets
 import uuid
 import zoneinfo
@@ -584,11 +583,12 @@ class Invitation(TimeStampedModel):
     '''
     An Invitations is emailed as a link with a code for Registration types and is associated
     with a modiefied Registration page.
-    random.choices takes visually unambigious characters and numbers so they can be read as
-    text without confusions (0 vs O etc.).
+    The code uses visually unambigious characters and numbers so it can be read as text
+    without confusions (0 vs O etc.), drawn with `secrets` because it's what lets someone
+    register with the invitation.
     '''
     def invitation_code_default():
-        return ''.join(random.choices('abcdefghjkmnpqrstuvwxyz23456789', k=8))
+        return ''.join(secrets.choice('abcdefghjkmnpqrstuvwxyz23456789') for _ in range(8))
 
     registration = models.ForeignKey(Registration, null=True, on_delete=models.SET_NULL)
     registration_type = models.ForeignKey(RegistrationType, null=True, on_delete=models.CASCADE)

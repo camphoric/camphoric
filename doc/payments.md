@@ -244,7 +244,8 @@ sequenceDiagram
 - **Why approve isn't enough.** Approval only means the payer agreed; the server's capture is
   where money moves, after the server has checked the order is this invoice's and for the amount
   it asks *now*. So a stale page, a tampered amount or an invoice edited meanwhile can't take the
-  wrong amount (#675).
+  wrong amount (#675). The order id comes from the browser, so one that isn't PayPal's shape
+  (`[A-Z0-9]{1,64}`) is refused as an unknown order (`mismatch`) before any call to PayPal (#818).
 - **The capture commits on its own (#804).** The `payment` step, like the pay page, calls
   `capture_paypal_order` with no transaction open. It locks the registration, then the invoice
   (the order every payment step takes them in), and fetches, captures and records in one
@@ -294,9 +295,9 @@ sequenceDiagram
   `PAYPAL_SECRET`, on the same sandbox or live `PAYPAL_BASE_URL`).
 - **The PayPal problem email** (`invoices.send_paypal_problem_report`, kind `payment_report`) goes
   to the event's `confirmation_email_from`, once per order: what happened, who (registration,
-  registrant, campers, an admin link), what for (invoice, amounts, payment type), PayPal's
-  references and error, what the registrant was told, and what to do. Without an event address
-  it's only logged (always at ERROR).
+  registrant, campers, an admin link when `CAMPHORIC_PUBLIC_URL` is set), what for (invoice,
+  amounts, payment type), PayPal's references and error, what the registrant was told, and what
+  to do. Without an event address it's only logged (always at ERROR).
 - **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) asks PayPal about the
   pending order: COMPLETED is recorded; anything else is cleared (no money was taken).
 
@@ -496,7 +497,8 @@ flowchart LR
   the registration invoice (`prepare_registration_invoice`), PayPal (`create_paypal_order`,
   `capture_paypal_order`, `record_capture`, `check_paypal_order`, `check_unrecorded_captures`,
   `refund_paypal_payment`) and the problem email.
-- `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`.
+- `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`;
+  `checked_order_id`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),

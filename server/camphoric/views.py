@@ -26,9 +26,8 @@ from rest_framework.exceptions import APIException, NotFound
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
-from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.throttling import ScopedRateThrottle, SimpleRateThrottle
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from rest_framework.mixins import ListModelMixin
@@ -1100,14 +1099,14 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
             return Response({'password': problems}, status=status.HTTP_400_BAD_REQUEST)
         accounts.set_password(user, password,
                               must_change=request.data.get('require_change', True) is not False)
-        Token.objects.filter(user=user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ChangePasswordView(APIView):
     '''
     POST /api/user/password `{current_password, new_password}` → 204: change
-    your own password (and clear a must-change-password flag). You stay signed in.
+    your own password (and clear a must-change-password flag). You stay signed in
+    here; your API token, if you have one, is removed.
     '''
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1159,8 +1158,8 @@ class PasswordResetView(APIView):
     '''
     A set-password link (SPEC DR-52). GET /api/password-reset/<uid>/<token> →
     `{username}` while the link works; POST `{new_password}` → 204 sets the
-    password (and clears a must-change flag). A used, expired or wrong link is
-    a 400. It doesn't sign the user in.
+    password (and clears a must-change flag) and removes their API token. A
+    used, expired or wrong link is a 400. It doesn't sign the user in.
     '''
     permission_classes = [permissions.AllowAny]
     INVALID = 'This link has expired or has already been used.'
@@ -1187,6 +1186,32 @@ class PasswordResetView(APIView):
 class InvitationError(Exception):
     def __init__(self, user_message):
         self.user_message = user_message
+
+
+def invitation_credentials(request):
+    '''The invitation's email and code the request gives, either possibly None.'''
+    if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
+        return (request.data['invitation'].get('recipient_email'),
+                request.data['invitation'].get('invitation_code'))
+    return request.query_params.get('email'), request.query_params.get('code')
+
+
+class InvitationLookupThrottle(SimpleRateThrottle):
+    '''
+    Looking up an invitation by its email and code — opening the registration
+    page with one, or submitting it (`invitation_lookup`, per client address) —
+    so codes can't be tried quickly. Requests without one aren't throttled.
+    '''
+    scope = 'invitation_lookup'
+
+    def allow_request(self, request, view):
+        email, code = invitation_credentials(request)
+        if not (email and code):
+            return True
+        return super().allow_request(request, view)
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {'scope': self.scope, 'ident': self.get_ident(request)}
 
 
 class PromoCodeRejected(APIException):
@@ -1279,6 +1304,7 @@ queue_report = confirmations.queue_report
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [InvitationLookupThrottle]
 
     def get(self, request, event_id=None, format=None):
         '''
@@ -1492,12 +1518,14 @@ class RegisterView(APIView):
             raise RegistrationNotFound()
 
     @classmethod
-    def locked_registration(cls, request):
+    def locked_registration(cls, request, event):
         '''
         The registration the request names, locked: a repeated or concurrent POST
-        (a retry, a double click) waits for the first, then sees what it did.
+        (a retry, a double click) waits for the first, then sees what it did. Only
+        this event's, whose settings the step checks it against.
         '''
-        return cls.named_registration(request, models.Registration.objects.select_for_update())
+        return cls.named_registration(
+            request, models.Registration.objects.select_for_update().filter(event=event))
 
     @staticmethod
     def payment_type(request, event, online=None):
@@ -1580,7 +1608,7 @@ class RegisterView(APIView):
         if not event.paypal_client_id:
             raise serializers.Conflict('This event doesn\'t take payments online.')
         with transaction.atomic():
-            registration = self.locked_registration(request)
+            registration = self.locked_registration(request, event)
             try:
                 option = self.chosen_option(request, registration)
             except invoices.PaymentProblem as problem:
@@ -1617,9 +1645,9 @@ class RegisterView(APIView):
         payment_type = request.data.get('paymentType') or models.PaymentType.CHECK
         if payment_type in invoices.ONLINE_TYPES:
             self.payment_type(request, event, online=True)
-            return self.capture(request, payment_type)
+            return self.capture(request, event, payment_type)
         with transaction.atomic():
-            registration = self.locked_registration(request)
+            registration = self.locked_registration(request, event)
             self.payment_type(request, event, online=False)
             if registration.completed and not self.payable(registration):
                 # Already paid: the same result again, without a second email.
@@ -1635,7 +1663,7 @@ class RegisterView(APIView):
             confirmations.send_confirmation(registration, request)
             return Response(self.payment_result(request, registration))
 
-    def capture(self, request, payment_type):
+    def capture(self, request, event, payment_type):
         '''
         Capture the approved PayPal order. As on the pay page, no transaction is
         open, so capture_paypal_order's own commits (holding the registration and
@@ -1649,7 +1677,8 @@ class RegisterView(APIView):
                 raise serializers.Conflict(
                     'This page is out of date. Please reload it and try again.')
             raise ValidationError({'paypalOrderId': 'This field is required.'})
-        registration = self.named_registration(request)
+        registration = self.named_registration(
+            request, models.Registration.objects.filter(event=event))
         invoice = invoices.registration_invoice(registration)
         if invoice is None or not registration.completed:
             raise serializers.Conflict('There\'s no PayPal payment waiting for this registration.')
@@ -1660,7 +1689,7 @@ class RegisterView(APIView):
         except invoices.PaymentProblem as raised:
             problem = raised
         with transaction.atomic():
-            registration = self.locked_registration(request)
+            registration = self.locked_registration(request, event)
             if problem is None or problem.code == 'unknown':
                 # After a lost answer money may have moved: the registrant is
                 # told not to pay again, and gets their confirmation now.
@@ -1672,7 +1701,7 @@ class RegisterView(APIView):
     def post_finish(self, request, event):
         '''Finish without paying now: the confirmation says what's still due.'''
         with transaction.atomic():
-            registration = self.locked_registration(request)
+            registration = self.locked_registration(request, event)
             if not registration.completed:
                 raise serializers.Conflict('Choose how to pay first.')
             if registration.confirmation_sent_at is None:
@@ -1856,15 +1885,7 @@ class RegisterView(APIView):
     @classmethod
     def find_invitation(cls, request, event):
         '''The request's invitation to this event, or None; InvitationError if it's no good.'''
-        email, code = None, None
-        if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
-            email = request.data['invitation'].get('recipient_email')
-            code = request.data['invitation'].get('invitation_code')
-        else:
-            params = request.query_params
-            email = params.get('email')
-            code = params.get('code')
-
+        email, code = invitation_credentials(request)
         if not (email and code):
             return None
 

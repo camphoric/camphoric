@@ -5,6 +5,7 @@ DR-45). Mustache emails were converted by migration 0065 (test_mustache).
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from camphoric import models
@@ -62,6 +63,7 @@ class JinjaConfirmationEmailTests(APITestCase):
                          '# Thanks!\n* Pat: $100.00\n* Sam: $100.00\nPaying now: $200.00')
         self.assertIn('<h1>Thanks!</h1>', message.alternatives[0][0])
 
+    @override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
     def test_a_broken_template_reports_to_the_from_address(self):
         set_email(self.event.confirmation_template, body='Hello\n{{ registration.nope.deeper }}')
 
@@ -79,7 +81,15 @@ class JinjaConfirmationEmailTests(APITestCase):
         self.assertIn("ERROR (template, line 2", report.body)
         self.assertIn("registration has no field 'nope'", report.body)
         self.assertIn('{{ registration.nope.deeper }}', report.body)
+        self.assertIn('https://reg.example.org/admin/organization/', report.body)
         self.assertIn(f'registrations?registrationId={registration.id}', report.body)
+
+    def test_a_report_has_no_admin_link_without_the_public_url(self):
+        set_email(self.event.confirmation_template, body='Hello\n{{ registration.nope.deeper }}')
+        with self.assertLogs('camphoric.templating.urls', 'WARNING'):
+            self.register()
+        [report] = mail.outbox
+        self.assertNotIn('registrationId=', report.body)
 
     def test_without_a_from_address_nothing_is_sent(self):
         set_email(self.event.confirmation_template, subject='{{ campers[0].nope.deeper }}')

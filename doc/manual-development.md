@@ -101,7 +101,9 @@ Create a file `server/.env/local/django` with the following lines
 DEBUG=on
 SECRET_KEY=your-django-secret-key-here
 DATABASE_URL=postgres://camphoric:your-database-password-here@127.0.0.1/camphoric
+CAMPHORIC_PUBLIC_URL=http://localhost:3000
 ```
+(`CAMPHORIC_PUBLIC_URL` is where set-password links point: the client's dev server.)
 Fill in the database password, and fill in a value for `SECRET_KEY` from the
 output of the following command:
 ```

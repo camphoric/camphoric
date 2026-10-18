@@ -1,4 +1,6 @@
 import datetime
+from unittest import mock
+
 from django.test import TestCase
 from camphoric import models
 from freezegun import freeze_time
@@ -51,6 +53,12 @@ class InvitationTests(TestCase):
             recipient_email='test@example.com',
         )
         self.assertRegex(self.invitation.invitation_code, r'^[abcdefghjkmnpqrstuvwxyz23456789]{8}$')
+
+    def test_invitation_codes_are_drawn_with_secrets(self):
+        with mock.patch('camphoric.models.secrets.choice', return_value='k') as choice:
+            invitation = models.Invitation.objects.create(recipient_email='test@example.com')
+        self.assertEqual(invitation.invitation_code, 'kkkkkkkk')
+        self.assertEqual(choice.call_count, 8)
 
 
 class LodgingTests(TestCase):
