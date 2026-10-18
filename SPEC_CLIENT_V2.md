@@ -892,7 +892,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   paying, §15, DR-104), `due_on`, `memo` (shown to the payer), `notes` (internal), read-only
   `pending_paypal_order_id`, `paypal_capture_pending` (PayPal captured that order and is still
   processing the capture; §9.7; §15, DR-133), `paypal_capture_lapsed` (and has been for longer
-  than the worker asks about it, so only "Check PayPal order" asks now), `organizer_changed_at` (when a registrar or admin last changed
+  than the worker asks about it, so only "Check PayPal order" asks now), `paypal_capture_held`
+  (PayPal may yet record a payment on it — that capture, or one still being confirmed — so it
+  takes no other payment, its amount and handling don't change, and it's neither cancelled nor
+  deleted), `paypal_order_to_check` (the order "Check PayPal order" asks about: the held
+  capture's, else `pending_paypal_order_id`), `organizer_changed_at` (when a registrar or admin last changed
   its amount, description or handling, or cancelled or reopened it; §15, DR-105),
   `cancelled_at`, `cancel_reason`, `created_by`, `created_by_name`, timestamps; and, worked out
   from its live payments, read-only `total` (`amount + handling`),
@@ -921,7 +925,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     may yet record a payment on — PayPal is processing a payment on it, or a capture on it hasn't
     settled (§9.7; §15, DR-133) — is a 409 `{ detail }`; a cancelled invoice charges no handling.
   - `POST /api/invoices/{id}/check-paypal/` (Registrars and Admins): asks PayPal about the
-    invoice's pending order → `{ result: 'recorded' | 'pending' | 'not_captured', payment,
+    invoice's `paypal_order_to_check` (its pending order, or a held capture's) → `{ result: 'recorded' | 'pending' | 'not_captured', payment,
     invoice }`: an order whose capture PayPal completed is recorded as a payment (once), one
     PayPal is still processing stays pending (`payment` null; asked about for another 30 days if
     its watch had ended; §15, DR-133), and one never captured, or whose capture PayPal declined,
@@ -1425,7 +1429,9 @@ balance, payment status) and works with it. The list holds every completed regis
 is completed once its registrant pressed a payment button, paid or not (§15, DR-91). Payment
 status is Paid (balance 0), Partial (some paid), Unpaid, or Refund due (balance below 0); a
 registration whose registrant chose to pay online and it didn't go through (its registration
-invoice is open with a PayPal order still pending on it, §15, DR-104) says so. For the selected registration
+invoice is open with a PayPal order still pending on it, §15, DR-104) says so — but not one
+PayPal may yet record a payment on, which they did pay; one with a payment PayPal is still
+processing says that instead (§9.7; §15, DR-133). For the selected registration
 they can:
 
 - **Edit core fields and attributes** — registration type, promo code (any of the event's live
@@ -2455,12 +2461,15 @@ section is the contract.
   PayPal may still deny it), nothing is recorded: the order stays the invoice's pending order,
   the invoice says how the payer chose to pay, and the registrant is told their payment is
   processing and not to pay again (the payment step and the pay page). Until it's settled the
-  invoice is held: it takes no other payment — no new PayPal order, the payment step refuses
+  invoice is held: it takes no other payment — no new PayPal order (one PayPal was making as
+  the capture went pending, in another tab, say, isn't kept: 409 `not_payable`), the payment step refuses
   paying by check (409 `not_payable`), and a payment recorded by hand can't go on it (409; one
   recorded without an invoice passes it over) — its amount and handling fee don't change (409),
   and neither it nor its registration can be deleted, nor it cancelled (409; the admin offers
   none of these), since the payment may yet be recorded on it; the admin shows the invoice's
-  PayPal payment as processing. The worker asks PayPal about it every half hour, for 30 days from
+  PayPal payment as processing, the registrations list says PayPal is processing it (not that
+  the online payment didn't go through), and "Check PayPal order" asks about the held capture's
+  order. The worker asks PayPal about it every half hour, for 30 days from
   the capture (a PayPal error waits the half hour too): once PayPal has completed it, it's
   recorded ("Recorded by the worker checking PayPal"), with the handling fee its order added,
   kept on the invoice when the order was made — whatever the event's percent, or what's due, has
@@ -5515,7 +5524,9 @@ registrant and the pay page are told it's processing, and the worker's sweep of 
 PayPal again every half hour for 30 days, recording it once PayPal completes it and settling it
 if PayPal declines it or no longer finds it. One still pending when the 30 days end stays held,
 its order kept, and is no longer asked about: a registrar settles it with "Check PayPal order",
-which answers `pending` for one still processing and starts another 30 days for one whose watch
+which asks about the held capture's order (`paypal_order_to_check`; an order made in another
+tab as the capture went pending is refused, so it can't take that order's place), answers
+`pending` for one still processing and starts another 30 days for one whose watch
 had ended, and releases it when PayPal no longer finds the order as the invoice's. A denied or
 lost capture, and the end of each watch, are emailed to the event, since the registrant was told
 not to pay again (that it's processing, or, after a lost answer, that it couldn't be confirmed)

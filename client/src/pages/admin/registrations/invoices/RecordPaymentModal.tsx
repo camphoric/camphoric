@@ -44,9 +44,9 @@ export function RecordPaymentModal({
   onClose,
 }: RecordPaymentModalProps) {
   const record = useRecordPayment();
-  // Not one PayPal is processing a payment on: it takes no other (§15, DR-133).
+  // Not one PayPal may yet record a payment on: it takes no other (§15, DR-133).
   const open = invoices.filter(
-    (i) => (i.status === 'open' || i.status === 'partially_paid') && !i.paypal_capture_pending,
+    (i) => (i.status === 'open' || i.status === 'partially_paid') && !i.paypal_capture_held,
   );
 
   const [type, setType] = useState<PaymentType>('Check');

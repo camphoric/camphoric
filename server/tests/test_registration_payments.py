@@ -1155,6 +1155,48 @@ class PendingCaptureTests(FlowTestCase):
         [report] = self.reports().filter(dedupe_key__contains='capture_denied')
         self.assertIn('we couldn\'t confirm it with PayPal', report.text)
 
+    def test_an_order_made_as_another_goes_pending_isnt_kept(self):
+        # Two tabs: the first's capture goes pending while PayPal makes the
+        # second's order. The invoice keeps the first, held, order (#767).
+        self.start_paypal()
+        stale = self.invoice()
+        real = invoices.paypal_client
+
+        def client(event):
+            paypal = real(event)
+
+            def create_order(body, request_id=None):
+                now = timezone.now()
+                models.Invoice.objects.filter(pk=stale.pk).update(
+                    paypal_capture_order_id=paypal_mocks.ORDER_ID,
+                    paypal_capture_started_at=now, paypal_capture_pending_at=now)
+                return paypal_mocks.created(order_id='NEXT')
+            paypal.create_order = create_order
+            return paypal
+        with mock.patch('camphoric.invoices.paypal_client', client):
+            with self.assertRaises(invoices.PaymentProblem) as raised:
+                invoices.create_paypal_order(stale, 'PayPal')
+        self.assertEqual(raised.exception.code, 'not_payable')
+        self.assertEqual(self.invoice().pending_paypal_order_id, paypal_mocks.ORDER_ID)
+
+    def test_check_paypal_order_asks_about_the_held_capture(self):
+        # Even should the invoice's pending order be another (#767).
+        self.start_paypal()
+        invoice = self.invoice()
+        now = timezone.now()
+        models.Invoice.objects.filter(pk=invoice.pk).update(
+            pending_paypal_order_id='NEXT', paypal_capture_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_started_at=now, paypal_capture_pending_at=now)
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        result, payment = invoices.check_paypal_order(self.invoice())
+        self.assertEqual((result, payment.amount), ('recorded', D('410.00')))
+        self.assertEqual(self.paypal.requests[-1]['path_query'],
+                         f'/v2/checkout/orders/{paypal_mocks.ORDER_ID}')
+        self.assertFalse(invoices.capture_processing(self.invoice()))
+        shown = self.registrar().get(f'/api/invoices/{invoice.id}/').data
+        self.assertEqual((shown['paypal_capture_held'], shown['paypal_order_to_check']),
+                         (False, None))
+
     def test_check_paypal_order_waits_for_it_then_records_it(self):
         invoice = self.capture_pending()
         self.reply(self.pending(invoice))

@@ -587,6 +587,11 @@ class InvoiceSerializer(ModelSerializer):
     # has been for longer than the worker asks about it.
     paypal_capture_pending = SerializerMethodField()
     paypal_capture_lapsed = SerializerMethodField()
+    # PayPal may yet record a payment on it (that one, or a capture still
+    # being confirmed): no other payment, no change to what it asks, no cancel
+    # or delete; and the order "Check PayPal order" asks about.
+    paypal_capture_held = SerializerMethodField()
+    paypal_order_to_check = SerializerMethodField()
 
     class Meta:
         model = models.Invoice
@@ -606,6 +611,12 @@ class InvoiceSerializer(ModelSerializer):
 
     def get_paypal_capture_lapsed(self, invoice):
         return invoices.capture_watch_lapsed(invoice)
+
+    def get_paypal_capture_held(self, invoice):
+        return invoices.capture_unsettled(invoice)
+
+    def get_paypal_order_to_check(self, invoice):
+        return invoices.order_to_check(invoice)
 
     def validate_registration(self, registration):
         if self.instance is not None and registration != self.instance.registration:
