@@ -135,7 +135,7 @@ frontend_bootstrap/build/
 node_modules/
 
 # Claude Code local preview/launch config
-.claude/launch.json
+.claude/
 
 # Database dumps saved at the repo root (local.sql, live-data.sql,
 # vm-data.sql, ...). postgres-initdb.sql is the compose database's init
