@@ -6,16 +6,17 @@
  * Replace one event's reports with copies of another's, on the server at
  * CAMPHORIC_URL (usually production):
  *
- *     CAMPHORIC_URL=https://<server> ./replace-live-reports.ts <fromEventId> <toEventId>
+ *     CAMPHORIC_ALLOW_REMOTE=1 CAMPHORIC_URL=https://<server> \
+ *       ./replace-live-reports.ts <fromEventId> <toEventId>
  *
  * shows what it would do; add --yes to do it. It logs in as
  * DJANGO_SUPERUSER_USERNAME / DJANGO_SUPERUSER_PASSWORD, and asks for them when
  * neither is set.
  *
- * Once the importer's tools refuse to log in to a server that isn't local
- * (#815), a live server also needs CAMPHORIC_ALLOW_REMOTE=1. Set it on the
- * command line: the script doesn't set it for itself, so pointing at a live
- * server stays a choice made each time.
+ * The importer's tools refuse to log in to a server that isn't local, so a
+ * live server also needs CAMPHORIC_ALLOW_REMOTE=1. Set it on the command line:
+ * the script doesn't set it for itself, so pointing at a live server stays a
+ * choice made each time.
  *
  * It copies every report first, and deletes the target event's old reports
  * only once all the copies are saved. On any failure it exits non-zero, naming
