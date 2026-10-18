@@ -104,7 +104,7 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
   } catch (e) {
     const logs = await compose('logs', '--tail', '50').then(r => r.stdout, () => '');
     await stop().catch(() => {});
-    throw new Error(`the throwaway Camphoric didn't start: ${(e as Error).message}\n${logs}`);
+    throw new Error(`the throwaway Camphoric didn't start: ${(e as Error).message}\n${logs}`, { cause: e });
   } finally {
     process.off('SIGINT', interrupted);
     process.off('SIGTERM', interrupted);
