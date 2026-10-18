@@ -28,9 +28,12 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # ESLint 10 drops the eslintrc config data/ still uses; the flat-config
-      # conversion comes with the upgrade (#725). Remove this then.
+      # ESLint 10 (and @eslint/js 10, which needs it) drops the eslintrc config
+      # data/ still uses; the flat-config conversion comes with the upgrade
+      # (#725). Remove these then.
       - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
     commit-message:
       prefix: fix
