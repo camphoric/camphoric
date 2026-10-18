@@ -1,7 +1,7 @@
 # Releases
 
-Camphoric is deployed by **version**. A release is a Git tag (`vX.Y.Z`) with a matching
-**GitHub Release** that carries everything needed to deploy that exact version:
+A release is a Git tag (`vX.Y.Z`) with a matching **GitHub Release** that carries the release's
+source, its built frontend and its container image:
 
 - **Source archives** — `Source code (zip/tar.gz)`, attached automatically by GitHub (the repo at
   the tag).
@@ -114,7 +114,14 @@ but no task reads them yet ([#797](https://github.com/camphoric/camphoric/issues
 a release this way, check out its tag in that folder first, for example
 `git -C <camphoric_folder> fetch --tags && git -C <camphoric_folder> checkout vX.Y.Z`.
 
-A run of the camphoric role then:
+The playbook and role come from the checkout `ansible-playbook` runs in, not from the host, so run
+it from a checkout of the same tag. A role from another version doesn't match the code it deploys:
+the role on `main` starts gunicorn with uvicorn's workers, which v0.14.0's `Pipfile` doesn't
+install, so it can't start v0.14.0.
+
+The steps below describe the role from the first release after v0.14.0 onward. The role in
+v0.14.0 and earlier clones the v1 frontend from the `js-build-main` branch instead of building
+`client/`, and runs gunicorn on Django's WSGI app. A run of the camphoric role:
 
 1. Fails at its first task, outside `development`, while any secret is left at its placeholder
    default (see below).
@@ -131,8 +138,11 @@ A run of the camphoric role then:
 6. Installs the `camphoric` systemd service (gunicorn behind the `camphoric.socket` unit it also
    installs and starts; uvicorn with `--reload` in `development`) and the `camphoric-worker`
    service, and restarts both, so the new code, build and static files take effect. The
-   playbook's `force_handlers` restarts `camphoric` even when a later task fails, so a run that
-   stops part-way doesn't leave the old process serving the new `index.html` without its bundles.
+   playbook's `force_handlers` restarts `camphoric` even when a task fails, which helps only once
+   collectstatic and the migrations have succeeded: a run that fails after them still restarts
+   onto the new code and static files. If collectstatic fails after the new build is installed,
+   the forced restart serves the new `index.html` without its bundles. If the migrations fail, it
+   runs the new code on the old schema. Either way, fix the cause and run the playbook again.
 7. Installs the nginx site and restarts nginx, and, outside `production`, loads sample data into
    an empty database (only `development` installs the `data/` packages the import needs).
 
