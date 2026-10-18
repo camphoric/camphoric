@@ -50,6 +50,19 @@ export function ErrorMessagesSettings({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  const [rules, setRules] = useState<RegistrationErrorMessages>(
+    () => latest.registration_error_messages ?? {},
+  );
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  const [json, setJson] = useState<string | undefined>(); // defined while editing as JSON
+
+  const show = (next: RegistrationErrorMessages) => {
+    setRules(next);
+    setJson((text) => (text === undefined ? undefined : JSON.stringify(next, null, 2)));
+  };
+
   // The version shown: a newer one shows while nothing here is unsaved.
   const [event, showVersion] = useLatestWhileUnchanged<ApiEvent>(
     latest,
@@ -81,13 +94,6 @@ export function ErrorMessagesSettings({
   );
   const fields = useMemo(() => [...fieldMap.values()], [fieldMap]);
 
-  const [rules, setRules] = useState<RegistrationErrorMessages>(
-    () => latest.registration_error_messages ?? {},
-  );
-  const [dirty, setDirty] = useState(false);
-  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-  const [json, setJson] = useState<string | undefined>(); // defined while editing as JSON
   const [form, setForm] = useState<{ open: boolean; rule?: ErrorMessageRule }>({ open: false });
 
   const change = (next: RegistrationErrorMessages) => {
@@ -122,11 +128,6 @@ export function ErrorMessagesSettings({
       // Shown via jsonParse; keep the last valid rules.
     }
     setDirty(true);
-  };
-
-  const show = (next: RegistrationErrorMessages) => {
-    setRules(next);
-    setJson((text) => (text === undefined ? undefined : JSON.stringify(next, null, 2)));
   };
 
   const save = async () => {

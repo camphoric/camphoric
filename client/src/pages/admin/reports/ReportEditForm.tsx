@@ -101,6 +101,32 @@ export function ReportEditForm({
 }: ReportEditFormProps) {
   const create = reportHooks.useCreate();
   const update = reportHooks.useUpdate({ handlesVersionConflict: true });
+  const [initial, setInitial] = useState(() => startingFrom(latest && reportFields(latest)));
+  const [title, setTitle] = useState(initial.title);
+  const [source, setSource] = useState<ReportVariablesSource>(initial.source);
+  const [output, setOutput] = useState<ReportOutputType>(initial.output);
+  const [template, setTemplate] = useState(initial.template);
+  const [schemaText, setSchemaText] = useState(initial.schemaText);
+
+  const dirty =
+    title !== initial.title ||
+    source !== initial.source ||
+    output !== initial.output ||
+    template !== initial.template ||
+    schemaText !== initial.schemaText;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  const show = (fields: ReportFields) => {
+    setTitle(fields.title);
+    setOutput(fields.output);
+    setTemplate(fields.template);
+    setSource(fields.variables_source);
+    setSchemaText(JSON.stringify(fields.variables_schema ?? {}, null, 2));
+  };
+
   // The version shown: a newer one shows while nothing here is unsaved.
   const [report, showVersion] = useLatestWhileUnchanged<ApiReport>(
     latest,
@@ -121,23 +147,6 @@ export function ReportEditForm({
     true,
   );
 
-  const [initial, setInitial] = useState(() => startingFrom(report && reportFields(report)));
-  const [title, setTitle] = useState(initial.title);
-  const [source, setSource] = useState<ReportVariablesSource>(initial.source);
-  const [output, setOutput] = useState<ReportOutputType>(initial.output);
-  const [template, setTemplate] = useState(initial.template);
-  const [schemaText, setSchemaText] = useState(initial.schemaText);
-
-  const dirty =
-    title !== initial.title ||
-    source !== initial.source ||
-    output !== initial.output ||
-    template !== initial.template ||
-    schemaText !== initial.schemaText;
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   // Who else is editing it (§9.8): held while there are unsaved changes.
   const lease = useEditLease(report ? 'report' : undefined, report?.id ?? 0, dirty);
 
@@ -179,14 +188,6 @@ export function ReportEditForm({
       labels: { confirm: 'Change', cancel: 'Cancel' },
       onConfirm: () => applySource(next),
     });
-  };
-
-  const show = (fields: ReportFields) => {
-    setTitle(fields.title);
-    setOutput(fields.output);
-    setTemplate(fields.template);
-    setSource(fields.variables_source);
-    setSchemaText(JSON.stringify(fields.variables_schema ?? {}, null, 2));
   };
 
   const save = async () => {

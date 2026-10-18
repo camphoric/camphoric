@@ -45,10 +45,19 @@ export function RegistrationTypeForm({
   helpHref,
   deleted = false,
 }: RegistrationTypeFormProps) {
+  const [name, setName] = useState(latest?.name ?? '');
+  const [label, setLabel] = useState(latest?.label ?? '');
+  // A type's invitation template is its own for good (read-only), so every
+  // version of the type names the same one.
+  const invitationEmail = useTemplateDraft(latest?.invitation_template);
+  // Whether the form has changes from the version shown.
+  const differsFrom = (shown: ApiRegistrationType | undefined) =>
+    !!shown && (name !== shown.name || label !== shown.label || invitationEmail.changed);
+
   // The version shown: a newer one shows while nothing here is unsaved.
   const [regType, showVersion] = useLatestWhileUnchanged<ApiRegistrationType>(
     latest,
-    (): boolean => !dirty,
+    (shown): boolean => !differsFrom(shown),
     (record) => {
       setName(record.name);
       setLabel(record.label);
@@ -66,14 +75,10 @@ export function RegistrationTypeForm({
     true,
   );
 
-  const [name, setName] = useState(regType?.name ?? '');
-  const [label, setLabel] = useState(regType?.label ?? '');
   const { canEdit } = usePermissions();
-  const invitationEmail = useTemplateDraft(regType?.invitation_template);
   const { confirmDiscard } = useUnsavedChanges(opened && invitationEmail.changed);
   // Who else is editing it (§9.8): held while the open form has unsaved changes.
-  const dirty =
-    !!regType && (name !== regType.name || label !== regType.label || invitationEmail.changed);
+  const dirty = differsFrom(regType);
   const lease = useEditLease(
     regType && opened ? 'registrationtype' : undefined,
     regType?.id ?? 0,

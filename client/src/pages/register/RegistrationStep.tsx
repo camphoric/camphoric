@@ -63,14 +63,18 @@ export function RegistrationStep() {
   const [sentBefore, setSentBefore] = useState(() =>
     storageKey ? loadSentRegistration(storageKey) : null,
   );
+  // Read again once the config (and with it the storage key) arrives.
+  const [sentBeforeKey, setSentBeforeKey] = useState(storageKey);
+  if (storageKey && storageKey !== sentBeforeKey) {
+    setSentBeforeKey(storageKey);
+    setSentBefore(loadSentRegistration(storageKey));
+  }
   // One saved before the storage key carried the event id may be another
   // event's: offer it only once the server confirms it's this event's.
   const { mutate: checkSent, isPending: checkingSent } = useCheckSentRegistration(eventId);
   useEffect(() => {
-    if (!storageKey) return;
-    const sent = loadSentRegistration(storageKey);
-    setSentBefore(sent);
-    const legacy = sent ? null : loadLegacySentRegistration(storageKey);
+    if (!storageKey || loadSentRegistration(storageKey)) return;
+    const legacy = loadLegacySentRegistration(storageKey);
     if (!legacy) return;
     checkSent(legacy.paymentStep.registrationUUID, {
       onSuccess: (paymentStep) => {
@@ -109,6 +113,25 @@ export function RegistrationStep() {
     config?.invitation,
   );
 
+  const handleChange = (formData: unknown) => {
+    if (!config) return;
+    const data = formData as RegistrationFormData;
+    const nextTotals = calculatePrice(config, data, promo);
+    debug('RegistrationStep onChange', { formData: data, totals: nextTotals });
+    setUpdating(true);
+    setRegistration(data);
+    setTotals(nextTotals);
+    setUpdating(false);
+    debouncedSave(data);
+  };
+
+  // Dev aid: expose the change handler for autofill (SPEC §10).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { regOnChange?: (data: RegistrationFormData) => void }).regOnChange =
+      handleChange;
+  });
+
   if (!config) return null;
 
   const continueSent = () => {
@@ -129,17 +152,6 @@ export function RegistrationStep() {
     pricing: config.pricing,
     formData: registration,
     totals,
-  };
-
-  const handleChange = (formData: unknown) => {
-    const data = formData as RegistrationFormData;
-    const nextTotals = calculatePrice(config, data, promo);
-    debug('RegistrationStep onChange', { formData: data, totals: nextTotals });
-    setUpdating(true);
-    setRegistration(data);
-    setTotals(nextTotals);
-    setUpdating(false);
-    debouncedSave(data);
   };
 
   // The form itself focuses the first field with an error (SPEC §7.1).
@@ -164,12 +176,6 @@ export function RegistrationStep() {
       },
     );
   };
-
-  // Dev aid: expose the change handler for autofill (SPEC §10).
-  if (import.meta.env.DEV) {
-    (window as unknown as { regOnChange?: (data: RegistrationFormData) => void }).regOnChange =
-      handleChange;
-  }
 
   return (
     // The class lets an event's uiSchema hide fields during registration only (SPEC §7.1).

@@ -57,6 +57,7 @@ export function ArrayFieldTemplate(props: ArrayFieldTemplateProps) {
   return (
     <Box id={fieldPathId.$id} className={className}>
       {heading && uiOptions.label !== false && (
+        // eslint-disable-next-line react-hooks/static-components -- the registry's template, the same component every render
         <TitleFieldTemplate
           id={titleId(fieldPathId)}
           title={heading}
@@ -68,6 +69,7 @@ export function ArrayFieldTemplate(props: ArrayFieldTemplateProps) {
         />
       )}
       {description && (
+        // eslint-disable-next-line react-hooks/static-components -- the registry's template, the same component every render
         <ArrayFieldDescriptionTemplate
           description={description}
           fieldPathId={fieldPathId}

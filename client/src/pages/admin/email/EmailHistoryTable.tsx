@@ -17,7 +17,8 @@ import {
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import type { ApiEmailMessage, Paginated } from 'api-types';
-import { useEffect, useState } from 'react';
+import { useHasChanged } from 'hooks/useHasChanged';
+import { useState } from 'react';
 import type { EmailHistoryFilters } from 'store/email';
 
 import {
@@ -59,7 +60,9 @@ export function EmailHistoryTable({
   const change = (patch: EmailHistoryFilters) => onFiltersChange({ ...filters, ...patch, page: 1 });
 
   const [search, setSearch] = useState(filters.q ?? '');
-  useEffect(() => setSearch(filters.q ?? ''), [filters.q]);
+  // The box shows the filter's search whenever that changes.
+  const searchChanged = useHasChanged(filters.q);
+  if (searchChanged) setSearch(filters.q ?? '');
   const applySearch = useDebouncedCallback((q: string) => change({ q }), 400);
 
   const messages = page?.results ?? [];

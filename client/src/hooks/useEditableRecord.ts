@@ -23,7 +23,8 @@
 import type { Scalar } from 'api-types';
 import { openEditConflict } from 'components/EditConflict';
 import { type EditLeaseState, useEditLease } from 'hooks/useEditLease';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useHasChanged } from 'hooks/useHasChanged';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { versionConflict } from 'utils/fetch';
 import { changedFields, isEqual, threeWayMerge } from 'utils/merge';
 
@@ -97,7 +98,9 @@ export function useEditableRecord<R extends VersionedRecord, F extends object>(
   const [state, setState] = useState<Edit<R, F>>(() => fromRecord(record));
   // `save` works across awaits; it reads the latest state from here.
   const latest = useRef(state);
-  latest.current = state;
+  useLayoutEffect(() => {
+    latest.current = state;
+  });
 
   const isDirty = !isEqual(state.base, state.form);
   const lease = useEditLease(model, record.id, isDirty || unsavedElsewhere, alsoRefresh);
@@ -182,10 +185,10 @@ export function useConflictAwareSave<R extends VersionedRecord, F extends object
   const [start, setStart] = useState(() => record && startFrom(record));
   // A form opened again, or for another record (or showing a newer version of
   // it), starts from the record as it is.
-  useEffect(() => {
+  const startsAfresh = useHasChanged(JSON.stringify([record?.id, shown ? record?.version : null]));
+  if (startsAfresh) {
     setStart(record && startFrom(record));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record?.id, shown ? record?.version : undefined]);
+  }
   /** Resolves as `saveResolvingConflicts` does; undefined without a record. */
   return async (form: F, onRebase: (form: F) => void) => {
     if (!record) return undefined;
@@ -231,16 +234,13 @@ export function useLatestWhileUnchanged<R extends VersionedRecord>(
   };
   // Another record (or none) starts from it as it is.
   const current = shown?.id === record?.id ? shown : record;
+  if (current !== shown) setShown(current);
   // After every render: whether the form is unchanged is the form's to say, now.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (current !== shown) setShown(current);
-    else if (
-      record &&
-      current &&
-      isNewerVersion(record.version, current.version) &&
-      unchanged(current)
-    )
+    if (record && current && isNewerVersion(record.version, current.version) && unchanged(current))
+      // The form's `show` puts the version in the form's own state (a Mantine
+      // form's included), which isn't for doing during render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       showVersion(record);
   });
   return [current, showVersion];

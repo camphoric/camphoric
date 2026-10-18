@@ -23,6 +23,7 @@ import {
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiInvoice, ApiPayment, PaymentType } from 'api-types';
+import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRecordPayment, useRefundPayPal } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
@@ -68,8 +69,9 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
   // another payment's refund must not be (§15, DR-122).
   const requestIds = useRef(new Map<number, string>());
 
-  useEffect(() => {
-    if (!target) return;
+  // Start afresh each time it opens.
+  const opening = useHasChanged(target);
+  if (opening && target) {
     const fromPayPal =
       target.payment?.paypal_refundable ?? (!target.payment && paypalPayments.length > 0);
     setMode(fromPayPal ? 'paypal' : 'record');
@@ -79,10 +81,12 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
     setType(target.payment?.payment_type ?? 'Check');
     setReason('');
     setPaidOn('');
+  }
+  useEffect(() => {
+    if (!target) return;
     requestIds.current = new Map();
     refundPayPal.reset();
     record.reset();
-    // Start afresh each time it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
 

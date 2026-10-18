@@ -35,6 +35,7 @@ export function WidgetFrame({ children, ...props }: WidgetProps & { children: Re
       )}
       {!hideLabel && description && (
         <Box className="widget-description" fz="xs" lh={1.2} mb={5}>
+          {/* eslint-disable-next-line react-hooks/static-components -- the registry's template, the same component every render */}
           <DescriptionFieldTemplate
             id={descriptionId(id)}
             description={description}

@@ -79,10 +79,51 @@ export function LodgingNodeForm({
   onClose,
   deleted = false,
 }: LodgingNodeFormProps) {
+  const [name, setName] = useState(latest?.name ?? '');
+  const [childrenTitle, setChildrenTitle] = useState(latest?.children_title ?? '');
+  const [capacity, setCapacity] = useState<number | string>(latest?.capacity ?? 0);
+  const [reserved, setReserved] = useState<number | string>(latest?.reserved ?? 0);
+  const [sharingMultiplier, setSharingMultiplier] = useState<number | string>(
+    latest?.sharing_multiplier ?? 1,
+  );
+  const [visible, setVisible] = useState(latest?.visible ?? true);
+  const [availability, setAvailability] = useState<LodgingAvailability>(
+    latest?.availability ?? 'auto',
+  );
+  const [notes, setNotes] = useState(latest?.notes ?? '');
+
+  // Whether the form has changes from the version shown.
+  const differsFrom = (shown: ApiLodging | undefined) =>
+    !!shown &&
+    !isEqual(
+      {
+        name,
+        children_title: childrenTitle,
+        capacity: num(capacity),
+        reserved: num(reserved),
+        sharing_multiplier: num(sharingMultiplier),
+        visible,
+        availability,
+        notes,
+      },
+      lodgingFields(shown),
+    );
+
+  const show = (fields: LodgingFields) => {
+    setName(fields.name);
+    setChildrenTitle(fields.children_title);
+    setCapacity(fields.capacity);
+    setReserved(fields.reserved);
+    setSharingMultiplier(fields.sharing_multiplier);
+    setVisible(fields.visible);
+    setAvailability(fields.availability);
+    setNotes(fields.notes);
+  };
+
   // The version shown: a newer one shows while nothing here is unsaved.
   const [node, showVersion] = useLatestWhileUnchanged<ApiLodging>(
     latest,
-    (): boolean => !dirty,
+    (shown): boolean => !differsFrom(shown),
     (record) => show(lodgingFields(record)),
   );
   const create = lodgingHooks.useCreate();
@@ -100,47 +141,9 @@ export function LodgingNodeForm({
     true,
   );
 
-  const [name, setName] = useState(node?.name ?? '');
-  const [childrenTitle, setChildrenTitle] = useState(node?.children_title ?? '');
-  const [capacity, setCapacity] = useState<number | string>(node?.capacity ?? 0);
-  const [reserved, setReserved] = useState<number | string>(node?.reserved ?? 0);
-  const [sharingMultiplier, setSharingMultiplier] = useState<number | string>(
-    node?.sharing_multiplier ?? 1,
-  );
-  const [visible, setVisible] = useState(node?.visible ?? true);
-  const [availability, setAvailability] = useState<LodgingAvailability>(
-    node?.availability ?? 'auto',
-  );
-  const [notes, setNotes] = useState(node?.notes ?? '');
-
   // Who else is editing it (§9.8): held while the open form has unsaved changes.
-  const dirty =
-    !!node &&
-    !isEqual(
-      {
-        name,
-        children_title: childrenTitle,
-        capacity: num(capacity),
-        reserved: num(reserved),
-        sharing_multiplier: num(sharingMultiplier),
-        visible,
-        availability,
-        notes,
-      },
-      lodgingFields(node),
-    );
+  const dirty = differsFrom(node);
   const lease = useEditLease(node && opened ? 'lodging' : undefined, node?.id ?? 0, dirty);
-
-  const show = (fields: LodgingFields) => {
-    setName(fields.name);
-    setChildrenTitle(fields.children_title);
-    setCapacity(fields.capacity);
-    setReserved(fields.reserved);
-    setSharingMultiplier(fields.sharing_multiplier);
-    setVisible(fields.visible);
-    setAvailability(fields.availability);
-    setNotes(fields.notes);
-  };
 
   const save = async () => {
     if (!name.trim()) return;

@@ -88,6 +88,36 @@ export function GroupTemplateEditor({
   helpBase,
   onDone,
 }: GroupTemplateEditorProps) {
+  const [name, setName] = useState(latest?.name ?? '');
+  const [audience, setAudience] = useState<EmailAudience>(() => audienceOf(latest));
+  const [account, setAccount] = useState<number | null>(latest?.account ?? null);
+  const [fromEmail, setFromEmail] = useState(latest?.from_email ?? '');
+  const [replyTo, setReplyTo] = useState(latest?.reply_to ?? '');
+  const [subject, setSubject] = useState(latest?.subject ?? '');
+  const [body, setBody] = useState(latest?.body ?? '');
+
+  const edits = editsOf({
+    name,
+    ...audience,
+    account,
+    from_email: fromEmail,
+    reply_to: replyTo,
+    subject,
+    body,
+  });
+  const [initialEdits, setInitialEdits] = useState(edits);
+  const dirty = edits !== initialEdits;
+
+  const show = ({ name, account, from_email, reply_to, subject, body, ...audience }: Fields) => {
+    setName(name);
+    setAudience(audience);
+    setAccount(account);
+    setFromEmail(from_email);
+    setReplyTo(reply_to);
+    setSubject(subject);
+    setBody(body);
+  };
+
   // The version shown: a newer one shows while nothing here is unsaved.
   const [template, showVersion] = useLatestWhileUnchanged<ApiEmailTemplate>(
     latest,
@@ -114,25 +144,6 @@ export function GroupTemplateEditor({
   );
   const { data: accounts } = emailAccountHooks.useList({ organization: organizationId });
 
-  const [name, setName] = useState(template?.name ?? '');
-  const [audience, setAudience] = useState<EmailAudience>(() => audienceOf(template));
-  const [account, setAccount] = useState<number | null>(template?.account ?? null);
-  const [fromEmail, setFromEmail] = useState(template?.from_email ?? '');
-  const [replyTo, setReplyTo] = useState(template?.reply_to ?? '');
-  const [subject, setSubject] = useState(template?.subject ?? '');
-  const [body, setBody] = useState(template?.body ?? '');
-
-  const edits = editsOf({
-    name,
-    ...audience,
-    account,
-    from_email: fromEmail,
-    reply_to: replyTo,
-    subject,
-    body,
-  });
-  const [initialEdits, setInitialEdits] = useState(edits);
-  const dirty = edits !== initialEdits;
   const { confirmDiscard, release } = useUnsavedChanges(dirty);
   // Who else is editing it (§9.8): held while there are unsaved changes.
   const lease = useEditLease(template ? 'emailtemplate' : undefined, template?.id ?? 0, dirty);
@@ -172,16 +183,6 @@ export function GroupTemplateEditor({
   ]
     .filter(Boolean)
     .join(', ');
-
-  const show = ({ name, account, from_email, reply_to, subject, body, ...audience }: Fields) => {
-    setName(name);
-    setAudience(audience);
-    setAccount(account);
-    setFromEmail(from_email);
-    setReplyTo(reply_to);
-    setSubject(subject);
-    setBody(body);
-  };
 
   const save = async () => {
     const fields = {

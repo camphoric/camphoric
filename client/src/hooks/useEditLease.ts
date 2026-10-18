@@ -20,7 +20,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ApiEditLease, Scalar } from 'api-types';
 import { useCurrentUser } from 'hooks/auth';
 import { usePermissions } from 'hooks/permissions';
-import { useEffect, useRef, useState } from 'react';
+import { useHasChanged } from 'hooks/useHasChanged';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CLIENT_ID, leaseKey, releaseLease, takeLease, useRecordLease } from 'store/leases';
 import { ENTITY_OF_MODEL } from 'store/liveModels';
 import { ApiError } from 'utils/fetch';
@@ -73,7 +74,9 @@ export function useEditLease(
   const wantsLease = !!model && canEdit && (isDirty || tookOver) && !refused;
   // Whether a take that comes back now is still wanted.
   const wanted = useRef(wantsLease);
-  wanted.current = wantsLease;
+  useLayoutEffect(() => {
+    wanted.current = wantsLease;
+  });
 
   // Show a lease now, over any look at it still on its way.
   const show = (lease: ApiEditLease | null) => {
@@ -120,9 +123,8 @@ export function useEditLease(
   const other = (data && !isMine(data) ? data : null) ?? refused;
 
   // Their lease has ended: this tab may hold it again…
-  useEffect(() => {
-    if (data === null) setRefused(null);
-  }, [data]);
+  const leaseChanged = useHasChanged(data);
+  if (leaseChanged && data === null && refused) setRefused(null);
 
   // …and the record is fetched afresh, with whatever they saved.
   const hadOther = useRef(false);
@@ -138,6 +140,8 @@ export function useEditLease(
 
   useEffect(() => {
     if (!wantsLease) return;
+    // It sets state only once the server answers, not as the effect runs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void take();
     const timer = setInterval(() => void take(), RENEW_MS);
     return () => clearInterval(timer);

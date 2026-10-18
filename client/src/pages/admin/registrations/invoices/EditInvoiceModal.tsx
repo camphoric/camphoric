@@ -14,6 +14,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiInvoice } from 'api-types';
 import { FormActions } from 'components/FormActions';
 import { useConflictAwareSave } from 'hooks/useEditableRecord';
+import { useHasChanged } from 'hooks/useHasChanged';
 import { handlingFee } from 'pricing';
 import { useEffect, useState } from 'react';
 import { invoiceHooks } from 'store/entities';
@@ -73,11 +74,11 @@ export function EditInvoiceModal({
     setNotes(fields.notes);
   };
 
+  // Reset only when a different invoice opens.
+  const opening = useHasChanged(invoice?.id);
+  if (opening && invoice) show(invoice);
   useEffect(() => {
-    if (!invoice) return;
-    show(invoice);
-    update.reset();
-    // Reset only when a different invoice opens.
+    if (invoice) update.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice?.id]);
 

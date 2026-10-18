@@ -80,6 +80,12 @@ function SchemaEditor({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  const [text, setText] = useState(() => stringify(latest[field]));
+  // The text as last opened or saved, to tell what's unsaved.
+  const [savedText, setSavedText] = useState(text);
+  const dirty = text !== savedText;
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
   // The version shown: a newer one shows while nothing here is unsaved.
   const [event, showVersion] = useLatestWhileUnchanged<ApiEvent>(
     latest,
@@ -98,12 +104,6 @@ function SchemaEditor({
     },
     true,
   );
-  const [text, setText] = useState(() => stringify(latest[field]));
-  // The text as last opened or saved, to tell what's unsaved.
-  const [savedText, setSavedText] = useState(text);
-  const dirty = text !== savedText;
-  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
-  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   const parseError = useMemo(() => {
     try {
