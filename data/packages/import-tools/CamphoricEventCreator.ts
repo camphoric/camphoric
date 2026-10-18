@@ -384,7 +384,9 @@ export default class CamphoricEventCreator extends Fetcher {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': token,
+          // Signed in, so the server's throttle on anonymous registration steps
+          // (#801) leaves the sample registrations alone.
+          'Authorization': `Token ${token}`,
         },
         body: JSON.stringify({
           step: 'registration',
@@ -437,7 +439,9 @@ export default class CamphoricEventCreator extends Fetcher {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': token,
+          // Signed in, so the server's throttle on anonymous registration steps
+          // (#801) leaves the sample registrations alone.
+          'Authorization': `Token ${token}`,
         },
         body: JSON.stringify(body),
       });
