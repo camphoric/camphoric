@@ -17,20 +17,20 @@ D = Decimal
 
 
 class InvoicePayTestCase(paypal_mocks.PayPalServerMixin, APITestCase):
-    def setUp(self):
-        super().setUp()
-        self.made = create_template_event()
-        event = self.made.event
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        event = cls.made.event
         event.paypal_client_id = 'client'
         event.epayment_handling = D('2.5')
         event.save()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
-        self.reporter = make_user(roles.REPORTER, 'rita')
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+        cls.reporter = make_user(roles.REPORTER, 'rita')
         # Pat's $825 check invoice, with $100 paid: $725 due (#623).
-        self.invoice = self.made.i1
-        self.invoice.notes = 'Promised by June'
-        self.invoice.memo = 'Thanks!'
-        self.invoice.save()
+        cls.invoice = cls.made.i1
+        cls.invoice.notes = 'Promised by June'
+        cls.invoice.memo = 'Thanks!'
+        cls.invoice.save()
 
     def page(self, invoice=None, status=200):
         invoice = invoice or self.invoice

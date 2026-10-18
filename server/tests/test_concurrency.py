@@ -19,9 +19,13 @@ from tests.factories import create_template_event, make_user
 
 
 class VersionTestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        self.client.force_authenticate(self.registrar)
 
     def version(self, row):
         return type(row)._base_manager.get(pk=row.pk).version
@@ -193,12 +197,13 @@ class IfMatchTests(VersionTestCase):
 
 
 class InvoiceTests(VersionTestCase):
-    def setUp(self):
-        super().setUp()
-        self.invoice = models.Invoice.objects.create(
-            registration=self.made.r1, origin=models.InvoiceOrigin.ADMIN,
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.invoice = models.Invoice.objects.create(
+            registration=cls.made.r1, origin=models.InvoiceOrigin.ADMIN,
             description='Extra night', amount=Decimal('50.00'))
-        self.path = f'/api/invoices/{self.invoice.id}/'
+        cls.path = f'/api/invoices/{cls.invoice.id}/'
 
     def test_an_edit_checks_the_version(self):
         version = self.version(self.invoice)
@@ -233,7 +238,7 @@ class SimultaneousWriteTests(TransactionTestCase):
     def run_together(self, *requests):
         '''Run (method, path, data) requests in threads that meet just before repricing.'''
         user = make_user(roles.REGISTRAR, 'reggie')
-        barrier = threading.Barrier(len(requests), timeout=2)
+        barrier = threading.Barrier(len(requests), timeout=1)
         reprice = models.Registration.recalculate_server_pricing
 
         def meet_then_reprice(registration):

@@ -226,12 +226,15 @@ Keep non-trivial logic in dedicated modules, not in fat views or models:
 
 - Tests are **centralized** in `server/tests/` (not per-app), named `test_<area>.py`, using
   Django's `TestCase` / DRF's `APITestCase` (no pytest, no factory_boy). Create fixtures with
-  the ORM directly in `setUp()`.
+  the ORM directly, in `setUpTestData()` where every test of the class starts from the same
+  rows (each test's changes are rolled back, and it gets its own copy of the objects). Keep
+  client sign-ins, mocks and patches in `setUp()`.
 - Use **`freezegun`**'s `@freeze_time(...)` for any time-dependent behavior (timestamps,
   registration windows, pricing dates).
 - Mock external HTTP (PayPal) with the existing `MockServer` helper; assert on emails via
   `django.core.mail.outbox`.
-- Run with `python manage.py test`. **Cover pricing, lodging, and any schema/validation logic**
+- Run with `python manage.py test --parallel auto` (as CI does; tests must not depend on their
+  order or share state outside the database). **Cover pricing, lodging, and any schema/validation logic**
   — these are the high-risk areas — and add a failing-then-passing test when fixing a bug.
 
 ## Migrations and tooling

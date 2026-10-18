@@ -15,10 +15,13 @@ from tests.factories import create_template_event, make_user
 
 
 class LeaseTestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.reggie = make_user(roles.REGISTRAR, 'reggie', first_name='Reggie')
+        cls.alex = make_user(roles.REGISTRAR, 'alex')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.reggie = make_user(roles.REGISTRAR, 'reggie', first_name='Reggie')
-        self.alex = make_user(roles.REGISTRAR, 'alex')
         self.client.force_authenticate(self.reggie)
 
     def take(self, client_id='tab-1', takeover=False, model='camper', object_id=None,

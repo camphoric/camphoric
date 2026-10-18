@@ -134,8 +134,11 @@ environment variable and mount point.
 To test that the setup went correctly run:
 
 ```
-docker compose exec django python manage.py test
+docker compose exec django python manage.py test --parallel auto
 ```
+
+`--parallel auto` runs a worker per CPU, each on its own copy of the test database; leave it
+out to run them one at a time. Add `--keepdb` to reuse the test database between runs.
 
 ### Validating the event data
 
@@ -322,7 +325,8 @@ Note:
 ### Writing tests
 
 It is recommended that you write tests. All tests are run when you run the
-`docker compose exec django python manage.py test` command.
+`docker compose exec django python manage.py test --parallel auto` command (see
+[Run the tests](#run-the-tests)).
 
 It is recommended that you look at the existing tests in the 'server/tests/'
 directory.  These should give you a good idea about what tests exist, and how

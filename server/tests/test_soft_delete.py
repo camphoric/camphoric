@@ -11,13 +11,16 @@ from tests.factories import create_template_event, make_user
 
 
 class SoftDeleteTestCase(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
-        self.client.force_authenticate(self.registrar)
-        self.report = models.Report.objects.create(
-            event=self.made.event, title='Counts', output='txt', variables_source='server',
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+        cls.report = models.Report.objects.create(
+            event=cls.made.event, title='Counts', output='txt', variables_source='server',
             template='{{ campers | length }} {{ payments | length }}')
+
+    def setUp(self):
+        self.client.force_authenticate(self.registrar)
 
     def delete(self, path):
         response = self.client.delete(path)
@@ -161,9 +164,10 @@ class CamperTests(SoftDeleteTestCase):
 class PaymentTests(SoftDeleteTestCase):
     '''Only Admins delete payments (SPEC DR-93); Registrars may restore them.'''
 
-    def setUp(self):
-        super().setUp()
-        self.admin = make_user(roles.ADMIN, 'boss')
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.admin = make_user(roles.ADMIN, 'boss')
 
     def test_a_deleted_payment_is_gone_until_restored(self):
         made = self.made

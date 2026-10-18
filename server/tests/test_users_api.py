@@ -109,6 +109,8 @@ class EditTests(UsersApiTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(roles.role_of(User.objects.get(id=self.pat.id)), roles.REGISTRAR)
         self.assertEqual(self.patch(self.pat, role=None).data['role'], None)
+        self.assertEqual(self.patch(self.pat, email='pat@example.org').status_code, 200)
+        self.assertEqual(User.objects.get(id=self.pat.id).email, 'pat@example.org')
 
     def test_guard_rails(self):
         self.as_user(self.boss)
@@ -213,7 +215,11 @@ class DjangoAccessAccountTests(UsersApiTestCase):
 
     def test_admins_still_see_them(self):
         self.as_user(self.boss)
-        usernames = [user['username'] for user in self.client.get('/api/users/').data]
+        listed = {user['username']: user for user in self.client.get('/api/users/').data}
+        usernames = list(listed)
+        # A superuser is always an Admin; no password is ever listed.
+        self.assertEqual(listed['root']['role'], 'admin')
+        self.assertNotIn('password', listed['root'])
         for target in (self.root, self.dev):
             self.assertIn(target.username, usernames)
             self.assertEqual(self.client.get(f'/api/users/{target.id}/').status_code, 200)

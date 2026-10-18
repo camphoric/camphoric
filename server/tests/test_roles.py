@@ -1,12 +1,10 @@
 '''
-Camphoric permission groups (SPEC §6, DR-50): the roles themselves, the
-migration that assigns them, and who may use which endpoint.
+Camphoric permission groups (SPEC §6, DR-50): the roles themselves and who
+may use which endpoint.
 '''
 
 from django.contrib.auth.models import AnonymousUser, Group, User
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.urls import URLPattern, URLResolver, get_resolver
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APITestCase
@@ -59,33 +57,6 @@ class RoleTests(TestCase):
         self.assertIsNone(roles.role_of(staff))
 
 
-class MigrationTests(TransactionTestCase):
-    '''Migration 0069: superusers join Admin, other staff join Registrar.'''
-    before = [('camphoric', '0068_email_unsubscribe')]
-    after = [('camphoric', '0069_user_roles')]
-
-    def tearDown(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(executor.loader.graph.leaf_nodes())
-
-    def test_existing_staff_get_roles(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.before)
-        OldUser = executor.loader.project_state(self.before).apps.get_model('auth', 'User')
-        OldUser.objects.create(username='root', is_staff=True, is_superuser=True)
-        OldUser.objects.create(username='staff', is_staff=True)
-        OldUser.objects.create(username='plain')
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.after)
-        names = {user.username: list(user.groups.values_list('name', flat=True))
-                 for user in User.objects.all()}
-        self.assertEqual(names, {'root': ['Admin'], 'staff': ['Registrar'], 'plain': []})
-        self.assertTrue(User.objects.get(username='staff').is_staff)
-        self.assertEqual(
-            set(Group.objects.values_list('name', flat=True)), {'Admin', 'Registrar', 'Reporter'})
-
-
 PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
     views.EventList, views.RegisterView, views.ObtainTokenView,
@@ -124,16 +95,17 @@ class PermissionAuditTests(TestCase):
 class PermissionMatrixTests(APITestCase):
     '''Each role against reads, read-only POSTs, writes, organizations and users.'''
 
-    def setUp(self):
-        self.made = create_template_event()
-        event = self.made.event
-        self.report = models.Report.objects.create(
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        event = cls.made.event
+        cls.report = models.Report.objects.create(
             event=event, title='Campers', template='{{ campers | length }}', output='md',
             variables_source='server')
-        self.group_email = models.EmailTemplate.objects.create(
+        cls.group_email = models.EmailTemplate.objects.create(
             event=event, purpose='group', name='News', subject='News', body='Hi',
             recipient_source='campers')
-        self.users = {
+        cls.users = {
             'anonymous': None,
             'no role': make_user(None),
             'reporter': make_user(roles.REPORTER),

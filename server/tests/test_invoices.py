@@ -18,12 +18,15 @@ D = Decimal
 
 
 class InvoiceTestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+        cls.admin = make_user(roles.ADMIN, 'boss')
+        cls.reporter = make_user(roles.REPORTER, 'rita')
+
     def setUp(self):
         super().setUp()
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
-        self.admin = make_user(roles.ADMIN, 'boss')
-        self.reporter = make_user(roles.REPORTER, 'rita')
         self.client.force_authenticate(self.registrar)
 
     def ledger(self, registration):
@@ -325,9 +328,10 @@ class PaymentOptionTests(APITestCase):
 
 
 class PayPalTestCase(paypal_mocks.PayPalServerMixin, InvoiceTestCase):
-    def setUp(self):
-        super().setUp()
-        event = self.made.event
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        event = cls.made.event
         event.paypal_client_id = 'client'
         event.epayment_handling = D('2.5')
         event.save()
@@ -361,11 +365,12 @@ class CheckPayPalOrderTests(PayPalTestCase):
 
 
 class RefundThroughPayPalTests(PayPalTestCase):
-    def setUp(self):
-        super().setUp()
-        self.invoice = registration_invoice(self.made.r1, 'PayPal', D('100.00'))
-        self.paid = models.Payment.objects.create(
-            registration=self.made.r1, invoice=self.invoice, payment_type='PayPal',
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.invoice = registration_invoice(cls.made.r1, 'PayPal', D('100.00'))
+        cls.paid = models.Payment.objects.create(
+            registration=cls.made.r1, invoice=cls.invoice, payment_type='PayPal',
             amount=D('102.50'), paypal_transaction_id=paypal_mocks.CAPTURE_ID)
 
     def refund(self, amount, request_id=None, status=201):

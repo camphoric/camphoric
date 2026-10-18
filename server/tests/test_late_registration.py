@@ -12,9 +12,13 @@ from tests.factories import create_template_event, make_user
 
 
 class AddCamperTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        self.client.force_authenticate(self.registrar)
 
     def add(self, attributes, status=201):
         response = self.client.post('/api/campers/', {
@@ -50,9 +54,13 @@ class AddCamperTests(APITestCase):
 
 @override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
 class InvitationLinkTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+
     def setUp(self):
-        self.made = create_template_event()
-        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        self.client.force_authenticate(self.registrar)
 
     def test_an_invitation_carries_its_registration_link(self):
         invitation = models.Invitation.objects.create(

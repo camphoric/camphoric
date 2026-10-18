@@ -19,9 +19,10 @@ def entries_for(instance):
 
 
 class CreditTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
 
     def patch_registration(self):
         return self.client.patch(
@@ -82,8 +83,9 @@ class CreditTests(APITestCase):
 
 
 class WhatIsRecordedTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
 
     def test_paypal_replies_are_left_out_and_pricing_kept(self):
         registration = self.made.r1
@@ -123,9 +125,10 @@ class WhatIsRecordedTests(APITestCase):
 
 
 class HistoryTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
 
     def history(self, path):
         self.client.force_authenticate(self.registrar)
@@ -204,10 +207,11 @@ class HistoryTests(APITestCase):
 
 
 class UserHistoryTests(APITestCase):
-    def setUp(self):
-        self.made = create_template_event()
-        self.registrar = make_user(roles.REGISTRAR, 'reggie')
-        self.admin = make_user(roles.ADMIN, 'boss')
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+        cls.registrar = make_user(roles.REGISTRAR, 'reggie')
+        cls.admin = make_user(roles.ADMIN, 'boss')
 
     def edit_as(self, user, comments):
         self.client.force_authenticate(user)

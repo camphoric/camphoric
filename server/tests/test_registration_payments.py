@@ -49,6 +49,7 @@ class Flow(paypal_mocks.PayPalServerMixin):
             'registrant_email': 'pat@example.com', 'campers': [{}]}, pricingResults={})
         self.uuid = response.data['registrationUUID']
         self.options = response.data['paymentOptions']['options']
+        self.handling_percent = response.data['handlingPercent']
 
     @property
     def registration(self):
@@ -87,6 +88,7 @@ class OptionsTests(FlowTestCase):
              'handling': 10.0},
             {'name': 'Deposit', 'title': '50% Deposit', 'amount': 200.0, 'handling': 5.0},
         ])
+        self.assertEqual(self.handling_percent, 2.5)
 
     def test_an_unknown_option_is_refused(self):
         self.post(400, step='payment', registrationUUID=self.uuid, paymentType='Check',
@@ -166,6 +168,9 @@ class CheckTests(FlowTestCase):
         invoice = self.invoice()
         self.assertEqual((invoice.amount, invoice.handling, invoice.payment_type, invoice.status),
                          (D('200.00'), D('0.00'), 'Check', 'open'))
+        # Nothing is paid until the check arrives, and paying by check adds no fee.
+        self.assertFalse(registration.payment_set.exists())
+        self.assertFalse(registration.pricing_overrides.exists())
         self.assertEqual(response.data['ledger']['balance'], 400)
         self.assertEqual(len(self.confirmations()), 1)
         # It's in the admin lists now.
