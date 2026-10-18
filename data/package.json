@@ -23,7 +23,7 @@
     "@camphoric/camphoric-event-lark": "^1.0.0",
     "@camphoric/camphoric-event-ltacampout": "^1.0.0",
     "@camphoric/camphoric-event-sample-camp": "*",
-    "dotenv": "^18.0.7",
+    "dotenv": "^18.0.8",
     "tsx": "^4.23.15"
   },
   "devDependencies": {
