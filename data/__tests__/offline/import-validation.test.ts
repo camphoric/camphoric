@@ -35,13 +35,14 @@ const SCHEMA_CHECKS = fileURLToPath(
 );
 const canRunSchemaChecks = process.env.CI === 'true' || (existsSync(SCHEMA_CHECKS)
   && spawnSync('python3', ['--version']).status === 0);
+const schemaTest = canRunSchemaChecks ? test : test.skip;
 
 describe.each(Object.keys(EVENTS) as EventName[])('data/%s', (name) => {
   const load = EVENTS[name];
 
   describeEventModule(load);
 
-  (canRunSchemaChecks ? test : test.skip)(
+  schemaTest(
     canRunSchemaChecks
       ? "passes the server's form and pricing checks"
       : "passes the server's form and pricing checks (skipped: needs server/ and python3)",

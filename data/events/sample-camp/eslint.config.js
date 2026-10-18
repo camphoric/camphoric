@@ -36,11 +36,15 @@ export default tseslint.config(
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.node,
+      // ESLint resolves each file's config from its own folder, so linting
+      // from data/ loads this config and each event's; typescript-eslint
+      // can't then guess which folder's tsconfig a file belongs to.
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
     },
     rules: {
       indent: ['error', 2],
       'linebreak-style': ['error', 'unix'],
-      quotes: ['error', 'single'],
+      quotes: ['error', 'single', { avoidEscape: true }],
       semi: ['error', 'always'],
       'no-duplicate-imports': 'error',
     },

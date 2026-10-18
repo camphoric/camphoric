@@ -53,7 +53,7 @@ export async function waitForServer(urlBase: string, {
   log = console.log,
 } = {}): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  let lastProblem = '';
+  let lastProblem: string;
   for (let attempt = 0; ; attempt += 1) {
     try {
       const response = await fetchImpl(`${urlBase}/api/set-csrf-cookie`);
