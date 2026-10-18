@@ -3,14 +3,14 @@
  * endpoint (GET /api/user) is the source of truth for the current user and
  * doubles as the cheap session/keep-alive check.
  *
- * The query cache holds one user's data (SPEC §6, DR-116): it is emptied on
+ * The query cache holds one user's data (SPEC §6, DR-117): it is emptied on
  * sign-out, and reset whenever whoami turns into a different signed-in user —
  * by a sign-in here, or by a whoami refetch after a sign-in in another tab.
  */
 
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { anonymousUser, type ApiUser } from 'api-types';
-import { useEffect } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { apiFetch } from 'utils/fetch';
 
 export const WHOAMI_KEY = ['WhoAmI'] as const;
@@ -50,17 +50,34 @@ function watchSignedInUser(client: QueryClient) {
   });
 }
 
-/** The current user, or the anonymous user when logged out. */
+/**
+ * Whose admin is mounted, from the admin guard (SPEC §6; §15 DR-127). It stays
+ * theirs while their session has lapsed and they're asked to sign in again.
+ */
+export const AdminUserContext = createContext<ApiUser | null>(null);
+
+/**
+ * The current user, or the anonymous user when logged out. Inside the admin,
+ * while a lapsed session waits to be signed back into, it's still the user
+ * whose admin it is, so what depends on them (their permissions, their edit
+ * leases) holds still underneath the prompt (DR-127).
+ */
 export function useCurrentUser() {
   const client = useQueryClient();
+  const adminUser = useContext(AdminUserContext);
   useEffect(() => {
     watchSignedInUser(client);
   }, [client]);
-  return useQuery({
+  const query = useQuery({
     queryKey: WHOAMI_KEY,
     queryFn: ({ signal }) => apiFetch<ApiUser>('/api/user', { signal }),
     staleTime: 10_000,
   });
+  // Only while the admin waits, inert, to be signed back into, so observing every
+  // change to the query costs nothing that matters.
+  // eslint-disable-next-line @tanstack/query/no-rest-destructuring
+  if (adminUser && !isAuthenticated(query.data)) return { ...query, data: adminUser };
+  return query;
 }
 
 export function isAuthenticated(user: ApiUser | undefined): boolean {
@@ -87,11 +104,20 @@ export function useLogin() {
   });
 }
 
+/**
+ * Told when the user signs out on purpose (SPEC §6; §15 DR-127): the admin guard
+ * then shows the sign-in page in place of the admin (in every tab), rather than
+ * offering to sign back in over it as it does when a session simply ends.
+ */
+export const SignedOutContext = createContext<() => void>(() => undefined);
+
 export function useLogout() {
   const client = useQueryClient();
+  const signedOut = useContext(SignedOutContext);
   return useMutation({
     mutationFn: () => apiFetch<void>('/api/logout', { method: 'POST' }),
     onSuccess: () => {
+      signedOut();
       client.setQueryData(WHOAMI_KEY, anonymousUser);
       // Removed rather than reset: the admin views unmount, so nothing refetches.
       client.removeQueries(allButWhoAmI);

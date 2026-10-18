@@ -435,6 +435,33 @@ test.describe('Passwords', () => {
     await page.getByRole('button', { name: 'Email me a link' }).click();
     await expect(page.getByText(/If an account uses that address/)).toBeVisible();
   });
+
+  test('signing in again over the admin keeps the user in the prompt', async ({ page }) => {
+    await page.goto(story('sign-in-again--over-the-admin'));
+    const dialog = page.getByRole('dialog', { name: 'Sign in again' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Username' })).toHaveValue('pat');
+    await expect(dialog.getByLabel('Password')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    await expect(page.locator('[inert]').getByLabel('Welcome message')).toHaveCount(1);
+  });
+
+  test('a dialog left open under the sign-in prompt is out of reach', async ({ page }) => {
+    await page.goto(story('sign-in-again--over-an-open-dialog'));
+    const prompt = page.getByRole('dialog', { name: 'Sign in again' });
+    await expect(prompt).toBeVisible();
+    await page.keyboard.press('Escape');
+    // Off the prompt, onto its backdrop, and Escape again.
+    await page.mouse.click(5, 5);
+    await page.keyboard.press('Escape');
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press('Tab');
+      await expect(page.getByLabel('Camper note')).not.toBeFocused();
+    }
+    await expect(page.getByText('Edit camper')).toBeVisible();
+    await expect(page.getByTestId('closed')).toHaveCount(0);
+  });
 });
 
 test.describe('Deletes and history', () => {
