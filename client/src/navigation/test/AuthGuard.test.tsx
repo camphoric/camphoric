@@ -65,6 +65,7 @@ function renderGuard(signedIn: ApiUser, children: ReactNode = <p>The admin</p>) 
     </QueryClientProvider>,
   );
   return {
+    client,
     invalidate,
     /** The whoami check comes back with `next`, or (undefined) is under way again. */
     becomes: (next: ApiUser | undefined) =>
@@ -198,6 +199,31 @@ describe('AuthGuard', () => {
     await becomes(user({ id: 4, username: 'sam', role: 'admin' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('');
+  });
+
+  it("keeps the user's cached data when they sign back in, and drops it for someone else", async () => {
+    const { becomes, client } = renderGuard(pat, <Editor />);
+    client.setQueryData(['Event', 1], { name: 'Lark Camp' });
+    await becomes(anonymousUser);
+    await becomes(pat);
+    expect(client.getQueryData(['Event', 1])).toEqual({ name: 'Lark Camp' });
+
+    await becomes(anonymousUser);
+    await becomes(user({ id: 4, username: 'sam', role: 'admin' }));
+    expect(client.getQueryData(['Event', 1])).toBeUndefined();
+  });
+
+  it('keeps the admin up while a 401 has whoami checked again', async () => {
+    const { client } = renderGuard(pat, <Editor />);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Note' }), 'half-written');
+    // As the global 401 handler does: the check is under way, its answer not in.
+    await act(async () => {
+      void client.invalidateQueries({ queryKey: WHOAMI_KEY }, { cancelRefetch: false });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(client.getQueryState(WHOAMI_KEY)?.fetchStatus).toBe('fetching');
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('half-written');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('returns to the sign-in page after signing out on purpose', async () => {
