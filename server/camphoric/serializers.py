@@ -679,6 +679,8 @@ class PaymentSerializer(ModelSerializer):
             if -amount > limit:
                 raise ValidationError(
                     {'amount': f'You can refund up to ${limit:.2f} of that payment.'})
+        if instance is not None:
+            self.validate_edit(instance, data, amount)
         if amount < 0 and invoice is None:
             raise ValidationError({'invoice': 'A refund must name its invoice.'})
         moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
@@ -692,6 +694,38 @@ class PaymentSerializer(ModelSerializer):
         if invoice is not None:
             data['invoice'] = invoice
         return data
+
+    @staticmethod
+    def validate_edit(payment, data, amount):
+        '''
+        An edit can't contradict what has already happened to the payment
+        (#767): it can't be for less than its refunds have given back, nor
+        leave them on another invoice; a refund stays tied to the payment it
+        refunds; and what PayPal recorded (a capture or a refund) keeps PayPal's
+        amount and stays a PayPal or card payment, so it stays refundable
+        through PayPal. The edit form sends every field back, so only a change
+        is refused.
+        '''
+        refunded = invoices.refunded(payment)
+        if refunded > 0 and amount < refunded:
+            raise ValidationError({'amount': f'${refunded:.2f} of this payment has been '
+                                             'refunded; it can\'t be for less than that.'})
+        if refunded > 0 and data.get('invoice', payment.invoice) != payment.invoice:
+            raise ValidationError({'invoice': 'This payment has been refunded; its refunds '
+                                              'keep it on its invoice.'})
+        if payment.refund_of_id is not None \
+                and data.get('refund_of', payment.refund_of) != payment.refund_of:
+            raise ValidationError({'refund_of': 'A refund stays with the payment it refunds.'})
+        if not invoices.capture_id_of(payment):  # its capture id, or a refund's id
+            return
+        if 'amount' in data and amount != invoices.money(payment.amount):
+            raise ValidationError({'amount': 'This amount is what PayPal recorded; it can\'t '
+                                             'be changed here.'})
+        # PayPal or Card may be corrected (PayPal can report a card as PayPal, #758).
+        if payment.payment_type in invoices.ONLINE_TYPES \
+                and data.get('payment_type', payment.payment_type) not in invoices.ONLINE_TYPES:
+            raise ValidationError({'payment_type': 'PayPal recorded this; it stays a PayPal or '
+                                                   'card payment.'})
 
     def create(self, validated_data):
         new_invoice = validated_data.pop('new_invoice', False)

@@ -11,8 +11,9 @@ Invoices, payments and the balance (SPEC §9.7; DR-87 to DR-90, DR-94).
   rather than in the browser (#675).
 - PayPal: the server creates each order for an invoice, checks it and captures
   it, so no money moves until the server says so (DR-90); it also refunds
-  captures. When PayPal's answer is lost, the event is emailed the details; a
-  capture that never got recorded is found by the worker (#804).
+  captures. When PayPal's answer is lost, or recording what it did fails, the
+  event is emailed the details; a capture that never got recorded is found by
+  the worker (#804).
 '''
 
 from dataclasses import dataclass
@@ -176,11 +177,16 @@ def match_received_invoice(invoice):
         invoice.save(update_fields=changed + ['updated_at'])
 
 
+def refunded(payment):
+    '''How much of a payment its live refunds have given back (a positive amount).'''
+    total = models.Payment.all_objects.filter(
+        refund_of=payment, deleted_at__isnull=True).aggregate(total=Sum('amount'))['total']
+    return -money(total)
+
+
 def refundable(payment):
     '''How much of a payment hasn't been refunded yet.'''
-    refunded = models.Payment.all_objects.filter(
-        refund_of=payment, deleted_at__isnull=True).aggregate(total=Sum('amount'))['total']
-    return max(ZERO, money(payment.amount) + money(refunded))
+    return max(ZERO, money(payment.amount) - refunded(payment))
 
 
 # Payment options (#675) -------------------------------------------------------------
@@ -391,17 +397,19 @@ class PaymentProblem(Exception):
     A payment that didn't go through. `code` says why, for the client:
     `amount_changed`, `declined`, `not_payable`, `cancelled` (the organizers
     cancelled the invoice) and `invoice_changed` (they changed it since the page
-    was loaded) took no money; `unknown` may have (PayPal's answer was lost; the
-    event has been emailed).
+    was loaded) took no money; `unknown` may have (PayPal's answer was lost, or
+    recording what PayPal did failed; the event has been emailed). `detail`, if
+    given, is what the event's email says went wrong instead of `message`.
     '''
     status = {'amount_changed': 409, 'declined': 402, 'not_payable': 409,
               'not_approved': 409, 'mismatch': 400, 'unknown': 502, 'refused': 409,
               'not_configured': 409, 'cancelled': 409, 'invoice_changed': 409}
 
-    def __init__(self, code, message):
+    def __init__(self, code, message, detail=None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.detail = detail
 
     @property
     def http_status(self):
@@ -561,6 +569,31 @@ def record_capture(invoice, order, payment_type=None, notes=''):
     )
 
 
+RECORDING_FAILED = {
+    'capture': 'PayPal took your payment, but we couldn\'t record it. Please don\'t pay '
+               'again: we\'ll check and let you know.',
+    'refund': 'PayPal made the refund, but it couldn\'t be recorded here. Record it on the '
+              'invoice by hand; don\'t refund it again.',
+}
+
+
+def _recording(what, record, *args):
+    '''
+    Record what PayPal just did (`what`: a capture or a refund). The money has
+    moved, so a failure here (a database error, a bug) mustn't end in a bare
+    500 that nobody hears of: it becomes `unknown`, whose handling undoes the
+    half-done write (its transaction rolls back) and emails the event (#767).
+    '''
+    try:
+        return record(*args)
+    except PaymentProblem:
+        raise
+    except Exception as e:
+        logger.exception(f'Recording a PayPal {what} failed')
+        raise PaymentProblem('unknown', RECORDING_FAILED[what],
+                             detail=f'PayPal did it, but recording it failed: {e!r}') from e
+
+
 def _order_amount(order):
     return money((_first_unit(order).get('amount') or {}).get('value'))
 
@@ -590,9 +623,11 @@ def capture_paypal_order(invoice, order_id, payment_type, notes='', request=None
             return payment
     except PaymentProblem as problem:
         if problem.code == 'unknown':
+            # The block above rolled back anything half recorded; with no
+            # transaction open around this call, the report commits (#767).
             send_paypal_problem_report(
-                invoice, what='capture', error=problem.message, order_id=order_id,
-                payment_type=payment_type, request=request)
+                invoice, what='capture', error=problem.detail or problem.message,
+                order_id=order_id, payment_type=payment_type, request=request)
         else:
             _capture_settled(invoice, order_id)  # PayPal said no: no money moved
         raise
@@ -641,7 +676,7 @@ def _capture(invoice, order_id, payment_type, notes):
     _check_belongs(invoice, order)
     status = order.get('status')
     if status == 'COMPLETED':
-        return record_capture(invoice, order, payment_type, notes)
+        return _recording('capture', record_capture, invoice, order, payment_type, notes)
     if status != 'APPROVED':
         raise PaymentProblem('not_approved', 'PayPal hasn\'t approved this payment.')
     if order_id != invoice.pending_paypal_order_id or invoice.cancelled_at is not None:
@@ -658,15 +693,19 @@ def _capture(invoice, order_id, payment_type, notes):
         if e.unknown:
             raise PaymentProblem('unknown', str(e))
         if e.issue == 'ORDER_ALREADY_CAPTURED':
-            return record_capture(invoice, client.fetch_order_details(order_id), payment_type,
-                                  notes)
+            try:
+                order = client.fetch_order_details(order_id)
+            except PayPalError as fetch_error:
+                # Captured, but what it captured is unknown: report it (#767).
+                raise PaymentProblem('unknown', str(fetch_error))
+            return _recording('capture', record_capture, invoice, order, payment_type, notes)
         raise PaymentProblem('declined', 'PayPal declined this payment. '
                              'Please try another way to pay.')
     capture = _capture_of(captured)
     if capture is None or capture.get('status') not in ('COMPLETED', 'PENDING'):
         raise PaymentProblem('declined', 'PayPal declined this payment. '
                              'Please try another way to pay.')
-    return record_capture(invoice, captured, payment_type, notes)
+    return _recording('capture', record_capture, invoice, captured, payment_type, notes)
 
 
 def check_paypal_order(invoice):
@@ -771,10 +810,12 @@ def _record_unrecorded_capture(invoice):
 def refund_paypal_payment(payment, amount, reason, request_id, request=None):
     '''
     Refund some or all of a PayPal or card payment through PayPal (DR-94), and
-    record the refund as a negative payment on the same invoice. A retry with
-    the same `request_id` gets the refund back, recorded once: the one already
-    recorded with that request id (refused if it asks for another amount), or
-    else PayPal's first refund.
+    record the refund as a negative payment on the same invoice, for what
+    PayPal says it refunded. A retry with the same `request_id` gets the
+    refund back, recorded once: the one already recorded with that request id
+    (refused if it asks for another amount), or else PayPal's first refund.
+    Call it outside a transaction: the email about an unknown outcome is
+    written after this one's rollback, and must not be undone with it.
     '''
     amount = money(amount)
     try:
@@ -784,7 +825,7 @@ def refund_paypal_payment(payment, amount, reason, request_id, request=None):
     except PaymentProblem as problem:
         if problem.code == 'unknown':
             send_paypal_problem_report(
-                payment.invoice, what='refund', error=problem.message,
+                payment.invoice, what='refund', error=problem.detail or problem.message,
                 capture_id=capture_id_of(payment), request_id=request_id, amount=amount,
                 payment_type=payment.payment_type, refund_of=payment, request=request)
         raise
@@ -824,9 +865,22 @@ def _refund(payment, amount, reason, request_id):
     refund_id = (reply or {}).get('id')
     if not refund_id:
         raise PaymentProblem('unknown', 'PayPal\'s reply has no refund id.')
-    existing = models.Payment.all_objects.filter(paypal_transaction_id=refund_id).first()
+    return _recording('refund', record_refund, payment, amount, reason, request_id, reply)
+
+
+def record_refund(payment, amount, reason, request_id, reply):
+    '''
+    Record PayPal's refund of the payment, once (by its refund id), with the
+    request id it was made with. The amount is PayPal's: a request id it has
+    seen before gets the earlier refund back, which may have been for another
+    amount when that refund's reply was lost and so never recorded (#767).
+    '''
+    existing = models.Payment.all_objects.filter(paypal_transaction_id=reply['id']).first()
     if existing is not None:
         return existing
+    refunded_amount = (reply.get('amount') or {}).get('value')
+    if refunded_amount is not None:
+        amount = money(refunded_amount)
     status = reply.get('status')
     notes = reason or 'Refunded through PayPal'
     if status and status != 'COMPLETED':
@@ -840,7 +894,7 @@ def _refund(payment, amount, reason, request_id):
         refund_of=payment,
         refund_request_id=request_id,
         paypal_response=reply,
-        paypal_transaction_id=refund_id,
+        paypal_transaction_id=reply['id'],
         notes=notes,
     )
 

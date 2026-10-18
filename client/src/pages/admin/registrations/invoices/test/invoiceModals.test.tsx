@@ -156,6 +156,38 @@ describe('RefundModal', () => {
     expect(body.requestId).toMatch(/.{8}/);
   });
 
+  it('keeps one request id for the dialog, whatever the amount', async () => {
+    // A retry after a lost reply must not refund again, even for a changed
+    // amount: PayPal answers a request id it has seen with that first refund,
+    // and the server records what PayPal refunded (#767).
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: PAYPAL_REFUNDED, payment: PAYPAL_REFUNDED_PAYMENTS[0], amount: 925 }}
+        payments={PAYPAL_REFUNDED_PAYMENTS}
+        onClose={vi.fn()}
+      />,
+    );
+    const refund = () => user.click(screen.getByRole('button', { name: 'Refund through PayPal' }));
+    const amount = screen.getByRole('textbox', { name: 'Amount to refund' });
+    const changeAmount = async (value: string) => {
+      await user.clear(amount);
+      await user.type(amount, value);
+    };
+    await refund();
+    await refund(); // a retry after a timeout
+    await changeAmount('500');
+    await refund();
+    const ids = (refundPayPal.mock.calls as [{ requestId: string }][]).map(
+      ([body]) => body.requestId,
+    );
+    expect(ids).toEqual([ids[0], ids[0], ids[0]]);
+    expect(refundPayPal).toHaveBeenLastCalledWith(
+      expect.objectContaining({ amount: 500 }),
+      expect.anything(),
+    );
+  });
+
   it('records a check mailed back as a negative payment', async () => {
     const user = userEvent.setup();
     renderWithProviders(

@@ -5,8 +5,9 @@ something about a registration goes wrong (SPEC §7.3, DR-91).
 A registration is completed when the registrant presses a payment button; its
 confirmation goes out when they reach a result — they chose to pay by check,
 PayPal captured, or they finished without paying — or, for someone who closed
-the page mid-payment, from the worker's sweep half an hour after completion.
-The confirmation's dedupe key means it's only ever sent once.
+the page mid-payment, from the worker's sweep half an hour after completion
+(later while a PayPal order they may still approve is pending). The
+confirmation's dedupe key means it's only ever sent once.
 '''
 
 from datetime import timedelta
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 # How long after completion the sweep sends a confirmation nobody triggered.
 CONFIRMATION_FALLBACK_DELAY = timedelta(minutes=30)
+# How long the sweep waits on a pending PayPal order: longer than a payer
+# plausibly leaves PayPal's window open before approving (#767).
+PENDING_PAYPAL_ORDER_WINDOW = timedelta(hours=3)
 
 
 def template_sender(template, event):
@@ -122,7 +126,11 @@ def overdue_confirmations(now=None):
     '''
     Completed registrations whose confirmation nobody triggered in time. One
     with a PayPal capture not yet settled waits until the worker has asked
-    PayPal about it, so its confirmation says what was paid (#804).
+    PayPal about it, so its confirmation says what was paid (#804). One whose
+    invoice has a PayPal order made in the last few hours waits too: the payer
+    may still approve it, and an "unpaid" confirmation would then be wrong
+    (#767). The invoice's `updated_at` stands in for when that order was made —
+    making it is the invoice's last save on the payment step.
     '''
     from camphoric.invoices import UNRECORDED_CAPTURE_RETRIES_FOR  # invoices imports this module
 
@@ -130,16 +138,21 @@ def overdue_confirmations(now=None):
     capturing = models.Invoice.all_objects.filter(
         registration=OuterRef('pk'), paypal_capture_order_id__isnull=False,
         paypal_capture_started_at__gte=now - UNRECORDED_CAPTURE_RETRIES_FOR)
+    paypal_order_pending = models.Invoice.objects.filter(
+        registration=OuterRef('pk'), cancelled_at__isnull=True,
+        pending_paypal_order_id__isnull=False,
+        updated_at__gte=now - PENDING_PAYPAL_ORDER_WINDOW)
     return models.Registration.objects.filter(
         completed=True, confirmation_sent_at__isnull=True,
         completed_at__lt=now - CONFIRMATION_FALLBACK_DELAY,
-    ).exclude(Exists(capturing))
+    ).exclude(Exists(capturing)).exclude(Exists(paypal_order_pending))
 
 
 def send_overdue_confirmations(now=None):
     '''
     The sweep: send each overdue confirmation. Returns how many. These
-    registrants pressed PayPal or Card and left without paying.
+    registrants pressed PayPal or Card and left without paying (or didn't
+    approve within PENDING_PAYPAL_ORDER_WINDOW).
     '''
     from camphoric.invoices import clear_unpaid_online_choice  # invoices imports this module
 
