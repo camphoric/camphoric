@@ -11,15 +11,22 @@ import { useCurrentUser } from 'hooks/auth';
 import { PermissionsProvider } from 'hooks/permissions';
 import { AuthGuard } from 'navigation/AuthGuard';
 import { UsersOverlay } from 'pages/admin/users/UsersOverlay';
+import type { ReactNode } from 'react';
 
 export function AdminShell() {
-  const { data: user } = useCurrentUser();
   return (
     <AuthGuard>
-      <PermissionsProvider userRole={user?.role ?? null}>
+      <AdminPermissions>
         <Outlet />
         <UsersOverlay />
-      </PermissionsProvider>
+      </AdminPermissions>
     </AuthGuard>
   );
+}
+
+/** Inside the guard, so a lapsed session keeps the user's permissions until
+ * they sign back in (DR-127). */
+function AdminPermissions({ children }: { children: ReactNode }) {
+  const { data: user } = useCurrentUser();
+  return <PermissionsProvider userRole={user?.role ?? null}>{children}</PermissionsProvider>;
 }

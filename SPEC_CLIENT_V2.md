@@ -1047,6 +1047,31 @@ hooks):
   or navigation. The reactive 401 handling above remains the backstop. The public registration
   flow is anonymous and unaffected. This relies on backend session keep-alive config (see §15,
   DR-26, and Appendix A).
+- **Signing in again (admin).** Once the admin has been shown in a page's life, a session that
+  ends — found by session monitoring or by the 401 handler's re-check (above) — doesn't take it
+  away (§15, DR-127):
+  - The admin — its current screen, open dialogs, drawers and menus, and every editor's unsaved
+    state — stays in place, but can't be used: no pointer, keyboard or focus reaches any of it,
+    and Escape doesn't act on anything underneath the sign-in prompt. The prompt can't be
+    dismissed; it offers the username (filled in with the signed-out user's) and password, and
+    "Forgot password?".
+  - Underneath the prompt, the admin is still the signed-out user's: what depends on who is
+    signed in — their role's permissions (what's shown or editable), their edit leases, their
+    name — holds still rather than changing to the anonymous user's.
+  - While the session is being re-checked (the current user is momentarily unknown), the admin
+    stays as it is rather than giving way to a loading screen.
+  - Signing back in as **the same user** removes the prompt and keeps the cache (§15, DR-117),
+    then reloads the admin's data, so anything that failed or went stale while signed out is
+    fetched again; unsaved edits are kept.
+  - Signing in as **a different user** resets the cache (§15, DR-117) and rebuilds the admin from
+    scratch at the same address: the previous user's open dialogs and unsaved edits are
+    discarded, not carried over to the new user, and the admin's data is fetched as them.
+  - Signing in as a user who must change their password, or who has no permission group, shows
+    that screen in place of the admin, as on a first sign-in.
+  - **Sign out** chosen on purpose is not a lapsed session: it returns to the sign-in page, with
+    nothing kept underneath — in the tab where it was chosen and in the admin's other open tabs
+    of the same browser.
+  - When there is no session on a page's first load, the sign-in page is shown on its own.
 
 ---
 
@@ -5140,6 +5165,30 @@ could probe internal hosts and ports, each failure's error shown in the email hi
 manage their event's email today, and re-entering the password closes the leak without taking
 that away. Refuse private and loopback hosts — a local relay is a legitimate mail server, and the
 password rule already keeps the stored password from going anywhere new.
+
+### DR-127 — Signing in again keeps the admin mounted underneath
+
+**Decision:** Once the admin has been shown, a lapsed session leaves it mounted under a sign-in
+prompt that can't be dismissed (§6). Everything on the page but the prompt is made `inert`,
+portaled dialogs, drawers and menus included, and Escape is stopped at the window before any
+dialog underneath hears it. Inside the admin the current user stays the one whose admin it is
+until they sign back in, so permission-gated screens and edit leases don't change underneath. The
+admin is keyed by who is signed in: signing back in as the same user resumes it, unsaved edits
+included, and reloads its data; signing in as someone else remounts it from scratch at the same
+address, the query cache having been reset for them (DR-117). A lapse is found by session
+monitoring or by the 401 handler's whoami re-check (§6); while that re-check runs, the admin
+stays as it is. A deliberate Sign out is told apart from a lapsed session, and tells the admin's
+other tabs (a `BroadcastChannel`), which return to the sign-in page too.
+**Context:** #808: the guard rendered the sign-in page *in place of* the admin, which unmounted
+every editor and threw away the in-progress edits DR-26 promises to keep. Keeping the admin
+mounted is not enough on its own: with the user anonymous, permission-gated editors would unmount
+anyway, and dialogs in portals sit outside the admin's own DOM. Another user's sign-in mustn't
+inherit the previous user's screens or drafts.
+**Alternatives:** Persist each editor's draft and restore it after sign-in — every editor would
+need its own save/restore, and drafts would outlive the page. Keep the admin mounted for any user
+who signs in — the next user would see, and could save, the previous user's unsaved work. Treat a
+deliberate Sign out like a lapsed session — whoever signed out would leave their screens
+(dimmed) behind a prompt for the next person at the computer.
 
 ### DR-128 — Pricing reads the date in UTC
 
