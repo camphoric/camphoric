@@ -20,12 +20,14 @@ Camphoric is a camp registration and administration system. It has two parts:
 
 ## Releases
 
-Deploys are pinned to a **version** (`vX.Y.Z`). Each release is a GitHub Release carrying the repo
-source plus the built frontend (`frontend-build-v2.tar.gz`), cut with
+Releases are versioned (`vX.Y.Z`). Each release is a GitHub Release carrying the repo source plus
+the built frontend (`frontend-build-v2.tar.gz`), cut with
 [release-please](https://github.com/googleapis/release-please) from
 [Conventional Commits](https://www.conventionalcommits.org/). See **[RELEASE.md](./RELEASE.md)**.
-Each release also publishes a container image to `ghcr.io/camphoric/camphoric` — see
-**[CONTAINER.md](./CONTAINER.md)**.
+Each release also publishes a container image to `ghcr.io/camphoric/camphoric`, the deploy that is
+pinned to a **version** — see **[CONTAINER.md](./CONTAINER.md)**. The Ansible playbook deploys
+whatever code is checked out on the host and doesn't pick a release yet (see "Deploying a release"
+in RELEASE.md).
 
 ## Event import packages (GitHub Packages)
 

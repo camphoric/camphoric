@@ -88,8 +88,11 @@ a stable release. Deploy it exactly like a stable tag.
 
 ## Deploying a release
 
+### Container image
+
 Run the container image for that tag — `ghcr.io/camphoric/camphoric:<tag>` — see
-[CONTAINER.md](./CONTAINER.md).
+[CONTAINER.md](./CONTAINER.md). This is the deploy that is pinned to a release: the image holds
+the server at that tag with the frontend built from the same tag baked in.
 
 The frontend asset has the same filename on every release, so its URL varies only by tag:
 
@@ -97,16 +100,44 @@ The frontend asset has the same filename on every release, so its URL varies onl
 https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2.tar.gz
 ```
 
-The Ansible playbook deploys the code already checked out on the host: it builds `client/`
-there (`npm ci && npm run build`) and installs the build into
-`server/frontend_bootstrap/build/`, so the frontend always matches the server code beside it. It
-then collects Django's static files (which Django serves, with `DEBUG` off, only from
-`STATIC_ROOT`) and restarts the `camphoric` service, so the new code and build take effect. The
-role does not yet check out `camphoric_release`
-([#797](https://github.com/camphoric/camphoric/issues/797)), so check out the tag on the host before
-running it. Set `camphoric_environment` to `production` and override the role's placeholder
-secrets in the inventory or a vault-encrypted `host_vars` file: outside development the camphoric
-role fails at its first task while one is left at its default (see
+No deploy downloads it: the image builds its own frontend, and the Ansible role builds one on the
+host.
+
+### Ansible
+
+The Ansible playbook (`ansible/site.yml`) deploys whatever code is already in
+`camphoric_folder` on the host (`ansible/group_vars/all.yml` sets it to `/vagrant`, the
+development VM's synced folder; set it per host anywhere else). The role never clones, fetches or
+checks out the repository, and it does not download the release asset. `camphoric_release` and
+`camphoric_force_update` are defined in the role's defaults and in `ansible/group_vars/all.yml`,
+but no task reads them yet ([#797](https://github.com/camphoric/camphoric/issues/797)). To deploy
+a release this way, check out its tag in that folder first, for example
+`git -C <camphoric_folder> fetch --tags && git -C <camphoric_folder> checkout vX.Y.Z`.
+
+A run of the camphoric role then:
+
+1. Fails at its first task, outside `development`, while any secret is left at its placeholder
+   default (see below).
+2. Installs its apt packages (nginx, pipenv, PostgreSQL and others), checks the Node version, and
+   creates the PostgreSQL user and database and the `camphoric_user` account if they're missing.
+3. Installs the server's Python packages with `pipenv` (`--deploy` outside `development`) and
+   writes `server/.env` and `server/camphoric_server/settings_override.py` from its templates.
+4. Builds `client/` from the checkout (`npm ci && npm run build`) and replaces
+   `server/frontend_bootstrap/build/` with the build, so the frontend always matches the server
+   code beside it.
+5. Collects Django's static files (which Django serves, with `DEBUG` off, only from
+   `STATIC_ROOT`), runs the migrations and tries to create the superuser (ignoring a failure, as
+   when it already exists).
+6. Installs the `camphoric` systemd service (gunicorn behind the `camphoric.socket` unit it also
+   installs and starts; uvicorn with `--reload` in `development`) and the `camphoric-worker`
+   service, and restarts both, so the new code, build and static files take effect. The
+   playbook's `force_handlers` restarts `camphoric` even when a later task fails, so a run that
+   stops part-way doesn't leave the old process serving the new `index.html` without its bundles.
+7. Installs the nginx site and restarts nginx, and, outside `production`, loads sample data into
+   an empty database (only `development` installs the `data/` packages the import needs).
+
+Set `camphoric_environment` to `production` and override the role's placeholder secrets in the
+inventory or a vault-encrypted `host_vars` file (see
 [the role's README](./ansible/roles/camphoric/README.md#secrets)).
 
 ### Host requirements

@@ -5,7 +5,9 @@ Installs and configures camphoric.
 - Installs a nginx config at `/etc/nginx/sites-available/camphoric`
 - Installs a systemd service at `/etc/systemd/system/camphoric.service`
 - Installs a socket listener for camphoric
-- Installs code at `/home/{{ camphoric_user }}/camphoric/`
+- Deploys the code already at `camphoric_folder`: it doesn't clone or check out the repository,
+  and no task reads `camphoric_release` yet (see "Deploying a release" in
+  [RELEASE.md](../../../RELEASE.md#ansible))
 
 See the github repo for more info about the software: https://github.com/camphoric/camphoric
 
