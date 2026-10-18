@@ -93,10 +93,11 @@ describe('the shared failure toast (DR-10, DR-109)', () => {
         .catch(() => undefined);
 
     vi.mocked(notifications.show).mockClear();
-    await failWith(notFound);
-    expect(notifications.show).not.toHaveBeenCalled();
     await failWith(new ApiError(500, 'Server Error', null));
     expect(notifications.show).toHaveBeenCalledTimes(1);
+    vi.mocked(notifications.show).mockClear();
+    await failWith(notFound);
+    expect(notifications.show).not.toHaveBeenCalled();
   });
 });
 
