@@ -87,3 +87,16 @@ html:has(.camphoric-form-actions),
 .camphoric-registration .camphoric-hide-during-registration {
   display: none;
 }
+
+/*
+ * Mantine 9 sets labels, inputs and tables, and also buttons and switches, in
+ * one "medium" weight. Mantine 8 set the first in 500 and the second in 600.
+ * theme.ts makes medium 500 again, so this puts buttons and switches back at
+ * 600 (SPEC §15, DR-135).
+ */
+.mantine-Button-root,
+.mantine-Button-groupSection,
+.mantine-ActionIcon-groupSection,
+.mantine-Switch-track {
+  font-weight: 600;
+}

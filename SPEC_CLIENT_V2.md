@@ -5623,23 +5623,32 @@ only on the screens tested; a complement, not a replacement. Turning on only `ru
 `exhaustive-deps` — the rules react-hooks 5 ran, but it leaves the compiler's checks off for code
 written from now on.
 
-### DR-135 — Mantine 9, keeping Mantine 8's radius and light-variant colours
+### DR-135 — Mantine 9, keeping Mantine 8's radius, font weights and light-variant colours
 
 **Decision:** The client runs Mantine 9 (every `@mantine/*` package on one version, since they
-pin each other's), on React 19. The theme sets `defaultRadius: 'sm'`, and every
-`MantineProvider` given the theme also gets Mantine's `v8CssVariablesResolver` (exported from
-`theme.ts` as `cssVariablesResolver`), so corners and the light/subtle variants look as they did
-on Mantine 8. Notifications take Mantine 9's default for hover: hovering pauses every visible
-notification's timer, not just the hovered one's.
+pin each other's), on React 19. The theme sets `defaultRadius: 'sm'` and
+`fontWeights.medium: '500'`, `theme.css` sets buttons, button-group sections and switch tracks
+in 600, and every `MantineProvider` given the theme also gets Mantine's `v8CssVariablesResolver`
+(exported from `theme.ts` as `cssVariablesResolver`), so corners, text weights and the
+light/subtle variants look as they did on Mantine 8. Notifications take Mantine 9's default for
+hover: hovering pauses every visible notification's timer, not just the hovered one's.
 **Context:** #870. Mantine 9 needs React 19.2 or later (#869). Two of its default changes alter
 the look rather than behaviour: the default radius grows from `sm` (4px) to `md` (8px), and the
 light variant's colours turn solid. In dark mode that variant's text becomes a near-white shade,
 so subtle and light controls lose their hue — a red delete icon, a teal "Copy pay link" turn
-white — which drops the colour cue that marks a destructive action. Comparing the computed
-styles of the admin and registration stories on Mantine 8 and on Mantine 9 with these two
-settings, in light and dark mode, the only differences left are a `SegmentedControl`'s corners
-(4px to about 1px). `Select` inputs now have the ARIA `combobox` role (they were `textbox`),
-which tests and the e2e suite look them up by.
+white — which drops the colour cue that marks a destructive action. And Mantine 9 draws labels,
+inputs, tables and menus, as well as buttons and switches, in one "medium" weight of 600, where
+Mantine 8 drew the first in 500 and the second in 600: left alone, every field label turns
+bolder than the hand-set 500 labels beside some of them. Comparing the computed colours,
+weights, sizes, radii and spacing of all the stories on Mantine 8 and on Mantine 9 with these
+settings, in light and dark mode, what's left is: a `SegmentedControl`'s corners (4px to about
+1px); a `PasswordInput`'s text at the other inputs' size (18px, was 20px), with a larger
+show/hide icon; grids spaced by CSS `gap` rather than negative margins, so a `Grid` no longer
+reaches 8px past its container on each side; and a sticky table's header cells drawing their
+borders in a way that keeps them in view, which leaves each column of a wide report table about
+1px narrower, so a cell at the edge of fitting can wrap onto another line. `Select` inputs now
+have the ARIA `combobox` role (they were `textbox`), which tests and the e2e suite look them up
+by.
 **Alternatives:** Take Mantine 9's look as it comes (rounder corners, solid light variants):
 a restyle nobody asked for, and the dark-mode light variants lose their colour. Restyle the
 affected controls one by one (`color` on each subtle `ActionIcon`): many call sites, and each
