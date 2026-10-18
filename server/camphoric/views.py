@@ -37,6 +37,7 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 from camphoric import (
     accounts,
     audit,
+    authentication,
     confirmations,
     deletes,
     invoices,
@@ -122,9 +123,19 @@ class LoginView(APIView):
 class ObtainTokenView(ObtainAuthToken):
     '''
     POST /api-token-auth/ `username`, `password` → `{token}`, for scripts such
-    as the importer (data/). Throttled like LoginView.
+    as the importer (data/). Throttled like LoginView. The token is good for
+    CAMPHORIC_API_TOKEN_TTL from this sign-in (camphoric.authentication).
     '''
     throttle_classes = LOGIN_THROTTLES
+    # Signing in checks only the username and password, so a script still
+    # sending its expired token (a 401 otherwise) can get a new one.
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = authentication.issue_token(serializer.validated_data['user'])
+        return Response({'token': token.key})
 
 
 class LogoutView(APIView):

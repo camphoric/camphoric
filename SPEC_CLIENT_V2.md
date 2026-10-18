@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-130)
+- §15 — Decision Records (DR-1…DR-132)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1011,6 +1011,14 @@ hooks):
   server enforces this too: outside the registration dates, only a submission carrying a valid
   invitation for the event is accepted (§5).
 - A **logout** action (`POST /api/logout`) clears the session.
+- The client authenticates with the session alone; it never asks for an API token. Scripts such
+  as the importer (`data/`) sign in at `POST /api-token-auth/` (`username`, `password` →
+  `{ token }`; it checks only those, ignoring any token sent with them) and send
+  `Authorization: Token <key>`. A token works for
+  `CAMPHORIC_API_TOKEN_TTL` seconds (a day by default) from the sign-in that returned it; after
+  that a request carrying it is refused with 401 (`Token has expired.`) and the token is
+  deleted. Signing in while the user's token still works returns the same key with its lifetime
+  restarted; signing in after it expired returns a new key (§15, DR-131).
 - A **401** on any admin request (query or mutation) means the session has lapsed. A global
   handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
   and, when the session is gone, the admin asks the user to sign in again without navigating, so
@@ -2099,8 +2107,10 @@ and Handlebars reports:
 
 1. **Handlebars** compiles the template with the provided variables and custom helpers, then
 2. a **markdown → HTML** pipeline (`remark-parse` → `remark-gfm` → `remark-rehype` with raw
-   HTML allowed → `rehype-raw` → **`rehype-sanitize`** (extended to permit `class`/`style` on
-   `div`/`span`) → a step that puts each table in a box of its own (a `div` with the class
+   HTML allowed → `rehype-raw` → **`rehype-sanitize`** (extended to permit `class` — only
+   `page-break` and `no-break` — and `style` on `div`/`span`) → a step that keeps only harmless
+   CSS in each `style` → a step that puts each
+   table in a box of its own (a `div` with the class
    `md-table-scroll`; a table inside another's cell scrolls with that one) → `rehype-external-links` (external links open in a new tab) →
    `rehype-stringify`).
 
@@ -2114,6 +2124,16 @@ except that a box with focus keeps it.
 In an area that already scrolls both ways and is at most about a window tall — a report's output
 (§8.7), the expanded template editor's preview (§9.6) — tables scroll with the rest of it
 instead, and in print no table is cut off at its box's edge.
+
+A `style` keeps only these properties: `color`, `background-color`, `font-size`, `font-style`,
+`font-variant`, `font-weight`, `text-align`, `text-decoration` and `text-transform`. A value
+holds only words, numbers, units, `#` colors and the color functions `rgb()`, `rgba()`, `hsl()`
+and `hsla()` — no quotes, slashes, backslashes, `!important` or other functions (`url()` among
+them). Any other declaration is dropped, and a `style` left empty is removed. A `class` keeps
+only the print classes `page-break` and `no-break` (§8.7); any other class — the app's own
+stylesheets, Mantine's among them, have classes that fix a box over the whole page — is dropped.
+So templated text can change how its words look but can't position, size or move a box over the
+page around it (§15, DR-132).
 
 Output is inserted via `dangerouslySetInnerHTML`; sanitization is mandatory. Rendering errors
 are caught and shown as text (in a `<pre>`), never as HTML — an error quotes the template —
@@ -5336,6 +5356,53 @@ form against a server.
 but layouts on mobile would then be covered only where a test checks them). Deleting the
 duplicated e2e tests (they still prove the story renders in a real browser).
 
+### DR-131 — API tokens expire a day after the sign-in that issued them
+
+**Decision:** A token from `POST /api-token-auth/` works for `CAMPHORIC_API_TOKEN_TTL` seconds
+(86400, a day, by default; it must be positive) from the sign-in that returned it. A request
+with an expired token is refused with 401 and the token is deleted. Signing in again while the
+token still works returns the same key with its lifetime restarted; signing in after it expired
+returns a new key, even when the expired token is sent along with the password. A token added
+another way (the Django admin) counts from when it was made. Changing or resetting a password
+still deletes the user's token.
+**Context:** #818: tokens never expired, so one copied from a script's environment or log worked
+for good. Tokens are used only by scripts — the importer (`data/`) signs in once per server per
+run and keeps the token for the whole run (DR-124); the admin client uses its session. An import
+takes minutes, so a day covers any run, and restarting the lifetime at each sign-in means a run
+that starts just before an old token would lapse still gets a full day. Keeping a live token's
+key lets two scripts signed in as the same user at once both keep working.
+**Alternatives:** A new key at every sign-in — the other script's token would stop working
+mid-run. A lifetime that slides with each request — a write on every request, and a token in
+steady use would never expire. Counting only from when the token was made — a run that started
+just before it lapsed would fail part-way through. The importer signing in again on a 401 — the
+server-side lifetime already covers a run, and a prompted password would be asked for again.
+django-rest-knox (per-client, hashed, expiring tokens) — a new dependency and a change to the
+importer's sign-in for a single script user.
+
+### DR-132 — Templated text keeps only CSS that can't draw over the page
+
+**Decision:** The markdown pipeline (§9.3) still lets `div` and `span` carry `style`, but after
+sanitizing keeps only declarations of color, background color, font size, style, variant and
+weight, and text alignment, decoration and case, with plain values (words, numbers, units, `#`
+colors and the `rgb`/`hsl` functions). Everything else — position, offsets, `z-index`, sizes,
+margins, transforms, `url()` and the like — is dropped. A `class` keeps only `page-break` and
+`no-break`, the print classes a template has a use for.
+**Context:** #818: the sanitizer let a `style` through whole, so an organizer's template (an
+event description, the confirmation page, a Markdown report) could lay a fixed box over the
+registration page — a fake Pay button, or a cover over the real form. Real events use `style`
+for exactly what's kept: Jughandle Campout's waiver list sets `font-size` and `font-weight`, and
+three events' Payments reports colour a balance with `color`; nothing in `data/` or the event
+packages uses positioning or a `class`. A class reaches the same overlay without any `style`:
+the app loads all of Mantine's stylesheet, whose stable class names include boxes fixed over the
+whole viewport, and a template can't bring a stylesheet of its own, so the print classes are the
+only ones that do a template any good.
+**Alternatives:** Drop `style` altogether — breaks those reports, and templates have no other
+way to colour text. Keep it whole — the overlay stays possible. Drop only Mantine's classes
+(`m_…`, `mantine-…`) — any other global class with positioning, now or later, would get
+through. Match the whole `style` against one regular expression in the sanitizer's schema — one
+declaration it doesn't like drops the others with it, and the rule is hard to read. A full CSS
+parser — more than a short allowlist of properties and plain values needs.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -5376,7 +5443,8 @@ must be coordinated with the backend. Grouped by status.
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
   (DR-80).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`
-  (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26).
+  (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26). Scripts' API tokens:
+  `POST /api-token-auth/` (throttled; expiring, DR-131).
 - **Server version:** `GET /api/version` with the shape in §5, read from the server's
   `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

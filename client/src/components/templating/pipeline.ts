@@ -11,7 +11,7 @@ import Handlebars from 'handlebars';
 import type { Element, Root } from 'hast';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeRaw from 'rehype-raw';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import rehypeSanitize, { defaultSchema, type Options as SanitizeSchema } from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -19,6 +19,7 @@ import remarkRehype from 'remark-rehype';
 import { unified } from 'unified';
 
 import { templateHelpers } from './helpers';
+import { rehypeSafeStyles } from './safeStyles';
 
 // An isolated Handlebars instance so helper registration doesn't leak globally.
 const handlebars = Handlebars.create();
@@ -26,14 +27,22 @@ Object.entries(templateHelpers).forEach(([name, { fn }]) => {
   handlebars.registerHelper(name, fn);
 });
 
-// Permit class/style on div/span (templates use them for layout) on top of the
-// safe defaults; everything else is still sanitized.
-const sanitizeSchema = {
+/**
+ * The classes a template may put on a div/span: the print page breaks
+ * (printDocument). Any other class is dropped, since the app's own stylesheets
+ * (Mantine's among them) have classes that fix a box over the whole page (DR-132).
+ */
+const TEMPLATE_CLASSES = ['page-break', 'no-break'];
+
+// Permit the print classes and style on div/span on top of the safe defaults;
+// everything else is still sanitized. rehypeSafeStyles then keeps only the CSS
+// that can't draw over the page (DR-132).
+const sanitizeSchema: SanitizeSchema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
-    div: [...(defaultSchema.attributes?.div ?? []), 'className', 'style'],
-    span: [...(defaultSchema.attributes?.span ?? []), 'className', 'style'],
+    div: [...(defaultSchema.attributes?.div ?? []), ['className', ...TEMPLATE_CLASSES], 'style'],
+    span: [...(defaultSchema.attributes?.span ?? []), ['className', ...TEMPLATE_CLASSES], 'style'],
   },
 };
 
@@ -70,6 +79,7 @@ const markdownProcessor = unified()
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeRaw)
   .use(rehypeSanitize, sanitizeSchema)
+  .use(rehypeSafeStyles)
   .use(rehypeScrollableTables)
   .use(rehypeExternalLinks, { target: '_blank' })
   .use(rehypeStringify);

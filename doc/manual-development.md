@@ -167,6 +167,7 @@ There are two options now.
 	```
 	curl -H 'Authorization: Token <token>'
 	```
+	The token works for a day (`CAMPHORIC_API_TOKEN_TTL`) from that request; after that, request it again.
 
 # Client development
 
