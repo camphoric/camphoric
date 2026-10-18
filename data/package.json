@@ -12,7 +12,8 @@
     "test": "npm run test:offline && npm test --workspaces --if-present",
     "test:offline": "NODE_OPTIONS=--experimental-vm-modules jest",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
-    "lint": "npm run typecheck && eslint .",
+    "lint": "npm run typecheck && npm run lint:eslint",
+    "lint:eslint": "eslint . --max-warnings 0",
     "build": "npm run build -w packages/event-import-spec && npm run build -w packages/import-tools"
   },
   "dependencies": {
