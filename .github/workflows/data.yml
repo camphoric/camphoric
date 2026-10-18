@@ -88,6 +88,7 @@ jobs:
       - name: Each packed event works under plain Node
         run: for event in events/*/; do scripts/smoke-test-event-package.sh "$event"; done
 
-      # ESLint alone: `npm run lint`'s type-check already ran above.
+      # ESLint alone (`npm run lint` without its type-check, which ran above);
+      # a warning fails it too.
       - name: Lint
-        run: npx eslint . --max-warnings 0
+        run: npm run lint:eslint
