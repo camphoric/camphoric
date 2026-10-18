@@ -30,15 +30,27 @@ class PayPalClientTests(unittest.TestCase):
     def test_fetch_order_details(self):
         client = PayPalClient(self.base_url, client_id='123', secret='abc')
         self.server.add_mock_response(200, {}, json=self.order_details_response)
-        details = client.fetch_order_details('fake-order-id')
+        details = client.fetch_order_details('5O190127TN364715T')
 
         self.assertEqual(len(self.server.requests), 1)
         request = self.server.requests[0]
-        self.assertEqual(request['path_query'], '/v2/checkout/orders/fake-order-id')
+        self.assertEqual(request['path_query'], '/v2/checkout/orders/5O190127TN364715T')
         self.assertEqual(request['headers']['Content-Type'], 'application/json')
         self.assertRegex(request['headers']['Authorization'], r'^Basic .+')
 
         self.assertEqual(details, self.order_details_response)
+
+    def test_an_order_id_that_isnt_one_is_never_sent(self):
+        client = PayPalClient(self.base_url, client_id='123', secret='abc')
+        for order_id in ('../../v1/x', 'abc', 'ORDER-1', 'ORDER\n', '', 'A' * 65, 12, None,
+                         {'id': 'ORDER'}):
+            with self.subTest(order_id=order_id):
+                with self.assertRaises(PayPalError) as refused:
+                    client.fetch_order_details(order_id)
+                self.assertFalse(refused.exception.unknown)
+                with self.assertRaises(PayPalError):
+                    client.capture_order(order_id, 'capture-1')
+        self.assertEqual(self.server.requests, [])
 
     def test_create_capture_and_refund_send_request_ids(self):
         client = PayPalClient(self.base_url, client_id='123', secret='abc')

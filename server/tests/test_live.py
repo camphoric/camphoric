@@ -14,7 +14,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 import psycopg
 from rest_framework.test import APITestCase
 
-from camphoric import leases, live, live_stream, models, roles
+from camphoric import accounts, leases, live, live_stream, models, roles
 from tests.factories import create_template_event, make_user
 
 KEYS = {'type', 'model', 'id', 'event', 'action', 'actor'}
@@ -157,6 +157,14 @@ class StreamAccessTests(APITestCase):
         self.client.force_login(make_user(roles.REPORTER, 'rita'))
         self.assertEqual(self.client.get('/api/events/999999/stream/').status_code, 404)
 
+    def test_not_while_the_password_must_be_changed(self):
+        rita = make_user(roles.REPORTER, 'rita')
+        accounts.set_must_change_password(rita, True)
+        self.client.force_login(rita)
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['code'], 'password_change_required')
+
     def test_a_wsgi_server_says_it_cant(self):
         self.client.force_login(make_user(roles.REPORTER, 'rita'))
         self.assertEqual(self.client.get(self.path).status_code, 503)
@@ -266,6 +274,16 @@ class SessionCheckTests(TestCase):
                 mock.patch.object(live_stream.connection, 'close'):
             self.assertTrue(live_stream.still_allowed(key, user.id))
             client.logout()
+            self.assertFalse(live_stream.still_allowed(key, user.id))
+
+    def test_a_password_to_be_changed_ends_its_streams(self):
+        from django.test import Client
+        user = make_user(roles.REGISTRAR, 'reggie')
+        client = Client()
+        client.force_login(user)
+        key = client.session.session_key
+        accounts.set_must_change_password(user, True)
+        with mock.patch.object(live_stream.connection, 'close'):
             self.assertFalse(live_stream.still_allowed(key, user.id))
 
     def test_changing_the_password_signs_its_streams_out(self):

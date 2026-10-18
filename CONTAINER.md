@@ -81,8 +81,10 @@ is unused). Values marked *required* have no default; the container will not boo
 | `ALLOWED_HOSTS`         | `localhost,127.0.0.1,django`         | Comma-separated hostnames Django will serve. **Keep `127.0.0.1`** — the image's healthcheck uses it.                     |
 | `CSRF_TRUSTED_ORIGINS`  | local dev origins                    | Comma-separated full origins (`scheme://host[:port]`) allowed to POST, e.g. `https://register.example.org`.              |
 | `SESSION_COOKIE_SECURE` | `true`                               | Session cookie only over https. Set `false` for plain http on a non-localhost host (browsers exempt `localhost`).        |
-| `CSRF_COOKIE_SECURE`    | `false`                              | Set `true` when serving over https.                                                                                      |
+| `CSRF_COOKIE_SECURE`    | `true` (`false` with `DEBUG` on or `SESSION_COOKIE_SECURE=false`) | CSRF cookie only over https.                                                                    |
 | `USE_X_FORWARDED_PROTO` | `false`                              | Set `true` behind a proxy that terminates TLS (nginx, an ingress) so Django treats requests as https.                    |
+| `SECURE_HSTS_SECONDS`   | `3600` (`0` with `DEBUG` on)         | HSTS: how long browsers that reached the site over https keep to https. Raise it once https is settled; `0` turns it off. |
+| `SECURE_SSL_REDIRECT`   | `false`                              | Django redirects http to https. Leave off behind a TLS-terminating proxy (it redirects itself); there it needs `USE_X_FORWARDED_PROTO=true` or every request redirects forever. |
 | `DJANGO_LOG_LEVEL`      | `INFO` (`DEBUG` when `DEBUG=true`)   | Console log level. Logs go to stdout/stderr.                                                                             |
 | `STATIC_ROOT`           | `/app/static`                        | Where static files were collected at build time. Leave as is.                                                            |
 | `CORS_ORIGIN_WHITELIST` | `= CSRF_TRUSTED_ORIGINS`             | **Unused** (`django-cors-headers` is not installed); accepted only for compatibility with old override files.            |
@@ -92,7 +94,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | Variable                      | Default               | Purpose                                                                                                          |
 | ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `CAMPHORIC_TEMPLATE_TIMEZONE` | `America/Los_Angeles` | Time zone that dates and times are shown in by server-rendered reports and emails.                               |
-| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration, unsubscribe and set-password links; when empty, links are derived from the current request (so group email and template checks have none). |
+| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration, unsubscribe and set-password links; when empty, links are derived from the current request (so group email and template checks have none) — except set-password links and organizers' links into the admin, which are never made from the request: without it, no set-password link can be made (logged), and `manage.py check --deploy` warns. |
 
 ### Email
 
@@ -122,6 +124,7 @@ records the message.
 | `DEFAULT_FROM_EMAIL`            | `SERVER_EMAIL` | The "from" address of account email (set-password and password-reset links), sent through the default mailer. Set it to a real address; `manage.py check --deploy` warns about a `localhost` one with SMTP. |
 | `PASSWORD_RESET_TIMEOUT`        | `259200` (3 days) | How long a set-password link works, in seconds. A link also stops working once it's used or the user signs in. |
 | `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
+| `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
 
 ### The task worker
 
@@ -290,7 +293,8 @@ simpler and matches the existing convention.
 ```
 USE_X_FORWARDED_PROTO=true
 SESSION_COOKIE_SECURE=true         # the default
-CSRF_COOKIE_SECURE=true
+CSRF_COOKIE_SECURE=true            # the default
+CAMPHORIC_PUBLIC_URL=https://register.example.org
 ALLOWED_HOSTS=register.example.org,127.0.0.1
 CSRF_TRUSTED_ORIGINS=https://register.example.org
 ```

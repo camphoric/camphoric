@@ -19,6 +19,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework.authtoken.models import Token
 
 from camphoric import models, roles
 from camphoric.mail import outbox
@@ -54,10 +55,14 @@ def set_must_change_password(user, value):
 
 
 def set_password(user, password, *, must_change=False):
-    '''Set the password (already validated) and whether it must be changed next.'''
+    '''
+    Set the password (already validated) and whether it must be changed next,
+    and remove the user's API token, which the old password may have handed out.
+    '''
     user.set_password(password)
     user.save(update_fields=['password'])
     set_must_change_password(user, must_change)
+    Token.objects.filter(user=user).delete()
 
 
 # --- Set-password links -----------------------------------------------------------

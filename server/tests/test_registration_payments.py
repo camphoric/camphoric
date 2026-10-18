@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.core import mail
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase, APITransactionTestCase
 
@@ -132,6 +133,20 @@ class OptionsTests(FlowTestCase):
             }, data)
             self.assertEqual(self.post(404, registrationUUID='nope', **data).data['code'],
                              'registration_not_found', data)
+
+    def test_the_other_steps_only_for_their_own_event(self):
+        # Another event, whose settings would otherwise be checked instead.
+        other = models.Event.objects.create(organization=self.event.organization, name='Other',
+                                            paypal_client_id='other')
+        for data in ({'step': 'paypal-order', 'paymentType': 'PayPal'},
+                     {'step': 'payment', 'paymentType': 'Check'},
+                     {'step': 'finish'}):
+            with self.subTest(step=data['step']):
+                response = self.client.post(f'/api/events/{other.id}/register', {
+                    **data, 'registrationUUID': self.uuid}, format='json')
+                self.assertEqual(response.status_code, 404)
+        self.assertFalse(self.registration.completed)
+        self.assertEqual(self.paypal.requests, [])
 
     def test_an_out_of_date_page_is_asked_to_reload(self):
         self.post(409, step='payment', registrationUUID=self.uuid, paymentType='Check',
@@ -274,6 +289,7 @@ class PayPalTests(FlowTestCase):
         self.assertEqual((invoice.amount, invoice.handling, invoice.payment_type),
                          (D('400.00'), D('10.00'), 'PayPal'))
 
+    @override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
     def test_an_unknown_outcome_keeps_the_order_and_emails_the_event(self):
         self.start_paypal()
         invoice = self.invoice()

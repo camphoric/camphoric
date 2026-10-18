@@ -9,6 +9,7 @@ import re
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
+from django.test import override_settings
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -18,6 +19,7 @@ from tests.factories import make_user
 GOOD_PASSWORD = 'Correct-horse-battery-9'
 
 
+@override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
 class UsersApiTestCase(APITestCase):
     def setUp(self):
         self.root = User.objects.create_superuser('root', 'root@example.com', 'password')
@@ -302,11 +304,23 @@ class LinkTests(UsersApiTestCase):
         response = self.client.post(f'/api/users/{self.pat.id}/password-link/')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('expires_at', response.data)
+        self.assertTrue(response.data['url'].startswith(
+            'https://reg.example.org/account/set-password/'))
         uid, token = re.search(r'/account/set-password/([^/]+)/([^/]+)$',
                                response.data['url']).groups()
         self.client.force_authenticate(user=None)
         check = self.client.get(f'/api/password-reset/{uid}/{token}')
         self.assertEqual(check.data, {'username': 'pat'})
+
+    @override_settings(CAMPHORIC_PUBLIC_URL='')
+    def test_no_links_without_the_public_url(self):
+        # Never from the request's host, which the request chooses (SPEC DR-116).
+        with self.assertLogs('camphoric.templating.urls', 'WARNING'):
+            copy = self.client.post(f'/api/users/{self.pat.id}/password-link/')
+            send = self.client.post(f'/api/users/{self.pat.id}/send-password-link/')
+        self.assertEqual((copy.status_code, send.status_code), (409, 409))
+        self.assertIn('CAMPHORIC_PUBLIC_URL', copy.data['detail'])
+        self.assertEqual(mail.outbox, [])
 
     def test_no_links_for_deactivated_users(self):
         self.pat.is_active = False

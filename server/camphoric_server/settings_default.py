@@ -272,6 +272,8 @@ REST_FRAMEWORK = {
         'password_reset': env.str('CAMPHORIC_PASSWORD_RESET_RATE', default='5/hour'),
         'promo_code_check': env.str('CAMPHORIC_PROMO_CODE_CHECK_RATE', default='30/minute'),
         'invoice_pay': env.str('CAMPHORIC_INVOICE_PAY_RATE', default='60/minute'),
+        # Opening the registration page with an invitation's email and code.
+        'invitation_lookup': env.str('CAMPHORIC_INVITATION_LOOKUP_RATE', default='30/minute'),
     },
 }
 
@@ -285,9 +287,18 @@ AUDITLOG_USE_BASE_MANAGER = True
 # localhost). Set SESSION_COOKIE_SECURE=false for plain http on any other host. Behind a
 # proxy that terminates TLS, set USE_X_FORWARDED_PROTO=true so Django sees requests as https.
 SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=True)
-CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=False)
+SESSION_COOKIE_HTTPONLY = True
+# The CSRF cookie is Secure too, except with DEBUG on or where the session cookie isn't.
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=SESSION_COOKIE_SECURE and not DEBUG)
 if env.bool('USE_X_FORWARDED_PROTO', default=False):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# HSTS: browsers that reached the site over https keep to https for this many seconds.
+# A modest hour unless DEBUG is on; 0 turns it off. Sent only on https responses.
+SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=0 if DEBUG else 3600)
+# Off by default: TLS usually ends at a proxy (nginx, an ingress), which redirects http
+# itself. Turned on without USE_X_FORWARDED_PROTO there, every request would look like
+# http to Django and redirect forever.
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
 
 PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')

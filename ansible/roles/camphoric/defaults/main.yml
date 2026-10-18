@@ -6,6 +6,9 @@ camphoric_release: HEAD
 camphoric_force_update: false
 camphoric_domain_name: localhost
 camphoric_url: http://{{ camphoric_domain_name }}
+# The site's address as browsers reach it, for links in email (CAMPHORIC_PUBLIC_URL):
+# Django's port, forwarded to the host, on the Vagrant VM; the nginx site elsewhere.
+camphoric_public_url: "{{ 'http://localhost:8000' if is_vagrant | default(false) | bool else ('https://' if nginx_ssl_on | bool else 'http://') ~ camphoric_domain_name }}"
 camphoric_folder: "/home/{{camphoric_user}}/camphoric"
 
 camphoric_hosted_location: "/"

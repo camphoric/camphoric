@@ -8,9 +8,15 @@ call (a timeout, a double click) returns PayPal's first answer instead of
 creating, capturing or refunding twice.
 '''
 
+import re
+
 import requests
 
 TIMEOUT = 30  # seconds
+
+# What a PayPal order id looks like. Ids come from the browser and go into the
+# URL path, so anything else is refused before it's sent.
+ORDER_ID = re.compile(r'[A-Z0-9]{1,64}')
 
 
 class PayPalError(Exception):
@@ -26,6 +32,13 @@ class PayPalError(Exception):
         self.unknown = unknown
         self.details = details
         self.issue = issue
+
+
+def checked_order_id(order_id):
+    '''The order id, if it looks like one; a PayPalError (nothing sent) if not.'''
+    if not isinstance(order_id, str) or not ORDER_ID.fullmatch(order_id):
+        raise PayPalError('That isn\'t a PayPal order id.')
+    return order_id
 
 
 class PayPalClient:
@@ -68,14 +81,15 @@ class PayPalClient:
         return body
 
     def fetch_order_details(self, order_id):
-        return self._call('GET', f'/v2/checkout/orders/{order_id}')
+        return self._call('GET', f'/v2/checkout/orders/{checked_order_id(order_id)}')
 
     def create_order(self, body, request_id):
         return self._call('POST', '/v2/checkout/orders', json=body, request_id=request_id)
 
     def capture_order(self, order_id, request_id):
         return self._call(
-            'POST', f'/v2/checkout/orders/{order_id}/capture', json={}, request_id=request_id)
+            'POST', f'/v2/checkout/orders/{checked_order_id(order_id)}/capture', json={},
+            request_id=request_id)
 
     def refund_capture(self, capture_id, amount, note_to_payer, request_id):
         body = {'amount': {'value': amount, 'currency_code': 'USD'}}

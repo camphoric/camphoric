@@ -36,7 +36,8 @@ from django.views.decorators.http import require_GET
 import psycopg
 from psycopg.conninfo import make_conninfo
 
-from camphoric import live, models, roles
+from camphoric import accounts, live, models, roles
+from camphoric.permissions import PASSWORD_CHANGE_REQUIRED
 
 logger = logging.getLogger(__name__)
 
@@ -160,13 +161,14 @@ def still_allowed(session_key, user_id):
     '''
     Whether the session still signs the user in — as Django checks each request:
     not signed out, the user active, the password not changed since — and the
-    user still has a role.
+    user still has a role and isn't due to change their password.
     '''
     try:
         session = import_module(settings.SESSION_ENGINE).SessionStore(session_key)
         user = get_user(SimpleNamespace(session=session))
         return (user.is_authenticated and user.pk == user_id
-                and roles.role_of(user) is not None)
+                and roles.role_of(user) is not None
+                and not accounts.must_change_password(user))
     finally:
         connection.close()
 
@@ -222,6 +224,10 @@ async def event_stream(request, event_id):
     if await sync_to_async(roles.role_of)(user) is None:
         return JsonResponse({'detail': 'You do not have permission to perform this action.'},
                             status=403)
+    # As the API refuses them (camphoric.permissions), until they choose a new one.
+    if await sync_to_async(accounts.must_change_password)(user):
+        return JsonResponse({'detail': 'Choose a new password before continuing.',
+                             'code': PASSWORD_CHANGE_REQUIRED}, status=403)
     if not await models.Event.objects.filter(pk=event_id).aexists():
         return JsonResponse({'detail': 'No such event.'}, status=404)
     if not isinstance(request, ASGIRequest):

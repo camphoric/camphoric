@@ -4,14 +4,19 @@ and emails.
 
 `CAMPHORIC_PUBLIC_URL` (e.g. https://harmonyreg.sffmc.org) makes links work
 where there is no request — bulk sends, template checks. Without it, the link
-is derived from the current request as it always has been.
+is derived from the current request as it always has been — except links into
+the admin client (set-password links, organizers' reports), which are made
+only from it.
 '''
 
+import logging
 import re
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.urls import reverse
+
+logger = logging.getLogger(__name__)
 
 
 def register_url(event_id, invitation=None, request=None):
@@ -56,16 +61,16 @@ def public_base(request=None):
 def admin_url(path, request=None):
     '''
     An absolute link into the admin client (`path` like `/admin/organization/…`),
-    for emails sent to organizers. Empty when there's neither a public URL nor
-    a request to derive one from.
+    for emails sent to organizers and set-password links. Empty, and logged,
+    without CAMPHORIC_PUBLIC_URL: the request's Host header is the sender's to
+    choose, so it never decides where these links go (`request` is accepted
+    like the other links', and ignored).
     '''
     base = getattr(settings, 'CAMPHORIC_PUBLIC_URL', '')
     if base:
         return f'{base.rstrip("/")}{path}'
-    if request is None:
-        return ''
-    url = request.build_absolute_uri(path)
-    return re.sub(r':8000', ':3000', url, count=1)
+    logger.warning('No link into the admin client: CAMPHORIC_PUBLIC_URL is not set.')
+    return ''
 
 
 def admin_registration_url(registration, request=None):

@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-128)
+- §15 — Decision Records (DR-1…DR-129)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -316,11 +316,11 @@ consistently:
     code: 'lease_held', lease }` — unless `takeover`, which gives it to this tab.
   - `DELETE /api/leases/{id}/?client_id=<tab>` → 204; gives it up if that tab still holds it.
 - **Live change feed (§9.8; §15, DR-112):** `GET /api/events/{id}/stream/` → a Server-Sent Events
-  stream for any role (401 signed out, 403 without a role, 404 for no such event, 503 when the
-  server isn't the ASGI one). It sends `retry: 5000` and `event: hello` once the server is
+  stream for any role (401 signed out, 403 without a role or while the user must change their
+  password, 404 for no such event, 503 when the server isn't the ASGI one). It sends `retry: 5000` and `event: hello` once the server is
   listening for notices (or ends, if it can't be, and the client tries again), then each notice,
   an `event: ping` every 20 seconds, and closes after 30 minutes, or once the session is no longer
-  signed in with a role (checked every 5 minutes). A client that hears nothing for 50 seconds
+  signed in with a role or the user must change their password (checked every 5 minutes). A client that hears nothing for 50 seconds
   treats the stream as dead and opens a new one:
   ```
   event: change   data: { type: 'changed', model, id, event, action: 'created' | 'updated' | 'deleted',
@@ -531,7 +531,9 @@ Non-CRUD admin endpoints:
     `{ to, status, last_error }` (never the link); 409 `{ detail }` for a deactivated user or no
     public address to link to.
   - `POST /api/users/{id}/password-link/` — a set-password link to hand over yourself →
-    `{ url, expires_at }`.
+    `{ url, expires_at }`; 409 `{ detail }` for a deactivated user or no public address.
+  - Set-password links point at `CAMPHORIC_PUBLIC_URL`, never at the host the request named; with
+    it unset no link is made (§15, DR-129).
   - `POST /api/users/{id}/set-password/` `{ password, require_change? (default true) }` —
     superusers only (404 for anyone else): set the password, ending the user's sessions → 204;
     400 `{ password: [...] }` when the password rules refuse it; 409 for your own account.
@@ -540,13 +542,15 @@ Non-CRUD admin endpoints:
     `send-password-link` and `password-link` on them answer 404 `{ detail }`. Reading them — the
     list, the user, their history — is unaffected (§15, DR-116).
   - `POST /api/user/password` `{ current_password, new_password }` — change your own password
-    (you stay signed in; it clears a must-change flag) → 204, or 400 keyed by field.
+    (you stay signed in; it clears a must-change flag and removes your API token) → 204, or 400
+    keyed by field.
   - `POST /api/password-reset` `{ email }` (public) — always 202 `{ detail }` with the same
     message, whether or not the address has an account; emails a link to each active user with
     that address and a Camphoric permission group. Throttled per client address (429).
   - `GET /api/password-reset/{uid}/{token}` (public) → `{ username }` while the link works, 400
     `{ detail }` once it's used, expired or wrong. `POST` `{ new_password }` → 204 (or 400 keyed
-    by field) sets the password and clears a must-change flag; it doesn't sign the user in.
+    by field) sets the password, clears a must-change flag and removes the user's API token; it
+    doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
 - **Change history** (Registrars and Admins; 403 for Reporters; §15, DR-53):
@@ -584,7 +588,9 @@ Non-CRUD admin endpoints:
   `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
   §7.1 — and `hasPromoCodes`, whether the event has a promo code this registrant could use now:
   one that's usable and doesn't exclude the registration type of the query's invitation, or, with
-  no valid invitation, registrants without one; §15, DR-107).
+  no valid invitation, registrants without one; §15, DR-107). A request that looks up an
+  invitation — this query's `email` and `code`, or a `registration` step's `invitation` — is
+  throttled per client address (429).
 - `POST /api/events/{eventId}/checkpromo` with `{ code, invitation? }` (anyone; throttled per
   client) → 200 `{ code, label, scope, pricingLogic }` for a code of the event that's enabled, not
   expired and not deleted — matched without regard to case or surrounding space — and that this
@@ -677,6 +683,8 @@ Non-CRUD admin endpoints:
   404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names no
   registration the server has — an organizer deleted it, or it was purged as incomplete (§15,
   DR-76) — or isn't a registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
+  A registration of another event counts as none: each step checks the registration against
+  this event's settings.
 
 > **Server is authoritative.** The client sends its locally computed `pricingResults`, but the
 > server recomputes and returns `serverPricingResults`, which the client uses thereafter. Every
@@ -2292,9 +2300,9 @@ section is the contract.
   that don't record a payment: *amount changed* and *declined* (no money taken), and *unknown*
   (PayPal's answer was lost; money may have moved) — the order stays pending, and a **PayPal
   problem email** goes to the event's `confirmation_email_from`: what happened, who
-  (registration, registrant, campers, an admin link), what for (invoice, amounts, payment type),
-  PayPal's references and error, what the registrant was told, and what to do ("Check PayPal
-  order"). It's sent once per order and always logged. A capture is committed before anything
+  (registration, registrant, campers, an admin link when `CAMPHORIC_PUBLIC_URL` is set), what
+  for (invoice, amounts, payment type), PayPal's references and error, what the registrant was
+  told, and what to do ("Check PayPal order"). It's sent once per order and always logged. A capture is committed before anything
   else the payment step does, so a later error can't undo it. A capture whose outcome isn't
   known — the answer was lost, or the server stopped before recording it — is asked about by
   the worker 15 minutes after it started; PayPal's capture is then recorded as a payment noted
@@ -5025,6 +5033,21 @@ hours after it had ended on the server, then a higher total at payment.
 most likely means by a deadline day, but it changes the server's prices for every event and
 needs the zone in the register config; it remains possible future work. Keep the browser's local
 date — the client's estimate would keep disagreeing with what the server charges.
+
+### DR-129 — Links into the admin are made only from `CAMPHORIC_PUBLIC_URL`
+
+**Decision:** Set-password links and the admin links in organizers' reports (a confirmation
+that couldn't be rendered, a PayPal problem) are built only from `CAMPHORIC_PUBLIC_URL`. Without
+it, no set-password link can be made — sending or copying one says to set it, and the attempt is
+logged — and the reports leave their admin link out. Every development setup sets it (the dev
+compose to the Vite server, the Vagrant VM to Django's forwarded port, the Ansible role to the
+nginx site), and `manage.py check --deploy` warns when it's empty.
+**Context:** #818: the links fell back to the request's host. A password-reset request is public,
+so whoever sends it chooses the Host header; only `ALLOWED_HOSTS` kept a reset email from linking
+to another site, where the link's token would be handed over.
+**Alternatives:** Keep the fallback and rely on `ALLOWED_HOSTS` (and the deploy check that warned
+when it allows any host) — one loose setting away from leaking reset tokens. Refuse only
+set-password links — the organizers' admin links invite a sign-in on whatever site they name.
 
 ---
 

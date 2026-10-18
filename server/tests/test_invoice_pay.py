@@ -114,6 +114,15 @@ class PayingTests(InvoicePayTestCase):
                          paymentType='PayPal')
         self.assertEqual(data['code'], 'mismatch')
 
+    def test_an_order_id_that_isnt_one_is_refused_unsent(self):
+        self.reply(paypal_mocks.created())
+        self.post('order', paymentType='PayPal')
+        data = self.post('capture', status=400, orderID='../../v1/oauth2/token',
+                         paymentType='PayPal')
+        self.assertEqual(data['code'], 'mismatch')
+        self.assertEqual(len(self.paypal.requests), 1)  # only the order's creation
+        self.assertTrue(models.Invoice.objects.get(pk=self.invoice.pk).pending_paypal_order_id)
+
     def test_a_paid_invoice_takes_no_order(self):
         data = self.post('order', status=409, invoice=self.made.i2, paymentType='PayPal')
         self.assertEqual(data['code'], 'not_payable')

@@ -1,7 +1,9 @@
 import datetime
 from decimal import Decimal
 import json
+from unittest import mock
 
+from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -9,7 +11,7 @@ import jsonschema  # Using Draft-7
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
 
-from camphoric import models, serializers
+from camphoric import models, serializers, views
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests import paypal_mocks
@@ -598,6 +600,25 @@ class RegisterGetTests(APITestCase):
         prop_to_test = response.data['uiSchema']['ui:title']
         self.assertEqual('OVERRIDE', prop_to_test,
                          "Should override uiSchema properties")
+
+    def test_the_invitation_lookup_is_throttled(self):
+        cache.clear()  # the throttle's counts
+        self.addCleanup(cache.clear)
+        event = models.Event.objects.create(organization=self.organization)
+        path = f'/api/events/{event.id}/register'
+        with mock.patch.object(views.InvitationLookupThrottle, 'rate', '2/minute', create=True):
+            statuses = [
+                self.client.get(path, {'email': 'pat@example.com', 'code': code}).status_code
+                for code in ('aaaa2222', 'bbbb3333', 'cccc4444')]
+            self.assertEqual(statuses, [200, 200, 429])
+            # Submitting one is the same lookup.
+            submitted = self.client.post(path, {
+                'step': 'registration', 'formData': {}, 'pricingResults': {},
+                'invitation': {'recipient_email': 'pat@example.com',
+                               'invitation_code': 'dddd5555'}}, format='json')
+            self.assertEqual(submitted.status_code, 429)
+            # The page without an invitation still opens.
+            self.assertEqual(self.client.get(path).status_code, 200)
 
     def test_invitation_code(self):
         event = models.Event.objects.create(organization=self.organization)

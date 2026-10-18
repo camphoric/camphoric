@@ -15,6 +15,7 @@ from django.core.cache import cache
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
 from freezegun import freeze_time
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from camphoric import accounts, roles
@@ -28,6 +29,7 @@ def link_parts(text):
     return re.search(r'/account/set-password/([^/\s]+)/([^/\s]+)', text).groups()
 
 
+@override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org')
 class ResetRequestTests(APITestCase):
     def setUp(self):
         cache.clear()  # the throttle's counts
@@ -56,6 +58,25 @@ class ResetRequestTests(APITestCase):
         statuses = [self.ask('nobody@example.com').status_code for _ in range(6)]
         self.assertEqual(statuses, [202] * 5 + [429])
 
+    @override_settings(ALLOWED_HOSTS=['*'])
+    def test_the_link_never_follows_the_requests_host(self):
+        response = self.client.post('/api/password-reset', {'email': 'pat@example.com'},
+                                    format='json', HTTP_HOST='evil.example.com')
+        self.assertEqual(response.status_code, 202)
+        [sent] = mail.outbox
+        self.assertIn('https://reg.example.org/account/set-password/', sent.body)
+        self.assertNotIn('evil.example.com', sent.body)
+
+    @override_settings(ALLOWED_HOSTS=['*'], CAMPHORIC_PUBLIC_URL='')
+    def test_no_link_without_the_public_url(self):
+        with self.assertLogs('camphoric', 'WARNING') as logs:
+            response = self.client.post('/api/password-reset', {'email': 'pat@example.com'},
+                                        format='json', HTTP_HOST='evil.example.com')
+        # The same answer, but nothing sent, and the log says why.
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(mail.outbox, [])
+        self.assertTrue(any('CAMPHORIC_PUBLIC_URL' in line for line in logs.output))
+
 
 class SetPasswordLinkTests(APITestCase):
     def setUp(self):
@@ -73,6 +94,12 @@ class SetPasswordLinkTests(APITestCase):
         again = self.client.post(self.url, {'new_password': OTHER_PASSWORD}, format='json')
         self.assertEqual(again.status_code, 400)
         self.assertIn('already been used', again.data['detail'])
+
+    def test_setting_it_removes_the_api_token(self):
+        Token.objects.create(user=self.pat)
+        response = self.client.post(self.url, {'new_password': GOOD_PASSWORD}, format='json')
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Token.objects.filter(user=self.pat).exists())
 
     def test_expired(self):
         with freeze_time(datetime.datetime.now() + datetime.timedelta(days=4)):
@@ -106,6 +133,18 @@ class ChangePasswordTests(APITestCase):
         self.assertTrue(User.objects.get(id=self.pat.id).check_password(GOOD_PASSWORD))
         self.assertEqual(self.client.get('/api/user').data['username'], 'pat')
         self.assertEqual(self.client.get('/api/events/').status_code, 200)
+
+    def test_changing_it_removes_the_api_token(self):
+        Token.objects.create(user=self.pat)
+        self.assertEqual(self.change('password', GOOD_PASSWORD).status_code, 204)
+        self.assertFalse(Token.objects.filter(user=self.pat).exists())
+        # Still signed in here.
+        self.assertEqual(self.client.get('/api/user').data['username'], 'pat')
+
+    def test_a_refused_change_keeps_it(self):
+        Token.objects.create(user=self.pat)
+        self.assertEqual(self.change('wrong', GOOD_PASSWORD).status_code, 400)
+        self.assertTrue(Token.objects.filter(user=self.pat).exists())
 
     def test_problems(self):
         self.assertIn('current_password', self.change('wrong', GOOD_PASSWORD).data)
@@ -171,11 +210,13 @@ class CommandTests(TestCase):
             call_command('camphoric_password_link', 'nobody', '--base-url', 'https://x.org')
 
     def test_set_a_password(self):
+        Token.objects.create(user=self.pat)
         with mock.patch('getpass.getpass', side_effect=[GOOD_PASSWORD, GOOD_PASSWORD]):
             self.run_command('--set', '--require-change')
         self.pat.refresh_from_db()
         self.assertTrue(self.pat.check_password(GOOD_PASSWORD))
         self.assertTrue(accounts.must_change_password(self.pat))
+        self.assertFalse(Token.objects.filter(user=self.pat).exists())
         with mock.patch('getpass.getpass', side_effect=['one', 'two']), \
                 self.assertRaises(CommandError):
             self.run_command('--set')
