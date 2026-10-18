@@ -123,20 +123,6 @@ test('the importer is private, and uses the workspace copies by "*"', () => {
     .filter(([name, range]) => WORKSPACE_NAMES.has(name) && range !== '*')).toEqual([]);
 });
 
-// So npm update picks up an event's fixes and features but never a new major,
-// and the lockfile pins the version CI tested
-test('any other @camphoric package the importer installs is an event from GitHub Packages, by a caret range', () => {
-  const others = Object.keys(IMPORTER.dependencies)
-    .filter(name => name.startsWith('@camphoric/') && !WORKSPACE_NAMES.has(name));
-  expect(others).toEqual(REGISTRY_EVENTS);
-  for (const name of REGISTRY_EVENTS) {
-    expect({ name, range: IMPORTER.dependencies[name] })
-      .toEqual({ name, range: expect.stringMatching(/^\^\d+\.\d+\.\d+$/) });
-    expect({ name, resolved: LOCKFILE.packages[`node_modules/${name}`]?.resolved })
-      .toEqual({ name, resolved: expect.stringMatching(/^https:\/\/npm\.pkg\.github\.com\//) });
-  }
-});
-
 test('the importer loads every event under events/ and every registry event, by its package name', () => {
   const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
     .map(workspace => path.basename(workspace));
@@ -176,7 +162,7 @@ function specPeerProblems(pkg: Manifest): string[] {
   return problems;
 }
 
-// What's wrong with an event as installed from GitHub Packages: it must be
+// What's wrong with an event as installed from npm: it must be
 // the published build, loading from dist/, never its TypeScript source
 function installedEventProblems(pkg: Manifest): string[] {
   const exports = pkg.exports as Record<string, Record<string, string> | string> | undefined;
@@ -192,7 +178,7 @@ function installedEventProblems(pkg: Manifest): string[] {
   return [...problems, ...specPeerProblems(pkg)];
 }
 
-describe('an event installed from GitHub Packages', () => {
+describe('an event installed from npm', () => {
   const published = {
     name: `${EVENT_PREFIX}example`,
     version: '1.2.0',
@@ -314,7 +300,7 @@ describe.each(WORKSPACES)('%s', (workspace) => {
         expect(pkg.files).toContain(target[SOURCE_CONDITION].replace(/^\.\//, ''));
       }
       expect(pkg.files).toContain('dist');
-      expect(pkg.publishConfig?.registry).toBe('https://npm.pkg.github.com');
+      expect(pkg.publishConfig).toEqual({ access: 'public', registry: 'https://registry.npmjs.org/' });
       expect(pkg.private).toBeUndefined();
     });
   } else {

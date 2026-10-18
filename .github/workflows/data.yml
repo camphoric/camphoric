@@ -2,7 +2,7 @@
 # that touches it. data/ is an npm workspace root (the importer) with the
 # @camphoric/camphoric-event-* packages under packages/ and Sample Camp under
 # events/, and it installs the camps' events, published from repositories of
-# their own, from GitHub Packages; its scripts run every workspace's too:
+# their own, from npm; its scripts run every workspace's too:
 # the TypeScript must type-check (tsc --noEmit), every event module must load,
 # satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
@@ -36,8 +36,6 @@ concurrency:
 
 permissions:
   contents: read
-  # npm ci installs any @camphoric package not in a workspace from GitHub Packages
-  packages: read
 
 jobs:
   offline:
@@ -51,14 +49,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
 
       - run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Every workspace's packages are hoisted into data/node_modules, which the
       # data image installs for its own platform: a workspace with a
@@ -66,7 +60,7 @@ jobs:
       - name: The workspaces share one node_modules
         run: test -z "$(find packages events -mindepth 2 -maxdepth 2 -name node_modules)"
 
-      # Events installed from GitHub Packages take the spec as a peer, so they
+      # Events installed from npm take the spec as a peer, so they
       # share the importer's copy; one nested under an event was written for a
       # spec major the importer doesn't follow.
       - name: One copy of the spec is installed

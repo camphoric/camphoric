@@ -1,5 +1,5 @@
 #!/bin/sh
-# Notes on the events data/ installs from GitHub Packages, as markdown on
+# Notes on the events data/ installs from npm, as markdown on
 # stdout (nothing when there's nothing to say); never fails:
 # - an event whose latest published version is outside its range (a new
 #   major, which npm update won't take)

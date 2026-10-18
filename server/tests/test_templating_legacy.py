@@ -7,7 +7,7 @@ legacy environment's extensions and filters ({% do %}, {% continue %},
 regex_replace, money_fmt; {% break %} is only parsed), whichever camps'
 reports are in the repository.
 
-The events data/ installs from GitHub Packages (each camp's own repository)
+The events data/ installs from npm (each camp's own repository)
 are checked too, from data/node_modules, wherever data/ has been installed
 (CI's django.yml installs it), so a server change that changes how one of
 their reports renders shows up here.
@@ -33,7 +33,7 @@ NODE_MODULES = DATA_DIR / 'node_modules'
 
 def registry_events():
     '''
-    The events data/ installs from GitHub Packages: its @camphoric/camphoric-event-*
+    The events data/ installs from npm: its @camphoric/camphoric-event-*
     dependencies that aren't workspaces (which the lockfile marks as links), as
     data/scripts/registry-events.mjs finds them.
     '''
@@ -114,7 +114,7 @@ class LegacyReportsFoundTests(SimpleTestCase):
     @unittest.skipUnless(os.environ.get('CI') == 'true' or NODE_MODULES.is_dir(),
                          'data/ not installed (npm ci in data/)')
     def test_the_registry_events_reports_are_found(self):
-        # Each event data/ installs from GitHub Packages is installed, and the
+        # Each event data/ installs from npm is installed, and the
         # reports it publishes are among those checked, so none stops being
         # checked quietly (a stale node_modules, or reports moved in a release).
         for name in REGISTRY_EVENTS:

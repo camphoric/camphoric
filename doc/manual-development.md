@@ -140,8 +140,7 @@ http://127.0.0.1:8000/api/
 
 ## Loading Sample Data
 
-Once your server is running, import the sample events with the importer in `data/` (installing
-it needs a GitHub Packages token: see "A token for `data/`" in the [README](../README.md#a-token-for-data)),
+Once your server is running, import the sample events with the importer in `data/`,
 logging in as your superuser:
 ```
 cd data

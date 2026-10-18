@@ -150,7 +150,7 @@ their own repositories' packages (#780):
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
-| (GitHub Packages) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from GitHub Packages by a caret range |
+| (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from npm by a caret range |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports). A test fails when the contract's schema gains an event, report, registration type, custom charge type or lodging field, or a report output, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
@@ -191,16 +191,16 @@ to use one deliberately. A request whose connection is reset is sent again only 
 
 A camp's event lives in a repository of its own: see "Event repositories" in
 [RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. In this repository, an
-event is added by its package name: installed from GitHub Packages by a caret range (`npm install
+event is added by its package name: installed from npm by a caret range (`npm install
 @camphoric/camphoric-event-<name>` in `data/`) and listed in `EVENTS` in `data/eventModules.ts`.
 Each event takes the spec as a peer dependency, so the importer and every event share one copy (see
 "What a spec version means" in RELEASE.md). The offline tests check that each installed event is
-the published build, from `dist/`, resolved from GitHub Packages and taking a spec range this
+the published build, from `dist/`, and taking a spec range this
 repository's spec satisfies, and that events naming the same organization declare it identically.
 To work on a camp's event against your development server, clone its repository; each has its own
 tests, e2e tests and (where the camp has one) bulk-registration script.
 
-The packages are TypeScript. The spec and import-tools are published to GitHub Packages compiled
+The packages are TypeScript. The spec and import-tools are published to npm compiled
 to JS (their `exports` point at `dist/`; see "Event import packages" in the
 [README](../README.md) and [RELEASE.md](../RELEASE.md)), but in this repository everything runs from
 their source, with no build: the `camphoric-source` export condition, which the tsconfigs
@@ -214,14 +214,10 @@ package drops the `camphoric-source` export, since its source isn't packed. Each
 `satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
 still checks the schema with Ajv at runtime. After pulling a change to the workspaces or to the
-events `data/` installs (such as an event moving to GitHub Packages), rebuild the `data` Docker
+events `data/` installs (such as an event moving to a new registry), rebuild the `data` Docker
 image (`docker compose build data`) before `docker compose run --rm data import`, and start the
 stack with `docker compose up -d -V`: `-V` gives the `data` service a fresh `node_modules` volume,
 where an old one would still hold the previous install.
-`data/` installs events from GitHub Packages, so `npm ci` there needs a token with
-`read:packages`: in `~/.npmrc` on your machine, `CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token)
-docker compose build data` for the image, and `CAMPHORIC_NPM_AUTH_TOKEN` or the vault for the
-Vagrant VM. See "A token for `data/`" in the [README](../README.md#a-token-for-data).
 
 A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
 and runs the offline suite, then smoke-tests the packed packages, on every pull request that
@@ -231,13 +227,13 @@ rejected sample registration fails that import. The same workflow runs Sample Ca
 registration-form e2e tests against a throwaway server from that image, so a client change that
 breaks the import-tools page object fails there. The server's legacy report tests
 (`server/tests/test_templating_legacy.py`, in `django.yml`) render the reports of the events
-`data/` installs from GitHub Packages as well as those under `data/events/`. Those other workflows
+`data/` installs from npm as well as those under `data/events/`. Those other workflows
 test the event versions the lockfile pins; every week, `.github/workflows/events-latest.yml` moves
 each to the newest version its range allows and tests and imports them again, opening an
 `event-compat` issue when they fail, when an event has a newer major than its range, or when the
 camphoric org has an event repository (`camphoric-event-<name>`) whose package `data/` doesn't
 install. `node scripts/registry-events.mjs`
-lists the events `data/` installs from GitHub Packages, and `scripts/latest-events-notes.sh` gives
+lists the events `data/` installs from npm, and `scripts/latest-events-notes.sh` gives
 those notes.
 
 ### Create the Django superuser

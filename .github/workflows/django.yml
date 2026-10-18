@@ -27,9 +27,6 @@ concurrency:
 
 permissions:
   contents: read
-  # npm ci installs the events published from their own repositories from
-  # GitHub Packages
-  packages: read
 
 env:
   SECRET_KEY: not-a-real-secret-key-really-not-a-real-secret-key
@@ -72,18 +69,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # The legacy report tests also render the reports of the events data/
-      # installs from GitHub Packages (data/node_modules)
+      # installs from npm (data/node_modules)
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
       - name: Install data/ (the events' report templates)
         working-directory: ./data
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci --ignore-scripts
       - name: Set up Python ${{ matrix.python-version }}
         id: setup-python

@@ -7,7 +7,7 @@
 # The event-import packages under data/packages/ are release-please components
 # of their own, each with its own release PR and tag
 # (camphoric-event-import-spec-vX.Y.Z, camphoric-event-import-tools-vX.Y.Z);
-# merging one publishes that package to GitHub Packages (release-packages.yml).
+# merging one publishes that package to npm (release-packages.yml).
 name: Release Please
 
 on:
@@ -17,7 +17,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  packages: write
 
 # One run at a time, in order, so release PRs merged in quick succession don't
 # race each other (a run is never cancelled: it may be publishing).
@@ -77,7 +76,7 @@ jobs:
       tag: ${{ needs.release-please.outputs.spec_tag_name }}
     permissions:
       contents: write
-      packages: write
+      id-token: write
 
   publish-tools:
     needs: release-please
@@ -87,4 +86,4 @@ jobs:
       tag: ${{ needs.release-please.outputs.tools_tag_name }}
     permissions:
       contents: write
-      packages: write
+      id-token: write

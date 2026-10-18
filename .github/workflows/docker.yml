@@ -2,7 +2,7 @@
 # inputs (server/, client/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
-# every event the importer loads (data/events and those from GitHub Packages) is
+# every event the importer loads (data/events and those from npm) is
 # imported into it (the live import test). Alongside, Sample Camp's
 # registration-form e2e tests run against a throwaway server from the same
 # image, through the import-tools page object every event repository's tests
@@ -42,9 +42,6 @@ concurrency:
 
 permissions:
   contents: read
-  # the live import's npm ci installs any @camphoric package not in a workspace
-  # from GitHub Packages
-  packages: read
 
 jobs:
   build-and-smoke:
@@ -92,15 +89,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
 
       - name: Install the importer
         working-directory: data
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       # The importer is a REST client, so it runs on the runner against the
@@ -182,15 +175,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
 
       - name: Install the importer
         working-directory: data
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm ci
 
       # The browsers are cached by Playwright's version and the runner's OS release

@@ -171,7 +171,7 @@ PostgreSQL 16 or newer.
 
 ## Event-import packages
 
-The event-import packages in `data/packages/` are published to GitHub Packages (see "Event import
+The event-import packages in `data/packages/` are published to npm (see "Event import
 packages" in the [README](./README.md)) and released on their own versions, as release-please
 components alongside the app:
 
@@ -191,10 +191,17 @@ components alongside the app:
   their own copies of the two spec types they use, and a test keeps those identical), so their
   release PRs can be merged in any order. In this repository, the importer, the events and the
   tools use each other's workspace copies (`"*"`), whatever version a release gives them.
-- **Publishing access.** The repository that publishes a package must keep the **Write** (or
-  Admin) role in the package's settings, under "Manage Actions access"; with only Read, the publish
-  job fails with `403 … write_package`. Other repositories need no grant to install a public
-  package.
+- **Publishing access.** Packages publish with npm's
+  [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no stored token), which
+  also attaches provenance. Each package's settings on npmjs.com list two GitHub Actions trusted
+  publishers for `camphoric/camphoric`: `release-please.yml` (npm checks the calling workflow, and
+  that one calls `release-packages.yml`) and `release-packages.yml` (for a run by hand). Without a
+  matching one, the publish job fails with npm's 404. Installing needs no token.
+- **A new package's first version.** Trusted publishing only applies to a package that already
+  exists on npm, so a package's first version is published by hand (`npm run build`, then `npm
+  publish -w @camphoric/<name> --access public` in `data/`, signed in to an account in the npm
+  `camphoric` organization), before its trusted publishers are added and the package is set to
+  require 2FA and disallow tokens.
 - **Republishing.** To publish a released tag again (if the publish job failed), run
   `gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0`; a version
   that's already published is skipped, and one older than the newest published version doesn't
@@ -246,7 +253,7 @@ authoritative record. A new row is added with each spec major:
 ## Event repositories
 
 Each camp's event is a package of its own, developed and released in its own public repository and
-published to GitHub Packages, which Camphoric's importer (`data/`) installs (#780). Sample Camp, a
+published to npm, which Camphoric's importer (`data/`) installs (#780). Sample Camp, a
 made-up event for this repository's tests, is the only event still in `data/events/`.
 
 | Event | Repository | Package |
@@ -262,8 +269,8 @@ made-up event for this repository's tests, is the only event still in `data/even
   packed package; its e2e tests drive the registration form against the latest Camphoric image, on
   pull requests and weekly. The Actions bot opens the release PR, so its CI and e2e runs wait for
   someone to approve them.
-- **Publishing access.** As for the packages above, each repository keeps the Write (or Admin)
-  role in its package's "Manage Actions access".
+- **Publishing access.** As for the packages above, each package lists its repository's release
+  workflow as a trusted publisher on npmjs.com.
 - **In Camphoric.** The importer installs each event by a caret range, and the lockfile pins the
   version every workflow tests; a new minor or patch reaches it with a lockfile update. Every week,
   `events-latest.yml` tests the newest versions the ranges allow, and opens an `event-compat` issue
@@ -276,7 +283,7 @@ made-up event for this repository's tests, is the only event still in `data/even
 1. **Start the repository from the event repository most like the new event** (the Jughandle
    Campout's has report files, a bulk script and `packagePath.ts`; Family Week's has none of them):
    copy its configs, `.github/workflows/`, `scripts/`, `e2e/` setup, `__tests__/conformance.test.ts`
-   (with the new package's name), `README.md`, `LICENSE`, `.npmrc` and `.gitignore`, but not its
+   (with the new package's name), `README.md`, `LICENSE` and `.gitignore`, but not its
    `CHANGELOG.md`, and put the new event's source in place of its event files. Sample Camp
    (`data/events/sample-camp`) shows every part of the import contract; don't bring its
    `coverage.test.ts` or `dates.test.ts`, which only fit Sample Camp. Then reset what the copy's own
@@ -297,10 +304,13 @@ made-up event for this repository's tests, is the only event still in `data/even
    pull requests in the repository's settings (Actions → General → Workflow permissions), as the
    other event repositories do, and re-run the Release Please workflow.
 4. **Release it.** Approve the release PR's CI and e2e runs, then merge it: that tags `v1.0.0`
-   and publishes the package. Check that the package is public and that the repository has Write
-   (or Admin) under its "Manage Actions access".
+   and publishes the package. npm's trusted publishing only applies to a package that already
+   exists, so publish the first version by hand instead (`npm publish --access public`, signed in
+   to an account in the npm `camphoric` organization), then add the repository's release workflow
+   as the package's trusted publisher on npmjs.com, and set the package to require 2FA and
+   disallow tokens.
 5. **Add it to Camphoric:** in `data/`, `npm install @camphoric/camphoric-event-<name>` (a caret
-   range from GitHub Packages), add it to `EVENTS` in `data/eventModules.ts`, and add a row to the
+   range from npm), add it to `EVENTS` in `data/eventModules.ts`, and add a row to the
    table above. The offline tests then check that it's the published build, and `docker.yml`
    imports it.
 
@@ -314,10 +324,10 @@ made-up event for this repository's tests, is the only event still in `data/even
 | `.github/workflows/prerelease.yml`    | push a `vX.Y.Z-*` tag          | creates the pre-release, then builds assets |
 | `.github/workflows/release-assets.yml`| called by the two above        | builds `client/` and attaches `frontend-build-v2.tar.gz` to the tag |
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
-| `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to GitHub Packages |
+| `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to npm |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks, lints and tests the importer and the event packages, and smoke-tests the packed packages |
 | `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
-| `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from GitHub Packages to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
+| `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from npm to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
 | `.github/workflows/client.yml`        | push/PR to `main` touching `client/` | type-checks, lints and unit-tests the client, and runs its Playwright e2e suite |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`
