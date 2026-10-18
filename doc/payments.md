@@ -241,7 +241,7 @@ sequenceDiagram
     else PayPal declines
         P-->>S: 422 INSTRUMENT_DECLINED
         S-->>B: 402 declined (nothing captured)
-    else no clear answer (timeout, 5xx)
+    else no clear answer (timeout, 5xx), or recording the capture failed
         S->>S: keep the pending order, email the event the details
         S->>S: send the confirmation
         S-->>B: 502 unknown: "please don't pay again"
@@ -305,6 +305,14 @@ sequenceDiagram
   registrant, campers, an admin link when `CAMPHORIC_PUBLIC_URL` is set), what for (invoice,
   amounts, payment type), PayPal's references and error, what the registrant was told, and what
   to do. Without an event address it's only logged (always at ERROR).
+- **When recording fails after PayPal moved the money** (#767) — a database error or a bug while
+  saving the capture or refund, or PayPal saying an order was already captured and then not
+  answering what for — the half-done write is rolled back with its transaction and the failure is
+  handled as an `unknown` outcome: the event gets the problem email (its error line says what
+  failed), and the registrar or registrant is told (502). For a capture the registrant is asked
+  not to pay again, and the order stays pending and marked, so the worker asks PayPal about it 15
+  minutes on and records it (or "Check PayPal order" does). The report is written after the
+  rollback, with no transaction open, so it isn't lost with it.
 - **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) asks PayPal about the
   pending order: COMPLETED is recorded; anything else is cleared (no money was taken).
 
@@ -336,7 +344,7 @@ flowchart LR
     C[Finish and pay later] --> Q
     D[Nothing to pay] --> Q
     E[PayPal outcome unknown] --> Q
-    W[Worker sweep:<br/>completed &gt; 30 min ago,<br/>confirmation_sent_at empty] --> Q
+    W[Worker sweep:<br/>completed &gt; 30 min ago,<br/>confirmation_sent_at empty,<br/>no capture unsettled,<br/>no PayPal order from the last 3 h] --> Q
     Q{confirmation_sent_at set?} -->|no| S[Queue it<br/>dedupe key confirmation:ID<br/>set confirmation_sent_at]
     Q -->|yes| N[Nothing: it's sent once]
 ```
@@ -346,6 +354,14 @@ is the sweep, called from the worker's `reconcile` task — after `check_unrecor
 (§6). The sweep skips a registration while one of its invoices has a capture not yet settled
 (for up to a day), so a confirmation sent late says what was paid. Registrations converted by migration 0076
 have `confirmation_sent_at` set, so the sweep never emails anyone from before.
+
+It also passes over a registration whose invoice has a pending PayPal order made in the last
+three hours (`PENDING_PAYPAL_ORDER_WINDOW`, #767): the payer may still be in PayPal's window, and
+if they approved after an "unpaid" confirmation they'd be told the wrong thing. The invoice's
+`updated_at` stands in for when the order was made (making it is the payment step's last save of
+the invoice), so a later edit of the invoice holds the confirmation back a while longer. Someone
+who pressed PayPal and walked away gets their confirmation about three hours on instead of thirty
+minutes.
 
 ## 9. Recording a payment (admin)
 
@@ -370,6 +386,14 @@ flowchart TD
   invoice is cancelled (not "$200 due"); restore it and the invoice reopens.
 - A payment saved any other way (Django admin, a shell) without an invoice gets one the same way
   (`Payment.save`).
+- **Editing a payment can't contradict what already happened to it** (#767,
+  `PaymentSerializer.validate_edit`): its amount can't go below what its refunds gave back, a
+  refunded payment can't move to another invoice, and a refund can't be detached from or moved to
+  another payment. A payment or refund PayPal recorded (it has a capture or refund id) keeps
+  PayPal's amount and stays PayPal or Card (either may be corrected to the other, #758) — so the
+  ledger agrees with PayPal and the payment stays refundable through it. Sending the same values
+  back is fine; only a change is refused (400). A deleted refund can't be restored if it would
+  give back more than is left of its payment (409).
 
 ## 10. An invoice's lifecycle
 
@@ -407,7 +431,7 @@ sequenceDiagram
     participant S as Server
     participant P as PayPal
     A->>B: Refund (from a PayPal payment's row) — or "Refund the difference"
-    B->>B: make a request id for this attempt
+    B->>B: make a request id (one while the dialog is open)
     B->>S: POST /api/payments/{id}/refund-paypal/ {amount, reason, request_id}
     S->>S: check: a PayPal/card payment with a capture id
     alt a refund of it already recorded with this request id (a retry)
@@ -417,12 +441,12 @@ sequenceDiagram
     else within what's left
         S->>P: refund the capture (PayPal-Request-Id = refund-request id)
         alt COMPLETED or PENDING
-            P-->>S: refund id
-            S->>S: record a payment −amount, refund_of the payment,<br/>paypal_transaction_id = refund id,<br/>refund_request_id = request id
+            P-->>S: refund id, amount refunded
+            S->>S: record a payment −(PayPal's amount), refund_of the payment,<br/>paypal_transaction_id = refund id,<br/>refund_request_id = request id
             S-->>B: 201 the refund
         else refused (fully refunded, past 180 days …)
             S-->>B: 409 refused, with PayPal's message
-        else no clear answer
+        else no clear answer, or recording the refund failed
             S->>S: email the event the details
             S-->>B: 502 unknown: check PayPal before trying again
         end
@@ -448,6 +472,13 @@ flowchart LR
   return its first refund) only if its amount still fits in what's left, so retrying such a
   full refund is still refused.
 - A check mailed back is recorded by hand: a negative payment with `refund_of`.
+- **The amount recorded is PayPal's** (#767). The dialog keeps one request id while it's open,
+  even if the amount is changed, so a retry can't refund a second time. A retry of a refund
+  already recorded is answered from the ledger (above: the same refund, or 409 for another
+  amount). One whose first reply was lost, so nothing was recorded, reaches PayPal, which answers
+  a request id it has seen with that first refund whatever amount the retry asks for — so the
+  refund is recorded for the amount in PayPal's reply, with the request id, and a further retry
+  for another amount is then refused.
 - Refunding doesn't change the handling fee: if the organizers' policy is to return the fee,
   the registrar edits the invoice's handling too.
 - A converted PayPal payment whose verification had failed back then has no capture id, so it

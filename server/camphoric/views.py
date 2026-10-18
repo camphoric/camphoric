@@ -897,6 +897,12 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
         with transaction.atomic():
+            refund = self.get_any_object()
+            if refund.deleted_at is not None and refund.refund_of is not None \
+                    and -invoices.money(refund.amount) > invoices.refundable(refund.refund_of):
+                # Its payment was lowered or refunded again meanwhile (#767).
+                raise serializers.Conflict('Restoring this refund would give back more than '
+                                           'is left of its payment.')
             response = super().restore(request, pk)
             invoices.match_received_invoice(self.get_any_object().invoice)
         return response

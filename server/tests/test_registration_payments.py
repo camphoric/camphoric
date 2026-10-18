@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.core import mail
+from django.db import DatabaseError
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase, APITransactionTestCase
@@ -360,6 +361,48 @@ class PayPalTests(FlowTestCase):
         self.assertEqual([r['method'] for r in self.paypal.requests],
                          ['POST', 'GET', 'POST', 'GET'])
 
+    def test_a_failure_recording_the_capture_emails_the_event(self):
+        # PayPal took the money; recording it failed. The registrant is told not
+        # to pay again, and the event's report survives the failed write (#767).
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')),
+                   paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        with mock.patch.object(models.Payment, 'save', side_effect=DatabaseError('disk full')), \
+                self.assertLogs('camphoric.invoices', level='ERROR'):
+            response = self.approve(status=502)
+        self.assertEqual(response.data['code'], 'unknown')
+        invoice = self.invoice()
+        self.assertEqual((invoice.pending_paypal_order_id, invoice.handling),
+                         (paypal_mocks.ORDER_ID, D('0.00')))
+        self.assertFalse(invoice.payments.exists())
+        self.assertTrue(self.registration.completed)
+        self.assertEqual(len(self.confirmations()), 1)
+        report = models.EmailMessage.objects.get(kind='payment_report')
+        self.assertIn(f'Order id: {paypal_mocks.ORDER_ID}', report.text)
+        self.assertIn('disk full', report.text)
+
+        # "Check PayPal order" records it.
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        response = self.client.post(f'/api/invoices/{invoice.id}/check-paypal/')
+        self.assertEqual(response.data['result'], 'recorded')
+        self.assertEqual(self.invoice().status, 'paid')
+
+    def test_already_captured_but_no_answer_after_emails_the_event(self):
+        # PayPal says it's captured, then can't say what for: money moved, so
+        # it's an unknown outcome, not a bare 500 (#767).
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.paypal.add_mock_response(422, {}, {
+            'name': 'UNPROCESSABLE_ENTITY', 'details': [{'issue': 'ORDER_ALREADY_CAPTURED'}]})
+        self.paypal.add_mock_response(503, {}, {})
+        response = self.approve(status=502)
+        self.assertEqual(response.data['code'], 'unknown')
+        self.assertEqual(self.invoice().pending_paypal_order_id, paypal_mocks.ORDER_ID)
+        self.assertTrue(models.EmailMessage.objects.filter(kind='payment_report').exists())
+
     def test_an_order_for_another_registration_is_refused(self):
         self.start_paypal()
         invoice = self.invoice()
@@ -515,14 +558,30 @@ class RegistrarEditsTests(FlowTestCase):
 
 
 class ConfirmationSweepTests(FlowTestCase):
+    # Past the time a payer may still be in PayPal's window.
+    AFTER_PAYPAL = confirmations.PENDING_PAYPAL_ORDER_WINDOW + datetime.timedelta(minutes=1)
+
     def test_a_closed_tab_gets_its_confirmation_after_half_an_hour(self):
         self.start_paypal()
+        models.Invoice.objects.filter(registration=self.registration).update(
+            pending_paypal_order_id=None)  # e.g. a registrar checked the order
         self.assertEqual(confirmations.send_overdue_confirmations(), 0)
         later = timezone.now() + datetime.timedelta(minutes=31)
         self.assertEqual(confirmations.send_overdue_confirmations(later), 1)
         self.assertEqual(len(self.confirmations()), 1)
         self.assertIsNone(self.invoice().payment_type)  # #759
         self.assertEqual(confirmations.send_overdue_confirmations(later), 0)
+
+    def test_not_while_the_payer_may_still_be_in_paypals_window(self):
+        # An idle PayPal window past half an hour: no "unpaid" email yet, so one
+        # who approves late isn't told they haven't paid (#767).
+        self.start_paypal()
+        later = timezone.now() + datetime.timedelta(minutes=31)
+        self.assertEqual(confirmations.send_overdue_confirmations(later), 0)
+        self.assertEqual(self.invoice().payment_type, 'PayPal')
+        much_later = timezone.now() + self.AFTER_PAYPAL
+        self.assertEqual(confirmations.send_overdue_confirmations(much_later), 1)
+        self.assertIsNone(self.invoice().payment_type)  # #759
 
     def test_a_walked_away_confirmation_doesnt_say_paypal(self):
         # #763 (wiki A10): pressed PayPal, closed the window and left.
@@ -531,7 +590,7 @@ class ConfirmationSweepTests(FlowTestCase):
                          'chose {{ registration.payment_type or "nothing" }}.')
         template.save()
         self.start_paypal()
-        later = timezone.now() + datetime.timedelta(minutes=31)
+        later = timezone.now() + self.AFTER_PAYPAL
         confirmations.send_overdue_confirmations(later)
         [email] = self.confirmations()
         self.assertIn('Paying by nothing yet; chose nothing.', email.body)
