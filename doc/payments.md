@@ -319,11 +319,13 @@ sequenceDiagram
   `paymentProcessing` and the pay page's `processing` say so when the page is opened again), and
   gets their confirmation. Until the marks are cleared the invoice is **held**
   (`capture_processing`, however long it takes): it takes no other payment (`not_payable`,
-  "PayPal is still processing a payment …"), the pay page offers no buttons, it can't be
-  cancelled or deleted (409, `held_message`; the admin's invoice offers neither, and shows
-  "PayPal is still processing a payment"), since the payment may yet be recorded on it. The
+  "PayPal is still processing a payment …"), the pay page offers no buttons, and it can't be
+  cancelled or deleted, nor take a payment recorded by hand, nor have its amount or handling
+  changed (all 409, `held_message`; §10), since the payment may yet be recorded on it; the
+  admin's invoice offers none of these, and shows "PayPal is still processing a payment". The
   worker asks PayPal again each time `paypal_capture_pending_at` is half an hour old
-  (`PENDING_CAPTURE_ASK_EVERY`), for 30 days from the capture (`PENDING_CAPTURE_WATCHED_FOR`):
+  (`PENDING_CAPTURE_ASK_EVERY`; a PayPal error notes the ask too, so a refused one isn't asked
+  every minute), for 30 days from the capture (`PENDING_CAPTURE_WATCHED_FOR`):
   still pending, it notes when it asked; completed, it records the payment ("Recorded by the
   worker checking PayPal") and clears the marks; declined, it emails the event (the PayPal
   problem email, `capture_denied`: the registrant was told it's processing, so someone should
@@ -334,8 +336,8 @@ sequenceDiagram
   about within its watch (`paypal_capture_pending_at` before `paypal_capture_started_at` + 30
   days), so one still pending is asked about once more after the watch: it's reported
   (`capture_expired`), its `paypal_capture_pending_at` set to then, and it's asked about no more.
-  When PayPal can't be asked then (it's down, or refuses our credentials), it's asked each run
-  for up to a day past the watch, then reported the same way with that error.
+  When PayPal can't be asked then (it's down, or refuses our credentials), it's reported the
+  same way at once, with that error.
   Its marks and order stay, so the invoice stays held (`capture_watch_lapsed`; the admin's
   `paypal_capture_lapsed` says it's no longer asked about): PayPal still has the payment and may
   yet complete it, and a payable invoice would get a new order in place of the old one, which
@@ -365,7 +367,9 @@ sequenceDiagram
   noticed: that needs PayPal's webhooks (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the
   server doesn't take.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
-  what's owed.
+  what's owed. It's the fee the order added (`_fee_captured`): what's due now plus its fee, when
+  that's what was captured; otherwise — a pending capture recorded days later, after what's due
+  changed — the due that, with its fee, makes the captured amount (#767).
 - **PayPal or Card** is the button the payer pressed (`paymentType`), on the invoice and the
   payment. PayPal's own `payment_source` is a last resort: its card button can report a card
   payment as `paypal` (#758).
@@ -381,7 +385,10 @@ sequenceDiagram
   `capture_denied`, `capture_expired`, `capture_lost` — once per kind and watch): what happened, who (registration,
   registrant, campers, an admin link when `CAMPHORIC_PUBLIC_URL` is set), what for (invoice,
   amounts, payment type), PayPal's references and error, what the registrant was told, and what
-  to do. Without an event address it's only logged (always at ERROR).
+  to do. Without an event address it's only logged (always at ERROR). For news of a pending
+  capture, what they were told depends on PayPal's answer when they paid ("processing", or, after
+  a lost answer the worker later found pending, "we couldn't confirm it"), so the email gives
+  both: either way they were asked not to pay again.
 - **When recording fails after PayPal moved the money** (#767) — a database error or a bug while
   saving the capture or refund, or PayPal saying an order was already captured and then not
   answering what for — the half-done write is rolled back with its transaction and the failure is
@@ -507,13 +514,22 @@ stateDiagram-v2
 Status is never stored: `Invoice.status` (and `templating/graph.invoice_status`) work it out from
 `cancelled_at`, the total and the live payments' net.
 
-**Neither cancelled nor deleted while PayPal may pay it (#767).** An invoice whose capture hasn't
-settled (`invoices.capture_unsettled`: a capture under way, or one PayPal is processing, §6) is
-refused a cancel or a delete with a 409 saying why (`held_message`): the worker or "Check PayPal
-order" may still record PayPal's payment on it, which would land on a cancelled invoice, or be
-lost with a deleted one. The cancel looks with the invoice's row locked; the delete's plan
-(`deletes.invoice_has_no_paypal_payment_underway`) blocks it in the preview, and looks again with
-the row locked inside the delete, for a capture that started since.
+**Held while PayPal may pay it (#767).** An invoice whose capture hasn't settled
+(`invoices.capture_unsettled`: a capture under way, or one PayPal is processing, §6) is refused,
+with a 409 saying why (`held_message`):
+- a cancel or a delete, and its registration's delete: the worker or "Check PayPal order" may
+  still record PayPal's payment on it, which would land on a cancelled invoice, or be lost with
+  a deleted one (or hidden with its registration). The cancel looks with the invoice's row
+  locked; the deletes' plans (`deletes.invoice_has_no_paypal_payment_underway`,
+  `registration_has_no_paypal_payment_underway`) block them in the preview, and look again
+  inside the delete, the registration's row locked and then the invoices', for a capture that
+  started since;
+- a change to its `amount` or `handling` (`InvoiceViewSet.perform_update`), and a payment
+  recorded or moved onto it (`PaymentSerializer.validate`); one recorded without an invoice
+  passes it over (`invoice_for_payment`). The payment is recorded days later against what the
+  invoice asks then, so a $400 check recorded meanwhile, or the amount raised to $600, would
+  leave the $410 capture's $10 fee off the invoice. The admin's edit dialog doesn't let the
+  amount or fee change, and the record-payment dialog doesn't offer the invoice.
 
 **An edit made from a stale invoice is refused (#770).** Every invoice counts its saves in
 `version`, and the payment step's rewrites count too. An organizer's edit, cancel or reopen sends
@@ -663,7 +679,8 @@ flowchart LR
   `capture_processing`, `capture_unsettled`, `capture_watch_lapsed`, `refund_paypal_payment`)
   and the problem email.
 - `deletes.py` — `invoice_has_no_payments` and `invoice_has_no_paypal_payment_underway`, the
-  rules for deleting an invoice.
+  rules for deleting an invoice, and `registration_has_no_paypal_payment_underway`, for deleting
+  a registration.
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`;
   `checked_order_id`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.

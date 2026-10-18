@@ -14,6 +14,7 @@ import {
   payment,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
+  PROCESSING_PAYPAL,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
@@ -94,6 +95,23 @@ describe('EditInvoiceModal', () => {
       handling: '25.00',
     });
   });
+
+  it('doesn’t change what it asks while PayPal is processing a payment on it', () => {
+    // PayPal's payment is recorded as what it asked then (DR-133).
+    renderWithProviders(
+      <EditInvoiceModal
+        invoice={PROCESSING_PAYPAL}
+        uninvoicedBalance={450}
+        handlingPercent={2.5}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Amount' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Electronic payment handling' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Use the balance' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Calculate' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /Memo/ })).toBeEnabled();
+  });
 });
 
 describe('RecordPaymentModal', () => {
@@ -112,6 +130,28 @@ describe('RecordPaymentModal', () => {
     await user.click(screen.getByRole('button', { name: 'Record payment' }));
     expect(record).toHaveBeenCalledWith(
       expect.objectContaining({ registration: 5, invoice: 1, amount: 550 }),
+      expect.anything(),
+    );
+  });
+
+  it('doesn’t offer an invoice PayPal is processing a payment on', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RecordPaymentModal
+        event={event}
+        registrationId={5}
+        invoices={[PROCESSING_PAYPAL]}
+        opened
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Apply to' })).toHaveValue(
+      'On its own (a new “Payment received” invoice)',
+    );
+    await user.type(screen.getByRole('textbox', { name: 'Amount' }), '25');
+    await user.click(screen.getByRole('button', { name: 'Record payment' }));
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ new_invoice: true, amount: 25 }),
       expect.anything(),
     );
   });

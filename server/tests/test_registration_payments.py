@@ -1137,6 +1137,24 @@ class PendingCaptureTests(FlowTestCase):
         self.assertIn('Let the registrant know', report.text)
         self.start_paypal()
 
+    def test_the_denial_email_says_what_a_registrant_told_it_was_unknown_was_told(self):
+        # PayPal's answer was lost (they were told we couldn't confirm it); the
+        # worker then finds the capture pending, and PayPal later denies it.
+        self.start_paypal()
+        invoice = self.invoice()
+        self.reply(paypal_mocks.order(self.registration, invoice, D('410.00')))
+        self.paypal.add_mock_response(503, {}, {})
+        self.assertEqual(self.approve(status=502).data['code'], 'unknown')
+        self.reply(self.pending(invoice))
+        found = timezone.now() + invoices.UNRECORDED_CAPTURE_AFTER + datetime.timedelta(minutes=1)
+        invoices.check_unrecorded_captures(found)
+        self.assertTrue(invoices.capture_processing(self.invoice()))
+        self.reply(self.pending(invoice, capture_status='DECLINED'))
+        with self.assertLogs('camphoric.invoices', level='ERROR'):
+            invoices.check_unrecorded_captures(self.ask_after(found))
+        [report] = self.reports().filter(dedupe_key__contains='capture_denied')
+        self.assertIn('we couldn\'t confirm it with PayPal', report.text)
+
     def test_check_paypal_order_waits_for_it_then_records_it(self):
         invoice = self.capture_pending()
         self.reply(self.pending(invoice))
@@ -1213,23 +1231,56 @@ class PendingCaptureTests(FlowTestCase):
             invoices.check_paypal_order(invoice)
         self.assertTrue(invoices.capture_processing(self.invoice()))
 
-    def test_a_lapsed_one_paypal_wont_answer_about_is_reported_a_day_on(self):
-        # Not asked about every minute forever, nor left unreported (#767).
+    def test_a_lapsed_one_paypal_wont_answer_about_is_reported(self):
+        # Not asked about every minute, nor left unreported (#767).
         invoice = self.capture_pending()
-        self.watched_since_last_month(invoice, days=30.5)
-        self.paypal.add_mock_response(403, {}, {'name': 'NOT_AUTHORIZED'})
-        with self.assertLogs('camphoric.invoices', level='WARNING'):
-            invoices.check_unrecorded_captures()
-        self.assertFalse(self.reports().exists())  # tried again next time, for a day
-        day_on = timezone.now() + datetime.timedelta(days=1)
+        self.watched_since_last_month(invoice)
         self.paypal.add_mock_response(403, {}, {'name': 'NOT_AUTHORIZED'})
         with self.assertLogs('camphoric.invoices', level='ERROR'):
-            invoices.check_unrecorded_captures(day_on)
+            invoices.check_unrecorded_captures()
         self.assertIn('Error: PayPal couldn\'t be asked about it', self.reports().get().text)
         asked = len(self.paypal.requests)
-        invoices.check_unrecorded_captures(day_on + datetime.timedelta(days=10))
+        invoices.check_unrecorded_captures(timezone.now() + datetime.timedelta(days=10))
         self.assertEqual(len(self.paypal.requests), asked)
         self.assertTrue(invoices.capture_processing(self.invoice()))
+
+    def test_one_paypal_wont_answer_about_is_asked_again_in_half_an_hour(self):
+        # A PayPal error (credentials changed, say) doesn't have it asked every
+        # minute, crowding out the others (#767).
+        self.capture_pending()
+        later = self.ask_after(timezone.now())
+        self.paypal.add_mock_response(401, {}, {'name': 'AUTHENTICATION_FAILURE'})
+        with self.assertLogs('camphoric.invoices', level='WARNING'):
+            invoices.check_unrecorded_captures(later)
+        asked = len(self.paypal.requests)
+        invoices.check_unrecorded_captures(later + datetime.timedelta(minutes=1))
+        self.assertEqual(len(self.paypal.requests), asked)
+        self.reply(self.pending(self.invoice()))
+        invoices.check_unrecorded_captures(self.ask_after(later))
+        self.assertEqual(len(self.paypal.requests), asked + 1)
+
+    def complete_after(self, change):
+        '''PayPal completes the $410 capture ($400 and its $10 fee) once `change` is made.'''
+        invoice = self.capture_pending()
+        change(invoice)
+        self.reply(paypal_mocks.captured(self.registration, invoice, D('410.00')))
+        with self.assertLogs('camphoric.invoices', level='WARNING'):
+            self.assertEqual(invoices.check_unrecorded_captures(self.ask_after(timezone.now())),
+                             1)
+        return self.invoice()
+
+    def test_its_fee_is_what_the_order_charged_though_what_is_due_has_changed(self):
+        # What's due can change while PayPal processes it (a refund by hand,
+        # say): the fee is the one the order added (#767).
+        invoice = self.complete_after(lambda invoice: models.Invoice.objects.filter(
+            pk=invoice.pk).update(amount=D('600.00')))
+        self.assertEqual((invoice.handling, invoice.amount_due), (D('10.00'), D('200.00')))
+
+    def test_and_with_another_payment_on_it_meanwhile(self):
+        invoice = self.complete_after(lambda invoice: models.Payment.objects.create(
+            registration=self.registration, invoice=invoice, payment_type='Check',
+            amount=D('400.00')))
+        self.assertEqual((invoice.handling, invoice.overpaid), (D('10.00'), D('400.00')))
 
     def settled_meanwhile(self, invoice, reply, **marks):
         '''PayPal's `reply`, given once a registrar's "Check PayPal order" has changed the marks.'''

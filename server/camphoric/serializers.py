@@ -700,6 +700,10 @@ class PaymentSerializer(ModelSerializer):
         moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
         if moving_to and invoice.cancelled_at is not None:
             raise ValidationError({'invoice': 'That invoice is cancelled.'})
+        if moving_to and amount > 0 and invoices.capture_unsettled(invoice):
+            # Its PayPal payment is recorded as what it asked then (#767).
+            raise Conflict(invoices.held_message(
+                invoice, 'it can\'t take another payment'))
 
         if not self.partial or 'attributes' in data:
             validate_attributes({'attributes': data.get('attributes')},

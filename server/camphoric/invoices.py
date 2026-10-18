@@ -142,10 +142,12 @@ def open_invoices(registration):
 def invoice_for_payment(registration, amount, payment_type, *, new_invoice=False, user=None):
     '''
     The invoice a payment recorded without one goes on (DR-87): the oldest
-    with money due, else a new `payment_received` invoice for exactly it.
+    with money due, else a new `payment_received` invoice for exactly it. Not
+    one held for a PayPal payment that may yet be recorded on it (#767).
     '''
     if not new_invoice:
-        invoices = open_invoices(registration)
+        invoices = [invoice for invoice in open_invoices(registration)
+                    if not capture_unsettled(invoice)]
         if invoices:
             return invoices[0]
     return models.Invoice.objects.create(
@@ -585,10 +587,8 @@ def record_capture(invoice, order, payment_type=None, notes=''):
 
     event = invoice.registration.event
     amount = money((capture.get('amount') or {}).get('value'))
-    due = invoice.amount_due
     if money(invoice.handling) == 0:
-        fee = min(max(ZERO, amount - due), online_fee(event, due))
-        invoice.handling = fee
+        invoice.handling = _fee_captured(event, amount, invoice.amount_due)
     # The button the payer pressed says how they paid; PayPal's order may not.
     payment_type = payment_type or invoice.payment_type or _order_payment_type(order)
     invoice.payment_type = payment_type
@@ -609,6 +609,24 @@ def record_capture(invoice, order, payment_type=None, notes=''):
         paypal_transaction_id=capture['id'],
         notes=note,
     )
+
+
+def _fee_captured(event, amount, due):
+    '''
+    The handling fee in a captured `amount`: the one its order added to what
+    was due then (DR-88). What's due now says, unless it has changed since —
+    a capture PayPal took days to complete (#767) — when it's worked out from
+    the amount itself: the order asked `due + online_fee(due)` for some due.
+    '''
+    if amount == due + online_fee(event, due):
+        return online_fee(event, due)
+    percent = Decimal(str(event.epayment_handling or 0))
+    guess = money(amount / (1 + percent / 100))
+    for cents in range(-3, 4):
+        then = guess + cents * CENT
+        if then > 0 and then + online_fee(event, then) == amount:
+            return online_fee(event, then)
+    return min(max(ZERO, amount - due), online_fee(event, due))
 
 
 # A retry repeats the request id, so PayPal refunds at most once (DR-122).
@@ -759,17 +777,18 @@ def unsettled_message(invoice):
         else CAPTURE_UNSETTLED
 
 
-def held_message(invoice, done):
+def held_message(invoice, refused):
     '''
-    Why an invoice whose capture is unsettled can't be `done` ("cancelled",
-    "deleted"): PayPal may record a payment on it yet.
+    Why an invoice whose capture is unsettled is `refused` something ("it
+    can't be cancelled"): PayPal may record a payment on it yet, as what it
+    asked when the order was made (#767).
     '''
     if invoice.paypal_capture_pending_at is not None:
-        return (f'PayPal is still processing a payment on this invoice, so it can\'t be {done} '
-                'until PayPal completes or declines it. "Check PayPal order" asks PayPal '
-                'where it stands.')
-    return (f'A PayPal payment on this invoice is still being confirmed, so it can\'t be {done} '
-            'until that\'s known. "Check PayPal order" asks PayPal now.')
+        return (f'PayPal is still processing a payment on this invoice, so {refused} until '
+                'PayPal completes or declines it. "Check PayPal order" asks PayPal where it '
+                'stands.')
+    return (f'A PayPal payment on this invoice is still being confirmed, so {refused} until '
+            'that\'s known. "Check PayPal order" asks PayPal now.')
 
 
 def _capture_outcome(order):
@@ -1003,9 +1022,10 @@ def _record_unrecorded_capture(invoice, now):
     order_id = invoice.paypal_capture_order_id
     started_at = invoice.paypal_capture_started_at
     about = f'PayPal order {order_id} for invoice {invoice.id}'
-    # The payer was told PayPal is processing it: news that it isn't goes to
-    # the event too (#767), unless "Check PayPal order" settled it, or began
-    # another watch, while PayPal was being asked.
+    # The payer was told not to pay again (it's processing, or couldn't be
+    # confirmed): news that it isn't coming goes to the event too (#767),
+    # unless "Check PayPal order" settled it, or began another watch, while
+    # PayPal was being asked.
     was_pending = invoice.paypal_capture_pending_at is not None
     watch_ended = was_pending and started_at < now - PENDING_CAPTURE_WATCHED_FOR
 
@@ -1028,11 +1048,15 @@ def _record_unrecorded_capture(invoice, now):
         order = paypal_client(invoice.registration.event).fetch_order_details(order_id)
     except PayPalError as e:
         if e.status != 404:
-            if was_pending and started_at < now - PENDING_CAPTURE_WATCHED_FOR \
-                    - UNRECORDED_CAPTURE_RETRIES_FOR:
-                # Tried for a day past the watch: not asked every minute forever.
+            if watch_ended:
+                # Its last ask, unanswered: reported as one still pending.
                 logger.warning(f'Checking {about}: {e}; no longer asked about')
                 watch_over(f'PayPal couldn\'t be asked about it: {e}')
+            elif was_pending:
+                # Asked again in half an hour, as if it had answered: not every
+                # minute, crowding out the others (#767).
+                _asked(invoice, order_id, started_at, now)
+                logger.warning(f'Checking {about}: {e}; trying again in half an hour')
             else:
                 logger.warning(f'Checking {about}: {e}; trying again next time')
             return False
@@ -1291,8 +1315,11 @@ def paypal_problem_report(invoice, *, what, error, order_id=None, capture_id=Non
     elif what in PENDING_CAPTURE_NEWS:
         lines += [
             'What the registrant was told',
-            'Your payment is processing. Please don\'t pay again: it\'s recorded once PayPal '
-            'completes it.',
+            # Which, depends on what PayPal answered when they paid: the
+            # worker may have found the capture pending after a lost answer.
+            'Not to pay again: that their payment is processing and is recorded once PayPal '
+            'completes it, or, if PayPal\'s answer was lost when they paid, that we couldn\'t '
+            'confirm it with PayPal and would check.',
             '',
             'What to do',
         ]

@@ -5,7 +5,8 @@
  * belongs to an invoice (§15, DR-87): it defaults to the oldest one with money
  * due (and fills in what's due on it), or goes "on its own" — a new "Payment
  * received" invoice for exactly it. An invoice can take any number of
- * payments, say a second check.
+ * payments, say a second check — but not one PayPal is still processing a
+ * payment on (§15, DR-133).
  */
 
 import { Button, Group, Modal, NumberInput, Select, Stack, TextInput } from '@mantine/core';
@@ -43,7 +44,10 @@ export function RecordPaymentModal({
   onClose,
 }: RecordPaymentModalProps) {
   const record = useRecordPayment();
-  const open = invoices.filter((i) => i.status === 'open' || i.status === 'partially_paid');
+  // Not one PayPal is processing a payment on: it takes no other (§15, DR-133).
+  const open = invoices.filter(
+    (i) => (i.status === 'open' || i.status === 'partially_paid') && !i.paypal_capture_pending,
+  );
 
   const [type, setType] = useState<PaymentType>('Check');
   const [paidOn, setPaidOn] = useState<string>('');
