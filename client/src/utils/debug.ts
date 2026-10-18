@@ -15,6 +15,6 @@ export function isDebugEnabled(): boolean {
   }
 }
 
-export function debug(...args: Parameters<typeof console.log>): void {
+export function debug(...args: unknown[]): void {
   if (isDebugEnabled()) console.log(...args);
 }

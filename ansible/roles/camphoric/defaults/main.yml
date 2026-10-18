@@ -51,6 +51,5 @@ camphoric_npm_token: "{{ lookup('env', 'CAMPHORIC_NPM_AUTH_TOKEN') | default(cam
 # apt's pipenv (Ubuntu 24.04 refuses system-wide pip installs, PEP 668)
 pipenv_bin: /usr/bin/pipenv
 
-nodejs_version: 22.x
 nginx_ssl_on: True
 
