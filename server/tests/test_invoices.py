@@ -656,22 +656,28 @@ class WhileARefundIsUnderwayTests(TransactionTestCase):
         self.assertEqual(response.status_code, status, response.data)
         return response
 
-    def while_refunding(self, amount, request):
+    def while_refunding(self, amount, request, request_id=None):
         '''
         Send `request` while a refund of `amount` through PayPal is underway.
         PayPal answers once `request` is done, or after a second if it's
-        waiting (as it should be) for the refund to be recorded.
+        waiting (as it should be) for the refund to be recorded, which is
+        checked. Returns the mock PayPal client, which `request` asks too, if
+        it asks PayPal.
         '''
         asked, answered = threading.Event(), threading.Event()
+        answered_late = []
 
         def refund_capture(*args, **kwargs):
+            if asked.is_set():
+                return paypal_mocks.refund(value=f'{amount:.2f}')  # `request` didn't wait
             asked.set()
-            answered.wait(1)
+            answered_late.append(not answered.wait(1))
             return paypal_mocks.refund(value=f'{amount:.2f}')
 
         def refund():
             try:
-                invoices.refund_paypal_payment(self.paid, amount, '', uuid.uuid4().hex)
+                invoices.refund_paypal_payment(
+                    self.paid, amount, '', request_id or uuid.uuid4().hex)
             finally:
                 connection.close()
 
@@ -685,6 +691,14 @@ class WhileARefundIsUnderwayTests(TransactionTestCase):
             finally:
                 answered.set()
                 refunding.join(10)
+        self.assertEqual(answered_late, [True], 'It went ahead while the refund was underway.')
+        return paypal
+
+    def refund_through_paypal(self, amount, request_id, status):
+        response = self.client.post(f'/api/payments/{self.paid.id}/refund-paypal/', {
+            'amount': amount, 'reason': '', 'request_id': request_id}, format='json')
+        self.assertEqual(response.status_code, status, response.data)
+        return response.data
 
     def refunded(self):
         return invoices.refunded(models.Payment.objects.get(pk=self.paid.pk))
@@ -725,4 +739,35 @@ class WhileARefundIsUnderwayTests(TransactionTestCase):
             self.assertEqual(response.status_code, 400, response.data)
 
         self.while_refunding(D('80.00'), move)
+        self.assertEqual(self.refunded(), D('80.00'))
+
+    def test_a_second_refund_through_paypal_waits(self):
+        # Together they'd give back more than was paid: the second finds that
+        # out once the first is recorded, and PayPal isn't asked for it.
+        paypal = self.while_refunding(
+            D('80.00'), lambda: self.refund_through_paypal('30.00', uuid.uuid4().hex, 409))
+        self.assertEqual(paypal.refund_capture.call_count, 1)
+        self.assertEqual(self.refunded(), D('80.00'))
+
+    def test_the_same_refund_sent_again_waits_and_gets_the_first(self):
+        # A double click, or a retry while the first is still underway: the
+        # same request id, so the same refund, asked for and recorded once.
+        request_id = uuid.uuid4().hex
+        answers = []
+        paypal = self.while_refunding(
+            D('80.00'),
+            lambda: answers.append(self.refund_through_paypal('80.00', request_id, 201)),
+            request_id=request_id)
+        self.assertEqual(paypal.refund_capture.call_count, 1)
+        refund = models.Payment.objects.get(refund_of=self.paid)
+        self.assertEqual((answers[0]['id'], answers[0]['amount']), (refund.id, '-80.00'))
+
+    def test_deleting_the_payment_waits(self):
+        # A refunded payment can't be deleted while its refund stays (DR-94).
+        def delete():
+            response = self.client.delete(f'/api/payments/{self.paid.id}/')
+            self.assertEqual(response.status_code, 409, getattr(response, 'data', None))
+
+        self.while_refunding(D('80.00'), delete)
+        self.assertIsNone(models.Payment.all_objects.get(pk=self.paid.pk).deleted_at)
         self.assertEqual(self.refunded(), D('80.00'))

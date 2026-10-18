@@ -7,13 +7,14 @@ confirmation is sent.
 
 import datetime
 from decimal import Decimal
+import threading
 from unittest import mock
 
 from django.core import mail
-from django.db import DatabaseError
+from django.db import connection, DatabaseError
 from django.test import override_settings
 from django.utils import timezone
-from rest_framework.test import APITestCase, APITransactionTestCase
+from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
 from camphoric import confirmations, invoices, models, roles
 from tests import paypal_mocks
@@ -707,6 +708,130 @@ class CaptureCommitTests(Flow, APITransactionTestCase):
         invoice = self.invoice()
         self.assertEqual((invoice.status, invoice.payment_type), ('paid', 'PayPal'))
         self.assertIsNotNone(self.registration.confirmation_sent_at)
+
+
+class SlowCapturePayPal:
+    '''
+    PayPal for the registration's approved order, whose capture is slow to
+    answer: it takes the money, then answers once `answer` is set, or after a
+    second (`answered_late`). Its orders say whether the order has been captured.
+    '''
+
+    def __init__(self, registration, invoice, value):
+        self.approved = paypal_mocks.order(registration, invoice, value)
+        self.completed = paypal_mocks.captured(registration, invoice, value)
+        self.is_captured = False
+        self.captures = 0
+        self.answered_late = False
+        self.capturing, self.answer = threading.Event(), threading.Event()
+
+    def fetch_order_details(self, order_id):
+        return self.completed if self.is_captured else self.approved
+
+    def capture_order(self, order_id, request_id=None):
+        self.captures += 1
+        self.is_captured = True
+        self.capturing.set()
+        self.answered_late = not self.answer.wait(1)
+        return self.completed
+
+
+class WhileACaptureIsUnderwayTests(Flow, APITransactionTestCase):
+    '''
+    A capture holds the registration and its invoice from asking PayPal until
+    the payment is recorded. Whatever else would capture, record or pay the
+    same invoice meanwhile waits for it, then finds the payment it recorded:
+    one payment, captured once (#804). Real connections, so not inside a
+    test's transaction.
+    '''
+
+    def setUp(self):
+        super().setUp()
+        self.start_paypal()
+
+    def while_capturing(self, request):
+        '''
+        Send `request` while the payer's capture is underway: PayPal has the
+        money, and answers once `request` is done, or after a second if it's
+        waiting (as it should be) for the capture to be recorded. Checks that
+        it waited, so it can't have found the money PayPal took before the
+        capture recorded it. Returns `request`'s result and the capture's
+        status code.
+        '''
+        paypal = SlowCapturePayPal(self.registration, self.invoice(), D('410.00'))
+        captured = {}
+
+        def capture():
+            try:
+                captured['status'] = APIClient().post(
+                    f'/api/events/{self.event.id}/register',
+                    {'step': 'payment', 'registrationUUID': self.uuid, 'paymentType': 'PayPal',
+                     'paypalOrderId': paypal_mocks.ORDER_ID}, format='json').status_code
+            finally:
+                connection.close()
+
+        with mock.patch.object(invoices, 'paypal_client', return_value=paypal):
+            capturing = threading.Thread(target=capture)
+            capturing.start()
+            try:
+                self.assertTrue(paypal.capturing.wait(5))
+                result = request()
+            finally:
+                paypal.answer.set()
+                capturing.join(10)
+        self.assertTrue(paypal.answered_late, 'It went ahead while the capture was underway.')
+        self.assertEqual(paypal.captures, 1)
+        return result, captured.get('status')
+
+    def assertPaidOnce(self):
+        invoice = self.invoice()
+        self.assertEqual((invoice.status, invoice.payment_type, invoice.pending_paypal_order_id),
+                         ('paid', 'PayPal', None))
+        self.assertEqual(invoice.payments.get().paypal_transaction_id, paypal_mocks.CAPTURE_ID)
+        self.assertEqual(len(self.confirmations()), 1)
+        return invoice.payments.get()
+
+    def test_the_same_approval_sent_again_waits_and_gets_the_payment(self):
+        # A double click, or a second tab: the order is captured once.
+        response, captured = self.while_capturing(self.approve)
+        self.assertEqual(captured, 200)
+        self.assertEqual(response.data['invoice']['status'], 'paid')
+        self.assertPaidOnce()
+
+    def test_check_paypal_order_waits_and_finds_the_payment(self):
+        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        invoice = self.invoice()
+        response, captured = self.while_capturing(
+            lambda: self.client.post(f'/api/invoices/{invoice.id}/check-paypal/'))
+        self.assertEqual((captured, response.status_code), (200, 200))
+        payment = self.assertPaidOnce()
+        self.assertEqual((response.data['result'], response.data['payment']['id']),
+                         ('recorded', payment.id))
+
+    def test_the_workers_sweep_waits_and_counts_nothing(self):
+        later = timezone.now() + datetime.timedelta(minutes=16)
+        with self.assertNoLogs('camphoric.invoices', level='WARNING'):
+            recorded, captured = self.while_capturing(
+                lambda: invoices.check_unrecorded_captures(later))
+        self.assertEqual((captured, recorded), (200, 0))
+        self.assertEqual(self.assertPaidOnce().notes, 'Initial payment')
+        self.assertIsNone(self.invoice().paypal_capture_order_id)
+
+    def test_paying_by_check_meanwhile_waits_and_finds_it_paid(self):
+        response, captured = self.while_capturing(lambda: self.post(
+            step='payment', registrationUUID=self.uuid, paymentType='Check',
+            paymentOption='Full Payment'))
+        self.assertEqual(captured, 200)
+        self.assertEqual(response.data['invoice']['status'], 'paid')
+        self.assertPaidOnce()
+
+    def test_a_new_order_meanwhile_waits_and_is_refused(self):
+        # Refused before PayPal is asked to create one.
+        _, captured = self.while_capturing(lambda: self.post(
+            409, step='paypal-order', registrationUUID=self.uuid,
+            paymentOption='Full Payment', paymentType='PayPal'))
+        self.assertEqual(captured, 200)
+        self.assertPaidOnce()
 
 
 class UnrecordedCaptureSweepTests(FlowTestCase):
