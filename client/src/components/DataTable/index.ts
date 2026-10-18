@@ -1,1 +1,1 @@
-export { DataTable, type DataTableState } from './DataTable';
+export { DataTable, type DataTableColumnDef, type DataTableState } from './DataTable';

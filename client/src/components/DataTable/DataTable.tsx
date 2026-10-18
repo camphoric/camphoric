@@ -13,15 +13,39 @@ import { Box, Group, Pagination, Table, Text, TextInput } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconSearch } from '@tabler/icons-react';
 import {
   type ColumnDef,
+  createPaginatedRowModel,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
+  type RowData,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_datetime,
+  sortFn_text,
   type SortingState,
-  useReactTable,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table';
 import { matchSorter } from 'match-sorter';
 import { useMemo, useState } from 'react';
+
+/**
+ * The table features DataTable uses. The global filter runs through match-sorter
+ * before the rows reach the table, so it keeps match-sorter's best-match order;
+ * row selection is the caller's `isRowSelected`, so neither needs a table feature.
+ */
+const features = tableFeatures({
+  rowSortingFeature,
+  rowPaginationFeature,
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  // The functions a column's default `sortFn: 'auto'` picks from; numbers and
+  // other values use the built-in basic sort.
+  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text, datetime: sortFn_datetime },
+});
+
+/** A DataTable column definition. */
+export type DataTableColumnDef<T extends RowData> = ColumnDef<typeof features, T, unknown>;
 
 /** A match-sorter key: an object path, or a function projecting searchable text. */
 type SearchKey<T> = string | ((item: T) => string | string[]);
@@ -35,9 +59,9 @@ export interface DataTableState {
 
 const EMPTY_STATE: DataTableState = { sorting: [], globalFilter: '', pageIndex: 0 };
 
-interface DataTableProps<T> {
+interface DataTableProps<T extends RowData> {
   data: T[];
-  columns: ColumnDef<T, unknown>[];
+  columns: DataTableColumnDef<T>[];
   /** Keys searched by the global filter (match-sorter keys). */
   searchKeys?: SearchKey<T>[];
   onRowClick?: (row: T) => void;
@@ -50,7 +74,7 @@ interface DataTableProps<T> {
   onStateChange?: (next: DataTableState) => void;
 }
 
-export function DataTable<T>({
+export function DataTable<T extends RowData>({
   data,
   columns,
   searchKeys,
@@ -81,7 +105,8 @@ export function DataTable<T>({
   const lastPageIndex = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
   const pageIndex = Math.min(current.pageIndex, lastPageIndex);
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: filtered,
     columns,
     state: {
@@ -101,9 +126,6 @@ export function DataTable<T>({
       const pagination = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
       update({ ...current, pageIndex: pagination.pageIndex });
     },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const pageCount = table.getPageCount();
@@ -163,7 +185,7 @@ export function DataTable<T>({
                     bg={selected ? 'var(--mantine-primary-color-light)' : undefined}
                     style={{ cursor: onRowClick ? 'pointer' : undefined }}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getAllCells().map((cell) => (
                       <Table.Td key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </Table.Td>
@@ -183,7 +205,7 @@ export function DataTable<T>({
           <Pagination
             size="sm"
             total={pageCount}
-            value={table.getState().pagination.pageIndex + 1}
+            value={table.state.pagination.pageIndex + 1}
             onChange={(page) => table.setPageIndex(page - 1)}
           />
         </Group>

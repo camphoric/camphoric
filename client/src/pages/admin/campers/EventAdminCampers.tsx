@@ -10,9 +10,8 @@
 
 import { Modal, Stack, Title } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiCamper, Hash } from 'api-types';
-import { DataTable } from 'components/DataTable';
+import { DataTable, type DataTableColumnDef } from 'components/DataTable';
 import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useKeptRecord } from 'hooks/useKeptRecord';
@@ -89,7 +88,7 @@ export function EventAdminCampers() {
       ? ''
       : (vars?.lodgingLookup[String(c.lodging_requested)]?.fullPath ?? '');
 
-  const columns = useMemo<ColumnDef<ApiCamper, unknown>[]>(
+  const columns = useMemo<DataTableColumnDef<ApiCamper>[]>(
     () => [
       {
         id: 'name',

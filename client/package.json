@@ -35,7 +35,7 @@
     "@tabler/icons-react": "^3.49.0",
     "@tanstack/react-query": "^5.104.2",
     "@tanstack/react-router": "^1.170.44",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.3.1",
     "d3-dsv": "^3.0.1",
     "handlebars": "^4.7.10",
     "json-logic-js": "^2.0.5",
