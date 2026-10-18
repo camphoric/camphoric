@@ -5605,20 +5605,22 @@ release, 6.10.2 (January 2025), declares an ESLint peer of at most `^9`, so ESLi
 `npm ci` with it installed; upstream's ESLint 10 issue (jsx-eslint/eslint-plugin-jsx-a11y#1075)
 and the pull requests that add support have been open since February 2026 with no release.
 `eslint-plugin-jsx-a11y-x` supports ESLint 9 and 10 with flat config, keeps jsx-a11y's rules
-(less three it had deprecated) under a `jsx-a11y-x/` prefix, and is maintained under the
-`eslint-community` organization (#922). v7's compiler rules reported 35 errors on the code as it
-was; it now follows them (#921). TanStack Table's `useReactTable` stays a warning
+(less three it had deprecated) under a `jsx-a11y-x/` prefix, and is the fork most projects took
+(about 110,000 weekly downloads in October 2026); its repository moved to the `eslint-community`
+organization that month, after its 0.2.0 release (#922). v7's compiler rules reported 35 errors
+on the code as it was; it now follows them (#921). TanStack Table's `useReactTable` stays a warning
 (`incompatible-library`): the compiler can't memoize what it returns.
 **Alternatives:** Staying on ESLint 9 until jsx-a11y supports 10 — no date to plan around, and
 every other ESLint plugin's majors wait with it. Installing jsx-a11y anyway with
 `--legacy-peer-deps` or an `overrides` entry — every install then ignores peer conflicts, and the
 plugin may call APIs ESLint 10 removed. Dropping accessibility linting until upstream ships —
-no date to plan around (#922). `@htmlacademy/eslint-plugin-jsx-a11y`, a smaller fork with one
-maintainer. Oxlint's or Biome's ports of the jsx-a11y rules — a second linter for one rule group
-(DR-7 weighed Biome). Runtime checks with axe-core in the Playwright suites — they check the
-rendered DOM rather than the JSX, and only on the screens tested; a complement, not a
-replacement. Turning on only `rules-of-hooks` and `exhaustive-deps` — the rules react-hooks 5
-ran, but it leaves the compiler's checks off for code written from now on.
+no date to plan around (#922). `@htmlacademy/eslint-plugin-jsx-a11y`, a fork that also supports
+ESLint 10 but that few projects use (about 1,800 weekly downloads). Oxlint's or Biome's ports of
+the jsx-a11y rules — a second linter for one rule group (DR-7 weighed Biome). Runtime checks
+with axe-core in the Playwright suites — they check the rendered DOM rather than the JSX, and
+only on the screens tested; a complement, not a replacement. Turning on only `rules-of-hooks` and
+`exhaustive-deps` — the rules react-hooks 5 ran, but it leaves the compiler's checks off for code
+written from now on.
 
 ---
 
