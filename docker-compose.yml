@@ -77,7 +77,7 @@ services:
       - ./env/local/react.env
     environment:
       VITE_API_PROXY: 'http://django:8000/'
-    image: node:22-bookworm
+    image: node:26-bookworm
     working_dir: /app
     volumes:
       - ./client:/app
