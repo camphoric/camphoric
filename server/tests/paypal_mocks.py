@@ -38,9 +38,18 @@ def captured(registration, invoice, value, **kwargs):
     return order(registration, invoice, value, 'COMPLETED', **kwargs)
 
 
-def refund(refund_id='1JU08902781691411', value='10.00', status='COMPLETED'):
+def refund(refund_id='1JU08902781691411', value='10.00', status='COMPLETED', *,
+           capture_id=CAPTURE_ID):
+    '''A refund of the capture, as PayPal returns it: its `up` link is the capture.'''
+    api = 'https://api.sandbox.paypal.com'
     return {'id': refund_id, 'status': status,
-            'amount': {'currency_code': 'USD', 'value': value}}
+            'amount': {'currency_code': 'USD', 'value': value},
+            'links': [
+                {'href': f'{api}/v2/payments/refunds/{refund_id}', 'rel': 'self',
+                 'method': 'GET'},
+                {'href': f'{api}/v2/payments/captures/{capture_id}', 'rel': 'up',
+                 'method': 'GET'},
+            ]}
 
 
 class PayPalServerMixin:

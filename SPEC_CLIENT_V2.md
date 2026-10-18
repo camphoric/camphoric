@@ -929,20 +929,26 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `amount` below what its refunds gave back or move a refunded payment to another `invoice`, a
   refund's `refund_of` can't change, and a payment or refund PayPal recorded (it has a capture or
   refund id) keeps its `amount` and stays `PayPal` or `Card` — 400 for a change; the same values
-  sent back are accepted (#767). Restoring a deleted refund that would give back more than is
-  left of its payment is a 409. Only Admins delete a payment
-  (§15, DR-93), and not one that has been refunded (409); restoring stays with Registrars and
-  Admins.
+  sent back are accepted (#767). Restoring a deleted refund whose payment is deleted, or that
+  would give back more than is left of its payment, is a 409. Recording, editing or restoring a
+  refund waits for a refund of the same payment through PayPal that's underway, then checks
+  what's left (§15, DR-122). Only Admins delete a payment (§15, DR-93), and not one that has
+  been refunded (409); restoring stays with Registrars and Admins.
   - `POST /api/payments/{id}/refund-paypal/` `{ amount, reason, request_id }` (Registrars and
     Admins): refunds some or all of a PayPal or card payment through PayPal and records the
     refund, for the amount PayPal's reply says it refunded → 201 with the refund payment.
-    `request_id` (at most 64 characters; 400 otherwise) is made once per refund attempt — kept if
-    the amount is changed — so a retry refunds once (§15, DR-122): a retry of a refund already
-    recorded gets that refund back (201), even when nothing is left to refund. 409
+    `request_id` (at most 64 characters; 400 otherwise) is made once per payment refunded from
+    while the refund dialog is open — kept if the amount is changed, another for another
+    payment — so a retry refunds once (§15, DR-122): a retry of a refund already recorded gets
+    that refund back (201), even when nothing is left to refund. 409
     `{ detail, code: 'refused' }` when it can't (not a PayPal payment, more than is left, a retry
     asking for another amount than that refund, or PayPal refused); 502 `{ code: 'unknown' }` when
-    PayPal's answer was lost, or PayPal refunded but recording it failed (nothing is recorded, and
-    the event is emailed the details).
+    PayPal's answer was lost, PayPal refunded but recording it failed, or PayPal's reply can't be
+    this payment's refund — its `up` link names another capture, or its amount is more than is
+    left of the payment (nothing is recorded, and the event is emailed the details). After a lost
+    answer or a recording failure the same request is sent again (it's recorded once); a refund
+    recorded by hand instead would be counted again by that retry. A reply that can't be this
+    payment's refund isn't retried: PayPal would answer it the same way.
 - **CustomCharge / CustomChargeType:** charge has `camper`, `custom_charge_type`, `amount`,
   `notes`; type has `event`, `name`, `label`.
 - **PromoCode** (`/api/promocodes/`, filter `event`; soft-deleted; §15, DR-67): `id`, `event`,
@@ -1428,9 +1434,10 @@ they can:
   order if it wasn't (no money was taken).
 - **Refund** (Registrars and Admins; §15, DR-94) — from a payment, give back some or all of
   what's left of it: through PayPal for a PayPal or card payment (PayPal returns the money and
-  the refund is recorded for what PayPal refunded; a retry from the same dialog refunds at most
-  once, even for a changed amount, and once the refund is recorded a changed amount is refused —
-  §15, DR-122), or record one made outside Camphoric (a check mailed back). An overpaid invoice
+  the refund is recorded for what PayPal refunded; a retry from the same dialog, for the same
+  payment, refunds at most once, even for a changed amount, and once the refund is recorded a
+  changed amount is refused; when the refund couldn't be recorded, trying again from the same
+  dialog records it — §15, DR-122), or record one made outside Camphoric (a check mailed back). An overpaid invoice
   offers to **refund the difference**, starting with the overpayment.
 - **Delete** (Admins only; §15, DR-93) — a payment (after confirming; not one that has been
   refunded), or an invoice nothing was ever paid on. Registrars and Admins see the
@@ -2387,18 +2394,28 @@ section is the contract.
   on it hasn't been confirmed, it asks the payer not to pay again.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
-  through PayPal's refund API on its capture (with a request id made once per attempt, so a
-  retry refunds once, even for a changed amount; the refund's id is its
-  `paypal_transaction_id`, and it keeps the request id as `refund_request_id`). A retry of a
-  refund already recorded gets that refund back, or is refused for another amount; otherwise the
-  refund is recorded for the amount PayPal says it refunded (§15, DR-122). A lost answer, or a
-  refund PayPal made that couldn't be recorded, sends the PayPal problem email. Others are recorded by hand. A refunded payment can't be
-  deleted.
+  through PayPal's refund API on its capture (with a request id made once for each payment
+  refunded from while the refund dialog is open, so a retry refunds once, even for a changed
+  amount; the refund's id is its `paypal_transaction_id`, and it keeps the request id as
+  `refund_request_id`). A retry of a refund already recorded gets that refund back, or is
+  refused for another amount; otherwise the refund is recorded for the amount PayPal says it
+  refunded (§15, DR-122) — unless PayPal's reply is a refund of another capture, or for more than
+  is left of the payment, which isn't recorded. Those, a lost answer, and a refund PayPal made
+  that couldn't be recorded send the PayPal problem email. After a lost answer or a refund that
+  couldn't be recorded, the registrar is told to try again from the same dialog, which repeats
+  the request, so PayPal refunds at most once and it's recorded once (recorded by hand, it would
+  be counted again by that retry); the email asks the event to have whoever made the refund do
+  that, and to record it by hand only if that dialog was closed. A reply that can't be this
+  payment's refund is reported with advice not to retry but to check PayPal and put the ledger
+  right, even when an earlier email about the same request went out. Others are recorded by
+  hand. A refunded payment can't be deleted.
 - **Editing a payment** can't contradict what already happened to it: its amount can't go below
   what its refunds gave back, its refunds stay with it and on its invoice, and a payment or
   refund PayPal recorded keeps PayPal's amount and stays a PayPal or card payment (so the ledger
   agrees with PayPal and the payment stays refundable through it). A deleted refund is restored
-  only while there's enough left of its payment.
+  only while its payment isn't deleted and there's enough left of it. Recording, editing or
+  restoring a refund waits for a refund of the same payment through PayPal that's underway, so
+  the two can't give back more than was paid.
 - **Cancel and delete.** Registrars and Admins cancel and reopen invoices; one that still holds
   money can't be cancelled. Only Admins delete a payment or an invoice (§15, DR-93): not a
   refunded payment, nor an invoice anything was ever paid on, nor a registration's own invoice,
@@ -5102,25 +5119,44 @@ and an organizer's later edit of the invoice only holds the email back a little 
 ### DR-122 — A PayPal refund is recorded for what PayPal refunded
 
 **Decision:** A refund made through PayPal is recorded for the amount in PayPal's reply, not the
-amount asked for, together with its request id. The refund dialog keeps one request id while
-it's open, whatever the amount, so a retry refunds at most once. A retry whose refund is already
-recorded is answered from the ledger before PayPal is asked: that refund for the same amount, a
-409 for another. A retry whose first reply was lost reaches PayPal, which returns that first
-refund, and is recorded for PayPal's amount. A failure recording a capture or refund after
-PayPal moved the money — or PayPal saying an order was already captured, then not answering what
-for — is handled as an unknown outcome: the half-done write is undone, the event gets the PayPal
-problem email, and the caller is told (`502 unknown`); a capture stays marked as started, so the
-worker asks PayPal about it again and records it (#804).
+amount asked for, together with its request id. While it's open, the refund dialog keeps one
+request id for each payment it refunds from, whatever the amount, so a retry refunds at most
+once; refunding from another payment uses another id. A retry whose refund is already recorded
+is answered from the ledger before PayPal is asked: that refund for the same amount, a 409 for
+another. A retry whose first reply was lost reaches PayPal, which returns that first refund, and
+is recorded for PayPal's amount — unless the reply's `up` link names another capture, or its
+amount is more than is left of the payment, when nothing is recorded and it's reported as below.
+A failure recording a capture or refund after PayPal moved the money — or PayPal saying an order
+was already captured, then not answering what for — is handled as an unknown outcome: the
+half-done write is undone, the event gets the PayPal problem email, and the caller is told
+(`502 unknown`); a capture stays marked as started, so the worker asks PayPal about it again and
+records it (#804), and for a refund (as for a lost answer) the registrar is told to try again
+from the same dialog, and the email asks the event to have them do so, recording it by hand only
+if that dialog was closed. A reply that doesn't fit is reported as such, with advice not to
+retry, and emailed even after an earlier email about the same request. A
+refund through PayPal holds its payment's row while it asks PayPal and records the answer;
+recording, editing or restoring a refund takes the same row (after the refund's own, when it's
+the one changing) before checking what's left, so it waits its turn. A refund whose payment is
+deleted isn't restored.
 **Context:** #767: PayPal answers a request id it has seen with its first refund. With one id per
 dialog, a registrar who retried a timed-out refund with a different amount got PayPal's earlier
-refund back, recorded for the new amount — the ledger and the payer disagreed. A database error
-after PayPal moved money raised a bare 500 that nobody but the server log heard of.
+refund back, recorded for the new amount — the ledger and the payer disagreed. The same id sent
+for another payment of the invoice would be answered with the first payment's refund. A database
+error after PayPal moved money raised a bare 500 that nobody but the server log heard of. A
+refund recorded by hand after such a failure has no request id, so the dialog's retry would
+record PayPal's refund a second time; retrying is safe and records it once. A refund recorded,
+edited or restored while one through PayPal was underway checked what was left before that one
+committed, and the two could give back more than was paid; restoring a refund whose payment was
+deleted counted it against a payment the ledger no longer has.
 **Alternatives:** A new request id whenever the amount changes (as #767 suggested) — a refund
 that went through but whose reply was lost, retried for a smaller amount, would then refund a
 second time within what's left; with PayPal's amount recorded, one id keeps the ledger right
 without that risk. Refusing a retry with a different amount on the server alone (#817 does this
 for a refund already recorded) — a retry whose first reply was lost has nothing recorded to
-compare with, so PayPal's amount still has to be what's recorded.
+compare with, so PayPal's amount still has to be what's recorded. Recording a reply for more
+than is left, capped or as is — the ledger would disagree with PayPal or give back more than was
+paid; a person has to look. Telling registrars to record a refund by hand when recording fails —
+a retry from the still-open dialog then counts it twice.
 
 ### DR-123 — Registration checks the requested lodging on the server, one registration at a time
 
