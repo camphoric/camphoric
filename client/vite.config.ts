@@ -20,6 +20,10 @@ export default defineConfig({
   build: {
     // Output matches the existing client so the deploy/Dockerfile can swap in.
     outDir: 'build',
+    // The browsers Vite 6's default ('modules') supported. Vite 8's default
+    // (Chrome 111, Firefox 114, Safari 16.4) would leave newer syntax in
+    // Monaco's chunks that older browsers can't parse.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
     rolldownOptions: {
       output: {
         assetFileNames: 'static/[name]-[hash][extname]',
