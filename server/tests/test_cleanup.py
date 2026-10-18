@@ -51,6 +51,17 @@ class DeleteAbandonedRegistrationsTests(CleanUpTestCase):
         self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
         self.assertTrue(self.exists(completed))
 
+    def test_a_registration_paypal_may_yet_record_a_payment_on_stays(self):
+        # A capture PayPal is processing, on an invoice of its own (#767).
+        held = self.registration()
+        models.Invoice.objects.create(
+            registration=held, origin=models.InvoiceOrigin.ADMIN, amount=Decimal('10'),
+            pending_paypal_order_id='ORDER', paypal_capture_order_id='ORDER',
+            paypal_capture_started_at=MONTH_AGO, paypal_capture_pending_at=MONTH_AGO)
+        models.Registration.all_objects.filter(id=held.id).update(updated_at=MONTH_AGO)
+        self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
+        self.assertTrue(self.exists(held))
+
     def test_a_registration_with_a_payment_stays_even_a_deleted_payment(self):
         paid = self.registration()
         models.Payment.objects.create(registration=paid, amount=Decimal('10'))

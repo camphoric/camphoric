@@ -848,8 +848,11 @@ class Invoice(TimeStampedModel):
     due_on = models.DateField(null=True, blank=True)
     memo = models.TextField(blank=True, default='', help_text='Shown to the payer')
     notes = models.TextField(blank=True, default='', help_text='Internal')
-    # A PayPal order made for it and not yet captured.
+    # A PayPal order made for it and not yet captured, and the handling fee
+    # that order added: recorded with its capture, which may complete days
+    # later, when the event's percent or what's due may have changed (#767).
     pending_paypal_order_id = models.CharField(max_length=64, null=True, blank=True)
+    paypal_order_fee = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
     # A capture started and not yet settled: the order and when. Unsettled 15
     # minutes on, the worker asks PayPal about it (invoices.check_unrecorded_captures).
     paypal_capture_order_id = models.CharField(max_length=64, null=True, blank=True)

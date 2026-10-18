@@ -590,9 +590,10 @@ class InvoiceSerializer(ModelSerializer):
 
     class Meta:
         model = models.Invoice
-        # A PayPal capture not yet settled is the worker's bookkeeping (#804).
+        # A PayPal capture not yet settled, and its order's fee, are the payment
+        # flow's bookkeeping (#804, #767).
         exclude = ['token', 'paypal_capture_order_id', 'paypal_capture_started_at',
-                   'paypal_capture_pending_at']
+                   'paypal_capture_pending_at', 'paypal_order_fee']
         read_only_fields = ['origin', 'payment_type', 'pending_paypal_order_id',
                             'organizer_changed_at', 'cancelled_at', 'cancel_reason',
                             'created_by', 'created_at', 'updated_at']
@@ -700,10 +701,17 @@ class PaymentSerializer(ModelSerializer):
         moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
         if moving_to and invoice.cancelled_at is not None:
             raise ValidationError({'invoice': 'That invoice is cancelled.'})
-        if moving_to and amount > 0 and invoices.capture_unsettled(invoice):
-            # Its PayPal payment is recorded as what it asked then (#767).
-            raise Conflict(invoices.held_message(
-                invoice, 'it can\'t take another payment'))
+        # A payment onto the invoice, or more on one already there.
+        adds = amount > 0 and (moving_to or (
+            instance is not None and amount > invoices.money(instance.amount)))
+        if invoice is not None and adds:
+            # Its PayPal payment is recorded as what it asked then (#767);
+            # looked at with the invoice held, so a capture can't mark it
+            # meanwhile.
+            held = invoices.locked_invoice(invoice)
+            if invoices.capture_unsettled(held):
+                raise Conflict(invoices.held_message(
+                    held, 'no more can be recorded on it by hand'))
 
         if not self.partial or 'attributes' in data:
             validate_attributes({'attributes': data.get('attributes')},

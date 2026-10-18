@@ -6,7 +6,9 @@ Invoices registrars make and send, and paying one through its public link
 from decimal import Decimal
 
 from django.core import mail
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -184,10 +186,11 @@ class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
 
     def capture_pending(self):
         self.reply(paypal_mocks.created())
-        self.post('order', invoice=self.extra, paymentType='PayPal')
+        total = D(str(self.post('order', invoice=self.extra, paymentType='PayPal')['online'][
+            'total']))  # $50 and its $1.25 fee, less anything paid on it
         self.extra.refresh_from_db()
-        self.reply(paypal_mocks.order(self.made.r1, self.extra, D('51.25')),
-                   paypal_mocks.captured(self.made.r1, self.extra, D('51.25'),
+        self.reply(paypal_mocks.order(self.made.r1, self.extra, total),
+                   paypal_mocks.captured(self.made.r1, self.extra, total,
                                          capture_status='PENDING'))
         data = self.post('capture', status=409, invoice=self.extra,
                          orderID=paypal_mocks.ORDER_ID, paymentType='PayPal')
@@ -264,6 +267,35 @@ class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
         self.assertNotEqual(response.data['invoice'], self.extra.id)
         self.assertFalse(self.extra.payments.exists())
 
+    def check_on_it(self):
+        '''A $10 check recorded on it before PayPal's payment.'''
+        return models.Payment.objects.create(
+            registration=self.made.r1, invoice=self.extra, payment_type='Check',
+            amount=D('10.00'))
+
+    def test_a_payment_on_it_isnt_restored(self):
+        check = self.check_on_it()
+        check.soft_delete()
+        self.capture_pending()
+        self.client.force_authenticate(self.registrar)
+        response = self.client.post(f'/api/payments/{check.id}/restore/')
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        check.refresh_from_db()
+        self.assertIsNotNone(check.deleted_at)
+
+    def test_nor_raised(self):
+        check = self.check_on_it()
+        self.capture_pending()
+        self.client.force_authenticate(self.registrar)
+        url = f'/api/payments/{check.id}/'
+        response = self.client.patch(url, {'amount': '20.00'}, format='json')
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        response = self.client.patch(url, {'amount': '10.00', 'notes': 'Check #12'},
+                                     format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
     def test_its_registration_isnt_deleted(self):
         # It would hide the invoice the payment is recorded on (#767).
         self.capture_pending()
@@ -292,6 +324,57 @@ class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
                                          capture_status='DECLINED'))
         self.assertEqual(invoices.check_paypal_order(self.extra), ('not_captured', None))
         self.assertEqual(self.delete()[1].status_code, 204)
+
+
+class LockOrderTests(InvoicePayTestCase):
+    '''
+    Writes to an invoice, or a payment on it, lock its registration before the
+    invoice, as a capture and "Check PayPal order" do: the other order could
+    deadlock with them (#767, #819).
+    '''
+
+    def locked(self, send):
+        '''The tables `send` locked rows of, in the order it first locked them.'''
+        with CaptureQueriesContext(connection) as queries:
+            response = send()
+        self.assertLess(response.status_code, 300, getattr(response, 'data', None))
+        tables = []
+        for query in queries.captured_queries:
+            sql = query['sql']
+            if 'FOR UPDATE' in sql:
+                table = sql.split(' FROM ', 1)[1].split()[0].strip('"')
+                if table not in tables:
+                    tables.append(table)
+        return tables
+
+    def assertRegistrationFirst(self, send):
+        tables = self.locked(send)
+        self.assertIn('camphoric_invoice', tables)
+        self.assertLess(tables.index('camphoric_registration'), tables.index('camphoric_invoice'),
+                        tables)
+
+    def test_deleting_an_invoice(self):
+        extra = models.Invoice.objects.create(
+            registration=self.made.r1, origin=models.InvoiceOrigin.ADMIN, amount=D('5.00'))
+        self.client.force_authenticate(make_user(roles.ADMIN, 'adam'))
+        self.assertRegistrationFirst(lambda: self.client.delete(f'/api/invoices/{extra.id}/'))
+
+    def test_editing_cancelling_and_reopening_one(self):
+        self.client.force_authenticate(self.registrar)
+        url = f'/api/invoices/{self.made.i1.id}/'
+        self.assertRegistrationFirst(
+            lambda: self.client.patch(url, {'memo': 'Hi'}, format='json'))
+        other = registration_invoice(self.made.r1, 'Check', D('5'))
+        self.assertRegistrationFirst(
+            lambda: self.client.post(f'/api/invoices/{other.id}/cancel/', format='json'))
+        self.assertRegistrationFirst(
+            lambda: self.client.post(f'/api/invoices/{other.id}/reopen/', format='json'))
+
+    def test_recording_a_payment_on_one(self):
+        self.client.force_authenticate(self.registrar)
+        self.assertRegistrationFirst(lambda: self.client.post('/api/payments/', {
+            'registration': self.made.r1.id, 'invoice': self.invoice.id,
+            'payment_type': 'Check', 'amount': '5.00'}, format='json'))
 
 
 class AdminInvoiceTests(InvoicePayTestCase):

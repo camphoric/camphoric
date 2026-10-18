@@ -71,6 +71,7 @@ erDiagram
         decimal handling "added when paid online"
         string payment_type "how the payer chose to pay it (empty: not settled)"
         string pending_paypal_order_id
+        decimal paypal_order_fee "the fee that order added"
         string paypal_capture_order_id "a capture not yet settled"
         datetime paypal_capture_started_at "the worker checks it 15 min on"
         datetime paypal_capture_pending_at "PayPal last said the capture is pending"
@@ -115,7 +116,7 @@ A worked Lark example: two adults, price $1,000, of which tuition and meals are 
 ```mermaid
 stateDiagram-v2
     [*] --> Started: form sent (step 'registration')
-    Started --> Deleted: 30 days untouched (nightly clean-up, DR-76)
+    Started --> Deleted: 30 days untouched, nothing paid nor being captured<br/>(nightly clean-up, DR-76)
     Started --> Unpaid: a payment button pressed
     Unpaid --> PartiallyPaid: a payment smaller than the balance
     Unpaid --> Paid: a payment for the balance
@@ -227,7 +228,7 @@ sequenceDiagram
     S->>S: complete the registration, make the registration invoice
     S->>P: create order: amount due + fee, one item<br/>"Total for Invoice no. N for Event", custom_id invoice:N,<br/>payee_preferred IMMEDIATE_PAYMENT_REQUIRED
     P-->>S: order id
-    S->>S: invoice.pending_paypal_order_id = order id
+    S->>S: invoice.pending_paypal_order_id = order id,<br/>paypal_order_fee = fee
     S-->>B: {orderID, total, handling}
     B->>P: open checkout for the order
     R->>P: approves
@@ -367,9 +368,12 @@ sequenceDiagram
   noticed: that needs PayPal's webhooks (`PAYMENT.CAPTURE.DENIED`, `.REVERSED`), which the
   server doesn't take.
 - **The fee** isn't saved on the invoice until the capture, so an abandoned order adds nothing to
-  what's owed. It's the fee the order added (`_fee_captured`): what's due now plus its fee, when
-  that's what was captured; otherwise — a pending capture recorded days later, after what's due
-  changed — the due that, with its fee, makes the captured amount (#767).
+  what's owed. It's the fee the order added (`_fee_captured`), kept on the invoice when the
+  order is made (`paypal_order_fee`, with `pending_paypal_order_id`): a pending capture may be
+  recorded days later, after what's due, the event's percent, or whether it takes payments
+  online has changed (#767). For an order made before that was kept, or another than the
+  invoice's pending one (#804), it's what's due now plus its fee when that's what was captured,
+  else the due that, with its fee, makes the captured amount.
 - **PayPal or Card** is the button the payer pressed (`paymentType`), on the invoice and the
   payment. PayPal's own `payment_source` is a last resort: its card button can report a card
   payment as `paypal` (#758).
@@ -525,11 +529,17 @@ with a 409 saying why (`held_message`):
   inside the delete, the registration's row locked and then the invoices', for a capture that
   started since;
 - a change to its `amount` or `handling` (`InvoiceViewSet.perform_update`), and a payment
-  recorded or moved onto it (`PaymentSerializer.validate`); one recorded without an invoice
-  passes it over (`invoice_for_payment`). The payment is recorded days later against what the
+  recorded, restored or moved onto it, or one on it raised (`PaymentSerializer.validate`,
+  `PaymentViewSet.restore`), asked with the invoice's row held (`invoices.locked_invoice`); one
+  recorded without an invoice passes it over (`invoice_for_payment`). The payment is recorded days later against what the
   invoice asks then, so a $400 check recorded meanwhile, or the amount raised to $600, would
   leave the $410 capture's $10 fee off the invoice. The admin's edit dialog doesn't let the
   amount or fee change, and the record-payment dialog doesn't offer the invoice.
+
+The nightly clean-up doesn't delete an incomplete registration with a capture on one of its
+invoices (`cleanup.abandoned_registrations`). Every write to an invoice (edit, cancel, reopen,
+delete) locks its registration before the invoice (`views.lock_registration_first`), the order
+the payment step, a capture and "Check PayPal order" take them in, so none deadlocks with them.
 
 **An edit made from a stale invoice is refused (#770).** Every invoice counts its saves in
 `version`, and the payment step's rewrites count too. An organizer's edit, cancel or reopen sends
@@ -695,7 +705,8 @@ flowchart LR
   `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
   email template; `0084` — the invoice's `paypal_capture_order_id` and
-  `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`.
+  `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`; `0086` — the
+  invoice's `paypal_capture_pending_at` and `paypal_order_fee`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;

@@ -394,6 +394,9 @@ def _no_paypal_payment_underway(registration_id, invoice_ids, result, refused):
 
     def still_none():
         # The registration first, then its invoices, as a capture takes them.
+        # The delete views have already locked the record being deleted the
+        # same way (views.lock_registration_first, for an invoice too), so no
+        # lock is taken here out of that order.
         models.Registration.all_objects.select_for_update().filter(
             pk=registration_id).first()
         found = held(models.Invoice.all_objects.select_for_update().filter(

@@ -566,8 +566,12 @@ def create_paypal_order(invoice, payment_type):
         logger.error(f'PayPal order for invoice {invoice.id} failed: {e}')
         raise PaymentProblem('declined', 'PayPal couldn\'t start this payment. Please try again.')
     invoice.pending_paypal_order_id = order['id']
+    # Its capture may be recorded days later, after the event's percent has
+    # changed: the fee is the one this order asked (#767).
+    invoice.paypal_order_fee = fee
     invoice.payment_type = payment_type
-    invoice.save(update_fields=['pending_paypal_order_id', 'payment_type', 'updated_at'])
+    invoice.save(update_fields=['pending_paypal_order_id', 'paypal_order_fee', 'payment_type',
+                                'updated_at'])
     return order['id']
 
 
@@ -585,15 +589,16 @@ def record_capture(invoice, order, payment_type=None, notes=''):
     if existing is not None:
         return existing
 
-    event = invoice.registration.event
     amount = money((capture.get('amount') or {}).get('value'))
     if money(invoice.handling) == 0:
-        invoice.handling = _fee_captured(event, amount, invoice.amount_due)
+        invoice.handling = _fee_captured(invoice, order, amount)
     # The button the payer pressed says how they paid; PayPal's order may not.
     payment_type = payment_type or invoice.payment_type or _order_payment_type(order)
     invoice.payment_type = payment_type
     invoice.pending_paypal_order_id = None
+    invoice.paypal_order_fee = None
     invoice.save(update_fields=['handling', 'payment_type', 'pending_paypal_order_id',
+                                'paypal_order_fee',
                                 'updated_at'])
     status = capture.get('status')
     note = notes
@@ -611,13 +616,21 @@ def record_capture(invoice, order, payment_type=None, notes=''):
     )
 
 
-def _fee_captured(event, amount, due):
+def _fee_captured(invoice, order, amount):
     '''
-    The handling fee in a captured `amount`: the one its order added to what
-    was due then (DR-88). What's due now says, unless it has changed since —
-    a capture PayPal took days to complete (#767) — when it's worked out from
-    the amount itself: the order asked `due + online_fee(due)` for some due.
+    The handling fee in the captured `amount` of the invoice's `order`: the
+    one the order added to what was due then (DR-88), as kept when it was made
+    (#767) — its capture may complete days later, after what's due or the
+    event's percent changed. For an order made before that was kept, or
+    another than the invoice's pending one (#804), what's due now says, unless
+    it has changed since, when it's worked out from the amount: the order
+    asked `due + online_fee(due)` for some due.
     '''
+    if invoice.paypal_order_fee is not None and order.get('id') \
+            and order['id'] == invoice.pending_paypal_order_id:
+        return money(invoice.paypal_order_fee)
+    event = invoice.registration.event
+    due = invoice.amount_due
     if amount == due + online_fee(event, due):
         return online_fee(event, due)
     percent = Decimal(str(event.epayment_handling or 0))
@@ -846,6 +859,16 @@ def _lock_registration_of(invoice):
     while it's being paid, and none waits on a lock the other holds.
     '''
     models.Registration.all_objects.select_for_update().filter(pk=invoice.registration_id).first()
+
+
+def locked_invoice(invoice):
+    '''
+    The invoice as committed, its row held until the transaction ends (its
+    registration's first, as every payment step takes them): so whether a
+    capture holds it can't change while a payment is added to it (#767).
+    '''
+    _lock_registration_of(invoice)
+    return models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
 
 
 def _capture(invoice, order_id, payment_type, notes):
