@@ -24,7 +24,9 @@ export default { title: 'Lodging Tree' } satisfies Meta;
 const noop = () => undefined;
 const TREE = treeWith(CAMPERS);
 
-export const Hierarchy: StoryFn = () => {
+// A component, not a StoryFn, so AsReporter can render it inside a provider:
+// React 19's types don't take a StoryFn's (args, context) signature as JSX.
+function TreeHarness() {
   const [selectedId, setSelectedId] = useState<number>();
   const [editing, setEditing] = useState<AugmentedLodging>();
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(new Set());
@@ -68,10 +70,12 @@ export const Hierarchy: StoryFn = () => {
       )}
     </Grid>
   );
-};
+}
+
+export const Hierarchy: StoryFn = () => <TreeHarness />;
 
 export const AsReporter: StoryFn = () => (
   <PermissionsProvider userRole="reporter">
-    <Hierarchy />
+    <TreeHarness />
   </PermissionsProvider>
 );
