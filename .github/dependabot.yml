@@ -23,15 +23,6 @@ updates:
     # These majors move several packages at once, which a one-package PR can't
     # do (it fails npm ci on a peer conflict). Each goes when its issue lands.
     ignore:
-      # React 19 (#869): react, react-dom and their types together.
-      - dependency-name: react
-        update-types: ['version-update:semver-major']
-      - dependency-name: react-dom
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@types/react'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@types/react-dom'
-        update-types: ['version-update:semver-major']
       # Mantine 9 (#870): every @mantine/* package pins the others' version.
       - dependency-name: '@mantine/*'
         update-types: ['version-update:semver-major']
