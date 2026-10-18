@@ -12,7 +12,7 @@ from rest_framework.test import APITestCase
 
 from camphoric import deletes, invoices, models, roles
 from camphoric.serializers import Conflict
-from camphoric.views import InvoiceViewSet
+from camphoric.views import InvoiceViewSet, RegistrationViewSet
 from tests import paypal_mocks
 from tests.factories import create_template_event, make_user, registration_invoice
 
@@ -235,6 +235,56 @@ class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
         with self.assertRaises(Conflict):
             plan.carry_out()
         self.assertTrue(models.Invoice.objects.filter(pk=self.extra.pk).exists())
+
+    def test_what_it_asks_isnt_changed(self):
+        # The fee is worked out when the payment is recorded (#767).
+        self.capture_pending()
+        self.client.force_authenticate(self.registrar)
+        url = f'/api/invoices/{self.extra.id}/'
+        for change in ({'amount': '60.00'}, {'handling': '2.00'}):
+            response = self.client.patch(url, change, format='json')
+            self.assertEqual(response.status_code, 409, change)
+            self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        response = self.client.patch(url, {'memo': 'Thanks', 'amount': '50.00'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_no_other_payment_is_recorded_on_it(self):
+        self.capture_pending()
+        self.client.force_authenticate(self.registrar)
+        payment = {'registration': self.made.r1.id, 'payment_type': 'Check',
+                   'amount': '50.00', 'paid_on': '2026-10-01'}
+        response = self.client.post('/api/payments/', {**payment, 'invoice': self.extra.id},
+                                    format='json')
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        # Nor does one recorded without an invoice choose it.
+        models.Invoice.objects.filter(pk=self.invoice.pk).update(cancelled_at=timezone.now())
+        response = self.client.post('/api/payments/', payment, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertNotEqual(response.data['invoice'], self.extra.id)
+        self.assertFalse(self.extra.payments.exists())
+
+    def test_its_registration_isnt_deleted(self):
+        # It would hide the invoice the payment is recorded on (#767).
+        self.capture_pending()
+        self.client.force_authenticate(self.admin)
+        url = f'/api/registrations/{self.made.r1.id}/'
+        self.assertFalse(self.client.get(f'{url}delete-preview/').data['can_delete'])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        self.assertTrue(models.Registration.objects.filter(pk=self.made.r1.pk).exists())
+
+    def test_nor_one_a_capture_starts_on_after_its_delete_was_planned(self):
+        plan = deletes.plan(self.made.r1, RegistrationViewSet().delete_checks())
+        self.assertTrue(plan.can_delete)
+        models.Invoice.objects.filter(pk=self.extra.pk).update(
+            pending_paypal_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_started_at=timezone.now())
+        with self.assertRaises(Conflict):
+            plan.carry_out()
+        self.assertTrue(models.Registration.objects.filter(pk=self.made.r1.pk).exists())
 
     def test_once_settled_it_can_go(self):
         self.capture_pending()

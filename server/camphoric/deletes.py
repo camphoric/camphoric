@@ -365,15 +365,39 @@ def invoice_has_no_paypal_payment_underway(invoice, result):
     Asked again with the invoice held, in the delete itself, for a capture that
     started since.
     '''
+    _no_paypal_payment_underway(invoice.registration_id, [invoice.pk], result,
+                                'it can\'t be deleted')
+
+
+def registration_has_no_paypal_payment_underway(registration, result):
+    '''
+    A registration goes out of sight with its invoices: not while PayPal may
+    yet record a payment on one of them (#767).
+    '''
+    ids = list(models.Invoice.all_objects.filter(registration=registration).values_list(
+        'pk', flat=True))
+    _no_paypal_payment_underway(registration.pk, ids, result,
+                                'its registration can\'t be deleted')
+
+
+def _no_paypal_payment_underway(registration_id, invoice_ids, result, refused):
     from camphoric import invoices
     from camphoric.serializers import Conflict
 
-    if invoices.capture_unsettled(invoice):
-        result.block(invoices.held_message(invoice, 'deleted'))
+    def held(rows):
+        return next((row for row in rows if invoices.capture_unsettled(row)), None)
+
+    found = held(models.Invoice.all_objects.filter(pk__in=invoice_ids).order_by('id'))
+    if found is not None:
+        result.block(invoices.held_message(found, refused))
         return
 
     def still_none():
-        held = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
-        if invoices.capture_unsettled(held):
-            raise Conflict(invoices.held_message(held, 'deleted'))
+        # The registration first, then its invoices, as a capture takes them.
+        models.Registration.all_objects.select_for_update().filter(
+            pk=registration_id).first()
+        found = held(models.Invoice.all_objects.select_for_update().filter(
+            pk__in=invoice_ids).order_by('id'))
+        if found is not None:
+            raise Conflict(invoices.held_message(found, refused))
     result.steps.append(still_none)

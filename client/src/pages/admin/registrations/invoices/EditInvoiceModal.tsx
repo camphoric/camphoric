@@ -3,7 +3,9 @@
  * date, memo (shown to the payer) and internal notes. "Use the balance" fills
  * the amount from what no other invoice asks for yet; "Calculate" fills the
  * handling fee the way the server charges it when the invoice is paid online
- * (§15, DR-88).
+ * (§15, DR-88). While PayPal is processing a payment on it, its amount and
+ * handling fee stay as they are: the payment is recorded as what it asked then
+ * (§15, DR-133).
  */
 
 import { Button, Group, Modal, NumberInput, Stack, Textarea, TextInput } from '@mantine/core';
@@ -81,6 +83,9 @@ export function EditInvoiceModal({
 
   if (!invoice) return null;
 
+  // PayPal's payment is recorded as what it asked when the order was made.
+  const held = invoice.paypal_capture_pending;
+
   // What's been paid toward the amount, before any fee (the server's rule).
   const paid = Number(invoice.amount_paid);
   const useBalance = () => setAmount(roundMoney(Number(invoice.amount) + uninvoicedBalance));
@@ -126,9 +131,10 @@ export function EditInvoiceModal({
             value={amount}
             onChange={setAmount}
             error={errors.amount}
+            disabled={held}
             style={{ flex: 1 }}
           />
-          <Button variant="light" onClick={useBalance} disabled={uninvoicedBalance <= 0}>
+          <Button variant="light" onClick={useBalance} disabled={held || uninvoicedBalance <= 0}>
             Use the balance
           </Button>
         </Group>
@@ -148,9 +154,10 @@ export function EditInvoiceModal({
             value={handling}
             onChange={setHandling}
             error={errors.handling}
+            disabled={held}
             style={{ flex: 1 }}
           />
-          <Button variant="light" onClick={calculate} disabled={!handlingPercent}>
+          <Button variant="light" onClick={calculate} disabled={held || !handlingPercent}>
             Calculate
           </Button>
         </Group>

@@ -667,6 +667,9 @@ class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin
         return models.Registration.all_objects.filter(deleted_at__isnull=False).annotate(
             camper_count=Count('campers', filter=Q(campers__deleted_at__isnull=True)))
 
+    def delete_checks(self):
+        return (deletes.registration_has_no_paypal_payment_underway,)
+
     @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
     def history(self, request, pk=None):
         '''The registration's audit log, with its campers, payments and charges (DR-53).'''
@@ -798,6 +801,15 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
             name in serializer.validated_data
             and differs(serializer.validated_data[name], getattr(invoice, name))
             for name in invoices.PAYMENT_STEP_FIELDS)
+        asks = ('amount', 'handling')
+        if invoices.capture_unsettled(invoice) and any(
+                name in serializer.validated_data
+                and differs(serializer.validated_data[name], getattr(invoice, name))
+                for name in asks):
+            # PayPal's payment is recorded as what the invoice asked when its
+            # order was made (#767).
+            raise serializers.Conflict(invoices.held_message(
+                invoice, 'its amount and handling can\'t be changed'))
         serializer.save(**({'organizer_changed_at': timezone.now()} if changed else {}))
 
     @action(detail=True, methods=['post'])
@@ -852,7 +864,7 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
                 'This invoice still holds money. Refund or move its payments first.')
         if invoices.capture_unsettled(invoice):
             # The worker would record PayPal's payment on it once known (#767).
-            raise serializers.Conflict(invoices.held_message(invoice, 'cancelled'))
+            raise serializers.Conflict(invoices.held_message(invoice, 'it can\'t be cancelled'))
         invoice.cancelled_at = invoice.organizer_changed_at = timezone.now()
         invoice.cancel_reason = (request.data.get('reason') or '').strip()
         invoice.save()
