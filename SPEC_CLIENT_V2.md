@@ -620,9 +620,10 @@ Non-CRUD admin endpoints:
   travels outside `formData`, so it's never one of the registration's `attributes`. Each camper's
   requested lodging must be one the form offers: a node of this event's lodging tree below its
   root, shown on the form (`visible`, as is every node above it), a final choice (no visible
-  node under it; §9.1), and with room on every choice on the way to it — not offered as `full`
-  (DR-57), and, for a node counted by capacity with nothing marked open under it, the
-  registration's campers asking for it together fit its remaining capacity. Otherwise it's a
+  node under it; §9.1), and with no choice on the way to it offered as `full` (DR-57). As on
+  the form, the registration's own campers aren't counted against the room left, so a party may
+  fill the last places past capacity (campouts count RV and tent spots, which a party shares).
+  Otherwise it's a
   400 `{ 'campers.{index}.lodging.lodging_requested.id': [message] }` for the first camper
   refused (the lodging isn't available, or it has no room left) and nothing is saved. The
   remaining capacity counts every registration's campers, started ones included, as the form's
@@ -5019,13 +5020,12 @@ on the server's message — it's Django's default wording, not a contract.
 ### DR-123 — Registration checks the requested lodging on the server, one registration at a time
 
 **Decision:** The register endpoint's `registration` step refuses a requested lodging the form
-wouldn't offer — another event's, one not shown, one with choices shown under it, or one without
-room — with the same notions the form uses: `visible`, and `full` with the remaining capacity
-from the lodging tree (DR-57). Started registrations hold their places, as they do for `full`, so
-a registrant who submits again for the last place (going back from the payment step) is refused
-by their own unfinished registration. The registration's campers count together, each taking
-its lodging's sharing multiplier on every choice above it, as the tree counts assigned campers.
-A registration asking for lodging locks the event's root lodging before counting, and keeps the
+wouldn't offer — another event's, one not shown, one with choices shown under it, or one under or
+at a choice offered as full — with the same notions the form uses: `visible`, and `full` from the
+lodging tree (DR-57). Like the form, it doesn't count the registration's own campers against the
+room left, so a party may fill the last places past capacity. Started registrations hold their
+places, as they do for `full`, so a registrant who submits again for a place their unfinished
+registration filled (going back from the payment step) is refused by it. A registration asking for lodging locks the event's root lodging before counting, and keeps the
 lock until the step's transaction (which saves the registration all or nothing, #806) commits,
 so registrations for the same event's lodging queue up and each counts the ones before it.
 Admin changes to a camper's lodging aren't checked: they may overbook.
@@ -5039,7 +5039,10 @@ per event costs nothing. Serializable transactions with retries — more machine
 result. A database constraint — capacity is a sum over a tree with availability overrides, which
 a constraint can't express. Checking without a lock — still lets two registrations take the last
 place. Leaving started registrations out of the count — the form's `full` counts them too, and the
-two must agree; a started registration that's never paid is cleaned up later.
+two must agree; a started registration that's never paid is cleaned up later. Counting the
+registration's campers together against the room left — stricter than the form, and wrong for
+lodging counted in spots a party shares: on the campouts a party of six sharing one RV was
+refused with every RV spot empty.
 
 ### DR-126 — Changing where an email account connects needs its password again
 

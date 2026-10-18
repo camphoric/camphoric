@@ -1,8 +1,8 @@
 '''
 Registration takes only the lodging its form offers (#795): this event's, shown,
-and with room for the campers asking for it, counted together. Registrations for
-the same lodging take turns, so two can't both have the last bed. Admins may
-still overbook.
+a final choice, and not full. As on the form, a registration's own campers may
+fill the last places past capacity. Registrations for the same lodging take
+turns, so two can't both have the last bed. Admins may still overbook.
 '''
 
 import threading
@@ -100,33 +100,28 @@ class RegisterLodgingTests(APITestCase):
         response = self.register(self.cabin_a, self.cabin_a, self.cabin_a)
         self.assertEqual(response.status_code, 200, response.data)
 
-    def test_campers_of_one_registration_count_together(self):
-        self.assertRefused(self.register(self.cabin_a, self.cabin_a), 1,
-                           'no room left in Cabin A')
-        self.assertEqual(models.Camper.objects.count(), 0)
-        self.cabin_a.capacity = 2
-        self.cabin_a.save()
-        self.assertEqual(self.register(self.cabin_a, self.cabin_a).status_code, 200)
+    def test_a_party_may_fill_the_last_places_past_capacity_as_the_form_allows(self):
+        # Campouts count RV and tent spots, which a party shares: a party of three in
+        # a one-bed cabin is taken, as the form (which shows it free) allows.
+        response = self.register(self.cabin_a, self.cabin_a, self.cabin_a)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertRefused(self.register(self.cabin_a), 0, 'no room left in Cabin A')
 
-    def test_campers_count_against_the_choices_above_their_lodging(self):
-        # One place in Cabins, though each cabin has a bed: the second camper finds it full.
+    def test_a_full_choice_above_the_lodging_refuses_it(self):
+        # One place in Cabins, though each cabin has a bed: once a camper has it,
+        # Cabins is full and the other cabin is refused under it.
         self.cabins.capacity = 1
         self.cabins.save()
-        self.assertRefused(self.register(self.cabin_a, self.cabin_b), 1,
-                           'no room left in Cabins')
+        self.assertEqual(self.register(self.cabin_a).status_code, 200)
+        self.assertRefused(self.register(self.cabin_b), 0, 'no room left in Cabins')
 
     def test_sharing_multiplier_counts_as_the_tree_counts(self):
         self.tent.capacity = 2
         self.tent.sharing_multiplier = 1.5
         self.tent.save()
-        self.assertRefused(self.register(self.tent, self.tent), 1, 'no room left in Tent')
-
-    def test_places_that_exactly_fit_are_taken_whatever_the_float_rounding(self):
-        self.tent.capacity = 1
-        self.tent.sharing_multiplier = 0.1
-        self.tent.save()
-        self.assertEqual(self.register(*[self.tent] * 7).status_code, 200)
-        self.assertEqual(self.register(*[self.tent] * 3).status_code, 200)
+        # 1.5 of 2 taken leaves room; 3 of 2 leaves none.
+        self.assertEqual(self.register(self.tent).status_code, 200)
+        self.assertEqual(self.register(self.tent).status_code, 200)
         self.assertRefused(self.register(self.tent), 0, 'no room left in Tent')
 
     def test_a_choice_with_choices_under_it_is_not_final(self):

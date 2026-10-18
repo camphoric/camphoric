@@ -294,12 +294,12 @@ def registration_lodging_problem(tree, requested_ids):
 
     A request must be one the form offers: in the event's tree, below the root
     (the form's choices start at its children), shown, as is everything above it,
-    and a final choice (nothing shown under it). Every choice on the way to it
-    must have room for the campers asking for it, counted together
-    (`LodgingTreeNode.has_room_for`). Only registration is held to this: admins
-    may overbook.
+    a final choice (nothing shown under it), and with no choice on the way to it
+    offered as full. Like the form, it doesn't count the registration's own
+    campers against the room left: a party may fill the last places past their
+    capacity (campouts count RV and tent spots, which a party shares). Only
+    registration is held to this: admins may overbook.
     '''
-    taken = defaultdict(float)
     for index, lodging_id in enumerate(requested_ids):
         if lodging_id is None:
             continue
@@ -307,12 +307,8 @@ def registration_lodging_problem(tree, requested_ids):
         if (not path or len(path) < 2 or not all(node.visible for node in path)
                 or path[-1].visible_children):
             return index, UNAVAILABLE_LODGING
-        choices = path[1:]
-        # Counted as the tree counts campers: each takes its lodging's sharing multiplier.
-        places = choices[-1].lodging.sharing_multiplier
-        for node in choices:
-            taken[node.lodging.id] += places
-            if not node.has_room_for(taken[node.lodging.id]):
+        for node in path[1:]:
+            if node.full:
                 return index, (f'There\'s no room left in {node.lodging.name}. '
                                'Please reload the page and choose another lodging.')
     return None
@@ -458,19 +454,6 @@ class LodgingTreeNode:
         if choices and all(child.full for child in choices):
             return True
         return self.remaining_unreserved_capacity <= 0 and not self.open_below
-
-    def has_room_for(self, places):
-        '''
-        Whether registration can put this many places' worth of campers here: not
-        while it's offered as full; whatever the count when it, or something under
-        it, is marked always open; otherwise within its remaining capacity.
-        '''
-        if self.full:
-            return False
-        if self.lodging.availability == LodgingAvailability.OPEN or self.open_below:
-            return True
-        # Sharing multipliers such as 0.1 don't add up exactly in floats.
-        return places <= self.remaining_unreserved_capacity + 1e-9
 
     @property
     def open_below(self):
