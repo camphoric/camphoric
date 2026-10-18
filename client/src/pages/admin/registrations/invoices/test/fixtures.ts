@@ -26,6 +26,7 @@ export function invoice(over: Partial<ApiInvoice> & { id: number }): ApiInvoice 
     notes: '',
     pending_paypal_order_id: null,
     paypal_capture_pending: false,
+    paypal_capture_lapsed: false,
     organizer_changed_at: null,
     cancelled_at: null,
     cancel_reason: '',
@@ -156,6 +157,12 @@ export const PROCESSING_PAYPAL = invoice({
   payment_type: 'PayPal',
   pending_paypal_order_id: '5O190127TN364715T',
   paypal_capture_pending: true,
+});
+
+/** PayPal has been processing it for longer than the worker asks about it (#767). */
+export const PROCESSING_PAYPAL_LAPSED = invoice({
+  ...PROCESSING_PAYPAL,
+  paypal_capture_lapsed: true,
 });
 
 export const LEDGER = {

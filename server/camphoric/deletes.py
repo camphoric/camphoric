@@ -356,3 +356,24 @@ def invoice_has_no_payments(invoice, result):
     if payments.exists():
         result.block('It has payments. Only an invoice with none can be deleted; '
                      'cancel it instead.', payments)
+
+
+def invoice_has_no_paypal_payment_underway(invoice, result):
+    '''
+    Nor one PayPal may yet record a payment on: one it's processing, or whose
+    capture hasn't settled. Gone, the payment would never be recorded (#767).
+    Asked again with the invoice held, in the delete itself, for a capture that
+    started since.
+    '''
+    from camphoric import invoices
+    from camphoric.serializers import Conflict
+
+    if invoices.capture_unsettled(invoice):
+        result.block(invoices.held_message(invoice, 'deleted'))
+        return
+
+    def still_none():
+        held = models.Invoice.all_objects.select_for_update().get(pk=invoice.pk)
+        if invoices.capture_unsettled(held):
+            raise Conflict(invoices.held_message(held, 'deleted'))
+    result.steps.append(still_none)

@@ -10,6 +10,7 @@ import {
   PAYPAL_REFUNDED_PAYMENTS,
   PENDING_PAYPAL,
   PROCESSING_PAYPAL,
+  PROCESSING_PAYPAL_LAPSED,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
@@ -128,19 +129,35 @@ describe('InvoiceCard', () => {
     expect(screen.getByRole('button', { name: 'Delete invoice #5' })).toBeInTheDocument();
   });
 
-  it('says when PayPal is still processing a payment, and still offers to check it', async () => {
+  it('says when PayPal is still processing a payment, and offers only to check it', async () => {
     const onCheckPayPal = vi.fn();
     renderWithProviders(
       <InvoiceCard
         invoice={PROCESSING_PAYPAL}
         payments={[]}
         canEdit
-        canDelete={false}
+        canDelete
         onCheckPayPal={onCheckPayPal}
       />,
     );
     expect(screen.getByText(/PayPal is still processing a payment/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Check PayPal order' }));
     expect(onCheckPayPal).toHaveBeenCalled();
+    // PayPal may yet record a payment on it (DR-133).
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Delete invoice/ })).toBeNull();
+  });
+
+  it('says when PayPal has been processing a payment longer than it’s asked about', () => {
+    renderWithProviders(
+      <InvoiceCard
+        invoice={PROCESSING_PAYPAL_LAPSED}
+        payments={[]}
+        canEdit
+        canDelete
+      />,
+    );
+    expect(screen.getByText(/no longer asked about it/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check PayPal order' })).toBeInTheDocument();
   });
 });

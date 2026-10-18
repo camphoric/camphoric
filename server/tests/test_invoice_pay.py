@@ -7,9 +7,12 @@ from decimal import Decimal
 
 from django.core import mail
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from camphoric import models, roles
+from camphoric import deletes, invoices, models, roles
+from camphoric.serializers import Conflict
+from camphoric.views import InvoiceViewSet
 from tests import paypal_mocks
 from tests.factories import create_template_event, make_user, registration_invoice
 
@@ -163,6 +166,82 @@ class PayingTests(InvoicePayTestCase):
         self.client.force_authenticate(self.registrar)
         self.assertTrue(self.client.get(f'/api/invoices/{invoice.id}/').data[
             'paypal_capture_pending'])
+
+
+class WhilePayPalHasAPaymentTests(InvoicePayTestCase):
+    '''
+    An invoice PayPal is processing a payment on (#767), or one whose capture
+    hasn't settled (#804), is neither deleted nor cancelled: the worker, or
+    "Check PayPal order", records the payment on it once PayPal completes it.
+    '''
+
+    def setUp(self):
+        super().setUp()
+        self.extra = models.Invoice.objects.create(
+            registration=self.made.r1, origin=models.InvoiceOrigin.ADMIN,
+            description='Extra', amount=D('50.00'))
+        self.admin = make_user(roles.ADMIN, 'adam')
+
+    def capture_pending(self):
+        self.reply(paypal_mocks.created())
+        self.post('order', invoice=self.extra, paymentType='PayPal')
+        self.extra.refresh_from_db()
+        self.reply(paypal_mocks.order(self.made.r1, self.extra, D('51.25')),
+                   paypal_mocks.captured(self.made.r1, self.extra, D('51.25'),
+                                         capture_status='PENDING'))
+        data = self.post('capture', status=409, invoice=self.extra,
+                         orderID=paypal_mocks.ORDER_ID, paymentType='PayPal')
+        self.assertEqual(data['code'], 'pending')
+
+    def delete(self):
+        self.client.force_authenticate(self.admin)
+        preview = self.client.get(f'/api/invoices/{self.extra.id}/delete-preview/').data
+        return preview, self.client.delete(f'/api/invoices/{self.extra.id}/')
+
+    def test_one_paypal_is_processing_a_payment_on_isnt_deleted(self):
+        self.capture_pending()
+        preview, response = self.delete()
+        self.assertFalse(preview['can_delete'])
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('PayPal is still processing a payment', response.data['detail'])
+        self.extra.refresh_from_db()
+        self.assertEqual(self.extra.paypal_capture_order_id, paypal_mocks.ORDER_ID)
+
+    def test_nor_cancelled(self):
+        self.capture_pending()
+        self.client.force_authenticate(self.registrar)
+        response = self.client.post(f'/api/invoices/{self.extra.id}/cancel/', format='json')
+        self.assertEqual(response.status_code, 409)
+        self.extra.refresh_from_db()
+        self.assertIsNone(self.extra.cancelled_at)
+
+    def test_nor_one_whose_capture_is_being_confirmed(self):
+        models.Invoice.objects.filter(pk=self.extra.pk).update(
+            pending_paypal_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_started_at=timezone.now())
+        preview, response = self.delete()
+        self.assertFalse(preview['can_delete'])
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('still being confirmed', response.data['detail'])
+
+    def test_a_capture_that_starts_after_the_delete_was_planned(self):
+        plan = deletes.plan(self.extra, InvoiceViewSet().delete_checks())
+        self.assertTrue(plan.can_delete)
+        models.Invoice.objects.filter(pk=self.extra.pk).update(
+            pending_paypal_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_order_id=paypal_mocks.ORDER_ID,
+            paypal_capture_started_at=timezone.now())
+        with self.assertRaises(Conflict):
+            plan.carry_out()
+        self.assertTrue(models.Invoice.objects.filter(pk=self.extra.pk).exists())
+
+    def test_once_settled_it_can_go(self):
+        self.capture_pending()
+        self.reply(paypal_mocks.captured(self.made.r1, self.extra, D('51.25'),
+                                         capture_status='DECLINED'))
+        self.assertEqual(invoices.check_paypal_order(self.extra), ('not_captured', None))
+        self.assertEqual(self.delete()[1].status_code, 204)
 
 
 class AdminInvoiceTests(InvoicePayTestCase):
