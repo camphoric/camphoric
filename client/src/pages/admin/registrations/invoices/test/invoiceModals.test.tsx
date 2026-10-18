@@ -11,6 +11,7 @@ import {
   OPEN,
   OVERPAID,
   OVERPAID_PAYMENTS,
+  payment,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
   TWO_CHECKS,
@@ -156,7 +157,7 @@ describe('RefundModal', () => {
     expect(body.requestId).toMatch(/.{8}/);
   });
 
-  it('keeps one request id for the dialog, whatever the amount', async () => {
+  it('keeps one request id for a payment, whatever the amount', async () => {
     // A retry after a lost reply must not refund again, even for a changed
     // amount: PayPal answers a request id it has seen with that first refund,
     // and the server records what PayPal refunded (#767).
@@ -186,6 +187,46 @@ describe('RefundModal', () => {
       expect.objectContaining({ amount: 500 }),
       expect.anything(),
     );
+  });
+
+  it('keeps a request id for each payment refunded from', async () => {
+    // The same id sent for another payment would be answered with the first
+    // payment's refund; a new one each time would refund twice (#767).
+    const user = userEvent.setup();
+    const card = payment({
+      id: 23,
+      invoice: 2,
+      payment_type: 'Card',
+      amount: '200.00',
+      paypal_refundable: true,
+      paypal_transaction_id: '8MC585209K746392H',
+    });
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: PAYPAL_REFUNDED, amount: 50 }}
+        payments={[...PAYPAL_REFUNDED_PAYMENTS, card]}
+        onClose={vi.fn()}
+      />,
+    );
+    const refund = () => user.click(screen.getByRole('button', { name: 'Refund through PayPal' }));
+    const choosePayment = async (label: RegExp) => {
+      await user.click(screen.getByRole('textbox', { name: 'From payment' }));
+      // The dropdown is still mid-transition in jsdom, so its options count as hidden.
+      await user.click(screen.getByRole('option', { name: label, hidden: true }));
+    };
+    await refund();
+    await refund(); // a retry after a timeout
+    await choosePayment(/^Card/);
+    await refund();
+    await choosePayment(/^PayPal/);
+    await refund(); // the first payment's retry, still
+    const calls = (refundPayPal.mock.calls as [{ payment: number; requestId: string }][]).map(
+      ([body]) => body,
+    );
+    expect(calls.map((body) => body.payment)).toEqual([21, 21, 23, 21]);
+    const [first, retry, other, back] = calls.map((body) => body.requestId);
+    expect([retry, back]).toEqual([first, first]);
+    expect(other).not.toEqual(first);
   });
 
   it('records a check mailed back as a negative payment', async () => {

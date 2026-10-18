@@ -2,7 +2,8 @@
  * Give money back (SPEC §8.4, §9.7; §15, DR-94). A refund is a negative payment
  * on the invoice. A PayPal or card payment is refunded through PayPal — all or
  * part of what's left of it — and the refund is recorded with PayPal's id; a
- * retried click refunds once (the request id is made when the dialog opens).
+ * retried click refunds once (each payment refunded from keeps one request id
+ * while the dialog is open, whatever the amount; §15, DR-122).
  * Anything else — a check mailed back — is recorded here by hand. "Refund the
  * difference" on an overpaid invoice opens this pre-filled with the overpayment.
  */
@@ -22,7 +23,7 @@ import {
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import type { ApiInvoice, ApiPayment, PaymentType } from 'api-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRecordPayment, useRefundPayPal } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
 import { formatMoney, roundMoney } from 'utils/money';
@@ -62,7 +63,10 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
   const [reason, setReason] = useState('');
   const [type, setType] = useState<PaymentType>('Check');
   const [paidOn, setPaidOn] = useState('');
-  const [requestId, setRequestId] = useState('');
+  // One request id per payment while the dialog is open: a retry for the
+  // same payment is answered with its first refund (PayPal-Request-Id), and
+  // another payment's refund must not be (§15, DR-122).
+  const requestIds = useRef(new Map<number, string>());
 
   useEffect(() => {
     if (!target) return;
@@ -75,7 +79,7 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
     setType(target.payment?.payment_type ?? 'Check');
     setReason('');
     setPaidOn('');
-    setRequestId(crypto.randomUUID());
+    requestIds.current = new Map();
     refundPayPal.reset();
     record.reset();
     // Start afresh each time it opens.
@@ -96,6 +100,8 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
   const save = () => {
     const value = Number(amount) || 0;
     if (mode === 'paypal' && payment) {
+      const requestId = requestIds.current.get(payment.id) ?? crypto.randomUUID();
+      requestIds.current.set(payment.id, requestId);
       refundPayPal.mutate(
         { payment: payment.id, amount: value, reason, requestId },
         { onSuccess: done },
