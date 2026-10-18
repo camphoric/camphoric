@@ -27,14 +27,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    ignore:
-      # ESLint 10 (and @eslint/js 10, which needs it) drops the eslintrc config
-      # data/ still uses; the flat-config conversion comes with the upgrade
-      # (#725). Remove these then.
-      - dependency-name: eslint
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
+      # @eslint/js needs the ESLint of the same major, so their majors come as
+      # one PR; alone, either fails npm ci on a peer conflict.
+      eslint-major:
+        patterns: [eslint, '@eslint/js']
+        update-types: [major]
     commit-message:
       prefix: fix
       prefix-development: chore
