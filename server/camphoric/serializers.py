@@ -620,7 +620,7 @@ class PaymentSerializer(ModelSerializer):
     class Meta:
         model = models.Payment
         fields = '__all__'
-        read_only_fields = ['paypal_response', 'paypal_transaction_id']
+        read_only_fields = ['paypal_response', 'paypal_transaction_id', 'refund_request_id']
 
     def get_refunded(self, payment):
         if payment.amount <= 0:

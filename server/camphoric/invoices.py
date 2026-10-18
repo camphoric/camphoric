@@ -772,7 +772,9 @@ def refund_paypal_payment(payment, amount, reason, request_id, request=None):
     '''
     Refund some or all of a PayPal or card payment through PayPal (DR-94), and
     record the refund as a negative payment on the same invoice. A retry with
-    the same `request_id` gets PayPal's first refund back, recorded once.
+    the same `request_id` gets the refund back, recorded once: the one already
+    recorded with that request id (refused if it asks for another amount), or
+    else PayPal's first refund.
     '''
     amount = money(amount)
     try:
@@ -798,6 +800,17 @@ def _refund(payment, amount, reason, request_id):
         raise PaymentProblem(
             'refused', 'This payment has no PayPal capture to refund. Refund it in PayPal, '
             'then record the refund here.')
+    # A retry of a refund already recorded gets it back, before the amount
+    # check could refuse it for having used up what was left — unless it asks
+    # for another amount, which that refund didn't give back.
+    retried = models.Payment.all_objects.filter(
+        refund_of=payment, refund_request_id=request_id).first()
+    if retried is not None:
+        if money(-retried.amount) != amount:
+            raise PaymentProblem(
+                'refused', f'This refund was already made, for ${money(-retried.amount):.2f}. '
+                'To refund a different amount, start a new refund.')
+        return retried
     if amount <= 0 or amount > refundable(payment):
         raise PaymentProblem(
             'refused', f'You can refund up to ${refundable(payment):.2f} of this payment.')
@@ -825,6 +838,7 @@ def _refund(payment, amount, reason, request_id):
         paid_on=today(),
         amount=-amount,
         refund_of=payment,
+        refund_request_id=request_id,
         paypal_response=reply,
         paypal_transaction_id=refund_id,
         notes=notes,

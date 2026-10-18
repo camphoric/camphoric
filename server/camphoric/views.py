@@ -897,13 +897,17 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
         request_id = request.data.get('request_id')
         if not request_id:
             raise ValidationError({'request_id': 'This field is required.'})
+        request_id = str(request_id)
+        # It's kept on the refund, so it must fit there before PayPal is asked.
+        if len(request_id) > models.Payment._meta.get_field('refund_request_id').max_length:
+            raise ValidationError({'request_id': 'This is too long.'})
         try:
             amount = invoices.money(request.data.get('amount'))
         except Exception:
             raise ValidationError({'amount': 'A number is required.'})
         try:
             refund = invoices.refund_paypal_payment(
-                payment, amount, (request.data.get('reason') or '').strip(), str(request_id),
+                payment, amount, (request.data.get('reason') or '').strip(), request_id,
                 request=request)
         except invoices.PaymentProblem as problem:
             return payment_problem_response(problem)

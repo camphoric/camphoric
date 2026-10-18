@@ -937,6 +937,9 @@ class Payment(TimeStampedModel):
     # The payment a refund gives money back from.
     refund_of = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.RESTRICT, related_name='refunds')
+    # For a refund made through PayPal: the request id the admin's attempt sent,
+    # so a retry gets this refund back, even once nothing is left to refund.
+    refund_request_id = models.CharField(max_length=64, null=True, blank=True)
     notes = models.TextField(blank=True, default='')
 
     objects = LiveUnderRegistration()

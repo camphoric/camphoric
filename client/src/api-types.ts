@@ -258,6 +258,8 @@ export interface ApiPayment extends TimeStamped {
   refund_of?: Scalar | null;
   /** PayPal's capture id (a payment) or refund id (a refund). Read-only. */
   paypal_transaction_id?: string | null;
+  /** For a refund made through PayPal: the request id it was made with. Read-only. */
+  refund_request_id?: string | null;
   /** PayPal's reply (read-only). */
   paypal_response?: Hash | null;
   /** How much of it has been refunded (read-only, a decimal string). */
