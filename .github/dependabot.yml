@@ -106,7 +106,8 @@ updates:
   # nodejs_version (and nodejs_supported_versions), the CI workflows'
   # node-version, README.md, doc/development.md and every package.json's
   # @types/node. Its majors are ignored here and in docker-compose below, so
-  # Node moves only when every pin moves at once.
+  # Node gets no image PR: a new major is a deliberate change of every pin at
+  # once (as #871 was), not a reminder from here.
   - package-ecosystem: docker
     directories: [/server, /data]
     schedule:

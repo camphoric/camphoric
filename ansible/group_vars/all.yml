@@ -5,9 +5,10 @@
 is_vagrant: false
 
 # Node's major: the nodesource.node role (site.yml) installs it and the camphoric role's
-# install_prereqs.yml checks it. They're set here, not in the camphoric role's defaults,
+# install_prereqs.yml checks it. They're set here, not only in the camphoric role's defaults,
 # because a role's own defaults beat another role's: nodesource.node would see its own 22.x.
-# It refuses a version missing from nodejs_supported_versions, which stops at 23.x.
+# It refuses a version missing from nodejs_supported_versions, which stops at 23.x. Like
+# everything here, an inventory can't override these: use host_vars or -e.
 nodejs_version: 26.x
 nodejs_supported_versions: ['26.x']
 

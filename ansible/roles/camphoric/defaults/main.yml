@@ -51,5 +51,8 @@ camphoric_npm_token: "{{ lookup('env', 'CAMPHORIC_NPM_AUTH_TOKEN') | default(cam
 # apt's pipenv (Ubuntu 24.04 refuses system-wide pip installs, PEP 668)
 pipenv_bin: /usr/bin/pipenv
 
+# For playbooks outside ansible/, which don't load ansible/group_vars: site.yml's value
+# comes from group_vars/all.yml, where nodesource.node sees it too.
+nodejs_version: 26.x
 nginx_ssl_on: True
 
