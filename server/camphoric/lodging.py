@@ -23,7 +23,8 @@ Overbooking
 -----------
 
 If a lodging node is full, it will be disabled in the UI schema (and therefore
-disabled on the registration form). However, an admin can overbook a lodging
+disabled on the registration form), and a registration asking for it is refused
+(registration_lodging_problem). However, an admin can overbook a lodging
 node without affecting ancestor nodes. For example, in the tree above, if the
 camp 1 cabins are completely full, overbooking a cabin will not affect the
 remaining capacity of camp 1, and so will not disable camp 1 as an option on the
@@ -281,6 +282,42 @@ def get_lodging_ui_schema(tree):
     return ui_schema
 
 
+UNAVAILABLE_LODGING = 'That lodging isn\'t available for this event.'
+
+
+def registration_lodging_problem(tree, requested_ids):
+    '''
+    The first of a registration's lodging requests that its form wouldn't take
+    (#795), as (camper index, message), or None when they all fit.
+    `requested_ids` are the campers' requested lodging ids in order, None for a
+    camper without one.
+
+    A request must be one the form offers: in the event's tree, below the root
+    (the form's choices start at its children), shown, as is everything above it,
+    and a final choice (nothing shown under it). Every choice on the way to it
+    must have room for the campers asking for it, counted together
+    (`LodgingTreeNode.has_room_for`). Only registration is held to this: admins
+    may overbook.
+    '''
+    taken = defaultdict(float)
+    for index, lodging_id in enumerate(requested_ids):
+        if lodging_id is None:
+            continue
+        path = tree.path_to(lodging_id)
+        if (not path or len(path) < 2 or not all(node.visible for node in path)
+                or path[-1].visible_children):
+            return index, UNAVAILABLE_LODGING
+        choices = path[1:]
+        # Counted as the tree counts campers: each takes its lodging's sharing multiplier.
+        places = choices[-1].lodging.sharing_multiplier
+        for node in choices:
+            taken[node.lodging.id] += places
+            if not node.has_room_for(taken[node.lodging.id]):
+                return index, (f'There\'s no room left in {node.lodging.name}. '
+                               'Please reload the page and choose another lodging.')
+    return None
+
+
 class LodgingTree:
     def __init__(self, event, show_all=False):
         self.event = event
@@ -349,6 +386,19 @@ class LodgingTree:
     def get(self, lodging_id):
         return self._get(lodging_id, self.root)
 
+    def path_to(self, lodging_id):
+        '''The nodes from the root down to the lodging, or None if it isn't in the tree.'''
+        def search(node):
+            if node.lodging.id == lodging_id:
+                return [node]
+            for child in node.children:
+                path = search(child)
+                if path:
+                    return [node, *path]
+            return None
+
+        return search(self.root) if self.root else None
+
     def get_node(self, lodging_id):
         return self._get(lodging_id, self.root)
 
@@ -408,6 +458,19 @@ class LodgingTreeNode:
         if choices and all(child.full for child in choices):
             return True
         return self.remaining_unreserved_capacity <= 0 and not self.open_below
+
+    def has_room_for(self, places):
+        '''
+        Whether registration can put this many places' worth of campers here: not
+        while it's offered as full; whatever the count when it, or something under
+        it, is marked always open; otherwise within its remaining capacity.
+        '''
+        if self.full:
+            return False
+        if self.lodging.availability == LodgingAvailability.OPEN or self.open_below:
+            return True
+        # Sharing multipliers such as 0.1 don't add up exactly in floats.
+        return places <= self.remaining_unreserved_capacity + 1e-9
 
     @property
     def open_below(self):
