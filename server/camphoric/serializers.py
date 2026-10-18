@@ -662,6 +662,9 @@ class PaymentSerializer(ModelSerializer):
             raise ValidationError({'invoice': 'That invoice is on another registration.'})
 
         if refund_of is not None:
+            # Held until the write commits, so a refund through PayPal can't
+            # land between this check of what's left and the save (#767).
+            refund_of = invoices.lock_payment(refund_of)
             if amount >= 0:
                 raise ValidationError({'amount': 'A refund\'s amount is negative.'})
             if refund_of.amount <= 0:
@@ -704,7 +707,8 @@ class PaymentSerializer(ModelSerializer):
         refunds; and what PayPal recorded (a capture or a refund) keeps PayPal's
         amount and stays a PayPal or card payment, so it stays refundable
         through PayPal. The edit form sends every field back, so only a change
-        is refused.
+        is refused. The payment's row is already held (the version check takes
+        it), so a refund through PayPal can't land while this checks.
         '''
         refunded = invoices.refunded(payment)
         if refunded > 0 and amount < refunded:

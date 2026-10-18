@@ -5,12 +5,14 @@ who may cancel and delete, and refunds — by hand and through PayPal.
 '''
 
 from decimal import Decimal
+import threading
 from unittest import mock
 import uuid
 
 from django.core import mail
-from django.db import DatabaseError
-from rest_framework.test import APITestCase
+from django.db import connection, DatabaseError
+from django.test import TransactionTestCase
+from rest_framework.test import APIClient, APITestCase
 
 from camphoric import invoices, models, roles
 from tests import paypal_mocks
@@ -234,6 +236,22 @@ class EditingAPaymentTests(InvoiceTestCase):
         self.edit(payment, amount='100.00')
         response = self.client.post(f'/api/payments/{refund_id}/restore/')
         self.assertEqual(response.status_code, 200, response.data)
+
+    def test_a_refund_isnt_restored_while_its_payment_is_deleted(self):
+        payment = models.Payment.objects.filter(registration=self.made.r1).get()
+        refund_id = self.record(refund_of=payment.id, amount='-80.00')['id']
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.delete(f'/api/payments/{refund_id}/').status_code, 204)
+        self.assertEqual(self.client.delete(f'/api/payments/{payment.id}/').status_code, 204)
+        response = self.client.post(f'/api/payments/{refund_id}/restore/')
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertIn('Restore its payment first', response.data['detail'])
+        self.assertEqual(self.ledger(self.made.r1).total_paid, D('0.00'))
+        self.assertEqual(self.client.post(f'/api/payments/{payment.id}/restore/').status_code,
+                         200)
+        response = self.client.post(f'/api/payments/{refund_id}/restore/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.ledger(self.made.r1).total_paid, D('20.00'))
 
     def test_a_paypal_payments_amount_and_type_are_paypals(self):
         invoice = registration_invoice(self.made.r2, 'PayPal', D('100.00'))
@@ -518,6 +536,8 @@ class RefundThroughPayPalTests(PayPalTestCase):
                                          f'#{self.made.r1.id}, Invoice #{self.invoice.id}')
         self.assertIn('Refund requested: $10.00', report.body)
         self.assertIn(f'Capture id: {paypal_mocks.CAPTURE_ID}', report.body)
+        # The same request again is safe: PayPal refunds it at most once.
+        self.assertIn('again in this dialog', data['detail'])
 
     def test_what_paypal_refunded_is_recorded(self):
         # A retry, after the first reply was lost, that PayPal answers with the
@@ -537,18 +557,172 @@ class RefundThroughPayPalTests(PayPalTestCase):
     def test_a_failure_recording_the_refund_emails_the_event(self):
         # PayPal gave the money back; the event must hear of it even though
         # recording it failed (#767).
+        request_id = uuid.uuid4().hex
         self.reply(paypal_mocks.refund(value='10.00'), status=201)
         with mock.patch.object(models.Payment, 'save', side_effect=DatabaseError('disk full')), \
                 self.assertLogs('camphoric.invoices', level='ERROR'):
-            data = self.refund('10.00', status=502)
+            data = self.refund('10.00', request_id, status=502)
         self.assertEqual(data['code'], 'unknown')
         self.assertFalse(models.Payment.objects.filter(refund_of=self.paid).exists())
         report = models.EmailMessage.objects.get(kind='payment_report')
         self.assertIn('Refund requested: $10.00', report.text)
         self.assertIn('disk full', report.text)
+        # Recorded by hand, it would have no request id, and the dialog's retry
+        # would record it a second time: the advice is that retry, which PayPal
+        # answers with the same refund, recorded once.
+        self.assertIn('again in this dialog', data['detail'])
+        self.assertNotIn('by hand', data['detail'])
+        self.assertIn('press "Refund through PayPal" again', report.text)
+        self.assertIn('Only if that dialog was closed', report.text)
+        self.reply(paypal_mocks.refund(value='10.00'), status=201)
+        self.assertEqual(self.refund('10.00', request_id)['amount'], '-10.00')
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
+
+    def test_a_refund_for_more_than_is_left_isnt_recorded(self):
+        # PayPal's reply, for a request id it saw before, is a refund for more
+        # than is left of the payment (a refund was recorded by hand meanwhile):
+        # recording it would give back more than was paid, so it's reported (#767).
+        self.record(refund_of=self.paid.id, amount='-90.00')
+        self.reply(paypal_mocks.refund(value='30.00'), status=201)
+        with self.assertLogs('camphoric.invoices', level='ERROR'):
+            data = self.refund('10.00', status=502)
+        self.assertEqual(data['code'], 'unknown')
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
+        report = models.EmailMessage.objects.get(kind='payment_report')
+        self.assertIn('$30.00', report.text)
+        self.assertIn('$12.50', report.text)
+        # PayPal would answer a retry the same way: the advice is to look.
+        self.assertIn('Don\'t try it again', data['detail'])
+        self.assertIn('doesn\'t fit this payment', report.text)
+        self.assertIn('Don\'t press "Refund through PayPal" again', report.text)
+        self.assertNotIn('Ask whoever made the refund', report.text)
+
+    def test_a_second_problem_with_one_request_is_emailed_too(self):
+        # Recording failed and the event was told a retry records it; a refund
+        # recorded by hand meanwhile leaves too little for PayPal's, so the
+        # retry fails differently, and the event must hear of that as well.
+        request_id = uuid.uuid4().hex
+        self.reply(paypal_mocks.refund(value='10.00'), status=201)
+        with mock.patch.object(models.Payment, 'save', side_effect=DatabaseError('disk full')), \
+                self.assertLogs('camphoric.invoices', level='ERROR'):
+            self.refund('10.00', request_id, status=502)
+        self.record(refund_of=self.paid.id, amount='-95.00')
+        self.reply(paypal_mocks.refund(value='10.00'), status=201)
+        with self.assertLogs('camphoric.invoices', level='ERROR'):
+            self.refund('5.00', request_id, status=502)
+        first, second = models.EmailMessage.objects.filter(
+            kind='payment_report').order_by('id')
+        self.assertIn('disk full', first.text)
+        self.assertIn('doesn\'t fit this payment', second.text)
+
+    def test_a_refund_of_another_capture_isnt_recorded(self):
+        self.reply(paypal_mocks.refund(value='10.00', capture_id='8MC585209K746392H'),
+                   status=201)
+        with self.assertLogs('camphoric.invoices', level='ERROR'):
+            data = self.refund('10.00', status=502)
+        self.assertEqual(data['code'], 'unknown')
+        self.assertFalse(models.Payment.objects.filter(refund_of=self.paid).exists())
+        report = models.EmailMessage.objects.get(kind='payment_report')
+        self.assertIn('8MC585209K746392H', report.text)
 
     def test_registrars_may_refund(self):
         self.reply(paypal_mocks.refund(value='5.00'), status=201)
         self.refund('5.00')
         self.client.force_authenticate(self.reporter)
         self.refund('5.00', status=403)
+
+
+class WhileARefundIsUnderwayTests(TransactionTestCase):
+    '''
+    A refund through PayPal holds its payment's row while it asks PayPal and
+    records the answer. Anything else that checks what's left of the payment
+    waits for it, so the two can't give back more than was paid between them
+    (#767).
+    '''
+
+    def setUp(self):
+        self.made = create_template_event()
+        invoice = registration_invoice(self.made.r1, 'PayPal', D('100.00'))
+        self.paid = models.Payment.objects.create(
+            registration=self.made.r1, invoice=invoice, payment_type='PayPal',
+            amount=D('100.00'), paypal_transaction_id=paypal_mocks.CAPTURE_ID)
+        self.client = APIClient()
+        self.client.force_authenticate(make_user(roles.ADMIN, 'boss'))
+
+    def refund_by_hand(self, amount, status=201):
+        response = self.client.post('/api/payments/', {
+            'refund_of': self.paid.id, 'amount': amount, 'payment_type': 'Check',
+            'attributes': {}}, format='json')
+        self.assertEqual(response.status_code, status, response.data)
+        return response
+
+    def while_refunding(self, amount, request):
+        '''
+        Send `request` while a refund of `amount` through PayPal is underway.
+        PayPal answers once `request` is done, or after a second if it's
+        waiting (as it should be) for the refund to be recorded.
+        '''
+        asked, answered = threading.Event(), threading.Event()
+
+        def refund_capture(*args, **kwargs):
+            asked.set()
+            answered.wait(1)
+            return paypal_mocks.refund(value=f'{amount:.2f}')
+
+        def refund():
+            try:
+                invoices.refund_paypal_payment(self.paid, amount, '', uuid.uuid4().hex)
+            finally:
+                connection.close()
+
+        paypal = mock.Mock(refund_capture=mock.Mock(side_effect=refund_capture))
+        with mock.patch.object(invoices, 'paypal_client', return_value=paypal):
+            refunding = threading.Thread(target=refund)
+            refunding.start()
+            try:
+                self.assertTrue(asked.wait(5))
+                request()
+            finally:
+                answered.set()
+                refunding.join(10)
+
+    def refunded(self):
+        return invoices.refunded(models.Payment.objects.get(pk=self.paid.pk))
+
+    def test_a_refund_recorded_by_hand_waits(self):
+        self.while_refunding(D('80.00'), lambda: self.refund_by_hand('-30.00', 400))
+        self.assertEqual(self.refunded(), D('80.00'))
+
+    def test_an_edit_of_a_refund_waits(self):
+        refund_id = self.refund_by_hand('-10.00').data['id']
+
+        def edit():
+            response = self.client.patch(
+                f'/api/payments/{refund_id}/', {'amount': '-30.00'}, format='json')
+            self.assertEqual(response.status_code, 400, response.data)
+
+        self.while_refunding(D('80.00'), edit)
+        self.assertEqual(self.refunded(), D('90.00'))
+
+    def test_restoring_a_refund_waits(self):
+        refund_id = self.refund_by_hand('-30.00').data['id']
+        self.assertEqual(self.client.delete(f'/api/payments/{refund_id}/').status_code, 204)
+
+        def restore():
+            response = self.client.post(f'/api/payments/{refund_id}/restore/')
+            self.assertEqual(response.status_code, 409, response.data)
+
+        self.while_refunding(D('80.00'), restore)
+        self.assertEqual(self.refunded(), D('80.00'))
+
+    def test_moving_the_payment_waits(self):
+        other = models.Invoice.objects.create(
+            registration=self.made.r1, origin='admin', amount=D('30'))
+
+        def move():
+            response = self.client.patch(
+                f'/api/payments/{self.paid.id}/', {'invoice': other.id}, format='json')
+            self.assertEqual(response.status_code, 400, response.data)
+
+        self.while_refunding(D('80.00'), move)
+        self.assertEqual(self.refunded(), D('80.00'))

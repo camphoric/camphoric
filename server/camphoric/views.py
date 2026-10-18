@@ -887,6 +887,11 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
     def delete_checks(self):
         return (deletes.payment_has_no_refunds, deletes.paypal_refund_stays_refunded)
 
+    def create(self, request, *args, **kwargs):
+        # A refund's check of what's left holds its payment until it's saved (#767).
+        with transaction.atomic():
+            return super().create(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         invoice = self.get_object().invoice
         with transaction.atomic():
@@ -897,12 +902,21 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
         with transaction.atomic():
-            refund = self.get_any_object()
-            if refund.deleted_at is not None and refund.refund_of is not None \
-                    and -invoices.money(refund.amount) > invoices.refundable(refund.refund_of):
-                # Its payment was lowered or refunded again meanwhile (#767).
-                raise serializers.Conflict('Restoring this refund would give back more than '
-                                           'is left of its payment.')
+            restoring = self.get_any_object()
+            # The refund's row, then its payment's (as an edit of it takes
+            # them), held so a refund through PayPal can't land between this
+            # check and the restore (#767). One restored meanwhile is left to
+            # the "isn't deleted" answer.
+            refund = invoices.lock_payment(restoring) if restoring.refund_of_id else None
+            if refund is not None and refund.deleted_at is not None:
+                payment = invoices.lock_payment(refund.refund_of)
+                if payment.deleted_at is not None:
+                    raise serializers.Conflict('Its payment is deleted. Restore its payment '
+                                               'first.')
+                if -invoices.money(refund.amount) > invoices.refundable(payment):
+                    # Its payment was lowered or refunded again meanwhile.
+                    raise serializers.Conflict('Restoring this refund would give back more '
+                                               'than is left of its payment.')
             response = super().restore(request, pk)
             invoices.match_received_invoice(self.get_any_object().invoice)
         return response

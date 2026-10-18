@@ -311,7 +311,8 @@ sequenceDiagram
   handled as an `unknown` outcome: the event gets the problem email (its error line says what
   failed), and the registrar or registrant is told (502). For a capture the registrant is asked
   not to pay again, and the order stays pending and marked, so the worker asks PayPal about it 15
-  minutes on and records it (or "Check PayPal order" does). The report is written after the
+  minutes on and records it (or "Check PayPal order" does). For a refund the registrar is asked
+  to press "Refund through PayPal" again in the same dialog, which records it once (§11). The report is written after the
   rollback, with no transaction open, so it isn't lost with it.
 - **"Check PayPal order"** on the invoice (`/api/invoices/{id}/check-paypal/`) asks PayPal about the
   pending order: COMPLETED is recorded; anything else is cleared (no money was taken).
@@ -392,8 +393,16 @@ flowchart TD
   another payment. A payment or refund PayPal recorded (it has a capture or refund id) keeps
   PayPal's amount and stays PayPal or Card (either may be corrected to the other, #758) — so the
   ledger agrees with PayPal and the payment stays refundable through it. Sending the same values
-  back is fine; only a change is refused (400). A deleted refund can't be restored if it would
-  give back more than is left of its payment (409).
+  back is fine; only a change is refused (400). A deleted refund can't be restored while its
+  payment is deleted ("Restore its payment first"), nor if it would give back more than is left
+  of its payment (409).
+- **Checking what's left of a payment waits for a refund through PayPal** (#767). That refund
+  holds the payment's row (`invoices.lock_payment`) while it asks PayPal and records the answer;
+  recording a refund by hand, editing one, or restoring one takes the same row before checking
+  what's left (after the refund's own row, when it's the one changing — the edit's version check
+  takes that first), and an edit of the payment itself already holds it. So a $30 check refund
+  entered while an $80 PayPal refund of a $100 payment is underway waits, then is refused,
+  instead of both going through.
 
 ## 10. An invoice's lifecycle
 
@@ -431,7 +440,7 @@ sequenceDiagram
     participant S as Server
     participant P as PayPal
     A->>B: Refund (from a PayPal payment's row) — or "Refund the difference"
-    B->>B: make a request id (one while the dialog is open)
+    B->>B: make a request id (one per payment while the dialog is open)
     B->>S: POST /api/payments/{id}/refund-paypal/ {amount, reason, request_id}
     S->>S: check: a PayPal/card payment with a capture id
     alt a refund of it already recorded with this request id (a retry)
@@ -441,14 +450,22 @@ sequenceDiagram
     else within what's left
         S->>P: refund the capture (PayPal-Request-Id = refund-request id)
         alt COMPLETED or PENDING
-            P-->>S: refund id, amount refunded
-            S->>S: record a payment −(PayPal's amount), refund_of the payment,<br/>paypal_transaction_id = refund id,<br/>refund_request_id = request id
-            S-->>B: 201 the refund
+            P-->>S: refund id, amount refunded, the capture it refunds (up link)
+            alt of this capture, within what's left
+                S->>S: record a payment −(PayPal's amount), refund_of the payment,<br/>paypal_transaction_id = refund id,<br/>refund_request_id = request id
+                S-->>B: 201 the refund
+            else of another capture, or more than is left
+                S->>S: record nothing, email the event the details
+                S-->>B: 502 unknown: don't retry, check the payment in PayPal
+            else recording it failed
+                S->>S: roll back, email the event the details
+                S-->>B: 502 unknown: press Refund again in this dialog
+            end
         else refused (fully refunded, past 180 days …)
             S-->>B: 409 refused, with PayPal's message
-        else no clear answer, or recording the refund failed
+        else no clear answer
             S->>S: email the event the details
-            S-->>B: 502 unknown: check PayPal before trying again
+            S-->>B: 502 unknown: press Refund again in this dialog
         end
     end
 ```
@@ -472,13 +489,31 @@ flowchart LR
   return its first refund) only if its amount still fits in what's left, so retrying such a
   full refund is still refused.
 - A check mailed back is recorded by hand: a negative payment with `refund_of`.
-- **The amount recorded is PayPal's** (#767). The dialog keeps one request id while it's open,
-  even if the amount is changed, so a retry can't refund a second time. A retry of a refund
-  already recorded is answered from the ledger (above: the same refund, or 409 for another
-  amount). One whose first reply was lost, so nothing was recorded, reaches PayPal, which answers
-  a request id it has seen with that first refund whatever amount the retry asks for — so the
-  refund is recorded for the amount in PayPal's reply, with the request id, and a further retry
-  for another amount is then refused.
+- **The amount recorded is PayPal's** (#767). While it's open, the dialog keeps one request id
+  for each payment it refunds from, even if the amount is changed, so a retry can't refund a
+  second time; switching to another payment of the invoice uses another id, since PayPal would
+  answer the first payment's id with the first payment's refund. A retry of a refund already
+  recorded is answered from the ledger (above: the same refund, or 409 for another amount). One
+  whose first reply was lost, so nothing was recorded, reaches PayPal, which answers a request
+  id it has seen with that first refund whatever amount the retry asks for — so the refund is
+  recorded for the amount in PayPal's reply, with the request id, and a further retry for
+  another amount is then refused.
+- **A reply that can't be this payment's refund isn't recorded** (#767, `record_refund`): one
+  whose `up` link names another capture, or whose amount is more than is left of the payment
+  (say a $25 refund was recorded by hand after the reply was lost, and PayPal's earlier refund
+  no longer fits). The money moved, so it's an `unknown` outcome: the event gets the problem
+  email with PayPal's refund id and amount, and someone checks PayPal. Its email and the
+  registrar's message say not to retry (PayPal answers the same request the same way) but to put
+  the ledger right and record it by hand. It's emailed even when an earlier problem with the same
+  request id was (its dedupe key adds `:doesnt-fit`), since that email said a retry would
+  record it.
+- **When a refund couldn't be recorded, or PayPal's answer was lost, try again from the same
+  dialog.** The retry sends the same request id, so PayPal returns the same refund rather than
+  refunding again (or makes it, if it never did), and it's recorded once. Recording it by hand
+  instead would leave a refund with no request id, and a retry from the still-open dialog would
+  then record PayPal's refund a second time. The registrar's 502 message says to press Refund
+  again in the dialog; the problem email asks the event to have whoever made the refund do that,
+  and to record it by hand only if that dialog was closed.
 - Refunding doesn't change the handling fee: if the organizers' policy is to return the fee,
   the registrar edits the invoice's handling too.
 - A converted PayPal payment whose verification had failed back then has no capture id, so it

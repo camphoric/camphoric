@@ -189,6 +189,17 @@ def refundable(payment):
     return max(ZERO, money(payment.amount) - refunded(payment))
 
 
+def lock_payment(payment):
+    '''
+    The payment as committed, its row held until the transaction ends. A
+    refund through PayPal holds it while it asks PayPal and records the
+    answer, so whatever checks what's left of a payment before changing its
+    refunds holds it too, and waits its turn (#767). A refund's own row, when
+    it's the one changing, is taken before its payment's.
+    '''
+    return models.Payment.all_objects.select_for_update().get(pk=payment.pk)
+
+
 # Payment options (#675) -------------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -399,17 +410,20 @@ class PaymentProblem(Exception):
     cancelled the invoice) and `invoice_changed` (they changed it since the page
     was loaded) took no money; `unknown` may have (PayPal's answer was lost, or
     recording what PayPal did failed; the event has been emailed). `detail`, if
-    given, is what the event's email says went wrong instead of `message`.
+    given, is what the event's email says went wrong instead of `message`;
+    `doesnt_fit` marks a refund PayPal made that can't be this payment's, which
+    a retry won't fix.
     '''
     status = {'amount_changed': 409, 'declined': 402, 'not_payable': 409,
               'not_approved': 409, 'mismatch': 400, 'unknown': 502, 'refused': 409,
               'not_configured': 409, 'cancelled': 409, 'invoice_changed': 409}
 
-    def __init__(self, code, message, detail=None):
+    def __init__(self, code, message, detail=None, doesnt_fit=False):
         super().__init__(message)
         self.code = code
         self.message = message
         self.detail = detail
+        self.doesnt_fit = doesnt_fit
 
     @property
     def http_status(self):
@@ -569,12 +583,19 @@ def record_capture(invoice, order, payment_type=None, notes=''):
     )
 
 
+# A retry repeats the request id, so PayPal refunds at most once (DR-122).
+REFUND_RETRY = ('Press "Refund through PayPal" again in this dialog: it repeats the same '
+                'request, so PayPal won\'t refund twice, and the refund is recorded once.')
 RECORDING_FAILED = {
     'capture': 'PayPal took your payment, but we couldn\'t record it. Please don\'t pay '
                'again: we\'ll check and let you know.',
-    'refund': 'PayPal made the refund, but it couldn\'t be recorded here. Record it on the '
-              'invoice by hand; don\'t refund it again.',
+    # Not "record it yourself": a refund recorded that way has no request id,
+    # so a retry from the dialog would record PayPal's refund a second time.
+    'refund': f'PayPal made the refund, but it couldn\'t be recorded here. {REFUND_RETRY}',
 }
+REFUND_DOESNT_FIT = ('PayPal\'s answer doesn\'t fit this payment, so the refund wasn\'t '
+                     'recorded. Don\'t try it again (PayPal would answer the same way): check '
+                     'the payment in PayPal. The event has been emailed the details.')
 
 
 def _recording(what, record, *args):
@@ -820,14 +841,14 @@ def refund_paypal_payment(payment, amount, reason, request_id, request=None):
     amount = money(amount)
     try:
         with transaction.atomic():
-            locked = models.Payment.all_objects.select_for_update().get(pk=payment.pk)
-            return _refund(locked, amount, reason, request_id)
+            return _refund(lock_payment(payment), amount, reason, request_id)
     except PaymentProblem as problem:
         if problem.code == 'unknown':
             send_paypal_problem_report(
                 payment.invoice, what='refund', error=problem.detail or problem.message,
                 capture_id=capture_id_of(payment), request_id=request_id, amount=amount,
-                payment_type=payment.payment_type, refund_of=payment, request=request)
+                payment_type=payment.payment_type, refund_of=payment,
+                doesnt_fit=problem.doesnt_fit, request=request)
         raise
 
 
@@ -860,7 +881,8 @@ def _refund(payment, amount, reason, request_id):
             capture_id, f'{amount:.2f}', reason, request_id=f'refund-{request_id}')
     except PayPalError as e:
         if e.unknown:
-            raise PaymentProblem('unknown', str(e))
+            raise PaymentProblem('unknown', f'{e}. PayPal may have made the refund. '
+                                 f'{REFUND_RETRY}', detail=str(e))
         raise PaymentProblem('refused', f'PayPal refused the refund: {e}')
     refund_id = (reply or {}).get('id')
     if not refund_id:
@@ -874,13 +896,26 @@ def record_refund(payment, amount, reason, request_id, reply):
     request id it was made with. The amount is PayPal's: a request id it has
     seen before gets the earlier refund back, which may have been for another
     amount when that refund's reply was lost and so never recorded (#767).
+    A reply that can't be this payment's refund — of another capture, or for
+    more than is left of it — isn't recorded but reported, as the money moved.
     '''
+    capture_id = capture_id_of(payment)
+    of = _refunded_capture(reply)
+    if of is not None and of != capture_id:
+        raise PaymentProblem('unknown', REFUND_DOESNT_FIT, doesnt_fit=True, detail=(
+            f'PayPal\'s reply is refund {reply["id"]} of capture {of}, not of this '
+            f'payment\'s capture {capture_id}, so it wasn\'t recorded.'))
     existing = models.Payment.all_objects.filter(paypal_transaction_id=reply['id']).first()
     if existing is not None:
         return existing
     refunded_amount = (reply.get('amount') or {}).get('value')
     if refunded_amount is not None:
         amount = money(refunded_amount)
+    left = refundable(payment)
+    if amount <= 0 or amount > left:
+        raise PaymentProblem('unknown', REFUND_DOESNT_FIT, doesnt_fit=True, detail=(
+            f'PayPal says refund {reply["id"]} gave back ${amount:.2f}, but ${left:.2f} is '
+            'left of this payment, so it wasn\'t recorded.'))
     status = reply.get('status')
     notes = reason or 'Refunded through PayPal'
     if status and status != 'COMPLETED':
@@ -899,11 +934,22 @@ def record_refund(payment, amount, reason, request_id, reply):
     )
 
 
+def _refunded_capture(reply):
+    '''
+    The id of the capture PayPal's refund reply says it refunds — the last part
+    of its `up` link (`…/v2/payments/captures/{id}`) — or None if it doesn't say.
+    '''
+    for link in reply.get('links') or []:
+        if isinstance(link, dict) and link.get('rel') == 'up':
+            return str(link.get('href') or '').split('?')[0].rstrip('/').rsplit('/', 1)[-1]
+    return None
+
+
 # Telling the organizer ------------------------------------------------------------
 
 def paypal_problem_report(invoice, *, what, error, order_id=None, capture_id=None,
                           request_id=None, amount=None, payment_type=None, refund_of=None,
-                          request=None):
+                          doesnt_fit=False, request=None):
     '''The subject and plain-text body of a PayPal problem email (SPEC §9.7).'''
     registration = invoice.registration
     event = registration.event
@@ -914,7 +960,10 @@ def paypal_problem_report(invoice, *, what, error, order_id=None, capture_id=Non
     noun = 'refund' if what == 'refund' else 'payment'
     subject = (f'PayPal {noun} needs checking — Registration #{registration.id}, '
                f'Invoice #{invoice.id}')
-    if what == 'refund':
+    if what == 'refund' and doesnt_fit:
+        happened = ('PayPal made a refund, but its answer doesn\'t fit this payment (see the '
+                    'error), so it wasn\'t recorded. The money has been returned to the payer.')
+    elif what == 'refund':
         happened = ('We asked PayPal to refund this payment but got no clear answer. '
                     'The money may have been returned to the payer.')
     else:
@@ -957,12 +1006,25 @@ def paypal_problem_report(invoice, *, what, error, order_id=None, capture_id=Non
     if request_id:
         lines.append(f'Request id: {request_id}')
     lines.append('')
-    if what == 'refund':
+    if what == 'refund' and doesnt_fit:
         lines += [
             'What to do',
-            '1. Look up the capture in your PayPal dashboard.',
-            '2. If PayPal made the refund, record it on the invoice by hand. If it didn\'t, '
-            'try the refund again.',
+            '1. Don\'t press "Refund through PayPal" again for it: PayPal answers the same '
+            'request the same way.',
+            '2. Look up the refund and the capture in your PayPal dashboard, work out which '
+            'payment it gave money back from and how much, and put the ledger right (a refund '
+            'recorded by hand for the same money, say), then record it by hand.',
+        ]
+    elif what == 'refund':
+        lines += [
+            'What to do',
+            '1. Ask whoever made the refund to press "Refund through PayPal" again in the '
+            'same dialog. It repeats the same request (the request id above), so PayPal '
+            'refunds at most once, and the refund is recorded once.',
+            '2. Only if that dialog was closed: look up the capture in your PayPal dashboard. '
+            'If PayPal made the refund, record it on the invoice by hand; if it didn\'t, '
+            'refund it again. Recorded by hand, a retry from a dialog still open would '
+            'record it a second time.',
         ]
     else:
         lines += [
@@ -986,6 +1048,10 @@ def send_paypal_problem_report(invoice, **details):
     subject, body = paypal_problem_report(invoice, **details)
     logger.error(f'{subject}\n{body}')
     key = details.get('order_id') or details.get('request_id') or str(invoice.id)
+    if details.get('doesnt_fit'):
+        # A retry that finds PayPal's refund doesn't fit, after one whose
+        # recording failed: the event was told the retry records it (#767).
+        key = f'{key}:doesnt-fit'
     queued = queue_report(
         invoice.registration, models.EmailMessageKind.PAYMENT_REPORT, subject, body,
         dedupe_key=f'paypal-problem:{key}')
