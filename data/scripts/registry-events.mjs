@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Prints the events the importer installs from GitHub Packages (published from
+// Prints the events the importer installs from npm (published from
 // repositories of their own), one package name per line, with the range
 // data/package.json gives each: every @camphoric/camphoric-event-* dependency
 // that isn't a workspace (which the lockfile marks as a link).

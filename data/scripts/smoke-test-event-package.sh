@@ -43,9 +43,6 @@ fi
 
 npm init -y > /dev/null
 npm pkg set type=module
-# Anything @camphoric the tarballs don't satisfy must fail against GitHub
-# Packages, never resolve to npmjs.
-cp "$DATA/.npmrc" .npmrc
 npm install --silent --no-audit --no-fund ./camphoric-camphoric-event-import-spec-*.tgz "$EVENT_TARBALL"
 
 # The event takes the spec as a peer, so it uses the project's copy

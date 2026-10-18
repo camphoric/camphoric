@@ -1,13 +1,6 @@
 volumes:
     db:
 
-# A GitHub Packages token for the data image's npm ci, which installs events
-# from the registry (see README.md):
-#   CAMPHORIC_NPM_AUTH_TOKEN=$(gh auth token) docker compose build data
-secrets:
-  npm_token:
-    environment: CAMPHORIC_NPM_AUTH_TOKEN
-
 # Every port is published on the host's loopback (127.0.0.1) only, so nothing
 # else on the network can reach the stack: Postgres has a known password and
 # Django an admin/admin login. To reach it from another device, see
@@ -109,8 +102,6 @@ services:
     build:
       context: data
       shm_size: '2gb'
-      secrets:
-        - npm_token
     volumes:
       - ./data:/app
       - ./data/import:/usr/local/bin/import

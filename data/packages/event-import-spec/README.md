@@ -16,4 +16,4 @@ An event package takes this package as a **peer dependency** (`"^1.0.0"`), with 
 devDependency for its own checks, so it shares the importer's copy. A major version is a change an
 event module must follow. See the Camphoric repository's
 `RELEASE.md` for which spec versions each Camphoric release supports, and its `README.md` for
-installing from GitHub Packages.
+installing it.

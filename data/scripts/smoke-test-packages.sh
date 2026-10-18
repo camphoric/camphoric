@@ -37,9 +37,6 @@ grep -q '^package/e2e-compose\.yml$' camphoric-camphoric-event-import-tools-*.tg
 
 npm init -y > /dev/null
 npm pkg set type=module
-# Anything @camphoric the tarballs don't satisfy must fail against GitHub
-# Packages, never resolve to npmjs.
-cp "$DATA/.npmrc" .npmrc
 # @playwright/test is the e2e harness's optional peer, at the version this
 # repository uses (no browsers are installed: nothing launches one)
 PLAYWRIGHT=$(node -p "require('$DATA/node_modules/@playwright/test/package.json').version")

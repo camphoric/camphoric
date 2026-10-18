@@ -66,4 +66,4 @@ importer:
   `runBulkRegistrations()`, which post generated registrations to an imported event (the
   events' `addRegistrations.ts` scripts).
 
-See the Camphoric repository's `README.md` for installing from GitHub Packages.
+See the Camphoric repository's `README.md` for installing it.

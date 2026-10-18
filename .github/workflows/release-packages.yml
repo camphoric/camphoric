@@ -1,5 +1,5 @@
-# Reusable workflow: publish an event-import package (data/packages/*) to
-# GitHub Packages at its release tag, e.g. camphoric-event-import-spec-v1.0.0
+# Reusable workflow: publish an event-import package (data/packages/*) to npm
+# at its release tag, e.g. camphoric-event-import-spec-v1.0.0
 # publishes @camphoric/camphoric-event-import-spec@1.0.0.
 #
 # Called directly (via `uses:`) by release-please.yml rather than triggered by
@@ -7,6 +7,11 @@
 # don't start other workflows (see release-assets.yml). Also runnable on demand
 # to (re)publish a released tag:
 #   gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0
+#
+# It publishes with npm's trusted publishing (OIDC, no stored token), which
+# also attaches provenance. Each package's trusted publishers on npmjs.com name
+# this repository and two workflows: release-please.yml (npm checks the calling
+# workflow) and release-packages.yml (for the run by hand).
 name: Release packages
 
 on:
@@ -26,7 +31,8 @@ on:
 permissions:
   # contents: write only to mark the app's release as Latest again (below)
   contents: write
-  packages: write
+  # npm's trusted publishing
+  id-token: write
 
 jobs:
   publish:
@@ -46,14 +52,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
+          registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: data/package-lock.json
 
       - run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Find the package and version the tag names
         id: package
@@ -74,7 +77,6 @@ jobs:
 
       - name: Publish, unless that version is already published
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGE: ${{ steps.package.outputs.package }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |

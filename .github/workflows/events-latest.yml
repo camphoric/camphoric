@@ -1,5 +1,5 @@
 # Weekly: do the newest published versions of the events data/ installs from
-# GitHub Packages (each camp's own repository) still work here? The lockfile
+# npm (each camp's own repository) still work here? The lockfile
 # pins the versions every other workflow tests; this one moves each such event
 # to the newest version its range allows, then runs the offline
 # tests and imports every event into a freshly built image, as docker.yml does.
@@ -29,8 +29,6 @@ concurrency:
 
 permissions:
   contents: read
-  # npm ci and npm install fetch the events from GitHub Packages
-  packages: read
   issues: write
 
 jobs:
@@ -38,7 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
@@ -46,8 +43,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-          registry-url: https://npm.pkg.github.com
-          scope: '@camphoric'
           cache: npm
           cache-dependency-path: data/package-lock.json
 
@@ -68,7 +63,7 @@ jobs:
             npm install --no-save $specs
             test -L node_modules/@camphoric/camphoric-event-import-spec
             {
-              echo '### Events from GitHub Packages'
+              echo '### Events from npm'
               echo '```'
               npm ls $events
               echo '```'
