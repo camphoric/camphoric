@@ -1,6 +1,9 @@
 /**
- * Logging in, and the check that keeps the tools to a local server unless
- * CAMPHORIC_ALLOW_REMOTE=1.
+ * Logging in (once per server, since Camphoric throttles sign-in), and the
+ * check that keeps the tools to a local server unless CAMPHORIC_ALLOW_REMOTE=1.
+ *
+ * getAuthToken keeps its tokens for the whole process, so each test that logs
+ * in uses a server no other test does.
  */
 
 import { afterEach, describe, expect, test } from '@jest/globals';
@@ -96,5 +99,39 @@ describe('getAuthToken', () => {
     const sent = stubLogin();
     await expect(getAuthToken('http://localhost:8000')).resolves.toBe('token');
     expect(sent).toEqual(['http://localhost:8000/api-token-auth/']);
+  });
+
+  test('signs in once per server', async () => {
+    stubLogin();
+    const sent: string[] = [];
+    globalThis.fetch = async (input) => {
+      sent.push(String(input));
+      return Response.json({ token: `token${sent.length}` });
+    };
+    const tokens = await Promise.all([
+      getAuthToken('http://one.test'),
+      getAuthToken('http://one.test'),
+      getAuthToken('http://two.test'),
+    ]);
+    expect(await getAuthToken('http://one.test')).toBe('token1');
+    expect(tokens).toEqual(['token1', 'token1', 'token2']);
+    expect(sent).toEqual(['http://one.test/api-token-auth/', 'http://two.test/api-token-auth/']);
+  });
+
+  test('tries again after a failed sign-in', async () => {
+    stubLogin();
+    globalThis.fetch = async () => Response.json({ detail: 'throttled' }, { status: 429 });
+    await expect(getAuthToken('http://three.test')).rejects.toThrow('throttled');
+    globalThis.fetch = async () => Response.json({ token: 'fresh' });
+    await expect(getAuthToken('http://three.test')).resolves.toBe('fresh');
+  });
+
+  test('refuses a remote server even with a token kept from an earlier call', async () => {
+    const sent = stubLogin();
+    process.env.CAMPHORIC_ALLOW_REMOTE = '1';
+    await expect(getAuthToken('https://camp.example.org')).resolves.toBe('token');
+    delete process.env.CAMPHORIC_ALLOW_REMOTE;
+    await expect(getAuthToken('https://camp.example.org')).rejects.toThrow('CAMPHORIC_ALLOW_REMOTE=1');
+    expect(sent).toEqual(['https://camp.example.org/api-token-auth/']);
   });
 });
