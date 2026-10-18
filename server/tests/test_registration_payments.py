@@ -373,8 +373,10 @@ class PayPalTests(FlowTestCase):
             response = self.approve(status=502)
         self.assertEqual(response.data['code'], 'unknown')
         invoice = self.invoice()
-        self.assertEqual((invoice.pending_paypal_order_id, invoice.handling),
-                         (paypal_mocks.ORDER_ID, D('0.00')))
+        # Still pending, and still marked for the worker to ask PayPal (#804).
+        self.assertEqual((invoice.pending_paypal_order_id, invoice.paypal_capture_order_id,
+                          invoice.handling),
+                         (paypal_mocks.ORDER_ID, paypal_mocks.ORDER_ID, D('0.00')))
         self.assertFalse(invoice.payments.exists())
         self.assertTrue(self.registration.completed)
         self.assertEqual(len(self.confirmations()), 1)
