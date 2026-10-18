@@ -24,7 +24,9 @@ import { CAMPERS, DAYS, FILTER_NODES, leavesWith, unassignedIn } from './lodging
 
 export default { title: 'Lodging Timeline' } satisfies Meta;
 
-export const Assignment: StoryFn = () => {
+// A component, not a StoryFn, so AsReporter can render it inside a provider:
+// React 19's types don't take a StoryFn's (args, context) signature as JSX.
+function TimelineHarness() {
   const [campers, setCampers] = useState<ApiCamper[]>(CAMPERS);
   const [shown, setShown] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<number>();
@@ -79,11 +81,13 @@ export const Assignment: StoryFn = () => {
       </Grid>
     </Stack>
   );
-};
+}
+
+export const Assignment: StoryFn = () => <TimelineHarness />;
 
 /** A Reporter sees the timeline but can't drag or resize (DR-51). */
 export const AsReporter: StoryFn = () => (
   <PermissionsProvider userRole="reporter">
-    <Assignment />
+    <TimelineHarness />
   </PermissionsProvider>
 );
