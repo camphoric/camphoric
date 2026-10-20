@@ -193,10 +193,13 @@ components alongside the app:
   tools use each other's workspace copies (`"*"`), whatever version a release gives them.
 - **Publishing access.** Packages publish with npm's
   [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no stored token), which
-  also attaches provenance. Each package's settings on npmjs.com list two GitHub Actions trusted
-  publishers for `camphoric/camphoric`: `release-please.yml` (npm checks the calling workflow, and
-  that one calls `release-packages.yml`) and `release-packages.yml` (for a run by hand). Without a
-  matching one, the publish job fails with npm's 404. Installing needs no token.
+  also attaches provenance. Each package's settings on npmjs.com list a GitHub Actions trusted
+  publisher for `camphoric/camphoric` and `release-please.yml` (npm checks the calling workflow,
+  and that one calls `release-packages.yml`), allowed to `npm publish`. A run of
+  `release-packages.yml` by hand needs a second one naming `release-packages.yml`. npm drops a
+  trusted publisher that hasn't published within 2 days of being added, so add each one just
+  before the run that will use it. Without a matching one, the publish job fails with npm's 404
+  or `ENEEDAUTH`. Installing needs no token.
 - **A new package's first version.** Trusted publishing only applies to a package that already
   exists on npm, so a package's first version is published by hand (`npm run build`, then `npm
   publish -w @camphoric/<name> --access public` in `data/`, signed in to an account in the npm
@@ -205,7 +208,8 @@ components alongside the app:
 - **Republishing.** To publish a released tag again (if the publish job failed), run
   `gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0`; a version
   that's already published is skipped, and one older than the newest published version doesn't
-  move the `latest` dist-tag.
+  move the `latest` dist-tag. Add the package's `release-packages.yml` trusted publisher first
+  (see "Publishing access").
 
 ### What a spec version means
 

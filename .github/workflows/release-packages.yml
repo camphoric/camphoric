@@ -9,9 +9,9 @@
 #   gh workflow run release-packages.yml -f tag=camphoric-event-import-spec-v1.0.0
 #
 # It publishes with npm's trusted publishing (OIDC, no stored token), which
-# also attaches provenance. Each package's trusted publishers on npmjs.com name
-# this repository and two workflows: release-please.yml (npm checks the calling
-# workflow) and release-packages.yml (for the run by hand).
+# also attaches provenance. npm checks the calling workflow, so each package's
+# trusted publisher on npmjs.com names release-please.yml; a run by hand needs
+# one naming release-packages.yml (see "Publishing access" in RELEASE.md).
 name: Release packages
 
 on:
