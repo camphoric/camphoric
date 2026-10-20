@@ -1,6 +1,6 @@
 {
   "name": "@camphoric/camphoric-event-import-tools",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Camphoric REST client, login, the event importer (creator and organization loader), e2e scaffolding for an event's registration form, and the runner that posts generated registrations to an event.",
   "license": "MIT",
   "repository": {

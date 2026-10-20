@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.1](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.2.0...camphoric-event-import-tools-v1.2.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **data:** keep why the throwaway Camphoric didn't start as the error's cause ([37f8656](https://github.com/camphoric/camphoric/commit/37f865618b8d17c1c724f8474b60fc75cd14b787)), closes [#821](https://github.com/camphoric/camphoric/issues/821)
+* **data:** only import into a local server unless CAMPHORIC_ALLOW_REMOTE=1 ([0d86923](https://github.com/camphoric/camphoric/commit/0d86923ca65837433d8bd1c85e61f7e74220e4c6)), closes [#815](https://github.com/camphoric/camphoric/issues/815)
+* **data:** retry only GET, PUT and DELETE after a reset connection ([0d86923](https://github.com/camphoric/camphoric/commit/0d86923ca65837433d8bd1c85e61f7e74220e4c6))
+* **data:** sign in once per server in the import tools ([470db1e](https://github.com/camphoric/camphoric/commit/470db1e85bae5c8525939dd44caa8c56facd978c)), closes [#800](https://github.com/camphoric/camphoric/issues/800)
+* **data:** sign the import tools' registration posts in with their token ([ad10c5a](https://github.com/camphoric/camphoric/commit/ad10c5aed143758df0fd344a728d5c69f967db65)), closes [#801](https://github.com/camphoric/camphoric/issues/801)
+* **deps:** bump dotenv in /data in the minor-and-patch group ([8432761](https://github.com/camphoric/camphoric/commit/84327618353ecf915461f4d409ad067aeee62da6))
+* **deps:** bump the minor-and-patch group in /data with 8 updates ([28d3e09](https://github.com/camphoric/camphoric/commit/28d3e0972c03cc86e24f0c040c40fe6f428f18fc))
+
 ## [1.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.1.0...camphoric-event-import-tools-v1.2.0) (2026-10-17)
 
 
