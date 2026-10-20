@@ -108,8 +108,8 @@ test('import-tools\' copies of the spec\'s types match the spec', () => {
   expect(toolsTypesMatchTheSpec.every(Boolean)).toBe(true);
 });
 
-// The importer's events that aren't workspaces: those installed from GitHub
-// Packages, each from a repository of its own
+// The importer's events that aren't workspaces: those installed from npm, each
+// from a repository of its own
 const IMPORTER = readJson('package.json');
 const WORKSPACE_NAMES = new Set(WORKSPACES.map(w => readJson(path.join(w, 'package.json')).name));
 const REGISTRY_EVENTS = Object.keys(IMPORTER.dependencies).filter(name => name.startsWith(EVENT_PREFIX)
