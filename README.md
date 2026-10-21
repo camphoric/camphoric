@@ -16,7 +16,8 @@ Camphoric is a camp registration and administration system. It has two parts:
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** — coding standards and contribution guidelines.
 - **[doc/](./doc)** — development and operational notes, including
   **[doc/payments.md](./doc/payments.md)**: how payments, invoices, refunds and PayPal work, with
-  diagrams.
+  diagrams, and **[doc/event-repo-ci.md](./doc/event-repo-ci.md)**: how the camps' event
+  repositories get tested against new Camphoric releases.
 
 ## Releases
 
