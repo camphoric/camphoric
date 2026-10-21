@@ -273,6 +273,11 @@ made-up event for this repository's tests, is the only event still in `data/even
   packed package; its e2e tests drive the registration form against the latest Camphoric image, on
   pull requests and weekly. The Actions bot opens the release PR, so its CI and e2e runs wait for
   someone to approve them.
+- **Testing against new Camphoric releases.** So far nothing tests an event repository against a
+  new Camphoric release before its weekly e2e run, or against a new import-spec or import-tools
+  version before its lockfile moves. [doc/event-repo-ci.md](./doc/event-repo-ci.md) recommends
+  how they should check for new releases themselves, and how to test a pre-release by hand (work
+  tracked in [#917](https://github.com/camphoric/camphoric/issues/917)).
 - **Publishing access.** As for the packages above, each package lists its repository's release
   workflow as a trusted publisher on npmjs.com.
 - **In Camphoric.** The importer installs each event by a caret range, and the lockfile pins the
