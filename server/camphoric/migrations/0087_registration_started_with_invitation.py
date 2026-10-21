@@ -5,15 +5,39 @@ from django.db import migrations, models
 
 
 def record_started_invitations(apps, schema_editor):
-    # Each invitation's registration was started with it; one started before
-    # this, and still being paid for, is checked when it's completed (#803).
     Invitation = apps.get_model('camphoric', 'Invitation')
     Registration = apps.get_model('camphoric', 'Registration')
+    # Each invitation's registration was started with it; one started before
+    # this, and still being paid for, is checked when it's completed (#803).
     links = Invitation.objects.filter(registration__isnull=False).values_list(
         'id', 'registration_id')
     for invitation_id, registration_id in links:
         Registration.objects.filter(id=registration_id).update(
             started_with_invitation_id=invitation_id)
+
+    # Starting a second registration used to move the invitation to it, so one
+    # completed before may be linked to none: a completed registration of the
+    # invitation's type, by its recipient (or whoever started the one it links
+    # to), that no invitation links to. Where exactly one is, it redeemed it.
+    linked = set(Invitation.objects.exclude(registration=None)
+                 .values_list('registration_id', flat=True))
+    unpaid = Invitation.objects.filter(
+        registration__completed=False, registration_type__isnull=False).select_related(
+        'registration')
+    for invitation in unpaid:
+        emails = {invitation.recipient_email.lower(),
+                  invitation.registration.registrant_email.lower()}
+        candidates = [
+            registration for registration in Registration.objects.filter(
+                registration_type_id=invitation.registration_type_id, completed=True,
+                started_with_invitation__isnull=True).exclude(id__in=linked)
+            if registration.registrant_email.lower() in emails]
+        if len(candidates) == 1:
+            redeemer = candidates[0]
+            Registration.objects.filter(id=redeemer.id).update(
+                started_with_invitation_id=invitation.id)
+            Invitation.objects.filter(id=invitation.id).update(registration_id=redeemer.id)
+            linked.add(redeemer.id)
 
 
 class Migration(migrations.Migration):

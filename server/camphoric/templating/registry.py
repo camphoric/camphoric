@@ -335,7 +335,7 @@ TYPES = (
         F('expiration_time', 'datetime', 'When it expires.', nullable=True),
         F('register_url', 'string', 'Link to register with this invitation.',
           '[Register]({{ invitation.register_url }})'),
-        F('redeemed', 'bool', 'Whether it has been used to register.'),
+        F('redeemed', 'bool', 'Whether a registration has been completed with it.'),
     ), values.InvitationVar, base='dict'),
 
     TypeSpec('recipient', 'Who a bulk email is going to.', (

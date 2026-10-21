@@ -1283,6 +1283,10 @@ class InvitationError(Exception):
 INVITATION_REDEEMED = 'Sorry, that invitation code has already been redeemed'
 
 
+def invitation_not_found(email, code):
+    return f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"'
+
+
 def invitation_credentials(request):
     '''The invitation's email and code the request gives, either possibly None.'''
     if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
@@ -1607,7 +1611,10 @@ class RegisterView(APIView):
         if invitation:
             # Locked, as completing takes it: one completed since it was found
             # keeps it, and this registration is refused (#803).
-            invitation = models.Invitation.objects.select_for_update().get(pk=invitation.pk)
+            invitation = models.Invitation.objects.select_for_update().filter(
+                pk=invitation.pk).first()
+            if invitation is None:  # deleted since it was found
+                raise InvitationRejected(invitation_not_found(*invitation_credentials(request)))
             if invitation.is_redeemed():
                 raise InvitationRejected(INVITATION_REDEEMED)
             invitation.registration = registration
@@ -2107,8 +2114,7 @@ class RegisterView(APIView):
                 invitation_code=code,
             )
         except models.Invitation.DoesNotExist:
-            raise InvitationError(
-                f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"')
+            raise InvitationError(invitation_not_found(email, code))
 
         # A code for another event mustn't open this one, or bring its registration type.
         if getattr(invitation.registration_type, 'event_id', None) != event.id:

@@ -23,6 +23,7 @@ from decimal import Decimal, InvalidOperation
 import zoneinfo
 
 from django.conf import settings
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from camphoric import models
@@ -423,8 +424,10 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         )))
 
     invitations = ReadOnlyList()
+    redeemed = Exists(models.Invitation.redeeming_registrations(
+        OuterRef('pk'), OuterRef('registration_id')))
     for row in live(models.Invitation.objects.filter(registration_type__event=event)) \
-            .order_by('id'):
+            .annotate(is_redeemed=redeemed).order_by('id'):
         registration = registrations.get(row.registration_id)
         invitation = keep(InvitationVar(
             id=row.id,
@@ -436,7 +439,8 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             sent_time=local_datetime(row.sent_time),
             expiration_time=local_datetime(row.expiration_time),
             register_url=register_url(event.id, row, request),
-            redeemed=row.registration_id is not None,
+            # Completed with it, not just started (#803), as the admin list says.
+            redeemed=row.is_redeemed,
         ))
         invitations.append(invitation)
         if registration is not None:

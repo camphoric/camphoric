@@ -4,14 +4,17 @@ be started with the same invitation, but only the first to be completed
 redeems it; completing another is refused with `invitation_redeemed`.
 '''
 
+from importlib import import_module
 import threading
 import time
 from unittest import mock
 
+from django.apps import apps
+
 from django.db import connection
 from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
-from camphoric import confirmations, invoices, live, models, roles
+from camphoric import confirmations, invoices, live, models, roles, views
 from tests.factories import make_user
 
 REDEEMED = {
@@ -101,6 +104,25 @@ class InvitationRedemptionTests(Invited, APITestCase):
         self.assertEqual(page.data['invitationError'],
                          'Sorry, that invitation code has already been redeemed')
 
+    def test_an_invitation_deleted_while_starting_is_not_found(self):
+        find_invitation = views.RegisterView.find_invitation
+
+        def found_then_deleted(view, request, event):
+            invitation = find_invitation(request, event)
+            models.Invitation.objects.filter(pk=invitation.pk).delete()
+            return invitation
+
+        with mock.patch.object(views.RegisterView, 'find_invitation', found_then_deleted):
+            response = self.post({
+                'step': 'registration',
+                'formData': {'registrant_email': 'lee@example.com', 'campers': [{}]},
+                'pricingResults': {},
+                'invitation': {'recipient_email': self.invitation.recipient_email,
+                               'invitation_code': self.invitation.invitation_code},
+            }, status=400)
+        self.assertIn('couldn\'t find an invitation', response.data['detail'])
+        self.assertFalse(models.Registration.all_objects.exists())
+
     def test_the_paypal_button_is_refused_too(self):
         first, second = self.start(), self.start()
         self.pay_by_check(first)
@@ -188,6 +210,64 @@ class RedeemedStatusTests(Invited, APITestCase):
         listed = self.listed()
         self.assertTrue(listed['redeemed'])
         self.assertTrue(listed['registration_deleted'])
+
+
+class RecordingStartedInvitationsTests(Invited, APITestCase):
+    '''Migration 0087 ties registrations started before it to their invitations.'''
+
+    def migrate(self):
+        migration = import_module('camphoric.migrations.0087_registration_started_with_invitation')
+        models.Registration.all_objects.update(started_with_invitation=None)
+        migration.record_started_invitations(apps, None)
+
+    def registration(self, **fields):
+        return models.Registration.objects.create(
+            event=self.event, registration_type=self.staff, **fields)
+
+    def test_the_registration_an_invitation_links_to_was_started_with_it(self):
+        started = self.registration(registrant_email='lee@example.com')
+        self.invitation.registration = started
+        self.invitation.save()
+        self.migrate()
+        started.refresh_from_db()
+        self.assertEqual(started.started_with_invitation, self.invitation)
+
+    def test_one_completed_before_another_was_started_redeems_it(self):
+        # Start A, start B (the invitation moved to B), complete A.
+        completed = self.registration(registrant_email='Lee@Example.com', completed=True)
+        started = self.registration(registrant_email='lee@example.com')
+        self.invitation.registration = started
+        self.invitation.save()
+        self.migrate()
+
+        completed.refresh_from_db()
+        self.invitation.refresh_from_db()
+        self.assertEqual(completed.started_with_invitation, self.invitation)
+        self.assertEqual(self.invitation.registration, completed)
+        self.assertTrue(self.invitation.is_redeemed())
+
+    def test_it_takes_no_guess_between_two(self):
+        for _ in range(2):
+            self.registration(registrant_email='lee@example.com', completed=True)
+        started = self.registration(registrant_email='lee@example.com')
+        self.invitation.registration = started
+        self.invitation.save()
+        self.migrate()
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.registration, started)
+        self.assertFalse(self.invitation.is_redeemed())
+
+    def test_one_another_invitation_links_to_is_left_to_it(self):
+        other = models.Invitation.objects.create(
+            registration_type=self.staff, recipient_email='lee@example.com')
+        other.registration = self.registration(registrant_email='lee@example.com', completed=True)
+        other.save()
+        started = self.registration(registrant_email='lee@example.com')
+        self.invitation.registration = started
+        self.invitation.save()
+        self.migrate()
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.registration, started)
 
 
 class SimultaneousRedemptionTests(Invited, APITransactionTestCase):

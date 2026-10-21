@@ -5725,15 +5725,19 @@ checked, so one started while another completes never takes the link from it. A 
 whose invitation has been deleted completes as usual; deleting an invitation locks the
 registrations started with it before the invitation, the order completing takes them in.
 Registrations started before the link existed take it from the invitation's own
-`registration`.
+`registration`. One completed before another was started with the same invitation (which then
+moved the invitation to the newer one) takes it too when it's the only completed registration
+of the invitation's type, by its recipient or whoever started the one it links to, that no
+invitation links to; the invitation then links back to it.
 **Context:** #803. The invitation linked only to the registration last started with it, and
 completing never looked at it again: start A, start B, then complete both, and both had the
 invitation's registration type, its pricing and its way past closed registration. A registrant
 starts again for ordinary reasons — a second tab, a lost page, a corrected form — so starting
 shouldn't be where a second use is stopped. Two completing at once take turns on the
-invitation's lock, so the second sees the first. A registration started before the link
-existed that the invitation no longer pointed at can't be traced to it; such registrations are
-purged within a month (DR-76).
+invitation's lock, so the second sees the first. A completed registration the invitation no
+longer pointed at has nothing else tying it to the invitation, so it's matched by type and
+email, and only where the match is unambiguous; where it can't be matched, the invitation can
+still be redeemed once more, as it could before.
 **Alternatives:** Refuse to start a registration with an invitation another started
 registration holds: the registrant who lost their page, or whose registration the server
 purged, couldn't start again until the first went away. Link the invitation only when a
@@ -5748,7 +5752,8 @@ invitation by its registration type: a type has many invitations, so it can't sa
 or that was started with it has been completed, the rule the registration steps apply
 (DR-137); a completed one since deleted still counts (DR-55). The admin invitations list calls
 an invitation redeemed, links through to its registration, and stops offering its registration
-link, only when `redeemed` is true. `registration_deleted` is true only when the registration
+link, only when `redeemed` is true; templates' `invitation.redeemed` means the same.
+`registration_deleted` is true only when the registration
 it links to was completed and then deleted. Completing a registration sends a change notice for
 the invitation it redeems (§9.8), so a list that's open shows it redeemed at once.
 **Context:** The list called an invitation redeemed as soon as it linked to a registration, and
