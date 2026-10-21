@@ -1377,7 +1377,8 @@ class EventList(APIView):
         # own, so it ignores any it doesn't know, and an organization that
         # isn't an id.
         organization = request.query_params.get('organization', '')
-        if organization.isdigit():
+        # isascii: isdigit alone passes digits int() refuses, such as '²'.
+        if organization.isascii() and organization.isdigit():
             events = events.filter(organization_id=organization)
 
         def iso_or_none(value):
