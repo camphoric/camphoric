@@ -4,19 +4,21 @@ This note is for maintainers. It answers [#856](https://github.com/camphoric/cam
 when Camphoric or one of its import packages is released, how does each camp's event repository
 get tested against the new version, instead of waiting up to a week for its weekly run? It is a
 recommendation; the work to carry it out is tracked in
-[#917](https://github.com/camphoric/camphoric/issues/917). Once that lands, the outcome belongs in
+[#917](https://github.com/camphoric/camphoric/issues/917) and carried out in each event repository
+by pull requests camphoric/camphoric-event-lark#5, -harmony#3, -familyweek#4 and -ltacampout#4,
+whose workflow files are identical. Once that lands, the outcome belongs in
 [RELEASE.md](../RELEASE.md) ("Event repositories"), and this note keeps the reasoning. It
-supersedes the first recommendation, posted as a comment on #856, and #917's checklist where they
-differ: the packages are now on npm rather than GitHub Packages, the app's tag is picked by version
-rather than by "Latest", the packages' versions are sorted by semver, and the check waits for the
-release's image (section 4).
+supersedes the first recommendation, posted as a comment on #856, where they differ: the packages
+are now on npm rather than GitHub Packages, the app's tag is picked by version rather than by
+"Latest", the packages' versions are sorted by semver, and the check tests the newest release whose
+image is published (section 4).
 
 **In short:** each event repository checks for new releases itself. A scheduled workflow in each
 one, `upstream.yml`, runs every 6 hours. It finds the newest stable Camphoric release whose image
-is published, and the newest import-spec and import-tools versions within the event's ranges. When
-it hasn't tested that combination yet, it runs the repository's own `ci.yml` and `e2e.yml` against
-exactly those versions, and opens or updates a `camphoric-compat` issue in that repository when
-they fail. It needs no GitHub App, no PAT and no secrets, and Camphoric's release workflows don't
+is published (one of the five newest), and the newest import-spec and import-tools versions within
+the event's ranges. When it hasn't tested that combination yet, it runs the repository's own
+`ci.yml` and `e2e.yml` against exactly those versions, and opens or updates a `camphoric-compat`
+issue in that repository when they fail. It needs no GitHub App, no PAT and no secrets, and Camphoric's release workflows don't
 change. A pre-release is checked on demand, by dispatching the event repositories' e2e runs with a
 maintainer's own `gh` login.
 
@@ -86,66 +88,80 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
   `gh release view`'s "Latest": a package release is briefly Latest, until `release-packages.yml`
   marks the app's release as Latest again, and the releases API doesn't list releases strictly by
   version either.
-- **Only once its image is published.** The release is created before `build-image` pushes the
-  image, so a check in that window would find a tag with no image and record a false failure. When
-  `docker manifest inspect` doesn't find the image, a 6-hourly check stops without testing (and
-  without recording the combination), and the next check picks it up. The Monday run and a forced
-  run test anyway, so an image that never got published (a failed `build-image` nobody re-ran)
-  fails e2e and is reported in the issue instead of silently stopping every check.
+- **The newest release whose image is published.** The release is created before `build-image`
+  pushes the image, so the check tries the five newest stable tags, newest first, with
+  `docker manifest inspect`, and tests the first whose image is published. When that isn't the
+  newest release, the run adds the note "Camphoric `vX` is released, but
+  ghcr.io/camphoric/camphoric:vX isn't published yet: this run tests `vY`, the newest release
+  whose image is." So a new package version is still tested within 6 hours while an image is late,
+  and the newer tag is tested once its image appears (the marker names the tag tested, section 5).
+  A note makes a report not clean (section 8), so a check that lands between a joint release's
+  tools publish and its image push opens the issue, and the next check, finding the image, closes
+  it.
+- **An image that never gets published** (a failed `build-image` nobody re-ran) is reported by
+  that note, on every run that tests, until someone publishes the image; the older tag keeps
+  passing. Only when none of the five newest tags has an image does a 6-hourly check stop without
+  testing (and without recording the combination); the Monday run and a forced run then test the
+  newest release anyway, so e2e fails and the issue reports it rather than every check stopping
+  silently.
 - **The packages:** the highest published version within the range in the event's `package.json`,
   for both the spec and the tools: the package's `versions`, filtered and sorted by the `semver`
   CLI. Not the last entry of `npm view "<package>@<range>" version`, which is in publish order: a
-  republished older version (which `release-packages.yml` allows for) would come last.
+  republished older version (which `release-packages.yml` allows for) would come last. The check
+  also finds each package's newest stable version in any range (`semver -r '*'`, which leaves out
+  pre-releases), for the note about a newer version outside the range below.
 - **A lookup that fails fails the check.** The version step runs with `set -euo pipefail` and
   fails when any version comes back empty (a GitHub or npm outage, say), so the run shows red
-  rather than skipping silently. GitHub emails a failed scheduled run to whoever last changed its
-  cron.
+  rather than skipping silently. Bash turns `set -e` off inside a function called through `$(…)`,
+  so the lookup functions pass their failures on explicitly (`|| return`). The image lookup is the
+  exception: `docker manifest inspect` can't tell a missing image from a GHCR error, so an error
+  reads as "not published yet" (an older tag and the note above, or, for all five, a stopped
+  6-hourly check until the Monday run).
 - **Pinning them:** `ci.yml` and `e2e.yml` gain `spec_version` and `tools_version` inputs (and
   `e2e.yml` keeps `image_tag`). After `npm ci`, a step installs exactly those versions with
-  `npm install --no-save`, fails unless `npm ls` shows them, and writes the tree to the step
-  summary. Pushes and pull requests leave the inputs empty and keep using the lockfile.
-  `scripts/smoke-test-package.sh` installs the spec peer from npm by range, so it already gets the
-  newest version.
+  `npm install --no-save`, checks each installed package's own `package.json` version against the
+  one asked for, and lists the two packages in the step summary. Pushes and pull requests leave the
+  inputs empty and keep using the lockfile. `ci.yml` also passes `spec_version` to
+  `scripts/smoke-test-package.sh` (as `SPEC_VERSION`), whose fresh project otherwise installs the
+  newest spec in the peer range.
+- **Exact versions, in the event's range or not.** Run by hand, the inputs also take a version
+  outside the range (a new major, or a pre-release such as `1.3.0-rc.1`), to try one before
+  migrating. When npm refuses it over a peer range, the step installs it again with `--force` and
+  warns. `npm ls` would fail on such a version, so the step checks the installed version itself
+  (accepting npm's `=1.2.1` and `v1.2.1` spellings) and shows `npm ls` only in the summary. Ranges
+  and dist-tags aren't accepted.
+- **Other packages can move too.** A tools version's peer range can raise `@playwright/test`, and
+  with it the Chromium the e2e tests use: tools 1.2.1 needs `^1.64.1`, and the lark, harmony and
+  familyweek lockfiles have 1.63.0 (ltacampout's already has 1.64.1). So in those three, every
+  scheduled run, which always pins tools, moves `@playwright/test` off the lockfile's version. The
+  step summary lists only the two Camphoric packages; the install log shows what else moved.
 - **Any new version runs both workflows.** The e2e harness (`defineEventE2EConfig`, `e2eServer`)
   ships in import-tools, so a tools release can break the e2e tests as well as CI, and `ci.yml` is
   cheap.
-- **A new major outside the event's range** isn't tested. It appears as a note in the
-  `camphoric-compat` issue ("a new major is published; this event needs migrating"), as
-  `latest-events-notes.sh` reports events here.
-
-The step `ci.yml` and `e2e.yml` each get, after `npm ci`:
-
-```yaml
-      - name: Use the requested Camphoric package versions
-        if: ${{ inputs.spec_version || inputs.tools_version }}
-        env:
-          SPEC: ${{ inputs.spec_version }}
-          TOOLS: ${{ inputs.tools_version }}
-        run: |
-          packages=()
-          if [ -n "$SPEC" ]; then packages+=("@camphoric/camphoric-event-import-spec@$SPEC"); fi
-          if [ -n "$TOOLS" ]; then packages+=("@camphoric/camphoric-event-import-tools@$TOOLS"); fi
-          npm install --no-save "${packages[@]}"
-          npm ls "${packages[@]}"   # fails unless exactly these versions are installed
-          {
-            echo '```'
-            npm ls @camphoric/camphoric-event-import-spec @camphoric/camphoric-event-import-tools
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-```
+- **A newer version outside the event's range** (a new major, or 1.1.0 against `~1.0.0`) isn't
+  tested by the scheduled check. It appears as a note in the `camphoric-compat` issue ("`<package>`
+  X is published, outside this event's range (`<range>`): this event needs migrating to it."), as
+  `latest-events-notes.sh` reports events here. The marker's key includes each package's newest
+  version, so such a release starts a run, and its note, within 6 hours (section 5).
 
 ## 5. "Already tested": a marker in the Actions cache
 
 Each run that tests a combination saves an empty cache entry named for it, such as
-`camphoric-tested-v0.14.0-spec-1.0.1-tools-1.2.1`. The next check looks the key up with
+`camphoric-tested-v0.14.0-spec-1.0.1-tools-1.2.1-newest-spec-1.0.1-tools-1.2.1`: the image tag
+tested, the spec and tools versions tested, and each package's newest version in any range (so a
+new major changes the key, and the run reports its note). The next check looks the key up with
 `actions/cache/restore` and `lookup-only: true`, and stops when it exists. Scheduled runs may write
 caches, because they run on the default branch.
 
-- **Saved pass or fail.** A failing combination isn't retried every 6 hours: the issue already
-  tracks it.
+- **Saved pass or fail, after the report.** A failing combination isn't retried every 6 hours: the
+  issue already tracks it. The marker is saved after the issue is updated, so a report that fails
+  is retried by the next check, and only when an image was found: a Monday or forced run against
+  a missing image records nothing, so the combination is tested once the image appears.
 - **A weekly run tests regardless.** A second cron entry, Mondays at 14:00 UTC, always tests. It
   replaces the weekly schedule in `e2e.yml` (and gives `ci.yml` a weekly run too), catches drift no
-  release causes (Chrome, base images, the npm registry), and closes the issue once things pass
+  release causes (a new Node 22 release, a new runner image, new in-range dependencies the smoke
+  test installs from npm, and a new `@playwright/test`, and so Chromium, within the tools peer
+  range; section 4), and closes the issue once things pass
   again. Saving a key that already exists, on that run or a forced one, logs a warning rather than
   failing, and doesn't refresh the entry.
 - **The marker may expire.** GitHub evicts a cache entry that hasn't been used for 7 days, and its
@@ -159,18 +175,19 @@ caches, because they run on the default branch.
 
 ```mermaid
 flowchart TD
-  cron(["upstream.yml: every 6 hours, Mondays, or by hand"]) --> find["Find the newest stable app tag,<br/>and the newest spec and tools<br/>versions in the event's ranges"]
+  cron(["upstream.yml: every 6 hours, Mondays, or by hand"]) --> find["Find the newest of the five newest<br/>stable app tags with a published image,<br/>and the newest spec and tools<br/>versions in the event's ranges"]
   find --> always{"Monday, or forced?"}
   always -- yes --> run
-  always -- no --> image{"Is the tag's image<br/>published?"}
+  always -- no --> image{"Found a tag with<br/>a published image?"}
   image -- no --> stop(["Stop: the next check tries again"])
   image -- yes --> tested{"Combination already tested?<br/>(cache marker)"}
   tested -- yes --> stop2(["Stop"])
   tested -- no --> run["Call ci.yml and e2e.yml<br/>with those exact versions"]
-  run --> record["Save the marker (pass or fail)"]
-  record --> report{"Passed, with no notes?"}
-  report -- yes --> close(["Close any open camphoric-compat issue"])
-  report -- no --> issue(["Open or comment on the camphoric-compat issue,<br/>unless it already reports this"])
+  run --> report{"Passed, with no notes?"}
+  report -- yes --> close["Close any open camphoric-compat issue"]
+  report -- no --> issue["Open or comment on the camphoric-compat issue,<br/>unless it already reports this"]
+  close --> record(["Save the marker (pass or fail),<br/>if an image was found"])
+  issue --> record
 ```
 
 ## 6. Repository list: none needed
@@ -241,154 +258,50 @@ the scheduled check has run for a while.
   `github.workflow` inside them is the caller's name, so their current group
   (`${{ github.workflow }}-${{ github.ref }}`) resolves to `Camphoric releases-refs/heads/main` in
   both: `ci` and `e2e` would wait for each other instead of running side by side. Their group needs
-  a literal prefix. Only pull requests need to share one (so a new push cancels a superseded run);
-  every other run gets its own:
+  a literal prefix. Pull requests share one per branch (so a new push cancels a superseded run), and
+  in `ci.yml` so do pushes (so pushes to `main` still queue, as before); every other run, including
+  each one `upstream.yml` calls, gets its own:
 
   ```yaml
+  # e2e.yml (it has no push trigger)
   concurrency:
     group: e2e-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+  # ci.yml
+  concurrency:
+    group: ci-${{ (github.event_name == 'push' || github.event_name == 'pull_request') && github.ref || github.run_id }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
   ```
 
-## 11. Sketch: each event repository
+## 11. The workflows in each event repository
 
-A new `.github/workflows/upstream.yml`:
+The workflows are added by [camphoric-event-lark#5](https://github.com/camphoric/camphoric-event-lark/pull/5)
+(once merged, in lark's `.github/workflows/`), and the other three event repositories' pull
+requests add byte-identical copies. That code is the reference; this outline doesn't repeat it.
+`scripts/smoke-test-package.sh` is the exception: each repository keeps its own, which differ
+slightly (ltacampout always checks for `reports/`), so a change to it is applied to each copy, not
+copied from lark.
 
-```yaml
-# Test this event against the newest Camphoric release (once its image is
-# published) and the newest import-spec / import-tools versions in its ranges,
-# once per new combination and weekly regardless, and report in a
-# camphoric-compat issue.
-name: Camphoric releases
-
-on:
-  schedule:
-    - cron: '23 */6 * * *'  # look for new versions
-    - cron: '0 14 * * 1'    # weekly: test even if nothing changed
-  workflow_dispatch:
-    inputs:
-      force:
-        description: Test even if these versions were tested already
-        type: boolean
-        default: false
-
-concurrency:
-  group: upstream
-  cancel-in-progress: false
-
-permissions:
-  contents: read
-
-jobs:
-  detect:
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    outputs:
-      image_tag: ${{ steps.versions.outputs.image_tag }}
-      spec_version: ${{ steps.versions.outputs.spec_version }}
-      tools_version: ${{ steps.versions.outputs.tools_version }}
-      key: ${{ steps.versions.outputs.key }}
-      # Monday and forced runs always test (a missing image then fails e2e and
-      # is reported); a 6-hourly one waits for the image and skips a tested
-      # combination.
-      test: >-
-        ${{ github.event.schedule == '0 14 * * 1' || inputs.force
-        || (steps.versions.outputs.image_ready == 'true' && steps.tested.outputs.cache-hit != 'true') }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
-      - id: versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The highest published version of $1 within this event's range for
-          # it (npm lists versions in publish order, so sort them by semver)
-          newest() {
-            range=$(node -p "require('./package.json').devDependencies['$1']")
-            npm view "$1" versions --json \
-              | jq -r 'if type == "array" then .[] else . end' \
-              | xargs npx --yes semver@7 -r "$range" \
-              | tail -n 1
-          }
-          image=$(gh api --paginate repos/camphoric/camphoric/releases \
-            --jq '.[] | select((.prerelease or .draft) | not) | .tag_name' \
-            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          spec=$(newest @camphoric/camphoric-event-import-spec)
-          tools=$(newest @camphoric/camphoric-event-import-tools)
-          if [ -z "$image" ] || [ -z "$spec" ] || [ -z "$tools" ]; then
-            echo "couldn't find the versions to test (image '$image', spec '$spec', tools '$tools')" >&2
-            exit 1
-          fi
-          if docker manifest inspect "ghcr.io/camphoric/camphoric:$image" > /dev/null 2>&1; then
-            ready=true
-          else
-            ready=false
-            echo "ghcr.io/camphoric/camphoric:$image isn't published yet" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          {
-            echo "image_tag=$image"
-            echo "image_ready=$ready"
-            echo "spec_version=$spec"
-            echo "tools_version=$tools"
-            echo "key=camphoric-tested-$image-spec-$spec-tools-$tools"
-          } >> "$GITHUB_OUTPUT"
-
-      - id: tested
-        uses: actions/cache/restore@v6
-        with:
-          path: .camphoric-tested
-          key: ${{ steps.versions.outputs.key }}
-          lookup-only: true
-
-  ci:
-    needs: detect
-    if: ${{ needs.detect.outputs.test == 'true' }}
-    uses: ./.github/workflows/ci.yml
-    with:
-      spec_version: ${{ needs.detect.outputs.spec_version }}
-      tools_version: ${{ needs.detect.outputs.tools_version }}
-
-  e2e:
-    needs: detect
-    if: ${{ needs.detect.outputs.test == 'true' }}
-    uses: ./.github/workflows/e2e.yml
-    with:
-      image_tag: ${{ needs.detect.outputs.image_tag }}
-      spec_version: ${{ needs.detect.outputs.spec_version }}
-      tools_version: ${{ needs.detect.outputs.tools_version }}
-
-  record:
-    needs: [detect, ci, e2e]
-    if: ${{ !cancelled() && needs.detect.outputs.test == 'true' }}
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    steps:
-      # Pass or fail: a failure is tracked by the issue, not retried every 6 hours
-      - run: touch .camphoric-tested
-      - uses: actions/cache/save@v6
-        with:
-          path: .camphoric-tested
-          key: ${{ needs.detect.outputs.key }}
-      # Open / comment on / close the camphoric-compat issue from
-      # needs.ci.result and needs.e2e.result (plus a note for a package major
-      # outside the range), with the fingerprint pattern from camphoric's
-      # events-latest.yml.
-```
-
-And in `ci.yml` and `e2e.yml`:
-
-- A `workflow_call` trigger with `spec_version` and `tools_version` string inputs; `e2e.yml` also
-  gets `image_tag`. The same inputs under `workflow_dispatch`, which `ci.yml` gains for the first
-  time.
-- The "Use the requested Camphoric package versions" step from section 4, after `npm ci`.
-- The concurrency group from section 10, with a `ci-` or `e2e-` prefix.
-- `e2e.yml` drops its `schedule`, which `upstream.yml`'s Monday run replaces. Its
-  `CAMPHORIC_IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}` already works for all three triggers.
+- **`upstream.yml` ("Camphoric releases")** runs at `23 */6 * * *` and `0 14 * * 1`, and by hand
+  (`workflow_dispatch`, with a `force` input). It runs one at a time (`concurrency: upstream`),
+  and has four jobs:
+  - `detect` finds the versions (section 4), writes them and any notes to the step summary, builds
+    the marker's key, and looks it up with `lookup-only` (section 5). Its `test` output is true on
+    the Monday run or a forced one, and otherwise when an image was found and the marker missed.
+  - `ci` and `e2e` call `./.github/workflows/ci.yml` and `./.github/workflows/e2e.yml` with
+    `image_tag`, `spec_version` and `tools_version`.
+  - `record` (`issues: write`, unless cancelled) opens, comments on or closes the
+    `camphoric-compat` issue from the CI and E2E results and the notes, with the fingerprint
+    pattern from this repository's `events-latest.yml`, then saves the marker.
+- **`ci.yml` and `e2e.yml`** gain a `workflow_call` trigger with `spec_version` and `tools_version`
+  string inputs (`e2e.yml` also `image_tag`), the same inputs under `workflow_dispatch` (new for
+  `ci.yml`), the "Use the requested Camphoric package versions" step after `npm ci` (section 4),
+  and the concurrency groups in section 10. `e2e.yml` drops its `schedule`, which `upstream.yml`'s
+  Monday run replaces. Its `CAMPHORIC_IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}` already
+  works for all three triggers.
+- **`scripts/smoke-test-package.sh`** installs the requested spec version (`SPEC_VERSION`) beside
+  the packed package, when one is given.
 
 ## 12. Changes in this repository
 
@@ -408,5 +321,7 @@ Camphoric's release workflows don't change. Two small additions, once the event 
 
 1. **One event repository first:** add `upstream.yml` and the `ci.yml` / `e2e.yml` changes, run
    `upstream.yml` by hand with `force`, then again without it to see the marker skip the run.
-2. **The other three:** copy the same files.
+   `workflow_dispatch` needs the workflow on the default branch, so this follows the merge.
+2. **The other three:** copy the same workflow files, and make the same change to each
+   repository's own `scripts/smoke-test-package.sh`.
 3. **This repository:** the `latest-events-notes.sh` note, `test-event-repos.sh`, and RELEASE.md.
