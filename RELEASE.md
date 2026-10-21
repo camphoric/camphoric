@@ -274,7 +274,8 @@ made-up event for this repository's tests, is the only event still in `data/even
   someone to approve them.
 - **Testing against new Camphoric releases.** Each event repository's "Camphoric releases" check
   (`.github/workflows/upstream.yml`) tests it against a new Camphoric release, or a new
-  import-spec or import-tools version, within about 6 hours, and against all of them every Monday
+  import-spec or import-tools version, within about 6 hours, and against the newest of each every
+  Monday
   ([doc/event-repo-ci.md](./doc/event-repo-ci.md) has the design). A failure, or a newer package
   version outside the event's range, goes in a `camphoric-compat` issue in that repository, which
   a clean run closes; [`is:open label:camphoric-compat org:camphoric`](https://github.com/issues?q=is%3Aopen+label%3Acamphoric-compat+org%3Acamphoric)

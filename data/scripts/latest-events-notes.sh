@@ -22,6 +22,10 @@ node scripts/registry-events.mjs | while read -r name range; do
   fi
 done
 
+# gh's error output, kept apart from what a lookup prints
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
+
 # The org's event repositories (public ones, which every token can list)
 if repos=$(gh api --paginate orgs/camphoric/repos --jq '.[] | select(.archived | not) | .name' 2>/dev/null); then
   installed=$(node -p "Object.keys(require('./package.json').dependencies).join('\n')")
@@ -31,11 +35,11 @@ if repos=$(gh api --paginate orgs/camphoric/repos --jq '.[] | select(.archived |
       echo "- [camphoric/$repo](https://github.com/camphoric/$repo) is an event repository, but data/ doesn't install \`@camphoric/$repo\`: add it to data/package.json and EVENTS in data/eventModules.ts"
     fi
     upstream="https://github.com/camphoric/$repo/actions/workflows/upstream.yml"
-    if state=$(gh api "repos/camphoric/$repo/actions/workflows/upstream.yml" --jq .state 2>&1); then
+    if state=$(gh api "repos/camphoric/$repo/actions/workflows/upstream.yml" --jq .state 2>"$err"); then
       if [ "$state" != active ]; then
         echo "- [camphoric/$repo]($upstream)'s \"Camphoric releases\" check (\`upstream.yml\`) is \`$state\`, so it doesn't test new Camphoric releases: enable it in that repository's Actions tab"
       fi
-    elif echo "$state" | grep -q 'HTTP 404'; then
+    elif grep -q 'HTTP 404' "$err"; then
       echo "- [camphoric/$repo](https://github.com/camphoric/$repo) has no \"Camphoric releases\" check (\`.github/workflows/upstream.yml\`), so nothing tests it against new Camphoric releases: copy it from another event repository (doc/event-repo-ci.md)"
     else
       echo "- couldn't look up [camphoric/$repo]($upstream)'s \"Camphoric releases\" check (\`upstream.yml\`)"

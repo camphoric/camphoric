@@ -29,9 +29,9 @@ maintainer's own `gh` login.
 | A pre-release, `vX.Y.Z-<pre>.N` (`prerelease.yml`) | the image at that tag (never `latest`) | nothing, unless someone runs `e2e.yml` by hand with that `image_tag` |
 | `@camphoric/camphoric-event-import-spec` or `-tools` (`release-packages.yml`) | the package on npm | nothing until the event repository's lockfile moves: `ci.yml` (on pushes to `main` and pull requests) and `e2e.yml` install the lockfile's versions with `npm ci` |
 
-So a release that breaks an event's registration form can go unnoticed for up to a week, and a new
-package version within an event's caret range (`^1.0.0`) isn't tested in that repository at all
-until somebody changes it. In this repository, `events-latest.yml` covers the other direction
+So a release that broke an event's registration form could go unnoticed for up to a week, and a
+new package version within an event's caret range (`^1.0.0`) wasn't tested in that repository at
+all until somebody changed it. In this repository, `events-latest.yml` covers the other direction
 weekly: the newest published *events* against Camphoric's `main`.
 
 The four event repositories (lark, harmony, familyweek, ltacampout) have identical `ci.yml`,
@@ -53,7 +53,7 @@ camphoric/camphoric. That leaves two ways to start an event repository's run.
 
 **The scheduled check wins.** Neither approach blocks a release, because the release is published
 before either runs, so the faster approach only reports a breakage sooner: within minutes rather
-than within hours, against up to a week today. In exchange the scheduled check has no credentials
+than within hours, against up to a week before. In exchange the scheduled check has no credentials
 to create, rotate or extend, no repository list, and no new way for a release run to fail. It also
 follows the dependency direction, the way Dependabot does: each event repository tests what it
 depends on, and camphoric/camphoric doesn't need to know who depends on it.
@@ -247,7 +247,7 @@ the scheduled check has run for a while.
 
 - **Scheduled workflows stop after 60 days without activity.** In a public repository, GitHub
   disables them after 60 days with no repository activity, and an event repository can go quiet
-  between camp seasons (today's weekly e2e run has the same problem). `latest-events-notes.sh`
+  between camp seasons (the weekly e2e schedule it replaced had the same problem). `latest-events-notes.sh`
   notes a disabled `upstream.yml` (`gh api repos/camphoric/<repo>/actions/workflows/upstream.yml
   --jq .state` is `disabled_inactivity`), and re-enabling it is one click in that repository's
   Actions tab.
