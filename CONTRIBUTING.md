@@ -196,7 +196,7 @@ built client. Match the patterns already in the codebase rather than introducing
   `filterset_fields` on the viewset (e.g. `Registration` filters on `['event', 'completed']`),
   or a `filterset_class` from `camphoric/filters.py` when a filter needs another name (every list
   of an event's records filters by `event`, e.g. campers by `registration__event`). A list
-  answers 400 to any other query parameter, so a viewset that reads a parameter of its own in
+  answers 400 to any other query parameter, and to a filter given no value, so a viewset that reads a parameter of its own in
   `get_queryset` must name it in `extra_query_params` (e.g. the email history's `q`). The client
   relies on these query params — keep them stable.
 - **Permissions:** viewsets default to `IsAdminUser`. Public endpoints (registration, event

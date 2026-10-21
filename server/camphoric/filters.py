@@ -22,7 +22,7 @@ class StrictFilterBackend(DjangoFilterBackend):
     '''
     DjangoFilterBackend, except that a list refuses a query parameter that is
     none of its filters, its paginator's, `format`, or one the view reads
-    itself (its `extra_query_params`).
+    itself (its `extra_query_params`), and a filter given no value.
     '''
 
     def filter_queryset(self, request, queryset, view):
@@ -43,6 +43,13 @@ class StrictFilterBackend(DjangoFilterBackend):
             raise ValidationError({
                 param: [f'This list doesn\'t filter by "{param}". It filters by {known}.']
                 for param in unknown})
+        # django-filter skips a filter with no value, which would list every row.
+        empty = sorted(param for param in filters & set(request.query_params)
+                       if any(not value.strip()
+                              for value in request.query_params.getlist(param)))
+        if empty:
+            raise ValidationError({
+                param: [f'Give "{param}" a value, or leave it out.'] for param in empty})
 
 
 def event_filter(path):
