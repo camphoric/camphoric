@@ -1,13 +1,13 @@
 # Camphoric role
 
-Installs and configures camphoric.
+Provisions the development VM with camphoric, from the code at `camphoric_folder`. It doesn't
+clone or check out the repository, and it isn't a release deploy (see "Ansible" under "Deploying a
+release" in [RELEASE.md](../../../RELEASE.md#ansible)).
 
 - Installs a nginx config at `/etc/nginx/sites-available/camphoric`
 - Installs a systemd service at `/etc/systemd/system/camphoric.service`
 - Installs a socket listener for camphoric
-- Deploys the code already at `camphoric_folder`: it doesn't clone or check out the repository,
-  and no task reads `camphoric_release` yet (see "Deploying a release" in
-  [RELEASE.md](../../../RELEASE.md#ansible))
+- Builds `client/` from the code at `camphoric_folder` and installs the build
 
 See the github repo for more info about the software: https://github.com/camphoric/camphoric
 

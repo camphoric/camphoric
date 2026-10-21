@@ -10,8 +10,9 @@ source, its built frontend and its container image:
 - **Container image** — `ghcr.io/camphoric/camphoric:<tag>`, the server with the v2 frontend baked
   in (`latest` also moves, for stable releases only). See [CONTAINER.md](./CONTAINER.md).
 
-The container image is the versioned deploy. The Ansible playbook builds the frontend from the
-checkout it deploys (see *Deploying a release*).
+The container image is the versioned deploy. The Ansible playbook in this repository provisions
+the development VM, not a release, and builds the frontend from its checkout (see *Deploying a
+release*).
 
 Versions follow [Semantic Versioning](https://semver.org/) and the release automation is
 [release-please](https://github.com/googleapis/release-please). The current version lives in
@@ -88,6 +89,10 @@ a stable release. Deploy it exactly like a stable tag.
 
 ## Deploying a release
 
+A release is deployed with its container image or with the production Ansible playbook, which is
+kept outside this repository. The Ansible playbook in this repository is for the development VM,
+not a release deploy (see [Ansible](#ansible) below).
+
 ### Container image
 
 Run the container image for that tag — `ghcr.io/camphoric/camphoric:<tag>` — see
@@ -100,28 +105,19 @@ The frontend asset has the same filename on every release, so its URL varies onl
 https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2.tar.gz
 ```
 
-No deploy downloads it: the image builds its own frontend, and the Ansible role builds one on the
-host.
+Each deploy gets its frontend a different way:
+
+- **Container image:** builds its own frontend from the tag.
+- **Production Ansible deploys:** download and install this asset.
+- **Development playbook:** builds `client/` from the checkout it provisions (see below).
 
 ### Ansible
 
-The Ansible playbook (`ansible/site.yml`) deploys whatever code is already in
-`camphoric_folder` on the host (`ansible/group_vars/all.yml` sets it to `/vagrant`, the
-development VM's synced folder; set it per host anywhere else). The role never clones, fetches or
-checks out the repository, and it does not download the release asset. `camphoric_release` and
-`camphoric_force_update` are defined in the role's defaults and in `ansible/group_vars/all.yml`,
-but no task reads them yet ([#797](https://github.com/camphoric/camphoric/issues/797)). To deploy
-a release this way, check out its tag in that folder first, for example
-`git -C <camphoric_folder> fetch --tags && git -C <camphoric_folder> checkout vX.Y.Z`.
-
-The playbook and role come from the checkout `ansible-playbook` runs in, not from the host, so run
-it from a checkout of the same tag. A role from another version doesn't match the code it deploys:
-the role on `main` starts gunicorn with uvicorn's workers, which v0.14.0's `Pipfile` doesn't
-install, so it can't start v0.14.0.
-
-The steps below describe the role from the first release after v0.14.0 onward. The role in
-v0.14.0 and earlier clones the v1 frontend from the `js-build-main` branch instead of building
-`client/`, and runs gunicorn on Django's WSGI app. A run of the camphoric role:
+The Ansible playbook in this repository (`ansible/site.yml` and `ansible/roles/camphoric`)
+provisions the development Vagrant VM; it isn't a release deploy. It deploys whatever code is in
+`camphoric_folder` (`ansible/group_vars/all.yml` sets it to `/vagrant`, the VM's synced folder).
+The role never clones, fetches or checks out the repository, and it builds `client/` from that
+code instead of downloading the release asset. A run of the camphoric role:
 
 1. Fails at its first task, outside `development`, while any secret is left at its placeholder
    default (see below).
@@ -146,9 +142,9 @@ v0.14.0 and earlier clones the v1 frontend from the `js-build-main` branch inste
 7. Installs the nginx site and restarts nginx, and, outside `production`, loads sample data into
    an empty database (only `development` installs the `data/` packages the import needs).
 
-Set `camphoric_environment` to `production` and override the role's placeholder secrets in the
-inventory or a vault-encrypted `host_vars` file (see
-[the role's README](./ansible/roles/camphoric/README.md#secrets)).
+To provision a VM with another `camphoric_environment` (`production`, to rehearse a production
+setup), override the role's placeholder secrets in the inventory or a vault-encrypted `host_vars`
+file (see [the role's README](./ansible/roles/camphoric/README.md#secrets)).
 
 ### Host requirements
 
