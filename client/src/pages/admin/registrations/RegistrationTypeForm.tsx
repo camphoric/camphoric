@@ -91,21 +91,17 @@ export function RegistrationTypeForm({
     });
 
   const { data: invitations } = invitationHooks.useList(
-    { registration_type__event: eventId },
+    { registration_type: regType?.id },
     opened && !!regType,
   );
   const samples = useMemo<EmailSample[]>(
     () =>
-      (invitations ?? [])
-        .filter((i) => regType && String(i.registration_type) === String(regType.id))
-        .map((i) => ({
-          value: String(i.id),
-          label: i.recipient_name
-            ? `${i.recipient_name} <${i.recipient_email}>`
-            : i.recipient_email,
-          sample: { invitation_id: i.id },
-        })),
-    [invitations, regType],
+      (invitations ?? []).map((i) => ({
+        value: String(i.id),
+        label: i.recipient_name ? `${i.recipient_name} <${i.recipient_email}>` : i.recipient_email,
+        sample: { invitation_id: i.id },
+      })),
+    [invitations],
   );
 
   const valid = name.trim() && label.trim();

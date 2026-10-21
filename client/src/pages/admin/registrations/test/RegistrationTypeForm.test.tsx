@@ -27,12 +27,13 @@ vi.mock('store/entities', () => ({
     useCreate: () => ({ mutateAsync: create, isPending: false }),
     useUpdate: () => ({ mutateAsync: update, isPending: false }),
   },
+  // Filters as the server does, so only the type's own invitations come back.
   invitationHooks: {
-    useList: () => ({
+    useList: (params: { registration_type?: number }) => ({
       data: [
         { id: 5, registration_type: 3, recipient_name: 'Lee', recipient_email: 'lee@example.com' },
         { id: 6, registration_type: 8, recipient_name: '', recipient_email: 'x@example.com' },
-      ],
+      ].filter((i) => i.registration_type === params.registration_type),
     }),
   },
 }));
