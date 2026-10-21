@@ -70,8 +70,9 @@ secret visible only to camphoric/camphoric, and the dispatch job skipped when th
 
 - **The newest app release:** `gh api repos/camphoric/camphoric/releases` reads a public repository,
   which the default token can do.
-- **The image:** `docker manifest inspect ghcr.io/camphoric/camphoric:<tag>` works without signing
-  in, because the image is public (the e2e runs already pull it anonymously).
+- **The image:** GHCR's registry API answers anonymously, because the image is public (the e2e runs
+  already pull it that way): a token from `https://ghcr.io/token?scope=repository:camphoric/camphoric:pull`,
+  then a `HEAD` request for `https://ghcr.io/v2/camphoric/camphoric/manifests/<tag>`.
 - **The packages:** `npm view` on npmjs.com needs no token.
 - **The report:** opening or commenting on an issue needs `issues: write`, granted only to the job
   that reports.
@@ -89,21 +90,31 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
   marks the app's release as Latest again, and the releases API doesn't list releases strictly by
   version either.
 - **The newest release whose image is published.** The release is created before `build-image`
-  pushes the image, so the check tries the five newest stable tags, newest first, with
-  `docker manifest inspect`, and tests the first whose image is published. When that isn't the
-  newest release, the run adds the note "Camphoric `vX` is released, but
-  ghcr.io/camphoric/camphoric:vX isn't published yet: this run tests `vY`, the newest release
-  whose image is." So a new package version is still tested within 6 hours while an image is late,
-  and the newer tag is tested once its image appears (the marker names the tag tested, section 5).
-  A note makes a report not clean (section 8), so a check that lands between a joint release's
-  tools publish and its image push opens the issue, and the next check, finding the image, closes
-  it.
-- **An image that never gets published** (a failed `build-image` nobody re-ran) is reported by
-  that note, on every run that tests, until someone publishes the image; the older tag keeps
-  passing. Only when none of the five newest tags has an image does a 6-hourly check stop without
-  testing (and without recording the combination); the Monday run and a forced run then test the
-  newest release anyway, so e2e fails and the issue reports it rather than every check stopping
-  silently.
+  pushes the image, so the check tries the five newest stable tags, newest first, against GHCR's
+  registry API, and tests the first whose image is published. When that isn't the newest release
+  (`vX`), the run tests the older one (`vY`) and adds a note that depends on how long ago `vX` was
+  published (its `published_at`):
+  - Under a day: "Camphoric `vX` is released, but ghcr.io/camphoric/camphoric:vX isn't published
+    yet: this run tests `vY`, the newest release whose image is." The marker key is `vY`'s, so a
+    6-hourly check that has already tested it stops, and this note usually reaches the issue only
+    on a run that tests anyway (a new package version, Monday, or forced). A late image doesn't
+    open an issue on its own.
+  - A day or more: "Camphoric `vX` was released over a day ago, but ghcr.io/camphoric/camphoric:vX
+    was never published: the release's `build-image` job probably failed and needs re-running (or
+    run `gh workflow run release-image.yml -R camphoric/camphoric -f tag=vX`). This run tests `vY`,
+    the newest release whose image is." The key gains `-never-published-vX` (section 5), so the
+    first 6-hourly check after the release turns a day old tests `vY` again and reports this note.
+
+  Neither note gives an age, so the issue's fingerprint stays the same from run to run. The switch
+  from one wording to the other usually opens the issue (the first note rarely reached it), or adds
+  one comment when it's already open. The newer tag is tested once its image appears,
+  because the key names the tag tested. A check that lands between a joint release's tools publish
+  and its image push opens the issue (a note makes a report not clean, section 8), and the next
+  check, finding the image, closes it.
+- **No image among the five newest.** Then a 6-hourly check stops without testing (and without
+  recording the combination). The Monday run and a forced run test the newest release anyway, so
+  e2e fails and the issue reports it, with the "never published" note (without its last sentence)
+  once the release is a day old.
 - **The packages:** the highest published version within the range in the event's `package.json`,
   for both the spec and the tools: the package's `versions`, filtered and sorted by the `semver`
   CLI. Not the last entry of `npm view "<package>@<range>" version`, which is in publish order: a
@@ -111,17 +122,20 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
   also finds each package's newest stable version in any range (`semver -r '*'`, which leaves out
   pre-releases), for the note about a newer version outside the range below.
 - **A lookup that fails fails the check.** The version step runs with `set -euo pipefail` and
-  fails when any version comes back empty (a GitHub or npm outage, say), so the run shows red
-  rather than skipping silently. Bash turns `set -e` off inside a function called through `$(…)`,
-  so the lookup functions pass their failures on explicitly (`|| return`). The image lookup is the
-  exception: `docker manifest inspect` can't tell a missing image from a GHCR error, so an error
-  reads as "not published yet" (an older tag and the note above, or, for all five, a stopped
-  6-hourly check until the Monday run).
+  fails when any version comes back empty (a GitHub or npm outage, say) or a release's
+  `published_at` can't be read, so the run shows red rather than skipping silently. Bash turns
+  `set -e` off inside a function called through `$(…)`, so the lookup functions pass their failures
+  on explicitly (`|| return`). The image lookup tells a missing image from a registry error: 200 is
+  published and 404 isn't (it sends the OCI and Docker manifest and index `Accept` types, since GHCR
+  answers 404, not 406, for a type it isn't sent); anything else is retried (four tries, each
+  with a 30-second timeout and a pause between them) and then fails the step ("couldn't tell whether
+  ghcr.io/camphoric/camphoric:vX is published after 4 tries"). GitHub emails a failed scheduled run
+  to whoever last changed its cron.
 - **Pinning them:** `ci.yml` and `e2e.yml` gain `spec_version` and `tools_version` inputs (and
   `e2e.yml` keeps `image_tag`). After `npm ci`, a step installs exactly those versions with
   `npm install --no-save`, checks each installed package's own `package.json` version against the
-  one asked for, and lists the two packages in the step summary. Pushes and pull requests leave the
-  inputs empty and keep using the lockfile. `ci.yml` also passes `spec_version` to
+  one asked for, and writes the installed packages to the step summary (below). Pushes and pull
+  requests leave the inputs empty and keep using the lockfile. `ci.yml` also passes `spec_version` to
   `scripts/smoke-test-package.sh` (as `SPEC_VERSION`), whose fresh project otherwise installs the
   newest spec in the peer range.
 - **Exact versions, in the event's range or not.** Run by hand, the inputs also take a version
@@ -134,7 +148,10 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
   with it the Chromium the e2e tests use: tools 1.2.1 needs `^1.64.1`, and the lark, harmony and
   familyweek lockfiles have 1.63.0 (ltacampout's already has 1.64.1). So in those three, every
   scheduled run, which always pins tools, moves `@playwright/test` off the lockfile's version. The
-  step summary lists only the two Camphoric packages; the install log shows what else moved.
+  step summary's "Installed packages" section lists each of the event's direct dependencies whose
+  installed version isn't the one `package-lock.json` pins, marked "(requested)" or "(moved by the
+  requested versions)", such as "`@playwright/test` 1.63.0 → 1.64.1", and then the top-level tree
+  (`npm ls --depth=0`, where `invalid` marks a version outside the range in `package.json`).
 - **Any new version runs both workflows.** The e2e harness (`defineEventE2EConfig`, `e2eServer`)
   ships in import-tools, so a tools release can break the e2e tests as well as CI, and `ci.yml` is
   cheap.
@@ -149,7 +166,9 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
 Each run that tests a combination saves an empty cache entry named for it, such as
 `camphoric-tested-v0.14.0-spec-1.0.1-tools-1.2.1-newest-spec-1.0.1-tools-1.2.1`: the image tag
 tested, the spec and tools versions tested, and each package's newest version in any range (so a
-new major changes the key, and the run reports its note). The next check looks the key up with
+new major changes the key, and the run reports its note). When the newest release has gone a day
+without an image, the key also ends `-never-published-vX`, so that note is reported within 6 hours
+too, while an older release's image is published (section 4). The next check looks the key up with
 `actions/cache/restore` and `lookup-only: true`, and stops when it exists. Scheduled runs may write
 caches, because they run on the default branch.
 
