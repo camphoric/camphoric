@@ -24,8 +24,8 @@ Releases are versioned (`vX.Y.Z`). Each release is a GitHub Release carrying the
 the built frontend (`frontend-build-v2.tar.gz`), cut with
 [release-please](https://github.com/googleapis/release-please) from
 [Conventional Commits](https://www.conventionalcommits.org/). See **[RELEASE.md](./RELEASE.md)**.
-Each release also publishes a container image to `ghcr.io/camphoric/camphoric`, the deploy that is
-pinned to a **version** — see **[CONTAINER.md](./CONTAINER.md)**. The Ansible playbook in this
+Each release also publishes a container image to `ghcr.io/camphoric/camphoric`, a deploy pinned
+to a **version** — see **[CONTAINER.md](./CONTAINER.md)**. The Ansible playbook in this
 repository provisions the development VM from the code checked out there; it doesn't deploy a
 release (see "Deploying a release" in RELEASE.md).
 
