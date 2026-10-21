@@ -272,7 +272,11 @@ simpler and matches the existing convention.
 ## Ports, healthcheck, startup
 
 - **Port `8000`** — gunicorn running Django's ASGI app on uvicorn workers (3 by default, from
-  `server/gunicorn.conf.py`; tune with `GUNICORN_CMD_ARGS`, keeping its worker class). Each
+  `server/gunicorn.conf.py`; tune with `GUNICORN_CMD_ARGS`, keeping its worker class). An idle
+  keep-alive connection stays open 5 s (`keepalive` there; gunicorn's own default is 2 s), longer
+  than Node's fetch keeps one to reuse (4 s), so a client such as the event importer doesn't send
+  a request on a connection the app is closing (unless a response takes over half a second to
+  reach it). Each
   request's view runs in a thread of its own with its own database connection, so each worker
   lets in at most `CAMPHORIC_WORKER_CONCURRENCY` requests at once (default 4) and queues the rest:
   the database sees at most workers × that connections from the web tier, well under Postgres's
@@ -303,7 +307,12 @@ CSRF_TRUSTED_ORIGINS=https://register.example.org
 ```
 
 Proxy `/` to the container's port 8000; the image serves the SPA and `/static/*` itself
-(whitenoise), so no separate static file root is needed.
+(whitenoise), so no separate static file root is needed. A proxy that keeps connections to the
+app open for reuse must drop an idle one in under 5 s, the app's keep-alive (nginx's default
+upstream connections aren't kept, so need nothing); otherwise raise the app's to more than the
+proxy's idle timeout, e.g. `GUNICORN_CMD_ARGS="--keep-alive 75"` behind a proxy that keeps them
+60 s. Without that, the proxy can now and then send a request on a connection the app has just
+closed and answer it with a 502.
 
 The proxy must append the client's address to `X-Forwarded-For` (nginx: `proxy_set_header
 X-Forwarded-For $proxy_add_x_forwarded_for;`, which `include proxy_params` does), and the
