@@ -43,7 +43,12 @@ export function useDeletePreview(path: string, id: Scalar) {
   });
 }
 
-function useDeleted<T>(path: RestorablePath, params: ListParams, enabled: boolean) {
+// The deleted lists filter by `event`, campers' and payments' also by `registration`.
+function useDeleted<T>(
+  path: RestorablePath,
+  params: ListParams<'event' | 'registration'>,
+  enabled: boolean,
+) {
   return useQuery({
     queryKey: ['Deleted', path, toQuery(params)],
     queryFn: ({ signal }) => apiFetch<T[]>(`/api/${path}/deleted/${toQuery(params)}`, { signal }),
@@ -58,7 +63,7 @@ export const useDeletedCampers = (eventId: Scalar, enabled = true) =>
   useDeleted<ApiDeletedCamper>('campers', { event: eventId }, enabled);
 
 /** Deleted payments, for an event (`event`) or one registration (`registration`). */
-export const useDeletedPayments = (params: ListParams, enabled = true) =>
+export const useDeletedPayments = (params: ListParams<'event' | 'registration'>, enabled = true) =>
   useDeleted<ApiDeletedPayment>('payments', params, enabled);
 
 export const useDeletedPromoCodes = (eventId: Scalar, enabled = true) =>

@@ -15,6 +15,10 @@
  * first (SPEC §5, DR-109), and the entity is refetched. A screen that resolves
  * such conflicts itself (hooks/useEditableRecord) passes `handlesVersionConflict`
  * so the shared error toast stays out of the way.
+ *
+ * The second type parameter names the filters the entity's list takes (the
+ * server's filterset for it, camphoric/filters.py), so a filter the server
+ * doesn't have fails type-checking instead of a 400 at run time (SPEC §5, DR-136).
  */
 
 import {
@@ -27,7 +31,11 @@ import {
 import type { Scalar } from 'api-types';
 import { apiFetch, ifMatch, versionConflict } from 'utils/fetch';
 
-export type ListParams = Record<string, Scalar | boolean | undefined>;
+type ListValue = Scalar | boolean | undefined;
+/** A list's query: values for some of its filters `F` (none, for a list with no filters). */
+export type ListParams<F extends string> = [F] extends [never]
+  ? Record<string, never>
+  : Partial<Record<F, ListValue>>;
 
 export interface EntityHooksConfig {
   /** Logical entity name; also the query-key namespace, e.g. "Registration". */
@@ -43,13 +51,13 @@ export interface MutationOptions {
   handlesVersionConflict?: boolean;
 }
 
-export interface EntityHooks<T extends { id: Scalar }> {
+export interface EntityHooks<T extends { id: Scalar }, F extends string = never> {
   name: string;
   /** Other entities its changes change too (refetched with it). */
   alsoInvalidate: string[];
-  listKey: (params?: ListParams) => QueryKey;
+  listKey: (params?: ListParams<F>) => QueryKey;
   detailKey: (id: Scalar) => QueryKey;
-  useList: (params?: ListParams, enabled?: boolean) => UseQueryResult<T[]>;
+  useList: (params?: ListParams<F>, enabled?: boolean) => UseQueryResult<T[]>;
   useById: (id: Scalar | null | undefined) => UseQueryResult<T>;
   useCreate: () => ReturnType<typeof useMutation<T, Error, CreateBody<T>>>;
   useUpdate: (options?: MutationOptions) => ReturnType<typeof useMutation<T, Error, UpdateBody<T>>>;
@@ -66,7 +74,7 @@ export interface DeleteBody {
   version?: number;
 }
 
-export function toQuery(params: ListParams): string {
+export function toQuery(params: Record<string, ListValue>): string {
   // Sort keys so the query string (and thus the cache key) is stable.
   const entries = Object.entries(params)
     .filter(([, value]) => value !== undefined)
@@ -76,16 +84,16 @@ export function toQuery(params: ListParams): string {
   return `?${new URLSearchParams(entries).toString()}`;
 }
 
-export function createEntityHooks<T extends { id: Scalar }>(
+export function createEntityHooks<T extends { id: Scalar }, F extends string = never>(
   config: EntityHooksConfig,
-): EntityHooks<T> {
+): EntityHooks<T, F> {
   const { name, alsoInvalidate = [] } = config;
   const path = config.path ?? `${name.toLowerCase()}s`;
   const base = `/api/${path}/`;
 
   // `base` is part of the key so it fully reflects what the query fetches; the
   // key stays prefixed by `name` so name-level invalidation still matches.
-  const listKey = (params: ListParams = {}): QueryKey => [name, 'list', base, toQuery(params)];
+  const listKey = (params?: ListParams<F>): QueryKey => [name, 'list', base, toQuery(params ?? {})];
   const detailKey = (id: Scalar): QueryKey => [name, 'detail', base, id];
 
   function useInvalidate() {
@@ -113,21 +121,23 @@ export function createEntityHooks<T extends { id: Scalar }>(
   // The query keys are inlined here (rather than via listKey/detailKey) so the
   // query/exhaustive-deps lint can see that `base` and the params are present;
   // the helper builders return the identical shape for cache invalidation.
-  const useList: EntityHooks<T>['useList'] = (params = {}, enabled = true) =>
-    useQuery({
-      queryKey: [name, 'list', base, toQuery(params)],
-      queryFn: ({ signal }) => apiFetch<T[]>(`${base}${toQuery(params)}`, { signal }),
+  const useList: EntityHooks<T, F>['useList'] = (params, enabled = true) => {
+    const query = toQuery(params ?? {});
+    return useQuery({
+      queryKey: [name, 'list', base, query],
+      queryFn: ({ signal }) => apiFetch<T[]>(`${base}${query}`, { signal }),
       enabled,
     });
+  };
 
-  const useById: EntityHooks<T>['useById'] = (id) =>
+  const useById: EntityHooks<T, F>['useById'] = (id) =>
     useQuery({
       queryKey: [name, 'detail', base, id],
       queryFn: ({ signal }) => apiFetch<T>(`${base}${id}/`, { signal }),
       enabled: id !== null && id !== undefined,
     });
 
-  const useCreate: EntityHooks<T>['useCreate'] = () => {
+  const useCreate: EntityHooks<T, F>['useCreate'] = () => {
     const invalidate = useInvalidate();
     return useMutation({
       mutationFn: (body: CreateBody<T>) => apiFetch<T>(base, { method: 'POST', body }),
@@ -135,7 +145,7 @@ export function createEntityHooks<T extends { id: Scalar }>(
     });
   };
 
-  const useUpdate: EntityHooks<T>['useUpdate'] = (options) => {
+  const useUpdate: EntityHooks<T, F>['useUpdate'] = (options) => {
     const invalidate = useInvalidate();
     const onError = useRefetchOnConflict();
     return useMutation({
@@ -147,7 +157,7 @@ export function createEntityHooks<T extends { id: Scalar }>(
     });
   };
 
-  const useDelete: EntityHooks<T>['useDelete'] = (options) => {
+  const useDelete: EntityHooks<T, F>['useDelete'] = (options) => {
     const invalidate = useInvalidate();
     const onError = useRefetchOnConflict();
     return useMutation({

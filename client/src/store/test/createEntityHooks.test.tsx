@@ -78,4 +78,18 @@ describe('createEntityHooks (SPEC §5, DR-109)', () => {
     );
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
   });
+
+  it('takes only the filters its list has (SPEC DR-136)', () => {
+    const filtered = createEntityHooks<Thing, 'event' | 'completed'>({ name: 'Thing' });
+    expect(filtered.listKey({ event: 4, completed: 1 })).toEqual([
+      'Thing',
+      'list',
+      '/api/things/',
+      '?completed=1&event=4',
+    ]);
+    // @ts-expect-error -- not one of its filters (tsc -b checks this)
+    filtered.listKey({ evnt: 4 });
+    // @ts-expect-error -- an entity that names no filters takes none
+    things.listKey({ event: 4 });
+  });
 });
