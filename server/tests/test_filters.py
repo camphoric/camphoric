@@ -126,7 +126,7 @@ class EventListFilterTests(FilterTestCase):
                          [f'/events/{self.made.event.id}/register'])
 
     def test_and_ignores_other_parameters_and_an_organization_that_isnt_an_id(self):
-        for params in ({'_': 123}, {'organization': 'larkcamp'}):
+        for params in ({'_': 123}, {'organization': 'larkcamp'}, {'organization': '²'}):
             with self.subTest(params):
                 response = self.client.get('/api/eventlist', params)
                 self.assertEqual(response.status_code, 200)
