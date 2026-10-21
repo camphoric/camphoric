@@ -48,10 +48,10 @@ change feed, SPEC DR-112) need the ASGI server, and without it the admin says th
 
 ## Vagrant: parity checks only, not the inner loop
 
-Vagrant provisions a VM with the same Ansible playbooks as the production host, so it's the right
-tool for an occasional "does this actually work on a prod-like box" check before a release. It is
-heavyweight and prone to hangs, so it's a poor daily driver — prefer Docker Compose for the inner
-loop and reach for Vagrant deliberately.
+Vagrant provisions a VM with the repository's development Ansible playbook (nginx, PostgreSQL and
+the app's systemd services on Ubuntu), so it's the right tool for an occasional "does this actually
+work on a prod-like box" check before a release. It is heavyweight and prone to hangs, so it's a
+poor daily driver — prefer Docker Compose for the inner loop and reach for Vagrant deliberately.
 
 ### When Vagrant hangs
 

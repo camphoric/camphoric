@@ -2,8 +2,6 @@
 camphoric_uid: 1040
 camphoric_user: camphoric
 camphoric_environment: development
-camphoric_release: HEAD
-camphoric_force_update: false
 camphoric_domain_name: localhost
 camphoric_url: http://{{ camphoric_domain_name }}
 # The site's address as browsers reach it, for links in email (CAMPHORIC_PUBLIC_URL):
