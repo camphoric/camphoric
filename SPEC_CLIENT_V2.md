@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-135)
+- §15 — Decision Records (DR-1…DR-136)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -286,7 +286,17 @@ producing `useList`/`useById`/`useCreate`/`useUpdate`/`useDelete`) so all entiti
 consistently:
 
 - **List:** `GET /api/{entity}s/?<sorted query params>` → array. Query params are used for
-  server-side filtering (e.g. `?event=<id>`, `?completed=1`, `?registration__event=<id>`).
+  server-side filtering (e.g. `?event=<id>`, `?completed=1`, `?registration__completed=1`).
+  Every list of an event's records filters by `event`, however the record reaches its event
+  (campers, invoices and payments through their registration, invitations through their
+  registration type); the longer names (`registration__event`, `registration_type__event`,
+  `custom_charge_type__event`) filter the same way. A list answers 400, keyed by the parameter,
+  to a query parameter it doesn't filter by — besides `format`, its paging parameters and any
+  the endpoint reads itself (e.g. the email history's `q`) — and to an `event` that doesn't
+  exist (§15, DR-136). Invitations and registrations also filter by `registration_type`,
+  campers by `lodging`, and custom charges by `custom_charge_type`. Getting one record ignores
+  parameters that aren't filters; a filter given there narrows which record is found (404 when
+  the record doesn't match it).
 - **Get by id:** `GET /api/{entity}s/{id}/` → object.
 - **Create:** `POST /api/{entity}s/` (body without `id`/timestamps/`version`).
 - **Update:** `PATCH /api/{entity}s/{id}/` (partial body: the fields that changed), with
@@ -586,7 +596,8 @@ Non-CRUD admin endpoints:
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
   and the event's time zone to show them in. Events whose registration closed more than 3
-  months ago are left out.
+  months ago are left out. `?organization=<id>` lists one organization's events; other
+  parameters, and an `organization` that isn't an id, are ignored (§15, DR-136).
 
 ### Registration API (public)
 
@@ -885,7 +896,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **Lodging:** `id`, `event`, `parent`, `name`, `children_title`, `capacity`, `reserved`,
   `visible`, `sharing_multiplier`, `notes`.
 - **Deposit:** `id`, `event`, `deposited_on`, `attributes`, `amount`.
-- **Invoice** (`/api/invoices/`, filter `registration`, `registration__event`,
+- **Invoice** (`/api/invoices/`, filter `event`, `registration`, `registration__event`,
   `registration__completed`; §9.7, §15, DR-87): a request for one chunk of a registration's
   balance. `id`, `registration`, `origin` (`registration` | `payment_received` | `admin` |
   `migrated`, §9.7), `description`, `amount` (toward the registration), `handling` (the
@@ -992,7 +1003,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   (true if registrants without an invitation — no registration type — can't use it; false by
   default; §15, DR-107), timestamps. Any role reads; Registrars and Admins write and restore;
   only Admins delete (403 otherwise, as for its `delete-preview`; §15, DR-108).
-- **PricingOverride** (`/api/pricingoverrides/`, filter `registration`, `camper`,
+- **PricingOverride** (`/api/pricingoverrides/`, filter `event`, `registration`, `camper`,
   `registration__event`; §15, DR-56): a registrar's amount for one price line, in place of what
   the pricing logic computes. `id`, `registration`, `camper` (null for a line of the
   registration itself), `var` (the line), `amount`, `reason`, read-only `created_by`,
@@ -5656,6 +5667,27 @@ affected controls one by one (`color` on each subtle `ActionIcon`): many call si
 new one must remember. Stay on Mantine 8 (it supports React 19): falls behind the version
 `@rjsf/mantine` and Mantine's fixes now target.
 
+### DR-136 — Admin lists filter by `event` and refuse query parameters they don't filter by
+
+**Decision:** Every admin list of an event's records filters by `event`, whatever path leads to
+the event, alongside the longer names it already took. Invitations and registrations also filter
+by `registration_type`, campers by `lodging`, and custom charges by `custom_charge_type`.
+A list answers 400 to a query parameter that is none of its filters, its paging parameters,
+`format`, or one the endpoint reads itself; getting one record doesn't check (a filter given
+there still narrows which record is found). The public event list (`/api/eventlist`) filters by
+`organization` and ignores other parameters, and an `organization` that isn't an id.
+**Context:** #935. django-filter ignores any parameter it wasn't told about, so a wrong or
+missing filter returned every row with no error: `GET /api/invitations/?event=8` listed every
+event's invitations, because invitations filtered only on `registration_type__event`. A client
+that misspells a filter should find out at once, not show another event's records. The public
+event list is left lenient because pages that embed it may add parameters of their own (cache
+busters, tracking), and it holds nothing private.
+**Alternatives:** Rename the longer filters to `event` outright: breaks the client and any
+script using them, for no gain. Only add the missing filters and keep ignoring unknown ones: the
+next missing or misspelled filter fails just as quietly. Refuse unknown parameters on every
+request, single records too: a cache buster on a detail URL would start failing for no reason,
+and a detail request can't return the wrong rows.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -5701,8 +5733,8 @@ must be coordinated with the backend. Grouped by status.
 - **Server version:** `GET /api/version` with the shape in §5, read from the server's
   `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`
-  filtering (`DjangoFilterBackend`). The client fetches per-event sets via these filters
-  (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field
+  filtering (`django-filter`; a list refuses a parameter it doesn't filter by, DR-136). The client
+  fetches per-event sets via these filters (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field
   shapes in §5 must stay in sync with the serializers and the client's API types (§5, DR-27).
 - **Registration/payment:** `GET`/`POST /api/events/{id}/register` — the `ApiRegister` config
   bundle (including `registrationErrorMessages`) and the `step: 'registration' |
