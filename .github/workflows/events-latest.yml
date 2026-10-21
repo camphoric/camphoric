@@ -4,7 +4,8 @@
 # to the newest version its range allows, then runs the offline
 # tests and imports every event into a freshly built image, as docker.yml does.
 # It also notes an event with a newer major than its range, and an event
-# repository in the camphoric org whose package the importer doesn't install.
+# repository in the camphoric org whose package the importer doesn't install
+# or whose "Camphoric releases" check (upstream.yml) is missing or disabled.
 #
 # A failure or a note opens (or adds to) an issue labelled event-compat, which
 # a later clean run closes; a report the issue already has isn't repeated. On a

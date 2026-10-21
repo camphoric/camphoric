@@ -269,21 +269,29 @@ made-up event for this repository's tests, is the only event still in `data/even
 - **Releases.** Each repository releases with release-please from its Conventional Commits (tags
   `vX.Y.Z`; `feat:` and `fix:` release, `feat!:` is a major), and merging its release PR publishes
   that version. Its CI type-checks, runs the spec's conformance tests, lints and smoke-tests the
-  packed package; its e2e tests drive the registration form against the latest Camphoric image, on
-  pull requests and weekly. The Actions bot opens the release PR, so its CI and e2e runs wait for
+  packed package; its e2e tests drive the registration form against the latest Camphoric image on
+  pull requests, and against exact releases from its "Camphoric releases" check (below). The Actions bot opens the release PR, so its CI and e2e runs wait for
   someone to approve them.
-- **Testing against new Camphoric releases.** So far nothing tests an event repository against a
-  new Camphoric release before its weekly e2e run, or against a new import-spec or import-tools
-  version before its lockfile moves. [doc/event-repo-ci.md](./doc/event-repo-ci.md) recommends
-  how they should check for new releases themselves, and how to test a pre-release by hand (work
-  tracked in [#917](https://github.com/camphoric/camphoric/issues/917)).
+- **Testing against new Camphoric releases.** Each event repository's "Camphoric releases" check
+  (`.github/workflows/upstream.yml`) tests it against a new Camphoric release, or a new
+  import-spec or import-tools version, within about 6 hours, and against all of them every Monday
+  ([doc/event-repo-ci.md](./doc/event-repo-ci.md) has the design). A failure, or a newer package
+  version outside the event's range, goes in a `camphoric-compat` issue in that repository, which
+  a clean run closes; [`is:open label:camphoric-compat org:camphoric`](https://github.com/issues?q=is%3Aopen+label%3Acamphoric-compat+org%3Acamphoric)
+  lists them all. After fixing one, run that repository's `upstream.yml` with `force` to check it
+  before the next new release or Monday. A pre-release isn't tested by itself: once
+  `prerelease.yml` has pushed its image, `data/scripts/test-event-repos.sh <tag>` runs every event
+  repository's e2e tests against it (with your own `gh` login). `events-latest.yml`'s weekly
+  notes flag an event repository whose check is missing or disabled (GitHub disables it after 60
+  days without activity in the repository).
 - **Publishing access.** As for the packages above, each package lists its repository's release
   workflow as a trusted publisher on npmjs.com.
 - **In Camphoric.** The importer installs each event by a caret range, and the lockfile pins the
   version every workflow tests; a new minor or patch reaches it with a lockfile update. Every week,
   `events-latest.yml` tests the newest versions the ranges allow, and opens an `event-compat` issue
   when one fails, when an event publishes a major beyond its range, or when the org has an event
-  repository whose package `data/` doesn't install. A new event major needs the importer's range
+  repository whose package `data/` doesn't install or whose "Camphoric releases" check is missing
+  or disabled. A new event major needs the importer's range
   raised; a new spec major is rolled out as described in "What a spec version means" above.
 
 ### Adding a camp's event

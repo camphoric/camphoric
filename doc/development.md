@@ -232,7 +232,7 @@ test the event versions the lockfile pins; every week, `.github/workflows/events
 each to the newest version its range allows and tests and imports them again, opening an
 `event-compat` issue when they fail, when an event has a newer major than its range, or when the
 camphoric org has an event repository (`camphoric-event-<name>`) whose package `data/` doesn't
-install. `node scripts/registry-events.mjs`
+install or whose "Camphoric releases" check (`upstream.yml`) is missing or disabled. `node scripts/registry-events.mjs`
 lists the events `data/` installs from npm, and `scripts/latest-events-notes.sh` gives
 those notes.
 
