@@ -10,3 +10,9 @@
     name: camphoric
     state: restarted
     daemon_reload: yes
+
+# setup_nginx.yml reloads nginx only when it changed the camphoric site.
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded

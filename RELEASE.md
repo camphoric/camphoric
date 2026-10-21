@@ -142,7 +142,7 @@ code instead of downloading the release asset. A run of the camphoric role:
    onto the new code and static files. If collectstatic fails after the new build is installed,
    the forced restart serves the new `index.html` without its bundles. If the migrations fail, it
    runs the new code on the old schema. Either way, fix the cause and run the playbook again.
-7. Installs the nginx site and restarts nginx, and, outside `production`, loads sample data into
+7. Installs the nginx site (reloading nginx when the site changed) and, outside `production`, loads sample data into
    an empty database (only `development` installs the `data/` packages the import needs).
 
 To provision a VM with another `camphoric_environment` (`production`, to rehearse a production

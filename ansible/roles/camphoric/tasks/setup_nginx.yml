@@ -3,24 +3,35 @@
   template:
     src: camphoric.nginx.j2
     dest: "/etc/nginx/sites-available/camphoric"
+  notify: Reload nginx
 
 - name: Disable default nginx site
   file:
     path: "/etc/nginx/sites-enabled/default"
     state: absent
+  notify: Reload nginx
 
 - name: Enable camphoric nginx site
   file:
     src: "/etc/nginx/sites-available/camphoric"
     dest: "/etc/nginx/sites-enabled/camphoric"
     state: link
+  notify: Reload nginx
 
 - name: Remove nginx default index.html
   file:
     path: "/usr/share/nginx/html/index.html"
     state: absent
 
-- name: Reload nginx to activate camphoric site
-  service:
+# Reload now, not at the end of the play: a run interrupted during the long
+# sample data import would otherwise leave the new site unloaded, and the next
+# run, finding the site unchanged, wouldn't reload it.
+- name: Reload nginx if its site changed
+  ansible.builtin.meta: flush_handlers
+
+# The reload above starts a stopped nginx too; this covers an unchanged site.
+- name: Start nginx
+  ansible.builtin.systemd:
     name: nginx
-    state: restarted
+    state: started
+    enabled: yes

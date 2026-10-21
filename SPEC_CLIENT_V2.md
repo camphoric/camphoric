@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-20
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -5087,7 +5087,7 @@ tables narrow — the text is theirs, and the client renders whatever the event 
 
 **Decision:** The v1 client is deleted from the repository, and the v2 client moves from
 `client_v2/` into `client/` in its place. It is the one frontend: the container image bakes it
-in, the Ansible role builds it from the checkout it deploys and installs the build into
+in, the development Ansible role builds it from the checkout it provisions and installs the build into
 `server/frontend_bootstrap/build/`, the dev compose `react` service runs its Vite dev server, and
 releases attach only `frontend-build-v2.tar.gz`. The `js-build-main` branch and
 the workflow that published v1 to it are retired.
@@ -5101,7 +5101,8 @@ the v1 build on older releases.
 which is gone. Keep v1 frozen alongside v2 — it would keep deploying through Ansible while
 silently losing edits, and kept an outdated toolchain (React 17, Vite 4, ESLint 8) in CI. Have
 Ansible download the release's `frontend-build-v2.tar.gz` — ties the frontend to a tag the role
-doesn't yet check out (#797); building from the checkout keeps server and frontend together.
+doesn't check out (it provisions only the development VM, #797); building from the checkout
+keeps server and frontend together.
 
 ### DR-116 — Only superusers act on the accounts of users with Django access
 
@@ -5321,8 +5322,8 @@ with NFKC and casefolded, since look-alikes sign in as the same user), from any 
 the server answers 429 with `Retry-After` without checking the password, and the sign-in form
 says how long to wait. The DRF browsable API's own login (`/api-auth/`) is removed: nothing used
 it, and the browsable API still works with a session from the admin. The throttles count the
-connecting address unless `NUM_PROXIES` says how many proxies are in front (the Ansible
-deployment sets 1), so a client can't get a fresh count by writing its own `X-Forwarded-For`.
+connecting address unless `NUM_PROXIES` says how many proxies are in front (the development
+Ansible role sets 1, for its nginx), so a client can't get a fresh count by writing its own `X-Forwarded-For`.
 The importer signs in once per server per run.
 **Context:** #800: none of the sign-in paths was throttled, so passwords could be guessed without
 limit, and the token endpoint needs no CSRF token, which made it easy to script. Counting by
