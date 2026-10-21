@@ -50,6 +50,7 @@ LEFT_BEHIND = {
     ('camper', 'lodging_requested'): 'will no longer show the lodging they asked for',
     ('payment', 'deposit'): 'will no longer be part of a deposit',
     ('invitation', 'registration'): 'will no longer link to a registration',
+    ('registration', 'started_with_invitation'): 'will no longer link to the invitation',
     ('logentry', 'actor'): 'stay in the audit log with their email, no longer linked to the user',
     # Many-to-many, by (model, field) of the link.
     ('promocode', 'excluded_registration_types'): 'will no longer exclude it',

@@ -34,9 +34,15 @@ describe('invitationStatus', () => {
     expect(invitationStatus(invitation({ sent_time: '2026-01-01T00:00:00Z' }))).toBe('Sent');
   });
 
-  it('is redeemed once it has a registration, whatever its email did', () => {
-    expect(invitationStatus(invitation({ registration: 5, email: email('failed') }))).toBe(
-      'Redeemed',
-    );
+  it('is redeemed once a registration is completed with it, whatever its email did', () => {
+    expect(
+      invitationStatus(invitation({ registration: 5, redeemed: true, email: email('failed') })),
+    ).toBe('Redeemed');
+  });
+
+  it('is not redeemed by a registration only started with it (#803)', () => {
+    expect(
+      invitationStatus(invitation({ registration: 5, redeemed: false, email: email('sent') })),
+    ).toBe('Sent');
   });
 });

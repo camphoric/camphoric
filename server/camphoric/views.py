@@ -43,6 +43,7 @@ from camphoric import (
     filters,
     invoices,
     leases,
+    live,
     models,
     pricing,
     roles,
@@ -226,15 +227,21 @@ def lock_registration_first(instance):
     does, keeps two at once from each holding a row the other needs (DR-109).
     An invoice too: the payment step, a capture and "Check PayPal order" take
     the registration and then the invoice (#819, #767). (A payment's edit
-    takes the payment first, as a refund through PayPal does.)
+    takes the payment first, as a refund through PayPal does.) And an
+    invitation: deleting one clears it from the registrations started with it,
+    and completing one of those takes the registration and then the invitation
+    (#803).
     '''
+    registrations = models.Registration.all_objects
     if isinstance(instance, models.CustomCharge):
-        registration_id = instance.camper.registration_id
+        registrations = registrations.filter(pk=instance.camper.registration_id)
     elif isinstance(instance, (models.Camper, models.PricingOverride, models.Invoice)):
-        registration_id = instance.registration_id
+        registrations = registrations.filter(pk=instance.registration_id)
+    elif isinstance(instance, models.Invitation):
+        registrations = registrations.filter(started_with_invitation=instance)
     else:
         return
-    models.Registration.all_objects.select_for_update().filter(pk=registration_id).first()
+    list(registrations.select_for_update().order_by('pk'))
 
 
 class VersionCheckMixin:
@@ -719,7 +726,10 @@ class RegistrationTypeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSe
 
 
 class InvitationViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Invitation.objects.select_related('registration')
+    # `redeemed` for the whole list in one query, not one per invitation.
+    queryset = models.Invitation.objects.select_related('registration').annotate(
+        redeemed=Exists(models.Invitation.redeeming_registrations(
+            OuterRef('pk'), OuterRef('registration_id'))))
     serializer_class = serializers.InvitationSerializer
     filterset_class = filters.InvitationFilter
 
@@ -1270,6 +1280,9 @@ class InvitationError(Exception):
         self.user_message = user_message
 
 
+INVITATION_REDEEMED = 'Sorry, that invitation code has already been redeemed'
+
+
 def invitation_credentials(request):
     '''The invitation's email and code the request gives, either possibly None.'''
     if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
@@ -1329,6 +1342,21 @@ class InvitationRejected(APIException):
     '''
     status_code = status.HTTP_400_BAD_REQUEST
     default_code = 'invitation'
+
+
+class InvitationRedeemed(serializers.Conflict):
+    '''
+    Completing a registration started with an invitation that another
+    registration has since redeemed (#803): a 409 whose `detail` the payment
+    page shows. Several registrations may start with one invitation; only the
+    first completed gets it.
+    '''
+    def __init__(self):
+        super().__init__({
+            'detail': 'Sorry, that invitation code has already been redeemed by another '
+                      'registration.',
+            'code': 'invitation_redeemed',
+        })
 
 
 class RegistrationNotFound(NotFound):
@@ -1561,6 +1589,7 @@ class RegisterView(APIView):
 
         if invitation:
             registration.registration_type = invitation.registration_type
+            registration.started_with_invitation = invitation
 
         registration.promo_code = self.find_promo_code(
             request, event, registration.registration_type)
@@ -1576,6 +1605,11 @@ class RegisterView(APIView):
         registration.save_without_recalc()
 
         if invitation:
+            # Locked, as completing takes it: one completed since it was found
+            # keeps it, and this registration is refused (#803).
+            invitation = models.Invitation.objects.select_for_update().get(pk=invitation.pk)
+            if invitation.is_redeemed():
+                raise InvitationRejected(INVITATION_REDEEMED)
             invitation.registration = registration
             invitation.save()
 
@@ -1721,14 +1755,41 @@ class RegisterView(APIView):
         '''The registration invoice can still change: nothing has been paid on it.'''
         return not invoices.has_payments(invoices.registration_invoice(registration))
 
-    @staticmethod
-    def complete(registration):
-        '''A payment button was pressed: the registration is completed, unpaid (DR-91).'''
+    @classmethod
+    def complete(cls, registration):
+        '''
+        A payment button was pressed: the registration is completed, unpaid
+        (DR-91), and redeems the invitation it was started with, if any. Call it
+        in the transaction that holds the registration's lock.
+        '''
         if registration.completed:
             return
+        cls.redeem_invitation(registration)
         registration.completed = True
         registration.completed_at = timezone.now()
         registration.save()
+
+    @staticmethod
+    def redeem_invitation(registration):
+        '''
+        Link the registration's invitation to it, or InvitationRedeemed if another
+        registration completed with it first (#803). The invitation is locked, so
+        two registrations completing with it at once take turns.
+        '''
+        if registration.started_with_invitation_id is None:
+            return
+        invitation = models.Invitation.objects.select_for_update().filter(
+            id=registration.started_with_invitation_id).first()
+        if invitation is None:
+            return
+        if invitation.is_redeemed(other_than=registration):
+            raise InvitationRedeemed()
+        if invitation.registration_id != registration.id:
+            invitation.registration = registration
+            invitation.save()
+        else:
+            # Unsaved, it's redeemed all the same: the invitations list hears of it (§9.8).
+            live.notify_changed(invitation)
 
     def problem_response(self, request, registration, problem):
         data = {
@@ -2053,8 +2114,8 @@ class RegisterView(APIView):
         if getattr(invitation.registration_type, 'event_id', None) != event.id:
             raise InvitationError('Sorry, that invitation is for a different event')
 
-        if invitation.registration and invitation.registration.completed:
-            raise InvitationError('Sorry, that invitation code has already been redeemed')
+        if invitation.is_redeemed():
+            raise InvitationError(INVITATION_REDEEMED)
 
         if invitation.expiration_time and invitation.expiration_time < timezone.now():
             raise InvitationError('Sorry, that invitation code has expired')

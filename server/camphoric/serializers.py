@@ -213,7 +213,7 @@ class RegistrationSerializer(ModelSerializer):
     class Meta:
         model = models.Registration
         fields = '__all__'
-        read_only_fields = ['completed_at', 'confirmation_sent_at']
+        read_only_fields = ['completed_at', 'confirmation_sent_at', 'started_with_invitation']
         list_serializer_class = RegistrationListSerializer
 
     def to_representation(self, registration):
@@ -500,6 +500,8 @@ class ReportSerializer(ModelSerializer):
 class InvitationSerializer(ModelSerializer):
     # The latest invitation email's delivery: its status and error (null: never sent).
     email = SerializerMethodField()
+    # A registration completed with it: only the first is, so it can't be used again (#803).
+    redeemed = SerializerMethodField()
     # Redeemed by a registration that's since been deleted (it still counts as redeemed).
     registration_deleted = SerializerMethodField()
     # The registration page with this invitation's code, for an organizer to copy
@@ -516,9 +518,17 @@ class InvitationSerializer(ModelSerializer):
             return ''
         return register_url(registration_type.event_id, invitation, self.context.get('request'))
 
+    def get_redeemed(self, invitation):
+        # The list annotates it (InvitationViewSet); a record just saved isn't.
+        if hasattr(invitation, 'redeemed'):
+            return invitation.redeemed
+        return invitation.is_redeemed()
+
     def get_registration_deleted(self, invitation):
+        # A started registration deleted before it was completed never redeemed it.
         registration = invitation.registration
-        return registration is not None and registration.deleted_at is not None
+        return (registration is not None and registration.completed
+                and registration.deleted_at is not None)
 
     def get_email(self, invitation):
         message = (models.EmailMessage.objects.filter(invitation=invitation)

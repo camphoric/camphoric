@@ -26,8 +26,7 @@ vi.mock('@tanstack/react-router', () => ({
 const config = makeRegisterConfig({ dataSchema: { title: 'Camp' } });
 
 vi.mock('store/registrationApi', async (importOriginal) => ({
-  registrationNotFound: (await importOriginal<typeof import('store/registrationApi')>())
-    .registrationNotFound,
+  ...(await importOriginal<typeof import('store/registrationApi')>()),
   useRegistrationConfig: () => ({ data: config }),
   useSubmitPayment: () => ({ mutate: submitMutate, isPending: false }),
 }));
@@ -63,5 +62,27 @@ describe('NoPayment', () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({ to: '/events/$eventId/register/registration' }),
     );
+  });
+
+  it('says why when the server refuses to complete it (#803)', async () => {
+    const user = userEvent.setup();
+    submitMutate.mockImplementation((_body: unknown, options: { onError: (e: unknown) => void }) =>
+      options.onError(
+        new ApiError(409, 'Conflict', {
+          code: 'invitation_redeemed',
+          detail: 'Sorry, that invitation code has already been redeemed by another registration.',
+        }),
+      ),
+    );
+
+    renderWithProviders(<NoPayment eventId="1" registrationUUID="uuid-1" />);
+    await user.click(screen.getByRole('button', { name: 'Finish registration' }));
+
+    expect(
+      screen.getByText(
+        'Sorry, that invitation code has already been redeemed by another registration.',
+      ),
+    ).toBeInTheDocument();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
