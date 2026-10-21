@@ -76,6 +76,8 @@ jobs:
         working-directory: data
         run: |
           scripts/latest-events-notes.sh > "$RUNNER_TEMP/notes.md"
+          # In the log too, which shows them to anyone who can read it
+          cat "$RUNNER_TEMP/notes.md"
           if [ -s "$RUNNER_TEMP/notes.md" ]; then
             { echo '### Notes'; cat "$RUNNER_TEMP/notes.md"; } >> "$GITHUB_STEP_SUMMARY"
             echo "found=true" >> "$GITHUB_OUTPUT"
