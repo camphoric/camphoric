@@ -358,8 +358,6 @@ first create it:
 camphoric_paypal_client_id: <longstringofencrypedbullshithere>
 camphoric_paypal_secret: <longstringofencrypedbullshithere>
 camphoric_email_name: 'TEST camphoric registration'
-camphoric_email_host: 'smtp.gmail.com'
-camphoric_email_port: '587'
 camphoric_email_host_user: my.throwaway.account@gmail.com
 camphoric_email_host_password: aaaaaaaaaaaaaaaa 
 ```

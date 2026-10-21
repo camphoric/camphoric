@@ -15,29 +15,34 @@
     PAYPAL_SECRET: "{{ camphoric_paypal_secret }}"
     CAMPHORIC_URL: "{{ camphoric_url }}:8000"
   block:
-    # Part of a reset: the "never" tag keeps it out of untagged and install runs,
-    # so it only runs when a reset tag is requested explicitly.
+    # Part of a reset: the "never" tag keeps it out of untagged runs, so it only
+    # runs when camphoric_data_reset is requested explicitly.
     - name: Reset data
-      tags: [never, camphoric_reset, camphoric_data_reset]
+      tags: [never, camphoric_data_reset]
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
         cmd: pipenv run python manage.py flush --noinput
         chdir: "{{camphoric_folder}}/server"
 
-    # A data reset skips "Setup Django", so migrate here too: loading into a
-    # schema behind the code fails partway, leaving only the first event.
+    # A data reset skips "Setup Django", so it migrates here: loading into a
+    # schema behind the code fails partway, leaving only the first event. A
+    # full provision has just migrated in "Setup Django".
     - name: Run Django migrations
-      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      tags: [camphoric_data_reset]
+      when: "'camphoric_data_reset' in ansible_run_tags"
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
         cmd: pipenv run python manage.py migrate
         chdir: "{{camphoric_folder}}/server"
 
-    # Fails harmlessly when the superuser already exists (no reset ran).
+    # The reset above deletes the superuser, so a data reset makes it again
+    # (a full provision has just made it in "Setup Django"). Fails harmlessly
+    # when the superuser already exists.
     - name: Create Django superuser
-      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      tags: [camphoric_data_reset]
+      when: "'camphoric_data_reset' in ansible_run_tags"
       ignore_errors: yes
       become: yes
       become_user: "{{ camphoric_user }}"
@@ -47,7 +52,7 @@
 
     - name: Install npm modules
       when: camphoric_environment == 'development'
-      tags: [npm, camphoric_install, camphoric_reset, camphoric_data_reset]
+      tags: [npm, camphoric_data_reset]
       ansible.builtin.shell:
         chdir: "{{camphoric_folder}}/data"
         cmd: "npm ci"
@@ -57,7 +62,7 @@
     # deletes and recreates each event's lodgings (which cascades to their
     # campers) and posts its reports and test registrations again.
     - name: Check whether the database already has events
-      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      tags: [camphoric_data_reset]
       become: yes
       become_user: "{{ camphoric_user }}"
       ansible.builtin.shell:
@@ -70,7 +75,7 @@
       changed_when: false
 
     - name: Load sample data
-      tags: [camphoric_install, camphoric_reset, camphoric_data_reset]
+      tags: [camphoric_data_reset]
       when: (camphoric_has_events.stdout_lines | last | default('')) == 'False'
       become: yes
       become_user: "{{ camphoric_user }}"

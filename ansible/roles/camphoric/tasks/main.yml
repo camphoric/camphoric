@@ -1,25 +1,24 @@
 ---
+# Tags: run untagged for a full provision. Only camphoric_data_reset (and npm, to skip the
+# data/ npm install) select tasks: an include_tasks' tags don't reach the tasks it includes,
+# so every task under "Import sample data" carries camphoric_data_reset itself.
 - name: Check secrets
   tags: [always]
   import_tasks: check_secrets.yml
 
 - name: Install camphoric prereqs
-  tags: [camphoric_install]
   include_tasks: install_prereqs.yml
 
 - name: Setup Django
-  tags: [camphoric_django, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_django.yml
 
 - name: Setup Django service
-  tags: [camphoric_django, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_django_service.yml
 
 - name: Setup nginx site
-  tags: [camphoric_nginx, camphoric_install, camphoric_update, camphoric_reset]
   include_tasks: setup_nginx.yml
 
 - name: Import sample data
-  tags: [camphoric_data, camphoric_install, camphoric_reset, camphoric_data_reset]
+  tags: [camphoric_data_reset]
   include_tasks: import_sample_data.yml
   when: camphoric_environment != 'production'

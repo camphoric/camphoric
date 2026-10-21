@@ -14,14 +14,11 @@ camphoric_postgresql_user: camphoric
 camphoric_postgresql_password: this-should-be-in-a-vault
 camphoric_postgresql_db: camphoric
 
-camphoric_email_backend: django.core.mail.backends.smtp.EmailBackend
-camphoric_email_host: smtp.example.com
-camphoric_email_port: 587
+# The sample data import gives the camps' email account this name and login
+# (CAMPHORIC_LTA_GMAIL_*); the camps' event packages set its server (smtp.gmail.com:587).
 camphoric_email_name: tester
 camphoric_email_host_user: registration@example.com
 camphoric_email_host_password: abc123
-camphoric_email_use_tls: on
-camphoric_email_timeout: 30
 # Send every message through this backend instead of its account's server. A
 # development machine defaults to the console backend (messages go to the worker's
 # log), so it never emails anyone; set '' in host_vars to send for real.

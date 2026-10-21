@@ -32,6 +32,3 @@
     name: "{{ camphoric_postgresql_db }}"
     owner: "{{ camphoric_postgresql_user }}"
     state: present
-  register: camphoric_db_created
-
-

@@ -16,6 +16,8 @@
       - nginx
     state: latest
     update_cache: true
+    # Refresh the package lists at most once an hour, not on every provision.
+    cache_valid_time: 3600
 
 - name: Check node is installed
   ansible.builtin.raw: node --version

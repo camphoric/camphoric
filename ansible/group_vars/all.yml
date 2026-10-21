@@ -15,22 +15,6 @@ nodejs_supported_versions: ['26.x']
 camphoric_uid: 1000
 camphoric_user: vagrant
 camphoric_folder: "/vagrant"
-
-camphoric_hosted_location: "/"
 camphoric_postgresql_user: vagrant
-camphoric_postgresql_db: camphoric
 
-camphoric_email_backend: django.core.mail.backends.smtp.EmailBackend
-camphoric_email_host: smtp.example.com
-camphoric_email_port: 587
-camphoric_email_host_user: registration@example.com
-camphoric_email_host_password: abc123
-camphoric_email_use_tls: on
-camphoric_email_timeout: 30
-
-camphoric_django_superuser_username: admin
 camphoric_django_superuser_email: registration@larkcamp.org
-
-camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
-
-nginx_ssl_on: true
