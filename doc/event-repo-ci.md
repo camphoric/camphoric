@@ -2,12 +2,11 @@
 
 This note is for maintainers. It answers [#856](https://github.com/camphoric/camphoric/issues/856):
 when Camphoric or one of its import packages is released, how does each camp's event repository
-get tested against the new version, instead of waiting up to a week for its weekly run? It is a
-recommendation; the work to carry it out is tracked in
-[#917](https://github.com/camphoric/camphoric/issues/917) and carried out in each event repository
-by pull requests camphoric/camphoric-event-lark#5, -harmony#3, -familyweek#4 and -ltacampout#4,
-whose workflow files are identical. Once that lands, the outcome belongs in
-[RELEASE.md](../RELEASE.md) ("Event repositories"), and this note keeps the reasoning. It
+get tested against the new version, instead of waiting up to a week for its weekly run? It was the
+recommendation for that, carried out in [#917](https://github.com/camphoric/camphoric/issues/917)
+(camphoric/camphoric-event-lark#5, -harmony#3, -familyweek#4 and -ltacampout#4, whose workflow
+files are identical, and this repository's scripts in section 12). How to use it is in
+[RELEASE.md](../RELEASE.md) ("Event repositories"); this note keeps the reasoning. It
 supersedes the first recommendation, posted as a comment on #856, where they differ: the packages
 are now on npm rather than GitHub Packages, the app's tag is picked by version rather than by
 "Latest", the packages' versions are sorted by semver, and the check tests the newest release whose
@@ -24,7 +23,7 @@ maintainer's own `gh` login.
 
 ## 1. Where things stand
 
-| Release | What it publishes | What tests an event repository against it today |
+| Release | What it publishes | What tested an event repository against it before #917 |
 | --- | --- | --- |
 | The app, `vX.Y.Z` (`release-please.yml`) | the image `ghcr.io/camphoric/camphoric:vX.Y.Z`, and `latest` | `e2e.yml` in each event repository, against `latest`: on pull requests, on Mondays at 14:00 UTC, and by hand (`workflow_dispatch` with an `image_tag` input) |
 | A pre-release, `vX.Y.Z-<pre>.N` (`prerelease.yml`) | the image at that tag (never `latest`) | nothing, unless someone runs `e2e.yml` by hand with that `image_tag` |
@@ -276,9 +275,9 @@ the scheduled check has run for a while.
 
 ## 11. The workflows in each event repository
 
-The workflows are added by [camphoric-event-lark#5](https://github.com/camphoric/camphoric-event-lark/pull/5)
-(once merged, in lark's `.github/workflows/`), and the other three event repositories' pull
-requests add byte-identical copies. That code is the reference; this outline doesn't repeat it.
+The workflows are in each event repository's `.github/workflows/` (added in
+[camphoric-event-lark#5](https://github.com/camphoric/camphoric-event-lark/pull/5) and its copies),
+byte-identical in all four. That code is the reference; this outline doesn't repeat it.
 `scripts/smoke-test-package.sh` is the exception: each repository keeps its own, which differ
 slightly (ltacampout always checks for `reports/`), so a change to it is applied to each copy, not
 copied from lark.
@@ -305,19 +304,23 @@ copied from lark.
 
 ## 12. Changes in this repository
 
-Camphoric's release workflows don't change. Two small additions, once the event repositories have
-`upstream.yml`:
+Camphoric's release workflows don't change. Two small additions:
 
 - **`data/scripts/latest-events-notes.sh`** notes an event repository whose `upstream.yml` is missing
-  or not `active`. The workflow's state is public, so the default token can read it. (Adding this
-  note earlier would flag every event repository each week until they have the workflow.)
+  (a 404) or not `active` (`disabled_inactivity`, say), and one it couldn't look up. The workflow's
+  state is public, so the default token can read it.
 - **`data/scripts/test-event-repos.sh <image-tag>`** runs every event repository's `e2e.yml`
-  against a pre-release tag and prints each run's link.
+  against a pre-release tag and prints each run's link, exiting non-zero when it couldn't start
+  one.
 
-[RELEASE.md](../RELEASE.md) then says that the event repositories test a new release within about
+[RELEASE.md](../RELEASE.md) says that the event repositories test a new release within about
 6 hours, how to check a pre-release, and where failures show up.
 
 ## 13. Rollout
+
+All three steps are done: the event repositories' pull requests were merged on 2026-10-20, and each
+repository's `upstream.yml` then ran with `force` (testing and saving the marker) and without it
+(skipping on the marker).
 
 1. **One event repository first:** add `upstream.yml` and the `ci.yml` / `e2e.yml` changes, run
    `upstream.yml` by hand with `force`, then again without it to see the marker skip the run.
