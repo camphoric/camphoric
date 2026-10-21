@@ -192,9 +192,13 @@ built client. Match the patterns already in the codebase rather than introducing
   non-CRUD endpoints are plain `APIView`s added to `urlpatterns` (these have **no** trailing
   slash — e.g. `/api/login`, `/api/user`, `/api/events/<id>/register`, `/api/reports/<id>/render`,
   `/api/invitations/<id>/send`, `/api/set-csrf-cookie`).
-- **Filtering** uses `django-filter`'s `DjangoFilterBackend`; declare `filterset_fields` on the
-  viewset (e.g. `Registration` filters on `['event', 'completed']`). The client relies on these
-  query params — keep them stable.
+- **Filtering** uses `django-filter` through `camphoric.filters.StrictFilterBackend`; declare
+  `filterset_fields` on the viewset (e.g. `Registration` filters on `['event', 'completed']`),
+  or a `filterset_class` from `camphoric/filters.py` when a filter needs another name (every list
+  of an event's records filters by `event`, e.g. campers by `registration__event`). A list
+  answers 400 to any other query parameter, so a viewset that reads a parameter of its own in
+  `get_queryset` must name it in `extra_query_params` (e.g. the email history's `q`). The client
+  relies on these query params — keep them stable.
 - **Permissions:** viewsets default to `IsAdminUser`. Public endpoints (registration, event
   list, CSRF cookie) are deliberately open. Don't loosen a viewset's permissions casually.
 - **Auth:** session auth + CSRF is what the client uses; login is `csrf_protect`-ed and sets an

@@ -265,8 +265,9 @@ REST_FRAMEWORK = {
         'camphoric.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
+    # A list refuses a query parameter it doesn't filter by (camphoric.filters).
     'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
+        'camphoric.filters.StrictFilterBackend',
     ],
     # Closed unless a view says otherwise: any Camphoric permission group may
     # read, Registrars and Admins may write (camphoric.permissions, SPEC DR-50).

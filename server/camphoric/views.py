@@ -40,6 +40,7 @@ from camphoric import (
     authentication,
     confirmations,
     deletes,
+    filters,
     invoices,
     leases,
     models,
@@ -585,6 +586,7 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
     `q` searches the recipient and subject. The list leaves out the content.
     '''
     pagination_class = EmailMessagePagination
+    extra_query_params = ('q',)
     filterset_fields = {
         'event': ['exact'],
         'batch': ['exact'],
@@ -662,7 +664,7 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Registration.objects.select_related('promo_code')
     serializer_class = serializers.RegistrationSerializer
-    filterset_fields = ['event', 'completed']
+    filterset_fields = ['event', 'completed', 'registration_type']
     deleted_filters = {'event': 'event'}
     deleted_extras = ('camper_count',)
 
@@ -719,7 +721,7 @@ class RegistrationTypeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSe
 class InvitationViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Invitation.objects.select_related('registration')
     serializer_class = serializers.InvitationSerializer
-    filterset_fields = ['registration', 'registration_type__event']
+    filterset_class = filters.InvitationFilter
 
 
 class LodgingViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
@@ -734,7 +736,7 @@ class LodgingViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Camper.objects.all()
     serializer_class = serializers.CamperSerializer
-    filterset_fields = ['registration__event', 'registration', 'registration__completed']
+    filterset_class = filters.CamperFilter
 
     @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
     def history(self, request, pk=None):
@@ -746,7 +748,7 @@ class PricingOverrideViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet
     '''Registrars' amounts for single price lines of a registration or camper (SPEC DR-56).'''
     queryset = models.PricingOverride.objects.select_related('created_by', 'registration__event')
     serializer_class = serializers.PricingOverrideSerializer
-    filterset_fields = ['registration', 'camper', 'registration__event']
+    filterset_class = filters.PricingOverrideFilter
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -773,7 +775,7 @@ class InvoiceViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Invoice.objects.select_related('created_by', 'registration__event') \
         .prefetch_related('payments')
     serializer_class = serializers.InvoiceSerializer
-    filterset_fields = ['registration', 'registration__event', 'registration__completed']
+    filterset_class = filters.InvoiceFilter
     delete_permission_classes = [AdminOnly]
 
     def perform_create(self, serializer):
@@ -918,7 +920,7 @@ class PaymentViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mod
     '''
     queryset = models.Payment.objects.select_related('invoice', 'registration__event')
     serializer_class = serializers.PaymentSerializer
-    filterset_fields = ['registration', 'registration__event', 'invoice']
+    filterset_class = filters.PaymentFilter
     delete_permission_classes = [AdminOnly]
 
     def delete_checks(self):
@@ -1026,7 +1028,7 @@ class CustomChargeTypeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSe
 class CustomChargeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.CustomCharge.objects.all()
     serializer_class = serializers.CustomChargeSerializer
-    filterset_fields = ['camper', 'custom_charge_type__event']
+    filterset_class = filters.CustomChargeFilter
 
 
 class UserHistoryPagination(PageNumberPagination):
@@ -1043,6 +1045,7 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
     '''
     serializer_class = serializers.EditLeaseSerializer
     pagination_class = None
+    extra_query_params = ('event', 'model', 'object_id')
 
     def get_queryset(self):
         params = self.request.query_params
@@ -1353,7 +1356,6 @@ class RegistrationThrottled(Throttled):
 
 class EventList(APIView):
     permission_classes = [permissions.AllowAny]
-    filterset_fields = ['organization']
 
     def get(self, request):
         '''
@@ -1367,9 +1369,16 @@ class EventList(APIView):
 
         Events whose registration closed more than 3 months ago are omitted;
         events with no registration close date are always included.
+        `?organization=<id>` lists one organization's events.
         '''
         cutoff = timezone.now() - relativedelta(months=3)
         events = models.Event.objects.exclude(registration_end__lt=cutoff)
+        # Pages that embed this public list may add query parameters of their
+        # own, so it ignores any it doesn't know, and an organization that
+        # isn't an id.
+        organization = request.query_params.get('organization', '')
+        if organization.isdigit():
+            events = events.filter(organization_id=organization)
 
         def iso_or_none(value):
             return value.isoformat() if value else None
