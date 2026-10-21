@@ -179,6 +179,15 @@ flowchart TD
 
 - The registration is **started** when the form is sent, and **completed** the moment a payment
   button is pressed (`RegisterView.complete`). It's in the admin lists from then on.
+- **One invitation, one completed registration (#803).** Several registrations may be started
+  with the same invitation (two tabs, a second try), each recording it as
+  `started_with_invitation`. Completing one redeems the invitation; completing another after that
+  is refused — 409 `invitation_redeemed`, with nothing saved or charged — and the payment page
+  shows the message (`RegisterView.redeem_invitation`, which locks the invitation so
+  two completing at once take turns). Starting one locks it too and is refused once one is
+  completed, so it can't take the link from the registration that redeemed it; deleting an
+  invitation locks its started registrations first (`lock_registration_first`), the order
+  completing takes them in.
 - The browser saves the payment step in localStorage, with the form data and promo code it was
   sent with (`pages/register/storage.ts`), so a reload — or coming back after closing PayPal's
   window — resumes paying for the same registration, still showing what was entered. Coming back

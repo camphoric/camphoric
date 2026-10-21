@@ -117,6 +117,8 @@ export interface ApiRegistration extends TimeStamped {
   promo_code?: number | null;
   /** That code (read-only), even once it's deleted, to label its discount line. */
   promo?: ApiRegistrationPromo | null;
+  /** The invitation it was started with (read-only); completing it redeems that (#803). */
+  started_with_invitation?: number | null;
   uuid: string;
   /** Pressed a payment button (§7.2; §15, DR-91); only completed ones are listed. */
   completed?: boolean;
@@ -207,6 +209,11 @@ export interface ApiInvitation extends TimeStamped {
     queued_at: string;
     sent_at: string | null;
   } | null;
+  /**
+   * A registration has been completed with it (read-only; §15, DR-137). Until then
+   * `registration` may be one only started with it.
+   */
+  redeemed?: boolean;
   /** Redeemed by a registration that's since been deleted (read-only; SPEC DR-55). */
   registration_deleted?: boolean;
   /** The registration page with this invitation's code (read-only; '' if it has no type). */
@@ -896,7 +903,9 @@ export interface ApiPayPalOrder {
  * `cancelled` (the organizers cancelled the invoice) and `invoice_changed` (they
  * changed it since the page loaded; the response carries the fresh payment step)
  * took no money (DR-105); `unknown` may have (the event has been told); `pending`
- * did, but PayPal is still processing it, so it isn't recorded yet (DR-133).
+ * did, but PayPal is still processing it, so it isn't recorded yet (DR-133);
+ * `invitation_redeemed`: another registration completed with its invitation
+ * first, so this one can't be completed (#803).
  */
 export type PaymentProblemCode =
   | 'amount_changed'
@@ -909,7 +918,8 @@ export type PaymentProblemCode =
   | 'not_configured'
   | 'cancelled'
   | 'invoice_changed'
-  | 'pending';
+  | 'pending'
+  | 'invitation_redeemed';
 
 // ---------------------------------------------------------------------------
 // Augmented view models — domain logic derived from cached query data (SPEC §5)

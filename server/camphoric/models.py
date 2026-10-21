@@ -491,6 +491,11 @@ class Registration(TimeStampedModel):
     promo_code = models.ForeignKey(
         PromoCode, null=True, blank=True, on_delete=models.PROTECT,
         related_name='registrations')
+    # The invitation it was started with. Several may start with one, but only
+    # the first to be completed redeems it (#803).
+    started_with_invitation = models.ForeignKey(
+        'Invitation', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='started_registrations')
     attributes = CustomJSONField(null=True)
     admin_attributes = CustomJSONField(
         default=dict,
@@ -602,6 +607,23 @@ class Invitation(TimeStampedModel):
         if self.recipient_name:
             return f'{self.recipient_name} <{self.recipient_email}>'
         return self.recipient_email
+
+    @staticmethod
+    def redeeming_registrations(invitation_id, registration_id):
+        '''
+        The completed registrations that redeem an invitation: the one it links
+        to, and any started with it (#803). Ones since deleted still count
+        (DR-55). Either id may be an OuterRef, to annotate a list of invitations.
+        '''
+        return Registration.all_objects.filter(
+            Q(pk=registration_id) | Q(started_with_invitation=invitation_id), completed=True)
+
+    def is_redeemed(self, other_than=None):
+        '''Whether a completed registration other than `other_than` has redeemed it.'''
+        redeeming = self.redeeming_registrations(self.pk, self.registration_id)
+        if other_than is not None:
+            redeeming = redeeming.exclude(pk=other_than.pk)
+        return redeeming.exists()
 
     class Meta:
         constraints = [

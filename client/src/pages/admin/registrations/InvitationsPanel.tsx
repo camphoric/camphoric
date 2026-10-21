@@ -4,8 +4,9 @@
  * themselves are managed in Settings — §8.8, §15 DR-32.)
  *
  * The invitations table (newest first) shows name, email, type, derived status
- * (redeemed → has a registration; otherwise how its latest email is doing:
- * sending, sent, failed or not sent — §15 DR-44; else unsent), and a link to
+ * (redeemed → a registration has been completed with it, not just started — §15 DR-137;
+ * otherwise how its latest email is doing: sending, sent, failed or not sent — §15 DR-44;
+ * else unsent), and a link to
  * the linked registration when redeemed (or that it's been deleted), with per-row resend/delete
  * and, until it's redeemed, copying its registration link — to register someone yourself after
  * registration has closed, or send the link another way (#486). While an
@@ -45,7 +46,7 @@ const FROM = '/admin/organization/$organizationId/event/$eventId';
 export type InvitationStatus = 'Redeemed' | 'Sending' | 'Sent' | 'Failed' | 'Not sent' | 'Unsent';
 
 export function invitationStatus(i: ApiInvitation): InvitationStatus {
-  if (i.registration != null) return 'Redeemed';
+  if (i.redeemed) return 'Redeemed';
   switch (i.email?.status) {
     case 'queued':
     case 'sending':
@@ -166,7 +167,8 @@ export function InvitationsPanel() {
         cell: (info) => {
           const i = info.row.original;
           if (i.registration_deleted) return <Text c="dimmed">Registration deleted</Text>;
-          return i.registration != null ? (
+          // A registration only started with it isn't in the admin lists.
+          return i.redeemed && i.registration != null ? (
             <Anchor
               component="button"
               type="button"
@@ -187,7 +189,7 @@ export function InvitationsPanel() {
           return (
             <CanEdit>
               <Group gap="xs" wrap="nowrap">
-                {i.registration == null && i.register_link && (
+                {!i.redeemed && i.register_link && (
                   <CopyButton value={i.register_link}>
                     {({ copied, copy }) => (
                       <Button

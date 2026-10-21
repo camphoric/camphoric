@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-136)
+- §15 — Decision Records (DR-1…DR-138)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -636,7 +636,10 @@ Non-CRUD admin endpoints:
   for this event is closed.' }`, shown to the registrant — unless it carries a valid invitation
   for this event, so special registration types can still register. An invitation that isn't
   found, has been redeemed, has expired or is for another event is a 400 `{ detail }` saying
-  which, shown to the registrant (the `GET` reports the same as `invitationError`). A
+  which, shown to the registrant (the `GET` reports the same as `invitationError`). An
+  invitation is redeemed only when a registration started with it is completed, so several may
+  be started with one; each records it as `started_with_invitation`, and only the first of them
+  completed gets it (§15, DR-137). A
   non-blank `promoCode` the `checkpromo` check would refuse is a 400 with the same `{ detail }`
   and nothing is saved; a usable one is recorded on the registration and priced (§9.2). The code
   travels outside `formData`, so it's never one of the registration's `attributes`. Each camper's
@@ -662,8 +665,10 @@ Non-CRUD admin endpoints:
   order's. 409 `{ detail }` if the event doesn't take payments online, or the registration
   invoice has already been paid on; 409 `{ detail, code: 'cancelled', invoice }` if the
   organizers cancelled it, and 409 `{ detail, code: 'invoice_changed', invoice, paymentStep }`
-  for an option from before they changed it (§15, DR-105); 400 on `paymentOption` for an option
-  that doesn't exist or asks for nothing.
+  for an option from before they changed it (§15, DR-105); 409 `{ detail, code:
+  'invitation_redeemed' }` when another registration started with the same invitation has been
+  completed, which leaves this one uncompleted with nothing saved (§15, DR-137); 400 on
+  `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
   paymentOptions, handlingPercent, invoiceCancelled, paymentProcessing }`: `invoiceCancelled`
@@ -679,6 +684,8 @@ Non-CRUD admin endpoints:
   - **By check** (`paymentType: 'Check'`, the default): completes the registration and makes or
     rewrites its registration invoice for `paymentOption` (the default option when left out),
     waiting for the check. A registration with nothing to pay is completed without an invoice.
+    Either is refused, as for `paypal-order`, with 409 `{ detail, code: 'invitation_redeemed' }`
+    when another registration has redeemed its invitation (§15, DR-137).
   - **PayPal or card** (`paypalOrderId`): the server fetches the approved order, checks it's for
     this registration's invoice and for what the invoice asks now, and captures it — the money
     moves only here. The invoice and the payment take `paymentType` — the button the payer
@@ -825,7 +832,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
-  `registration_type`, `promo_code` (the id of its promo code, or null), read-only `promo`
+  `registration_type`, `promo_code` (the id of its promo code, or null), read-only
+  `started_with_invitation` (the id of the invitation it was started with, or null; §15,
+  DR-137), read-only `promo`
   (`{ id, code, label, scope, deleted }` of that code, or null — present even once the code is
   deleted, to label its discount), `uuid`, `completed` (a payment button was pressed; §15,
   DR-91), read-only `completed_at` and `confirmation_sent_at`, timestamps; and its ledger
@@ -877,11 +886,13 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **EmailUnsubscribe** (`/api/emailunsubscribes/`, filter `event`; §15, DR-48): `id`, `event`,
   `email` (lowercased), read-only `source` (`link` | `admin`), `created_by`, `created_by_name`
   and `created_at`.
-- **Invitation:** `id`, `registration?`, `registration_type?`, `invitation_code`,
+- **Invitation:** `id`, `registration?` (the registration last started with it, or the one
+  that redeemed it once one is completed; §15, DR-137), `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
   the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`,
-  and `registration_deleted` — its registration has been deleted (the invitation still counts
-  as redeemed; §15, DR-55), and `register_link` — the registration page with this invitation's
+  `redeemed` — a registration has been completed with it, not just started (§15, DR-138),
+  `registration_deleted` — the completed registration it links to has been deleted (the
+  invitation still counts as redeemed; §15, DR-55), and `register_link` — the registration page with this invitation's
   email and code (from `CAMPHORIC_PUBLIC_URL`, else the request; `''` for an invitation with no
   type).
 - **EmailAccount:** `id`, `organization`, `name`, `backend`, `host`, `port`, `security`
@@ -1315,6 +1326,9 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
     checkout, an SDK error, or a failed capture releases the block; an error also tells the
     registrant that the payment didn't go through (§15, DR-77).
+- **When another registration has redeemed its invitation** (`invitation_redeemed`, from any
+  button that completes it, owed or not): the registration isn't completed, and the step shows
+  the server's message (§15, DR-137).
 - **When the server no longer has the registration** (`registration_not_found`, or any 404,
   from asking for the payment step again when the step opens, any payment button, the PayPal
   capture or finishing — owed or not): the step forgets the saved sent registration and goes
@@ -1553,7 +1567,8 @@ they can:
   first) showing name, email, type, sent status, and linked registration (if redeemed), with
   per-row resend/delete and — until it's redeemed — **copy registration link** (`register_link`),
   so an organizer can register someone themselves after registration has closed, or send the
-  link another way. Status is derived: `redeemed` (has a registration); otherwise from its
+  link another way. Status is derived: `redeemed` (its `redeemed`: a registration has been
+  completed with it — one only started with it doesn't count; §15, DR-138); otherwise from its
   latest invitation email (§15, DR-44) — `sending` (queued or being sent), `sent`, `failed` or
   `not sent` (e.g. a `@dontsend.com` address), with the reason for the last two; otherwise `sent`
   if it has a sent time (sent before email was queued), else `unsent`. While an invitation's email
@@ -5696,6 +5711,55 @@ and a detail request can't return the wrong rows. Leave the client's list parame
 misspelled filter is found only when its screen loads and gets a 400. Generate the client's
 filter types from an OpenAPI schema instead of naming them by hand: removes the duplication with
 the server, but needs a schema generator the project doesn't have.
+
+### DR-137 — An invitation is redeemed by the first registration completed with it
+
+**Decision:** Any number of registrations may be started with one invitation; each records it
+(`started_with_invitation`). Completing one — the first payment button, owed or not — locks
+the invitation and redeems it: the invitation links to that registration. An invitation is
+redeemed once any registration it links to or that was started with it is completed (one since
+deleted still counts, DR-55). Completing another registration started with it afterwards is
+refused with 409 `invitation_redeemed`, and that registration stays uncompleted, to be purged
+as abandoned (DR-76); starting one is refused as redeemed, the invitation locked while it's
+checked, so one started while another completes never takes the link from it. A registration
+whose invitation has been deleted completes as usual; deleting an invitation locks the
+registrations started with it before the invitation, the order completing takes them in.
+Registrations started before the link existed take it from the invitation's own
+`registration`.
+**Context:** #803. The invitation linked only to the registration last started with it, and
+completing never looked at it again: start A, start B, then complete both, and both had the
+invitation's registration type, its pricing and its way past closed registration. A registrant
+starts again for ordinary reasons — a second tab, a lost page, a corrected form — so starting
+shouldn't be where a second use is stopped. Two completing at once take turns on the
+invitation's lock, so the second sees the first. A registration started before the link
+existed that the invitation no longer pointed at can't be traced to it; such registrations are
+purged within a month (DR-76).
+**Alternatives:** Refuse to start a registration with an invitation another started
+registration holds: the registrant who lost their page, or whose registration the server
+purged, couldn't start again until the first went away. Link the invitation only when a
+registration is completed: its link is also what the registrations started before
+`started_with_invitation` existed were traced by, and the admin list gets its status from
+`redeemed` instead (DR-138). Record nothing on the registration and find its
+invitation by its registration type: a type has many invitations, so it can't say which.
+
+### DR-138 — The admin list shows an invitation as redeemed once a registration completes with it
+
+**Decision:** An invitation carries a read-only `redeemed`: whether a registration it links to
+or that was started with it has been completed, the rule the registration steps apply
+(DR-137); a completed one since deleted still counts (DR-55). The admin invitations list calls
+an invitation redeemed, links through to its registration, and stops offering its registration
+link, only when `redeemed` is true. `registration_deleted` is true only when the registration
+it links to was completed and then deleted. Completing a registration sends a change notice for
+the invitation it redeems (§9.8), so a list that's open shows it redeemed at once.
+**Context:** The list called an invitation redeemed as soon as it linked to a registration, and
+it links to one as soon as one is started. A registrant who sent the form and never paid made
+it look used, when it could still be used; the list hid the link to copy, and its "View" link
+went to a registration the admin lists don't show (only completed ones are listed, DR-91). A
+started registration deleted before it was completed showed as a deleted redemption.
+**Alternatives:** Derive it in the browser from the linked registration's `completed`: the list
+would fetch registrations it doesn't otherwise need, including started ones the admin lists
+leave out, and repeat the server's rule. Link the invitation only on completion and keep
+"has a registration": see DR-137.
 
 ---
 
