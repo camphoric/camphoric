@@ -107,6 +107,13 @@ class UnknownParameterTests(FilterTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('event', response.data)
 
+    def test_a_list_refuses_a_filter_with_no_value(self):
+        for value in ('', ' '):
+            with self.subTest(repr(value)):
+                response = self.client.get('/api/invitations/', {'event': value})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(list(response.data), ['event'])
+
     def test_format_paging_and_a_views_own_parameters_are_allowed(self):
         event = self.made.event.id
         self.listed('/api/registrations/', event=event, format='json')

@@ -292,8 +292,8 @@ consistently:
   registration type); the longer names (`registration__event`, `registration_type__event`,
   `custom_charge_type__event`) filter the same way. A list answers 400, keyed by the parameter,
   to a query parameter it doesn't filter by — besides `format`, its paging parameters and any
-  the endpoint reads itself (e.g. the email history's `q`) — and to an `event` that doesn't
-  exist (§15, DR-136). Invitations and registrations also filter by `registration_type`,
+  the endpoint reads itself (e.g. the email history's `q`) — to a filter given no value
+  (`?event=`), and to an `event` that doesn't exist (§15, DR-136). Invitations and registrations also filter by `registration_type`,
   campers by `lodging`, and custom charges by `custom_charge_type`. Getting one record ignores
   parameters that aren't filters; a filter given there narrows which record is found (404 when
   the record doesn't match it).
@@ -5673,12 +5673,14 @@ new one must remember. Stay on Mantine 8 (it supports React 19): falls behind th
 the event, alongside the longer names it already took. Invitations and registrations also filter
 by `registration_type`, campers by `lodging`, and custom charges by `custom_charge_type`.
 A list answers 400 to a query parameter that is none of its filters, its paging parameters,
-`format`, or one the endpoint reads itself; getting one record doesn't check (a filter given
+`format`, or one the endpoint reads itself, and to a filter given no value; getting one record
+doesn't check (a filter given
 there still narrows which record is found). The public event list (`/api/eventlist`) filters by
 `organization` and ignores other parameters, and an `organization` that isn't an id.
 **Context:** #935. django-filter ignores any parameter it wasn't told about, so a wrong or
 missing filter returned every row with no error: `GET /api/invitations/?event=8` listed every
-event's invitations, because invitations filtered only on `registration_type__event`. A client
+event's invitations, because invitations filtered only on `registration_type__event`. A filter given no value
+(`?event=`, from a client whose event id is still empty) is skipped the same way. A client
 that misspells a filter should find out at once, not show another event's records. The public
 event list is left lenient because pages that embed it may add parameters of their own (cache
 busters, tracking), and it holds nothing private.
