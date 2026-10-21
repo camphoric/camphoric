@@ -154,6 +154,14 @@ class EventGraphTests(TestCase):
         self.assertIsInstance(pat['stay'], ReadOnlyList)
         self.assertEqual(str(pat), f'<camper {pat["id"]}>')
 
+    def test_an_invitation_only_started_with_is_not_redeemed(self):
+        # As the admin list says (#803): r3 was never completed.
+        started = models.Invitation.objects.create(
+            registration_type=self.made.staff, recipient_email='drew@example.com',
+            registration=self.made.r3)
+        graph = build_event_graph(self.made.event)
+        self.assertFalse(graph.get('invitation', started.id)['redeemed'])
+
     @override_settings(CAMPHORIC_PUBLIC_URL='https://camp.example.org/')
     def test_invitations(self):
         graph = build_event_graph(self.made.event)
