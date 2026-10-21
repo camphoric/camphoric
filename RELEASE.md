@@ -10,9 +10,9 @@ source, its built frontend and its container image:
 - **Container image** — `ghcr.io/camphoric/camphoric:<tag>`, the server with the v2 frontend baked
   in (`latest` also moves, for stable releases only). See [CONTAINER.md](./CONTAINER.md).
 
-The container image is the versioned deploy. The Ansible playbook in this repository provisions
-the development VM, not a release, and builds the frontend from its checkout (see *Deploying a
-release*).
+A release is deployed with its container image or with the production Ansible playbook, kept
+outside this repository. The Ansible playbook in this repository provisions the development VM, not
+a release, and builds the frontend from its checkout (see *Deploying a release*).
 
 Versions follow [Semantic Versioning](https://semver.org/) and the release automation is
 [release-please](https://github.com/googleapis/release-please). The current version lives in
@@ -96,8 +96,10 @@ not a release deploy (see [Ansible](#ansible) below).
 ### Container image
 
 Run the container image for that tag — `ghcr.io/camphoric/camphoric:<tag>` — see
-[CONTAINER.md](./CONTAINER.md). This is the deploy that is pinned to a release: the image holds
-the server at that tag with the frontend built from the same tag baked in.
+[CONTAINER.md](./CONTAINER.md). The image holds the server at that tag with the frontend built
+from the same tag baked in.
+
+### Frontend asset
 
 The frontend asset has the same filename on every release, so its URL varies only by tag:
 
@@ -108,8 +110,9 @@ https://github.com/camphoric/camphoric/releases/download/<tag>/frontend-build-v2
 Each deploy gets its frontend a different way:
 
 - **Container image:** builds its own frontend from the tag.
-- **Production Ansible deploys:** download and install this asset.
-- **Development playbook:** builds `client/` from the checkout it provisions (see below).
+- **Production Ansible deploys:** download and install this asset for the tag they deploy.
+- **Development playbook:** builds `client/` from the checkout it provisions (see
+  [Ansible](#ansible)).
 
 ### Ansible
 
@@ -151,8 +154,8 @@ file (see [the role's README](./ansible/roles/camphoric/README.md#secrets)).
 The server runs on Django 6.1 with **Python 3.12+** and **PostgreSQL 16+** (the version it's
 tested against; Django 6.1 itself needs 15 or newer). Ubuntu 22.04's
 packages (Python 3.10, PostgreSQL 14) are too old, so upgrade the host before deploying a release
-that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the Ansible role
-targets:
+that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the development
+Ansible role also targets:
 
 1. Back up the database: `pg_dump camphoric > camphoric.sql`.
 2. Move the host to 24.04: a fresh host, or `do-release-upgrade` followed by a PostgreSQL cluster
