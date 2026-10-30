@@ -2,6 +2,7 @@ import datetime
 from decimal import Decimal
 from io import StringIO
 
+from auditlog.models import LogEntry
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -13,7 +14,7 @@ from camphoric import cleanup, models
 DATABASE_QUEUE = override_settings(TASKS={'default': {
     'BACKEND': 'django_tasks_db.DatabaseBackend', 'QUEUES': ['email', 'default']}})
 
-MONTH_AGO = timezone.now() - cleanup.INCOMPLETE_REGISTRATION_MAX_AGE - datetime.timedelta(hours=1)
+MONTH_AGO = timezone.now() - datetime.timedelta(days=30, hours=1)
 
 
 class CleanUpTestCase(TestCase):
@@ -45,6 +46,20 @@ class DeleteAbandonedRegistrationsTests(CleanUpTestCase):
         recent = self.registration(changed=timezone.now() - datetime.timedelta(days=29))
         self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
         self.assertTrue(self.exists(recent))
+
+    @override_settings(CAMPHORIC_INCOMPLETE_RETENTION_DAYS=7)
+    def test_the_retention_setting_says_how_long_they_stay(self):
+        expired = self.registration(changed=timezone.now() - datetime.timedelta(days=8))
+        kept = self.registration(changed=timezone.now() - datetime.timedelta(days=6))
+        self.assertEqual(cleanup.delete_abandoned_registrations(), 1)
+        self.assertFalse(self.exists(expired))
+        self.assertTrue(self.exists(kept))
+
+    def test_it_leaves_nothing_in_the_audit_log(self):
+        abandoned = self.registration(campers=2)
+        cleanup.delete_abandoned_registrations()
+        self.assertFalse(LogEntry.objects.filter(
+            additional_data__registration=abandoned.id).exists())
 
     def test_a_completed_registration_stays(self):
         completed = self.registration(completed=True)

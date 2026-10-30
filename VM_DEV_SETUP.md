@@ -263,7 +263,7 @@ keep what's in it:
 
 ```
 # 1. Save the VM's database to vm-data.sql in the repo root (git-ignored)
-vagrant ssh -c "pg_dump camphoric -f /vagrant/vm-data.sql"
+vagrant ssh -c "pg_dump --exclude-table-data=camphoric_registrationdraft camphoric -f /vagrant/vm-data.sql"
 
 # 2. Delete the old VM and build a new one
 vagrant destroy -f

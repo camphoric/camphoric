@@ -1,11 +1,12 @@
 '''
 Run the nightly clean-up now (camphoric.cleanup): delete the incomplete
-registrations nobody has changed in a month.
+registrations nobody has changed in CAMPHORIC_INCOMPLETE_RETENTION_DAYS.
 
     manage.py camphoric_clean_up --dry-run   # list what would be deleted
     manage.py camphoric_clean_up             # delete them
 '''
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 
@@ -14,7 +15,7 @@ from camphoric import cleanup
 
 class Command(BaseCommand):
     help = ('Delete the incomplete registrations nobody has changed in '
-            f'{cleanup.INCOMPLETE_REGISTRATION_MAX_AGE.days} days, as the worker does nightly.')
+            f'{settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS} days, as the worker does nightly.')
 
     def add_arguments(self, parser):
         parser.add_argument(

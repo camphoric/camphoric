@@ -7,6 +7,8 @@ import importlib.util
 import os
 from unittest import mock
 
+from dbbackup.db.base import get_connector
+from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
 import camphoric_server.settings_default
@@ -55,3 +57,27 @@ class SecuritySettingsTests(SimpleTestCase):
         self.assertTrue(settings.CSRF_COOKIE_SECURE)
         self.assertEqual(settings.SECURE_HSTS_SECONDS, 31536000)
         self.assertTrue(settings.SECURE_SSL_REDIRECT)
+
+
+class RetentionSettingTests(SimpleTestCase):
+    def test_incomplete_registrations_are_kept_thirty_days_by_default(self):
+        self.assertEqual(settings_with().CAMPHORIC_INCOMPLETE_RETENTION_DAYS, 30)
+
+    def test_the_environment_sets_it(self):
+        settings = settings_with(CAMPHORIC_INCOMPLETE_RETENTION_DAYS='7')
+        self.assertEqual(settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS, 7)
+
+    def test_it_must_be_a_sensible_number_of_days(self):
+        for value, error in (('0', ImproperlyConfigured), ('-1', ImproperlyConfigured),
+                             ('99999999', ImproperlyConfigured), ('soon', ValueError)):
+            with self.subTest(value=value), self.assertRaises(error):
+                settings_with(CAMPHORIC_INCOMPLETE_RETENTION_DAYS=value)
+
+
+class BackupSettingsTests(SimpleTestCase):
+    def test_registration_drafts_are_left_out_of_a_dump(self):
+        connector = get_connector('default')
+        self.assertIn('camphoric_registrationdraft', connector.exclude)
+        with mock.patch.object(connector, 'run_command', return_value=(None, None)) as run:
+            connector._create_dump()
+        self.assertIn('--exclude-table-data=camphoric_registrationdraft', run.call_args.args[0])

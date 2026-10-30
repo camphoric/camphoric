@@ -98,8 +98,16 @@ class RegisterPostAtomicTests(APITestCase):
             if q['sql'].startswith('UPDATE "camphoric_camper"')]
         self.assertLessEqual(len(camper_updates), len(campers))
 
-        # The history shows each record created with its final price, and no
-        # repricing in between.
+        # Nothing is logged until it's completed (DR-139). Then the history shows
+        # each record created with its final price, and no repricing in between.
+        self.assertFalse(LogEntry.objects.filter(
+            additional_data__registration=registration.id).exists())
+        response = self.client.post(
+            f'/api/events/{self.event.id}/register',
+            {'step': 'payment', 'registrationUUID': str(registration.uuid),
+             'paymentType': 'Check'},
+            format='json')
+        self.assertEqual(response.status_code, 200, response.data)
         entries = LogEntry.objects.get_for_object(registration)
         self.assertEqual([e.action for e in entries], [LogEntry.Action.CREATE])
         self.assertIn('"total": 975', entries[0].changes['server_pricing_results'][1])
