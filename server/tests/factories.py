@@ -71,6 +71,14 @@ CAMPER_SCHEMA = {
 }
 
 
+def complete(client, event, uuid):
+    '''Pay for a sent registration by check, which completes it (SPEC DR-140).'''
+    return client.post(
+        f'/api/events/{event.id}/register',
+        {'step': 'payment', 'registrationUUID': str(uuid), 'paymentType': 'Check'},
+        format='json')
+
+
 def create_template_event():
     '''Create the event and return a namespace of everything created.'''
     class Made:

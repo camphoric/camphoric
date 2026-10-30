@@ -11,6 +11,7 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APITestCase
 
 from camphoric import models
+from tests.factories import complete
 from tests.test_views import create_standard_test_event
 
 
@@ -77,8 +78,14 @@ class RegisterPostAtomicTests(APITestCase):
         }
         with CaptureQueriesContext(connection) as queries:
             response = self.post()
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['serverPricingResults'], expected)
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(response.data['serverPricingResults'], expected)
+            # Nothing but its draft, and nothing in the log, until it's completed.
+            self.assertFalse(models.Registration.all_objects.exists())
+            self.assertFalse(LogEntry.objects.filter(
+                additional_data__has_key='registration').exists())
+            paid = complete(self.client, self.event, response.data['registrationUUID'])
+        self.assertEqual(paid.status_code, 200, paid.data)
 
         registration = models.Registration.objects.get()
         campers = list(registration.campers.all())
@@ -87,8 +94,8 @@ class RegisterPostAtomicTests(APITestCase):
         self.assertEqual([c.sequence for c in campers], [0, 1, 2])
         self.assertEqual(
             [c.server_pricing_results for c in campers], expected['campers'])
-        # Nothing an admin did, so nothing counts as an edit (DR-109).
-        self.assertEqual(registration.version, 1)
+        # Nothing an admin did, so only completing counts as an edit (DR-109).
+        self.assertEqual(registration.version, 2)
         self.assertEqual([c.version for c in campers], [1, 1, 1])
 
         # Saving a camper used to reprice the registration and re-save every
@@ -98,16 +105,8 @@ class RegisterPostAtomicTests(APITestCase):
             if q['sql'].startswith('UPDATE "camphoric_camper"')]
         self.assertLessEqual(len(camper_updates), len(campers))
 
-        # Nothing is logged until it's completed (DR-139). Then the history shows
-        # each record created with its final price, and no repricing in between.
-        self.assertFalse(LogEntry.objects.filter(
-            additional_data__registration=registration.id).exists())
-        response = self.client.post(
-            f'/api/events/{self.event.id}/register',
-            {'step': 'payment', 'registrationUUID': str(registration.uuid),
-             'paymentType': 'Check'},
-            format='json')
-        self.assertEqual(response.status_code, 200, response.data)
+        # The history shows each record created with its final price, and no
+        # repricing in between.
         entries = LogEntry.objects.get_for_object(registration)
         self.assertEqual([e.action for e in entries], [LogEntry.Action.CREATE])
         self.assertIn('"total": 975', entries[0].changes['server_pricing_results'][1])
@@ -121,6 +120,10 @@ class RegisterPostAtomicTests(APITestCase):
     def test_a_failure_partway_leaves_nothing_behind(self):
         invitation = models.Invitation.objects.create(
             registration_type=self.registration_type, recipient_email='staff@example.com')
+        uuid = self.post(invitation={
+            'recipient_email': invitation.recipient_email,
+            'invitation_code': invitation.invitation_code,
+        }).data['registrationUUID']
         save = models.TimeStampedModel.save
         campers_saved = []
 
@@ -133,22 +136,18 @@ class RegisterPostAtomicTests(APITestCase):
 
         with mock.patch.object(models.TimeStampedModel, 'save', failing_save):
             with self.assertRaisesMessage(RuntimeError, 'database went away'):
-                self.post(invitation={
-                    'recipient_email': invitation.recipient_email,
-                    'invitation_code': invitation.invitation_code,
-                })
+                complete(self.client, self.event, uuid)
 
         self.assertFalse(models.Registration.all_objects.exists())
         self.assertFalse(models.Camper.all_objects.exists())
+        # Its draft is still there, to try again.
+        self.assertEqual(models.RegistrationDraft.objects.get().invitation, invitation)
         invitation.refresh_from_db()
         self.assertIsNone(invitation.registration)
         self.assertEqual(invitation.version, 1)
 
         # Once whatever failed is fixed, the same invitation registers normally.
-        response = self.post(invitation={
-            'recipient_email': invitation.recipient_email,
-            'invitation_code': invitation.invitation_code,
-        })
+        response = complete(self.client, self.event, uuid)
         self.assertEqual(response.status_code, 200, response.data)
         registration = models.Registration.objects.get()
         self.assertEqual(registration.campers.count(), 3)

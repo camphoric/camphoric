@@ -293,6 +293,9 @@ REST_FRAMEWORK = {
         'invoice_pay': env.str('CAMPHORIC_INVOICE_PAY_RATE', default='60/minute'),
         # Opening the registration page with an invitation's email and code.
         'invitation_lookup': env.str('CAMPHORIC_INVITATION_LOOKUP_RATE', default='30/minute'),
+        # Saving the form as it's filled in: at most one save per 30 seconds per page, so this
+        # leaves room for a household or camp sharing an address (SPEC DR-140).
+        'registration_draft': env.str('CAMPHORIC_REGISTRATION_DRAFT_RATE', default='30/minute'),
         # The public registration steps (RegisterView.post), anonymous posts only, and not
         # the PayPal capture. One registration makes 3 or 4 counted posts (registration,
         # payment-step as the payment page opens, then a check payment or paypal-order,
@@ -341,7 +344,8 @@ PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
 
 # Backups are configured under STORAGES['dbbackup'] above (env DBBACKUP_STORAGE_OPTIONS).
-# Registration drafts are never backed up: pg_dump keeps the table, not its rows (SPEC DR-139).
+# Registration drafts are never backed up: pg_dump keeps the table, not its rows
+# (SPEC DR-139). A test holds this to RegistrationDraft's table.
 DBBACKUP_CONNECTORS = {'default': {'EXCLUDE': ['camphoric_registrationdraft']}}
 
 # Hosts and origins are comma-separated environment variables. The defaults cover local

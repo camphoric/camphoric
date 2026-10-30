@@ -77,7 +77,9 @@ class BadSample(Exception):
 def _pick(graph, kind, requested_id, pool):
     '''The requested sample (which must belong to the event), else the first.'''
     if requested_id is not None:
-        obj = graph.get(kind, int(requested_id))
+        # A submitted draft's id is text (build_event_graph).
+        draft = str(requested_id).startswith('draft-')
+        obj = graph.get(kind, str(requested_id) if draft else int(requested_id))
         if obj is None:
             raise BadSample(f'{kind} {requested_id} is not part of this event')
         return obj

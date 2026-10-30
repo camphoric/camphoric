@@ -61,7 +61,7 @@ PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
     views.EventList, views.RegisterView, views.ObtainTokenView,
     views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
-    views.InvoicePayView,
+    views.InvoicePayView, views.RegistrationDraftView,
 }
 # Any signed-in user, for their own account.
 SELF_SERVICE = {views.ChangePasswordView}

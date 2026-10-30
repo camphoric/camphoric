@@ -125,16 +125,17 @@ records the message.
 | `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
 | `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
 | `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after it's issued, in seconds; must be positive. An expired token gets a 401 and is deleted. Signing in hands back the current token while it has half this left, and otherwise issues a new one. |
+| `CAMPHORIC_REGISTRATION_DRAFT_RATE` | `30/minute` | How many times one client address may save a registration form as it's filled in. The form saves at most every 30 seconds per page, so this leaves room for people sharing an address. Saves refused are tried again later and never interrupt the form. |
 | `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the Django admin) one client address may make; more get a 429. |
 | `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
-| `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` | `30` | How many days a registration that was started but never finished is kept without a change, before the worker deletes it; from 1 to 36500. The worker reads it, so give it the same value as the web container. |
+| `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` | `30` | How many days a registration that was started but never finished is kept without activity, before the worker deletes it; from 1 to 36500. The worker reads it, so give it the same value as the web container. |
 
 ### The task worker
 
 Run a second container from the same image as the worker; it delivers queued email, retries
 temporary failures, keeps to each account's sending limits, and recovers messages from a worker
 that died mid-send. Each night at 10:00 UTC it also deletes the registrations that were started
-but never finished and that nobody has changed in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days.
+but never finished and have had no activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days.
 `docker-compose.image.yml` includes it
 as the `worker` service.
 
@@ -158,7 +159,7 @@ docker run -d --restart unless-stopped \
   worker, as above.) The admin warns when no worker is running.
 - **Stopping:** SIGTERM lets the task in progress (an SMTP send) finish first; allow up to 60s.
 - **Nightly clean-up:** `python manage.py camphoric_clean_up --dry-run` lists, per event, the
-  abandoned registrations the next run will delete; without `--dry-run` it deletes them now.
+  abandoned registration drafts and registrations the next run will delete; without `--dry-run` it deletes them now.
 
 ### Backups (django-dbbackup)
 

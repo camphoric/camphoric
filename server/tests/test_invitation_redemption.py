@@ -62,12 +62,19 @@ class Invited:
     def registration(self, uuid):
         return models.Registration.all_objects.get(uuid=uuid)
 
+    def assertNotCompleted(self, uuid):
+        self.assertTrue(models.RegistrationDraft.objects.filter(uuid=uuid).exists())
+        self.assertFalse(models.Registration.all_objects.filter(uuid=uuid).exists())
+
 
 class InvitationRedemptionTests(Invited, APITestCase):
     def test_each_registration_records_the_invitation_it_was_started_with(self):
         first, second = self.start(), self.start()
+        for uuid in (first, second):
+            draft = models.RegistrationDraft.objects.get(uuid=uuid)
+            self.assertEqual(draft.invitation, self.invitation)
+            self.pay_by_check(uuid, status=200 if uuid == first else 409)
         self.assertEqual(self.registration(first).started_with_invitation, self.invitation)
-        self.assertEqual(self.registration(second).started_with_invitation, self.invitation)
 
     def test_only_the_first_completed_redeems_it(self):
         first, second = self.start(), self.start()
@@ -75,7 +82,7 @@ class InvitationRedemptionTests(Invited, APITestCase):
         response = self.pay_by_check(first, status=409)
         self.assertEqual(response.data, REDEEMED)
 
-        self.assertFalse(self.registration(first).completed)
+        self.assertNotCompleted(first)
         self.assertFalse(models.Invoice.objects.filter(registration__uuid=first).exists())
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.registration, self.registration(second))
@@ -88,14 +95,11 @@ class InvitationRedemptionTests(Invited, APITestCase):
         self.assertEqual(self.invitation.registration, self.registration(first))
 
         self.assertEqual(self.pay_by_check(second, status=409).data, REDEEMED)
-        self.assertFalse(self.registration(second).completed)
+        self.assertNotCompleted(second)
 
-    def test_one_the_invitation_no_longer_links_to_still_redeems_it(self):
-        # As a registration started before #803 was fixed could have left it.
+    def test_the_registration_page_says_when_its_redeemed(self):
         first, second = self.start(), self.start()
         self.pay_by_check(first)
-        models.Invitation.objects.filter(id=self.invitation.id).update(
-            registration=self.registration(second))
         self.assertEqual(self.pay_by_check(second, status=409).data, REDEEMED)
 
         page = self.client.get(
@@ -129,7 +133,7 @@ class InvitationRedemptionTests(Invited, APITestCase):
         response = self.post({'step': 'paypal-order', 'registrationUUID': second,
                               'paymentType': 'PayPal'}, status=409)
         self.assertEqual(response.data, REDEEMED)
-        self.assertFalse(self.registration(second).completed)
+        self.assertNotCompleted(second)
         self.assertFalse(models.Invoice.objects.filter(registration__uuid=second).exists())
 
     def test_the_registration_that_redeemed_it_can_pay_again(self):
@@ -166,9 +170,9 @@ class RedeemedStatusTests(Invited, APITestCase):
         return response.data
 
     def test_a_started_registration_does_not_redeem_it(self):
-        started = self.start()
+        self.start()
         listed = self.listed()
-        self.assertEqual(listed['registration'], self.registration(started).id)
+        self.assertIsNone(listed['registration'])
         self.assertFalse(listed['redeemed'])
 
     def test_a_completed_one_does(self):
@@ -178,7 +182,7 @@ class RedeemedStatusTests(Invited, APITestCase):
 
     def test_a_started_registration_deleted_is_not_a_deleted_redemption(self):
         started = self.start()
-        self.registration(started).soft_delete()
+        models.RegistrationDraft.objects.filter(uuid=started).delete()
         listed = self.listed()
         self.assertFalse(listed['redeemed'])
         self.assertFalse(listed['registration_deleted'])
@@ -335,7 +339,7 @@ class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
         self.assertEqual(paid.status_code, 200)
         self.assertEqual((refused.status_code, refused.data), (409, REDEEMED))
         self.assertTrue(self.registration(first).completed)
-        self.assertFalse(self.registration(second).completed)
+        self.assertNotCompleted(second)
 
     def test_one_started_meanwhile_is_refused_and_leaves_the_invitation_redeemed(self):
         first = self.start()

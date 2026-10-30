@@ -60,6 +60,8 @@ export function useRegistrationFormSchema(eventId: string) {
 }
 
 export interface SubmitRegistrationBody {
+  /** The form's draft, which this submits (§15, DR-140). */
+  draftUUID?: string;
   formData: RegistrationFormData;
   pricingResults: PricingResults;
   invitation?: ApiRegister['invitation'];
@@ -75,6 +77,36 @@ export function useSubmitRegistration(eventId: string) {
         method: 'POST',
         body: { step: 'registration', ...body },
       }),
+  });
+}
+
+export interface SaveDraftBody {
+  /** The draft to go on with; without one, or one the server no longer has, it starts another. */
+  uuid?: string;
+  formData: RegistrationFormData;
+  invitation?: ApiRegister['invitation'];
+}
+
+/**
+ * Saves the form as it's filled in (§7.1; §15, DR-140) and returns the draft's
+ * uuid: POST /api/events/{id}/register/draft. A plain call rather than a mutation,
+ * so what comes back is kept even if the page has moved on, and a failure tells no
+ * one: `keepalive` lets one sent as the page is hidden outlive it.
+ */
+export function saveDraft(eventId: string, body: SaveDraftBody, keepalive = false) {
+  return apiFetch<{ uuid: string }>(`${registerUrl(eventId)}/draft`, {
+    method: 'POST',
+    body,
+    keepalive,
+  });
+}
+
+/** "Start a new registration": the draft goes from the server too (§15, DR-140). */
+export function useDeleteDraft(eventId: string) {
+  return useMutation({
+    mutationFn: (uuid: string) =>
+      apiFetch<void>(`${registerUrl(eventId)}/draft/${uuid}`, { method: 'DELETE' }),
+    meta: { suppressErrorNotification: true },
   });
 }
 

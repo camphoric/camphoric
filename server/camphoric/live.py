@@ -57,6 +57,16 @@ def notify_changed(instance, action='updated'):
             'event': event_id, 'action': action, 'actor': _actor()})
 
 
+def notify_draft(draft, action):
+    '''
+    Tell the event's admins of a registration draft. Not on every save, as a tracked
+    record is: only as it's created, becomes active or goes, so filling in the form
+    doesn't refetch their lists (SPEC DR-140).
+    '''
+    notify({'type': 'changed', 'model': 'registrationdraft', 'id': draft.pk,
+            'event': draft.event_id, 'action': action, 'actor': _actor()})
+
+
 def _saved(sender, instance, created=False, raw=False, **kwargs):
     if raw:
         return

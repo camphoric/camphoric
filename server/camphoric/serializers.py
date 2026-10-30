@@ -255,6 +255,12 @@ class RegistrationSerializer(ModelSerializer):
         return validate_attributes(data, data['event'].registration_schema)
 
 
+class RegistrationDraftSerializer(BaseModelSerializer):
+    class Meta:
+        model = models.RegistrationDraft
+        fields = '__all__'
+
+
 class RegistrationTypeSerializer(ModelSerializer):
     class Meta:
         model = models.RegistrationType

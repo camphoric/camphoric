@@ -11,6 +11,7 @@ import datetime
 from rest_framework.test import APITestCase
 
 from camphoric import models
+from tests.factories import complete
 
 NOW = datetime.datetime.now(datetime.timezone.utc)
 CLOSED = {'registration_end': NOW - datetime.timedelta(days=1)}
@@ -53,7 +54,7 @@ class RegistrationDatesTests(APITestCase):
 
     def test_an_open_event_takes_anyone(self):
         self.register()
-        self.assertEqual(models.Registration.objects.count(), 1)
+        self.assertEqual(models.RegistrationDraft.objects.count(), 1)
 
     def test_a_closed_event_refuses_a_registration_without_an_invitation(self):
         for dates in (CLOSED, NOT_YET):
@@ -61,18 +62,17 @@ class RegistrationDatesTests(APITestCase):
                 self.set_dates(**{'registration_start': None, 'registration_end': None, **dates})
                 response = self.register(status=409)
                 self.assertEqual(response.data['detail'], 'Registration for this event is closed.')
-                self.assertEqual(models.Registration.objects.count(), 0)
+                self.assertEqual(models.RegistrationDraft.objects.count(), 0)
 
     def test_an_invitation_still_gets_in_after_it_closes_or_before_it_opens(self):
         for dates in (CLOSED, NOT_YET):
             with self.subTest(dates=dates):
-                models.Registration.objects.all().delete()
+                models.RegistrationDraft.objects.all().delete()
                 self.set_dates(**{'registration_start': None, 'registration_end': None, **dates})
                 self.register(self.invitation)
-                registration = models.Registration.objects.get()
-                self.assertEqual(registration.registration_type, self.staff)
-                self.invitation.refresh_from_db()
-                self.assertEqual(self.invitation.registration, registration)
+                draft = models.RegistrationDraft.objects.get()
+                self.assertEqual(draft.registration_type, self.staff)
+                self.assertEqual(draft.invitation, self.invitation)
 
     def test_an_invitation_for_another_event_does_not_get_in(self):
         other = self.make_event('Other camp')
@@ -85,7 +85,7 @@ class RegistrationDatesTests(APITestCase):
         response = self.register(elsewhere, status=400)
         self.assertEqual(
             response.data, {'detail': 'Sorry, that invitation is for a different event'})
-        self.assertEqual(models.Registration.objects.count(), 0)
+        self.assertEqual(models.RegistrationDraft.objects.count(), 0)
 
         # The registration page says so too.
         page = self.client.get(
@@ -110,8 +110,8 @@ class RegistrationDatesTests(APITestCase):
             'detail': 'Sorry, we couldn\'t find an invitation for "kim@example.com" '
                       'with code "nope2345"'})
 
-        self.register(self.invitation)
-        models.Registration.objects.update(completed=True)
+        uuid = self.register(self.invitation).data['registrationUUID']
+        self.assertEqual(complete(self.client, self.event, uuid).status_code, 200)
         response = self.register(self.invitation, status=400)
         self.assertEqual(
             response.data, {'detail': 'Sorry, that invitation code has already been redeemed'})

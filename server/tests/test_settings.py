@@ -11,6 +11,7 @@ from dbbackup.db.base import get_connector
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
+from camphoric import models
 import camphoric_server.settings_default
 
 REQUIRED = {
@@ -77,7 +78,8 @@ class RetentionSettingTests(SimpleTestCase):
 class BackupSettingsTests(SimpleTestCase):
     def test_registration_drafts_are_left_out_of_a_dump(self):
         connector = get_connector('default')
-        self.assertIn('camphoric_registrationdraft', connector.exclude)
+        table = models.RegistrationDraft._meta.db_table
+        self.assertIn(table, connector.exclude)
         with mock.patch.object(connector, 'run_command', return_value=(None, None)) as run:
             connector._create_dump()
-        self.assertIn('--exclude-table-data=camphoric_registrationdraft', run.call_args.args[0])
+        self.assertIn(f'--exclude-table-data={table}', run.call_args.args[0])

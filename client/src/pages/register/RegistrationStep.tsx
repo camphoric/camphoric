@@ -2,16 +2,19 @@
  * Step 1 — the registration form (SPEC §7.1). Renders the data-driven form and,
  * on every change, saves the form data to the store, recomputes the live total
  * with `calculatePrice`, and persists to localStorage (debounced). On mount it
- * rehydrates any saved data. When the event has promo codes, a field above the
+ * rehydrates any saved data, and a changed field saves to the server as it loses
+ * focus (`useDraftSaving`), which a notice above the form says. When the event has
+ * promo codes, a field above the
  * submit button applies one (repriced live); a code typed but not applied blocks
  * submitting. Submitting posts the registration, saves what was sent with the
  * payment step it got back (so a reload resumes paying for it) and advances to
  * the payment step. A registration already sent from this browser offers to
- * continue paying for it instead; one the server turned out not to have brings
- * the registrant back here, with what they entered, to send it again.
+ * continue paying for it instead; one the server turned out not to have, or whose
+ * lodging filled up before it was completed, brings the registrant back here, with
+ * what they entered, to send it again.
  */
 
-import { Alert, Button, Stack } from '@mantine/core';
+import { Alert, Button, Stack, Text } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import type { AppliedPromo, RegistrationFormData } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
@@ -23,6 +26,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRegistrationStore } from 'store/registration';
 import {
   useCheckSentRegistration,
+  useDeleteDraft,
   useRegistrationConfig,
   useSubmitRegistration,
 } from 'store/registrationApi';
@@ -35,18 +39,22 @@ import {
   clearRegistrationFormData,
   clearSentRegistration,
   getRegistrationStorageKey,
+  loadDraftUUID,
   loadLegacySentRegistration,
   loadRegistrationFormData,
   loadSentRegistration,
+  saveDraftUUID,
   saveRegistrationFormData,
   saveSentRegistration,
 } from './storage';
+import { useDraftSaving } from './useDraftSaving';
 
 export function RegistrationStep() {
   const eventId = useEventId();
   const goToStep = useGoToStep();
   const { data: config } = useRegistrationConfig(eventId);
   const submit = useSubmitRegistration(eventId);
+  const { mutate: deleteDraft } = useDeleteDraft(eventId);
 
   const registration = useRegistrationStore((state) => state.registration);
   const totals = useRegistrationStore((state) => state.totals);
@@ -57,8 +65,10 @@ export function RegistrationStep() {
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
   const resumeSent = useRegistrationStore((state) => state.resumeSent);
   const sentNotFound = useRegistrationStore((state) => state.sentNotFound);
+  const lodgingProblem = useRegistrationStore((state) => state.lodgingProblem);
 
   const storageKey = config ? getRegistrationStorageKey(eventId, config) : '';
+  const drafts = useDraftSaving(eventId, storageKey, config?.invitation);
   // A registration already sent from this browser: offer to go on paying for it.
   const [sentBefore, setSentBefore] = useState(() =>
     storageKey ? loadSentRegistration(storageKey) : null,
@@ -123,6 +133,7 @@ export function RegistrationStep() {
     setTotals(nextTotals);
     setUpdating(false);
     debouncedSave(data);
+    drafts.changed();
   };
 
   // Dev aid: expose the change handler for autofill (SPEC §10).
@@ -141,10 +152,15 @@ export function RegistrationStep() {
   };
 
   const startOver = () => {
-    clearSentRegistration(storageKey);
-    clearRegistrationFormData(storageKey);
-    setSentBefore(null);
-    useRegistrationStore.getState().reset();
+    // After any save under way, which would otherwise bring back what's being discarded.
+    void drafts.stop().then(() => {
+      const draft = loadDraftUUID(storageKey) ?? sentBefore?.paymentStep.registrationUUID;
+      if (draft) deleteDraft(draft);
+      clearSentRegistration(storageKey);
+      clearRegistrationFormData(storageKey);
+      setSentBefore(null);
+      useRegistrationStore.getState().reset();
+    });
   };
 
   const templateData = {
@@ -159,27 +175,48 @@ export function RegistrationStep() {
 
   const handleSubmit = () => {
     if (!promoEntry.readyToSubmit()) return;
-    submit.mutate(
-      {
-        formData: registration,
-        pricingResults: totals,
-        ...(config.invitation ? { invitation: config.invitation } : {}),
-        ...(promo ? { promoCode: promo.code } : {}),
-      },
-      {
-        onSuccess: (paymentStep) => {
-          debug('RegistrationStep submit result', paymentStep);
-          saveSentRegistration(storageKey, { paymentStep, formData: registration, promo });
-          setPaymentStep(paymentStep);
-          goToStep('payment');
+    // After any save under way: it may be the one that starts the draft being submitted.
+    void drafts.pause().then(() => {
+      const draftUUID = loadDraftUUID(storageKey);
+      submit.mutate(
+        {
+          formData: registration,
+          pricingResults: totals,
+          ...(config.invitation ? { invitation: config.invitation } : {}),
+          ...(promo ? { promoCode: promo.code } : {}),
+          ...(draftUUID ? { draftUUID } : {}),
         },
-      },
-    );
+        {
+          onError: drafts.resume,
+          onSuccess: (paymentStep) => {
+            debug('RegistrationStep submit result', paymentStep);
+            saveDraftUUID(storageKey, paymentStep.registrationUUID);
+            saveSentRegistration(storageKey, { paymentStep, formData: registration, promo });
+            setPaymentStep(paymentStep);
+            goToStep('payment');
+          },
+        },
+      );
+    });
   };
 
   return (
     // The class lets an event's uiSchema hide fields during registration only (SPEC §7.1).
-    <Stack className="camphoric-registration">
+    <Stack
+      className="camphoric-registration"
+      onFocus={drafts.fieldFocused}
+      onBlur={drafts.fieldBlurred}
+    >
+      <Text size="sm" c="dimmed">
+        Your answers are saved as you fill in this form, so our registrars can help if you get
+        stuck. If you don’t finish registering, they’re deleted after {config.draftRetentionDays}{' '}
+        days.
+      </Text>
+      {lodgingProblem && (
+        <Alert variant="light" color="yellow" title="The lodging you chose has filled up">
+          {lodgingProblem} Please choose again and send the form.
+        </Alert>
+      )}
       {sentNotFound && (
         <Alert variant="light" color="yellow" title="We couldn’t find your earlier registration">
           Please send the form again.

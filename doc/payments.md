@@ -115,15 +115,17 @@ A worked Lark example: two adults, price $1,000, of which tuition and meals are 
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Started: form sent (step 'registration')
-    Started --> Deleted: retention period untouched (30 days by default), nothing paid nor being captured<br/>(nightly clean-up, DR-76)
-    Started --> Unpaid: a payment button pressed
+    [*] --> Draft: first change to the form
+    Draft --> Submitted: form sent (step 'registration')
+    Draft --> Deleted: retention period without activity (30 days by default)<br/>(nightly clean-up, DR-76)
+    Submitted --> Deleted: the same
+    Submitted --> Unpaid: a payment button pressed
     Unpaid --> PartiallyPaid: a payment smaller than the balance
     Unpaid --> Paid: a payment for the balance
     PartiallyPaid --> Paid: the rest
     Paid --> RefundDue: price lowered, or overpaid
     RefundDue --> Paid: refund recorded
-    note right of Started : not in the admin lists
+    note right of Submitted : a RegistrationDraft, not a registration, holding no lodging (DR-140)
     note right of Unpaid : completed, in every admin list (DR-91)
 ```
 
@@ -152,11 +154,11 @@ flowchart TD
         NF -->|Try again| G
     end
     subgraph Server
-        C --> C1[Saves the started registration,<br/>prices it, works out the payment options]
+        C --> C1[Checks and prices the form, marks its draft<br/>submitted, works out the payment options]
         C1 --> D
-        F --> F1[Completes it; makes the registration invoice<br/>for the option; sends the confirmation]
-        F0 --> F2[Completes it, no invoice;<br/>sends the confirmation]
-        G --> G1[Completes it; makes the invoice;<br/>creates the PayPal order with<br/>one item and the fee]
+        F --> F1[Makes the registration from its draft and<br/>completes it; makes the registration invoice<br/>for the option; sends the confirmation]
+        F0 --> F2[Makes it from its draft and completes it,<br/>no invoice; sends the confirmation]
+        G --> G1[Makes it from its draft and completes it;<br/>makes the invoice; creates the PayPal order<br/>with one item and the fee]
         G1 --> H
         H --> PW
         H --> X
@@ -177,23 +179,31 @@ flowchart TD
     PP --> M
 ```
 
-- The registration is **started** when the form is sent, and **completed** the moment a payment
-  button is pressed (`RegisterView.complete`). It's in the admin lists from then on.
-- **One invitation, one completed registration (#803).** Several registrations may be started
-  with the same invitation (two tabs, a second try), each recording it as
-  `started_with_invitation`. Completing one redeems the invitation; completing another after that
+- Until a payment button is pressed there's only a **draft** (`RegistrationDraft`, DR-140), which
+  is **submitted** when the form is sent. Its `uuid` is the `registrationUUID` the payment steps
+  name. The button makes the registration from the draft under the same `uuid`
+  (`RegisterView.registration_from_draft`) and **completes** it (`RegisterView.complete`), in one
+  transaction; a refusal leaves the draft as it was. It's in the admin lists from then on. A
+  draft holds no lodging, so the check runs again here, under the lodging lock, and a place that
+  has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
+  again. The registration is dated when the form was submitted, as early-bird pricing reads
+  `created_at`. `paypal-order` commits the completion before asking PayPal for the order, so that
+  lock is never held across a call to PayPal.
+- **One invitation, one completed registration (#803).** Several drafts may be started with the
+  same invitation (two tabs, a second try), each recording it; the registration made from one
+  has it as `started_with_invitation`. Completing one redeems the invitation; completing another after that
   is refused — 409 `invitation_redeemed`, with nothing saved or charged — and the payment page
   shows the message (`RegisterView.redeem_invitation`, which locks the invitation so
   two completing at once take turns). Starting one locks it too and is refused once one is
   completed, so it can't take the link from the registration that redeemed it; deleting an
-  invitation locks its started registrations first (`lock_registration_first`), the order
+  invitation locks its drafts and registrations first (`lock_registration_first`), the order
   completing takes them in.
 - The browser saves the payment step in localStorage, with the form data and promo code it was
   sent with (`pages/register/storage.ts`), so a reload — or coming back after closing PayPal's
   window — resumes paying for the same registration, still showing what was entered. Coming back
   to the form offers "Continue to payment" or "Start a new registration".
-- **A saved registration the server no longer has (#769)** — an organizer deleted it, or it was
-  purged as incomplete — gets 404 `registration_not_found` from every step after `registration`
+- **A saved registration the server no longer has (#769)** — an organizer deleted it, it was
+  purged as incomplete, or its answers changed after it was sent — gets 404 `registration_not_found` from every step after `registration`
   (`RegisterView.named_registration`), and nothing is changed or charged. The browser forgets
   the saved one and goes back to the form, keeping what was entered, and asks for it to be sent
   again (`pages/register/useForgetSentRegistration.ts`).

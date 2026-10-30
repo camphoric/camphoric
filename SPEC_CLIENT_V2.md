@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-139)
+- §15 — Decision Records (DR-1…DR-140)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -575,6 +575,14 @@ Non-CRUD admin endpoints:
     doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
+- **Registration drafts** (§15, DR-140): `GET /api/registrationdrafts/?event=&…`,
+  `GET /api/registrationdrafts/{id}/` (any role) → `{ id, uuid, event, invitation,
+  registration_type, promo_code, registrant_email, form_data, server_pricing_results,
+  client_reported_pricing, submitted_at, created_at, last_activity_at }`, most recently active
+  first; `submitted_at` is null while the form is being filled in. `DELETE
+  /api/registrationdrafts/{id}/` (Registrars and Admins). Drafts can't be created or edited here.
+  The change feed names them `registrationdraft`, with a notice only when one is created, becomes
+  active after two minutes without a save, or goes (§9.8).
 - **Change history** (Registrars and Admins; 403 for Reporters; §15, DR-53):
   - `GET /api/registrations/{id}/history/` — the registration's changes and those of its campers,
     payments and custom charges, including ones since deleted; `GET /api/campers/{id}/history/` —
@@ -610,7 +618,8 @@ Non-CRUD admin endpoints:
 
 - `GET /api/events/{eventId}/register{?invitation/query}` → `ApiRegister` config bundle
   (schemas, ui schema, pricing logic, pricing vars, template vars, event subset, optional
-  invitation/registration-type info, PayPal options, pre-submit template,
+  invitation/registration-type info, PayPal options, pre-submit template, `draftRetentionDays`
+  — how many days an unfinished registration is kept without activity (§15, DR-139) —,
   `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
   §7.1 — and `hasPromoCodes`, whether the event has a promo code this registrant could use now:
   one that's usable and doesn't exclude the registration type of the query's invitation, or, with
@@ -627,10 +636,25 @@ Non-CRUD admin endpoints:
   invitation's type; "That promo code can only be used with an invitation." when there's no
   invitation and the code excludes registrants without one; or, for an invitation that's no
   good, the same message the registration step gives for it.
+- `POST /api/events/{eventId}/register/draft` with `{ uuid?, formData, invitation? }` (anyone) →
+  200 `{ uuid }` and nothing else: the answers are for registrars, so a leaked `uuid` reveals
+  none (§15, DR-140). It saves the form as it stands, with no validation or pricing. A `uuid` this
+  event has no draft for starts a new draft, and so does leaving it out. A valid `invitation` is
+  recorded on the draft; one that isn't valid is ignored until the form is sent. While the event
+  isn't open, a save without a valid invitation is a 409. A `formData` that isn't an object, is
+  over 60 KB, or holds a NUL character is a 400. A `uuid` of a registration of this event, whose
+  draft has been completed, saves nothing and returns that `uuid`. Changing the answers of a submitted draft returns it to being filled
+  in, so its `uuid` then needs the form sent again; the same answers leave it as it is. It's
+  throttled per client address (scope `registration_draft`, `CAMPHORIC_REGISTRATION_DRAFT_RATE`, 30
+  a minute by default) apart from `register`, and looking up an invitation counts as above.
+- `DELETE /api/events/{eventId}/register/draft/{uuid}` (anyone holding the `uuid`) → 204, whether
+  or not there was such a draft: "Start a new registration" (§7.1).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
-  pricingResults, invitation?, promoCode? }` → payment-step payload
-  (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent }`). The
-  registration is *started*: saved, but not yet in the admin lists (§9.7). `paymentOptions` is
+  pricingResults, draftUUID?, invitation?, promoCode? }` → payment-step payload
+  (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent }`). The form is
+  checked and priced and its draft (`draftUUID`, or a new one) becomes *submitted*; no
+  registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
+  is the draft's `uuid`, which the registration keeps. `paymentOptions` is
   `{ title, description, default, options: [{ name, title, amount, handling }] }`: the event's
   deposit choices worked out on the server against `serverPricingResults` (§15, DR-89) — each
   option's `amount` by check and the `handling` fee added when it's paid online — or a single
@@ -641,11 +665,11 @@ Non-CRUD admin endpoints:
   for this event, so special registration types can still register. An invitation that isn't
   found, has been redeemed, has expired or is for another event is a 400 `{ detail }` saying
   which, shown to the registrant (the `GET` reports the same as `invitationError`). An
-  invitation is redeemed only when a registration started with it is completed, so several may
-  be started with one; each records it as `started_with_invitation`, and only the first of them
-  completed gets it (§15, DR-137). A
+  invitation is redeemed only when a registration started with it is completed, so several
+  drafts may be started with one, each recording it, and only the first of them completed gets
+  it, as its `started_with_invitation` (§15, DR-137). A
   non-blank `promoCode` the `checkpromo` check would refuse is a 400 with the same `{ detail }`
-  and nothing is saved; a usable one is recorded on the registration and priced (§9.2). The code
+  and nothing is saved; a usable one is recorded on the draft and priced (§9.2). The code
   travels outside `formData`, so it's never one of the registration's `attributes`. Each camper's
   requested lodging must be one the form offers: a node of this event's lodging tree below its
   root, shown on the form (`visible`, as is every node above it), a final choice (no visible
@@ -655,14 +679,14 @@ Non-CRUD admin endpoints:
   Otherwise it's a
   400 `{ 'campers.{index}.lodging.lodging_requested.id': [message] }` for the first camper
   refused (the lodging isn't available, or it has no room left) and nothing is saved. The
-  remaining capacity counts every registration's campers, started ones included, as the form's
-  `full` does. Registrations asking for lodging are checked and saved one at a time, so two
-  can't both take the last place (§15, DR-123). Admins may still overbook through the camper
-  endpoints.
+  remaining capacity counts the campers of completed registrations, as the form's `full` does: a
+  draft holds no place. Registrations are checked the same way, one at a time, as they're
+  completed, so two can't both take the last place (§15, DR-123, DR-140). Admins may still
+  overbook through the camper endpoints.
 - `POST /api/events/{eventId}/register` with `{ step: 'paypal-order', registrationUUID,
   paymentOption, paymentType }` (`PayPal` | `Card`) — what the PayPal or card button calls
   (§7.2; §15, DR-90, DR-91). It **completes** the registration (unpaid until money arrives),
-  makes or rewrites its registration invoice for the chosen option, and creates the PayPal order
+  making it and its campers from its draft, makes or rewrites its registration invoice for the chosen option, and creates the PayPal order
   for it → `{ orderID, total, handling, invoice }`. The order has a single item, "Total for
   Invoice #{id} for {Event Name}", for what the invoice asks plus the handling fee; the fee
   isn't added to the invoice until the order is captured. `total` and `handling` are the
@@ -671,7 +695,9 @@ Non-CRUD admin endpoints:
   organizers cancelled it, and 409 `{ detail, code: 'invoice_changed', invoice, paymentStep }`
   for an option from before they changed it (§15, DR-105); 409 `{ detail, code:
   'invitation_redeemed' }` when another registration started with the same invitation has been
-  completed, which leaves this one uncompleted with nothing saved (§15, DR-137); 400 on
+  completed, which leaves this one a draft with nothing saved (§15, DR-137); 409 `{ detail, code:
+  'lodging_unavailable' }` when a camper's lodging has filled up since the form was sent, which
+  also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 400 on
   `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
@@ -729,9 +755,10 @@ Non-CRUD admin endpoints:
   pending PayPal order stays on it (§15, DR-104). The worker's half-hour confirmation (§7.3)
   does the same.
 - Every step after `registration` (`payment-step`, `paypal-order`, `payment`, `finish`) answers
-  404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names no
-  registration the server has — an organizer deleted it, or it was purged as incomplete (§15,
-  DR-76) — or isn't a registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
+  404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names neither a
+  registration nor a submitted draft the server has — an organizer deleted it, it was purged as
+  incomplete (§15, DR-76), or its answers changed after it was sent (§15, DR-140) — or isn't a
+  registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
   A registration of another event counts as none: each step checks the registration against
   this event's settings.
 - Anonymous `POST` steps are throttled per client address (scope `register`, 10 a minute by
@@ -890,8 +917,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **EmailUnsubscribe** (`/api/emailunsubscribes/`, filter `event`; §15, DR-48): `id`, `event`,
   `email` (lowercased), read-only `source` (`link` | `admin`), `created_by`, `created_by_name`
   and `created_at`.
-- **Invitation:** `id`, `registration?` (the registration last started with it, or the one
-  that redeemed it once one is completed; §15, DR-137), `registration_type?`, `invitation_code`,
+- **Invitation:** `id`, `registration?` (the one that redeemed it, once one is completed; null
+  before that; §15, DR-137), `registration_type?`, `invitation_code`,
   `recipient_name`, `recipient_email`, `sent_time?`, `expiration_time?`, and read-only `email`:
   the latest invitation email's delivery, `null | { id, status, error, queued_at, sent_at }`,
   `redeemed` — a registration has been completed with it, not just started (§15, DR-138),
@@ -1236,14 +1263,23 @@ Before any step renders, the app loads the registration config (`GET …/registe
   applied code stays applied only while the field still holds it, and can be removed. A code
   that has been typed but not applied blocks advancing, with a message by the field, until it's
   applied or cleared. Pressing Enter in the field applies the code; it doesn't submit the form.
-- **Submit:** posts `{ step: 'registration', formData, pricingResults, invitation?, promoCode? }`
-  (`promoCode` only when one is applied). On success it stores the returned payment-step payload
+- **Saving to the server:** the first change to the form starts a draft on the server, so nothing
+  is recorded for someone who only opens the page (§15, DR-140). A changed field is saved when it
+  loses focus, not on each keystroke, at most every 30 seconds; a change held back by that limit
+  is sent when the page is hidden. The draft's `uuid` is kept in localStorage beside the form
+  data, and returning to the page goes on with it; if the server no longer has it, the next save
+  starts another from what the browser holds. A failed save never interrupts the form, and the
+  browser backs off on a 429 or 503. The step says that answers are saved as the form is filled
+  in, and deleted after `draftRetentionDays` days if the registration isn't finished.
+- **Submit:** posts `{ step: 'registration', formData, pricingResults, draftUUID?, invitation?,
+  promoCode? }` (`promoCode` only when one is applied). On success it stores the returned payment-step payload
   in the store and advances to the payment step. It also saves the *sent registration* in
   localStorage beside the form data: the payment-step payload together with the form data and
   applied promo code exactly as they were sent.
 - **Already sent:** when this browser has a saved payment step for the event (the form was sent,
   and the registrant hasn't reached the confirmation), the step says so and offers to continue
-  to payment for that registration, or to start a new one (which clears what's saved). A reload
+  to payment for that registration, or to start a new one (which clears what's saved and deletes
+  the draft from the server). A reload
   of the payment step resumes from what's saved the same way, so leaving PayPal's window or
   closing the tab doesn't lead to a second registration from the same browser. Resuming restores
   the payment step, the form data and the promo code that were sent, so the payment step's
@@ -1255,6 +1291,10 @@ Before any step renders, the app loads the registration config (`GET …/registe
   it's still that one: another tab may have sent a new one) and returns to this step with the
   form data and promo code kept, saying the earlier registration couldn't be found and asking
   the registrant to send the form again. The server's raw message isn't shown (§15, DR-120).
+- **Lodging gone:** nothing holds a place until a registration is completed, so a payment button
+  can find it taken (`lodging_unavailable`, §5). The browser forgets the saved sent registration
+  and returns to this step with the form data and promo code kept, giving the server's message and
+  asking the registrant to choose again and send the form (§15, DR-140).
 
 ### 7.2 Step 2 — Payment
 
@@ -1360,8 +1400,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   worker (for someone who closed the page with PayPal's window open); while a PayPal order made
   in the last three hours is pending, the worker waits, since the payer may still approve it
   (§9.7; §15, DR-121). It's sent once.
-- Clears the saved localStorage form data and sent registration (unless the keep-data debug
-  flag is set).
+- Clears the saved localStorage form data, sent registration and draft `uuid` (unless the
+  keep-data debug flag is set).
 - If there's no confirmation data (e.g. direct navigation/refresh), redirects to step 1.
 
 ---
@@ -2237,9 +2277,11 @@ example and its result.
   `lodging` (the root), `lodgings`, `registration_types`, `custom_charge_types`, `invitations`,
   `today` and `now`. `registrations`, `campers`, `payments` and `invoices` are those of
   completed registrations;
-  `incomplete_registrations` are those started but never finished, which the server deletes,
-  for real and with their campers, once nobody has changed one in the retention period (30 days
-  by default), unless it has a payment (§15, DR-76, DR-139). A
+  `incomplete_registrations` are those sent but never finished: submitted drafts (§15, DR-140),
+  whose `id` and campers' `id`s are text rather than numbers and which have no payments or
+  invoices, and any older unfinished registration that has them. The server deletes both once
+  they've had no activity in the retention period (30 days by default), unless one has a
+  payment (§15, DR-76, DR-139). A form still being filled in isn't in any template. A
   confirmation email — and the confirmation page — gets the one registration it's for
   (`registration`, its `campers`, `pricing`, `invoice`, and `initial_payment` for older
   templates) and `event`; an invitation email gets `invitation`, `registration_type` and
@@ -2428,8 +2470,9 @@ Money a registration owes, pays and gets back is kept in **invoices** and **paym
 server (§15, DR-87). The developer guide `doc/payments.md` walks through it with diagrams; this
 section is the contract.
 
-- **A registration's states.** *Started*: the form was sent, not yet a payment button
-  (invisible in the admin lists; deleted after the retention period untouched, §15, DR-76, DR-139). *Completed*: a
+- **A registration's states.** *Draft*: the form is being filled in, and then, once *submitted*,
+  sent but with no payment button pressed; it isn't a registration yet, holds no lodging, and is
+  deleted after the retention period without activity (§15, DR-76, DR-139, DR-140). *Completed*: a
   payment button was pressed — Pay by check, PayPal or Card, or Finish registration when nothing
   is owed (§15, DR-91). From then on it's in every admin list, unpaid until a payment arrives.
 - **Invoice.** A request for one chunk of the balance: `amount` toward the registration, plus
@@ -4403,10 +4446,10 @@ the details — a second way to edit one field, beside the form that edits them 
 
 ### DR-76 — Incomplete registrations are deleted after the retention period untouched
 
-**Decision:** Each night the task worker (DR-44) deletes the registrations that were started but
-never finished and that nobody has changed in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days (30 by
-default, DR-139), counted from their last change, with their campers, charges and pricing
-overrides. They're deleted for real, not soft-deleted (DR-55), and one never completed leaves
+**Decision:** Each night the task worker (DR-44) deletes the registration drafts (DR-140) with no
+activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days (30 by default, DR-139), and any older
+registrations started but never finished that nobody has changed in that time, counted from their
+last change, with their campers, charges and pricing overrides. They're deleted for real, not soft-deleted (DR-55), and one never completed leaves
 nothing in the audit log, which starts at completion (DR-139). One with a payment, even a deleted one,
 is left alone, as is one with a PayPal capture on one of its invoices that may yet be recorded as
 a payment (DR-133). Invitations and sent email that point at one keep their rows, unlinked from it,
@@ -4421,6 +4464,8 @@ registrant came back to recently. A few days — too short to follow up. Deletin
 payment too — money is never deleted by a background job.
 **Note (DR-91):** a registrant who presses PayPal and doesn't finish is completed now, so they're
 in the admin lists rather than left as an incomplete registration.
+**Note (DR-140):** an incomplete registration is a draft now; the rule for older registrations
+covers those migration 0089 left, which hold an invoice, payment, charge or override.
 
 ### DR-77 — Keep PayPal's card button; block the page only after approval
 
@@ -4668,7 +4713,8 @@ finished to pay later, nothing to pay) or, failing that, from the worker half an
 completion; once. The browser saves the payment step, so a reload resumes paying for the same
 registration.
 **Context:** A registrant who abandoned PayPal stayed incomplete — invisible to registrars, and
-deleted after a month (DR-76), though they meant to register. Sending the email at the button
+deleted after a month (DR-76), though they meant to register. (Since DR-140 the button also makes
+the registration from its draft.) Sending the email at the button
 press would tell a PayPal payer "amount due" moments before their payment; sending it only on
 success would leave someone who closed the tab with nothing.
 **Alternatives:** Completing only once paid (as before). Emailing at the button press. Emailing
@@ -5325,9 +5371,10 @@ a retry from the still-open dialog then counts it twice.
 wouldn't offer — another event's, one not shown, one with choices shown under it, or one under or
 at a choice offered as full — with the same notions the form uses: `visible`, and `full` from the
 lodging tree (DR-57). Like the form, it doesn't count the registration's own campers against the
-room left, so a party may fill the last places past capacity. Started registrations hold their
-places, as they do for `full`, so a registrant who submits again for a place their unfinished
-registration filled (going back from the payment step) is refused by it. A registration asking for lodging locks the event's root lodging before counting, and keeps the
+room left, so a party may fill the last places past capacity. Since DR-140 a place is taken only
+when a registration is completed: drafts count for neither the check nor `full`, the check runs
+again as a draft is completed, and that's where two can no longer both take the last place. A
+registration asking for lodging locks the event's root lodging before counting, and keeps the
 lock until the step's transaction (which saves the registration all or nothing, #806) commits,
 so registrations for the same event's lodging queue up and each counts the ones before it.
 Admin changes to a camper's lodging aren't checked: they may overbook.
@@ -5340,8 +5387,7 @@ lock order has to be managed to avoid deadlocks, and registrations are few enoug
 per event costs nothing. Serializable transactions with retries — more machinery for the same
 result. A database constraint — capacity is a sum over a tree with availability overrides, which
 a constraint can't express. Checking without a lock — still lets two registrations take the last
-place. Leaving started registrations out of the count — the form's `full` counts them too, and the
-two must agree; a started registration that's never paid is cleaned up later. Counting the
+place. Counting the
 registration's campers together against the room left — stricter than the form, and wrong for
 lodging counted in spots a party shares: on the campouts a party of six sharing one RV was
 refused with every RV spot empty.
@@ -5726,11 +5772,11 @@ the server, but needs a schema generator the project doesn't have.
 the invitation and redeems it: the invitation links to that registration. An invitation is
 redeemed once any registration it links to or that was started with it is completed (one since
 deleted still counts, DR-55). Completing another registration started with it afterwards is
-refused with 409 `invitation_redeemed`, and that registration stays uncompleted, to be purged
-as abandoned (DR-76); starting one is refused as redeemed, the invitation locked while it's
+refused with 409 `invitation_redeemed`, and that registration stays a draft, to be purged as
+abandoned (DR-76); starting one is refused as redeemed, the invitation locked while it's
 checked, so one started while another completes never takes the link from it. A registration
-whose invitation has been deleted completes as usual; deleting an invitation locks the
-registrations started with it before the invitation, the order completing takes them in.
+whose invitation has been deleted completes as usual; deleting an invitation locks the drafts
+and registrations started with it before the invitation, the order completing takes them in.
 Registrations started before the link existed take it from the invitation's own
 `registration`. One completed before another was started with the same invitation (which then
 moved the invitation to the newer one) takes it too when it's the only completed registration
@@ -5795,9 +5841,9 @@ help a registrar reach that person.
   identify someone, which is acceptable for email.
 - **Access.** Registrars, Admins and Reporters can all read incomplete registrations; a
   registration's change history stays with Registrars and Admins (DR-53).
-- **Backups.** Registration drafts are left out of every backup: `dbbackup` passes
-  `--exclude-table-data=camphoric_registrationdraft` to `pg_dump`, and dumps taken by hand use the
-  same flag. Incomplete registrations stay in backups.
+- **Backups.** Registration drafts, so everything incomplete (DR-140), are left out of every
+  backup: `dbbackup` passes `--exclude-table-data=camphoric_registrationdraft` to `pg_dump`, and
+  dumps taken by hand use the same flag.
 **Context:** Incomplete registrations hold personal details, including children's and emergency
 contacts, from people who never finished. The log kept a full copy of their answers indefinitely,
 long after the clean-up deleted them, where no screen could show it (GitHub #942). The period was
@@ -5809,6 +5855,47 @@ the history would begin with a diff against answers it doesn't hold. Log only th
 its campers at completion: the check payment path makes its invoice just before completing, and
 an organizer can add a charge or payment to an incomplete registration, so those would never be
 logged. A setting per kind of data: more to explain, with nothing yet that needs them to differ.
+
+### DR-140 — A registration nobody has finished is a draft
+
+**Decision:** A `Registration` and its campers are made only when the registration is completed.
+Until then there's a `RegistrationDraft`: event, `uuid`, invitation, registration type, promo code,
+registrant email, the form data as JSON, the prices once it's sent, `submitted_at`, `created_at`
+and `last_activity_at`. The browser starts one on the first change to the form and saves a changed
+field as it loses focus, at most every 30 seconds, sending what that held back when the page is
+hidden; a save returns only the `uuid`. The `registration` step checks and prices the form and
+marks the draft submitted. Its `uuid` is the `registrationUUID` of the steps after it, and the
+registration keeps it, so a browser notices nothing at completion. Completing makes the records
+from the draft in the transaction that completes it, and removes the draft: if anything refuses,
+the draft is still there. The registration is dated when the form was submitted, since early-bird
+pricing reads `created_at`. Lodging is held by nothing until then, so the check runs again at
+completion under the lodging lock; if the place has gone the step answers 409
+`lodging_unavailable` and the registrant goes back to the form with their answers. The `paypal-order`
+step commits the completion before it asks PayPal for the order, so that lock is never held across
+a call to PayPal. Locks are taken in one order: draft, root lodging, then invitation. Reports'
+`incomplete_registrations` and group email's "include registrations that weren't completed" read
+submitted drafts; a draft still being filled in is in neither, and an email sent to one stays in
+the email history unlinked to the registration it may become. Registrars, Admins and Reporters can
+read drafts, and Registrars and Admins delete them. Each save and `payment-step` counts as activity,
+and an idle open tab doesn't, nor does reopening the page: the form reports its schema's defaults as
+a change as it loads, so a change counts only once someone has come to the form. A notice goes out on the change feed only as a draft is created,
+becomes active after two minutes without a save, or goes. Migration 0089 turns incomplete
+registrations into submitted drafts under the same `uuid`, leaving any that are deleted or hold an
+invoice, payment, charge or override, which a draft can't hold; undone, it turns submitted drafts
+back into incomplete registrations.
+**Context:** A registration was created when the whole form was sent, and the answers before that
+stayed in one browser, so someone who stopped partway left organizers nothing (#941). An incomplete
+registration was a row that every list, report, price and count had to filter out, whose campers
+held lodging that an unfinished form shouldn't, and which the audit log and backups then had to
+treat specially (DR-139).
+**Alternatives:** Drafts only until the form is sent, with incomplete registrations as they were:
+less to change, but two homes for unfinished data, and lodging still held by people who may never
+pay. Holding a bed for a submitted draft: fairer to whoever sent the form first, but a draft
+abandoned at payment would keep a bed from people ready to pay until it's cleaned up. A
+`last_activity_at` on `Registration`: nothing unfinished is one any more. A heartbeat from an open
+page: an idle tab would look active. Returning the answers from a save: the browser has them, and
+a leaked `uuid` shouldn't reveal them. A save on every keystroke: load for nothing a registrar can
+use. Starting a draft on opening the page: visitors, crawlers and bots would leave records.
 
 ---
 

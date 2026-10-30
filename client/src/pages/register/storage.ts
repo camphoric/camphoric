@@ -7,7 +7,9 @@
  * it was sent with — is saved too, so a reload (or a return after closing a
  * PayPal window) resumes paying for the same registration, still showing what
  * was entered, instead of starting a second one. Both are cleared after
- * confirmation unless the KEEP_REG_DATA debug flag is set. Every storage access
+ * confirmation unless the KEEP_REG_DATA debug flag is set. The uuid of the form's
+ * draft on the server (§15, DR-140) sits beside them, and is cleared with the form
+ * data. Every storage access
  * is guarded: with site data blocked, reading `window.localStorage` throws, and
  * that mustn't break the page.
  *
@@ -68,10 +70,31 @@ export function loadRegistrationFormData(key: string): RegistrationFormData | nu
   }
 }
 
+const draftKey = (key: string) => `${key} (draft)`;
+
+/** Remembers the form's draft on the server, so later saves go on with it. */
+export function saveDraftUUID(key: string, uuid: string): void {
+  try {
+    window.localStorage.setItem(draftKey(key), uuid);
+  } catch (error) {
+    console.error('Failed to save the registration draft id', error);
+  }
+}
+
+export function loadDraftUUID(key: string): string | null {
+  try {
+    return window.localStorage.getItem(draftKey(key));
+  } catch (error) {
+    console.error('Failed to read the registration draft id', error);
+    return null;
+  }
+}
+
 export function clearRegistrationFormData(key: string): void {
   try {
     if (keepRegData()) return;
     window.localStorage.removeItem(key);
+    window.localStorage.removeItem(draftKey(key));
     const legacy = legacyKey(key);
     if (legacy !== null) window.localStorage.removeItem(legacy);
   } catch (error) {

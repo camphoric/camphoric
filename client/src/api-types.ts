@@ -555,8 +555,9 @@ export interface TemplatePreviewRequest {
   template: string;
   output: TemplatePreviewOutput;
   subject?: string;
-  registration_id?: number;
-  camper_id?: number;
+  /** A submitted draft's are text (§15, DR-140). */
+  registration_id?: number | string;
+  camper_id?: number | string;
   invitation_id?: number;
   registration_type_id?: number;
   invoice_id?: number;
@@ -570,7 +571,7 @@ export interface TemplatePreviewResponse {
   diagnostics: TemplateDiagnostic[];
   truncated: boolean;
   duration_ms: number;
-  sample: { kind: string; id: number; label: string } | null;
+  sample: { kind: string; id: number | string; label: string } | null;
 }
 
 /** GET /api/events/<id>/templates/check — every saved template of an event. */
@@ -782,6 +783,8 @@ export interface RegisterConfigEvent {
 
 /** The config bundle returned by GET /api/events/{id}/register. */
 export interface ApiRegister {
+  /** Days without activity before an unfinished registration is deleted (§15, DR-139). */
+  draftRetentionDays: number;
   dataSchema: JSONSchema7;
   uiSchema: Hash;
   preSubmitTemplate: string;
@@ -908,6 +911,7 @@ export interface ApiPayPalOrder {
  * first, so this one can't be completed (#803).
  */
 export type PaymentProblemCode =
+  | 'lodging_unavailable'
   | 'amount_changed'
   | 'declined'
   | 'not_payable'
@@ -1145,8 +1149,9 @@ export interface AudienceRecipient {
   email: string;
   name: string;
   label: string;
-  registration: number | null;
-  camper: number | null;
+  /** A submitted draft's are text (§15, DR-140). */
+  registration: number | string | null;
+  camper: number | string | null;
   already_sent: boolean;
 }
 
@@ -1155,8 +1160,8 @@ export interface AudienceSkipped {
   reason: 'no_address' | 'invalid' | 'duplicate' | 'filter_error' | 'unsubscribed';
   detail: string;
   email: string;
-  registration: number | null;
-  camper: number | null;
+  registration: number | string | null;
+  camper: number | string | null;
 }
 
 /**

@@ -37,6 +37,8 @@ export interface RegistrationState {
   updating: boolean;
   /** The server no longer has the registration this browser sent: step 1 says to send it again. */
   sentNotFound: boolean;
+  /** Why it couldn't be completed: lodging filled up meanwhile, and step 1 says to choose again. */
+  lodgingProblem: string | null;
 
   setRegistration: (registration: RegistrationFormData) => void;
   setTotals: (totals: PricingResults) => void;
@@ -48,6 +50,8 @@ export interface RegistrationState {
   resumeSent: (sent: SentRegistration) => void;
   /** The server no longer has the sent registration: drop its payment step, keep what was entered. */
   forgetSent: () => void;
+  /** Its lodging filled up before it was completed: back to the form to choose again. */
+  lodgingTaken: (message: string) => void;
   reset: () => void;
 }
 
@@ -57,11 +61,12 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   promo: null,
   updating: false,
   sentNotFound: false,
+  lodgingProblem: null,
 
   setRegistration: (registration) => set({ registration }),
   setTotals: (totals) => set({ totals }),
   setUpdating: (updating) => set({ updating }),
-  setPaymentStep: (paymentStep) => set({ paymentStep, sentNotFound: false }),
+  setPaymentStep: (paymentStep) => set({ paymentStep, sentNotFound: false, lodgingProblem: null }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
   setPromo: (promo) => set({ promo }),
   resumeSent: ({ paymentStep, formData, promo }) =>
@@ -71,8 +76,10 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       promo,
       totals: paymentStep.serverPricingResults,
       sentNotFound: false,
+      lodgingProblem: null,
     }),
-  forgetSent: () => set({ paymentStep: undefined, sentNotFound: true }),
+  forgetSent: () => set({ paymentStep: undefined, sentNotFound: true, lodgingProblem: null }),
+  lodgingTaken: (message) => set({ paymentStep: undefined, lodgingProblem: message }),
   reset: () =>
     set({
       registration: emptyRegistration,
@@ -82,5 +89,6 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       promo: null,
       updating: false,
       sentNotFound: false,
+      lodgingProblem: null,
     }),
 }));

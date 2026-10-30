@@ -292,7 +292,8 @@ Camphoric variables get linked objects instead:
 | \`money_fmt\` | \`money\` |
 
 Only completed registrations (and their campers and payments) are in \`registrations\`,
-\`campers\` and \`payments\`, as before; the rest are in \`incomplete_registrations\`.
+\`campers\` and \`payments\`, as before; those sent but not finished are in
+\`incomplete_registrations\`.
 `;
 
 const MUSTACHE = `

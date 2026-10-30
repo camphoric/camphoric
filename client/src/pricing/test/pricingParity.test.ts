@@ -46,6 +46,7 @@ const { fixtures } = JSON.parse(readFileSync(FIXTURES, 'utf-8')) as { fixtures: 
 /** The register config the fixture's event gives. */
 function registerConfig({ event }: ParityFixture): ApiRegister {
   return {
+    draftRetentionDays: 30,
     dataSchema: {
       definitions: { camper: event.camperSchema ?? { type: 'object', properties: {} } },
     },

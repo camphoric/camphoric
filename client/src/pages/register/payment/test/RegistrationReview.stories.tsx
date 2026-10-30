@@ -11,6 +11,7 @@ import type { ApiRegister } from 'api-types';
 import { RegistrationReview } from '../RegistrationReview';
 
 const config: ApiRegister = {
+  draftRetentionDays: 30,
   dataSchema: {
     definitions: {
       address: {

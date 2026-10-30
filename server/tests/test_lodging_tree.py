@@ -89,11 +89,13 @@ class TestLodgingTree(LodgingTreeTestCase):
 
     def test_camper_counts(self):
         registration1 = self.event.registration_set.create(
+            completed=True,
             event=self.event,
             attributes={},
             registrant_email='registrant1@example.com',
         )
         registration2 = self.event.registration_set.create(
+            completed=True,
             event=self.event,
             attributes={},
             registrant_email='registrant2@example.com',
@@ -142,6 +144,7 @@ class TestLodgingTree(LodgingTreeTestCase):
 
     def test_overbooking(self):
         registration = self.event.registration_set.create(
+            completed=True,
             event=self.event,
             attributes={},
             registrant_email='registrant@example.com',
