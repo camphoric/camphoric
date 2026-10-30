@@ -110,7 +110,7 @@ docker compose up --build -d -V
 ```
 
 or keep your data by dumping it with the old version first: before pulling this change, run
-`docker compose exec postgres pg_dump -U camphoric camphoric > local.sql`; then, after
+`docker compose exec postgres pg_dump -U camphoric --exclude-table-data=camphoric_registrationdraft camphoric > local.sql`; then, after
 `docker compose down -v` and `docker compose up -d --wait postgres` (the database alone, so
 nothing is created or imported before your data is back), restore it with
 `docker compose exec -T postgres psql -U camphoric camphoric < local.sql`, and start the rest

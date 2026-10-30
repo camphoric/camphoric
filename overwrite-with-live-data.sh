@@ -5,7 +5,11 @@
 #
 #   ./overwrite-with-live-data.sh [dump-file]      # dump-file defaults to live-data.sql
 #
-# The dump is a plain `pg_dump` (as produced by `pg_dump camphoric > live-data.sql`).
+# The dump is a plain `pg_dump`, without registration drafts, which are never
+# backed up (SPEC DR-139):
+#
+#   pg_dump --exclude-table-data=camphoric_registrationdraft camphoric > live-data.sql
+#
 # Objects in a live dump are owned by the `camphoric` role; the Vagrant database
 # role is `vagrant`, so ownership is rewritten during restore. Everything the
 # `vagrant` role owns is dropped first (DROP OWNED BY — the role owns the tables

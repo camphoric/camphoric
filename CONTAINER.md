@@ -127,13 +127,15 @@ records the message.
 | `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after it's issued, in seconds; must be positive. An expired token gets a 401 and is deleted. Signing in hands back the current token while it has half this left, and otherwise issues a new one. |
 | `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the Django admin) one client address may make; more get a 429. |
 | `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
+| `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` | `30` | How many days a registration that was started but never finished is kept without a change, before the worker deletes it; from 1 to 36500. The worker reads it, so give it the same value as the web container. |
 
 ### The task worker
 
 Run a second container from the same image as the worker; it delivers queued email, retries
 temporary failures, keeps to each account's sending limits, and recovers messages from a worker
 that died mid-send. Each night at 10:00 UTC it also deletes the registrations that were started
-but never finished and that nobody has changed in 30 days. `docker-compose.image.yml` includes it
+but never finished and that nobody has changed in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days.
+`docker-compose.image.yml` includes it
 as the `worker` service.
 
 ```bash
@@ -168,6 +170,10 @@ docker run -d --restart unless-stopped \
 Run a backup with `docker exec <container> python manage.py dbbackup`; mount `/app/backup` to
 keep the files (see *Mount points*). The image ships the PostgreSQL 17 client (`pg_dump`, from
 the base image's Debian release), which can dump servers up to PostgreSQL 17.
+
+Registration drafts are never backed up: `dbbackup` keeps their table but not its rows. A dump
+taken by hand needs the same flag, as in
+`pg_dump --exclude-table-data=camphoric_registrationdraft camphoric > camphoric.sql`.
 
 These two variables populate `STORAGES["dbbackup"]` in the settings. If you configure backups
 from a mounted `settings_override.py` instead, set `STORAGES["dbbackup"]` there — django-dbbackup

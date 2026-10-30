@@ -1,8 +1,8 @@
 '''
 The nightly clean-up (SPEC §9.3, DR-76). Incomplete registrations, those started but
-never finished, that nobody has changed in INCOMPLETE_REGISTRATION_MAX_AGE are
-deleted for real, with their campers, charges and pricing overrides; the audit
-log keeps their last values. One with a payment, even a deleted payment, is
+never finished, that nobody has changed in CAMPHORIC_INCOMPLETE_RETENTION_DAYS are
+deleted for real, with their campers, charges and pricing overrides, and leave
+nothing in the audit log (DR-139). One with a payment, even a deleted payment, is
 left alone. Lapsed edit leases (camphoric.leases) are deleted too.
 
 `clean_up` runs at CLEAN_UP_AT each night and schedules the next night's run,
@@ -13,6 +13,7 @@ starts it.
 from datetime import UTC, datetime, time, timedelta
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.tasks import task
@@ -22,7 +23,6 @@ from camphoric import leases, models, worker
 
 logger = logging.getLogger(__name__)
 
-INCOMPLETE_REGISTRATION_MAX_AGE = timedelta(days=30)
 # In UTC: 3 a.m. in California, where the camps are.
 CLEAN_UP_AT = time(10, 0)
 
@@ -31,11 +31,12 @@ _CLEAN_UP_LOCK = 0x436C6E55  # a Postgres advisory lock key
 
 def abandoned_registrations(now=None):
     '''
-    The incomplete registrations unchanged for the max age, with no payment,
-    nor a PayPal capture on one of their invoices that may yet be recorded as
+    The incomplete registrations unchanged for the retention period, with no
+    payment, nor a PayPal capture on one of their invoices that may yet be recorded as
     one (#767).
     '''
-    cutoff = (now or timezone.now()) - INCOMPLETE_REGISTRATION_MAX_AGE
+    retention = timedelta(days=settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS)
+    cutoff = (now or timezone.now()) - retention
     capturing = models.Invoice.all_objects.filter(
         registration=OuterRef('pk'), paypal_capture_order_id__isnull=False)
     return models.Registration.all_objects.filter(

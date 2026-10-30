@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-21
+**Last updated:** 2026-10-30
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-138)
+- §15 — Decision Records (DR-1…DR-139)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -395,8 +395,9 @@ consistently:
     `GET /api/payments/deleted/?event=|registration=` (Registrars and Admins; 400 without a
     filter) → the deleted ones, most recently deleted first, as the usual entity plus
     `deleted_at` and `deleted_by` (`{ id, username, name }`, or `null`); registrations also have
-    `camper_count`. Campers and payments of a deleted registration aren't listed on their own —
-    they come back with it.
+    `camper_count`. `deleted_by` is `null` for anything deleted while its registration wasn't
+    completed, which the audit log doesn't cover (§15, DR-139). Campers and payments of a deleted
+    registration aren't listed on their own — they come back with it.
   - `GET /api/{registrations|campers}/{id}/history/` works for a deleted one too.
 
 Caching/invalidation uses query keys (one key namespace per entity, parameterized by the
@@ -578,6 +579,9 @@ Non-CRUD admin endpoints:
   - `GET /api/registrations/{id}/history/` — the registration's changes and those of its campers,
     payments and custom charges, including ones since deleted; `GET /api/campers/{id}/history/` —
     the camper's and its custom charges'.
+  - A registration's history starts when it's completed: nothing is logged before that, and
+    completing it writes a `create` entry for it and each record under it as they stand then
+    (§15, DR-139).
   - Each is an array, newest first, of `{ id, timestamp, request_id, actor, action, object,
     changes }`:
     - `actor` is `{ id, username, name }`, or `null` when no one was signed in (an online
@@ -1531,7 +1535,7 @@ they can:
   every role; an override that isn't in effect is listed as such. The handling fee isn't a price
   line: it's edited on its invoice.
 - **See its change history** (Registrars and Admins; §15, DR-53) — the registration's changes and
-  its campers', invoices', payments' and custom charges', newest first: when, who ("Anonymous User" when
+  its campers', invoices', payments' and custom charges' since it was completed (DR-139), newest first: when, who ("Anonymous User" when
   no one was signed in, e.g. the online registration; a user since deleted by their email), what
   it was about, and each changed field's old and new value — attributes by their schema titles
   and only the keys that changed, ids by name (registration type, lodging, charge type), a price as its
@@ -2234,8 +2238,8 @@ example and its result.
   `today` and `now`. `registrations`, `campers`, `payments` and `invoices` are those of
   completed registrations;
   `incomplete_registrations` are those started but never finished, which the server deletes,
-  for real and with their campers, once nobody has changed one in 30 days, unless it has a
-  payment (§15, DR-76). A
+  for real and with their campers, once nobody has changed one in the retention period (30 days
+  by default), unless it has a payment (§15, DR-76, DR-139). A
   confirmation email — and the confirmation page — gets the one registration it's for
   (`registration`, its `campers`, `pricing`, `invoice`, and `initial_payment` for older
   templates) and `event`; an invitation email gets `invitation`, `registration_type` and
@@ -2425,7 +2429,7 @@ server (§15, DR-87). The developer guide `doc/payments.md` walks through it wit
 section is the contract.
 
 - **A registration's states.** *Started*: the form was sent, not yet a payment button
-  (invisible in the admin lists; deleted after 30 untouched days, §15, DR-76). *Completed*: a
+  (invisible in the admin lists; deleted after the retention period untouched, §15, DR-76, DR-139). *Completed*: a
   payment button was pressed — Pay by check, PayPal or Card, or Finish registration when nothing
   is owed (§15, DR-91). From then on it's in every admin list, unpaid until a payment arrives.
 - **Invoice.** A request for one chunk of the balance: `amount` toward the registration, plus
@@ -3994,8 +3998,9 @@ password's session for everything.
 
 **Decision:** The server keeps an **audit log** with django-auditlog: every change to the event
 data, organizations, email settings and users records who made it, when, and each changed
-field's old and new values; deletes record the last values. Only changes are logged, not reads,
-and entries are kept indefinitely. Timestamps, PayPal's replies (they carry payer details and are
+field's old and new values; deletes record the last values. A registration and the records under
+it are logged only from when it's completed (DR-139). Only changes are logged, not reads, and
+entries are kept indefinitely. Timestamps, PayPal's replies (they carry payer details and are
 written once by the payment flow) and passwords are left out; pricing results are kept, so a
 balance's history shows. The email outbox isn't tracked — its history already records each
 message. Registrars and Admins can read a registration's or camper's history (Reporters can't);
@@ -4046,7 +4051,8 @@ just to preview it.
 **Decision:** Deleting a registration, camper or payment through the admin marks it deleted
 instead of removing it; Registrars and Admins can list what's deleted, with who deleted it, and
 restore it. Only these three are soft-deleted — everything else is deleted for real (DR-54),
-with the audit log (DR-53) keeping its last values. "Not deleted" is built into these models'
+with the audit log (DR-53) keeping its last values, unless it belonged to a registration that
+wasn't completed (DR-139). "Not deleted" is built into these models'
 default managers: a deleted registration hides its campers, payments and charges without marking
 them, so restoring it brings back exactly what went with it, while a camper or payment deleted
 on its own earlier stays deleted. A deleted registration's price is left as it was, and
@@ -4069,7 +4075,7 @@ electronic-payment handling fee — with a reason, in place of what the rules co
 can't be set, only its lines. An override is stored data applied right after its line on every
 recalculation, so it survives later edits and everything after it follows. The admin shows the
 computed amount it replaced; registrants only ever see the result. Overrides are in the audit log
-and the change history (DR-53).
+and the change history (DR-53), from when their registration is completed (DR-139).
 **Context:** #667 set out to "recreate pricing". Working through it: developers write the rules
 and will keep doing so; every rule in the four events (lookup tables, age groups, per-day rates,
 early-bird dates, registration-type exceptions, percentage discounts, caps) is expressible in
@@ -4395,12 +4401,13 @@ switch views, find the node, and select it again to change it.
 the details — a second way to edit one field, beside the form that edits them all.
 
 
-### DR-76 — Incomplete registrations are deleted after a month untouched
+### DR-76 — Incomplete registrations are deleted after the retention period untouched
 
 **Decision:** Each night the task worker (DR-44) deletes the registrations that were started but
-never finished and that nobody has changed in 30 days, counted from their last change, with
-their campers, charges and pricing overrides. They're deleted for real, not soft-deleted
-(DR-55); the audit log (DR-53) keeps their last values. One with a payment, even a deleted one,
+never finished and that nobody has changed in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days (30 by
+default, DR-139), counted from their last change, with their campers, charges and pricing
+overrides. They're deleted for real, not soft-deleted (DR-55), and one never completed leaves
+nothing in the audit log, which starts at completion (DR-139). One with a payment, even a deleted one,
 is left alone, as is one with a PayPal capture on one of its invoices that may yet be recorded as
 a payment (DR-133). Invitations and sent email that point at one keep their rows, unlinked from it,
 so an invitee can register again. The run is at 3 a.m. California time; a command runs it on
@@ -5766,6 +5773,43 @@ would fetch registrations it doesn't otherwise need, including started ones the 
 leave out, and repeat the server's rule. Link the invitation only on completion and keep
 "has a registration": see DR-137.
 
+### DR-139 — What's kept of a registration nobody finished
+
+**Decision:** Personal details from a registration nobody finished are kept only as long as they
+help a registrar reach that person.
+- **The audit log starts at completion.** Nothing is logged for a registration that isn't
+  completed, or for its campers, custom charges, pricing overrides, invoices or payments. The save
+  that completes one, by the payment step or an organizer setting `completed`, writes a `create`
+  entry for it and each of those records still there, as they stand then, in place of an update,
+  so a history opens with the whole record. After that everything is logged as usual. A registration set back
+  to incomplete stops being logged until it's completed again, which writes those entries again,
+  and what the log already holds for it stays, even if the clean-up then deletes it.
+  Migration 0088 deletes what the log held from before this rule: all of an incomplete
+  registration's entries, all of a deleted one's that never was completed, and any others' from
+  before their first completion. A registration completed before that keeps its history from the
+  entry that completed it.
+- **One retention period.** `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` (30 by default, from 1 to 36500)
+  is how long an incomplete registration is kept without a change (DR-76). Anything that states
+  the period reads this setting.
+- **Sent email stays.** Email sent to an incomplete registration stays in the email history; it may
+  identify someone, which is acceptable for email.
+- **Access.** Registrars, Admins and Reporters can all read incomplete registrations; a
+  registration's change history stays with Registrars and Admins (DR-53).
+- **Backups.** Registration drafts are left out of every backup: `dbbackup` passes
+  `--exclude-table-data=camphoric_registrationdraft` to `pg_dump`, and dumps taken by hand use the
+  same flag. Incomplete registrations stay in backups.
+**Context:** Incomplete registrations hold personal details, including children's and emergency
+contacts, from people who never finished. The log kept a full copy of their answers indefinitely,
+long after the clean-up deleted them, where no screen could show it (GitHub #942). The period was
+a constant, so a deployment couldn't change it.
+**Alternatives:** Keep logging and have the clean-up delete a registration's entries: every
+incomplete registration's answers would still sit in the log for the whole period, and in backups
+of it. Log a registration's first save at completion as an update showing `completed` change:
+the history would begin with a diff against answers it doesn't hold. Log only the registration and
+its campers at completion: the check payment path makes its invoice just before completing, and
+an organizer can add a charge or payment to an incomplete registration, so those would never be
+logged. A setting per kind of data: more to explain, with nothing yet that needs them to differ.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -5848,7 +5892,8 @@ must be coordinated with the backend. Grouped by status.
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
   which the client adopts (§5, §11).
 - **Nightly clean-up:** the task worker deletes incomplete registrations nobody has changed in
-  30 days, with no payment nor a PayPal capture that may yet become one (§9.3; DR-76, DR-133),
+  the retention period (`CAMPHORIC_INCOMPLETE_RETENTION_DAYS`, DR-139), with no payment nor a
+  PayPal capture that may yet become one (§9.3; DR-76, DR-133),
   and lapsed edit leases (DR-110).
 
 ### A.2 — Needs a backend change (coordinate)

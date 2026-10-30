@@ -157,7 +157,8 @@ packages (Python 3.10, PostgreSQL 14) are too old, so upgrade the host before de
 that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the development
 Ansible role also targets:
 
-1. Back up the database: `pg_dump camphoric > camphoric.sql`.
+1. Back up the database, leaving out registration drafts, which are never backed up:
+   `pg_dump --exclude-table-data=camphoric_registrationdraft camphoric > camphoric.sql`.
 2. Move the host to 24.04: a fresh host, or `do-release-upgrade` followed by a PostgreSQL cluster
    upgrade.
 3. On a fresh host, restore the dump: `psql camphoric < camphoric.sql`.

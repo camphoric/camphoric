@@ -32,6 +32,8 @@ camphoric_django_superuser_password: admin
 camphoric_django_secret_key: this-should-be-in-vault
 camphoric_django_dbbackup_storage: ''
 camphoric_django_dbbackup_storage_options: '{}'
+# days without a change before an incomplete registration is deleted
+camphoric_incomplete_retention_days: 30
 
 camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
 camphoric_paypal_client_id: this-should-be-in-vault

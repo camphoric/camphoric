@@ -150,6 +150,14 @@ CAMPHORIC_API_TOKEN_TTL = env.int('CAMPHORIC_API_TOKEN_TTL', default=24 * 60 * 6
 if CAMPHORIC_API_TOKEN_TTL <= 0:
     # Not "never": every token would be expired as soon as it was issued.
     raise ImproperlyConfigured('CAMPHORIC_API_TOKEN_TTL must be a positive number of seconds')
+# How many days without a change an incomplete registration is kept (camphoric.cleanup,
+# SPEC DR-139).
+CAMPHORIC_INCOMPLETE_RETENTION_DAYS = env.int('CAMPHORIC_INCOMPLETE_RETENTION_DAYS', default=30)
+if not 1 <= CAMPHORIC_INCOMPLETE_RETENTION_DAYS <= 36500:
+    # Fewer would delete registrations still being filled in; far more, and the
+    # clean-up's cutoff is a date before the calendar starts.
+    raise ImproperlyConfigured(
+        'CAMPHORIC_INCOMPLETE_RETENTION_DAYS must be between 1 and 36500 days')
 
 # Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
 # delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request
@@ -333,6 +341,8 @@ PAYPAL_BASE_URL = env('PAYPAL_BASE_URL')
 PAYPAL_SECRET = env('PAYPAL_SECRET')
 
 # Backups are configured under STORAGES['dbbackup'] above (env DBBACKUP_STORAGE_OPTIONS).
+# Registration drafts are never backed up: pg_dump keeps the table, not its rows (SPEC DR-139).
+DBBACKUP_CONNECTORS = {'default': {'EXCLUDE': ['camphoric_registrationdraft']}}
 
 # Hosts and origins are comma-separated environment variables. The defaults cover local
 # development: the Vite dev servers and the docker-compose "django" host.

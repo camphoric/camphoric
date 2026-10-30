@@ -116,7 +116,7 @@ A worked Lark example: two adults, price $1,000, of which tuition and meals are 
 ```mermaid
 stateDiagram-v2
     [*] --> Started: form sent (step 'registration')
-    Started --> Deleted: 30 days untouched, nothing paid nor being captured<br/>(nightly clean-up, DR-76)
+    Started --> Deleted: retention period untouched (30 days by default), nothing paid nor being captured<br/>(nightly clean-up, DR-76)
     Started --> Unpaid: a payment button pressed
     Unpaid --> PartiallyPaid: a payment smaller than the balance
     Unpaid --> Paid: a payment for the balance
