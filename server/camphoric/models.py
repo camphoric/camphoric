@@ -553,6 +553,41 @@ class Registration(TimeStampedModel):
         super().save(update_fields=PRICING_FIELDS, bump_version=False)
 
 
+class RegistrationDraft(models.Model):
+    '''
+    A registration nobody has finished (SPEC DR-140): the form as it's filled in
+    and, once it's been submitted, what the payment step needs. Completing one
+    makes the Registration and its campers, under the same uuid, and removes it,
+    so it holds no lodging and is in no admin list, price or roster until then.
+
+    It isn't audited, is never backed up, and is deleted after
+    CAMPHORIC_INCOMPLETE_RETENTION_DAYS without activity (SPEC DR-139).
+    '''
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    # The invitation it was started with: the Registration's `started_with_invitation`.
+    invitation = models.ForeignKey(
+        'Invitation', null=True, blank=True, on_delete=models.SET_NULL, related_name='drafts')
+    registration_type = models.ForeignKey(
+        RegistrationType, null=True, blank=True, on_delete=models.SET_NULL)
+    promo_code = models.ForeignKey(
+        PromoCode, null=True, blank=True, on_delete=models.SET_NULL, related_name='drafts')
+    registrant_email = models.CharField(max_length=254, blank=True, default='')
+    form_data = CustomJSONField(default=dict)
+    server_pricing_results = CustomJSONField(null=True, blank=True)
+    client_reported_pricing = CustomJSONField(null=True, blank=True)
+    # When the whole form was sent and passed its checks; null while it's being filled in.
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    last_activity_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ('-last_activity_at', '-id')
+
+    def __str__(self):
+        return f'Draft {self.uuid} ({self.registrant_email or "no email yet"})'
+
+
 class Report(TimeStampedModel):
     '''
     Report for a given event.

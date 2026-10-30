@@ -1,0 +1,564 @@
+'''
+Registration drafts (SPEC DR-140): the form saved as it's filled in, and what a
+registration is until it's completed.
+'''
+
+import copy
+import datetime
+from decimal import Decimal
+from importlib import import_module
+import shutil
+import subprocess
+from unittest import mock, skipUnless
+import uuid
+
+from auditlog.models import LogEntry
+from dbbackup.db.base import get_connector
+from django.apps import apps
+from django.core.cache import cache
+from django.db import connection
+from django.test import TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
+from freezegun import freeze_time
+from rest_framework.test import APITestCase
+
+from camphoric import live, models, roles
+from camphoric.templating.graph import build_event_graph
+from tests.factories import complete, make_user
+from tests.test_views import create_standard_test_event
+
+
+class DraftTestCase(APITestCase):
+    def setUp(self):
+        cache.clear()  # the throttles' counts
+        create_standard_test_event(self)
+        self.url = f'/api/events/{self.event.id}/register'
+
+    def tearDown(self):
+        cache.clear()
+
+    def save(self, form_data=None, status=200, **body):
+        response = self.client.post(
+            f'{self.url}/draft',
+            {'formData': {'campers': [{}]} if form_data is None else form_data, **body},
+            format='json')
+        self.assertEqual(response.status_code, status, getattr(response, 'data', None))
+        return response
+
+    def submit(self, **body):
+        response = self.client.post(
+            self.url, {'formData': self.valid_form_data, 'pricingResults': {}, **body},
+            format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        return response
+
+
+class SavingTests(DraftTestCase):
+    def test_a_save_stores_what_was_entered_and_returns_only_the_uuid(self):
+        data = {'registrant_email': 'pat@', 'campers': [{'name': 'Pat'}]}
+        response = self.save(data)
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(response.data, {'uuid': draft.uuid})
+        self.assertEqual(draft.form_data, data)
+        self.assertEqual(draft.registrant_email, 'pat@')
+        self.assertIsNone(draft.submitted_at)
+
+    def test_opening_the_page_makes_nothing(self):
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_a_later_save_updates_the_draft_and_its_activity(self):
+        with freeze_time('2026-06-01 10:00:00'):
+            draft_uuid = self.save().data['uuid']
+        with freeze_time('2026-06-01 10:05:00'):
+            self.assertEqual(
+                self.save({'registrant_email': 'new@example.com'}, uuid=str(draft_uuid)).data,
+                {'uuid': draft_uuid})
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(draft.registrant_email, 'new@example.com')
+        self.assertEqual(draft.last_activity_at.minute, 5)
+        self.assertEqual(draft.created_at.minute, 0)
+
+    def test_a_uuid_the_server_doesnt_have_starts_a_new_draft(self):
+        gone = uuid.uuid4()
+        for sent in (str(gone), 'not a uuid'):
+            with self.subTest(sent=sent):
+                self.assertNotEqual(self.save(uuid=sent).data['uuid'], gone)
+        self.assertEqual(models.RegistrationDraft.objects.count(), 2)
+
+    def test_a_uuid_from_another_event_starts_a_new_draft(self):
+        other = models.RegistrationDraft.objects.create(event=models.Event.objects.create(
+            organization=self.event.organization, name='Other'))
+        self.assertNotEqual(self.save(uuid=str(other.uuid)).data['uuid'], other.uuid)
+        other.refresh_from_db()
+        self.assertEqual(other.form_data, {})
+
+    def test_no_form_is_refused(self):
+        self.client.post(f'{self.url}/draft', {'formData': 'text'}, format='json')
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_an_oversized_form_is_refused(self):
+        self.save({'comments': 'x' * (60 * 1024)}, status=400)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_what_the_database_cant_store_is_refused_not_a_server_error(self):
+        self.save({'comments': 'x\u0000y'}, status=400)
+        self.save({'registrant_email': '\u0000'}, status=400)
+        response = self.client.post(f'{self.url}/draft', ['a list'], format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_a_long_or_odd_email_doesnt_fail_the_save(self):
+        self.save({'registrant_email': 'x' * 300})
+        self.save({'registrant_email': {'not': 'text'}})
+        self.assertEqual(
+            sorted(len(d.registrant_email) for d in models.RegistrationDraft.objects.all()),
+            [0, 254])
+
+    def test_a_closed_event_takes_none(self):
+        self.event.registration_end = timezone.now() - datetime.timedelta(days=1)
+        self.event.save()
+        self.save(status=409)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_it_has_its_own_throttle(self):
+        with mock.patch('rest_framework.throttling.ScopedRateThrottle.THROTTLE_RATES',
+                        {'registration_draft': '2/minute', 'register': '100/minute'}):
+            self.save()
+            self.save()
+            self.save(status=429)
+            self.assertEqual(self.submit().status_code, 200)
+
+    def test_it_isnt_audited(self):
+        before = LogEntry.objects.count()
+        self.save()
+        self.assertEqual(LogEntry.objects.count(), before)
+
+
+class LateSaveTests(DraftTestCase):
+    def test_a_save_landing_after_completion_makes_no_ghost_draft(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        complete(self.client, self.event, draft_uuid)
+        self.assertEqual(self.save(uuid=str(draft_uuid)).data['uuid'], draft_uuid)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_a_uuid_of_another_events_registration_still_starts_a_draft(self):
+        other = models.Event.objects.create(organization=self.event.organization, name='Other')
+        registration = models.Registration.objects.create(
+            event=other, registrant_email='pat@example.com', completed=True)
+        self.assertNotEqual(self.save(uuid=str(registration.uuid)).data['uuid'], registration.uuid)
+        self.assertEqual(models.RegistrationDraft.objects.count(), 1)
+
+
+class ActivityNoticeTests(DraftTestCase):
+    def notices(self, *args, **kwargs):
+        with mock.patch.object(live, 'notify') as notify:
+            self.save(*args, **kwargs)
+        return [call.args[0]['action'] for call in notify.call_args_list]
+
+    def test_only_a_new_or_returning_draft_sends_a_notice(self):
+        with freeze_time('2026-06-01 10:00:00'):
+            self.assertEqual(self.notices(), ['created'])
+            draft = models.RegistrationDraft.objects.get()
+        with freeze_time('2026-06-01 10:01:00'):
+            self.assertEqual(self.notices(uuid=str(draft.uuid)), [])
+        with freeze_time('2026-06-01 10:03:01'):
+            self.assertEqual(self.notices(uuid=str(draft.uuid)), ['updated'])
+
+
+class SubmittingTests(DraftTestCase):
+    def test_it_submits_the_draft_being_saved_under_the_same_uuid(self):
+        draft_uuid = self.save().data['uuid']
+        response = self.submit(draftUUID=str(draft_uuid))
+        self.assertEqual(response.data['registrationUUID'], draft_uuid)
+        draft = models.RegistrationDraft.objects.get()
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.registrant_email, self.valid_form_data['registrant_email'])
+        self.assertEqual(draft.server_pricing_results, response.data['serverPricingResults'])
+
+    def test_it_makes_no_registration_campers_or_entries(self):
+        before = LogEntry.objects.count()
+        self.submit()
+        self.assertFalse(models.Registration.all_objects.exists())
+        self.assertFalse(models.Camper.all_objects.exists())
+        self.assertEqual(LogEntry.objects.count(), before)
+
+    def test_without_a_draft_it_makes_one(self):
+        self.assertEqual(self.submit().data['registrationUUID'],
+                         models.RegistrationDraft.objects.get().uuid)
+
+    def test_sending_it_again_updates_the_same_draft(self):
+        first = self.submit().data['registrationUUID']
+        again = self.submit(draftUUID=str(first)).data['registrationUUID']
+        self.assertEqual(again, first)
+        self.assertEqual(models.RegistrationDraft.objects.count(), 1)
+
+    def test_it_keeps_the_form_as_sent(self):
+        self.submit()
+        self.assertEqual(models.RegistrationDraft.objects.get().form_data, self.valid_form_data)
+
+    def test_the_payment_step_reads_the_draft_and_counts_as_activity(self):
+        with freeze_time('2026-06-01 10:00:00'):
+            sent = self.submit().data
+        with freeze_time('2026-06-01 10:30:00'):
+            response = self.client.post(self.url, {
+                'step': 'payment-step', 'registrationUUID': str(sent['registrationUUID']),
+            }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['serverPricingResults'], sent['serverPricingResults'])
+        self.assertEqual(response.data['paymentOptions'], sent['paymentOptions'])
+        self.assertIs(response.data['invoiceCancelled'], False)
+        self.assertIs(response.data['paymentProcessing'], False)
+        self.assertEqual(models.RegistrationDraft.objects.get().last_activity_at.minute, 30)
+
+    def test_a_save_of_the_same_answers_leaves_it_submitted(self):
+        # The blur from clicking the button can arrive just after the button's own post.
+        draft_uuid = self.submit().data['registrationUUID']
+        self.save(copy.deepcopy(self.valid_form_data), uuid=str(draft_uuid))
+        self.assertIsNotNone(models.RegistrationDraft.objects.get().submitted_at)
+
+    def test_changing_the_answers_means_sending_it_again(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        self.save({**self.valid_form_data, 'billing_name': 'Changed'}, uuid=str(draft_uuid))
+        draft = models.RegistrationDraft.objects.get()
+        self.assertIsNone(draft.submitted_at)
+        self.assertIsNone(draft.server_pricing_results)
+        response = complete(self.client, self.event, draft_uuid)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data['code'], 'registration_not_found')
+
+
+class CompletingTests(DraftTestCase):
+    def test_it_makes_the_registration_and_campers_under_the_same_uuid(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        self.assertEqual(complete(self.client, self.event, draft_uuid).status_code, 200)
+
+        registration = models.Registration.objects.get(uuid=draft_uuid)
+        self.assertTrue(registration.completed)
+        self.assertEqual(registration.registrant_email, self.valid_form_data['registrant_email'])
+        self.assertEqual(registration.campers.count(), len(self.valid_form_data['campers']))
+        self.assertEqual([c.sequence for c in registration.campers.all()],
+                         list(range(len(self.valid_form_data['campers']))))
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_the_history_starts_with_the_whole_record(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        complete(self.client, self.event, draft_uuid)
+        registration = models.Registration.objects.get(uuid=draft_uuid)
+        created = LogEntry.objects.get_for_object(registration).get(action=LogEntry.Action.CREATE)
+        self.assertEqual(created.changes['completed'], ['None', 'True'])
+        self.assertEqual(
+            LogEntry.objects.filter(
+                additional_data__registration=registration.id,
+                content_type__model='camper', action=LogEntry.Action.CREATE).count(),
+            registration.campers.count())
+
+    def test_it_stays_dated_when_it_was_submitted(self):
+        # Early-bird pricing goes by this: paying a day later mustn't lose it.
+        with freeze_time('2026-06-01 10:00:00'):
+            draft_uuid = self.submit().data['registrationUUID']
+        with freeze_time('2026-06-02 10:00:00'):
+            complete(self.client, self.event, draft_uuid)
+        registration = models.Registration.objects.get(uuid=draft_uuid)
+        self.assertEqual(registration.created_at.day, 1)
+        self.assertEqual(registration.completed_at.day, 2)
+
+    def test_a_second_payment_is_answered_as_the_first(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        complete(self.client, self.event, draft_uuid)
+        self.assertEqual(complete(self.client, self.event, draft_uuid).status_code, 200)
+        self.assertEqual(models.Registration.objects.count(), 1)
+
+    def test_finishing_or_capturing_a_draft_is_refused_and_keeps_it(self):
+        draft_uuid = str(self.submit().data['registrationUUID'])
+        for data in ({'step': 'finish'},
+                     {'step': 'payment', 'paymentType': 'PayPal', 'paypalOrderId': 'ORDER'}):
+            with self.subTest(step=data['step']):
+                self.event.paypal_client_id = 'client'
+                self.event.save()
+                response = self.client.post(
+                    self.url, {'registrationUUID': draft_uuid, **data}, format='json')
+                self.assertEqual(response.status_code, 409, response.data)
+        self.assertTrue(models.RegistrationDraft.objects.exists())
+
+    def test_one_still_being_filled_in_cant_be_paid_for(self):
+        draft_uuid = self.save().data['uuid']
+        self.assertEqual(complete(self.client, self.event, draft_uuid).status_code, 404)
+
+    def test_an_unusable_payment_type_leaves_the_draft(self):
+        draft_uuid = str(self.submit().data['registrationUUID'])
+        response = self.client.post(self.url, {
+            'step': 'payment', 'registrationUUID': draft_uuid, 'paymentType': 'Bitcoin',
+        }, format='json')
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertTrue(models.RegistrationDraft.objects.exists())
+        self.assertFalse(models.Registration.all_objects.exists())
+
+
+class StartingAgainTests(DraftTestCase):
+    def test_it_deletes_the_draft(self):
+        draft_uuid = self.save().data['uuid']
+        response = self.client.delete(f'{self.url}/draft/{draft_uuid}')
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_one_already_gone_is_fine(self):
+        response = self.client.delete(f'{self.url}/draft/{uuid.uuid4()}')
+        self.assertEqual(response.status_code, 204)
+
+    def test_only_from_its_own_event(self):
+        other = models.Event.objects.create(
+            organization=self.event.organization, name='Other')
+        draft_uuid = self.save().data['uuid']
+        self.client.delete(f'/api/events/{other.id}/register/draft/{draft_uuid}')
+        self.assertTrue(models.RegistrationDraft.objects.exists())
+
+
+class AdminApiTests(DraftTestCase):
+    def setUp(self):
+        super().setUp()
+        self.draft = models.RegistrationDraft.objects.create(
+            event=self.event, registrant_email='pat@example.com',
+            form_data={'registrant_email': 'pat@example.com'})
+
+    def test_every_role_reads_them(self):
+        for role in (roles.REGISTRAR, roles.ADMIN, roles.REPORTER):
+            with self.subTest(role=role):
+                self.client.force_authenticate(make_user(role, f'user-{role}'))
+                listed = self.client.get(f'/api/registrationdrafts/?event={self.event.id}')
+                self.assertEqual(listed.status_code, 200, listed.data)
+                self.assertEqual([row['id'] for row in listed.data], [self.draft.id])
+                self.assertEqual(listed.data[0]['form_data'], self.draft.form_data)
+                one = self.client.get(f'/api/registrationdrafts/{self.draft.id}/')
+                self.assertEqual(one.status_code, 200, one.data)
+
+    def test_no_one_signed_out_or_without_a_role(self):
+        path = f'/api/registrationdrafts/?event={self.event.id}'
+        self.assertEqual(self.client.get(path).status_code, 401)
+        self.client.force_authenticate(make_user(None, 'nobody'))
+        self.assertEqual(self.client.get(path).status_code, 403)
+
+    def test_only_registrars_and_admins_delete(self):
+        path = f'/api/registrationdrafts/{self.draft.id}/'
+        self.client.force_authenticate(make_user(roles.REPORTER, 'rae'))
+        self.assertEqual(self.client.delete(path).status_code, 403)
+        self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
+        self.assertEqual(self.client.delete(path).status_code, 204)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_it_cant_be_written_through_the_api(self):
+        self.client.force_authenticate(make_user(roles.ADMIN, 'boss'))
+        path = f'/api/registrationdrafts/{self.draft.id}/'
+        self.assertEqual(self.client.patch(path, {}, format='json').status_code, 405)
+        self.assertEqual(
+            self.client.post('/api/registrationdrafts/', {}, format='json').status_code, 405)
+
+
+class TemplatesTests(DraftTestCase):
+    def test_a_submitted_draft_is_an_incomplete_registration(self):
+        self.submit()
+        graph = build_event_graph(self.event)
+        self.assertEqual(list(graph.registrations), [])
+        self.assertEqual(list(graph.campers), [])
+        [registration] = graph.incomplete_registrations
+        self.assertFalse(registration['completed'])
+        self.assertEqual(registration['registrant_email'],
+                         self.valid_form_data['registrant_email'])
+        self.assertEqual(len(registration['campers']), len(self.valid_form_data['campers']))
+        self.assertEqual(registration['attributes']['billing_name'],
+                         self.valid_form_data['billing_name'])
+
+    def test_one_being_filled_in_is_in_no_template(self):
+        self.save()
+        self.assertEqual(list(build_event_graph(self.event).incomplete_registrations), [])
+
+    def test_it_holds_no_place_in_lodging_or_rosters(self):
+        self.submit()
+        graph = build_event_graph(self.event)
+        for node in graph.lodgings:
+            self.assertEqual(node['camper_count'], 0)
+
+
+class MigrationTests(DraftTestCase):
+    '''Migration 0089 moves incomplete registrations into drafts.'''
+
+    def migrate(self):
+        migration = import_module('camphoric.migrations.0089_registration_draft')
+        migration.incomplete_registrations_into_drafts(apps, None)
+
+    def registration(self, **fields):
+        registration = models.Registration.objects.create(
+            event=self.event, registrant_email='pat@example.com',
+            attributes={'billing_name': 'Pat'}, **fields)
+        models.Camper.objects.create(
+            registration=registration, attributes={'name': 'Pat'}, sequence=0,
+            lodging_requested_id=None)
+        return registration
+
+    def test_an_incomplete_one_becomes_a_submitted_draft_that_can_be_paid_for(self):
+        registration = self.registration()
+        models.Registration.all_objects.filter(id=registration.id).update(
+            server_pricing_results={'total': 0, 'campers': [{'total': 0}]})
+        registration_uuid = registration.uuid
+        self.migrate()
+
+        self.assertFalse(models.Registration.all_objects.exists())
+        self.assertFalse(models.Camper.all_objects.exists())
+        draft = models.RegistrationDraft.objects.get(uuid=registration_uuid)
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.form_data, {
+            'billing_name': 'Pat', 'registrant_email': 'pat@example.com',
+            'campers': [{'name': 'Pat'}]})
+
+        self.assertEqual(complete(self.client, self.event, registration_uuid).status_code, 200)
+        self.assertTrue(models.Registration.objects.get(uuid=registration_uuid).completed)
+
+    def test_lodging_they_asked_for_comes_across(self):
+        lodging = models.Lodging.objects.create(event=self.event, name='Cabin')
+        registration = self.registration()
+        models.Camper.objects.create(
+            registration=registration, attributes={'name': 'Lee'}, sequence=1,
+            lodging_requested=lodging, lodging_shared=True, lodging_shared_with='Pat',
+            lodging_comments='Near the lake')
+        self.migrate()
+        camper = models.RegistrationDraft.objects.get().form_data['campers'][1]
+        self.assertEqual(camper['lodging'], {
+            'lodging_requested': {'id': lodging.id}, 'lodging_shared': True,
+            'lodging_shared_with': 'Pat', 'lodging_comments': 'Near the lake'})
+
+    def test_its_invitation_and_activity_come_across(self):
+        registration_type = models.RegistrationType.objects.create(
+            event=self.event, name='crew', label='Crew')
+        invitation = models.Invitation.objects.create(
+            registration_type=registration_type, recipient_email='pat@example.com')
+        registration = self.registration(
+            started_with_invitation=invitation, registration_type=registration_type)
+        changed = timezone.now() - datetime.timedelta(days=9)
+        models.Registration.all_objects.filter(id=registration.id).update(updated_at=changed)
+        self.migrate()
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(draft.invitation, invitation)
+        self.assertEqual(draft.registration_type, registration_type)
+        self.assertEqual(draft.last_activity_at, changed)
+
+    def test_those_holding_more_than_a_draft_can_stay(self):
+        charged = self.registration()
+        charge_type = models.CustomChargeType.objects.create(event=self.event, name='linens')
+        models.CustomCharge.objects.create(
+            custom_charge_type=charge_type, camper=charged.campers.get(), amount=Decimal('1.00'))
+        paid = self.registration()
+        models.Payment.objects.create(registration=paid, amount=Decimal('5.00'))
+        invoiced = self.registration()
+        models.Invoice.objects.create(registration=invoiced, origin='admin', amount=Decimal('5'))
+        overridden = self.registration()
+        models.PricingOverride.objects.create(
+            registration=overridden, var='total_fee', amount=Decimal('1.00'), reason='Why not')
+        deleted = self.registration()
+        deleted.soft_delete()
+        self.migrate()
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+        self.assertEqual(models.Registration.all_objects.count(), 5)
+
+    def test_a_completed_one_is_left_alone(self):
+        registration = self.registration(completed=True)
+        self.migrate()
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+        self.assertTrue(models.Registration.objects.filter(id=registration.id).exists())
+
+
+class MigrationReverseTests(DraftTestCase):
+    '''Rolling 0089 back, as switching branches does, keeps what was sent.'''
+
+    def reverse(self):
+        migration = import_module('camphoric.migrations.0089_registration_draft')
+        migration.drafts_into_registrations(apps, None)
+
+    def test_a_submitted_draft_goes_back_to_an_incomplete_registration(self):
+        lodging = models.Lodging.objects.create(
+            event=self.event, name='Cabin')
+        draft = models.RegistrationDraft.objects.create(
+            event=self.event, registrant_email='pat@example.com',
+            form_data={
+                'billing_name': 'Pat', 'registrant_email': 'pat@example.com',
+                'campers': [{'name': 'Pat', 'lodging': {
+                    'lodging_requested': {'id': lodging.id}, 'lodging_shared': True,
+                    'lodging_shared_with': 'Lee', 'lodging_comments': 'Lake'}}],
+            },
+            server_pricing_results={'total': 5, 'campers': [{'total': 5}]},
+            client_reported_pricing={'total': 5},
+            submitted_at=timezone.now() - datetime.timedelta(days=2))
+        self.reverse()
+
+        registration = models.Registration.objects.get(uuid=draft.uuid)
+        self.assertFalse(registration.completed)
+        self.assertEqual(registration.attributes, {'billing_name': 'Pat'})
+        self.assertEqual(registration.created_at, draft.submitted_at)
+        self.assertEqual(registration.server_pricing_results['total'], 5)
+        camper = registration.campers.get()
+        self.assertEqual(camper.attributes, {'name': 'Pat'})
+        self.assertEqual(camper.lodging_requested, lodging)
+        self.assertEqual(camper.lodging, lodging)
+        self.assertTrue(camper.lodging_shared)
+        self.assertEqual(camper.lodging_comments, 'Lake')
+        self.assertEqual(camper.server_pricing_results, {'total': 5})
+
+    def test_one_still_being_filled_in_had_no_registration_to_go_back_to(self):
+        models.RegistrationDraft.objects.create(event=self.event, form_data={'campers': [{}]})
+        self.reverse()
+        self.assertFalse(models.Registration.all_objects.exists())
+
+
+class PreviewTests(DraftTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(make_user(roles.ADMIN, 'boss'))
+
+    def preview(self, **sample):
+        return self.client.post(f'/api/events/{self.event.id}/templates/preview', {
+            'context': 'bulk_email_registration', 'template': '{{ registration.registrant_email }}',
+            'output': 'email', 'subject': 'Hello', **sample}, format='json')
+
+    def test_a_group_email_previews_for_a_recipient_who_is_a_draft(self):
+        self.submit()
+        draft = models.RegistrationDraft.objects.get()
+        response = self.preview(registration_id=f'draft-{draft.id}')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn(self.valid_form_data['registrant_email'], str(response.data))
+
+    def test_an_id_that_is_no_ones_is_refused(self):
+        for sample in ('nonsense', 'draft-999999'):
+            with self.subTest(sample=sample):
+                response = self.preview(registration_id=sample)
+                self.assertEqual(response.status_code, 400)
+                self.assertNotIn('output must be', str(response.data))
+
+
+class ConfigTests(DraftTestCase):
+    @override_settings(CAMPHORIC_INCOMPLETE_RETENTION_DAYS=12)
+    def test_the_page_is_told_the_retention_period(self):
+        self.assertEqual(self.client.get(self.url).data['draftRetentionDays'], 12)
+
+
+@skipUnless(shutil.which('pg_dump'), 'Needs pg_dump: the image has it for `dbbackup`, CI may not.')
+class BackupTests(TransactionTestCase):
+    def test_a_dump_holds_the_table_but_none_of_its_rows(self):
+        organization = models.Organization.objects.create(name='Org')
+        event = models.Event.objects.create(organization=organization, name='Camp')
+        models.RegistrationDraft.objects.create(event=event, registrant_email='secret@example.com')
+
+        # In pg_dump's binary format: pg_restore reads it back as SQL.
+        binary = get_connector('default').create_dump().read()
+        dump = subprocess.run(
+            ['pg_restore', '-f', '-'], input=binary, capture_output=True, check=True,
+        ).stdout.decode()
+        self.assertIn(f'CREATE TABLE public.{models.RegistrationDraft._meta.db_table}', dump)
+        self.assertNotIn('secret@example.com', dump)
+
+
+class QueryTests(DraftTestCase):
+    def test_a_save_stays_cheap(self):
+        draft_uuid = self.save().data['uuid']
+        with CaptureQueriesContext(connection) as queries:
+            self.save(uuid=str(draft_uuid))
+        self.assertLess(len(queries), 10)

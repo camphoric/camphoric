@@ -64,6 +64,27 @@ describe('NoPayment', () => {
     );
   });
 
+  it('goes back to the form to choose again when the lodging has filled up', async () => {
+    const user = userEvent.setup();
+    submitMutate.mockImplementation((_body: unknown, options: { onError: (e: unknown) => void }) =>
+      options.onError(
+        new ApiError(409, 'Conflict', {
+          code: 'lodging_unavailable',
+          detail: 'There’s no room left in Cabin A.',
+        }),
+      ),
+    );
+
+    renderWithProviders(<NoPayment eventId="1" registrationUUID="uuid-1" />);
+    await user.click(screen.getByRole('button', { name: 'Finish registration' }));
+
+    expect(useRegistrationStore.getState().lodgingProblem).toBe('There’s no room left in Cabin A.');
+    expect(useRegistrationStore.getState().sentNotFound).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '/events/$eventId/register/registration' }),
+    );
+  });
+
   it('says why when the server refuses to complete it (#803)', async () => {
     const user = userEvent.setup();
     submitMutate.mockImplementation((_body: unknown, options: { onError: (e: unknown) => void }) =>

@@ -8,12 +8,12 @@ turns, so two can't both have the last bed. Admins may still overbook.
 import threading
 from unittest import mock
 
-from django.db import connection
+from django.db import DatabaseError, connection, transaction
 from django.test import TransactionTestCase
 from rest_framework.test import APIClient, APITestCase
 
 from camphoric import lodging, models, roles, views
-from tests.factories import make_user
+from tests.factories import complete, make_user
 from tests.test_views import create_standard_test_event
 
 ERROR_KEY = 'campers.{}.lodging.lodging_requested.id'
@@ -60,13 +60,19 @@ class RegisterLodgingTests(APITestCase):
     def register(self, *lodgings):
         return register(self.client, self, *lodgings)
 
+    def take(self, *lodgings):
+        '''Register and complete, which is what takes a bed (SPEC DR-140).'''
+        response = self.register(*lodgings)
+        self.assertEqual(response.status_code, 200, response.data)
+        return complete(self.client, self.event, response.data['registrationUUID'])
+
     def assertRefused(self, response, camper_index, message):
         self.assertEqual(response.status_code, 400, response.data)
         [error] = response.data[ERROR_KEY.format(camper_index)]
         self.assertRegex(str(error), message)
 
     def test_lodging_with_room_is_taken(self):
-        response = self.register(self.cabin_a, self.tent)
+        response = self.take(self.cabin_a, self.tent)
         self.assertEqual(response.status_code, 200, response.data)
         campers = models.Camper.objects.order_by('sequence')
         self.assertEqual([c.lodging_id for c in campers], [self.cabin_a.id, self.tent.id])
@@ -81,6 +87,7 @@ class RegisterLodgingTests(APITestCase):
         response = self.client.post(f'/api/events/{self.event.id}/register',
                                     {'formData': data, 'pricingResults': {}}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
+        complete(self.client, self.event, response.data['registrationUUID'])
         first, second = models.Camper.objects.order_by('sequence')
         self.assertEqual((first.lodging_shared, first.lodging_shared_with), (False, ''))
         self.assertEqual(
@@ -92,7 +99,7 @@ class RegisterLodgingTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
 
     def test_full_lodging_is_refused_and_nothing_is_saved(self):
-        self.assertEqual(self.register(self.cabin_a).status_code, 200)
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
         response = self.register(self.tent, self.cabin_a)
         self.assertRefused(response, 1, 'no room left in Cabin A')
         self.assertEqual(models.Registration.objects.count(), 1)
@@ -117,7 +124,7 @@ class RegisterLodgingTests(APITestCase):
     def test_a_party_may_fill_the_last_places_past_capacity_as_the_form_allows(self):
         # Campouts count RV and tent spots, which a party shares: a party of three in
         # a one-bed cabin is taken, as the form (which shows it free) allows.
-        response = self.register(self.cabin_a, self.cabin_a, self.cabin_a)
+        response = self.take(self.cabin_a, self.cabin_a, self.cabin_a)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertRefused(self.register(self.cabin_a), 0, 'no room left in Cabin A')
 
@@ -126,7 +133,7 @@ class RegisterLodgingTests(APITestCase):
         # Cabins is full and the other cabin is refused under it.
         self.cabins.capacity = 1
         self.cabins.save()
-        self.assertEqual(self.register(self.cabin_a).status_code, 200)
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
         self.assertRefused(self.register(self.cabin_b), 0, 'no room left in Cabins')
 
     def test_sharing_multiplier_counts_as_the_tree_counts(self):
@@ -134,8 +141,8 @@ class RegisterLodgingTests(APITestCase):
         self.tent.sharing_multiplier = 1.5
         self.tent.save()
         # 1.5 of 2 taken leaves room; 3 of 2 leaves none.
-        self.assertEqual(self.register(self.tent).status_code, 200)
-        self.assertEqual(self.register(self.tent).status_code, 200)
+        self.assertEqual(self.take(self.tent).status_code, 200)
+        self.assertEqual(self.take(self.tent).status_code, 200)
         self.assertRefused(self.register(self.tent), 0, 'no room left in Tent')
 
     def test_a_choice_with_choices_under_it_is_not_final(self):
@@ -149,7 +156,7 @@ class RegisterLodgingTests(APITestCase):
         self.assertEqual(self.register(self.cabins).status_code, 200)
 
     def test_the_last_bed_goes_to_the_first_registration(self):
-        self.assertEqual(self.register(self.cabin_a).status_code, 200)
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
         self.assertRefused(self.register(self.cabin_a), 0, 'no room left in Cabin A')
         self.assertEqual(self.register(self.cabin_b).status_code, 200)
 
@@ -187,8 +194,35 @@ class RegisterLodgingTests(APITestCase):
         missing = models.Lodging(id=999999, name='Missing')
         self.assertRefused(self.register(missing), 0, 'isn\'t available')
 
+    def test_a_draft_holds_no_bed(self):
+        waiting = self.register(self.cabin_a)
+        self.assertEqual(waiting.status_code, 200, waiting.data)
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
+
+    def test_a_bed_gone_by_completion_sends_them_back_to_the_form(self):
+        uuid = self.register(self.cabin_a).data['registrationUUID']
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
+
+        response = complete(self.client, self.event, uuid)
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['code'], 'lodging_unavailable')
+        self.assertRegex(response.data['detail'], 'no room left in Cabin A')
+        self.assertTrue(models.RegistrationDraft.objects.filter(uuid=uuid).exists())
+        self.assertFalse(models.Registration.all_objects.filter(uuid=uuid).exists())
+
+    def test_the_paypal_button_is_refused_when_the_bed_has_gone(self):
+        uuid = self.register(self.cabin_a).data['registrationUUID']
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
+        self.event.paypal_client_id = 'client'
+        self.event.save()
+        response = self.client.post(f'/api/events/{self.event.id}/register', {
+            'step': 'paypal-order', 'registrationUUID': uuid, 'paymentType': 'PayPal',
+        }, format='json')
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['code'], 'lodging_unavailable')
+
     def test_an_admin_may_still_overbook(self):
-        self.assertEqual(self.register(self.cabin_a).status_code, 200)
+        self.assertEqual(self.take(self.cabin_a).status_code, 200)
         camper = models.Camper.objects.create(
             registration=models.Registration.objects.get(), attributes={'name': 'Extra'})
         self.client.force_authenticate(make_user(roles.REGISTRAR, 'reggie'))
@@ -198,10 +232,48 @@ class RegisterLodgingTests(APITestCase):
         self.assertEqual(models.Camper.objects.filter(lodging=self.cabin_a).count(), 2)
 
 
+class PayPalLockTests(TransactionTestCase):
+    '''A slow PayPal mustn't hold up everyone else's registration.'''
+
+    def setUp(self):
+        create_standard_test_event(self)
+        build_lodging(self)
+        self.event.paypal_client_id = 'client'
+        self.event.save()
+
+    def test_the_lodging_lock_is_released_before_paypal_is_asked(self):
+        uuid = register(APIClient(), self, self.cabin_a).data['registrationUUID']
+        free = {}
+
+        def probe():
+            try:
+                with transaction.atomic():
+                    list(models.Lodging.objects.select_for_update(nowait=True)
+                         .filter(event=self.event, parent__isnull=True))
+                free['lodging'] = True
+            except DatabaseError:
+                free['lodging'] = False
+            finally:
+                connection.close()
+
+        def create_order(invoice, payment_type):
+            thread = threading.Thread(target=probe)
+            thread.start()
+            thread.join(5)
+            return 'ORDER'
+
+        with mock.patch.object(views.invoices, 'create_paypal_order', create_order):
+            response = APIClient().post(f'/api/events/{self.event.id}/register', {
+                'step': 'paypal-order', 'registrationUUID': uuid, 'paymentType': 'PayPal',
+            }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(free, {'lodging': True})
+
+
 class SimultaneousRegistrationTests(TransactionTestCase):
     '''
-    Two registrations for the last bed at the same moment: the second waits for
-    the first, then finds the cabin full.
+    Two completing for the last bed at the same moment: the second waits for the
+    first, then finds the cabin full.
     '''
 
     def setUp(self):
@@ -223,10 +295,12 @@ class SimultaneousRegistrationTests(TransactionTestCase):
             return check(tree, requested_ids)
 
         results = {}
+        uuids = [register(APIClient(), self, self.cabin_a).data['registrationUUID']
+                 for _ in range(2)]
 
         def send(index):
             try:
-                results[index] = register(APIClient(), self, self.cabin_a).status_code
+                results[index] = complete(APIClient(), self.event, uuids[index]).status_code
             except Exception as error:
                 results[index] = repr(error)
             finally:
@@ -239,5 +313,5 @@ class SimultaneousRegistrationTests(TransactionTestCase):
             for thread in threads:
                 thread.join(30)
 
-        self.assertEqual(sorted(results.values()), [200, 400])
+        self.assertEqual(sorted(results.values()), [200, 409])
         self.assertEqual(models.Camper.objects.filter(lodging=self.cabin_a).count(), 1)

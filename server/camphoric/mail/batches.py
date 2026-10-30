@@ -114,7 +114,10 @@ def expand(batch_id):
                 event=event, kind=models.EmailMessageKind.BULK, to=to,
                 subject=rendered.subject or batch.subject, text=text, html=html,
                 unsubscribe_url=link, from_email=batch.from_email, account=batch.account,
-                reply_to=batch.reply_to or None, registration_id=candidate.registration,
+                reply_to=batch.reply_to or None,
+                # A draft's id is a string: there's no registration to link to.
+                registration_id=(candidate.registration
+                                 if isinstance(candidate.registration, int) else None),
                 batch=batch, template_id=batch.template_id, recipient_key=candidate.key,
                 created_by=batch.created_by, dedupe_key=f'batch:{batch.id}:{candidate.key}')
             if rendered.ok:

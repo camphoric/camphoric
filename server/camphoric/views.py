@@ -1,5 +1,8 @@
+import copy
 from dataclasses import asdict
+from datetime import timedelta
 from functools import partial
+import json
 import logging
 import traceback
 import uuid
@@ -21,7 +24,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 
 import jsonschema
-from rest_framework import permissions, status
+from rest_framework import mixins, permissions, status
 from rest_framework.exceptions import APIException, NotFound, Throttled
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -238,6 +241,10 @@ def lock_registration_first(instance):
     elif isinstance(instance, (models.Camper, models.PricingOverride, models.Invoice)):
         registrations = registrations.filter(pk=instance.registration_id)
     elif isinstance(instance, models.Invitation):
+        # Completing takes a draft, then the invitation, and the draft becomes a
+        # registration: so the drafts, and then what they may have become.
+        list(models.RegistrationDraft.objects.select_for_update()
+             .filter(invitation=instance).order_by('pk'))
         registrations = registrations.filter(started_with_invitation=instance)
     else:
         return
@@ -708,6 +715,18 @@ class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin
         serializer.is_valid(raise_exception=True)
         serializer.save(origin=models.InvoiceOrigin.ADMIN, created_by=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class RegistrationDraftViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
+                               mixins.DestroyModelMixin, GenericViewSet):
+    '''Registrations nobody has finished (DR-140): any role reads, Registrars and Admins delete.'''
+    queryset = models.RegistrationDraft.objects.all()
+    serializer_class = serializers.RegistrationDraftSerializer
+    filterset_fields = ['event']
+
+    def perform_destroy(self, instance):
+        live.notify_draft(instance, 'deleted')
+        instance.delete()
 
 
 class ReportViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
@@ -1287,9 +1306,18 @@ def invitation_not_found(email, code):
     return f'Sorry, we couldn\'t find an invitation for "{email}" with code "{code}"'
 
 
+def parsed_uuid(value):
+    '''`value` as a UUID, or None if it isn't one, which finds nothing.'''
+    try:
+        return uuid.UUID(str(value))
+    except ValueError:
+        return None
+
+
 def invitation_credentials(request):
     '''The invitation's email and code the request gives, either possibly None.'''
-    if request.method == 'POST' and isinstance(request.data.get('invitation'), dict):
+    if (request.method == 'POST' and isinstance(request.data, dict)
+            and isinstance(request.data.get('invitation'), dict)):
         return (request.data['invitation'].get('recipient_email'),
                 request.data['invitation'].get('invitation_code'))
     return request.query_params.get('email'), request.query_params.get('code')
@@ -1374,6 +1402,15 @@ class RegistrationNotFound(NotFound):
             'detail': 'We couldn\'t find your earlier registration. Please send the form again.',
             'code': 'registration_not_found',
         })
+
+
+class LodgingTaken(serializers.Conflict):
+    '''
+    The lodging a submitted draft asked for has filled up since: a bed is only
+    taken as a registration is completed (DR-140). The browser goes back to the form.
+    '''
+    def __init__(self, message):
+        super().__init__({'detail': message, 'code': 'lodging_unavailable'})
 
 
 class RegistrationThrottled(Throttled):
@@ -1481,6 +1518,7 @@ class RegisterView(APIView):
         (schema, ui_schema) = self.get_form_schema(event)
 
         response_data = {
+            'draftRetentionDays': settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS,
             'dataSchema': schema,
             'uiSchema': ui_schema,
             'event': pricing.get_event_attributes(event),
@@ -1532,19 +1570,21 @@ class RegisterView(APIView):
         '''
         The registration flow (SPEC §7, §9.7):
 
-        - `registration`: the form; makes the (started) registration and returns
-          its price and payment options.
+        - `registration`: the form; checks it, prices it, marks its draft as
+          submitted (DR-140) and returns its price and payment options.
         - `payment-step`: that payment step again, as it is now: a page reopened
           later shows what's due (an organizer may have changed it, DR-105).
-        - `paypal-order`: the PayPal or Card button. Completes the registration,
-          makes or updates its invoice, and creates the PayPal order.
-        - `payment`: pay by check (or complete a $0 registration), or capture an
-          approved PayPal order.
+        - `paypal-order`: the PayPal or Card button. Makes the registration from
+          its draft, completes it, makes or updates its invoice, and creates the
+          PayPal order.
+        - `payment`: pay by check (or complete a $0 registration), which makes the
+          registration from its draft, or capture an approved PayPal order.
         - `finish`: finish without paying now, after a PayPal attempt didn't go
           through.
 
         A step after `registration` naming a registration the server doesn't have
-        is a 404 with the code `registration_not_found`.
+        is a 404 with the code `registration_not_found`. The name is the same
+        before and after completing: a submitted draft's uuid is its registration's.
         '''
         event = get_object_or_404(models.Event, id=event_id)
         step = request.data.get('step', 'registration')
@@ -1564,10 +1604,8 @@ class RegisterView(APIView):
     @transaction.atomic
     def post_registration(self, request, event):
         '''
-        Save the registration, its invitation and its campers all or nothing
-        (#806). Each record is saved with its price already worked out, and the
-        registration is repriced once from what was saved, rather than once per
-        camper (which re-saved every camper before it).
+        Check the whole form, price it and mark its draft as submitted, ready for
+        the payment step (DR-140). Nothing else is saved until it's completed.
         '''
         form_data = request.data.get('formData')
         if form_data is None:
@@ -1588,25 +1626,26 @@ class RegisterView(APIView):
 
         self.validate_form_data(event, form_data)
 
-        registration, campers = self.deserialize_form_data(
-            event, form_data)
+        registration, campers = self.deserialize_form_data(event, copy.deepcopy(form_data))
 
         if invitation:
             registration.registration_type = invitation.registration_type
-            registration.started_with_invitation = invitation
 
         registration.promo_code = self.find_promo_code(
             request, event, registration.registration_type)
 
-        # The lodging check's lock holds until this transaction commits, so two
-        # registrations for the last bed take turns and the second sees the first.
+        # Locked first, as completing takes it, then the lodging, then the invitation.
+        draft = (models.RegistrationDraft.objects.select_for_update()
+                 .filter(event=event, uuid=parsed_uuid(request.data.get('draftUUID'))).first()
+                 or models.RegistrationDraft(event=event))
+
         # It comes before pricing, which reads the requested lodging.
-        self.check_requested_lodging(event, campers)
+        problem = self.requested_lodging_problem(event, campers)
+        if problem:
+            index, message = problem
+            raise ValidationError({f'campers.{index}.lodging.lodging_requested.id': [message]})
 
         server_pricing_results = pricing.calculate_price(registration, campers)
-        registration.server_pricing_results = server_pricing_results
-        registration.client_reported_pricing = client_reported_pricing
-        registration.save_without_recalc()
 
         if invitation:
             # Locked, as completing takes it: one completed since it was found
@@ -1617,43 +1656,95 @@ class RegisterView(APIView):
                 raise InvitationRejected(invitation_not_found(*invitation_credentials(request)))
             if invitation.is_redeemed():
                 raise InvitationRejected(INVITATION_REDEEMED)
-            invitation.registration = registration
-            invitation.save()
 
-        camper_pricing = server_pricing_results['campers']
-        for index, camper in enumerate(campers):
-            camper.server_pricing_results = camper_pricing[index]
-            camper.sequence = index
-            camper.save_without_recalc()
-        registration.recalculate_server_pricing()
+        created = draft.pk is None
+        draft.form_data = form_data
+        draft.registrant_email = form_data['registrant_email']
+        draft.invitation = invitation
+        draft.registration_type = registration.registration_type
+        draft.promo_code = registration.promo_code
+        draft.server_pricing_results = server_pricing_results
+        draft.client_reported_pricing = client_reported_pricing
+        draft.submitted_at = draft.last_activity_at = timezone.now()
+        draft.save()
+        live.notify_draft(draft, 'created' if created else 'updated')
 
         return Response({
-            'registrationUUID': registration.uuid,
+            'registrationUUID': draft.uuid,
             'serverPricingResults': server_pricing_results,
             **self.payment_options(event, server_pricing_results),
         })
 
     @staticmethod
-    def check_requested_lodging(event, campers):
+    def requested_lodging_problem(event, campers):
         '''
-        Refuse lodging the form wouldn't offer: another event's, a hidden one, or
-        one without room for these campers (#795). Locks the event's root lodging
-        first, so registrations asking for lodging wait their turn and count the
-        campers saved before them; call it in the transaction that saves the campers.
+        What's wrong with lodging the form wouldn't offer: another event's, a hidden
+        one, or one without room for these campers (#795), as (camper index, message),
+        or None. Locks the event's root lodging first, so registrations asking for
+        lodging wait their turn and count the campers saved before them; the lock
+        holds until the transaction commits, so of two completing for the last bed
+        the second sees the first.
         '''
         requested_ids = [camper.lodging_id for camper in campers]
         if all(lodging_id is None for lodging_id in requested_ids):
-            return
+            return None
         # No key update: it queues registrations without blocking campers saved into the root.
         list(models.Lodging.objects.select_for_update(no_key=True)
              .filter(event=event, parent__isnull=True))
-        problem = registration_lodging_problem(LodgingTree(event).build(), requested_ids)
+        return registration_lodging_problem(LodgingTree(event).build(), requested_ids)
+
+    @classmethod
+    def registration_from_draft(cls, draft):
+        '''
+        Make the draft's registration and campers, and remove it, as it's completed
+        (DR-140); call it in that transaction, and complete what it returns. Lodging
+        is checked again: nothing held it while the draft waited to be paid for.
+        '''
+        event = draft.event
+        form_data = copy.deepcopy(draft.form_data)
+        registration, campers = cls.deserialize_form_data(event, form_data)
+        registration.uuid = draft.uuid
+        registration.registration_type = draft.registration_type
+        registration.promo_code = draft.promo_code
+        registration.started_with_invitation = draft.invitation
+        registration.client_reported_pricing = draft.client_reported_pricing
+        problem = cls.requested_lodging_problem(event, campers)
         if problem:
-            index, message = problem
-            raise ValidationError({f'campers.{index}.lodging.lodging_requested.id': [message]})
+            raise LodgingTaken(problem[1])
+
+        # It was registered when it was submitted: pricing's early-bird dates go by this.
+        registration.created_at = draft.submitted_at
+        server_pricing_results = pricing.calculate_price(registration, campers)
+        registration.server_pricing_results = server_pricing_results
+        registration.save_without_recalc()
+        models.Registration.all_objects.filter(pk=registration.pk).update(
+            created_at=draft.submitted_at)
+
+        # Each record is saved with its price already worked out, and completing
+        # reprices the registration once from what was saved, rather than once per camper.
+        camper_pricing = server_pricing_results['campers']
+        for index, camper in enumerate(campers):
+            camper.server_pricing_results = camper_pricing[index]
+            camper.sequence = index
+            camper.save_without_recalc()
+        live.notify_draft(draft, 'deleted')
+        draft.delete()
+        return models.Registration.objects.select_for_update().get(pk=registration.pk)
 
     def post_payment_step(self, request, event):
         '''The registration's payment step as it is now (DR-105); 404 if it isn't this event's.'''
+        draft = self.submitted_draft(request, event)
+        if draft is not None:
+            # A public step counts as activity (DR-140); the page is coming back to pay.
+            models.RegistrationDraft.objects.filter(pk=draft.pk).update(
+                last_activity_at=timezone.now())
+            return Response({
+                'registrationUUID': draft.uuid,
+                'serverPricingResults': draft.server_pricing_results,
+                **self.payment_options(event, draft.server_pricing_results),
+                'invoiceCancelled': False,
+                'paymentProcessing': False,
+            })
         registration = self.named_registration(
             request, models.Registration.objects.filter(event=event))
         return Response(self.payment_step(registration))
@@ -1702,10 +1793,30 @@ class RegisterView(APIView):
         registration_uuid = request.data.get('registrationUUID')
         if registration_uuid is None:
             raise ValidationError({'registrationUUID': 'This field is required.'})
-        try:
-            return registrations.get(uuid=uuid.UUID(str(registration_uuid)))
-        except (ValueError, models.Registration.DoesNotExist):
+        registration = registrations.filter(uuid=parsed_uuid(registration_uuid)).first()
+        if registration is None:
             raise RegistrationNotFound()
+        return registration
+
+    @staticmethod
+    def submitted_draft(request, event, locked=False):
+        '''The submitted draft the request's `registrationUUID` names, if there is one.'''
+        drafts = models.RegistrationDraft.objects.filter(
+            event=event, submitted_at__isnull=False,
+            uuid=parsed_uuid(request.data.get('registrationUUID')))
+        return (drafts.select_for_update() if locked else drafts).first()
+
+    @classmethod
+    def registration_to_complete(cls, request, event):
+        '''
+        The registration the request names, locked, made from its draft if it's
+        one. A second POST waits for the first's lock on the draft, finds it gone,
+        and then sees the registration the first made.
+        '''
+        draft = cls.submitted_draft(request, event, locked=True)
+        if draft is not None:
+            return cls.registration_from_draft(draft)
+        return cls.locked_registration(request, event)
 
     @classmethod
     def locked_registration(cls, request, event):
@@ -1825,7 +1936,7 @@ class RegisterView(APIView):
         if not event.paypal_client_id:
             raise serializers.Conflict('This event doesn\'t take payments online.')
         with transaction.atomic():
-            registration = self.locked_registration(request, event)
+            registration = self.registration_to_complete(request, event)
             try:
                 option = self.chosen_option(request, registration)
             except invoices.PaymentProblem as problem:
@@ -1835,6 +1946,10 @@ class RegisterView(APIView):
             if option.amount <= 0:
                 raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
             self.complete(registration)
+        # Committed: a draft's lodging lock mustn't be held while PayPal is asked, which
+        # would hold up every registration for the event's lodging (DR-140).
+        with transaction.atomic():
+            registration = self.locked_registration(request, event)
             try:
                 invoice = invoices.prepare_registration_invoice(
                     registration, option, payment_type)
@@ -1864,7 +1979,7 @@ class RegisterView(APIView):
             self.payment_type(request, event, online=True)
             return self.capture(request, event, payment_type)
         with transaction.atomic():
-            registration = self.locked_registration(request, event)
+            registration = self.registration_to_complete(request, event)
             self.payment_type(request, event, online=False)
             if registration.completed and not self.payable(registration):
                 # Already paid: the same result again, without a second email.
@@ -1894,6 +2009,8 @@ class RegisterView(APIView):
                 raise serializers.Conflict(
                     'This page is out of date. Please reload it and try again.')
             raise ValidationError({'paypalOrderId': 'This field is required.'})
+        if self.submitted_draft(request, event) is not None:
+            raise serializers.Conflict('There\'s no PayPal payment waiting for this registration.')
         registration = self.named_registration(
             request, models.Registration.objects.filter(event=event))
         invoice = invoices.registration_invoice(registration)
@@ -1918,6 +2035,8 @@ class RegisterView(APIView):
 
     def post_finish(self, request, event):
         '''Finish without paying now: the confirmation says what's still due.'''
+        if self.submitted_draft(request, event) is not None:
+            raise serializers.Conflict('Choose how to pay first.')
         with transaction.atomic():
             registration = self.locked_registration(request, event)
             if not registration.completed:
@@ -2127,6 +2246,80 @@ class RegisterView(APIView):
             raise InvitationError('Sorry, that invitation code has expired')
 
         return invitation
+
+
+class RegistrationDraftView(APIView):
+    '''
+    Saves the registration form as it's filled in (DR-140). The browser posts
+    `{uuid?, formData, invitation?}` as a changed field loses focus, and gets only
+    the `uuid` back: the answers are for registrars, so one leaked reveals nothing.
+    A `uuid` the server doesn't have starts a new draft from what's sent. No
+    validation or pricing: those wait for the `registration` step, as an edit to a
+    submitted draft does, since what was checked is no longer what's held.
+    '''
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [InvitationLookupThrottle, ScopedRateThrottle]
+    throttle_scope = 'registration_draft'
+
+    # Far more than a form holds, and within what a browser sends as a page is hidden.
+    MAX_FORM_DATA_SIZE = 60 * 1024
+    # A draft saved after this long away counts as becoming active again (DR-140).
+    IDLE_AFTER = timedelta(minutes=2)
+
+    def post(self, request, event_id=None):
+        event = get_object_or_404(models.Event, id=event_id)
+        form_data = request.data.get('formData') if isinstance(request.data, dict) else None
+        if not isinstance(form_data, dict):
+            raise ValidationError({'formData': 'This field is required.'})
+        encoded = json.dumps(form_data)
+        if len(encoded) > self.MAX_FORM_DATA_SIZE:
+            raise ValidationError({'formData': 'This form is too long to save.'})
+        if '\\u0000' in encoded:  # Postgres can't store it, in JSON or text.
+            raise ValidationError({'formData': 'This form holds a character we can\'t save.'})
+        try:
+            invitation = RegisterView.find_invitation(request, event)
+        except InvitationError:
+            invitation = None
+        if invitation is None and not event.is_open():
+            raise serializers.Conflict('Registration for this event is closed.')
+
+        now = timezone.now()
+        draft_uuid = parsed_uuid(request.data.get('uuid'))
+        with transaction.atomic():
+            draft = (models.RegistrationDraft.objects.select_for_update()
+                     .filter(event=event, uuid=draft_uuid).first())
+            if draft is None:
+                # Completed as this was on its way: it's done with, not a new draft.
+                if models.Registration.all_objects.filter(event=event, uuid=draft_uuid).exists():
+                    return Response({'uuid': draft_uuid})
+                draft = models.RegistrationDraft(event=event)
+            action = None
+            if draft.pk is None:
+                action = 'created'
+            elif draft.last_activity_at < now - self.IDLE_AFTER:
+                action = 'updated'
+            if draft.submitted_at is not None and form_data != draft.form_data:
+                draft.submitted_at = draft.server_pricing_results = None
+            draft.form_data = form_data
+            email = form_data.get('registrant_email')
+            draft.registrant_email = email[:254] if isinstance(email, str) else ''
+            if invitation is not None:
+                draft.invitation = invitation
+                draft.registration_type = invitation.registration_type
+            draft.last_activity_at = now
+            draft.save()
+            if action:
+                live.notify_draft(draft, action)
+        return Response({'uuid': draft.uuid})
+
+    def delete(self, request, event_id=None, draft_uuid=None):
+        '''"Start a new registration": whoever holds a draft's uuid may discard it.'''
+        draft = models.RegistrationDraft.objects.filter(
+            event_id=event_id, uuid=draft_uuid).first()
+        if draft is not None:
+            live.notify_draft(draft, 'deleted')
+            draft.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InvoicePayView(APIView):

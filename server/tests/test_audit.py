@@ -15,7 +15,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from camphoric import cleanup, models, roles
-from tests.factories import create_template_event, make_user
+from tests.factories import complete, create_template_event, make_user
 
 
 def entries_for(instance):
@@ -73,12 +73,9 @@ class CreditTests(APITestCase):
             'pricingResults': {},
         }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
-        registration = models.Registration.objects.get(registrant_email='new@example.com')
-        response = self.client.post(f'/api/events/{event.id}/register', {
-            'step': 'payment', 'registrationUUID': str(registration.uuid),
-            'paymentType': 'Check',
-        }, format='json')
+        response = complete(self.client, event, response.data['registrationUUID'])
         self.assertEqual(response.status_code, 200, response.data)
+        registration = models.Registration.objects.get(registrant_email='new@example.com')
         created = entries_for(registration).get(action=LogEntry.Action.CREATE)
         self.assertIsNone(created.actor)
 

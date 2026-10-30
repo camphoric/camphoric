@@ -59,8 +59,9 @@ class Candidate:
     email: str
     name: str
     label: str
-    registration: int | None = None
-    camper: int | None = None
+    # A submitted draft's are strings: see build_event_graph.
+    registration: int | str | None = None
+    camper: int | str | None = None
     # Who this is in the list: registration:<id>, camper:<id> or address:<email>.
     key: str = ''
 
@@ -71,8 +72,8 @@ class Skipped:
     reason: str   # no_address | invalid | duplicate | filter_error | unsubscribed
     detail: str = ''
     email: str = ''
-    registration: int | None = None
-    camper: int | None = None
+    registration: int | str | None = None
+    camper: int | str | None = None
 
 
 @dataclass

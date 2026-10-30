@@ -14,6 +14,7 @@ describe('calculatePrice — mechanics', () => {
 
   it('converts camper date props (YYYY-MM-DD) to {year, month, day} for logic', () => {
     const config: ApiRegister = {
+      draftRetentionDays: 30,
       dataSchema: {
         definitions: {
           camper: {
@@ -46,6 +47,7 @@ describe('calculatePrice — mechanics', () => {
 
   it('feeds a registration-level result into later camper logic', () => {
     const config: ApiRegister = {
+      draftRetentionDays: 30,
       dataSchema: { definitions: { camper: { type: 'object', properties: {} } } },
       uiSchema: {},
       preSubmitTemplate: '',
@@ -82,6 +84,7 @@ describe('calculatePrice — mechanics', () => {
       // 7:30 PM on Feb 28 in Los Angeles.
       vi.setSystemTime(new Date('2026-03-01T03:30:00Z'));
       const config: ApiRegister = {
+        draftRetentionDays: 30,
         dataSchema: { definitions: { camper: { type: 'object', properties: {} } } },
         uiSchema: {},
         preSubmitTemplate: '',

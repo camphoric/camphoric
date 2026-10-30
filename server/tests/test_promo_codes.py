@@ -14,7 +14,7 @@ from freezegun import freeze_time
 from rest_framework.test import APITestCase
 
 from camphoric import models, roles
-from tests.factories import make_user
+from tests.factories import complete, make_user
 from tests.test_views import create_standard_test_event
 
 
@@ -153,10 +153,15 @@ class RegisterWithPromoCodeTests(APITestCase):
     def test_a_valid_code_is_applied_and_priced(self):
         response = self.register(promoCode=' summer ')
         self.assertEqual(response.status_code, 200, response.data)
-        registration = models.Registration.objects.get()
-        self.assertEqual(registration.promo_code, self.promo_code)
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(draft.promo_code, self.promo_code)
         self.assertEqual(response.data['serverPricingResults']['promo'], -90)
         self.assertEqual(response.data['serverPricingResults']['total'], 210)
+        self.assertEqual(draft.server_pricing_results['total'], 210)
+
+        complete(self.client, self.event, draft.uuid)
+        registration = models.Registration.objects.get()
+        self.assertEqual(registration.promo_code, self.promo_code)
         self.assertEqual(registration.server_pricing_results['total'], 210)
         # The code isn't one of the registration's attributes.
         self.assertNotIn('promoCode', registration.attributes)
@@ -181,7 +186,7 @@ class RegisterWithPromoCodeTests(APITestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(
                     response.data['detail'], 'That promo code isn\'t valid for this event.')
-                self.assertFalse(models.Registration.objects.exists())
+                self.assertFalse(models.RegistrationDraft.objects.exists())
 
     def test_a_code_is_refused_for_a_registration_type_it_excludes(self):
         staff = invite(self.event, 'staff')
@@ -192,10 +197,11 @@ class RegisterWithPromoCodeTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.data['detail'], 'That promo code can\'t be used with this registration type.')
-        self.assertFalse(models.Registration.objects.exists())
+        self.assertFalse(models.RegistrationDraft.objects.exists())
 
         response = self.register(promoCode='SUMMER', invitation=invitation_body(crew))
         self.assertEqual(response.status_code, 200, response.data)
+        complete(self.client, self.event, response.data['registrationUUID'])
         registration = models.Registration.objects.get()
         self.assertEqual(registration.registration_type, crew.registration_type)
         self.assertEqual(registration.promo_code, self.promo_code)
@@ -207,14 +213,15 @@ class RegisterWithPromoCodeTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.data['detail'], 'That promo code can only be used with an invitation.')
-        self.assertFalse(models.Registration.objects.exists())
+        self.assertFalse(models.RegistrationDraft.objects.exists())
 
         response = self.register(promoCode='SUMMER', invitation=invitation_body(invite(self.event)))
         self.assertEqual(response.status_code, 200, response.data)
 
     def test_the_code_stays_once_its_exclusions_change(self):
         staff = invite(self.event, 'staff')
-        self.register(promoCode='SUMMER', invitation=invitation_body(staff))
+        response = self.register(promoCode='SUMMER', invitation=invitation_body(staff))
+        complete(self.client, self.event, response.data['registrationUUID'])
         registration = models.Registration.objects.get()
         self.promo_code.excluded_registration_types.add(staff.registration_type)
         registration.save()  # recalculates
@@ -222,7 +229,8 @@ class RegisterWithPromoCodeTests(APITestCase):
         self.assertEqual(registration.server_pricing_results['promo'], -90)
 
     def test_the_code_stays_with_the_registration_once_it_expires(self):
-        self.register(promoCode='SUMMER')
+        response = self.register(promoCode='SUMMER')
+        complete(self.client, self.event, response.data['registrationUUID'])
         registration = models.Registration.objects.get()
         self.promo_code.enabled = False
         self.promo_code.save()

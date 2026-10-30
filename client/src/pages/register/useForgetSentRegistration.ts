@@ -2,7 +2,9 @@
  * The server no longer has the registration this browser sent (SPEC §7.1, §7.2):
  * an organizer deleted it, or it was purged as incomplete (§15, DR-76). Forget
  * the one saved and go back to step 1, which keeps what was entered and says to
- * send the form again — paying for it can only fail.
+ * send the form again — paying for it can only fail. The same goes for one whose
+ * lodging filled up before it was completed (§15, DR-140): pass the server's message
+ * as `lodgingProblem`, and step 1 says to choose again.
  */
 
 import { useEventId } from 'hooks/useEventId';
@@ -17,9 +19,10 @@ export function useForgetSentRegistration() {
   const eventId = useEventId();
   const { data: config } = useRegistrationConfig(eventId);
   const forgetSent = useRegistrationStore((state) => state.forgetSent);
+  const lodgingTaken = useRegistrationStore((state) => state.lodgingTaken);
   const goToStep = useGoToStep();
   return useCallback(
-    (registrationUUID: string) => {
+    (registrationUUID: string, lodgingProblem?: string) => {
       if (config) {
         const key = getRegistrationStorageKey(eventId, config);
         // Another tab may have sent a new one since: that one is still good.
@@ -28,9 +31,10 @@ export function useForgetSentRegistration() {
           clearSentRegistration(key);
         }
       }
-      forgetSent();
+      if (lodgingProblem) lodgingTaken(lodgingProblem);
+      else forgetSent();
       goToStep('registration');
     },
-    [eventId, config, forgetSent, goToStep],
+    [eventId, config, forgetSent, lodgingTaken, goToStep],
   );
 }

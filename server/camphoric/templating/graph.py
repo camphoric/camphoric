@@ -333,6 +333,63 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         registration['campers'].append(camper)
         registration['camper_count'] += 1
 
+    # Drafts sent in full and not completed read as incomplete registrations
+    # (SPEC DR-140); one still being filled in isn't in any template.
+    drafts = models.RegistrationDraft.objects.filter(event=event, submitted_at__isnull=False)
+    for row in [] if registration_ids is not None else drafts.order_by('submitted_at', 'id'):
+        pricing = row.server_pricing_results or {}
+        registration = keep(RegistrationVar(
+            id=f'draft-{row.id}',
+            uuid=str(row.uuid),
+            created_at=local_datetime(row.submitted_at),
+            updated_at=local_datetime(row.last_activity_at),
+            completed=False,
+            completed_at=None,
+            registrant_email=row.registrant_email,
+            payment_type=None,
+            paypal_response=None,
+            attributes=freeze({k: v for k, v in row.form_data.items()
+                               if k not in ('campers', 'registrant_email')}),
+            admin_attributes=freeze({}),
+            registration_type=registration_types.get(row.registration_type_id),
+            campers=ReadOnlyList(),
+            payments=ReadOnlyList(),
+            invoices=ReadOnlyList(),
+            invoice=None,
+            invitation=None,
+            pricing=pricing_results(pricing),
+            total_owed=money(pricing.get('total', 0)),
+            total_paid=Decimal('0.00'),
+            balance=money(pricing.get('total', 0)),
+            initial_payment=None,
+            camper_count=0,
+        ))
+        registrations[registration['id']] = registration
+        priced = pricing.get('campers') or []
+        for position, attributes in enumerate(row.form_data.get('campers') or []):
+            lodging = attributes.get('lodging') or {}
+            requested = (lodging.get('lodging_requested') or {}).get('id')
+            registration['campers'].append(keep(CamperVar(
+                id=f'draft-{row.id}-{position}',
+                index=position,
+                registration=registration,
+                attributes=freeze({k: v for k, v in attributes.items() if k != 'lodging'}),
+                admin_attributes=freeze({}),
+                lodging=None,
+                lodging_requested=lodgings.get(requested),
+                lodging_reserved=False,
+                lodging_shared=lodging.get('lodging_shared', False),
+                lodging_shared_with=lodging.get('lodging_shared_with', ''),
+                lodging_comments=lodging.get('lodging_comments', ''),
+                stay=ReadOnlyList(),
+                first_day=None,
+                last_day=None,
+                pricing=pricing_results(priced[position] if position < len(priced) else None),
+                custom_charges=ReadOnlyList(),
+                created_at=local_datetime(row.submitted_at),
+            )))
+            registration['camper_count'] += 1
+
     # Invoices and their payments (SPEC §9.7): what a registration owes is its
     # price plus the handling on its invoices; refunds are negative payments.
     from camphoric.invoices import capture_processing  # invoices imports templating

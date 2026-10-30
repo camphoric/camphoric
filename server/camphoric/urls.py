@@ -10,6 +10,8 @@ router.register('organizations', views.OrganizationViewSet, basename='organizati
 router.register('emailaccounts', views.EmailAccountViewSet, basename='emailaccount')
 router.register('events', views.EventViewSet, basename='event')
 router.register('registrations', views.RegistrationViewSet, basename='registration')
+router.register(
+    'registrationdrafts', views.RegistrationDraftViewSet, basename='registrationdraft')
 router.register('registrationtypes', views.RegistrationTypeViewSet, basename='registrationtype')
 router.register('reports', views.ReportViewSet, basename='report')
 router.register('invitations', views.InvitationViewSet, basename='invitation')
@@ -51,6 +53,9 @@ urlpatterns = [
         views.RegisterView.as_view(),
         name='register',
     ),
+    path('events/<int:event_id>/register/draft', views.RegistrationDraftView.as_view()),
+    path('events/<int:event_id>/register/draft/<uuid:draft_uuid>',
+         views.RegistrationDraftView.as_view()),
     path('events/<int:event_id>/checkpromo', views.CheckPromoCodeView.as_view()),
     path(
         'eventlist',

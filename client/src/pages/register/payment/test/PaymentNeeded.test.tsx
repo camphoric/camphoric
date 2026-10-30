@@ -303,6 +303,24 @@ describe('PaymentNeeded', () => {
       expect(screen.queryByText(/couldn’t find/)).toBeNull();
     });
 
+    it('lodging filled up meanwhile goes back to the form to choose again', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      failWith(
+        new ApiError(409, 'Conflict', {
+          code: 'lodging_unavailable',
+          detail: 'There’s no room left in Cabin A.',
+        }),
+      );
+      await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
+
+      const state = useRegistrationStore.getState();
+      expect(state.lodgingProblem).toBe('There’s no room left in Cabin A.');
+      expect(state.sentNotFound).toBe(false);
+      expect(state.paymentStep).toBeUndefined();
+      expect(state.registration).toEqual({ campers: [{ first_name: 'Pat' }] });
+    });
+
     it('a PayPal button does too, without a PayPal error', async () => {
       const props = renderPage();
       createOrder.mutateAsync.mockRejectedValue(notFound());

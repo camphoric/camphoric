@@ -106,6 +106,40 @@ class DeleteAbandonedRegistrationsTests(CleanUpTestCase):
         self.assertIsNone(invitation.registration)
 
 
+class DeleteAbandonedDraftsTests(CleanUpTestCase):
+    def draft(self, active=MONTH_AGO, **fields):
+        return models.RegistrationDraft.objects.create(
+            event=self.event, last_activity_at=active, **fields)
+
+    def exists(self, draft):
+        return models.RegistrationDraft.objects.filter(id=draft.id).exists()
+
+    def test_drafts_with_no_activity_for_the_period_go_submitted_or_not(self):
+        being_filled_in = self.draft()
+        submitted = self.draft(submitted_at=MONTH_AGO)
+        self.assertEqual(cleanup.delete_abandoned_drafts(), 2)
+        self.assertFalse(self.exists(being_filled_in))
+        self.assertFalse(self.exists(submitted))
+
+    def test_activity_keeps_one_however_old_it_is(self):
+        recent = self.draft(active=timezone.now() - datetime.timedelta(days=29),
+                            created_at=MONTH_AGO)
+        self.assertEqual(cleanup.delete_abandoned_drafts(), 0)
+        self.assertTrue(self.exists(recent))
+
+    @override_settings(CAMPHORIC_INCOMPLETE_RETENTION_DAYS=7)
+    def test_the_retention_setting_says_how_long_they_stay(self):
+        expired = self.draft(active=timezone.now() - datetime.timedelta(days=8))
+        kept = self.draft(active=timezone.now() - datetime.timedelta(days=6))
+        cleanup.delete_abandoned_drafts()
+        self.assertFalse(self.exists(expired))
+        self.assertTrue(self.exists(kept))
+
+    def test_a_nightly_run_deletes_them(self):
+        self.draft()
+        self.assertEqual(cleanup.clean_up.call()['deleted_drafts'], 1)
+
+
 class ScheduleTests(CleanUpTestCase):
     def test_the_run_is_at_ten_utc_today_or_tomorrow(self):
         utc = datetime.UTC
@@ -131,7 +165,8 @@ class ScheduleTests(CleanUpTestCase):
     def test_a_run_cleans_up_and_schedules_the_next_night(self):
         abandoned = self.registration()
         self.assertEqual(
-            cleanup.clean_up.call(), {'deleted_registrations': 1, 'purged_leases': 0})
+            cleanup.clean_up.call(),
+            {'deleted_drafts': 0, 'deleted_registrations': 1, 'purged_leases': 0})
         self.assertFalse(self.exists(abandoned))
         self.assertTrue(DBTaskResult.objects.filter(
             task_path=cleanup.clean_up.module_path, status='READY').exists())
@@ -150,6 +185,14 @@ class CleanUpCommandTests(CleanUpTestCase):
         self.assertIn('Camp: 2', output)
         self.assertIn('2 abandoned registration(s) would be deleted.', output)
         self.assertTrue(self.exists(abandoned))
+
+    def test_a_dry_run_counts_drafts_too(self):
+        draft = models.RegistrationDraft.objects.create(
+            event=self.event, last_activity_at=MONTH_AGO)
+        output = self.run_command(dry_run=True)
+        self.assertIn('1 abandoned registration draft(s) would be deleted.', output)
+        self.assertIn('Deleted 1 abandoned registration draft(s).', self.run_command())
+        self.assertFalse(models.RegistrationDraft.objects.filter(id=draft.id).exists())
 
     def test_it_deletes_them(self):
         abandoned = self.registration()

@@ -1,9 +1,10 @@
 '''
-The nightly clean-up (SPEC §9.3, DR-76). Incomplete registrations, those started but
-never finished, that nobody has changed in CAMPHORIC_INCOMPLETE_RETENTION_DAYS are
-deleted for real, with their campers, charges and pricing overrides, and leave
-nothing in the audit log (DR-139). One with a payment, even a deleted payment, is
-left alone. Lapsed edit leases (camphoric.leases) are deleted too.
+The nightly clean-up (SPEC §9.3, DR-76). Registration drafts with no activity in
+CAMPHORIC_INCOMPLETE_RETENTION_DAYS are deleted (DR-140), as are incomplete
+registrations from before drafts that nobody has changed in that time, with their
+campers, charges and pricing overrides, leaving nothing in the audit log (DR-139).
+One with a payment, even a deleted payment, is left alone. Lapsed edit leases
+(camphoric.leases) are deleted too.
 
 `clean_up` runs at CLEAN_UP_AT each night and schedules the next night's run,
 a chain like the reconciler's (camphoric.worker); `manage.py camphoric_worker`
@@ -29,18 +30,34 @@ CLEAN_UP_AT = time(10, 0)
 _CLEAN_UP_LOCK = 0x436C6E55  # a Postgres advisory lock key
 
 
+def _cutoff(now=None):
+    retention = timedelta(days=settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS)
+    return (now or timezone.now()) - retention
+
+
+def abandoned_drafts(now=None):
+    '''The registration drafts with no activity for the retention period.'''
+    return models.RegistrationDraft.objects.filter(last_activity_at__lt=_cutoff(now))
+
+
+def delete_abandoned_drafts(now=None):
+    '''Delete the abandoned drafts; returns how many there were.'''
+    deleted, _ = abandoned_drafts(now).delete()
+    if deleted:
+        logger.info(f'Deleted {deleted} abandoned registration draft(s)')
+    return deleted
+
+
 def abandoned_registrations(now=None):
     '''
     The incomplete registrations unchanged for the retention period, with no
     payment, nor a PayPal capture on one of their invoices that may yet be recorded as
     one (#767).
     '''
-    retention = timedelta(days=settings.CAMPHORIC_INCOMPLETE_RETENTION_DAYS)
-    cutoff = (now or timezone.now()) - retention
     capturing = models.Invoice.all_objects.filter(
         registration=OuterRef('pk'), paypal_capture_order_id__isnull=False)
     return models.Registration.all_objects.filter(
-        completed=False, updated_at__lt=cutoff, payment__isnull=True).exclude(
+        completed=False, updated_at__lt=_cutoff(now), payment__isnull=True).exclude(
         Exists(capturing))
 
 
@@ -65,6 +82,7 @@ def next_run(now=None):
 def clean_up():
     try:
         return {
+            'deleted_drafts': delete_abandoned_drafts(),
             'deleted_registrations': delete_abandoned_registrations(),
             # Lapsed edit leases are ignored anyway; this only tidies them away.
             'purged_leases': leases.purge_lapsed(),

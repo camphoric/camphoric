@@ -18,7 +18,7 @@ from camphoric import models, serializers, views
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests import paypal_mocks
-from tests.factories import set_email
+from tests.factories import complete, set_email
 
 
 class LoginTests(APITestCase):
@@ -396,6 +396,7 @@ class RegisterGetTests(APITestCase):
             event=event,
             attributes={},
             registrant_email='registrant@example.com',
+            completed=True,
         )
         registration.campers.create(lodging=camp1)
         response = self.client.get(f'/api/events/{event.id}/register')
@@ -781,25 +782,14 @@ class RegisterPostTests(APITestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        registrations = models.Registration.objects.all()
-        self.assertEqual(len(registrations), 1)
-        registration = registrations[0]
-
-        campers = registration.campers.all()
-        self.assertEqual(registration.attributes['billing_name'], 'Testi McTesterton')
-        self.assertEqual(registration.attributes['billing_address'], '1234 Average Street')
-        self.assertEqual(registration.event, self.event)
-        self.assertEqual(len(campers), 2)
-        self.assertEqual(campers[0].attributes['name'], 'Testi McTesterton')
-        self.assertEqual(campers[1].attributes['name'], 'Testi McTesterton Junior')
-        self.assertEqual(campers[0].registration, registration)
-        self.assertEqual(campers[1].registration, registration)
-        self.assertEqual(registration.server_pricing_results, expected_pricing_results)
-        self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
-        self.assertFalse(registration.completed)
+        # Nothing but its draft until it's completed (SPEC DR-140).
+        self.assertFalse(models.Registration.objects.exists())
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(draft.form_data['billing_name'], 'Testi McTesterton')
+        self.assertEqual(draft.server_pricing_results, expected_pricing_results)
 
         self.assertEqual({
-            'registrationUUID': registration.uuid,
+            'registrationUUID': draft.uuid,
             'serverPricingResults': expected_pricing_results,
             'paymentOptions': {
                 'title': 'Deposit',
@@ -824,7 +814,7 @@ class RegisterPostTests(APITestCase):
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
-                'registrationUUID': registration.uuid,
+                'registrationUUID': draft.uuid,
                 'step': 'paypal-order',
                 'paymentType': 'PayPal',
                 'paymentOption': 'Full Payment',
@@ -834,7 +824,19 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['orderID'], paypal_mocks.ORDER_ID)
         self.assertEqual((response.data['total'], response.data['handling']), (300.0, 0.0))
-        registration.refresh_from_db()
+        registration = models.Registration.objects.get(uuid=draft.uuid)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+        campers = registration.campers.all()
+        self.assertEqual(registration.attributes['billing_name'], 'Testi McTesterton')
+        self.assertEqual(registration.attributes['billing_address'], '1234 Average Street')
+        self.assertEqual(registration.event, self.event)
+        self.assertEqual(len(campers), 2)
+        self.assertEqual(campers[0].attributes['name'], 'Testi McTesterton')
+        self.assertEqual(campers[1].attributes['name'], 'Testi McTesterton Junior')
+        self.assertEqual(campers[0].registration, registration)
+        self.assertEqual(campers[1].registration, registration)
+        self.assertEqual(registration.server_pricing_results, expected_pricing_results)
+        self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
         self.assertTrue(registration.completed)
         self.assertIsNotNone(registration.completed_at)
         invoice = registration.invoices.get()
@@ -1015,6 +1017,8 @@ Due now: $300.00""".lstrip())
             format='json'
         )
         self.assertEqual(response.status_code, 200)
+        response = complete(self.client, self.event, response.data['registrationUUID'])
+        self.assertEqual(response.status_code, 200, response.data)
         registrations = models.Registration.objects.all()
         registration = registrations[0]
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
@@ -1130,17 +1134,15 @@ class PriceAutoUpdateTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, 200, msg=response.data)
-        registrations = models.Registration.objects.all()
-        self.assertEqual(len(registrations), 1)
-        registration = registrations[0]
-        self.registration = registration
+        uuid = response.data['registrationUUID']
         if payment_type == 'PayPal':
             self.paypal_server.reset()
             self.paypal_server.add_mock_response(200, {}, paypal_mocks.created())
             response = self.client.post(f'/api/events/{self.event.id}/register', {
-                'registrationUUID': registration.uuid, 'step': 'paypal-order',
+                'registrationUUID': uuid, 'step': 'paypal-order',
                 'paymentType': payment_type}, format='json')
             self.assertEqual(response.status_code, 200, msg=response.data)
+            registration = models.Registration.objects.get(uuid=uuid)
             invoice = registration.invoices.get()
             value = response.data['total']
             self.paypal_server.add_mock_response(
@@ -1153,7 +1155,7 @@ class PriceAutoUpdateTests(APITestCase):
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {
-                'registrationUUID': registration.uuid,
+                'registrationUUID': uuid,
                 'step': 'payment',
                 'paymentType': payment_type,
                 **body,
@@ -1161,7 +1163,7 @@ class PriceAutoUpdateTests(APITestCase):
             format='json'
         )
         self.assertEqual(response.status_code, 200, msg=response.data)
-        self.registration.refresh_from_db()
+        self.registration = models.Registration.objects.get(uuid=uuid)
         self.campers = models.Camper.objects.all() \
             .filter(registration=self.registration.id)
 

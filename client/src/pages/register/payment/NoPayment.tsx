@@ -37,8 +37,11 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
           goToStep('finished');
         },
         onError: (e) => {
+          const problem = paymentProblem(e);
           if (registrationNotFound(e)) forgetSentRegistration(registrationUUID);
-          else setError(paymentProblem(e).message);
+          else if (problem.code === 'lodging_unavailable') {
+            forgetSentRegistration(registrationUUID, problem.message);
+          } else setError(problem.message);
         },
       },
     );

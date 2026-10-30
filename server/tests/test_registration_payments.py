@@ -58,6 +58,10 @@ class Flow(paypal_mocks.PayPalServerMixin):
     def registration(self):
         return models.Registration.objects.get(uuid=self.uuid)
 
+    def assertNotCompleted(self):
+        self.assertTrue(models.RegistrationDraft.objects.filter(uuid=self.uuid).exists())
+        self.assertFalse(models.Registration.all_objects.filter(uuid=self.uuid).exists())
+
     def post(self, status=200, **data):
         response = self.client.post(f'/api/events/{self.event.id}/register', data,
                                     format='json')
@@ -96,7 +100,7 @@ class OptionsTests(FlowTestCase):
     def test_an_unknown_option_is_refused(self):
         self.post(400, step='payment', registrationUUID=self.uuid, paymentType='Check',
                   paymentOption='Everything')
-        self.assertFalse(self.registration.completed)
+        self.assertNotCompleted()
 
     def test_no_option_means_the_default(self):
         self.post(step='payment', registrationUUID=self.uuid, paymentType='Check')
@@ -122,7 +126,7 @@ class OptionsTests(FlowTestCase):
     def test_every_step_says_when_the_registration_is_gone(self):
         # An organizer deleted it, or it was purged as incomplete: the browser
         # that saved it is told to send the form again (SPEC §7.1).
-        self.registration.soft_delete()
+        models.RegistrationDraft.objects.filter(uuid=self.uuid).delete()
         for data in (
             {'step': 'payment-step'},
             {'step': 'paypal-order', 'paymentOption': 'Full Payment', 'paymentType': 'PayPal'},
@@ -152,13 +156,13 @@ class OptionsTests(FlowTestCase):
                 response = self.client.post(f'/api/events/{other.id}/register', {
                     **data, 'registrationUUID': self.uuid}, format='json')
                 self.assertEqual(response.status_code, 404)
-        self.assertFalse(self.registration.completed)
+        self.assertNotCompleted()
         self.assertEqual(self.paypal.requests, [])
 
     def test_an_out_of_date_page_is_asked_to_reload(self):
         self.post(409, step='payment', registrationUUID=self.uuid, paymentType='Check',
                   paymentData={'type': 'Full', 'total': 1})
-        self.assertFalse(self.registration.completed)
+        self.assertNotCompleted()
 
 
 class CheckTests(FlowTestCase):

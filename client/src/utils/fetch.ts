@@ -77,6 +77,8 @@ export interface ApiRequestOptions {
   body?: unknown;
   signal?: AbortSignal;
   headers?: Record<string, string>;
+  /** Let the request outlive the page, as one sent while it's being hidden must. */
+  keepalive?: boolean;
 }
 
 export async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -97,6 +99,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
     method,
     credentials: 'include',
     signal: options.signal,
+    keepalive: options.keepalive,
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });

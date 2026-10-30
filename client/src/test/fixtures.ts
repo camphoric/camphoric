@@ -8,6 +8,7 @@ import type { ApiRegister } from 'api-types';
 
 export function makeRegisterConfig(overrides: Partial<ApiRegister> = {}): ApiRegister {
   return {
+    draftRetentionDays: 30,
     dataSchema: {},
     uiSchema: {},
     preSubmitTemplate: '',

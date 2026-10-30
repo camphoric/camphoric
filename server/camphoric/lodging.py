@@ -329,7 +329,8 @@ class LodgingTree:
         camper_event_filter = Q(
             camper__registration__event__id=self.event.id,
             camper__deleted_at__isnull=True,
-            camper__registration__deleted_at__isnull=True)
+            camper__registration__deleted_at__isnull=True,
+            camper__registration__completed=True)
         camper_reserved_filter = Q(camper__lodging_reserved=True)
 
         annotated_lodgings = self.event.lodging_set.annotate(

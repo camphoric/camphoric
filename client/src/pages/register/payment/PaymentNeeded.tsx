@@ -103,6 +103,10 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       return true;
     }
     const problem = paymentProblem(e);
+    if (problem.code === 'lodging_unavailable') {
+      forgetSentRegistration(registrationUUID, problem.message);
+      return true;
+    }
     if (problem.code === 'cancelled') {
       setNotFinished({ reason: problem.message, invoiceCancelled: true });
       return true;
