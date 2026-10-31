@@ -334,6 +334,16 @@ class IncompleteIntoDraftsTests(MigrationTestCase):
         self.assertEqual(camper.lodging_comments, 'Lake')
         self.assertEqual(camper.server_pricing_results, {'total': 5})
 
+    def test_who_a_camper_would_have_shared_with_is_left_out_once_unticked(self):
+        lodging = self.Lodging.objects.create(event=self.event, name='Cabin')
+        self.RegistrationDraft.objects.create(
+            event=self.event, form_data={'campers': [{'name': 'Pat', 'lodging': {
+                'lodging_requested': {'id': lodging.id}, 'lodging_shared': False,
+                'lodging_shared_with': 'x' * 300}}]},
+            submitted_at=timezone.now())
+        self.reverse()
+        self.assertEqual(self.Camper.objects.get().lodging_shared_with, '')
+
     def test_one_still_being_filled_in_had_no_registration_to_go_back_to(self):
         self.RegistrationDraft.objects.create(event=self.event, form_data={'campers': [{}]})
         self.reverse()

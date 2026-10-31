@@ -842,9 +842,9 @@ export interface ApiRegisterPaymentStep {
   /** The handling percent on online payments; null without one. */
   handlingPercent: number | null;
   /**
-   * For a registration not yet completed, a digest of what this step asks for: a
-   * payment button sends it back, and one that's out of date is refused
-   * (`invoice_changed`, §15, DR-140).
+   * A digest of what this step asks for: a payment button sends it back, and one
+   * that's out of date is refused (`invoice_changed`, §15, DR-140). Left out of a
+   * step saved in this browser before there were quotes.
    */
   quote?: string;
   /**
@@ -889,7 +889,7 @@ export interface PaymentStepBody {
   paymentType?: PaymentType;
   paymentOption?: string;
   paypalOrderId?: string;
-  /** The payment step's `quote`, for a registration not yet completed. */
+  /** The payment step's `quote`. */
   quote?: string;
 }
 
@@ -898,7 +898,7 @@ export interface PayPalOrderBody {
   registrationUUID: string;
   paymentType: PaymentType;
   paymentOption: string;
-  /** The payment step's `quote`, for a registration not yet completed. */
+  /** The payment step's `quote`. */
   quote?: string;
 }
 

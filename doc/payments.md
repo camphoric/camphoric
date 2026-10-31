@@ -188,10 +188,12 @@ flowchart TD
   again. The price is worked out again too. The payment step carries a `quote`, a digest of what
   it asks for (the total, the options and their amounts, the handling percent), and a payment
   button sends it back: one that's out of date is refused (`invoice_changed`, with the new payment
-  step), so no one is charged an amount they haven't seen. A request with no `quote`, as from the
+  step), so no one is charged an amount they haven't seen, and that holds for a completed
+  registration too, as with a second tab left open. A request with no `quote`, as from the
   event importer, is held to the price the draft holds. The registration is dated when the form was submitted, as early-bird pricing reads
   `created_at`. `paypal-order` commits the completion before asking PayPal for the order, so that
-  lock is never held across a call to PayPal.
+  lock is never held across a call to PayPal, then refuses a registration already paid under the
+  lock that writes its invoice.
 - **One invitation, one completed registration (#803).** Several drafts may be started with the
   same invitation (two tabs, a second try), each recording it; the registration made from one
   has it as `started_with_invitation`. Completing one redeems the invitation; completing another after that

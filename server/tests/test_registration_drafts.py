@@ -22,7 +22,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework.test import APITestCase
 
-from camphoric import live, models, roles
+from camphoric import invoices, live, models, roles, views
 from camphoric.templating.graph import build_event_graph
 from tests.factories import complete, make_user, quote
 from tests.test_views import create_standard_test_event
@@ -121,6 +121,35 @@ class SavingTests(DraftTestCase):
                 with self.subTest(body=body):
                     response = self.client.post(self.url, body, content_type='application/json')
                     self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_a_number_too_large_for_json_is_refused_not_a_server_error(self):
+        sent = json.dumps({'formData': self.valid_form_data, 'pricingResults': {}})
+        for path, body in ((f'{self.url}/draft', '{"formData": {"age": 1e400}}'),
+                           (self.url, sent.replace('"pricingResults": {}',
+                                                   '"pricingResults": {"x": 1e400}'))):
+            with self.subTest(path=path):
+                response = self.client.post(path, body, content_type='application/json')
+                self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_an_invitation_the_database_cant_look_up_is_refused_not_a_server_error(self):
+        response = self.client.post(
+            f'{self.url}/draft',
+            '{"formData": {}, "invitation": '
+            '{"recipient_email": "a\\u0000", "invitation_code": "b"}}',
+            content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_nul_in_what_is_looked_up_is_refused_not_a_server_error(self):
+        address = '?email=a%00&code=b'
+        promo = f'/api/events/{self.event.id}/checkpromo'
+        for sent in (self.client.get(self.url + address),
+                     self.client.post(self.url + address, {
+                         'formData': self.valid_form_data, 'pricingResults': {}}, format='json'),
+                     self.client.post(promo + address, {'code': 'x'}, format='json'),
+                     self.client.post(promo, {'code': 'a\x00'}, format='json')):
+            self.assertIn(sent.status_code, (200, 400, 403, 404, 409), sent.data)
         self.assertFalse(models.RegistrationDraft.objects.exists())
 
     def test_an_answer_only_spelling_out_a_nul_is_kept(self):
@@ -413,6 +442,21 @@ class PriceChangedTests(DraftTestCase):
         self.check()
         self.assertRefusedWithTheNewPrice(self.check())
 
+    def test_a_tab_left_on_the_old_price_is_refused_once_the_registration_is_completed(self):
+        self.raise_the_price()
+        now = self.pay(step='payment-step').data
+        self.assertEqual(self.check(now['quote']).status_code, 200)
+        invoice = models.Invoice.objects.get()
+
+        response = self.check()
+
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['code'], 'invoice_changed')
+        self.assertEqual(response.data['invoice']['id'], invoice.id)
+        step = response.data['paymentStep']
+        self.assertEqual(step['quote'], now['quote'])
+        self.assertEqual(self.check(step['quote']).status_code, 200)
+
     def test_a_deposit_changed_under_the_same_total_is_refused(self):
         deposit = {'title': 'Payment', 'enum': [
             json.dumps({'name': 'Deposit', 'logic': {'*': [{'var': 'total'}, 0.25]}})]}
@@ -453,6 +497,104 @@ class PriceChangedTests(DraftTestCase):
                 'step': 'payment-step', 'registrationUUID': str(draft.uuid)}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['serverPricingResults']['total'], self.total)
+
+
+class AlreadyPaidTests(DraftTestCase):
+    '''A paid invoice stands, and the page is told so.'''
+
+    def setUp(self):
+        super().setUp()
+        self.event.paypal_enabled = True
+        self.event.paypal_client_id = 'client'
+        full = json.dumps({'name': 'Full', 'logic': {'var': 'total'}})
+        deposit = json.dumps({'name': 'Deposit', 'logic': 50})
+        self.event.registration_deposit_schema = {
+            'title': 'How much?', 'default': full,
+            'enum': [full, deposit], 'enumNames': ['Full', 'Deposit']}
+        self.event.save()
+        self.sent = self.submit().data
+
+    def order(self, option, **body):
+        with mock.patch('camphoric.invoices.create_paypal_order', return_value='ORDER') as made:
+            response = self.client.post(self.url, {
+                'step': 'paypal-order', 'registrationUUID': str(self.sent['registrationUUID']),
+                'paymentType': 'PayPal', 'paymentOption': option, **body}, format='json')
+        return response, made
+
+    def paid_in_full(self):
+        self.order('Full', quote=self.sent['quote'])
+        registration = models.Registration.objects.get()
+        invoice = invoices.registration_invoice(registration)
+        models.Payment.objects.create(
+            registration=registration, invoice=invoice,
+            payment_type=models.PaymentType.PAYPAL, amount=invoice.amount)
+        return invoice
+
+    def assertAlreadyPaid(self, response):
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['detail'], 'This registration has already been paid.')
+
+    def test_a_page_on_an_old_quote_is_told_its_paid_not_that_it_changed(self):
+        self.paid_in_full()
+        self.assertAlreadyPaid(self.order('Deposit', quote='an old page')[0])
+
+    def test_an_organizers_invoice_with_nothing_left_due_is_told_its_paid(self):
+        invoice = self.paid_in_full()
+        models.Invoice.objects.filter(pk=invoice.pk).update(organizer_changed_at=timezone.now())
+        step = self.client.post(self.url, {
+            'step': 'payment-step', 'registrationUUID': str(self.sent['registrationUUID']),
+        }, format='json').data
+        [option] = step['paymentOptions']['options']
+        self.assertEqual(option['amount'], 0)
+        self.assertAlreadyPaid(self.order(option['name'], quote=step['quote'])[0])
+
+    def test_a_capture_finishing_before_the_order_is_made_stands_and_no_order_is_made(self):
+        first, _ = self.order('Full', quote=self.sent['quote'])
+        self.assertEqual(first.status_code, 200, first.data)
+        registration = models.Registration.objects.get()
+        invoice = invoices.registration_invoice(registration)
+        paid, description = invoice.amount, invoice.description
+        locked = views.RegisterView.locked_registration.__func__
+        calls = []
+
+        def capture_lands(cls, request, event):
+            calls.append(request)
+            if len(calls) == 2:
+                models.Payment.objects.create(
+                    registration=registration, invoice=invoice,
+                    payment_type=models.PaymentType.PAYPAL, amount=paid)
+            return locked(cls, request, event)
+
+        with mock.patch.object(
+                views.RegisterView, 'locked_registration', classmethod(capture_lands)):
+            second, made = self.order('Deposit')
+
+        self.assertEqual(second.status_code, 409, second.data)
+        made.assert_not_called()
+        invoice.refresh_from_db()
+        self.assertEqual((invoice.amount, invoice.description), (paid, description))
+
+
+class PriceFellToNothingTests(DraftTestCase):
+    def test_finishing_rewrites_an_invoice_left_from_a_cancelled_paypal_try(self):
+        self.event.paypal_enabled = True
+        self.event.paypal_client_id = 'client'
+        self.event.save()
+        sent = self.submit().data
+        with mock.patch('camphoric.invoices.create_paypal_order', return_value='ORDER'):
+            self.client.post(self.url, {
+                'step': 'paypal-order', 'registrationUUID': str(sent['registrationUUID']),
+                'paymentType': 'PayPal', 'paymentOption': sent['paymentOptions']['default'],
+                'quote': sent['quote']}, format='json')
+        registration = models.Registration.objects.get()
+        registration.server_pricing_results = {**registration.server_pricing_results, 'total': 0}
+        registration.save_without_recalc()
+
+        response = self.client.post(self.url, {
+            'step': 'payment', 'registrationUUID': str(sent['registrationUUID'])}, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(models.Invoice.objects.get().amount, 0)
 
 
 class StartingAgainTests(DraftTestCase):
@@ -496,6 +638,9 @@ class AdminApiTests(DraftTestCase):
                 self.assertEqual(listed.data[0]['form_data'], self.draft.form_data)
                 one = self.client.get(f'/api/registrationdrafts/{self.draft.id}/')
                 self.assertEqual(one.status_code, 200, one.data)
+                # Whoever holds it can discard the draft, which a Reporter may not.
+                self.assertNotIn('uuid', listed.data[0])
+                self.assertNotIn('uuid', one.data)
 
     def test_no_one_signed_out_or_without_a_role(self):
         path = f'/api/registrationdrafts/?event={self.event.id}'
@@ -532,6 +677,19 @@ class TemplatesTests(DraftTestCase):
         self.assertEqual(len(registration['campers']), len(self.valid_form_data['campers']))
         self.assertEqual(registration['attributes']['billing_name'],
                          self.valid_form_data['billing_name'])
+
+    def test_its_uuid_isnt_given_out(self):
+        self.submit()
+        [registration] = build_event_graph(self.event).incomplete_registrations
+        self.assertEqual(registration['uuid'], '')
+
+    def test_who_a_camper_would_have_shared_with_is_left_out_once_unticked(self):
+        models.RegistrationDraft.objects.create(
+            event=self.event, submitted_at=timezone.now(),
+            form_data={'campers': [{'lodging': {
+                'lodging_shared': False, 'lodging_shared_with': 'Lee'}}]})
+        [registration] = build_event_graph(self.event).incomplete_registrations
+        self.assertEqual(registration['campers'][0]['lodging_shared_with'], '')
 
     def test_one_being_filled_in_is_in_no_template(self):
         self.save()

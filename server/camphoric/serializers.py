@@ -258,7 +258,8 @@ class RegistrationSerializer(ModelSerializer):
 class RegistrationDraftSerializer(BaseModelSerializer):
     class Meta:
         model = models.RegistrationDraft
-        fields = '__all__'
+        # Whoever holds a draft's uuid can discard it, which not every role may.
+        exclude = ['uuid']
 
 
 class RegistrationTypeSerializer(ModelSerializer):

@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-30
+**Last updated:** 2026-10-31
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -576,10 +576,11 @@ Non-CRUD admin endpoints:
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
 - **Registration drafts** (§15, DR-140): `GET /api/registrationdrafts/?event=&…`,
-  `GET /api/registrationdrafts/{id}/` (any role) → `{ id, uuid, event, invitation,
+  `GET /api/registrationdrafts/{id}/` (any role) → `{ id, event, invitation,
   registration_type, promo_code, registrant_email, form_data, server_pricing_results,
   client_reported_pricing, submitted_at, created_at, last_activity_at }`, most recently active
-  first; `submitted_at` is null while the form is being filled in. `DELETE
+  first; `submitted_at` is null while the form is being filled in. The draft's `uuid` isn't given:
+  whoever holds it can discard the draft. `DELETE
   /api/registrationdrafts/{id}/` (Registrars and Admins). Drafts can't be created or edited here.
   The change feed names them `registrationdraft`, with a notice only when one is created, becomes
   active after two minutes without a save, or goes (§9.8).
@@ -640,8 +641,9 @@ Non-CRUD admin endpoints:
   none (§15, DR-140). It saves the form as it stands, with no validation or pricing. A `uuid` this
   event has no draft for starts a new draft, and so does leaving it out. A valid `invitation` is
   recorded on the draft; one that isn't valid is ignored until the form is sent. While the event
-  isn't open, a save without a valid invitation is a 409. A `formData` that isn't an object, is
-  over 60 KB, or holds a NUL character or half of a character is a 400. A `uuid` of a registration of this event, whose
+  isn't open, a save without a valid invitation is a 409. A `formData` that isn't an object, or a
+  request body over 60 KB or holding a NUL character, half of a character or a number too large for
+  JSON, is a 400. A `uuid` of a registration of this event, whose
   draft has been completed, saves nothing and returns that `uuid`. Changing the answers of a submitted draft returns it to being filled
   in, so its `uuid` then needs the form sent again; the same answers leave it as it is. It's
   throttled per client address (scope `registration_draft`, `CAMPHORIC_REGISTRATION_DRAFT_RATE`, 30
@@ -651,7 +653,7 @@ Non-CRUD admin endpoints:
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, draftUUID?, invitation?, promoCode? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent, quote }`). A request
-  holding a NUL character or half of a character is a 400. The form is
+  body holding a NUL character, half of a character or a number too large for JSON is a 400. The form is
   checked and priced and its draft (`draftUUID`, or a new one) becomes *submitted*; no
   registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
   is the draft's `uuid`, which the registration keeps. `paymentOptions` is
@@ -700,13 +702,14 @@ Non-CRUD admin endpoints:
   also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 409 `{
   detail, code: 'invoice_changed', invoice: null, paymentStep }` when `quote` isn't what the
   payment step would show now, which saves the new price on the draft and nothing else, and
-  `step: 'payment'` answers the same (§7.2; §15, DR-140); 400 on
+  `step: 'payment'` answers the same (§7.2; §15, DR-140). For a completed registration it's the
+  same 409 with its `invoice`, which changes nothing; 400 on
   `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
-  paymentOptions, handlingPercent, quote?, invoiceCancelled, paymentProcessing }`: `quote` is a
-  digest of what the step asks for, there while the registration is a draft, whose price it
-  works out afresh (§15, DR-140); `invoiceCancelled`
+  paymentOptions, handlingPercent, quote, invoiceCancelled, paymentProcessing }`: `quote` is a
+  digest of what the step asks for, and a draft's price is worked out afresh (§15, DR-140);
+  `invoiceCancelled`
   true when the organizers cancelled the registration invoice, `paymentProcessing` true while
   PayPal is still processing a payment on it, §9.7; §15, DR-133); 404 `{ detail, code: 'registration_not_found' }` for a
   registration that isn't this event's (or an id that isn't one). Once a registrar or
@@ -718,7 +721,8 @@ Non-CRUD admin endpoints:
   (`{ confirmationPage, serverPricingResults, invoice, ledger, emailError }`):
   - **By check** (`paymentType: 'Check'`, the default): completes the registration and makes or
     rewrites its registration invoice for `paymentOption` (the default option when left out),
-    waiting for the check. A registration with nothing to pay is completed without an invoice.
+    waiting for the check. A registration with nothing to pay is completed without an invoice, and an
+    unpaid invoice it already has is rewritten to ask for nothing.
     Either is refused, as for `paypal-order`, with 409 `{ detail, code: 'invitation_redeemed' }`
     when another registration has redeemed its invitation (§15, DR-137).
   - **PayPal or card** (`paypalOrderId`): the server fetches the approved order, checks it's for
@@ -1373,8 +1377,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     amount, as the one option. A page left open since gets `invoice_changed` from its next
     button, with the payment step as it is now: it takes that, so its options and amounts are
     the invoice's, and says the organizers changed what's due. Either way the step replaces the
-    payment step this browser saved (§15, DR-105). The same goes for what a registration not yet
-    completed is due: the step sends back the `quote` it was given, and shows the new payment
+    payment step this browser saved (§15, DR-105). The same goes for any other change to what's
+    due: the step sends back the `quote` it was given, and shows the new payment
     step it's refused with, saying why, whether or not anything is due now (§15, DR-140).
   - While a payment is in flight, block further interaction and indicate progress (and prevent
     double submission). For PayPal, the payment is in flight from the payer's approval, not
@@ -5876,20 +5880,23 @@ the draft is still there. The registration is dated when the form was submitted,
 pricing reads `created_at`. Lodging is held by nothing until then, so the check runs again at
 completion under the lodging lock; if the place has gone the step answers 409
 `lodging_unavailable` and the registrant goes back to the form with their answers. The price is
-worked out again too. A draft's payment step carries a `quote`, a digest of what it asks for (the
+worked out again too. A payment step carries a `quote`, a digest of what it asks for (the
 total, the options and their amounts, the handling percent), and a payment button sends it back; one
 that isn't what the step would ask for now, because the pricing, the options or a date they read
 changed, is refused with the new payment step, so no one is charged an amount they haven't seen, and
-another tab left on the old price is refused too. A request with no `quote`, as from the event
+another tab left on the old price is refused too, before or after the registration is completed.
+A request with no `quote`, as from the event
 importer's tools (released apart from the server) or a page loaded before quotes, is held to the price
 the draft holds, so it's refused once and sees the new one. `payment-step` works a draft's price out
 afresh, so a reopened page shows what's due now. The `paypal-order`
 step commits the completion before it asks PayPal for the order, so that lock is never held across
-a call to PayPal. Locks are taken in one order: draft, root lodging, then invitation. Reports'
+a call to PayPal, and then refuses a registration already paid under the lock that writes its
+invoice. Locks are taken in one order: draft, root lodging, then invitation. Reports'
 `incomplete_registrations` and group email's "include registrations that weren't completed" read
-submitted drafts; a draft still being filled in is in neither, and an email sent to one stays in
+submitted drafts, with no `uuid`; a draft still being filled in is in neither, and an email sent to one stays in
 the email history unlinked to the registration it may become. Registrars, Admins and Reporters can
-read drafts, and Registrars and Admins delete them. Each save and `payment-step` counts as activity,
+read drafts, and Registrars and Admins delete them; since whoever holds a draft's `uuid` can discard
+it, neither the admin API nor a template gives it out. Each save and `payment-step` counts as activity,
 and an idle open tab doesn't, nor does reopening the page: the form reports its schema's defaults as
 a change as it loads, so a change counts only once someone has come to the form. A notice goes out on the change feed only as a draft is created,
 becomes active after two minutes without a save, or goes. Migration 0089 turns incomplete

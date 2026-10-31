@@ -161,7 +161,7 @@ TYPES = (
 
     TypeSpec('registration', 'One registration: the registrant and their campers.', (
         ID,
-        F('uuid', 'string', "The registration's unique code."),
+        F('uuid', 'string', "The registration's unique code; blank on an incomplete one."),
         F('created_at', 'datetime', 'When the registration was started.',
           "{{ registration.created_at | datetime('%b %-d, %Y') }}"),
         F('updated_at', 'datetime', 'When it was last changed.'),
