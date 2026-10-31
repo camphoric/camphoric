@@ -102,6 +102,12 @@ class SavingTests(DraftTestCase):
     def test_what_the_database_cant_store_is_refused_not_a_server_error(self):
         self.save({'comments': 'x\u0000y'}, status=400)
         self.save({'registrant_email': '\u0000'}, status=400)
+        # Half of a character: json.dumps escapes it, as a browser's JSON can hold it.
+        for field in ('comments', 'registrant_email'):
+            response = self.client.post(
+                f'{self.url}/draft', f'{{"formData": {{"{field}": "\\ud83d"}}}}',
+                content_type='application/json')
+            self.assertEqual(response.status_code, 400)
         response = self.client.post(f'{self.url}/draft', ['a list'], format='json')
         self.assertEqual(response.status_code, 400)
         self.assertFalse(models.RegistrationDraft.objects.exists())
@@ -293,12 +299,58 @@ class CompletingTests(DraftTestCase):
         self.assertFalse(models.Registration.all_objects.exists())
 
 
+class PriceChangedTests(DraftTestCase):
+    '''What a page shows is what's charged: a new price is shown before it's paid (DR-140).'''
+
+    def setUp(self):
+        super().setUp()
+        self.sent = self.submit().data
+        self.total = self.sent['serverPricingResults']['total']
+        cabins, *rest = self.event.registration_pricing_logic
+        self.event.registration_pricing_logic = [{**cabins, 'exp': {'*': [2, 100]}}, *rest]
+        self.event.save()
+
+    def pay(self, **data):
+        return self.client.post(self.url, {
+            'registrationUUID': str(self.sent['registrationUUID']), **data}, format='json')
+
+    def assertRefusedWithTheNewPrice(self, response):
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['code'], 'invoice_changed')
+        step = response.data['paymentStep']
+        self.assertGreater(step['serverPricingResults']['total'], self.total)
+        self.assertEqual(step['registrationUUID'], self.sent['registrationUUID'])
+        self.assertFalse(models.Registration.all_objects.exists())
+
+    def test_a_check_is_refused_and_shown_the_new_price(self):
+        self.assertRefusedWithTheNewPrice(self.pay(step='payment', paymentType='Check'))
+
+    def test_the_paypal_button_is_too(self):
+        self.event.paypal_client_id = 'client'
+        self.event.save()
+        self.assertRefusedWithTheNewPrice(self.pay(step='paypal-order', paymentType='PayPal'))
+
+    def test_the_draft_now_holds_the_new_price_and_can_be_paid(self):
+        refused = self.pay(step='payment', paymentType='Check')
+        new_total = refused.data['paymentStep']['serverPricingResults']['total']
+        draft = models.RegistrationDraft.objects.get()
+        self.assertEqual(draft.server_pricing_results['total'], new_total)
+        self.assertEqual(self.pay(step='payment', paymentType='Check').status_code, 200)
+        self.assertEqual(models.Registration.objects.get().server_pricing_results['total'],
+                         new_total)
+
+
 class StartingAgainTests(DraftTestCase):
     def test_it_deletes_the_draft(self):
         draft_uuid = self.save().data['uuid']
         response = self.client.delete(f'{self.url}/draft/{draft_uuid}')
         self.assertEqual(response.status_code, 204)
         self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_its_address_only_deletes(self):
+        draft_uuid = self.save().data['uuid']
+        response = self.client.post(f'{self.url}/draft/{draft_uuid}', {}, format='json')
+        self.assertEqual(response.status_code, 405)
 
     def test_one_already_gone_is_fine(self):
         response = self.client.delete(f'{self.url}/draft/{uuid.uuid4()}')

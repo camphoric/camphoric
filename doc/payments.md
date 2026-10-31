@@ -185,7 +185,9 @@ flowchart TD
   the draft as it was. Every registration is completed (DR-141), so it's in the admin lists. A
   draft holds no lodging, so the check runs again here, under the lodging lock, and a place that
   has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
-  again. The registration is dated when the form was submitted, as early-bird pricing reads
+  again. The price is worked out again too: a total that isn't what the page showed is refused
+  (`invoice_changed`, with the new payment step), so no one is charged an amount they haven't
+  seen. The registration is dated when the form was submitted, as early-bird pricing reads
   `created_at`. `paypal-order` commits the completion before asking PayPal for the order, so that
   lock is never held across a call to PayPal.
 - **One invitation, one completed registration (#803).** Several drafts may be started with the

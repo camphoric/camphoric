@@ -6,7 +6,12 @@ import { ApiError } from 'utils/fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { saveDraftUUID } from '../storage';
-import { FIRST_BACKOFF_MS, SAVE_INTERVAL_MS, useDraftSaving } from '../useDraftSaving';
+import {
+  FIRST_BACKOFF_MS,
+  SAVE_INTERVAL_MS,
+  SETTLE_WAIT_MS,
+  useDraftSaving,
+} from '../useDraftSaving';
 
 vi.mock('store/registrationApi', () => ({ saveDraft: vi.fn() }));
 
@@ -19,8 +24,8 @@ const INVITATION = {
 const save = vi.mocked(saveDraft);
 
 /** The hook, once someone has touched the form: a change before that isn't theirs. */
-function hook(invitation?: typeof INVITATION) {
-  const { result } = renderHook(() => useDraftSaving('1', KEY, invitation));
+function hook(invitation?: typeof INVITATION, enabled = true) {
+  const { result } = renderHook(() => useDraftSaving('1', KEY, invitation, enabled));
   result.current.fieldFocused();
   return result;
 }
@@ -55,7 +60,7 @@ describe('useDraftSaving', () => {
 
   it('takes no change before anyone touches the form for theirs', async () => {
     // The form reports its schema's defaults as a change as it loads.
-    const { result } = renderHook(() => useDraftSaving('1', KEY, undefined));
+    const { result } = renderHook(() => useDraftSaving('1', KEY, undefined, true));
     result.current.changed();
     hidePage();
     await settle();
@@ -189,6 +194,27 @@ describe('useDraftSaving', () => {
     await settle();
     expect(submitted).toHaveBeenCalled();
     expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-1');
+  });
+
+  it('doesn’t wait for ever on a save that never answers', async () => {
+    save.mockReturnValueOnce(new Promise(() => {}));
+    const drafts = hook();
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+
+    const submitted = vi.fn();
+    void drafts.current.pause().then(submitted);
+    await act(() => vi.advanceTimersByTimeAsync(SETTLE_WAIT_MS));
+    expect(submitted).toHaveBeenCalled();
+  });
+
+  it('saves nothing while it’s turned off, as for a registration already sent', async () => {
+    const drafts = hook(undefined, false);
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+    hidePage();
+    await settle();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('forgets what it held on starting again, and needs touching again', async () => {

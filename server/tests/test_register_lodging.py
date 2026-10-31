@@ -94,6 +94,15 @@ class RegisterLodgingTests(APITestCase):
             (second.lodging_shared, second.lodging_shared_with, second.lodging_comments),
             (True, 'my buddy', 'my buddy and me'))
 
+    def test_what_a_camper_shares_with_must_fit_when_the_form_is_sent(self):
+        # Not as they pay, when it would fail with nothing on the page to change.
+        data = form_data(self, self.cabin_a)
+        data['campers'][0]['lodging'].update({
+            'lodging_shared': True, 'lodging_shared_with': 'x' * 256})
+        response = self.client.post(f'/api/events/{self.event.id}/register',
+                                    {'formData': data, 'pricingResults': {}}, format='json')
+        self.assertEqual(response.status_code, 400, response.data)
+
     def test_campers_without_lodging_need_no_room(self):
         response = self.register(None, None)
         self.assertEqual(response.status_code, 200, response.data)

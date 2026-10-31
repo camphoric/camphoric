@@ -7,7 +7,9 @@
  * defaults as a change as it loads, and opening the page must leave no record, nor
  * count as activity on a draft it comes back to. The first save starts the draft,
  * and its uuid is kept beside the form data. A failed save never interrupts the
- * form: the change waits for the next chance, and a 429 or 503 backs off.
+ * form: the change waits for the next chance, and a 429 or 503 backs off. It's
+ * off while a registration already sent is on offer: what was sent stands until
+ * the form is sent again, and an edit would otherwise take it away.
  */
 
 import type { ApiRegister } from 'api-types';
@@ -21,11 +23,22 @@ import { loadDraftUUID, saveDraftUUID } from './storage';
 export const SAVE_INTERVAL_MS = 30_000;
 export const FIRST_BACKOFF_MS = 60_000;
 export const MAX_BACKOFF_MS = 10 * 60_000;
+/** How long sending the form waits for a save under way: a save never holds up the form. */
+export const SETTLE_WAIT_MS = 3_000;
+
+const orTimeout = (settled: Promise<void>) =>
+  Promise.race([
+    settled,
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, SETTLE_WAIT_MS);
+    }),
+  ]);
 
 export function useDraftSaving(
   eventId: string,
   storageKey: string,
   invitation: ApiRegister['invitation'],
+  enabled: boolean,
 ) {
   const state = useRef({
     touched: false,
@@ -42,7 +55,8 @@ export function useDraftSaving(
   const send = useCallback(
     (keepalive: boolean) => {
       const saving = state.current;
-      if (!storageKey || !saving.changed || saving.sending || saving.paused) return;
+      if (!enabled || !storageKey) return;
+      if (!saving.changed || saving.sending || saving.paused) return;
       if (Date.now() < saving.backedOffUntil) return;
       saving.changed = false;
       saving.sending = true;
@@ -72,7 +86,7 @@ export function useDraftSaving(
           saving.sending = false;
         });
     },
-    [eventId, storageKey, invitation],
+    [eventId, storageKey, invitation, enabled],
   );
 
   useEffect(() => {
@@ -104,7 +118,7 @@ export function useDraftSaving(
       pause: () => {
         state.current.paused = true;
         state.current.changed = false;
-        return state.current.settled;
+        return orTimeout(state.current.settled);
       },
       /** Submitting failed: go on saving. */
       resume: () => {
@@ -115,7 +129,7 @@ export function useDraftSaving(
       stop: () => {
         state.current.changed = false;
         state.current.touched = false;
-        return state.current.settled;
+        return orTimeout(state.current.settled);
       },
     }),
     [send],

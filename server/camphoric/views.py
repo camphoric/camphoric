@@ -1409,6 +1409,18 @@ class RegistrationNotFound(NotFound):
         })
 
 
+class DraftRepriced(Exception):
+    '''
+    The price worked out as a draft is completed isn't the one its page showed: the
+    pricing or a date it reads has changed. No one is charged what they haven't seen
+    (DR-140). Raised before anything is saved; RegisterView.post answers it.
+    '''
+    def __init__(self, draft, server_pricing_results):
+        super().__init__()
+        self.draft = draft
+        self.server_pricing_results = server_pricing_results
+
+
 class LodgingTaken(serializers.Conflict):
     '''
     The lodging a submitted draft asked for has filled up since: a bed is only
@@ -1597,10 +1609,13 @@ class RegisterView(APIView):
             return self.post_registration(request, event)
         if step == 'payment-step':
             return self.post_payment_step(request, event)
-        if step == 'paypal-order':
-            return self.post_paypal_order(request, event)
-        if step == 'payment':
-            return self.post_payment(request, event)
+        try:
+            if step == 'paypal-order':
+                return self.post_paypal_order(request, event)
+            if step == 'payment':
+                return self.post_payment(request, event)
+        except DraftRepriced as repriced:
+            return self.repriced_response(repriced)
         if step == 'finish':
             return self.post_finish(request, event)
         raise ValidationError(
@@ -1722,6 +1737,9 @@ class RegisterView(APIView):
         registration.created_at = draft.submitted_at
         registration.completed_at = timezone.now()
         server_pricing_results = pricing.calculate_price(registration, campers)
+        shown = (draft.server_pricing_results or {}).get('total')
+        if invoices.money(server_pricing_results.get('total')) != invoices.money(shown):
+            raise DraftRepriced(draft, server_pricing_results)
         registration.server_pricing_results = server_pricing_results
         registration.save_without_recalc()
         models.Registration.all_objects.filter(pk=registration.pk).update(
@@ -1745,16 +1763,34 @@ class RegisterView(APIView):
             # A public step counts as activity (DR-140); the page is coming back to pay.
             models.RegistrationDraft.objects.filter(pk=draft.pk).update(
                 last_activity_at=timezone.now())
-            return Response({
-                'registrationUUID': draft.uuid,
-                'serverPricingResults': draft.server_pricing_results,
-                **self.payment_options(event, draft.server_pricing_results),
-                'invoiceCancelled': False,
-                'paymentProcessing': False,
-            })
+            return Response(self.draft_payment_step(draft))
         registration = self.named_registration(
             request, models.Registration.objects.filter(event=event))
         return Response(self.payment_step(registration))
+
+    def draft_payment_step(self, draft):
+        '''What the payment page shows for a submitted draft.'''
+        return {
+            'registrationUUID': draft.uuid,
+            'serverPricingResults': draft.server_pricing_results,
+            **self.payment_options(draft.event, draft.server_pricing_results),
+            'invoiceCancelled': False,
+            'paymentProcessing': False,
+        }
+
+    def repriced_response(self, repriced):
+        '''The draft takes its new price, and the page is sent it to choose again.'''
+        draft = repriced.draft
+        draft.server_pricing_results = repriced.server_pricing_results
+        models.RegistrationDraft.objects.filter(pk=draft.pk).update(
+            server_pricing_results=draft.server_pricing_results)
+        return Response({
+            'detail': 'The amount due on your registration has changed. '
+                      'Please check it and choose again.',
+            'code': 'invoice_changed',
+            'invoice': None,
+            'paymentStep': self.draft_payment_step(draft),
+        }, status=status.HTTP_409_CONFLICT)
 
     def payment_step(self, registration):
         '''What the payment page shows: the price and, from the server, the options.'''
@@ -2251,16 +2287,23 @@ class RegistrationDraftView(APIView):
     # A draft saved after this long away counts as becoming active again (DR-140).
     IDLE_AFTER = timedelta(minutes=2)
 
-    def post(self, request, event_id=None):
+    def post(self, request, event_id=None, draft_uuid=None):
+        if draft_uuid is not None:  # A draft's own address only deletes it.
+            self.http_method_not_allowed(request)
         event = get_object_or_404(models.Event, id=event_id)
         form_data = request.data.get('formData') if isinstance(request.data, dict) else None
         if not isinstance(form_data, dict):
             raise ValidationError({'formData': 'This field is required.'})
-        encoded = json.dumps(form_data)
-        if len(encoded) > self.MAX_FORM_DATA_SIZE:
-            raise ValidationError({'formData': 'This form is too long to save.'})
-        if '\\u0000' in encoded:  # Postgres can't store it, in JSON or text.
+        encoded = json.dumps(form_data, ensure_ascii=False)
+        try:
+            size = len(encoded.encode())
+        except UnicodeEncodeError:  # half of a character, which text can't hold
+            size = None
+        # Nor can Postgres store a NUL, in JSON or text.
+        if size is None or '\\u0000' in encoded:
             raise ValidationError({'formData': 'This form holds a character we can\'t save.'})
+        if size > self.MAX_FORM_DATA_SIZE:
+            raise ValidationError({'formData': 'This form is too long to save.'})
         try:
             invitation = RegisterView.find_invitation(request, event)
         except InvitationError:
