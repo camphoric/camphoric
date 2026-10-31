@@ -1364,7 +1364,9 @@ def usable_promo_code(event, code, registration_type):
     (None: not invited) may use it now; PromoCodeRejected, saying why, if not
     (SPEC DR-67, DR-107).
     '''
-    promo_code = models.PromoCode.find_valid(event, code) if isinstance(code, str) else None
+    # Postgres can't look for a NUL, and nothing holds one.
+    usable = isinstance(code, str) and '\x00' not in code
+    promo_code = models.PromoCode.find_valid(event, code) if usable else None
     if promo_code is None:
         raise PromoCodeRejected()
     if not promo_code.is_for(registration_type):
@@ -1413,17 +1415,18 @@ class RegistrationNotFound(NotFound):
 
 def check_storable(data):
     '''
-    Refuse half of a character, which text can't hold, or a NUL, which Postgres
-    won't store in JSON or text. Returns the size of `data` as JSON.
+    Refuse half of a character, which text can't hold, a number too large for
+    JSON, which reads as infinity, or a NUL, which Postgres won't store in JSON or
+    text. Returns the size of `data` as JSON.
     '''
-    encoded = json.dumps(data, ensure_ascii=False, default=str)
     try:
+        encoded = json.dumps(data, ensure_ascii=False, allow_nan=False, default=str)
         size = len(encoded.encode())
-    except UnicodeEncodeError:
+    except ValueError:
         size = None
     # JSON writes a NUL as \u0000, and an answer with those letters in it as \\u0000.
     if size is None or re.search(r'(?<!\\)(\\\\)*\\u0000', encoded):
-        raise ValidationError({'formData': 'This form holds a character we can\'t save.'})
+        raise ValidationError({'formData': 'This form holds something we can\'t save.'})
     return size
 
 
@@ -1837,14 +1840,12 @@ class RegisterView(APIView):
 
     def payment_step(self, registration):
         '''What the payment page shows: the price and, from the server, the options.'''
-        meta, options = invoices.registration_payment_options(registration)
-        event = registration.event
-        online = event.paypal_enabled and event.epayment_handling
         return {
             'registrationUUID': registration.uuid,
             'serverPricingResults': registration.server_pricing_results,
-            'paymentOptions': {**meta, 'options': [option.as_dict() for option in options]},
-            'handlingPercent': float(event.epayment_handling) if online else None,
+            **self.quoted(
+                registration.event, registration.server_pricing_results,
+                *invoices.registration_payment_options(registration)),
             # Nothing to pay: the page says to contact the organizers.
             'invoiceCancelled': invoices.cancelled_registration_invoice(registration),
             # PayPal is still processing their payment: the page says not to pay again.
@@ -1852,13 +1853,18 @@ class RegisterView(APIView):
                 invoices.registration_invoice(registration)),
         }
 
+    @classmethod
+    def payment_options(cls, event, server_pricing_results):
+        '''The payment options, worked out on the server (#675), quoted for a draft.'''
+        return cls.quoted(
+            event, server_pricing_results, *invoices.payment_options(event, server_pricing_results))
+
     @staticmethod
-    def payment_options(event, server_pricing_results):
+    def quoted(event, server_pricing_results, meta, options):
         '''
-        The payment options, worked out on the server (#675), the handling percent,
-        and the `quote` a draft's payment button sends back for them.
+        The options as a page shows them, the handling percent, and the `quote` its
+        payment buttons send back for them.
         '''
-        meta, options = invoices.payment_options(event, server_pricing_results)
         online = event.paypal_enabled and event.epayment_handling
         shown = {
             'paymentOptions': {**meta, 'options': [option.as_dict() for option in options]},
@@ -1934,15 +1940,16 @@ class RegisterView(APIView):
             })
         return payment_type
 
-    @staticmethod
-    def chosen_option(request, registration):
+    @classmethod
+    def chosen_option(cls, request, registration):
         '''
         The payment option the registrant chose, by name (the default if none).
         A browser loaded before options moved to the server sends the old shape:
         it's asked to reload rather than trusted (its PayPal order, if any, was
         never captured by the server, so no money moved). Once an organizer has
         set the invoice it's the only option: a page still showing the old ones
-        is refused (`invoice_changed`), and sent the fresh ones (DR-105).
+        is refused (`invoice_changed`), and sent the fresh ones (DR-105). So is a
+        page whose `quote` isn't what the step asks for now (DR-140).
         '''
         if 'paymentData' in request.data or 'payPalResponse' in request.data:
             raise serializers.Conflict(
@@ -1951,6 +1958,10 @@ class RegisterView(APIView):
             raise invoices.PaymentProblem('cancelled', invoices.INVOICE_CANCELLED)
         name = request.data.get('paymentOption')
         meta, options = invoices.registration_payment_options(registration)
+        quote = request.data.get('quote')
+        shown = cls.quoted(registration.event, registration.server_pricing_results, meta, options)
+        if quote and quote != shown['quote'] and cls.payable(registration):
+            raise invoices.PaymentProblem('invoice_changed', invoices.INVOICE_CHANGED)
         option = next((o for o in options if o.name == (name or meta['default'])), None)
         if option is None and invoices.organizer_set(invoices.registration_invoice(registration)):
             raise invoices.PaymentProblem('invoice_changed', invoices.INVOICE_CHANGED)
@@ -1962,6 +1973,11 @@ class RegisterView(APIView):
     def payable(registration):
         '''The registration invoice can still change: nothing has been paid on it.'''
         return not invoices.has_payments(invoices.registration_invoice(registration))
+
+    @classmethod
+    def refuse_if_paid(cls, registration):
+        if not cls.payable(registration):
+            raise serializers.Conflict('This registration has already been paid.')
 
     @staticmethod
     def redeem_invitation(registration):
@@ -2013,14 +2029,15 @@ class RegisterView(APIView):
                 option = self.chosen_option(request, registration)
             except invoices.PaymentProblem as problem:
                 return self.problem_response(request, registration, problem)
-            if not self.payable(registration):
-                raise serializers.Conflict('This registration has already been paid.')
+            self.refuse_if_paid(registration)
             if option.amount <= 0:
                 raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
         # Committed: a draft's lodging lock mustn't be held while PayPal is asked, which
         # would hold up every registration for the event's lodging (DR-140).
         with transaction.atomic():
             registration = self.locked_registration(request, event)
+            # Again, under the lock that writes the invoice: a capture may have paid it since.
+            self.refuse_if_paid(registration)
             try:
                 invoice = invoices.prepare_registration_invoice(
                     registration, option, payment_type)
@@ -2056,7 +2073,9 @@ class RegisterView(APIView):
                 # Already paid: the same result again, without a second email.
                 return Response(self.payment_result(request, registration))
             total = invoices.money((registration.server_pricing_results or {}).get('total'))
-            if total > 0 or 'paymentOption' in request.data:
+            # An invoice from before the price fell to nothing is rewritten too.
+            invoice = invoices.registration_invoice(registration)
+            if total > 0 or 'paymentOption' in request.data or invoice is not None:
                 try:
                     option = self.chosen_option(request, registration)
                     invoices.prepare_registration_invoice(registration, option, payment_type)
@@ -2297,6 +2316,9 @@ class RegisterView(APIView):
         email, code = invitation_credentials(request)
         if not (email and code):
             return None
+        # Postgres can't look for a NUL, and nothing holds one.
+        if '\x00' in f'{email}{code}':
+            raise InvitationError(invitation_not_found(email, code))
 
         invitation = None
         try:
@@ -2345,7 +2367,7 @@ class RegistrationDraftView(APIView):
         form_data = request.data.get('formData') if isinstance(request.data, dict) else None
         if not isinstance(form_data, dict):
             raise ValidationError({'formData': 'This field is required.'})
-        if check_storable(form_data) > self.MAX_FORM_DATA_SIZE:
+        if check_storable(request.data) > self.MAX_FORM_DATA_SIZE:
             raise ValidationError({'formData': 'This form is too long to save.'})
         try:
             invitation = RegisterView.find_invitation(request, event)

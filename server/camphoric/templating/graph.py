@@ -340,7 +340,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         pricing = row.server_pricing_results or {}
         registration = keep(RegistrationVar(
             id=f'draft-{row.id}',
-            uuid=str(row.uuid),
+            uuid='',  # Whoever holds it can discard the draft, which not every role may.
             created_at=local_datetime(row.submitted_at),
             updated_at=local_datetime(row.last_activity_at),
             completed=False,
@@ -369,6 +369,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         for position, attributes in enumerate(row.form_data.get('campers') or []):
             lodging = attributes.get('lodging') or {}
             requested = (lodging.get('lodging_requested') or {}).get('id')
+            shared = lodging.get('lodging_shared', False)
             registration['campers'].append(keep(CamperVar(
                 id=f'draft-{row.id}-{position}',
                 index=position,
@@ -378,8 +379,8 @@ def build_event_graph(event, *, registration_ids=None, request=None):
                 lodging=None,
                 lodging_requested=lodgings.get(requested),
                 lodging_reserved=False,
-                lodging_shared=lodging.get('lodging_shared', False),
-                lodging_shared_with=lodging.get('lodging_shared_with', ''),
+                lodging_shared=shared,
+                lodging_shared_with=lodging.get('lodging_shared_with', '') if shared else '',
                 lodging_comments=lodging.get('lodging_comments', ''),
                 stay=ReadOnlyList(),
                 first_day=None,

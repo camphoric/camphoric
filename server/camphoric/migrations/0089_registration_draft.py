@@ -103,14 +103,16 @@ def drafts_into_registrations(apps, schema_editor):
             lodging = data.get('lodging') or {}
             requested = (lodging.get('lodging_requested') or {}).get('id')
             requested = requested if requested in lodgings else None
+            shared = lodging.get('lodging_shared', False)
             campers.append(Camper(
                 registration_id=registration.pk,
                 sequence=sequence,
                 attributes=attributes,
                 lodging_id=requested,
                 lodging_requested_id=requested,
-                lodging_shared=lodging.get('lodging_shared', False),
-                lodging_shared_with=lodging.get('lodging_shared_with', ''),
+                lodging_shared=shared,
+                # The form keeps who they'd have shared with after the box is unticked, unchecked.
+                lodging_shared_with=lodging.get('lodging_shared_with', '') if shared else '',
                 lodging_comments=lodging.get('lodging_comments', ''),
                 server_pricing_results=priced[sequence] if sequence < len(priced) else None,
             ))
