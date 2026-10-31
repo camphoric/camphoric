@@ -650,7 +650,8 @@ Non-CRUD admin endpoints:
   or not there was such a draft: "Start a new registration" (§7.1).
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, draftUUID?, invitation?, promoCode? }` → payment-step payload
-  (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent }`). The form is
+  (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent, quote }`). A request
+  holding a NUL character or half of a character is a 400. The form is
   checked and priced and its draft (`draftUUID`, or a new one) becomes *submitted*; no
   registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
   is the draft's `uuid`, which the registration keeps. `paymentOptions` is
@@ -683,7 +684,7 @@ Non-CRUD admin endpoints:
   completed, so two can't both take the last place (§15, DR-123, DR-140). Admins may still
   overbook through the camper endpoints.
 - `POST /api/events/{eventId}/register` with `{ step: 'paypal-order', registrationUUID,
-  paymentOption, paymentType }` (`PayPal` | `Card`) — what the PayPal or card button calls
+  paymentOption, paymentType, quote? }` (`PayPal` | `Card`) — what the PayPal or card button calls
   (§7.2; §15, DR-90, DR-91). It **completes** the registration (unpaid until money arrives),
   making it and its campers from its draft, makes or rewrites its registration invoice for the chosen option, and creates the PayPal order
   for it → `{ orderID, total, handling, invoice }`. The order has a single item, "Total for
@@ -697,13 +698,15 @@ Non-CRUD admin endpoints:
   completed, which leaves this one a draft with nothing saved (§15, DR-137); 409 `{ detail, code:
   'lodging_unavailable' }` when a camper's lodging has filled up since the form was sent, which
   also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 409 `{
-  detail, code: 'invoice_changed', invoice: null, paymentStep }` when the total worked out now
-  isn't the one the draft was showing, which saves the new price on the draft and nothing else,
-  and `step: 'payment'` answers the same (§7.2; §15, DR-140); 400 on
+  detail, code: 'invoice_changed', invoice: null, paymentStep }` when `quote` isn't what the
+  payment step would show now, which saves the new price on the draft and nothing else, and
+  `step: 'payment'` answers the same (§7.2; §15, DR-140); 400 on
   `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
-  paymentOptions, handlingPercent, invoiceCancelled, paymentProcessing }`: `invoiceCancelled`
+  paymentOptions, handlingPercent, quote?, invoiceCancelled, paymentProcessing }`: `quote` is a
+  digest of what the step asks for, there while the registration is a draft, whose price it
+  works out afresh (§15, DR-140); `invoiceCancelled`
   true when the organizers cancelled the registration invoice, `paymentProcessing` true while
   PayPal is still processing a payment on it, §9.7; §15, DR-133); 404 `{ detail, code: 'registration_not_found' }` for a
   registration that isn't this event's (or an id that isn't one). Once a registrar or
@@ -711,7 +714,7 @@ Non-CRUD admin endpoints:
   `{ name: 'invoice:{id}', title: <its description>, amount: <what it asks now>, handling: <the
   fee online> }` (§15, DR-105).
 - `POST /api/events/{eventId}/register` with `{ step: 'payment', registrationUUID,
-  paymentType?, paymentOption?, paypalOrderId? }` → confirmation-step payload
+  paymentType?, paymentOption?, paypalOrderId?, quote? }` → confirmation-step payload
   (`{ confirmationPage, serverPricingResults, invoice, ledger, emailError }`):
   - **By check** (`paymentType: 'Check'`, the default): completes the registration and makes or
     rewrites its registration invoice for `paymentOption` (the default option when left out),
@@ -1274,7 +1277,8 @@ Before any step renders, the app loads the registration config (`GET …/registe
   starts another from what the browser holds. A failed save never interrupts the form, and the
   browser backs off on a 429 or 503. While a sent registration is offered (below) nothing is
   saved, since what was sent stands until the form is sent again; submitting waits up to three
-  seconds for a save under way. The step says that answers are saved as the form is filled
+  seconds for a save under way, and an answer that comes later is ignored, and any draft it
+  started is discarded. The step says that answers are saved as the form is filled
   in, and deleted after `draftRetentionDays` days if the registration isn't finished.
 - **Submit:** posts `{ step: 'registration', formData, pricingResults, draftUUID?, invitation?,
   promoCode? }` (`promoCode` only when one is applied). On success it stores the returned payment-step payload
@@ -1331,12 +1335,12 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     event takes payments online, what paying online costs (`amount + handling`, naming the fee).
     With a single option there's nothing to choose.
   - **Pay by check:** posts `{ step: 'payment', registrationUUID, paymentType: 'Check',
-    paymentOption }`. The server completes the registration and makes its invoice, which waits
+    paymentOption, quote }`. The server completes the registration and makes its invoice, which waits
     for the check.
   - **PayPal / credit card:** PayPal's buttons (its account button, and its own Debit or Credit
     Card button, which stays enabled; any guidance shown with the buttons matches the buttons
     PayPal shows — §15, DR-77). Pressing one posts `{ step: 'paypal-order', registrationUUID,
-    paymentOption, paymentType }` (`Card` or `PayPal`, from the button clicked); the server
+    paymentOption, paymentType, quote }` (`Card` or `PayPal`, from the button clicked); the server
     completes the registration and creates the PayPal order, whose id goes to PayPal's
     checkout. On the payer's approval the step posts `{ step: 'payment', registrationUUID,
     paymentType, paypalOrderId }` and the server captures it. The browser never creates or
@@ -1369,7 +1373,9 @@ Then reads the payment-step payload's `serverPricingResults.total`:
     amount, as the one option. A page left open since gets `invoice_changed` from its next
     button, with the payment step as it is now: it takes that, so its options and amounts are
     the invoice's, and says the organizers changed what's due. Either way the step replaces the
-    payment step this browser saved (§15, DR-105).
+    payment step this browser saved (§15, DR-105). The same goes for what a registration not yet
+    completed is due: the step sends back the `quote` it was given, and shows the new payment
+    step it's refused with, saying why, whether or not anything is due now (§15, DR-140).
   - While a payment is in flight, block further interaction and indicate progress (and prevent
     double submission). For PayPal, the payment is in flight from the payer's approval, not
     while PayPal's own checkout (its popup or its inline card form) is open. Cancelling PayPal's
@@ -5870,9 +5876,14 @@ the draft is still there. The registration is dated when the form was submitted,
 pricing reads `created_at`. Lodging is held by nothing until then, so the check runs again at
 completion under the lodging lock; if the place has gone the step answers 409
 `lodging_unavailable` and the registrant goes back to the form with their answers. The price is
-worked out again too, and a total that isn't what the page showed, because the pricing or a date
-it reads changed, is refused with the new payment step, so no one is charged an amount they haven't
-seen. The `paypal-order`
+worked out again too. A draft's payment step carries a `quote`, a digest of what it asks for (the
+total, the options and their amounts, the handling percent), and a payment button sends it back; one
+that isn't what the step would ask for now, because the pricing, the options or a date they read
+changed, is refused with the new payment step, so no one is charged an amount they haven't seen, and
+another tab left on the old price is refused too. A request with no `quote`, as from the event
+importer's tools (released apart from the server) or a page loaded before quotes, is held to the price
+the draft holds, so it's refused once and sees the new one. `payment-step` works a draft's price out
+afresh, so a reopened page shows what's due now. The `paypal-order`
 step commits the completion before it asks PayPal for the order, so that lock is never held across
 a call to PayPal. Locks are taken in one order: draft, root lodging, then invitation. Reports'
 `incomplete_registrations` and group email's "include registrations that weren't completed" read

@@ -119,9 +119,5 @@ class RegistrationDatesTests(APITestCase):
     def test_a_registration_accepted_before_it_closed_can_still_pay(self):
         uuid = self.register().data['registrationUUID']
         self.set_dates(**CLOSED)
-        response = self.client.post(f'/api/events/{self.event.id}/register', {
-            'registrationUUID': uuid,
-            'step': 'payment',
-            'paymentType': 'Check',
-        }, format='json')
+        response = complete(self.client, self.event, uuid)
         self.assertEqual(response.status_code, 200, response.data)

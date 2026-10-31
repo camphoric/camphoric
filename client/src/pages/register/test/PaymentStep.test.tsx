@@ -44,6 +44,7 @@ vi.mock('store/registrationApi', async (importOriginal) => ({
     .registrationNotFound,
   useRegistrationConfig: () => ({ data: config }),
   useRefreshPaymentStep: () => ({ mutate: refresh }),
+  useSubmitPayment: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const paymentStep: ApiRegisterPaymentStep = {
@@ -106,6 +107,21 @@ describe('PaymentStep', () => {
     expect(refresh).toHaveBeenCalledWith('u', expect.any(Object));
     expect(useRegistrationStore.getState().paymentStep).toEqual(now);
     expect(loadSentRegistration('Event 1: Camp, 2026-7-1')?.paymentStep).toEqual(now);
+  });
+
+  it('says why what’s due changed, whether or not anything is due now (DR-140)', () => {
+    const message = 'The amount due on your registration has changed.';
+    const free = { ...paymentStep, serverPricingResults: { total: 0, campers: [] } };
+    for (const [step, shown] of [
+      [paymentStep, 'Payment options'],
+      [free, 'Finish registration'],
+    ] as const) {
+      useRegistrationStore.getState().setPaymentStep(step, message);
+      const { unmount } = renderWithProviders(<PaymentStep />);
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByText(shown)).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('forgets a sent registration the server no longer has, and goes back to step 1 (#769)', () => {

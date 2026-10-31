@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 
 from camphoric import models
 from camphoric.templating.checks import check_event_templates
-from tests.factories import set_email
+from tests.factories import complete, set_email
 
 
 class JinjaConfirmationEmailTests(APITestCase):
@@ -40,11 +40,7 @@ class JinjaConfirmationEmailTests(APITestCase):
             'pricingResults': {},
         }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
-        response = self.client.post(f'/api/events/{self.event.id}/register', {
-            'registrationUUID': response.data['registrationUUID'],
-            'step': 'payment',
-            'paymentType': 'Check',
-        }, format='json')
+        response = complete(self.client, self.event, response.data['registrationUUID'])
         self.assertEqual(response.status_code, 200, response.data)
         return response
 

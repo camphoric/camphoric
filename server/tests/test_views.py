@@ -18,7 +18,7 @@ from camphoric import models, serializers, views
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests import paypal_mocks
-from tests.factories import complete, set_email
+from tests.factories import complete, quote, set_email
 
 
 class LoginTests(APITestCase):
@@ -345,6 +345,7 @@ class RegisterGetTests(APITestCase):
                     'type': 'string',
                     'format': 'email',
                     'pattern': r'^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+                    'maxLength': 254,
                     'title': 'Registrant email',
                 },
                 'campers': {
@@ -800,6 +801,7 @@ class RegisterPostTests(APITestCase):
                 ],
             },
             'handlingPercent': None,
+            'quote': mock.ANY,
         }, response.data)
 
         #
@@ -815,6 +817,7 @@ class RegisterPostTests(APITestCase):
                 'step': 'paypal-order',
                 'paymentType': 'PayPal',
                 'paymentOption': 'Full Payment',
+                'quote': quote(self.client, self.event, draft.uuid),
             },
             format='json'
         )
@@ -1136,7 +1139,8 @@ class PriceAutoUpdateTests(APITestCase):
             self.paypal_server.add_mock_response(200, {}, paypal_mocks.created())
             response = self.client.post(f'/api/events/{self.event.id}/register', {
                 'registrationUUID': uuid, 'step': 'paypal-order',
-                'paymentType': payment_type}, format='json')
+                'paymentType': payment_type,
+                'quote': quote(self.client, self.event, uuid)}, format='json')
             self.assertEqual(response.status_code, 200, msg=response.data)
             registration = models.Registration.objects.get(uuid=uuid)
             invoice = registration.invoices.get()
@@ -1147,7 +1151,7 @@ class PriceAutoUpdateTests(APITestCase):
                 201, {}, paypal_mocks.captured(registration, invoice, value))
             body = {'paypalOrderId': paypal_mocks.ORDER_ID}
         else:
-            body = {}
+            body = {'quote': response.data['quote']}
         response = self.client.post(
             f'/api/events/{self.event.id}/register',
             {

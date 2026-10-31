@@ -2,8 +2,10 @@ import copy
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
+import hashlib
 import json
 import logging
+import re
 import traceback
 import uuid
 
@@ -1409,16 +1411,42 @@ class RegistrationNotFound(NotFound):
         })
 
 
+def check_storable(data):
+    '''
+    Refuse half of a character, which text can't hold, or a NUL, which Postgres
+    won't store in JSON or text. Returns the size of `data` as JSON.
+    '''
+    encoded = json.dumps(data, ensure_ascii=False, default=str)
+    try:
+        size = len(encoded.encode())
+    except UnicodeEncodeError:
+        size = None
+    # JSON writes a NUL as \u0000, and an answer with those letters in it as \\u0000.
+    if size is None or re.search(r'(?<!\\)(\\\\)*\\u0000', encoded):
+        raise ValidationError({'formData': 'This form holds a character we can\'t save.'})
+    return size
+
+
+def price_quote(server_pricing_results, payment_options):
+    '''
+    A digest of what a payment page asks for, which its buttons send back: a draft
+    is completed only at the price the page was showing (DR-140). Not the pricing's
+    other lines, which may read the clock without changing what's asked.
+    '''
+    total = invoices.money((server_pricing_results or {}).get('total'))
+    shown = json.dumps([str(total), payment_options], sort_keys=True)
+    return hashlib.sha256(shown.encode()).hexdigest()
+
+
 class DraftRepriced(Exception):
     '''
-    The price worked out as a draft is completed isn't the one its page showed: the
-    pricing or a date it reads has changed. No one is charged what they haven't seen
-    (DR-140). Raised before anything is saved; RegisterView.post answers it.
+    What a draft's page showed isn't its price as it's completed: the pricing, the
+    payment options or a date they read has changed. No one is charged what they
+    haven't seen (DR-140). Raised before anything is saved; RegisterView.post answers it.
     '''
-    def __init__(self, draft, server_pricing_results):
+    def __init__(self, draft):
         super().__init__()
         self.draft = draft
-        self.server_pricing_results = server_pricing_results
 
 
 class LodgingTaken(serializers.Conflict):
@@ -1593,9 +1621,10 @@ class RegisterView(APIView):
           later shows what's due (an organizer may have changed it, DR-105).
         - `paypal-order`: the PayPal or Card button. Makes the registration from
           its draft, which completes it, makes or updates its invoice, and creates
-          the PayPal order.
+          the PayPal order. For a draft it sends back the payment step's `quote`.
         - `payment`: pay by check (or complete a $0 registration), which makes the
-          registration from its draft, or capture an approved PayPal order.
+          registration from its draft (sending back its `quote`), or capture an
+          approved PayPal order.
         - `finish`: finish without paying now, after a PayPal attempt didn't go
           through.
 
@@ -1627,6 +1656,7 @@ class RegisterView(APIView):
         Check the whole form, price it and mark its draft as submitted, ready for
         the payment step (DR-140). Nothing else is saved until it's completed.
         '''
+        check_storable(request.data)
         form_data = request.data.get('formData')
         if form_data is None:
             raise ValidationError({'formData': 'This field is required.'})
@@ -1714,32 +1744,41 @@ class RegisterView(APIView):
         return registration_lodging_problem(LodgingTree(event).build(), requested_ids)
 
     @classmethod
-    def registration_from_draft(cls, draft):
+    def draft_registration(cls, draft):
+        '''The registration and campers a submitted draft's answers make, unsaved.'''
+        form_data = copy.deepcopy(draft.form_data)
+        registration, campers = cls.deserialize_form_data(draft.event, form_data)
+        registration.uuid = draft.uuid
+        registration.registration_type = draft.registration_type
+        registration.promo_code = draft.promo_code
+        # It was registered when it was submitted: pricing's early-bird dates go by this.
+        registration.created_at = draft.submitted_at
+        return registration, campers
+
+    @classmethod
+    def registration_from_draft(cls, draft, quote):
         '''
         A payment button was pressed: the draft becomes its registration and campers,
         completed and unpaid (DR-91, DR-140), redeeming the invitation it was started
         with, if any. Lodging is checked again: nothing held it while the draft waited
-        to be paid for. Call it in a transaction, and a refusal leaves the draft.
+        to be paid for. `quote` is what the page was showing, and a page showing anything
+        else is refused. Without one, as from the event importer or a page loaded before
+        there were quotes, it's held to the price the draft holds. Call it in a
+        transaction, and a refusal leaves the draft.
         '''
         event = draft.event
-        form_data = copy.deepcopy(draft.form_data)
-        registration, campers = cls.deserialize_form_data(event, form_data)
-        registration.uuid = draft.uuid
-        registration.registration_type = draft.registration_type
-        registration.promo_code = draft.promo_code
+        registration, campers = cls.draft_registration(draft)
         registration.started_with_invitation = draft.invitation
         registration.client_reported_pricing = draft.client_reported_pricing
         problem = cls.requested_lodging_problem(event, campers)
         if problem:
             raise LodgingTaken(problem[1])
 
-        # It was registered when it was submitted: pricing's early-bird dates go by this.
-        registration.created_at = draft.submitted_at
         registration.completed_at = timezone.now()
         server_pricing_results = pricing.calculate_price(registration, campers)
-        shown = (draft.server_pricing_results or {}).get('total')
-        if invoices.money(server_pricing_results.get('total')) != invoices.money(shown):
-            raise DraftRepriced(draft, server_pricing_results)
+        shown = quote or cls.payment_options(event, draft.server_pricing_results)['quote']
+        if shown != cls.payment_options(event, server_pricing_results)['quote']:
+            raise DraftRepriced(draft)
         registration.server_pricing_results = server_pricing_results
         registration.save_without_recalc()
         models.Registration.all_objects.filter(pk=registration.pk).update(
@@ -1760,16 +1799,24 @@ class RegisterView(APIView):
         '''The registration's payment step as it is now (DR-105); 404 if it isn't this event's.'''
         draft = self.submitted_draft(request, event)
         if draft is not None:
-            # A public step counts as activity (DR-140); the page is coming back to pay.
-            models.RegistrationDraft.objects.filter(pk=draft.pk).update(
-                last_activity_at=timezone.now())
             return Response(self.draft_payment_step(draft))
         registration = self.named_registration(
             request, models.Registration.objects.filter(event=event))
         return Response(self.payment_step(registration))
 
     def draft_payment_step(self, draft):
-        '''What the payment page shows for a submitted draft.'''
+        '''
+        What the payment page shows for a submitted draft: its price now, which the
+        draft takes. A public step counts as activity (DR-140): the page is back to pay.
+        '''
+        try:
+            draft.server_pricing_results = pricing.calculate_price(*self.draft_registration(draft))
+        except models.Lodging.DoesNotExist:
+            pass  # Its price stands: a payment button says the lodging has gone.
+        drafts = models.RegistrationDraft.objects.filter(
+            pk=draft.pk, submitted_at=draft.submitted_at)
+        drafts.update(server_pricing_results=draft.server_pricing_results,
+                      last_activity_at=timezone.now())
         return {
             'registrationUUID': draft.uuid,
             'serverPricingResults': draft.server_pricing_results,
@@ -1779,17 +1826,13 @@ class RegisterView(APIView):
         }
 
     def repriced_response(self, repriced):
-        '''The draft takes its new price, and the page is sent it to choose again.'''
-        draft = repriced.draft
-        draft.server_pricing_results = repriced.server_pricing_results
-        models.RegistrationDraft.objects.filter(pk=draft.pk).update(
-            server_pricing_results=draft.server_pricing_results)
+        '''The page is sent what's due now, to choose again.'''
         return Response({
             'detail': 'The amount due on your registration has changed. '
                       'Please check it and choose again.',
             'code': 'invoice_changed',
             'invoice': None,
-            'paymentStep': self.draft_payment_step(draft),
+            'paymentStep': self.draft_payment_step(repriced.draft),
         }, status=status.HTTP_409_CONFLICT)
 
     def payment_step(self, registration):
@@ -1811,13 +1854,17 @@ class RegisterView(APIView):
 
     @staticmethod
     def payment_options(event, server_pricing_results):
-        '''The payment options, worked out on the server (#675), and the handling percent.'''
+        '''
+        The payment options, worked out on the server (#675), the handling percent,
+        and the `quote` a draft's payment button sends back for them.
+        '''
         meta, options = invoices.payment_options(event, server_pricing_results)
         online = event.paypal_enabled and event.epayment_handling
-        return {
+        shown = {
             'paymentOptions': {**meta, 'options': [option.as_dict() for option in options]},
             'handlingPercent': float(event.epayment_handling) if online else None,
         }
+        return {**shown, 'quote': price_quote(server_pricing_results, shown)}
 
     def find_promo_code(self, request, event, registration_type):
         '''The promo code the registrant entered, if any; one they can't use is refused.'''
@@ -1858,7 +1905,7 @@ class RegisterView(APIView):
         '''
         draft = cls.submitted_draft(request, event, locked=True)
         if draft is not None:
-            return cls.registration_from_draft(draft)
+            return cls.registration_from_draft(draft, request.data.get('quote'))
         return cls.locked_registration(request, event)
 
     @classmethod
@@ -2122,6 +2169,7 @@ class RegisterView(APIView):
                     # https://pythex.org/
                     # Found a regex that will work with both JS and python
                     'pattern': r'^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+                    'maxLength': 254,  # the field's
                     'title': 'Registrant email',
                 },
                 **event.registration_schema.get('properties', {}),
@@ -2216,13 +2264,16 @@ class RegisterView(APIView):
             lodging_id = lodging_data['lodging_requested']['id']
             del camper_data['lodging']
 
+        # The form keeps who they'd have shared with after the box is unticked, unchecked.
+        shared = lodging_data.get('lodging_shared', False)
+
         return models.Camper(
             registration=registration,
             attributes=camper_data,
             lodging_id=lodging_id,
             lodging_requested_id=lodging_id,
-            lodging_shared=lodging_data.get('lodging_shared', False),
-            lodging_shared_with=lodging_data.get('lodging_shared_with', ''),
+            lodging_shared=shared,
+            lodging_shared_with=lodging_data.get('lodging_shared_with', '') if shared else '',
             lodging_comments=lodging_data.get('lodging_comments', ''),
         )
 
@@ -2294,15 +2345,7 @@ class RegistrationDraftView(APIView):
         form_data = request.data.get('formData') if isinstance(request.data, dict) else None
         if not isinstance(form_data, dict):
             raise ValidationError({'formData': 'This field is required.'})
-        encoded = json.dumps(form_data, ensure_ascii=False)
-        try:
-            size = len(encoded.encode())
-        except UnicodeEncodeError:  # half of a character, which text can't hold
-            size = None
-        # Nor can Postgres store a NUL, in JSON or text.
-        if size is None or '\\u0000' in encoded:
-            raise ValidationError({'formData': 'This form holds a character we can\'t save.'})
-        if size > self.MAX_FORM_DATA_SIZE:
+        if check_storable(form_data) > self.MAX_FORM_DATA_SIZE:
             raise ValidationError({'formData': 'This form is too long to save.'})
         try:
             invitation = RegisterView.find_invitation(request, event)

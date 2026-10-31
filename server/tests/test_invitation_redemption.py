@@ -13,7 +13,7 @@ from django.db import connection
 from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
 from camphoric import confirmations, invoices, live, models, roles, views
-from tests.factories import make_user
+from tests.factories import make_user, quote
 
 REDEEMED = {
     'detail': 'Sorry, that invitation code has already been redeemed by another registration.',
@@ -36,8 +36,10 @@ class Invited:
             registration_type=self.staff, recipient_email='lee@example.com')
 
     def post(self, body, status=200, client=None):
-        response = (client or self.client).post(
-            f'/api/events/{self.event.id}/register', body, format='json')
+        client = client or self.client
+        if body['step'] in ('payment', 'paypal-order'):
+            body = {**body, 'quote': quote(client, self.event, body['registrationUUID'])}
+        response = client.post(f'/api/events/{self.event.id}/register', body, format='json')
         self.assertEqual(response.status_code, status, response.data)
         return response
 
@@ -247,7 +249,8 @@ class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
         def pay():
             return APIClient().post(
                 f'/api/events/{self.event.id}/register',
-                {'step': 'payment', 'registrationUUID': uuid, 'paymentType': 'Check'},
+                {'step': 'payment', 'registrationUUID': uuid, 'paymentType': 'Check',
+                 'quote': quote(APIClient(), self.event, uuid)},
                 format='json')
 
         with mock.patch.object(holder, name, side_effect=hold):
@@ -271,7 +274,8 @@ class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
         def pay_second():
             return APIClient().post(
                 f'/api/events/{self.event.id}/register',
-                {'step': 'payment', 'registrationUUID': second, 'paymentType': 'Check'},
+                {'step': 'payment', 'registrationUUID': second, 'paymentType': 'Check',
+                 'quote': quote(APIClient(), self.event, second)},
                 format='json')
 
         paid, refused = self.while_completing(

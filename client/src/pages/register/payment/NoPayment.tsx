@@ -19,9 +19,11 @@ import { useReplacePaymentStep } from '../useReplacePaymentStep';
 interface NoPaymentProps {
   eventId: string;
   registrationUUID: string;
+  /** What the server said this step shows, sent back to complete it (§15, DR-140). */
+  quote?: string;
 }
 
-export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
+export function NoPayment({ eventId, registrationUUID, quote }: NoPaymentProps) {
   const goToStep = useGoToStep();
   const submit = useSubmitPayment(eventId);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
@@ -32,7 +34,7 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
   const finish = () => {
     setError(null);
     submit.mutate(
-      { registrationUUID },
+      { registrationUUID, quote },
       {
         onSuccess: (confirmation) => {
           setConfirmationStep(confirmation);
@@ -43,10 +45,9 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
           if (registrationNotFound(e)) forgetSentRegistration(registrationUUID);
           else if (problem.code === 'lodging_unavailable') {
             forgetSentRegistration(registrationUUID, problem.message);
+          } else if (problem.code === 'invoice_changed' && problem.paymentStep) {
+            replacePaymentStep(problem.paymentStep, problem.message);
           } else {
-            if (problem.code === 'invoice_changed' && problem.paymentStep) {
-              replacePaymentStep(problem.paymentStep);
-            }
             setError(problem.message);
           }
         },

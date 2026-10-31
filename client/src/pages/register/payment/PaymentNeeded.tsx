@@ -74,7 +74,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const finish = useFinishRegistration(eventId);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
 
-  const { paymentOptions, handlingPercent, registrationUUID } = paymentStep;
+  const { paymentOptions, handlingPercent, registrationUUID, quote } = paymentStep;
   const [selected, setSelected] = useState(paymentOptions.default);
   const option =
     paymentOptions.options.find((o) => o.name === selected) ?? paymentOptions.options[0];
@@ -82,8 +82,6 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
   const [error, setError] = useState<string | null>(null);
   // Set once a PayPal button has completed the registration and it isn't paid.
   const [notFinished, setNotFinished] = useState<NotFinished | null>(null);
-  // Why the options just changed: the organizers changed what's due (DR-105).
-  const [notice, setNotice] = useState<string | null>(null);
   // A PayPal order refused that way isn't also "PayPal ran into a problem".
   const refusedOrder = useRef(false);
   const replacePaymentStep = useReplacePaymentStep();
@@ -112,9 +110,8 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
       return true;
     }
     if (problem.code === 'invoice_changed' && problem.paymentStep) {
-      replacePaymentStep(problem.paymentStep);
+      replacePaymentStep(problem.paymentStep, problem.message);
       setSelected(problem.paymentStep.paymentOptions.default);
-      setNotice(problem.message);
       return true;
     }
     setError(problem.message);
@@ -125,7 +122,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     setError(null);
     setLoading(true);
     submit.mutate(
-      { registrationUUID, paymentType: 'Check', paymentOption: option.name },
+      { registrationUUID, paymentType: 'Check', paymentOption: option.name, quote },
       {
         onSuccess: confirmed,
         onError: (e) => {
@@ -145,6 +142,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
         registrationUUID,
         paymentType,
         paymentOption: option.name,
+        quote,
       });
       return order.orderID;
     } catch (e) {
@@ -244,12 +242,6 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
             onFinish={finishNow}
             finishing={finish.isPending}
           />
-        )}
-
-        {notice && (
-          <Alert color="blue" variant="light" title="What’s due has changed">
-            {notice}
-          </Alert>
         )}
 
         <PaymentOptions

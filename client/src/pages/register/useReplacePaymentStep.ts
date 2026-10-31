@@ -1,7 +1,8 @@
 /**
  * Put a fresher payment step in place (SPEC §7.2; §15, DR-105): in the store,
  * and in the sent registration this browser saved, so a reload shows it too.
- * The server sends one when an organizer has changed what's due.
+ * The server sends one when what's due has changed; `notice` says so, whichever
+ * of the step's two forms the new total calls for.
  */
 
 import type { ApiRegisterPaymentStep } from 'api-types';
@@ -17,8 +18,8 @@ export function useReplacePaymentStep() {
   const { data: config } = useRegistrationConfig(eventId);
   const setPaymentStep = useRegistrationStore((state) => state.setPaymentStep);
   return useCallback(
-    (paymentStep: ApiRegisterPaymentStep) => {
-      setPaymentStep(paymentStep);
+    (paymentStep: ApiRegisterPaymentStep, notice?: string) => {
+      setPaymentStep(paymentStep, notice);
       if (!config) return;
       const key = getRegistrationStorageKey(eventId, config);
       const saved = loadSentRegistration(key);

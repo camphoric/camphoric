@@ -39,11 +39,13 @@ export interface RegistrationState {
   sentNotFound: boolean;
   /** Why it couldn't be completed: lodging filled up meanwhile, and step 1 says to choose again. */
   lodgingProblem: string | null;
+  /** Why the payment step just changed: what's due did (§15, DR-105, DR-140). */
+  paymentNotice: string | null;
 
   setRegistration: (registration: RegistrationFormData) => void;
   setTotals: (totals: PricingResults) => void;
   setUpdating: (updating: boolean) => void;
-  setPaymentStep: (paymentStep: ApiRegisterPaymentStep) => void;
+  setPaymentStep: (paymentStep: ApiRegisterPaymentStep, notice?: string) => void;
   setConfirmationStep: (confirmationStep: ApiRegisterConfirmationStep) => void;
   setPromo: (promo: AppliedPromo | null) => void;
   /** Go on with a registration already sent: what it was sent with, and its payment step. */
@@ -62,11 +64,18 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   updating: false,
   sentNotFound: false,
   lodgingProblem: null,
+  paymentNotice: null,
 
   setRegistration: (registration) => set({ registration }),
   setTotals: (totals) => set({ totals }),
   setUpdating: (updating) => set({ updating }),
-  setPaymentStep: (paymentStep) => set({ paymentStep, sentNotFound: false, lodgingProblem: null }),
+  setPaymentStep: (paymentStep, notice) =>
+    set({
+      paymentStep,
+      sentNotFound: false,
+      lodgingProblem: null,
+      paymentNotice: notice ?? null,
+    }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
   setPromo: (promo) => set({ promo }),
   resumeSent: ({ paymentStep, formData, promo }) =>
@@ -77,9 +86,17 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       totals: paymentStep.serverPricingResults,
       sentNotFound: false,
       lodgingProblem: null,
+      paymentNotice: null,
     }),
-  forgetSent: () => set({ paymentStep: undefined, sentNotFound: true, lodgingProblem: null }),
-  lodgingTaken: (message) => set({ paymentStep: undefined, lodgingProblem: message }),
+  forgetSent: () =>
+    set({
+      paymentStep: undefined,
+      sentNotFound: true,
+      lodgingProblem: null,
+      paymentNotice: null,
+    }),
+  lodgingTaken: (message) =>
+    set({ paymentStep: undefined, lodgingProblem: message, paymentNotice: null }),
   reset: () =>
     set({
       registration: emptyRegistration,
@@ -90,5 +107,6 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       updating: false,
       sentNotFound: false,
       lodgingProblem: null,
+      paymentNotice: null,
     }),
 }));
