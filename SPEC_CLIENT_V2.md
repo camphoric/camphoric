@@ -641,7 +641,7 @@ Non-CRUD admin endpoints:
   event has no draft for starts a new draft, and so does leaving it out. A valid `invitation` is
   recorded on the draft; one that isn't valid is ignored until the form is sent. While the event
   isn't open, a save without a valid invitation is a 409. A `formData` that isn't an object, is
-  over 60 KB, or holds a NUL character is a 400. A `uuid` of a registration of this event, whose
+  over 60 KB, or holds a NUL character or half of a character is a 400. A `uuid` of a registration of this event, whose
   draft has been completed, saves nothing and returns that `uuid`. Changing the answers of a submitted draft returns it to being filled
   in, so its `uuid` then needs the form sent again; the same answers leave it as it is. It's
   throttled per client address (scope `registration_draft`, `CAMPHORIC_REGISTRATION_DRAFT_RATE`, 30
@@ -696,7 +696,10 @@ Non-CRUD admin endpoints:
   'invitation_redeemed' }` when another registration started with the same invitation has been
   completed, which leaves this one a draft with nothing saved (§15, DR-137); 409 `{ detail, code:
   'lodging_unavailable' }` when a camper's lodging has filled up since the form was sent, which
-  also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 400 on
+  also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 409 `{
+  detail, code: 'invoice_changed', invoice: null, paymentStep }` when the total worked out now
+  isn't the one the draft was showing, which saves the new price on the draft and nothing else,
+  and `step: 'payment'` answers the same (§7.2; §15, DR-140); 400 on
   `paymentOption` for an option that doesn't exist or asks for nothing.
 - `POST /api/events/{eventId}/register` with `{ step: 'payment-step', registrationUUID }` →
   the payment-step payload as it is now (`{ registrationUUID, serverPricingResults,
@@ -1269,7 +1272,9 @@ Before any step renders, the app loads the registration config (`GET …/registe
   is sent when the page is hidden. The draft's `uuid` is kept in localStorage beside the form
   data, and returning to the page goes on with it; if the server no longer has it, the next save
   starts another from what the browser holds. A failed save never interrupts the form, and the
-  browser backs off on a 429 or 503. The step says that answers are saved as the form is filled
+  browser backs off on a 429 or 503. While a sent registration is offered (below) nothing is
+  saved, since what was sent stands until the form is sent again; submitting waits up to three
+  seconds for a save under way. The step says that answers are saved as the form is filled
   in, and deleted after `draftRetentionDays` days if the registration isn't finished.
 - **Submit:** posts `{ step: 'registration', formData, pricingResults, draftUUID?, invitation?,
   promoCode? }` (`promoCode` only when one is applied). On success it stores the returned payment-step payload
@@ -5864,7 +5869,10 @@ from the draft in the transaction that completes it, and removes the draft: if a
 the draft is still there. The registration is dated when the form was submitted, since early-bird
 pricing reads `created_at`. Lodging is held by nothing until then, so the check runs again at
 completion under the lodging lock; if the place has gone the step answers 409
-`lodging_unavailable` and the registrant goes back to the form with their answers. The `paypal-order`
+`lodging_unavailable` and the registrant goes back to the form with their answers. The price is
+worked out again too, and a total that isn't what the page showed, because the pricing or a date
+it reads changed, is refused with the new payment step, so no one is charged an amount they haven't
+seen. The `paypal-order`
 step commits the completion before it asks PayPal for the order, so that lock is never held across
 a call to PayPal. Locks are taken in one order: draft, root lodging, then invitation. Reports'
 `incomplete_registrations` and group email's "include registrations that weren't completed" read
@@ -5882,7 +5890,9 @@ stayed in one browser, so someone who stopped partway left organizers nothing (#
 registration was a row that every list, report, price and count had to filter out, whose campers
 held lodging that an unfinished form shouldn't, and which the audit log and backups then had to
 treat specially (DR-139).
-**Alternatives:** Drafts only until the form is sent, with incomplete registrations as they were:
+**Alternatives:** Completing at the price the draft stored: quick, but a registration would then
+disagree with its own pricing until the next edit. Drafts only until the form is sent, with
+incomplete registrations as they were:
 less to change, but two homes for unfinished data, and lodging still held by people who may never
 pay. Holding a bed for a submitted draft: fairer to whoever sent the form first, but a draft
 abandoned at payment would keep a bed from people ready to pay until it's cleaned up. A

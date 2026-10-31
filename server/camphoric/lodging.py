@@ -90,6 +90,7 @@ LODGING_SHARED_DEPENDENCY = {
                 'lodging_shared_with': {
                     'type': 'string',
                     'title': 'Who will you be sharing this space with?',
+                    'maxLength': 255,  # the camper's field
                 },
             },
             'required': ['lodging_shared_with'],

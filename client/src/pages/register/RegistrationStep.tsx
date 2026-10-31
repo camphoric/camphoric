@@ -68,7 +68,6 @@ export function RegistrationStep() {
   const lodgingProblem = useRegistrationStore((state) => state.lodgingProblem);
 
   const storageKey = config ? getRegistrationStorageKey(eventId, config) : '';
-  const drafts = useDraftSaving(eventId, storageKey, config?.invitation);
   // A registration already sent from this browser: offer to go on paying for it.
   const [sentBefore, setSentBefore] = useState(() =>
     storageKey ? loadSentRegistration(storageKey) : null,
@@ -79,6 +78,9 @@ export function RegistrationStep() {
     setSentBeforeKey(storageKey);
     setSentBefore(loadSentRegistration(storageKey));
   }
+  const drafts = useDraftSaving(eventId, storageKey, config?.invitation, !sentBefore);
+  // Set from pressing submit until any save under way lets the form go.
+  const [submitting, setSubmitting] = useState(false);
   // One saved before the storage key carried the event id may be another
   // event's: offer it only once the server confirms it's this event's.
   const { mutate: checkSent, isPending: checkingSent } = useCheckSentRegistration(eventId);
@@ -174,9 +176,11 @@ export function RegistrationStep() {
   const handleError = (errors: unknown[]) => debug('RegistrationStep onError', errors);
 
   const handleSubmit = () => {
-    if (!promoEntry.readyToSubmit()) return;
+    if (submitting || !promoEntry.readyToSubmit()) return;
+    setSubmitting(true);
     // After any save under way: it may be the one that starts the draft being submitted.
     void drafts.pause().then(() => {
+      setSubmitting(false);
       const draftUUID = loadDraftUUID(storageKey);
       submit.mutate(
         {
@@ -255,7 +259,7 @@ export function RegistrationStep() {
           <Template markdown={config.preSubmitTemplate} templateVars={templateData} />
           {config.hasPromoCodes && <PromoCodeEntry {...promoEntry.props} />}
           {/* Not while checking one sent before, which would be sent again. */}
-          <Button type="submit" loading={submit.isPending || checkingSent}>
+          <Button type="submit" loading={submitting || submit.isPending || checkingSent}>
             Continue to payment
           </Button>
         </Stack>

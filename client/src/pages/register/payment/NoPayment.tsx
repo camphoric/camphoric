@@ -14,6 +14,7 @@ import { paymentProblem, registrationNotFound, useSubmitPayment } from 'store/re
 import { formatMoney } from 'utils/money';
 
 import { useForgetSentRegistration } from '../useForgetSentRegistration';
+import { useReplacePaymentStep } from '../useReplacePaymentStep';
 
 interface NoPaymentProps {
   eventId: string;
@@ -25,6 +26,7 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
   const submit = useSubmitPayment(eventId);
   const setConfirmationStep = useRegistrationStore((state) => state.setConfirmationStep);
   const forgetSentRegistration = useForgetSentRegistration();
+  const replacePaymentStep = useReplacePaymentStep();
   const [error, setError] = useState<string | null>(null);
 
   const finish = () => {
@@ -41,7 +43,12 @@ export function NoPayment({ eventId, registrationUUID }: NoPaymentProps) {
           if (registrationNotFound(e)) forgetSentRegistration(registrationUUID);
           else if (problem.code === 'lodging_unavailable') {
             forgetSentRegistration(registrationUUID, problem.message);
-          } else setError(problem.message);
+          } else {
+            if (problem.code === 'invoice_changed' && problem.paymentStep) {
+              replacePaymentStep(problem.paymentStep);
+            }
+            setError(problem.message);
+          }
         },
       },
     );
