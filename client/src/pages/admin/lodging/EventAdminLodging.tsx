@@ -85,7 +85,7 @@ export function EventAdminLodging() {
   const search = useSearch({ from: FROM });
   const navigate = useNavigate();
   const { data: event } = eventHooks.useById(eventId);
-  const { data: registrations } = registrationHooks.useList({ completed: 1, event: eventId });
+  const { data: registrations } = registrationHooks.useList({ event: eventId });
   const registrationTypeLookup = useRegistrationTypeLookup(eventId);
   const move = useLodgingAssignment();
   const { canEdit } = usePermissions();

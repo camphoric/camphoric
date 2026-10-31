@@ -59,8 +59,8 @@ class EventGraphTests(TestCase):
         self.assertEqual([r['id'] for r in self.graph.registrations],
                          [self.made.r1.id, self.made.r2.id])
         self.assertEqual([r['id'] for r in self.graph.incomplete_registrations],
-                         [self.made.r3.id])
-        self.assertNotIn(self.made.c4.id, [c['id'] for c in self.graph.campers])
+                         [f'draft-{self.made.draft.id}'])
+        self.assertEqual(len(self.graph.campers), 3)
         self.assertEqual(len(self.graph.payments), 3)
 
     def test_money_and_pricing(self):
@@ -124,7 +124,7 @@ class EventGraphTests(TestCase):
             'type': 'Full Payment', 'total': Decimal('825.00'), 'balance': Decimal('0.00')})
         lee = self.graph.get('registration', self.made.r2.id)
         self.assertEqual(lee['payment_type'], 'PayPal')
-        drew = self.graph.get('registration', self.made.r3.id)
+        drew = self.graph.get('registration', f'draft-{self.made.draft.id}')
         self.assertIsNone(drew['payment_type'])
         self.assertIsNone(drew['initial_payment'])
 
@@ -153,14 +153,6 @@ class EventGraphTests(TestCase):
         self.assertIsInstance(pat['attributes']['emergency_contact'], ReadOnlyDict)
         self.assertIsInstance(pat['stay'], ReadOnlyList)
         self.assertEqual(str(pat), f'<camper {pat["id"]}>')
-
-    def test_an_invitation_only_started_with_is_not_redeemed(self):
-        # As the admin list says (#803): r3 was never completed.
-        started = models.Invitation.objects.create(
-            registration_type=self.made.staff, recipient_email='drew@example.com',
-            registration=self.made.r3)
-        graph = build_event_graph(self.made.event)
-        self.assertFalse(graph.get('invitation', started.id)['redeemed'])
 
     @override_settings(CAMPHORIC_PUBLIC_URL='https://camp.example.org/')
     def test_invitations(self):
@@ -195,8 +187,7 @@ class EventGraphTests(TestCase):
 
         for n in range(5):
             registration = models.Registration.objects.create(
-                event=self.made.event, registrant_email=f'extra{n}@example.com',
-                completed=True)
+                event=self.made.event, registrant_email=f'extra{n}@example.com')
             for m in range(3):
                 registration.campers.create(sequence=m, lodging=self.made.cabin_b,
                                             attributes={'first_name': f'E{n}{m}'})

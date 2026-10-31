@@ -10,24 +10,21 @@ The audit log of admin changes (SPEC §15, DR-53), kept by django-auditlog.
 - The history the admin reads back: each entry tags the registration and camper
   it belongs to (`get_additional_data` on those models), so a registration's
   history includes its campers, payments and charges, even ones since deleted.
-- Where a registration's history starts: at completion. Nothing is logged for one
-  nobody finished, or for anything under it (SPEC DR-139).
+- Where a registration's history starts: at completion, since that's when it's
+  made. Nothing is logged for a draft (SPEC DR-139, DR-140).
 '''
 
 import json
 import uuid
 from contextvars import ContextVar
-from itertools import chain
 
 from auditlog.middleware import AuditlogMiddleware as BaseAuditlogMiddleware
 from auditlog.models import LogEntry
-from auditlog.receivers import log_create
 from auditlog.registry import auditlog
-from auditlog.signals import pre_log
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models as django_models
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import pre_save
 
 _request = ContextVar('camphoric_audit_request', default=None)
 _request_id = ContextVar('camphoric_audit_request_id', default=None)
@@ -70,60 +67,6 @@ def credit_request_user(sender, instance, **kwargs):
         instance.actor_email = user.email
 
 
-def log_from_completion(sender, instance, action, **kwargs):
-    '''
-    pre_log: stop an entry for a registration that isn't completed, or for a record
-    under one (those tagged with it, `get_additional_data`). The save that completes
-    one is stopped too, and marked for `log_completion` to log it whole.
-    '''
-    from camphoric import models
-
-    tags = getattr(instance, 'get_additional_data', dict)()
-    registration_id = tags.get('registration')
-    if registration_id is None:
-        return True
-    is_registration = isinstance(instance, models.Registration)
-    if is_registration and action == LogEntry.Action.DELETE:
-        return instance.completed  # Its row has gone.
-    # Not "is it completed": a delete Django can't order (a refund's link to its
-    # payment) removes the registration first, and those records are still logged.
-    incomplete = models.Registration.all_objects.filter(
-        pk=registration_id, completed=False).exists()
-    if is_registration and instance.completed and incomplete:
-        instance._completing = True
-    return not incomplete
-
-
-def records_under(registration):
-    '''The records a registration's history covers, leaving out those since deleted.'''
-    from camphoric import models
-
-    return chain(
-        models.Camper.all_objects.filter(registration=registration, deleted_at__isnull=True),
-        models.CustomCharge.all_objects.filter(
-            camper__registration=registration, deleted_at__isnull=True,
-            camper__deleted_at__isnull=True),
-        models.PricingOverride.objects.filter(
-            django_models.Q(camper__isnull=True) | django_models.Q(camper__deleted_at__isnull=True),
-            registration=registration),
-        models.Invoice.all_objects.filter(registration=registration, deleted_at__isnull=True),
-        models.Payment.all_objects.filter(registration=registration, deleted_at__isnull=True),
-    )
-
-
-def log_completion(sender, instance, update_fields=None, **kwargs):
-    '''
-    post_save: a registration was completed, so its history starts here, with a
-    create entry for it and each record under it as they stand now.
-    '''
-    if not instance.__dict__.pop('_completing', False):
-        return
-    if update_fields is not None and 'completed' not in update_fields:
-        return
-    for record in chain((instance,), records_under(instance)):
-        log_create(type(record), instance=record, created=True)
-
-
 # Every save changes these (`version` counts edits for If-Match, DR-109).
 TIMESTAMPS = ['created_at', 'updated_at', 'version']
 
@@ -154,9 +97,6 @@ def register_models():
         get_user_model(), exclude_fields=['password', 'last_login'], m2m_fields={'groups'})
 
     pre_save.connect(credit_request_user, sender=LogEntry, dispatch_uid='camphoric-audit-actor')
-    pre_log.connect(log_from_completion, dispatch_uid='camphoric-audit-from-completion')
-    post_save.connect(
-        log_completion, sender=models.Registration, dispatch_uid='camphoric-audit-completion')
 
 
 # Reading entries back ---------------------------------------------------------
@@ -261,7 +201,8 @@ def deleted_by(instances):
     result = {}
     for entry in entries:
         # They're deleted now, so the newest entry is the delete, unless it wasn't
-        # logged (DR-139): then it's a restore, or a create, which lists every field.
+        # logged (from before DR-139): then it's a restore, or a create, which lists
+        # every field.
         _, deleted_at = entry.changes['deleted_at']
         result.setdefault(entry.object_id, None if deleted_at == 'None' else _actor(entry))
     return result

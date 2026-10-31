@@ -88,7 +88,6 @@ export function RegistrationsList() {
   const { data: event } = eventHooks.useById(eventId);
   const { data: invoices } = invoiceHooks.useList({
     registration__event: eventId,
-    registration__completed: 1,
   });
   const notFinished = useMemo(() => onlineNotFinished(invoices), [invoices]);
   const processing = useMemo(() => paypalProcessing(invoices), [invoices]);

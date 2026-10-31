@@ -280,7 +280,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             uuid=str(row.uuid),
             created_at=local_datetime(row.created_at),
             updated_at=local_datetime(row.updated_at),
-            completed=row.completed,
+            completed=True,
             completed_at=local_datetime(row.completed_at),
             registrant_email=row.registrant_email,
             payment_type=None,

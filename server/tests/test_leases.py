@@ -162,7 +162,7 @@ class EdgeTests(LeaseTestCase):
         self.assertEqual(self.client.delete('/api/leases/abc/?client_id=tab-1').status_code, 404)
 
     def test_a_delete_preview_leaves_out_who_is_editing(self):
-        self.take(model='camper', object_id=self.made.c4.id)
+        self.take(model='camper', object_id=self.made.c3.id)
         admin = APIClient()
         admin.force_authenticate(make_user(roles.ADMIN, 'ada'))
         preview = admin.get(f'/api/users/{self.reggie.id}/delete-preview/')

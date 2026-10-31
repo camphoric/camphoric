@@ -120,8 +120,6 @@ export interface ApiRegistration extends TimeStamped {
   /** The invitation it was started with (read-only); completing it redeems that (#803). */
   started_with_invitation?: number | null;
   uuid: string;
-  /** Pressed a payment button (§7.2; §15, DR-91); only completed ones are listed. */
-  completed?: boolean;
   completed_at?: string | null;
   confirmation_sent_at?: string | null;
   // The ledger (§9.7), worked out on the server; read-only numbers.
@@ -930,6 +928,8 @@ export type PaymentProblemCode =
 // ---------------------------------------------------------------------------
 
 export interface AugmentedRegistration extends ApiRegistration {
+  /** Always: for client-side reports written when it could be false (§15, DR-141). */
+  completed: true;
   campers: ApiCamper[];
   registrationType?: ApiRegistrationType;
   /** The server's `total_paid` (named for older Handlebars reports). */

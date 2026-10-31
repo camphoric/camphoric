@@ -2,7 +2,7 @@
 The registrant's confirmation email, and the reports organizers get when
 something about a registration goes wrong (SPEC §7.3, DR-91).
 
-A registration is completed when the registrant presses a payment button; its
+A registration is made, completed, when the registrant presses a payment button; its
 confirmation goes out when they reach a result — they chose to pay by check,
 PayPal captured, or they finished without paying — or, for someone who closed
 the page mid-payment, from the worker's sweep half an hour after completion
@@ -145,7 +145,7 @@ def overdue_confirmations(now=None):
         pending_paypal_order_id__isnull=False,
         updated_at__gte=now - PENDING_PAYPAL_ORDER_WINDOW)
     return models.Registration.objects.filter(
-        completed=True, confirmation_sent_at__isnull=True,
+        confirmation_sent_at__isnull=True,
         completed_at__lt=now - CONFIRMATION_FALLBACK_DELAY,
     ).exclude(Exists(capturing)).exclude(Exists(paypal_order_pending))
 

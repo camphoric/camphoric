@@ -26,7 +26,6 @@ export interface LodgingData {
 export function useLodgingData(eventId: string, days: string[]): LodgingData | undefined {
   const { data: lodgings } = lodgingHooks.useList({ event: eventId });
   const { data: campers } = camperHooks.useList({
-    registration__completed: 1,
     registration__event: eventId,
   });
 

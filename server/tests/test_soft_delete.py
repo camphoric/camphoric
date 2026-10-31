@@ -222,7 +222,7 @@ class RulesTests(SoftDeleteTestCase):
 
     def test_an_event_with_only_deleted_registrations_still_cant_be_deleted(self):
         made = self.made
-        for registration in (made.r1, made.r2, made.r3):
+        for registration in (made.r1, made.r2):
             self.delete(f'/api/registrations/{registration.id}/')
         self.client.force_authenticate(make_user(roles.ADMIN, 'boss'))
         self.assertEqual(self.client.delete(f'/api/events/{made.event.id}/').status_code, 409)

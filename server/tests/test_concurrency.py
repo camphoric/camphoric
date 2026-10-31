@@ -56,7 +56,7 @@ class BumpTests(VersionTestCase):
         self.assertEqual(self.version(lodging), before + 1)
 
     def test_soft_delete_and_restore_count(self):
-        registration = self.made.r3
+        registration = self.made.r1
         before = self.version(registration)
         registration.soft_delete()
         registration.soft_undelete()
@@ -180,14 +180,14 @@ class IfMatchTests(VersionTestCase):
 
     def test_a_stale_delete_is_refused_and_nothing_is_deleted(self):
         made = self.made
-        version = self.version(made.r3)
-        self.patch(f'/api/registrations/{made.r3.id}/', {'registrant_email': 'd@example.org'})
-        response = self.client.delete(f'/api/registrations/{made.r3.id}/',
+        version = self.version(made.r1)
+        self.patch(f'/api/registrations/{made.r1.id}/', {'registrant_email': 'd@example.org'})
+        response = self.client.delete(f'/api/registrations/{made.r1.id}/',
                                       HTTP_IF_MATCH=f'"{version}"')
         self.assertEqual(response.status_code, 412)
-        self.assertIsNone(models.Registration.all_objects.get(pk=made.r3.pk).deleted_at)
+        self.assertIsNone(models.Registration.all_objects.get(pk=made.r1.pk).deleted_at)
 
-        response = self.client.delete(f'/api/registrations/{made.r3.id}/',
+        response = self.client.delete(f'/api/registrations/{made.r1.id}/',
                                       HTTP_IF_MATCH=f'"{version + 1}"')
         self.assertEqual(response.status_code, 204)
 

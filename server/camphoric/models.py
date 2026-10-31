@@ -479,8 +479,9 @@ class Registration(TimeStampedModel):
     - Has many Campers
     - Has many Invoices, and Payments on them
 
-    It's completed once the registrant presses a payment button (SPEC DR-91):
-    from then on it's in the admin lists, unpaid until a payment arrives.
+    It's made from its RegistrationDraft when the registrant presses a payment
+    button (SPEC DR-91, DR-140), so every one is completed: in the admin lists,
+    and unpaid until a payment arrives.
     '''
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
@@ -491,8 +492,8 @@ class Registration(TimeStampedModel):
     promo_code = models.ForeignKey(
         PromoCode, null=True, blank=True, on_delete=models.PROTECT,
         related_name='registrations')
-    # The invitation it was started with. Several may start with one, but only
-    # the first to be completed redeems it (#803).
+    # The invitation it was started with. Several drafts may start with one, but
+    # only the first to be completed redeems it (#803).
     started_with_invitation = models.ForeignKey(
         'Invitation', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='started_registrations')
@@ -503,10 +504,6 @@ class Registration(TimeStampedModel):
     registrant_email = models.EmailField()
     server_pricing_results = CustomJSONField(null=True)
     client_reported_pricing = CustomJSONField(null=True)
-    completed = models.BooleanField(
-        default=False,
-        help_text="True once the registrant has pressed a payment button",
-    )
     completed_at = models.DateTimeField(null=True, blank=True)
     # When the confirmation email was queued; a worker sweep sends any still
     # unsent half an hour after completion (SPEC DR-91).
@@ -646,15 +643,15 @@ class Invitation(TimeStampedModel):
     @staticmethod
     def redeeming_registrations(invitation_id, registration_id):
         '''
-        The completed registrations that redeem an invitation: the one it links
-        to, and any started with it (#803). Ones since deleted still count
+        The registrations that redeem an invitation: the one it links to, and
+        any started with it (#803). Ones since deleted still count
         (DR-55). Either id may be an OuterRef, to annotate a list of invitations.
         '''
         return Registration.all_objects.filter(
-            Q(pk=registration_id) | Q(started_with_invitation=invitation_id), completed=True)
+            Q(pk=registration_id) | Q(started_with_invitation=invitation_id))
 
     def is_redeemed(self, other_than=None):
-        '''Whether a completed registration other than `other_than` has redeemed it.'''
+        '''Whether a registration other than `other_than` has redeemed it.'''
         redeeming = self.redeeming_registrations(self.pk, self.registration_id)
         if other_than is not None:
             redeeming = redeeming.exclude(pk=other_than.pk)

@@ -93,7 +93,6 @@ class JinjaConfirmationEmailTests(APITestCase):
         response = self.register()
 
         registration = models.Registration.objects.get()
-        self.assertTrue(registration.completed)
         self.assertTrue(response.data['emailError'])
         [report] = mail.outbox  # nothing goes to the registrant
         self.assertEqual(report.to, ['reg@camp.org'])
@@ -120,7 +119,6 @@ class JinjaConfirmationEmailTests(APITestCase):
         self.event.save()
         self.register()
         self.assertEqual(mail.outbox, [])
-        self.assertTrue(models.Registration.objects.get().completed)
 
 
 class JinjaInvitationEmailTests(APITestCase):
@@ -281,7 +279,6 @@ class ConfirmationPageTests(APITestCase):
         response = self.register()
         self.assertEqual(response.data['confirmationPage'],
                          '# Thank you — your registration is complete!')
-        self.assertTrue(models.Registration.objects.get().completed)
         reports = [m for m in mail.outbox if m.subject.startswith('Confirmation page not shown')]
         [report] = reports
         self.assertEqual(report.to, ['reg@camp.org'])

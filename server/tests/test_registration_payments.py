@@ -173,7 +173,6 @@ class CheckTests(FlowTestCase):
         response = self.post(step='payment', registrationUUID=self.uuid, paymentType='Check',
                              paymentOption='Deposit')
         registration = self.registration
-        self.assertTrue(registration.completed)
         self.assertIsNotNone(registration.confirmation_sent_at)
         invoice = self.invoice()
         self.assertEqual((invoice.amount, invoice.handling, invoice.payment_type, invoice.status),
@@ -186,7 +185,7 @@ class CheckTests(FlowTestCase):
         # The deposit is what's due now; the rest comes later.
         self.assertEqual(confirmation.body, 'Due now: $200.00, then 200.00')
         # It's in the admin lists now.
-        self.assertTrue(models.Registration.objects.filter(completed=True).exists())
+        self.assertTrue(models.Registration.objects.filter(uuid=self.uuid).exists())
 
     def test_nothing_to_pay(self):
         self.event.pricing = {'fee': 0}
@@ -196,7 +195,6 @@ class CheckTests(FlowTestCase):
             pricingResults={}).data['registrationUUID']
         self.post(step='payment', registrationUUID=uuid)
         registration = models.Registration.objects.get(uuid=uuid)
-        self.assertTrue(registration.completed)
         self.assertFalse(registration.invoices.exists())
         self.assertEqual(len(self.confirmations()), 1)
 
@@ -206,7 +204,6 @@ class PayPalTests(FlowTestCase):
         data = self.start_paypal(option='Deposit')
         self.assertEqual((data['total'], data['handling']), (205.0, 5.0))
         registration = self.registration
-        self.assertTrue(registration.completed)
         self.assertIsNone(registration.confirmation_sent_at)
         invoice = self.invoice()
         # The fee isn't owed until the order is captured.
@@ -252,7 +249,6 @@ class PayPalTests(FlowTestCase):
         self.assertEqual(response.data['code'], 'amount_changed')
         self.assertEqual(len(self.paypal.requests), 2)  # created and fetched, not captured
         self.assertFalse(models.Payment.objects.exists())
-        self.assertTrue(self.registration.completed)
         self.assertEqual(self.confirmations(), [])
 
     def test_declined_then_pay_by_check(self):
@@ -384,7 +380,6 @@ class PayPalTests(FlowTestCase):
                           invoice.handling),
                          (paypal_mocks.ORDER_ID, paypal_mocks.ORDER_ID, D('0.00')))
         self.assertFalse(invoice.payments.exists())
-        self.assertTrue(self.registration.completed)
         self.assertEqual(len(self.confirmations()), 1)
         report = models.EmailMessage.objects.get(kind='payment_report')
         self.assertIn(f'Order id: {paypal_mocks.ORDER_ID}', report.text)
@@ -605,7 +600,7 @@ class ConfirmationSweepTests(FlowTestCase):
 
     def test_registrations_confirmed_before_the_sweep_are_left_alone(self):
         models.Registration.objects.filter(uuid=self.uuid).update(
-            completed=True, completed_at=timezone.now() - datetime.timedelta(days=9),
+            completed_at=timezone.now() - datetime.timedelta(days=9),
             confirmation_sent_at=timezone.now() - datetime.timedelta(days=9))
         later = timezone.now() + datetime.timedelta(minutes=31)
         self.assertEqual(confirmations.send_overdue_confirmations(later), 0)

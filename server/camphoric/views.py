@@ -678,9 +678,14 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
     queryset = models.Registration.objects.select_related('promo_code')
     serializer_class = serializers.RegistrationSerializer
-    filterset_fields = ['event', 'completed', 'registration_type']
+    filterset_fields = ['event', 'registration_type']
     deleted_filters = {'event': 'event'}
     deleted_extras = ('camper_count',)
+
+    def perform_create(self, serializer):
+        # An organizer's: completed like any other, with no one waiting for a confirmation.
+        now = timezone.now()
+        serializer.save(completed_at=now, confirmation_sent_at=now)
 
     def deleted_queryset(self):
         return models.Registration.all_objects.filter(deleted_at__isnull=False).annotate(
@@ -1575,8 +1580,8 @@ class RegisterView(APIView):
         - `payment-step`: that payment step again, as it is now: a page reopened
           later shows what's due (an organizer may have changed it, DR-105).
         - `paypal-order`: the PayPal or Card button. Makes the registration from
-          its draft, completes it, makes or updates its invoice, and creates the
-          PayPal order.
+          its draft, which completes it, makes or updates its invoice, and creates
+          the PayPal order.
         - `payment`: pay by check (or complete a $0 registration), which makes the
           registration from its draft, or capture an approved PayPal order.
         - `finish`: finish without paying now, after a PayPal attempt didn't go
@@ -1696,9 +1701,10 @@ class RegisterView(APIView):
     @classmethod
     def registration_from_draft(cls, draft):
         '''
-        Make the draft's registration and campers, and remove it, as it's completed
-        (DR-140); call it in that transaction, and complete what it returns. Lodging
-        is checked again: nothing held it while the draft waited to be paid for.
+        A payment button was pressed: the draft becomes its registration and campers,
+        completed and unpaid (DR-91, DR-140), redeeming the invitation it was started
+        with, if any. Lodging is checked again: nothing held it while the draft waited
+        to be paid for. Call it in a transaction, and a refusal leaves the draft.
         '''
         event = draft.event
         form_data = copy.deepcopy(draft.form_data)
@@ -1714,19 +1720,20 @@ class RegisterView(APIView):
 
         # It was registered when it was submitted: pricing's early-bird dates go by this.
         registration.created_at = draft.submitted_at
+        registration.completed_at = timezone.now()
         server_pricing_results = pricing.calculate_price(registration, campers)
         registration.server_pricing_results = server_pricing_results
         registration.save_without_recalc()
         models.Registration.all_objects.filter(pk=registration.pk).update(
             created_at=draft.submitted_at)
 
-        # Each record is saved with its price already worked out, and completing
-        # reprices the registration once from what was saved, rather than once per camper.
+        # Each record is saved with its price already worked out, once.
         camper_pricing = server_pricing_results['campers']
         for index, camper in enumerate(campers):
             camper.server_pricing_results = camper_pricing[index]
             camper.sequence = index
             camper.save_without_recalc()
+        cls.redeem_invitation(registration)
         live.notify_draft(draft, 'deleted')
         draft.delete()
         return models.Registration.objects.select_for_update().get(pk=registration.pk)
@@ -1873,20 +1880,6 @@ class RegisterView(APIView):
         '''The registration invoice can still change: nothing has been paid on it.'''
         return not invoices.has_payments(invoices.registration_invoice(registration))
 
-    @classmethod
-    def complete(cls, registration):
-        '''
-        A payment button was pressed: the registration is completed, unpaid
-        (DR-91), and redeems the invitation it was started with, if any. Call it
-        in the transaction that holds the registration's lock.
-        '''
-        if registration.completed:
-            return
-        cls.redeem_invitation(registration)
-        registration.completed = True
-        registration.completed_at = timezone.now()
-        registration.save()
-
     @staticmethod
     def redeem_invitation(registration):
         '''
@@ -1902,12 +1895,8 @@ class RegisterView(APIView):
             return
         if invitation.is_redeemed(other_than=registration):
             raise InvitationRedeemed()
-        if invitation.registration_id != registration.id:
-            invitation.registration = registration
-            invitation.save()
-        else:
-            # Unsaved, it's redeemed all the same: the invitations list hears of it (§9.8).
-            live.notify_changed(invitation)
+        invitation.registration = registration
+        invitation.save()
 
     def problem_response(self, request, registration, problem):
         data = {
@@ -1945,7 +1934,6 @@ class RegisterView(APIView):
                 raise serializers.Conflict('This registration has already been paid.')
             if option.amount <= 0:
                 raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
-            self.complete(registration)
         # Committed: a draft's lodging lock mustn't be held while PayPal is asked, which
         # would hold up every registration for the event's lodging (DR-140).
         with transaction.atomic():
@@ -1981,7 +1969,7 @@ class RegisterView(APIView):
         with transaction.atomic():
             registration = self.registration_to_complete(request, event)
             self.payment_type(request, event, online=False)
-            if registration.completed and not self.payable(registration):
+            if not self.payable(registration):
                 # Already paid: the same result again, without a second email.
                 return Response(self.payment_result(request, registration))
             total = invoices.money((registration.server_pricing_results or {}).get('total'))
@@ -1991,7 +1979,6 @@ class RegisterView(APIView):
                     invoices.prepare_registration_invoice(registration, option, payment_type)
                 except invoices.PaymentProblem as problem:
                     return self.problem_response(request, registration, problem)
-            self.complete(registration)
             confirmations.send_confirmation(registration, request)
             return Response(self.payment_result(request, registration))
 
@@ -2014,7 +2001,7 @@ class RegisterView(APIView):
         registration = self.named_registration(
             request, models.Registration.objects.filter(event=event))
         invoice = invoices.registration_invoice(registration)
-        if invoice is None or not registration.completed:
+        if invoice is None:
             raise serializers.Conflict('There\'s no PayPal payment waiting for this registration.')
         problem = None
         try:
@@ -2039,8 +2026,6 @@ class RegisterView(APIView):
             raise serializers.Conflict('Choose how to pay first.')
         with transaction.atomic():
             registration = self.locked_registration(request, event)
-            if not registration.completed:
-                raise serializers.Conflict('Choose how to pay first.')
             if registration.confirmation_sent_at is None:
                 invoices.clear_unpaid_online_choice(registration)
             confirmations.send_confirmation(registration, request)
@@ -2343,7 +2328,7 @@ class InvoicePayView(APIView):
     def invoice(self, token):
         return get_object_or_404(
             models.Invoice.objects.select_related('registration__event'),
-            token=token, registration__completed=True)
+            token=token)
 
     @staticmethod
     def first_letter(name):

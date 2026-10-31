@@ -80,8 +80,6 @@ class PublicPageTests(InvoicePayTestCase):
     def test_unknown_links(self):
         self.client.get('/api/invoices/pay/nope')
         self.assertEqual(self.client.get('/api/invoices/pay/nope').status_code, 404)
-        incomplete = registration_invoice(self.made.r3, 'Check', D('10'))
-        self.page(incomplete, status=404)
 
 
 class PayingTests(InvoicePayTestCase):
