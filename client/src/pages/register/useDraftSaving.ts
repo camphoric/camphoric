@@ -9,13 +9,15 @@
  * and its uuid is kept beside the form data. A failed save never interrupts the
  * form: the change waits for the next chance, and a 429 or 503 backs off. It's
  * off while a registration already sent is on offer: what was sent stands until
- * the form is sent again, and an edit would otherwise take it away.
+ * the form is sent again, and an edit would otherwise take it away. Sending the
+ * form, or starting again, waits for a save under way only so long: an answer
+ * that comes later changes nothing here, and a draft it started is discarded.
  */
 
 import type { ApiRegister } from 'api-types';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRegistrationStore } from 'store/registration';
-import { saveDraft } from 'store/registrationApi';
+import { discardDraft, saveDraft } from 'store/registrationApi';
 import { ApiError } from 'utils/fetch';
 
 import { loadDraftUUID, saveDraftUUID } from './storage';
@@ -26,13 +28,18 @@ export const MAX_BACKOFF_MS = 10 * 60_000;
 /** How long sending the form waits for a save under way: a save never holds up the form. */
 export const SETTLE_WAIT_MS = 3_000;
 
-const orTimeout = (settled: Promise<void>) =>
-  Promise.race([
-    settled,
-    new Promise<void>((resolve) => {
-      setTimeout(resolve, SETTLE_WAIT_MS);
-    }),
-  ]);
+/** Resolves once any save under way has settled, or it's been given up on. */
+const orTimeout = (saving: { settled: Promise<void>; overdue: boolean }) =>
+  new Promise<void>((resolve) => {
+    const giveUp = setTimeout(() => {
+      saving.overdue = true;
+      resolve();
+    }, SETTLE_WAIT_MS);
+    void saving.settled.then(() => {
+      clearTimeout(giveUp);
+      resolve();
+    });
+  });
 
 export function useDraftSaving(
   eventId: string,
@@ -46,6 +53,8 @@ export function useDraftSaving(
     sending: false,
     /** Settles once the save under way, if any, has. */
     settled: Promise.resolve(),
+    /** That save was given up on: what's going on no longer waits for it. */
+    overdue: false,
     paused: false,
     nextSaveAt: 0,
     backedOffUntil: 0,
@@ -73,7 +82,8 @@ export function useDraftSaving(
       )
         .then((draft) => {
           saving.backoff = 0;
-          saveDraftUUID(storageKey, draft.uuid);
+          if (!saving.overdue) saveDraftUUID(storageKey, draft.uuid);
+          else if (draft.uuid !== uuid) void discardDraft(eventId, draft.uuid).catch(() => {});
         })
         .catch((error: unknown) => {
           saving.changed = true;
@@ -84,6 +94,7 @@ export function useDraftSaving(
         })
         .finally(() => {
           saving.sending = false;
+          saving.overdue = false;
         });
     },
     [eventId, storageKey, invitation, enabled],
@@ -118,7 +129,7 @@ export function useDraftSaving(
       pause: () => {
         state.current.paused = true;
         state.current.changed = false;
-        return orTimeout(state.current.settled);
+        return orTimeout(state.current);
       },
       /** Submitting failed: go on saving. */
       resume: () => {
@@ -129,7 +140,7 @@ export function useDraftSaving(
       stop: () => {
         state.current.changed = false;
         state.current.touched = false;
-        return orTimeout(state.current.settled);
+        return orTimeout(state.current);
       },
     }),
     [send],

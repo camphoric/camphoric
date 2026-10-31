@@ -5,6 +5,7 @@ registration is until it's completed.
 
 import copy
 import datetime
+import json
 import shutil
 import subprocess
 from unittest import mock, skipUnless
@@ -13,6 +14,7 @@ import uuid
 from auditlog.models import LogEntry
 from dbbackup.db.base import get_connector
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -22,7 +24,7 @@ from rest_framework.test import APITestCase
 
 from camphoric import live, models, roles
 from camphoric.templating.graph import build_event_graph
-from tests.factories import complete, make_user
+from tests.factories import complete, make_user, quote
 from tests.test_views import create_standard_test_event
 
 
@@ -111,6 +113,34 @@ class SavingTests(DraftTestCase):
         response = self.client.post(f'{self.url}/draft', ['a list'], format='json')
         self.assertEqual(response.status_code, 400)
         self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_sending_what_the_database_cant_store_is_refused_not_a_server_error(self):
+        for value in ('x\\u0000y', '\\ud83d'):
+            for body in (f'{{"formData": {{"comments": "{value}"}}, "pricingResults": {{}}}}',
+                         f'{{"formData": {{}}, "pricingResults": {{}}, "promoCode": "{value}"}}'):
+                with self.subTest(body=body):
+                    response = self.client.post(self.url, body, content_type='application/json')
+                    self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_an_answer_only_spelling_out_a_nul_is_kept(self):
+        data = {'comments': 'C:\\u0000 \\\\u0000'}
+        self.save(data)
+        self.assertEqual(models.RegistrationDraft.objects.get().form_data, data)
+
+    def test_a_file_where_the_form_should_be_is_refused(self):
+        upload = SimpleUploadedFile('form.txt', b'not a form')
+        response = self.client.post(
+            self.url, {'formData': upload, 'pricingResults': 'x'}, format='multipart')
+        self.assertEqual(response.status_code, 400, response.data)
+
+    def test_sending_an_email_too_long_to_store_is_refused(self):
+        email = 'x' * 260 + '@example.com'
+        response = self.client.post(
+            self.url, {'formData': {**self.valid_form_data, 'registrant_email': email},
+                       'pricingResults': {}}, format='json')
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn('registrant_email', response.data)
 
     def test_a_long_or_odd_email_doesnt_fail_the_save(self):
         self.save({'registrant_email': 'x' * 300})
@@ -293,6 +323,7 @@ class CompletingTests(DraftTestCase):
         draft_uuid = str(self.submit().data['registrationUUID'])
         response = self.client.post(self.url, {
             'step': 'payment', 'registrationUUID': draft_uuid, 'paymentType': 'Bitcoin',
+            'quote': quote(self.client, self.event, draft_uuid),
         }, format='json')
         self.assertEqual(response.status_code, 400, response.data)
         self.assertTrue(models.RegistrationDraft.objects.exists())
@@ -306,13 +337,20 @@ class PriceChangedTests(DraftTestCase):
         super().setUp()
         self.sent = self.submit().data
         self.total = self.sent['serverPricingResults']['total']
+
+    def raise_the_price(self):
         cabins, *rest = self.event.registration_pricing_logic
         self.event.registration_pricing_logic = [{**cabins, 'exp': {'*': [2, 100]}}, *rest]
         self.event.save()
 
-    def pay(self, **data):
+    def pay(self, quote=None, **data):
         return self.client.post(self.url, {
-            'registrationUUID': str(self.sent['registrationUUID']), **data}, format='json')
+            'registrationUUID': str(self.sent['registrationUUID']),
+            'quote': quote or self.sent['quote'], **data}, format='json')
+
+    def check(self, quote=None):
+        return self.pay(quote, step='payment', paymentType='Check',
+                        paymentOption=self.sent['paymentOptions']['default'] or 'Full Payment')
 
     def assertRefusedWithTheNewPrice(self, response):
         self.assertEqual(response.status_code, 409, response.data)
@@ -322,22 +360,99 @@ class PriceChangedTests(DraftTestCase):
         self.assertEqual(step['registrationUUID'], self.sent['registrationUUID'])
         self.assertFalse(models.Registration.all_objects.exists())
 
+    def test_a_page_showing_the_price_can_pay(self):
+        self.assertEqual(self.check().status_code, 200)
+
     def test_a_check_is_refused_and_shown_the_new_price(self):
-        self.assertRefusedWithTheNewPrice(self.pay(step='payment', paymentType='Check'))
+        self.raise_the_price()
+        self.assertRefusedWithTheNewPrice(self.check())
 
     def test_the_paypal_button_is_too(self):
+        self.raise_the_price()
         self.event.paypal_client_id = 'client'
         self.event.save()
         self.assertRefusedWithTheNewPrice(self.pay(step='paypal-order', paymentType='PayPal'))
 
-    def test_the_draft_now_holds_the_new_price_and_can_be_paid(self):
-        refused = self.pay(step='payment', paymentType='Check')
-        new_total = refused.data['paymentStep']['serverPricingResults']['total']
+    def importer_pays(self):
+        # As the event importer and bulk tool do, published versions included.
+        return self.client.post(self.url, {
+            'step': 'payment', 'paymentType': 'Check',
+            'registrationUUID': str(self.sent['registrationUUID'])}, format='json')
+
+    def test_without_a_quote_it_pays_the_price_the_draft_holds(self):
+        self.assertEqual(self.importer_pays().status_code, 200)
+
+    def test_without_a_quote_a_new_price_is_refused_once_and_then_paid(self):
+        # A page loaded before there were quotes shows the new price, and takes it.
+        self.raise_the_price()
+        self.assertRefusedWithTheNewPrice(self.importer_pays())
+        self.assertEqual(self.importer_pays().status_code, 200)
+
+    def test_a_line_that_moves_without_changing_what_is_asked_refuses_nothing(self):
+        self.event.registration_pricing_logic = [
+            *self.event.registration_pricing_logic,
+            {'var': 'stamp', 'exp': {'var': 'date.epoch'}}]
+        self.event.save()
+        with freeze_time('2026-06-01 10:00:00'):
+            self.sent = self.submit().data
+        with freeze_time('2026-06-01 10:00:05'):
+            self.assertEqual(self.check().status_code, 200)
+
+    def test_a_page_given_the_new_price_can_pay_it(self):
+        self.raise_the_price()
+        step = self.check().data['paymentStep']
+        new_total = step['serverPricingResults']['total']
         draft = models.RegistrationDraft.objects.get()
         self.assertEqual(draft.server_pricing_results['total'], new_total)
-        self.assertEqual(self.pay(step='payment', paymentType='Check').status_code, 200)
+        self.assertEqual(self.check(step['quote']).status_code, 200)
         self.assertEqual(models.Registration.objects.get().server_pricing_results['total'],
                          new_total)
+
+    def test_a_second_tab_showing_the_old_price_is_refused_after_the_first_was(self):
+        self.raise_the_price()
+        self.check()
+        self.assertRefusedWithTheNewPrice(self.check())
+
+    def test_a_deposit_changed_under_the_same_total_is_refused(self):
+        deposit = {'title': 'Payment', 'enum': [
+            json.dumps({'name': 'Deposit', 'logic': {'*': [{'var': 'total'}, 0.25]}})]}
+        self.event.registration_deposit_schema = deposit
+        self.event.save()
+        self.sent = self.submit().data
+        deposit['enum'] = [
+            json.dumps({'name': 'Deposit', 'logic': {'*': [{'var': 'total'}, 0.75]}})]
+        self.event.registration_deposit_schema = deposit
+        self.event.save()
+        response = self.pay(step='payment', paymentType='Check', paymentOption='Deposit')
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.data['code'], 'invoice_changed')
+        option = response.data['paymentStep']['paymentOptions']['options'][0]
+        self.assertEqual(option['amount'], self.total * 0.75)
+        self.assertFalse(models.Invoice.objects.exists())
+
+    def test_a_handling_fee_changed_is_refused(self):
+        self.event.epayment_handling = 5
+        self.event.paypal_client_id = 'client'
+        self.event.save()
+        self.assertEqual(self.check().data['code'], 'invoice_changed')
+
+    def test_a_reopened_page_shows_what_is_due_now(self):
+        self.raise_the_price()
+        step = self.client.post(self.url, {
+            'step': 'payment-step', 'registrationUUID': str(self.sent['registrationUUID']),
+        }, format='json').data
+        self.assertGreater(step['serverPricingResults']['total'], self.total)
+        self.assertNotEqual(step['quote'], self.sent['quote'])
+        self.assertEqual(self.check(step['quote']).status_code, 200)
+
+    def test_a_reopened_page_with_its_lodging_gone_still_opens(self):
+        draft = models.RegistrationDraft.objects.get()
+        with mock.patch('camphoric.views.pricing.calculate_price',
+                        side_effect=models.Lodging.DoesNotExist):
+            response = self.client.post(self.url, {
+                'step': 'payment-step', 'registrationUUID': str(draft.uuid)}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['serverPricingResults']['total'], self.total)
 
 
 class StartingAgainTests(DraftTestCase):

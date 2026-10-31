@@ -12,7 +12,7 @@
  * registration, the saved one is forgotten and it's back to step 1 (§7.1).
  */
 
-import { Stack } from '@mantine/core';
+import { Alert, Stack } from '@mantine/core';
 import { useEventId } from 'hooks/useEventId';
 import { useGoToStep } from 'hooks/useGoToStep';
 import { useEffect, useRef } from 'react';
@@ -38,6 +38,7 @@ export function PaymentStep() {
   const registration = useRegistrationStore((state) => state.registration);
   const promo = useRegistrationStore((state) => state.promo);
   const sentNotFound = useRegistrationStore((state) => state.sentNotFound);
+  const notice = useRegistrationStore((state) => state.paymentNotice);
   const { data: config } = useRegistrationConfig(eventId);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function PaymentStep() {
     if (!registrationUUID || refreshed.current === registrationUUID) return;
     refreshed.current = registrationUUID;
     refreshPaymentStep(registrationUUID, {
-      onSuccess: replacePaymentStep,
+      onSuccess: (now) => replacePaymentStep(now),
       onError: (error) => {
         if (registrationNotFound(error)) forgetSentRegistration(registrationUUID);
       },
@@ -81,10 +82,19 @@ export function PaymentStep() {
           promo={promo}
         />
       )}
+      {notice && (
+        <Alert color="blue" variant="light" title="What’s due has changed">
+          {notice}
+        </Alert>
+      )}
       {total > 0 ? (
         <PaymentNeeded eventId={eventId} paymentStep={paymentStep} />
       ) : (
-        <NoPayment eventId={eventId} registrationUUID={paymentStep.registrationUUID} />
+        <NoPayment
+          eventId={eventId}
+          registrationUUID={paymentStep.registrationUUID}
+          quote={paymentStep.quote}
+        />
       )}
     </Stack>
   );

@@ -842,6 +842,12 @@ export interface ApiRegisterPaymentStep {
   /** The handling percent on online payments; null without one. */
   handlingPercent: number | null;
   /**
+   * For a registration not yet completed, a digest of what this step asks for: a
+   * payment button sends it back, and one that's out of date is refused
+   * (`invoice_changed`, §15, DR-140).
+   */
+  quote?: string;
+  /**
    * The organizers cancelled the registration invoice: nothing can be paid here
    * (from `payment-step`; §15, DR-105).
    */
@@ -883,6 +889,8 @@ export interface PaymentStepBody {
   paymentType?: PaymentType;
   paymentOption?: string;
   paypalOrderId?: string;
+  /** The payment step's `quote`, for a registration not yet completed. */
+  quote?: string;
 }
 
 /** The PayPal or Card button: complete the registration and create the order (DR-90). */
@@ -890,6 +898,8 @@ export interface PayPalOrderBody {
   registrationUUID: string;
   paymentType: PaymentType;
   paymentOption: string;
+  /** The payment step's `quote`, for a registration not yet completed. */
+  quote?: string;
 }
 
 export interface ApiPayPalOrder {

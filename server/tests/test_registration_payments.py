@@ -19,7 +19,7 @@ from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
 from camphoric import confirmations, invoices, models, roles
 from tests import paypal_mocks
-from tests.factories import make_user, set_email
+from tests.factories import make_user, quote, set_email
 
 D = Decimal
 
@@ -63,6 +63,8 @@ class Flow(paypal_mocks.PayPalServerMixin):
         self.assertFalse(models.Registration.all_objects.filter(uuid=self.uuid).exists())
 
     def post(self, status=200, **data):
+        if data.get('step') in ('payment', 'paypal-order') and status != 404:
+            data['quote'] = quote(self.client, self.event, data['registrationUUID'])
         response = self.client.post(f'/api/events/{self.event.id}/register', data,
                                     format='json')
         self.assertEqual(response.status_code, status, getattr(response, 'data', None))

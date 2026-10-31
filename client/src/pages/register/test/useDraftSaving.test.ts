@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { useRegistrationStore } from 'store/registration';
-import { saveDraft } from 'store/registrationApi';
+import { discardDraft, saveDraft } from 'store/registrationApi';
 import { act } from 'test/utils';
 import { ApiError } from 'utils/fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +13,7 @@ import {
   useDraftSaving,
 } from '../useDraftSaving';
 
-vi.mock('store/registrationApi', () => ({ saveDraft: vi.fn() }));
+vi.mock('store/registrationApi', () => ({ discardDraft: vi.fn(), saveDraft: vi.fn() }));
 
 const KEY = 'Event 1: Camp, ';
 const INVITATION = {
@@ -22,6 +22,7 @@ const INVITATION = {
   invitation_code: 'ABC123',
 };
 const save = vi.mocked(saveDraft);
+const discard = vi.mocked(discardDraft);
 
 /** The hook, once someone has touched the form: a change before that isn't theirs. */
 function hook(invitation?: typeof INVITATION, enabled = true) {
@@ -43,6 +44,8 @@ describe('useDraftSaving', () => {
     localStorage.clear();
     save.mockReset();
     save.mockResolvedValue({ uuid: 'draft-1' });
+    discard.mockReset();
+    discard.mockResolvedValue();
     useRegistrationStore.getState().reset();
   });
 
@@ -206,6 +209,71 @@ describe('useDraftSaving', () => {
     void drafts.current.pause().then(submitted);
     await act(() => vi.advanceTimersByTimeAsync(SETTLE_WAIT_MS));
     expect(submitted).toHaveBeenCalled();
+  });
+
+  describe('when a save given up on answers after all', () => {
+    let answer = (_draft: { uuid: string }) => {};
+
+    async function givenUpOn() {
+      save.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+      const drafts = hook();
+      drafts.current.changed();
+      drafts.current.fieldBlurred();
+      void drafts.current.pause();
+      await act(() => vi.advanceTimersByTimeAsync(SETTLE_WAIT_MS));
+      return drafts;
+    }
+
+    it('leaves the submitted draft’s uuid, and discards the draft it started', async () => {
+      await givenUpOn();
+      saveDraftUUID(KEY, 'submitted-draft');
+
+      answer({ uuid: 'late-draft' });
+      await settle();
+
+      expect(localStorage.getItem(`${KEY} (draft)`)).toBe('submitted-draft');
+      expect(discard).toHaveBeenCalledExactlyOnceWith('1', 'late-draft');
+    });
+
+    it('keeps the draft it was saving to, which is the one submitted', async () => {
+      saveDraftUUID(KEY, 'draft-1');
+      await givenUpOn();
+
+      answer({ uuid: 'draft-1' });
+      await settle();
+
+      expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-1');
+      expect(discard).not.toHaveBeenCalled();
+    });
+
+    it('takes the answers of the saves after it again', async () => {
+      const drafts = await givenUpOn();
+      answer({ uuid: 'late-draft' });
+      await settle();
+
+      drafts.current.resume();
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_INTERVAL_MS));
+      drafts.current.fieldBlurred();
+      await settle();
+
+      expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-1');
+    });
+  });
+
+  it('a save settled in time leaves nothing to give up on later', async () => {
+    const drafts = hook();
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+    await act(() => drafts.current.pause());
+    drafts.current.resume();
+
+    await act(() => vi.advanceTimersByTimeAsync(SAVE_INTERVAL_MS));
+    save.mockResolvedValueOnce({ uuid: 'draft-2' });
+    drafts.current.fieldBlurred();
+    await settle();
+
+    expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-2');
+    expect(discard).not.toHaveBeenCalled();
   });
 
   it('saves nothing while it’s turned off, as for a registration already sent', async () => {

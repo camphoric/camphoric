@@ -241,7 +241,7 @@ describe('PaymentNeeded', () => {
       failWith(changed());
       await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
 
-      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(useRegistrationStore.getState().paymentNotice).toBe(message);
       submitMutate.mockReset();
       await user.click(screen.getByRole('button', { name: 'Pay $500.00 by check' }));
       expect(submitMutate).toHaveBeenCalledWith(
@@ -258,7 +258,7 @@ describe('PaymentNeeded', () => {
       });
       act(() => checkout.props!.onError?.(new Error('createOrder failed')));
 
-      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(useRegistrationStore.getState().paymentNotice).toBe(message);
       expect(screen.getByText(/Pay \$512\.50 online/)).toBeInTheDocument();
       expect(screen.queryByText(/PayPal ran into a problem/)).toBeNull();
     });

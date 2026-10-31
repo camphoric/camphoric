@@ -101,11 +101,15 @@ export function saveDraft(eventId: string, body: SaveDraftBody, keepalive = fals
   });
 }
 
+/** Delete a draft from the server: whoever holds its uuid may (§15, DR-140). */
+export function discardDraft(eventId: string, uuid: string) {
+  return apiFetch<void>(`${registerUrl(eventId)}/draft/${uuid}`, { method: 'DELETE' });
+}
+
 /** "Start a new registration": the draft goes from the server too (§15, DR-140). */
 export function useDeleteDraft(eventId: string) {
   return useMutation({
-    mutationFn: (uuid: string) =>
-      apiFetch<void>(`${registerUrl(eventId)}/draft/${uuid}`, { method: 'DELETE' }),
+    mutationFn: (uuid: string) => discardDraft(eventId, uuid),
     meta: { suppressErrorNotification: true },
   });
 }

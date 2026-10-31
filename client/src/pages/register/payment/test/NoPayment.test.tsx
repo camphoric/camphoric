@@ -85,6 +85,38 @@ describe('NoPayment', () => {
     );
   });
 
+  it('sends back what the page was showing (DR-140)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<NoPayment eventId="1" registrationUUID="uuid-1" quote="shown" />);
+    await user.click(screen.getByRole('button', { name: 'Finish registration' }));
+
+    expect(submitMutate).toHaveBeenCalledWith(
+      { registrationUUID: 'uuid-1', quote: 'shown' },
+      expect.any(Object),
+    );
+  });
+
+  it('takes a new payment step, and says why, when something is now due (DR-140)', async () => {
+    const user = userEvent.setup();
+    const message = 'The amount due on your registration has changed.';
+    const now = { ...paymentStep, serverPricingResults: { total: 100, campers: [] } };
+    submitMutate.mockImplementation((_body: unknown, options: { onError: (e: unknown) => void }) =>
+      options.onError(
+        new ApiError(409, 'Conflict', {
+          code: 'invoice_changed',
+          detail: message,
+          paymentStep: now,
+        }),
+      ),
+    );
+
+    renderWithProviders(<NoPayment eventId="1" registrationUUID="uuid-1" />);
+    await user.click(screen.getByRole('button', { name: 'Finish registration' }));
+
+    expect(useRegistrationStore.getState().paymentStep).toEqual(now);
+    expect(useRegistrationStore.getState().paymentNotice).toBe(message);
+  });
+
   it('says why when the server refuses to complete it (#803)', async () => {
     const user = userEvent.setup();
     submitMutate.mockImplementation((_body: unknown, options: { onError: (e: unknown) => void }) =>

@@ -9,7 +9,7 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from camphoric import models
-from tests.factories import set_email
+from tests.factories import complete, set_email
 
 Kind = models.EmailMessageKind
 Status = models.EmailMessageStatus
@@ -42,11 +42,7 @@ class ConfirmationTests(APITestCase):
         return response.data['registrationUUID']
 
     def pay(self, uuid):
-        response = self.client.post(f'/api/events/{self.event.id}/register', {
-            'registrationUUID': uuid,
-            'step': 'payment',
-            'paymentType': 'Check',
-        }, format='json')
+        response = complete(self.client, self.event, uuid)
         self.assertEqual(response.status_code, 200, response.data)
         return response
 

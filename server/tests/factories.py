@@ -73,11 +73,21 @@ CAMPER_SCHEMA = {
 }
 
 
+def quote(client, event, uuid):
+    '''The `quote` a payment page opened now would hand back, if it would (SPEC DR-140).'''
+    response = client.post(
+        f'/api/events/{event.id}/register',
+        {'step': 'payment-step', 'registrationUUID': str(uuid)},
+        format='json')
+    return response.data.get('quote') if response.status_code == 200 else None
+
+
 def complete(client, event, uuid):
     '''Pay for a sent registration by check, which completes it (SPEC DR-140).'''
     return client.post(
         f'/api/events/{event.id}/register',
-        {'step': 'payment', 'registrationUUID': str(uuid), 'paymentType': 'Check'},
+        {'step': 'payment', 'registrationUUID': str(uuid), 'paymentType': 'Check',
+         'quote': quote(client, event, uuid)},
         format='json')
 
 

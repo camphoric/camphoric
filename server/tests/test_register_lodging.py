@@ -13,7 +13,7 @@ from django.test import TransactionTestCase
 from rest_framework.test import APIClient, APITestCase
 
 from camphoric import lodging, models, roles, views
-from tests.factories import complete, make_user
+from tests.factories import complete, make_user, quote
 from tests.test_views import create_standard_test_event
 
 ERROR_KEY = 'campers.{}.lodging.lodging_requested.id'
@@ -102,6 +102,21 @@ class RegisterLodgingTests(APITestCase):
         response = self.client.post(f'/api/events/{self.event.id}/register',
                                     {'formData': data, 'pricingResults': {}}, format='json')
         self.assertEqual(response.status_code, 400, response.data)
+
+    def test_what_a_camper_not_sharing_shares_with_is_left_out(self):
+        # The form keeps it after the box is unticked, and nothing checks its length then.
+        for shared, place in (({'lodging_shared': False}, self.cabin_a), ({}, self.tent)):
+            with self.subTest(shared=shared):
+                data = form_data(self, place)
+                data['campers'][0]['lodging'].update(
+                    {**shared, 'lodging_shared_with': 'x' * 256})
+                response = self.client.post(f'/api/events/{self.event.id}/register',
+                                            {'formData': data, 'pricingResults': {}},
+                                            format='json')
+                self.assertEqual(response.status_code, 200, response.data)
+                paid = complete(self.client, self.event, response.data['registrationUUID'])
+                self.assertEqual(paid.status_code, 200, paid.data)
+                self.assertEqual(models.Camper.objects.latest('id').lodging_shared_with, '')
 
     def test_campers_without_lodging_need_no_room(self):
         response = self.register(None, None)
@@ -226,6 +241,7 @@ class RegisterLodgingTests(APITestCase):
         self.event.save()
         response = self.client.post(f'/api/events/{self.event.id}/register', {
             'step': 'paypal-order', 'registrationUUID': uuid, 'paymentType': 'PayPal',
+            'quote': quote(self.client, self.event, uuid),
         }, format='json')
         self.assertEqual(response.status_code, 409, response.data)
         self.assertEqual(response.data['code'], 'lodging_unavailable')
@@ -274,6 +290,7 @@ class PayPalLockTests(TransactionTestCase):
         with mock.patch.object(views.invoices, 'create_paypal_order', create_order):
             response = APIClient().post(f'/api/events/{self.event.id}/register', {
                 'step': 'paypal-order', 'registrationUUID': uuid, 'paymentType': 'PayPal',
+                'quote': quote(APIClient(), self.event, uuid),
             }, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(free, {'lodging': True})
