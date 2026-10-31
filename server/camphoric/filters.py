@@ -71,7 +71,7 @@ class CamperFilter(django_filters.FilterSet):
 
     class Meta:
         model = models.Camper
-        fields = ['registration', 'registration__event', 'registration__completed', 'lodging']
+        fields = ['registration', 'registration__event', 'lodging']
 
 
 class PricingOverrideFilter(django_filters.FilterSet):
@@ -87,7 +87,7 @@ class InvoiceFilter(django_filters.FilterSet):
 
     class Meta:
         model = models.Invoice
-        fields = ['registration', 'registration__event', 'registration__completed']
+        fields = ['registration', 'registration__event']
 
 
 class PaymentFilter(django_filters.FilterSet):

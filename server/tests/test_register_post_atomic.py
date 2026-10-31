@@ -94,8 +94,8 @@ class RegisterPostAtomicTests(APITestCase):
         self.assertEqual([c.sequence for c in campers], [0, 1, 2])
         self.assertEqual(
             [c.server_pricing_results for c in campers], expected['campers'])
-        # Nothing an admin did, so only completing counts as an edit (DR-109).
-        self.assertEqual(registration.version, 2)
+        # Nothing an admin did, so nothing counts as an edit (DR-109).
+        self.assertEqual(registration.version, 1)
         self.assertEqual([c.version for c in campers], [1, 1, 1])
 
         # Saving a camper used to reprice the registration and re-save every

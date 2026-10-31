@@ -82,7 +82,7 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
   const { organizationId, eventId } = useParams({
     from: '/admin/organization/$organizationId/event/$eventId',
   });
-  const { data: registrations } = registrationHooks.useList({ event: eventId, completed: 1 });
+  const { data: registrations } = registrationHooks.useList({ event: eventId });
   const samples = useMemo<EmailSample[]>(
     () =>
       (registrations ?? []).map((r) => ({
@@ -94,7 +94,6 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
   );
   const { data: invoices } = invoiceHooks.useList({
     registration__event: eventId,
-    registration__completed: 1,
   });
   const invoiceSamples = useMemo<EmailSample[]>(
     () =>

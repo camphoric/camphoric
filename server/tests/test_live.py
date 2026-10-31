@@ -55,9 +55,9 @@ class NoticeTests(TestCase):
         lodging = models.Lodging.objects.create(event=made.event, name='Tents')
         pk = lodging.pk
         lodging.delete()
-        made.r3.soft_delete()
+        made.r1.soft_delete()
         self.assertTrue({('lodging', pk, 'created'), ('lodging', pk, 'deleted'),
-                         ('registration', made.r3.id, 'deleted')} <= self.notices())
+                         ('registration', made.r1.id, 'deleted')} <= self.notices())
 
     def test_each_kind_names_its_event(self):
         made = self.made

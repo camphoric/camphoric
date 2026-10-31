@@ -2,7 +2,8 @@
 A registration's audit history starts when it's completed (SPEC DR-139), so this
 deletes what the log already holds from before that, which can't be undone:
 
-- everything for a registration that isn't completed,
+- everything for a registration that isn't completed, unless it has an invoice or
+  payment: money stays on record, and 0090 makes it a registration like any other,
 - everything for a registration since deleted that never was completed,
 - on any other, whatever came before the entry showing it completed.
 
@@ -32,7 +33,7 @@ def first_completions(LogEntry, registration_type):
     return completions
 
 
-def entries_to_delete(LogEntry, Registration, registration_type):
+def entries_to_delete(LogEntry, Registration, with_money, registration_type):
     completions = first_completions(LogEntry, registration_type)
     # The plain manager, so deleted registrations are included.
     registrations = dict(Registration._base_manager.values_list('id', 'completed'))
@@ -44,7 +45,8 @@ def entries_to_delete(LogEntry, Registration, registration_type):
             continue
         completion = completions.get(registration_id)
         if registrations.get(registration_id) is False:
-            yield entry_id
+            if registration_id not in with_money:
+                yield entry_id
         elif registration_id not in registrations and completion is None:
             yield entry_id
         elif completion is not None and entry_id < completion:
@@ -55,11 +57,16 @@ def delete_entries_before_completion(apps, schema_editor):
     ContentType = apps.get_model('contenttypes', 'ContentType')
     LogEntry = apps.get_model('auditlog', 'LogEntry')
     Registration = apps.get_model('camphoric', 'Registration')
+    with_money = {
+        registration_id
+        for name in ('Invoice', 'Payment')
+        for registration_id in apps.get_model('camphoric', name)._base_manager.values_list(
+            'registration_id', flat=True)}
     registration_type = ContentType.objects.filter(
         app_label='camphoric', model='registration').first()
     if registration_type is None:
         return  # A new database: nothing has been logged.
-    doomed = list(entries_to_delete(LogEntry, Registration, registration_type))
+    doomed = list(entries_to_delete(LogEntry, Registration, with_money, registration_type))
     for start in range(0, len(doomed), BATCH_SIZE):
         LogEntry.objects.filter(id__in=doomed[start:start + BATCH_SIZE]).delete()
 

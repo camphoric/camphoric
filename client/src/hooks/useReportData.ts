@@ -30,9 +30,8 @@ import {
  */
 export function useReportTemplateVars(eventId: string): ReportTemplateVars | undefined {
   const { data: event } = eventHooks.useById(eventId);
-  const { data: registrations } = registrationHooks.useList({ completed: 1, event: eventId });
+  const { data: registrations } = registrationHooks.useList({ event: eventId });
   const { data: campers } = camperHooks.useList({
-    registration__completed: 1,
     registration__event: eventId,
   });
   const { data: lodgings } = lodgingHooks.useList({ event: eventId });

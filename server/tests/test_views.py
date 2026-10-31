@@ -396,7 +396,6 @@ class RegisterGetTests(APITestCase):
             event=event,
             attributes={},
             registrant_email='registrant@example.com',
-            completed=True,
         )
         registration.campers.create(lodging=camp1)
         response = self.client.get(f'/api/events/{event.id}/register')
@@ -670,7 +669,6 @@ class RegisterGetTests(APITestCase):
         invitation.registration = models.Registration.objects.create(
             event=event,
             registrant_email='camper@example.com',
-            completed=True,
         )
         invitation.save()
         response = self.client.get(
@@ -683,9 +681,8 @@ class RegisterGetTests(APITestCase):
             'Sorry, that invitation code has already been redeemed',
         )
 
-        # not-quite-redeemed invitation (incomplete registration)
-        invitation.registration.completed = False
-        invitation.registration.save()
+        # no longer redeemed: the registration that did has gone for good
+        invitation.registration.delete()
         response = self.client.get(
             f'/api/events/{event.id}/register?email=camper@example.com&code='
             + invitation.invitation_code)
@@ -837,7 +834,6 @@ class RegisterPostTests(APITestCase):
         self.assertEqual(campers[1].registration, registration)
         self.assertEqual(registration.server_pricing_results, expected_pricing_results)
         self.assertEqual(registration.client_reported_pricing, expected_pricing_results)
-        self.assertTrue(registration.completed)
         self.assertIsNotNone(registration.completed_at)
         invoice = registration.invoices.get()
         self.assertEqual((invoice.origin, invoice.description, invoice.amount),

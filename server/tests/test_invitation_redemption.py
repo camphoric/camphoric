@@ -4,12 +4,10 @@ be started with the same invitation, but only the first to be completed
 redeems it; completing another is refused with `invitation_redeemed`.
 '''
 
-from importlib import import_module
 import threading
 import time
 from unittest import mock
 
-from django.apps import apps
 
 from django.db import connection
 from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
@@ -216,64 +214,6 @@ class RedeemedStatusTests(Invited, APITestCase):
         self.assertTrue(listed['registration_deleted'])
 
 
-class RecordingStartedInvitationsTests(Invited, APITestCase):
-    '''Migration 0087 ties registrations started before it to their invitations.'''
-
-    def migrate(self):
-        migration = import_module('camphoric.migrations.0087_registration_started_with_invitation')
-        models.Registration.all_objects.update(started_with_invitation=None)
-        migration.record_started_invitations(apps, None)
-
-    def registration(self, **fields):
-        return models.Registration.objects.create(
-            event=self.event, registration_type=self.staff, **fields)
-
-    def test_the_registration_an_invitation_links_to_was_started_with_it(self):
-        started = self.registration(registrant_email='lee@example.com')
-        self.invitation.registration = started
-        self.invitation.save()
-        self.migrate()
-        started.refresh_from_db()
-        self.assertEqual(started.started_with_invitation, self.invitation)
-
-    def test_one_completed_before_another_was_started_redeems_it(self):
-        # Start A, start B (the invitation moved to B), complete A.
-        completed = self.registration(registrant_email='Lee@Example.com', completed=True)
-        started = self.registration(registrant_email='lee@example.com')
-        self.invitation.registration = started
-        self.invitation.save()
-        self.migrate()
-
-        completed.refresh_from_db()
-        self.invitation.refresh_from_db()
-        self.assertEqual(completed.started_with_invitation, self.invitation)
-        self.assertEqual(self.invitation.registration, completed)
-        self.assertTrue(self.invitation.is_redeemed())
-
-    def test_it_takes_no_guess_between_two(self):
-        for _ in range(2):
-            self.registration(registrant_email='lee@example.com', completed=True)
-        started = self.registration(registrant_email='lee@example.com')
-        self.invitation.registration = started
-        self.invitation.save()
-        self.migrate()
-        self.invitation.refresh_from_db()
-        self.assertEqual(self.invitation.registration, started)
-        self.assertFalse(self.invitation.is_redeemed())
-
-    def test_one_another_invitation_links_to_is_left_to_it(self):
-        other = models.Invitation.objects.create(
-            registration_type=self.staff, recipient_email='lee@example.com')
-        other.registration = self.registration(registrant_email='lee@example.com', completed=True)
-        other.save()
-        started = self.registration(registrant_email='lee@example.com')
-        self.invitation.registration = started
-        self.invitation.save()
-        self.migrate()
-        self.invitation.refresh_from_db()
-        self.assertEqual(self.invitation.registration, started)
-
-
 class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
     '''
     What happens while a registration started with the invitation is being
@@ -338,7 +278,6 @@ class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
             first, confirmations, 'send_confirmation', pay_second)
         self.assertEqual(paid.status_code, 200)
         self.assertEqual((refused.status_code, refused.data), (409, REDEEMED))
-        self.assertTrue(self.registration(first).completed)
         self.assertNotCompleted(second)
 
     def test_one_started_meanwhile_is_refused_and_leaves_the_invitation_redeemed(self):
@@ -380,6 +319,5 @@ class SimultaneousRedemptionTests(Invited, APITransactionTestCase):
             first, invoices, 'prepare_registration_invoice', delete_invitation)
         self.assertEqual(paid.status_code, 200)
         self.assertEqual(deleted.status_code, 204)
-        self.assertTrue(self.registration(first).completed)
         self.assertIsNone(self.registration(first).started_with_invitation)
         self.assertFalse(models.Invitation.objects.exists())

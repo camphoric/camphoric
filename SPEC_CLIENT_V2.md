@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-140)
+- §15 — Decision Records (DR-1…DR-141)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -286,7 +286,7 @@ producing `useList`/`useById`/`useCreate`/`useUpdate`/`useDelete`) so all entiti
 consistently:
 
 - **List:** `GET /api/{entity}s/?<sorted query params>` → array. Query params are used for
-  server-side filtering (e.g. `?event=<id>`, `?completed=1`, `?registration__completed=1`).
+  server-side filtering (e.g. `?event=<id>`, `?registration_type=<id>`).
   Every list of an event's records filters by `event`, however the record reaches its event
   (campers, invoices and payments through their registration, invitations through their
   registration type); the longer names (`registration__event`, `registration_type__event`,
@@ -395,9 +395,9 @@ consistently:
     `GET /api/payments/deleted/?event=|registration=` (Registrars and Admins; 400 without a
     filter) → the deleted ones, most recently deleted first, as the usual entity plus
     `deleted_at` and `deleted_by` (`{ id, username, name }`, or `null`); registrations also have
-    `camper_count`. `deleted_by` is `null` for anything deleted while its registration wasn't
-    completed, which the audit log doesn't cover (§15, DR-139). Campers and payments of a deleted
-    registration aren't listed on their own — they come back with it.
+    `camper_count`. `deleted_by` is `null` for anything the audit log has no delete for: one
+    from before it began, or that was incomplete then (§15, DR-139). Campers and payments of a
+    deleted registration aren't listed on their own — they come back with it.
   - `GET /api/{registrations|campers}/{id}/history/` works for a deleted one too.
 
 Caching/invalidation uses query keys (one key namespace per entity, parameterized by the
@@ -587,9 +587,8 @@ Non-CRUD admin endpoints:
   - `GET /api/registrations/{id}/history/` — the registration's changes and those of its campers,
     payments and custom charges, including ones since deleted; `GET /api/campers/{id}/history/` —
     the camper's and its custom charges'.
-  - A registration's history starts when it's completed: nothing is logged before that, and
-    completing it writes a `create` entry for it and each record under it as they stand then
-    (§15, DR-139).
+  - A registration's history starts when it's completed, which is when it's made from its draft:
+    a `create` entry for it and for each of its campers (§15, DR-139, DR-141).
   - Each is an array, newest first, of `{ id, timestamp, request_id, actor, action, object,
     changes }`:
     - `actor` is `{ id, username, name }`, or `null` when no one was signed in (an online
@@ -749,7 +748,8 @@ Non-CRUD admin endpoints:
     asking the registrant to reload the page.
 - `POST /api/events/{eventId}/register` with `{ step: 'finish', registrationUUID }` — finish
   without paying now, after a PayPal attempt that didn't go through: sends the confirmation
-  (once) and returns the confirmation-step payload. 409 for a registration not yet completed.
+  (once) and returns the confirmation-step payload. 409 for a submitted draft, which has had no
+  payment button pressed.
   Before that confirmation goes out, an unpaid registration invoice to be paid by PayPal or card
   has its `payment_type` cleared — the registrant hasn't settled on how to pay — while any
   pending PayPal order stays on it (§15, DR-104). The worker's half-hour confirmation (§7.3)
@@ -778,7 +778,7 @@ Non-CRUD admin endpoints:
 
 An invoice's pay page (§9.7; §15, DR-95) works from its link code (`token`), with no sign-in.
 Anyone may call these; they're throttled per client (scope `invoice_pay`), and a code that isn't
-an invoice of a completed registration is a 404.
+an invoice is a 404.
 
 - `GET /api/invoices/pay/{token}` → `ApiInvoicePay`: `{ event: { id, name }, invoice: { id,
   description, memo, due_on, amount, handling, total, amount_paid, amount_due, status, pending,
@@ -867,8 +867,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `started_with_invitation` (the id of the invitation it was started with, or null; §15,
   DR-137), read-only `promo`
   (`{ id, code, label, scope, deleted }` of that code, or null — present even once the code is
-  deleted, to label its discount), `uuid`, `completed` (a payment button was pressed; §15,
-  DR-91), read-only `completed_at` and `confirmation_sent_at`, timestamps; and its ledger
+  deleted, to label its discount), `uuid`, read-only `completed_at` (when a payment button was
+  pressed; §15, DR-91) and `confirmation_sent_at`, timestamps; and its ledger
   (§9.7), read-only numbers: `total_owed` (the price plus the handling fees on its invoices),
   `total_paid` (its payments less refunds), `balance` (`total_owed − total_paid`; negative when
   a refund is due), `handling_charges`, and `uninvoiced_balance` (the balance no open invoice asks
@@ -941,8 +941,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **Lodging:** `id`, `event`, `parent`, `name`, `children_title`, `capacity`, `reserved`,
   `visible`, `sharing_multiplier`, `notes`.
 - **Deposit:** `id`, `event`, `deposited_on`, `attributes`, `amount`.
-- **Invoice** (`/api/invoices/`, filter `event`, `registration`, `registration__event`,
-  `registration__completed`; §9.7, §15, DR-87): a request for one chunk of a registration's
+- **Invoice** (`/api/invoices/`, filter `event`, `registration`, `registration__event`;
+  §9.7, §15, DR-87): a request for one chunk of a registration's
   balance. `id`, `registration`, `origin` (`registration` | `payment_received` | `admin` |
   `migrated`, §9.7), `description`, `amount` (toward the registration), `handling` (the
   e-payment handling fee on it; adds to what's owed), `payment_type` (how the payer chose to pay
@@ -2279,9 +2279,9 @@ example and its result.
   completed registrations;
   `incomplete_registrations` are those sent but never finished: submitted drafts (§15, DR-140),
   whose `id` and campers' `id`s are text rather than numbers and which have no payments or
-  invoices, and any older unfinished registration that has them. The server deletes both once
-  they've had no activity in the retention period (30 days by default), unless one has a
-  payment (§15, DR-76, DR-139). A form still being filled in isn't in any template. A
+  invoices. The server deletes them once they've had no activity in the retention period (30
+  days by default; §15, DR-76, DR-139). A form still being filled in isn't in any template. A
+  registration's `completed` is true, and a submitted draft's false (§15, DR-141). A
   confirmation email — and the confirmation page — gets the one registration it's for
   (`registration`, its `campers`, `pricing`, `invoice`, and `initial_payment` for older
   templates) and `event`; an invitation email gets `invitation`, `registration_type` and
@@ -4094,8 +4094,7 @@ just to preview it.
 **Decision:** Deleting a registration, camper or payment through the admin marks it deleted
 instead of removing it; Registrars and Admins can list what's deleted, with who deleted it, and
 restore it. Only these three are soft-deleted — everything else is deleted for real (DR-54),
-with the audit log (DR-53) keeping its last values, unless it belonged to a registration that
-wasn't completed (DR-139). "Not deleted" is built into these models'
+with the audit log (DR-53) keeping its last values. "Not deleted" is built into these models'
 default managers: a deleted registration hides its campers, payments and charges without marking
 them, so restoring it brings back exactly what went with it, while a camper or payment deleted
 on its own earlier stays deleted. A deleted registration's price is left as it was, and
@@ -4447,13 +4446,11 @@ the details — a second way to edit one field, beside the form that edits them 
 ### DR-76 — Incomplete registrations are deleted after the retention period untouched
 
 **Decision:** Each night the task worker (DR-44) deletes the registration drafts (DR-140) with no
-activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days (30 by default, DR-139), and any older
-registrations started but never finished that nobody has changed in that time, counted from their
-last change, with their campers, charges and pricing overrides. They're deleted for real, not soft-deleted (DR-55), and one never completed leaves
-nothing in the audit log, which starts at completion (DR-139). One with a payment, even a deleted one,
-is left alone, as is one with a PayPal capture on one of its invoices that may yet be recorded as
-a payment (DR-133). Invitations and sent email that point at one keep their rows, unlinked from it,
-so an invitee can register again. The run is at 3 a.m. California time; a command runs it on
+activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days (30 by default, DR-139), counted from their
+last activity. They're deleted for real, not soft-deleted (DR-55), and leave nothing in the audit
+log, which starts at completion (DR-139). A draft holds no payment or PayPal capture, which begin
+only once it's a registration (DR-133). Invitations and sent email that went with one keep their
+rows, so an invitee can register again. The run is at 3 a.m. California time; a command runs it on
 demand and previews what it would delete.
 **Context:** Every registrant who stops partway leaves a registration behind, which piles up in
 `incomplete_registrations` and the database (GitHub #339). A month leaves time to follow up
@@ -4464,8 +4461,7 @@ registrant came back to recently. A few days — too short to follow up. Deletin
 payment too — money is never deleted by a background job.
 **Note (DR-91):** a registrant who presses PayPal and doesn't finish is completed now, so they're
 in the admin lists rather than left as an incomplete registration.
-**Note (DR-140):** an incomplete registration is a draft now; the rule for older registrations
-covers those migration 0089 left, which hold an invoice, payment, charge or override.
+**Note (DR-140, DR-141):** an incomplete registration is a draft now, and there are no others.
 
 ### DR-77 — Keep PayPal's card button; block the page only after approval
 
@@ -5823,17 +5819,13 @@ leave out, and repeat the server's rule. Link the invitation only on completion 
 
 **Decision:** Personal details from a registration nobody finished are kept only as long as they
 help a registrar reach that person.
-- **The audit log starts at completion.** Nothing is logged for a registration that isn't
-  completed, or for its campers, custom charges, pricing overrides, invoices or payments. The save
-  that completes one, by the payment step or an organizer setting `completed`, writes a `create`
-  entry for it and each of those records still there, as they stand then, in place of an update,
-  so a history opens with the whole record. After that everything is logged as usual. A registration set back
-  to incomplete stops being logged until it's completed again, which writes those entries again,
-  and what the log already holds for it stays, even if the clean-up then deletes it.
+- **The audit log starts at completion.** Nothing is logged for a draft, and a registration is
+  made only at completion (DR-140, DR-141), so its first entries are `create` entries for it and
+  its campers, holding the whole record. After that everything is logged as usual.
   Migration 0088 deletes what the log held from before this rule: all of an incomplete
-  registration's entries, all of a deleted one's that never was completed, and any others' from
-  before their first completion. A registration completed before that keeps its history from the
-  entry that completed it.
+  registration's entries, unless it has an invoice or payment, which stays on record (DR-141); all
+  of a deleted one's that never was completed; and any others' from before their first completion.
+  A registration completed before that keeps its history from the entry that completed it.
 - **One retention period.** `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` (30 by default, from 1 to 36500)
   is how long an incomplete registration is kept without a change (DR-76). Anything that states
   the period reads this setting.
@@ -5848,6 +5840,8 @@ help a registrar reach that person.
 contacts, from people who never finished. The log kept a full copy of their answers indefinitely,
 long after the clean-up deleted them, where no screen could show it (GitHub #942). The period was
 a constant, so a deployment couldn't change it.
+**Note (DR-141):** until `completed` was removed, a `pre_log` receiver stopped entries for an
+incomplete registration, and completing one wrote the `create` entries. Nothing needs that now.
 **Alternatives:** Keep logging and have the clean-up delete a registration's entries: every
 incomplete registration's answers would still sit in the log for the whole period, and in backups
 of it. Log a registration's first save at completion as an update showing `completed` change:
@@ -5897,6 +5891,34 @@ page: an idle tab would look active. Returning the answers from a save: the brow
 a leaked `uuid` shouldn't reveal them. A save on every keystroke: load for nothing a registrar can
 use. Starting a draft on opening the page: visitors, crawlers and bots would leave records.
 
+### DR-141 — A registration has no `completed` flag
+
+**Decision:** `Registration.completed` is removed from the model and API, along with the `completed`
+and `registration__completed` filters, because every registration is completed: one is made only
+when a payment button is pressed (DR-140), or added by an organizer through the API, which counts
+as completed with its confirmation already dealt with. `completed_at` stays, as the fact it
+records, and the confirmation sweep reads it (DR-91). Templates keep `registration.completed`, true
+for a registration and false for a submitted draft in `incomplete_registrations`, as do
+client-side reports, whose bundle sets it, and recipient rules keep the field, since saved
+templates and rules may use them. A list asked to filter on either gone name answers 400 (DR-136),
+so an admin page loaded before this reaches a release must be reloaded. Setting a registration back to
+incomplete, and marking one completed through the API, go with the field. Migration 0090 settles
+what migration 0089 left incomplete: one with an invoice or payment becomes an ordinary registration
+in the admin lists, even if it was deleted, keeping its audit history (DR-139), with `completed_at`
+and `confirmation_sent_at` filled in from its last change so the worker doesn't send a confirmation
+about a registration from long ago; the rest, which were deleted or hold only a charge or override,
+are deleted, with no retention period, and their ids are printed. Undoing it marks every
+registration completed, as each one is, and doesn't bring those back.
+**Context:** After DR-140 the flag could only be true on new rows, yet every list, report, price and
+lodging count still filtered on it, and the audit log kept a receiver to tell the two apart. A flag
+that can't be false invites code that handles a state that doesn't exist.
+**Alternatives:** Keep the column for the rows 0089 left: every query keeps its filter for a handful
+of rows no one can open. Delete those rows too: money is never deleted by a background job, and a
+registrar should see a payment that was recorded. Send them their confirmation: an email about a
+registration from long ago, which the sweep would otherwise send. Remove `registration.completed` from
+templates as well: templates and recipient rules live in events' own repositories and saved
+records, and would break for no gain.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -5943,7 +5965,7 @@ must be coordinated with the backend. Grouped by status.
   `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`
   filtering (`django-filter`; a list refuses a parameter it doesn't filter by, DR-136). The client
-  fetches per-event sets via these filters (e.g. `?event=`, `?completed=1`) and does table ops client-side (DR-25). The entity field
+  fetches per-event sets via these filters (e.g. `?event=`) and does table ops client-side (DR-25). The entity field
   shapes in §5 must stay in sync with the serializers and the client's API types (§5, DR-27).
 - **Registration/payment:** `GET`/`POST /api/events/{id}/register` — the `ApiRegister` config
   bundle (including `registrationErrorMessages`) and the `step: 'registration' |
@@ -5978,10 +6000,9 @@ must be coordinated with the backend. Grouped by status.
   `GET …/templates/check` with the shapes in §5 (§8.7, §9.3, §9.6; DR-35, DR-36, DR-37).
 - **Server-authoritative pricing:** the server recomputes and returns `serverPricingResults`,
   which the client adopts (§5, §11).
-- **Nightly clean-up:** the task worker deletes incomplete registrations nobody has changed in
-  the retention period (`CAMPHORIC_INCOMPLETE_RETENTION_DAYS`, DR-139), with no payment nor a
-  PayPal capture that may yet become one (§9.3; DR-76, DR-133),
-  and lapsed edit leases (DR-110).
+- **Nightly clean-up:** the task worker deletes registration drafts with no activity in the
+  retention period (`CAMPHORIC_INCOMPLETE_RETENTION_DAYS`; §9.3; DR-76, DR-139, DR-140) and lapsed
+  edit leases (DR-110).
 
 ### A.2 — Needs a backend change (coordinate)
 

@@ -60,7 +60,6 @@ erDiagram
     }
     REGISTRATION {
         json server_pricing_results "the price; no handling"
-        bool completed "a payment button was pressed"
         datetime completed_at
         datetime confirmation_sent_at
     }
@@ -181,9 +180,9 @@ flowchart TD
 
 - Until a payment button is pressed there's only a **draft** (`RegistrationDraft`, DR-140), which
   is **submitted** when the form is sent. Its `uuid` is the `registrationUUID` the payment steps
-  name. The button makes the registration from the draft under the same `uuid`
-  (`RegisterView.registration_from_draft`) and **completes** it (`RegisterView.complete`), in one
-  transaction; a refusal leaves the draft as it was. It's in the admin lists from then on. A
+  name. The button makes the registration from the draft under the same `uuid`, which is what
+  **completes** it (`RegisterView.registration_from_draft`), in one transaction; a refusal leaves
+  the draft as it was. Every registration is completed (DR-141), so it's in the admin lists. A
   draft holds no lodging, so the check runs again here, under the lodging lock, and a place that
   has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
   again. The registration is dated when the form was submitted, as early-bird pricing reads
@@ -570,8 +569,8 @@ with a 409 saying why (`held_message`):
   leave the $410 capture's $10 fee off the invoice. The admin's edit dialog doesn't let the
   amount or fee change, and the record-payment dialog doesn't offer the invoice.
 
-The nightly clean-up doesn't delete an incomplete registration with a capture on one of its
-invoices (`cleanup.abandoned_registrations`). Every write to an invoice (edit, cancel, reopen,
+The nightly clean-up deletes only drafts, and a capture only begins on a registration, so it
+never touches one. Every write to an invoice (edit, cancel, reopen,
 delete) locks its registration before the invoice (`views.lock_registration_first`), the order
 the payment step, a capture and "Check PayPal order" take them in, so none deadlocks with them.
 
@@ -861,8 +860,7 @@ sequenceDiagram
 - **What the page shows**, and doesn't (DR-95). The link may be forwarded, so: the event's name;
   the invoice's number, description, memo, due date, amount, handling, paid and due, and status;
   the campers as first name and last initial. Never the invoice's notes, the registrant's email
-  or the rest of the registration. A token of an incomplete registration's invoice is a 404, like
-  an unknown one.
+  or the rest of the registration.
 - **Abuse.** The endpoints are open to anyone, so they're throttled per client (scope
   `invoice_pay`, `CAMPHORIC_INVOICE_PAY_RATE`, 60 a minute by default). Guessing a 32-character
   random token isn't practical, and the throttle keeps anyone from trying wholesale.

@@ -113,7 +113,7 @@ class RenderTests(TestCase):
     def test_no_model_methods_are_reachable(self):
         result = self.render('{{ registrations[0].delete() }}')
         self.assertTrue(self.errors(result))
-        self.assertEqual(models.Registration.objects.count(), 3)
+        self.assertEqual(models.Registration.objects.count(), 2)
 
     def test_camphoric_objects_are_read_only(self):
         for source in ("{% do campers[0].update({'x': 1}) %}",

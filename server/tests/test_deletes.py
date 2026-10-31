@@ -44,7 +44,7 @@ class LodgingTests(DeleteTestCase):
         self.assertEqual(self.entry(preview['deletes'], 'lodging')['items'], ['Cabin A', 'Cabin B'])
         unassigned = next(c for c in preview['changes']
                           if c['description'] == 'will be unassigned from their lodging')
-        self.assertEqual(unassigned['items'], ['Pat Alpha', 'Sam Alpha', 'Drew Gamma'])
+        self.assertEqual(unassigned['items'], ['Pat Alpha', 'Sam Alpha'])
         requested = next(c for c in preview['changes'] if 'asked for' in c['description'])
         self.assertEqual(requested['items'], ['Pat Alpha'])
         # A preview changes nothing.
@@ -52,7 +52,7 @@ class LodgingTests(DeleteTestCase):
         self.assertEqual(made.c1.lodging, made.cabin_a)
 
         self.assertEqual(self.client.delete(path).status_code, 204)
-        for camper in (made.c1, made.c2, made.c4):
+        for camper in (made.c1, made.c2):
             camper.refresh_from_db()
             self.assertIsNone(camper.lodging)
             self.assertIsNone(camper.stay)
@@ -139,7 +139,7 @@ class EventTests(DeleteTestCase):
         path = f'/api/events/{self.made.event.id}/'
         preview = self.preview(path)
         self.assertFalse(preview['can_delete'])
-        self.assertEqual(preview['blocked_by'][0]['count'], 3)
+        self.assertEqual(preview['blocked_by'][0]['count'], 2)
         self.assertEqual(self.client.delete(path).status_code, 409)
 
     def test_an_admin_can_delete_one_without_registrations(self):

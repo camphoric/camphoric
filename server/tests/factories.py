@@ -8,6 +8,8 @@ import datetime
 from decimal import Decimal
 import zoneinfo
 
+from django.utils import timezone
+
 from camphoric import models
 
 PACIFIC = zoneinfo.ZoneInfo('America/Los_Angeles')
@@ -131,7 +133,7 @@ def create_template_event():
     made.tent_1 = lodging.create(name='Tent 1', parent=made.tents, capacity=2, visible=True)
 
     made.r1 = models.Registration.objects.create(
-        event=event, registrant_email='pat@example.com', completed=True,
+        event=event, registrant_email='pat@example.com',
         attributes={'comments': 'Hi', 'campership_donation': 25,
                     'address': {'street': '1 Main St', 'city': 'Berkeley'}},
     )
@@ -154,7 +156,7 @@ def create_template_event():
         custom_charge_type=made.linens, camper=made.c1, amount=Decimal('25.00'), notes='Sheets')
 
     made.r2 = models.Registration.objects.create(
-        event=event, registrant_email='lee@example.com', completed=True,
+        event=event, registrant_email='lee@example.com',
         registration_type=made.staff, attributes={'staff_role': 'Cook'},
     )
     made.c3 = made.r2.campers.create(
@@ -167,11 +169,15 @@ def create_template_event():
             registration=made.r2, amount=Decimal(amount),
             paid_on=datetime.date(2026, 10, day), payment_type='PayPal')
 
-    made.r3 = models.Registration.objects.create(
-        event=event, registrant_email='drew@example.com', completed=False,
-    )
-    made.c4 = made.r3.campers.create(
-        sequence=0, lodging=made.cabin_b, attributes={'first_name': 'Drew', 'last_name': 'Gamma'})
+    # Sent, but no payment button pressed: an incomplete registration to templates.
+    made.draft = models.RegistrationDraft.objects.create(
+        event=event, registrant_email='drew@example.com', submitted_at=timezone.now(),
+        form_data={
+            'registrant_email': 'drew@example.com',
+            'campers': [{'first_name': 'Drew', 'last_name': 'Gamma',
+                         'lodging': {'lodging_requested': {'id': made.cabin_b.id}}}],
+        },
+        server_pricing_results={'total': 400, 'campers': [{'total': 400}]})
 
     made.invited = models.Invitation.objects.create(
         registration_type=made.staff, registration=made.r2, recipient_name='Lee',
@@ -180,7 +186,7 @@ def create_template_event():
         registration_type=made.staff, recipient_name='Kim',
         recipient_email='kim@example.com', invitation_code='wxyz6789')
 
-    for registration in (made.r1, made.r2, made.r3):
+    for registration in (made.r1, made.r2):
         registration.recalculate_server_pricing()
         registration.refresh_from_db()
 

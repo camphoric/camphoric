@@ -55,10 +55,9 @@ export const emailAccountHooks = createEntityHooks<ApiEmailAccount, 'organizatio
   // The queue status names the event's account and its limits.
   alsoInvalidate: ['EmailQueue'],
 });
-export const registrationHooks = createEntityHooks<
-  ApiRegistration,
-  'event' | 'completed' | 'registration_type'
->({ name: 'Registration' });
+export const registrationHooks = createEntityHooks<ApiRegistration, 'event' | 'registration_type'>({
+  name: 'Registration',
+});
 // Deleting a type drops it from the promo codes that exclude it (§15, DR-107).
 export const registrationTypeHooks = createEntityHooks<ApiRegistrationType, 'event'>({
   name: 'RegistrationType',
@@ -76,7 +75,7 @@ export const lodgingHooks = createEntityHooks<ApiLodging, 'event'>({
 });
 export const camperHooks = createEntityHooks<
   ApiCamper,
-  'event' | 'registration' | 'registration__event' | 'registration__completed' | 'lodging'
+  'event' | 'registration' | 'registration__event' | 'lodging'
 >({
   name: 'Camper',
   alsoInvalidate: ['Registration'],
@@ -93,7 +92,7 @@ export const paymentHooks = createEntityHooks<
 // An invoice's handling fee is part of what the registration owes (§9.7).
 export const invoiceHooks = createEntityHooks<
   ApiInvoice,
-  'event' | 'registration' | 'registration__event' | 'registration__completed'
+  'event' | 'registration' | 'registration__event'
 >({
   name: 'Invoice',
   alsoInvalidate: ['Registration', 'Payment'],

@@ -531,10 +531,8 @@ class InvitationSerializer(ModelSerializer):
         return invitation.is_redeemed()
 
     def get_registration_deleted(self, invitation):
-        # A started registration deleted before it was completed never redeemed it.
         registration = invitation.registration
-        return (registration is not None and registration.completed
-                and registration.deleted_at is not None)
+        return registration is not None and registration.deleted_at is not None
 
     def get_email(self, invitation):
         message = (models.EmailMessage.objects.filter(invitation=invitation)

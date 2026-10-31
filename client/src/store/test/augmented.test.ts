@@ -14,7 +14,6 @@ const reg = (over: Partial<ApiRegistration> & { id: number }): ApiRegistration =
   ({
     event: 1,
     registration_type: 0,
-    completed: true,
     server_pricing_results: { total: 0, campers: [] },
     ...over,
   }) as ApiRegistration;
@@ -65,18 +64,17 @@ describe('buildRegistrationLookup', () => {
   });
 });
 
+describe('buildRegistrationLookup', () => {
+  it('gives client-side reports the `completed` they may read (§15, DR-141)', () => {
+    const lookup = buildRegistrationLookup([reg({ id: 1 })], [], {}, '1');
+    expect(lookup[1]?.completed).toBe(true);
+  });
+});
+
 describe('buildCamperLookup', () => {
-  it('includes only campers of completed registrations for the event', () => {
-    const registrations = [
-      reg({ id: 1, completed: true }),
-      reg({ id: 2, completed: false }), // incomplete — campers excluded
-      reg({ id: 3, event: 999, completed: true }), // other event
-    ];
-    const campers = [
-      camper({ id: 10, registration: 1 }),
-      camper({ id: 11, registration: 2 }),
-      camper({ id: 12, registration: 3 }),
-    ];
+  it('includes only campers of the event’s registrations', () => {
+    const registrations = [reg({ id: 1 }), reg({ id: 3, event: 999 })];
+    const campers = [camper({ id: 10, registration: 1 }), camper({ id: 12, registration: 3 })];
 
     const lookup = buildCamperLookup(registrations, campers, '1');
 

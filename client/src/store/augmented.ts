@@ -54,6 +54,8 @@ export function buildRegistrationLookup(
     .forEach((r) => {
       const augmented: AugmentedRegistration = {
         ...r,
+        // Client-side reports may still read it, though every registration is now (§15, DR-141).
+        completed: true,
         total_payments: r.total_paid,
         total_balance: r.balance,
         registrationType:
@@ -67,21 +69,19 @@ export function buildRegistrationLookup(
   return lookup;
 }
 
-/** Campers belonging to completed registrations for the event, keyed by id. */
+/** Campers belonging to the event's registrations, keyed by id. */
 export function buildCamperLookup(
   registrations: ApiRegistration[],
   campers: ApiCamper[],
   eventId: string,
 ): CamperLookup {
-  const completedIds = new Set(
-    registrations
-      .filter((r) => sameId(r.event, eventId) && r.completed !== false)
-      .map((r) => r.id.toString()),
+  const registrationIds = new Set(
+    registrations.filter((r) => sameId(r.event, eventId)).map((r) => r.id.toString()),
   );
 
   const lookup: CamperLookup = {};
   campers
-    .filter((c) => completedIds.has(c.registration.toString()))
+    .filter((c) => registrationIds.has(c.registration.toString()))
     .forEach((c) => (lookup[c.id] = c));
   return lookup;
 }

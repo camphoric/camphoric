@@ -65,7 +65,7 @@ class EventFilterTests(FilterTestCase):
             {self.made.invited.id, self.made.pending.id})
         self.assertEqual(
             self.listed('/api/campers/', registration__event=event),
-            {self.made.c1.id, self.made.c2.id, self.made.c3.id, self.made.c4.id})
+            {self.made.c1.id, self.made.c2.id, self.made.c3.id})
         self.assertEqual(
             self.listed('/api/customcharges/', custom_charge_type__event=event),
             set(models.CustomCharge.objects.filter(

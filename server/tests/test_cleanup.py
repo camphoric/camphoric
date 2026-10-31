@@ -1,5 +1,4 @@
 import datetime
-from decimal import Decimal
 from io import StringIO
 
 from auditlog.models import LogEntry
@@ -22,91 +21,6 @@ class CleanUpTestCase(TestCase):
         organization = models.Organization.objects.create(name='Org')
         self.event = models.Event.objects.create(organization=organization, name='Camp')
 
-    def registration(self, *, completed=False, changed=MONTH_AGO, campers=1):
-        registration = models.Registration.objects.create(
-            event=self.event, registrant_email='pat@example.com', completed=completed)
-        for _ in range(campers):
-            models.Camper.objects.create(registration=registration, attributes={})
-        # updated_at is set on every save, so backdate it with an update.
-        models.Registration.all_objects.filter(id=registration.id).update(updated_at=changed)
-        return registration
-
-    def exists(self, registration):
-        return models.Registration.all_objects.filter(id=registration.id).exists()
-
-
-class DeleteAbandonedRegistrationsTests(CleanUpTestCase):
-    def test_an_incomplete_registration_untouched_for_a_month_goes_with_its_campers(self):
-        abandoned = self.registration(campers=2)
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 1)
-        self.assertFalse(self.exists(abandoned))
-        self.assertFalse(models.Camper.all_objects.filter(registration_id=abandoned.id).exists())
-
-    def test_a_recently_changed_incomplete_registration_stays(self):
-        recent = self.registration(changed=timezone.now() - datetime.timedelta(days=29))
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
-        self.assertTrue(self.exists(recent))
-
-    @override_settings(CAMPHORIC_INCOMPLETE_RETENTION_DAYS=7)
-    def test_the_retention_setting_says_how_long_they_stay(self):
-        expired = self.registration(changed=timezone.now() - datetime.timedelta(days=8))
-        kept = self.registration(changed=timezone.now() - datetime.timedelta(days=6))
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 1)
-        self.assertFalse(self.exists(expired))
-        self.assertTrue(self.exists(kept))
-
-    def test_it_leaves_nothing_in_the_audit_log(self):
-        abandoned = self.registration(campers=2)
-        cleanup.delete_abandoned_registrations()
-        self.assertFalse(LogEntry.objects.filter(
-            additional_data__registration=abandoned.id).exists())
-
-    def test_a_completed_registration_stays(self):
-        completed = self.registration(completed=True)
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
-        self.assertTrue(self.exists(completed))
-
-    def test_a_registration_paypal_may_yet_record_a_payment_on_stays(self):
-        # A capture PayPal is processing, on an invoice of its own (#767).
-        held = self.registration()
-        models.Invoice.objects.create(
-            registration=held, origin=models.InvoiceOrigin.ADMIN, amount=Decimal('10'),
-            pending_paypal_order_id='ORDER', paypal_capture_order_id='ORDER',
-            paypal_capture_started_at=MONTH_AGO, paypal_capture_pending_at=MONTH_AGO)
-        models.Registration.all_objects.filter(id=held.id).update(updated_at=MONTH_AGO)
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
-        self.assertTrue(self.exists(held))
-
-    def test_a_registration_with_a_payment_stays_even_a_deleted_payment(self):
-        paid = self.registration()
-        models.Payment.objects.create(registration=paid, amount=Decimal('10'))
-        refunded = self.registration()
-        models.Payment.objects.create(
-            registration=refunded, amount=Decimal('10')).soft_delete()
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 0)
-        self.assertTrue(self.exists(paid))
-        self.assertTrue(self.exists(refunded))
-
-    def test_a_deleted_incomplete_registration_goes_too(self):
-        deleted = self.registration()
-        deleted.soft_delete()
-        models.Registration.all_objects.filter(id=deleted.id).update(updated_at=MONTH_AGO)
-        self.assertEqual(cleanup.delete_abandoned_registrations(), 1)
-        self.assertFalse(self.exists(deleted))
-
-    def test_its_invitation_is_kept_for_another_try(self):
-        abandoned = self.registration()
-        registration_type = models.RegistrationType.objects.create(
-            event=self.event, name='crew', label='Crew')
-        invitation = models.Invitation.objects.create(
-            registration_type=registration_type, recipient_email='pat@example.com',
-            registration=abandoned)
-        cleanup.delete_abandoned_registrations()
-        invitation.refresh_from_db()
-        self.assertIsNone(invitation.registration)
-
-
-class DeleteAbandonedDraftsTests(CleanUpTestCase):
     def draft(self, active=MONTH_AGO, **fields):
         return models.RegistrationDraft.objects.create(
             event=self.event, last_activity_at=active, **fields)
@@ -114,6 +28,8 @@ class DeleteAbandonedDraftsTests(CleanUpTestCase):
     def exists(self, draft):
         return models.RegistrationDraft.objects.filter(id=draft.id).exists()
 
+
+class DeleteAbandonedDraftsTests(CleanUpTestCase):
     def test_drafts_with_no_activity_for_the_period_go_submitted_or_not(self):
         being_filled_in = self.draft()
         submitted = self.draft(submitted_at=MONTH_AGO)
@@ -135,9 +51,18 @@ class DeleteAbandonedDraftsTests(CleanUpTestCase):
         self.assertFalse(self.exists(expired))
         self.assertTrue(self.exists(kept))
 
-    def test_a_nightly_run_deletes_them(self):
+    def test_it_leaves_nothing_in_the_audit_log(self):
+        before = LogEntry.objects.count()
         self.draft()
-        self.assertEqual(cleanup.clean_up.call()['deleted_drafts'], 1)
+        cleanup.delete_abandoned_drafts()
+        self.assertEqual(LogEntry.objects.count(), before)
+
+    def test_a_registration_is_never_touched(self):
+        registration = models.Registration.objects.create(
+            event=self.event, registrant_email='pat@example.com')
+        models.Registration.all_objects.filter(id=registration.id).update(updated_at=MONTH_AGO)
+        cleanup.delete_abandoned_drafts()
+        self.assertTrue(models.Registration.objects.filter(id=registration.id).exists())
 
 
 class ScheduleTests(CleanUpTestCase):
@@ -163,10 +88,9 @@ class ScheduleTests(CleanUpTestCase):
 
     @DATABASE_QUEUE
     def test_a_run_cleans_up_and_schedules_the_next_night(self):
-        abandoned = self.registration()
+        abandoned = self.draft()
         self.assertEqual(
-            cleanup.clean_up.call(),
-            {'deleted_drafts': 0, 'deleted_registrations': 1, 'purged_leases': 0})
+            cleanup.clean_up.call(), {'deleted_drafts': 1, 'purged_leases': 0})
         self.assertFalse(self.exists(abandoned))
         self.assertTrue(DBTaskResult.objects.filter(
             task_path=cleanup.clean_up.module_path, status='READY').exists())
@@ -179,22 +103,14 @@ class CleanUpCommandTests(CleanUpTestCase):
         return out.getvalue()
 
     def test_a_dry_run_counts_per_event_and_deletes_nothing(self):
-        abandoned = self.registration()
-        self.registration()
+        abandoned = self.draft()
+        self.draft()
         output = self.run_command(dry_run=True)
         self.assertIn('Camp: 2', output)
-        self.assertIn('2 abandoned registration(s) would be deleted.', output)
+        self.assertIn('2 abandoned registration draft(s) would be deleted.', output)
         self.assertTrue(self.exists(abandoned))
 
-    def test_a_dry_run_counts_drafts_too(self):
-        draft = models.RegistrationDraft.objects.create(
-            event=self.event, last_activity_at=MONTH_AGO)
-        output = self.run_command(dry_run=True)
-        self.assertIn('1 abandoned registration draft(s) would be deleted.', output)
-        self.assertIn('Deleted 1 abandoned registration draft(s).', self.run_command())
-        self.assertFalse(models.RegistrationDraft.objects.filter(id=draft.id).exists())
-
     def test_it_deletes_them(self):
-        abandoned = self.registration()
-        self.assertIn('Deleted 1 abandoned registration(s).', self.run_command())
+        abandoned = self.draft()
+        self.assertIn('Deleted 1 abandoned registration draft(s).', self.run_command())
         self.assertFalse(self.exists(abandoned))

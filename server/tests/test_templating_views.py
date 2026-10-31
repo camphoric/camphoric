@@ -167,7 +167,7 @@ class TemplatePreviewTests(APITestCase):
         other_event = models.Event.objects.create(
             organization=self.made.organization, name='Other')
         other = models.Registration.objects.create(
-            event=other_event, registrant_email='x@example.com', completed=True)
+            event=other_event, registrant_email='x@example.com')
         response = self.preview(context='confirmation_email', output='email', template='',
                                 registration_id=other.id)
         self.assertEqual(response.status_code, 400)

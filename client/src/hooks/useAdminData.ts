@@ -24,9 +24,8 @@ export function useRegistrationTypeLookup(eventId: string): RegistrationTypeLook
  * type, and money totals. Returns undefined until the dependencies have loaded.
  */
 export function useAugmentedRegistrations(eventId: string): AugmentedRegistration[] | undefined {
-  const { data: registrations } = registrationHooks.useList({ completed: 1, event: eventId });
+  const { data: registrations } = registrationHooks.useList({ event: eventId });
   const { data: campers } = camperHooks.useList({
-    registration__completed: 1,
     registration__event: eventId,
   });
   const registrationTypeLookup = useRegistrationTypeLookup(eventId);
