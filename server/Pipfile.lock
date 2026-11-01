@@ -34,11 +34,11 @@
         },
         "asgiref": {
             "hashes": [
-                "sha256:59dcb51c272ad209d59bed5708a64a333083e86017d7fcdd67498eeab7784340",
-                "sha256:fe386d1c2bff7259ea95929266d12a8cf9a8b5a1c2598402967d8792e7a7c094"
+                "sha256:034cc8cbf72d00553b4be256703ac545120b4e50af13b49dec99da899aeeecb4",
+                "sha256:f9596a2434512686473d50f96ff6207fbba49ae1a785dfac614df4aeb085674d"
             ],
-            "markers": "python_version >= '3.10'",
-            "version": "==3.12.1"
+            "markers": "python_version >= '3.11'",
+            "version": "==3.13.0"
         },
         "attrs": {
             "hashes": [
@@ -524,12 +524,12 @@
         },
         "django-dbbackup": {
             "hashes": [
-                "sha256:029573a760ddd288eae26504dcf3d9013282a4d2fed7d723d113a9c5fefa8aaf",
-                "sha256:4ea14444ea879dbd247da0cb5ed3145f695ab240bb71a1706aaaaa7d092c584b"
+                "sha256:bc846ce4154585d4fd272947141a5b2b884f395f27713bba0bbe7943c9107480",
+                "sha256:d0ce7db54fbf7cad37ae82b757ae5ed84c00bdb63e1da2eed4f3dcd1b4e1e789"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==5.3.1"
+            "version": "==5.4.0"
         },
         "django-environ": {
             "hashes": [
@@ -1590,12 +1590,12 @@
     "develop": {
         "flake8": {
             "hashes": [
-                "sha256:78480274a6d7289d9cb8eafeda241fac57d4ea687d26e32dfdca37b72cdeddad",
-                "sha256:84ea5afcaf344487b0ea5baaebb8100f4cfaebc01f755998f75876664029f587"
+                "sha256:0dab7566341aca0d80aa29b5812bdadf256caa6a63e6068e49ac2649918236a4",
+                "sha256:637ea1a443a78ed6ee461725cdf71ca93bc5cde0abf25436dbebdc3880b4e078"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.10'",
-            "version": "==7.4.1"
+            "markers": "python_version >= '3.11'",
+            "version": "==7.5.0"
         },
         "freezegun": {
             "hashes": [
@@ -1624,11 +1624,11 @@
         },
         "pyflakes": {
             "hashes": [
-                "sha256:330ba92b8c1db2eb0b8f4068f6c58674e2649a99e334769aa50e3e9c5b11c23a",
-                "sha256:94762a3a5a343a79b28754f96c554bce057a592a4896907d73f0369fe824e053"
+                "sha256:592beb57058eb82eb190fb7514f2081c555c51000b029ff71286a681e6cf2f83",
+                "sha256:b2e05e6bac8e49b67be2a6ffa63422c60f7193fc72e8180255907b41ec997dc1"
             ],
-            "markers": "python_version >= '3.10'",
-            "version": "==4.0.3"
+            "markers": "python_version >= '3.11'",
+            "version": "==4.1.0"
         },
         "python-dateutil": {
             "hashes": [
