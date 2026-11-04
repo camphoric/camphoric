@@ -78,10 +78,13 @@ updates:
       prefix: chore
       include: scope
 
-  # Base images. Python 3.12, Node 26 and Postgres 16 are pinned together
-  # across the Pipfile, CI and the Dockerfiles (the root Dockerfile's
-  # NODE_VERSION/PYTHON_VERSION ARGs, which Dependabot can't update), so an
-  # image PR is a reminder to move them all, not a change to merge alone.
+  # Base images. Python 3.15, Node 26 and Postgres 16 are pinned together
+  # across the Pipfile (and its lock's _meta), CI and the Dockerfiles (the root
+  # Dockerfile's NODE_VERSION/PYTHON_VERSION ARGs, which Dependabot can't
+  # update), so an image PR is a reminder to move them all, not a change to
+  # merge alone. Python also sits in the Ansible role's camphoric_python_version
+  # (installed from the deadsnakes PPA, which must publish it for the hosts'
+  # Ubuntu) and CONTRIBUTING.md, RELEASE.md and VM_DEV_SETUP.md.
   # Node also sits in docker-compose.yml, ansible/group_vars/all.yml's
   # nodejs_version (and nodejs_supported_versions), the CI workflows'
   # node-version, README.md, doc/development.md and every package.json's

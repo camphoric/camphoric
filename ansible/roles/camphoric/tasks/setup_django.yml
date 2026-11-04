@@ -6,10 +6,32 @@
     # settings or static files) restarts it, once its service is set up
     # (handlers/main.yml, flushed in setup_django_service.yml), or at the
     # end of a failed run (site.yml's force_handlers).
+
+    # A virtualenv built on another Python (as 3.12 was before
+    # camphoric_python_version) is removed here and rebuilt below, rather than
+    # relying on pipenv to notice: apt's pipenv kept it even when told --python.
+    # '' when there's none yet.
+    - name: Find the virtualenv's Python
+      ansible.builtin.shell:
+        chdir: "{{ camphoric_folder }}/server"
+        cmd: >-
+          venv=$({{ pipenv_bin }} --venv 2>/dev/null) || exit 0;
+          "$venv/bin/python" -c 'import sys; print("%d.%d" % sys.version_info[:2])' || echo none
+      register: camphoric_venv_python
+      changed_when: false
+      check_mode: false
+
+    - name: Remove a virtualenv on another Python
+      ansible.builtin.command:
+        chdir: "{{ camphoric_folder }}/server"
+        cmd: "{{ pipenv_bin }} --rm"
+      when: camphoric_venv_python.stdout not in ['', camphoric_python_version]
+      notify: Restart camphoric
+
     - name: Install virtual environment
       ansible.builtin.shell:
         chdir: "{{ camphoric_folder }}/server"
-        cmd: "pipenv install {{ '--dev' if camphoric_environment == 'development' else '--deploy' }}"
+        cmd: "{{ pipenv_bin }} install --python /usr/bin/python{{ camphoric_python_version }} {{ '--dev' if camphoric_environment == 'development' else '--deploy' }}"
       notify: Restart camphoric
 
     - name: Create Django.env

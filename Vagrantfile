@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
       config.vm.box = 'bento/ubuntu-24.04'
   end
 
-  # The VM is always Ubuntu 24.04 (Python 3.12, PostgreSQL 16). Choosing another
+  # The VM is always Ubuntu 24.04 (PostgreSQL 16; the role adds Python 3.15). Choosing another
   # base box (CAMPHORIC_VAGRANT_BASE_IMAGE) is no longer supported: a leftover
   # setting quietly built a VM that can't run Camphoric.
   if ENV['CAMPHORIC_VAGRANT_BASE_IMAGE']

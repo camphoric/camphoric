@@ -124,7 +124,8 @@ code instead of downloading the release asset. A run of the camphoric role:
 
 1. Fails at its first task, outside `development`, while any secret is left at its placeholder
    default (see below).
-2. Installs its apt packages (nginx, pipenv, PostgreSQL and others), checks the Node version, and
+2. Installs its apt packages (nginx, PostgreSQL and others), Python 3.15 from the deadsnakes PPA
+   and pipenv from PyPI (into `/opt/pipenv`), checks the Node version, and
    creates the PostgreSQL user and database and the `camphoric_user` account if they're missing.
 3. Installs the server's Python packages with `pipenv` (`--deploy` outside `development`) and
    writes `server/.env` and `server/camphoric_server/settings_override.py` from its templates.
@@ -151,10 +152,13 @@ file (see [the role's README](./ansible/roles/camphoric/README.md#secrets)).
 
 ### Host requirements
 
-The server runs on Django 6.1 with **Python 3.12+** and **PostgreSQL 16+** (the version it's
-tested against; Django 6.1 itself needs 15 or newer). Ubuntu 22.04's
+The server runs on Django 6.1 with **Python 3.15** and **PostgreSQL 16+** (the version it's
+tested against; Django 6.1 itself needs 15 or newer). Ubuntu 24.04 ships Python 3.12, so the
+Ansible role installs Python 3.15 from the [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa)
+and pipenv from PyPI (apt's pipenv can't install into 3.15). It also rebuilds the server's
+virtualenv on 3.15 the first time it deploys a release that needs it. Ubuntu 22.04's
 packages (Python 3.10, PostgreSQL 14) are too old, so upgrade the host before deploying a release
-that includes the upgrade. On Ubuntu 24.04 (Python 3.12, PostgreSQL 16), which the development
+that includes the upgrade. On Ubuntu 24.04 (PostgreSQL 16), which the development
 Ansible role also targets:
 
 1. Back up the database, leaving out registration drafts, which are never backed up:
@@ -164,7 +168,7 @@ Ansible role also targets:
 3. On a fresh host, restore the dump: `psql camphoric < camphoric.sql`.
 4. Deploy the release, which runs the migrations.
 
-The container image already meets the Python requirement; its `DATABASE_URL` must point at
+The container image already meets the Python requirement (it's built on Python 3.15); its `DATABASE_URL` must point at
 PostgreSQL 16 or newer.
 
 ---
