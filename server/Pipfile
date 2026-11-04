@@ -37,4 +37,4 @@ cryptography = "*"
 django-auditlog = ">=3.4"
 
 [requires]
-python_version = "3.12"
+python_version = "3.15"

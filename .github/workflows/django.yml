@@ -47,7 +47,7 @@ jobs:
       max-parallel: 4
       matrix:
         # Matches the Pipfile's python_version; pipenv won't build with another.
-        python-version: ['3.12']
+        python-version: ['3.15']
 
     services:
       db_service:
@@ -89,7 +89,7 @@ jobs:
         # The static directories settings expect (the built client, collected
         # files), so the system checks and whitenoise don't warn about them.
         run: mkdir -p frontend_bootstrap/build/static static
-      # Keyed on the exact Python (e.g. 3.12.15), not just 3.12: a virtualenv
+      # Keyed on the exact Python (e.g. 3.15.2), not just 3.15: a virtualenv
       # built under one patch release is broken under the next, and the
       # runner image updates it without notice.
       - id: cache-pipenv

@@ -1,0 +1,45 @@
+#SPDX-License-Identifier: MIT-0
+---
+# The Python the server runs on (camphoric_python_version, server/Pipfile's
+# python_version) and the pipenv that builds its virtualenv. Ubuntu 24.04 ships
+# Python 3.12, so the server's Python comes from the deadsnakes PPA, beside the
+# system python3 that Ansible itself runs on.
+- name: Add the deadsnakes PPA
+  ansible.builtin.apt_repository:
+    repo: ppa:deadsnakes/ppa
+    state: present
+
+- name: Install Python {{ camphoric_python_version }}
+  ansible.builtin.apt:
+    pkg:
+      - "python{{ camphoric_python_version }}"
+      - "python{{ camphoric_python_version }}-dev" # headers for psycopg[c]
+      - "python{{ camphoric_python_version }}-venv"
+    state: latest
+    cache_valid_time: 3600
+
+# The pip module runs on Ansible's python3 and needs its packaging library (which
+# apt's pipenv used to bring in).
+- name: Install the pip module's requirements
+  ansible.builtin.apt:
+    name: python3-packaging
+    state: present
+
+# apt's pipenv (2023.12.1 on 24.04) bundles a pip that can't install packages
+# into Python 3.15, so pipenv comes from PyPI, in a virtualenv of its own. A host
+# that has apt's too keeps it (it's behind this one on PATH): until a run rewrites
+# the systemd units, they still start /usr/bin/pipenv, so removing it would leave
+# a run that fails before then unable to restart the site.
+- name: Install pipenv
+  ansible.builtin.pip:
+    name: pipenv
+    virtualenv: "{{ pipenv_venv }}"
+    virtualenv_command: "/usr/bin/python{{ camphoric_python_version }} -m venv"
+
+# /usr/local/bin is ahead of /usr/bin on PATH, so a bare `pipenv` (in the tasks
+# here, or typed on the host) is this one too.
+- name: Put pipenv on PATH
+  ansible.builtin.file:
+    src: "{{ pipenv_venv }}/bin/pipenv"
+    dest: "{{ pipenv_bin }}"
+    state: link

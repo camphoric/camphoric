@@ -23,9 +23,9 @@ brew install openssl postgresql
 brew services start postgresql
 ```
 
-Install Python 3 (this will take care of pip3) and pipenv with:
+Install Python 3.15 (the Pipfile's `python_version`; this will take care of pip3) and pipenv with:
 ```
-brew install python3 pipenv
+brew install python@3.15 pipenv
 ```
 
 Move to the following section: [Set up the Python environment](#set-up-the-python-environment).
@@ -38,16 +38,16 @@ sudo apt install postgresql libpq-dev
 sudo service postgresql start
 ```
 
-Ubuntu includes Python 3 by default.
+Ubuntu's own Python 3 is older than the Pipfile's `python_version` (3.15), so install 3.15
+from the deadsnakes PPA:
+```
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.15 python3.15-dev python3.15-venv
+```
 
-Install pip:
+Install pipenv (apt's is too old to install into Python 3.15):
 ```
-sudo apt install python3-pip
-```
-
-Install pipenv:
-```
-pip3 install --user pipenv
+python3.15 -m pip install --user pipenv
 ```
 
 ## Set up the Python environment

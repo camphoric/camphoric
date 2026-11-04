@@ -39,8 +39,12 @@ camphoric_paypal_base_url: https://api-m.sandbox.paypal.com
 camphoric_paypal_client_id: this-should-be-in-vault
 camphoric_paypal_secret: this-should-be-in-vault
 
-# apt's pipenv (Ubuntu 24.04 refuses system-wide pip installs, PEP 668)
-pipenv_bin: /usr/bin/pipenv
+# The server's Python: server/Pipfile's python_version. install_python.yml installs it
+# from the deadsnakes PPA (Ubuntu 24.04's own python3 is 3.12).
+camphoric_python_version: "3.15"
+# pipenv, from PyPI in a virtualenv of its own (install_python.yml), linked onto PATH.
+pipenv_venv: /opt/pipenv
+pipenv_bin: /usr/local/bin/pipenv
 
 # For playbooks outside ansible/, which don't load ansible/group_vars: site.yml's value
 # comes from group_vars/all.yml, where nodesource.node sees it too.

@@ -1,4 +1,4 @@
-FROM python:3.12-bookworm
+FROM python:3.15-bookworm
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends gcc bash libffi-dev \

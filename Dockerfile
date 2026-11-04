@@ -11,7 +11,7 @@
 #                  running the ASGI app on uvicorn workers
 
 ARG NODE_VERSION=26
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.15
 
 # ---- frontend: build client -------------------------------------------------
 FROM node:${NODE_VERSION}-alpine AS frontend

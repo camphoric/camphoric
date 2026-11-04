@@ -3,9 +3,7 @@
 - name: Install apt prerequisites
   apt:
     pkg:
-      - python3
-      - python3-dev
-      - pipenv # required for django setup
+      - python3 # Ansible's own (the server's Python: install_python.yml)
       - python3-psycopg2 # required for the community.postgresql modules
       - libffi-dev
       - openssl
@@ -18,6 +16,9 @@
     update_cache: true
     # Refresh the package lists at most once an hour, not on every provision.
     cache_valid_time: 3600
+
+- name: Install Python and pipenv
+  include_tasks: install_python.yml
 
 - name: Check node is installed
   ansible.builtin.raw: node --version
