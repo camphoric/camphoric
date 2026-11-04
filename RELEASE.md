@@ -142,7 +142,10 @@ code instead of downloading the release asset. A run of the camphoric role:
    collectstatic and the migrations have succeeded: a run that fails after them still restarts
    onto the new code and static files. If collectstatic fails after the new build is installed,
    the forced restart serves the new `index.html` without its bundles. If the migrations fail, it
-   runs the new code on the old schema. Either way, fix the cause and run the playbook again.
+   runs the new code on the old schema. If the server's virtualenv was being rebuilt on a new
+   Python (step 3: the old one is removed first) and the package install fails, as when PyPI
+   can't be reached or a package fails to compile, there's no virtualenv to restart onto, so the
+   site stays down. Either way, fix the cause and run the playbook again.
 7. Installs the nginx site (reloading nginx when the site changed) and, outside `production`, loads sample data into
    an empty database (only `development` installs the `data/` packages the import needs).
 

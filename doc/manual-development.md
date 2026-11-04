@@ -42,12 +42,15 @@ Ubuntu's own Python 3 is older than the Pipfile's `python_version` (3.15), so in
 from the deadsnakes PPA:
 ```
 sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt install python3.15 python3.15-dev python3.15-venv
+sudo apt install python3.15 python3.15-dev python3.15-venv pipx
 ```
 
-Install pipenv (apt's is too old to install into Python 3.15):
+Install pipenv on Python 3.15 with pipx (apt's pipenv is too old to install into 3.15, and
+deadsnakes' Pythons come without pip). It lands in `~/.local/bin`; `pipx ensurepath` puts that on
+your PATH:
 ```
-python3.15 -m pip install --user pipenv
+pipx install --python python3.15 pipenv
+pipx ensurepath
 ```
 
 ## Set up the Python environment

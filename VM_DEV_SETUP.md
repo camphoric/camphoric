@@ -256,7 +256,9 @@ Rebuilding the VM
 The VM runs Ubuntu 24.04 (the `bento/ubuntu-24.04` box), which provides
 PostgreSQL 16; provisioning adds Python 3.15 from the deadsnakes PPA (the box's own
 Python is 3.12). A VM provisioned while the server was on Python 3.12 is moved to 3.15 by
-`vagrant provision`, which rebuilds the server's virtualenv; it doesn't need rebuilding. A VM built from an older base box (Ubuntu 22.04:
+`vagrant provision`, which rebuilds the server's virtualenv; it doesn't need rebuilding. (If
+that provision fails partway, the old virtualenv is already gone: fix the cause and provision
+again.) A VM built from an older base box (Ubuntu 22.04:
 Python 3.10, PostgreSQL 14) can't run current Camphoric and has to be rebuilt.
 The base box can't be swapped any more: `CAMPHORIC_VAGRANT_BASE_IMAGE` is
 ignored (Vagrant says so if it's set), so you can drop it from your shell
