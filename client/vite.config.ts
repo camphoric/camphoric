@@ -76,6 +76,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // The slowest tests, typing into forms a key at a time, take about 2 s on an idle
+    // machine and four times that on a busy one, such as a shared CI runner (#959).
+    // A test that hangs still fails, only later.
+    testTimeout: 15_000,
     css: true,
     // Each test file still runs in a context of its own, but a worker builds
     // jsdom once rather than for every file: about a third of the time otherwise.

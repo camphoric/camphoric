@@ -59,10 +59,12 @@ function renderGuard(signedIn: ApiUser, children: ReactNode = <p>The admin</p>) 
   const client = new QueryClient();
   client.setQueryData(WHOAMI_KEY, signedIn);
   const invalidate = vi.spyOn(client, 'invalidateQueries');
+  // The sign-in dialog is in a portal, outside the admin it makes inert.
   renderWithProviders(
     <QueryClientProvider client={client}>
       <AuthGuard>{children}</AuthGuard>
     </QueryClientProvider>,
+    { withPortals: true },
   );
   return {
     client,
