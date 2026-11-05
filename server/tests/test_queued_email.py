@@ -69,6 +69,29 @@ class ConfirmationTests(APITestCase):
         self.assertEqual(models.EmailMessage.objects.count(), 1)
         self.assertEqual(len(mail.outbox), 1)
 
+    def settled(self, paid=False):
+        '''
+        Marked sent with nothing queued, as migration 0090 settles one, one sent
+        before the outbox, or one an organizer added (#955).
+        '''
+        uuid = self.start()
+        self.pay(uuid)
+        registration = models.Registration.objects.get()
+        if paid:
+            models.Payment.objects.create(
+                registration=registration, payment_type=models.PaymentType.CHECK, amount=100)
+        models.EmailMessage.objects.all().delete()
+        mail.outbox.clear()
+        return uuid
+
+    def test_one_marked_sent_with_nothing_queued_reports_no_problem_and_sends_nothing(self):
+        for paid in (False, True):
+            with self.subTest(paid=paid):
+                models.Registration.objects.all().delete()
+                self.assertFalse(self.pay(self.settled(paid)).data['emailError'])
+                self.assertFalse(models.EmailMessage.objects.exists())
+                self.assertEqual(mail.outbox, [])
+
     @NO_WORKER
     def test_the_response_does_not_wait_for_delivery(self):
         response = self.pay(self.start())

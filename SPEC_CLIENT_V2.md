@@ -660,7 +660,10 @@ Non-CRUD admin endpoints:
 - `POST /api/events/{eventId}/register` with `{ step: 'registration', formData,
   pricingResults, draftUUID?, invitation?, promoCode? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent, quote }`). A request
-  body holding a NUL character, half of a character or a number too large for JSON is a 400. The form is
+  body holding a NUL character, half of a character or a number too large for JSON is a 400, and so
+  is a form whose total, or any payment option with its handling fee, is more than an invoice holds
+  (99,999.99), as from a priced number field with no maximum.
+  The form is
   checked and priced and its draft (`draftUUID`, or a new one, under that `draftUUID` if no draft
   or registration has it, §15, DR-143) becomes *submitted*; no
   registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
@@ -2650,7 +2653,10 @@ section is the contract.
   capture's outcome isn't known (but not for one PayPal says is pending, which may take days;
   §15, DR-133), so it says what was paid, and while the invoice (not cancelled)
   has a PayPal order pending from the last three hours, since the payer may still approve it
-  (§15, DR-121); once (`confirmation_sent_at`, and its dedupe key).
+  (§15, DR-121); once (`confirmation_sent_at`, and its dedupe key). The payment steps'
+  `emailError` is true when the confirmation couldn't be queued; one marked sent with nothing
+  queued and no problem reported was dealt with some other way (sent before the outbox, added by
+  an organizer, or settled by migration 0090) and reports none (§15, DR-141).
 
 ### 9.8 Concurrent editing
 
@@ -5897,7 +5903,8 @@ completion under the lodging lock; if the place has gone the step answers 409
 `lodging_unavailable` and the registrant goes back to the form with their answers, whose saves
 reopen the draft (DR-142). The price is
 worked out again too. A payment step carries a `quote`, a digest of what it asks for (the
-total, the options and their amounts, the handling percent), and a payment button sends it back; one
+total, each option's name and amounts, the default, the handling percent: not the options' titles
+or descriptions, which change no amount), and a payment button sends it back; one
 that isn't what the step would ask for now, because the pricing, the options or a date they read
 changed, is refused with the new payment step, so no one is charged an amount they haven't seen, and
 another tab left on the old price is refused too, before or after the registration is completed.
@@ -5950,7 +5957,8 @@ incomplete, and marking one completed through the API, go with the field. Migrat
 what migration 0089 left incomplete: one with an invoice or payment becomes an ordinary registration
 in the admin lists, even if it was deleted, keeping its audit history (DR-139), with `completed_at`
 and `confirmation_sent_at` filled in from its last change so the worker doesn't send a confirmation
-about a registration from long ago; the rest, which were deleted or hold only a charge or override,
+about a registration from long ago (a payment step its registrant comes back to reports no email
+problem: #955); the rest, which were deleted or hold only a charge or override,
 are deleted, with no retention period, and their ids are printed. Undoing it marks every
 registration completed, as each one is, and doesn't bring those back.
 **Context:** After DR-140 the flag could only be true on new rows, yet every list, report, price and

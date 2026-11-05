@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 ZERO = Decimal('0.00')
 CENT = Decimal('0.01')
+# The most an invoice's amount or handling, or a payment, holds (their columns' size).
+_AMOUNT = models.Invoice._meta.get_field('amount')
+MAX_AMOUNT = Decimal(10) ** (_AMOUNT.max_digits - _AMOUNT.decimal_places) - CENT
 HANDLING_LABEL = 'Electronic payment handling'
 ONLINE_TYPES = (models.PaymentType.PAYPAL, models.PaymentType.CARD)
 FULL_PAYMENT = 'Full payment'
