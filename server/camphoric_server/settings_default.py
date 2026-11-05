@@ -59,6 +59,9 @@ INSTALLED_APPS = [
     'django_filters',
     'django_tasks_db',
     'auditlog',
+    # Camphoric as an OAuth 2.0 authorization server for third-party apps
+    # (camphoric.oauth, SPEC §6, DR-146).
+    'oauth2_provider',
 ]
 
 MIDDLEWARE = [
@@ -150,6 +153,66 @@ CAMPHORIC_API_TOKEN_TTL = env.int('CAMPHORIC_API_TOKEN_TTL', default=24 * 60 * 6
 if CAMPHORIC_API_TOKEN_TTL <= 0:
     # Not "never": every token would be expired as soon as it was issued.
     raise ImproperlyConfigured('CAMPHORIC_API_TOKEN_TTL must be a positive number of seconds')
+# OAuth 2.0 for third-party apps (camphoric.oauth, SPEC §6, DR-146, DR-148): an access
+# token works for an hour; a refresh token is replaced each time it's used, and one left
+# unused this long (90 days by default) stops working, so an app that syncs nightly
+# keeps its access.
+CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL = env.int('CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL', default=60 * 60)
+CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL = env.int(
+    'CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL', default=90 * 24 * 60 * 60)
+if CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL <= 0 or CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL <= 0:
+    raise ImproperlyConfigured(
+        'CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL and CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL must be '
+        'positive numbers of seconds')
+# Redirect URIs must be https, except where this allows http (by default, with DEBUG on):
+# an app being developed on a laptop.
+CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS = env.bool(
+    'CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS', default=DEBUG)
+# The toolkit's own app model, named so camphoric.ConnectedApp's migration can refer to it.
+OAUTH2_PROVIDER_APPLICATION_MODEL = 'oauth2_provider.Application'
+OAUTH2_PROVIDER = {
+    'SCOPES': {
+        'read': 'See what your Camphoric permission group lets you see',
+        'write': 'Make the changes your Camphoric permission group lets you make',
+    },
+    'DEFAULT_SCOPES': ['read'],
+    'ACCESS_TOKEN_EXPIRE_SECONDS': CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL,
+    # Each refresh gives a new refresh token; presenting one already replaced ends
+    # every token of that approval (RFC 9700 §4.14.2).
+    'ROTATE_REFRESH_TOKEN': True,
+    'REFRESH_TOKEN_REUSE_PROTECTION': True,
+    'REFRESH_TOKEN_GRACE_PERIOD_SECONDS': 0,
+    # A code lives a minute and is good once, with PKCE (S256 only).
+    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 60,
+    'PKCE_REQUIRED': True,
+    # The consent page is shown every time: an app gets nothing without the user's say.
+    'REQUEST_APPROVAL_PROMPT': 'force',
+    'ALLOWED_REDIRECT_URI_SCHEMES': (
+        ['https', 'http'] if CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS else ['https']),
+    'ALLOW_URI_WILDCARDS': False,
+    # RFC 9700's recommendations, enforced: no implicit or password grant, no plain PKCE,
+    # tokens only in the Authorization header, `iss` in the authorization response, and
+    # tokens stored only as SHA-256 checksums.
+    'COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT': True,
+    'COMPLIANT_BCP_RFC9700_PASSWORD_GRANT': True,
+    'COMPLIANT_BCP_RFC9700_PKCE_METHOD': True,
+    'COMPLIANT_BCP_RFC9700_ACCESS_TOKEN_TRANSPORT': True,
+    'COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS': True,
+    'COMPLIANT_BCP_RFC9700_TOKEN_STORAGE': True,
+    'COMPLIANT_BCP_RFC9700_REFRESH_TOKEN': True,
+    'COMPLIANT_BCP_RFC9700_REDIRECT_URI_MATCHING': True,
+    'COMPLIANT_BCP_RFC9700_PKCE_REQUIRED': True,
+    # Not REDIRECT_URI_SCHEME: http is allowed where CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS says.
+    # The Django admin only shows apps and tokens: Admins register apps in the Camphoric
+    # admin, which makes them only as DR-146 says, and access ends through camphoric.oauth.
+    'APPLICATION_ADMIN_CLASS': 'camphoric.admin.OAuthApplicationAdmin',
+    'ACCESS_TOKEN_ADMIN_CLASS': 'camphoric.admin.OAuthTokenAdmin',
+    'REFRESH_TOKEN_ADMIN_CLASS': 'camphoric.admin.OAuthTokenAdmin',
+    'ID_TOKEN_ADMIN_CLASS': 'camphoric.admin.OAuthTokenAdmin',
+    'GRANT_ADMIN_CLASS': 'camphoric.admin.OAuthTokenAdmin',
+}
+
 # How many days without a change an incomplete registration is kept (camphoric.cleanup,
 # SPEC DR-139).
 CAMPHORIC_INCOMPLETE_RETENTION_DAYS = env.int('CAMPHORIC_INCOMPLETE_RETENTION_DAYS', default=30)
@@ -228,6 +291,10 @@ USE_TZ = True
 # registration page (used where there is no request, e.g. bulk email).
 CAMPHORIC_TEMPLATE_TIMEZONE = env.str('CAMPHORIC_TEMPLATE_TIMEZONE', default='America/Los_Angeles')
 CAMPHORIC_PUBLIC_URL = env.str('CAMPHORIC_PUBLIC_URL', default='')
+# The OAuth server's issuer (the `iss` its authorization responses carry, RFC 9207): the
+# public address when there is one, else the request's.
+if CAMPHORIC_PUBLIC_URL:
+    OAUTH2_PROVIDER['OIDC_ISS_ENDPOINT'] = CAMPHORIC_PUBLIC_URL.rstrip('/')
 
 # The release version (e.g. 0.12.0), set in release images; empty when not a release.
 CAMPHORIC_VERSION = env.str('CAMPHORIC_VERSION', default='')
@@ -277,6 +344,8 @@ STORAGES = {
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'camphoric.authentication.ExpiringTokenAuthentication',
+        # An app's OAuth access token, `Authorization: Bearer …` (camphoric.oauth, DR-146).
+        'camphoric.oauth.BearerAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     # A list refuses a query parameter it doesn't filter by (camphoric.filters),
@@ -315,6 +384,13 @@ REST_FRAMEWORK = {
         # gunicorn workers a client may get up to that many times the rate before a 429.
         # A cache shared by the workers (database or Redis) would make it exact.
         'register': env.str('CAMPHORIC_REGISTER_RATE', default='10/minute'),
+        # An app's requests to the OAuth token endpoint, per address: getting and refreshing
+        # tokens. An app refreshes each user's token about once an hour (DR-146), so this
+        # leaves room for many users of one app behind one address.
+        'oauth_token': env.str('CAMPHORIC_OAUTH_TOKEN_RATE', default='300/minute'),
+        # Requests carrying an OAuth access token that isn't valid, per address: past this,
+        # every request with one is refused (429) until the window has passed.
+        'oauth_bearer_failure': env.str('CAMPHORIC_OAUTH_BEARER_FAILURE_RATE', default='30/minute'),
     },
     # How many proxies in front of the app append to X-Forwarded-For: the throttles
     # count requests by the address the last of them saw (the one entry a client can't

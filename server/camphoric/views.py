@@ -52,6 +52,7 @@ from camphoric import (
     leases,
     live,
     models,
+    oauth_views,
     pricing,
     roles,
     serializers,
@@ -1217,6 +1218,8 @@ class OrganizationContractAgreeView(APIView):
     '''
     permission_classes = [AnyRole]
     skips_contract_gate = True
+    # Agreeing is for the person, not an app acting for them (DR-147).
+    refuses_apps = True
 
     def post(self, request, organization_id=None):
         organization = get_object_or_404(models.Organization, pk=organization_id)
@@ -1275,16 +1278,19 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     management does for what a caller may not reach. Otherwise an Admin could
     take over their account — and with it Django's admin, and for a superuser
     the database.
+
+    No app may manage users through OAuth, whatever its scope (DR-147).
     '''
     queryset = User.objects.all().order_by('username')
     serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
     delete_permission_classes = [IsAdmin]
+    refuses_apps = True
     # What only a superuser may do to a user with Django access. Admins still
-    # see them (the list, their history).
+    # see them (the list, their history, their connected apps).
     ACCOUNT_TAKEOVER_ACTIONS = frozenset({
         'update', 'partial_update', 'destroy', 'delete_preview',
-        'send_password_link', 'password_link',
+        'send_password_link', 'password_link', 'disconnect_app',
     })
 
     def get_object(self):
@@ -1320,6 +1326,17 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
             audit.changes_by(self.get_object()), request.user)
         page = paginator.paginate_queryset(changes, request, view=self)
         return paginator.get_paginated_response([audit.describe(entry) for entry in page])
+
+    @action(detail=True, methods=['get'])
+    def apps(self, request, pk=None):
+        '''The apps the user has approved to use their account (OAuth, DR-149).'''
+        return Response(oauth_views.ConnectedAppSerializer(
+            oauth_views.connected_apps(user=self.get_object()), many=True).data)
+
+    @action(detail=True, methods=['delete'], url_path=r'apps/(?P<application_id>\d+)')
+    def disconnect_app(self, request, pk=None, application_id=None):
+        '''End an app's access to the user's account → 204 (404: it isn't connected).'''
+        return oauth_views.disconnect(self.get_object(), application_id)
 
     @action(detail=True, methods=['post'], url_path='send-password-link')
     def send_password_link(self, request, pk=None):
@@ -1370,9 +1387,11 @@ class ChangePasswordView(APIView):
     '''
     POST /api/user/password `{current_password, new_password}` → 204: change
     your own password (and clear a must-change-password flag). You stay signed in
-    here; your API token, if you have one, is removed.
+    here; your API token, if you have one, is removed, and so is every app's
+    access to your account (DR-149). No app may change your password.
     '''
     permission_classes = [permissions.IsAuthenticated]
+    refuses_apps = True
 
     def post(self, request):
         user = request.user

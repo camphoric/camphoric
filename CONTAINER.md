@@ -93,7 +93,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | Variable                      | Default               | Purpose                                                                                                          |
 | ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `CAMPHORIC_TEMPLATE_TIMEZONE` | `America/Los_Angeles` | Time zone that dates and times are shown in by server-rendered reports and emails.                               |
-| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration, unsubscribe and set-password links; when empty, links are derived from the current request (so group email and template checks have none) — except set-password links and organizers' links into the admin, which are never made from the request: without it, no set-password link can be made (logged), and `manage.py check --deploy` warns. |
+| `CAMPHORIC_PUBLIC_URL`        | *(empty)*             | The public site's address, e.g. `https://register.example.org`. Used for registration, unsubscribe and set-password links; when empty, links are derived from the current request (so group email and template checks have none) — except set-password links and organizers' links into the admin, which are never made from the request: without it, no set-password link can be made (logged), and `manage.py check --deploy` warns. Also the OAuth server's issuer (`iss`) when set. |
 
 ### Email
 
@@ -126,17 +126,23 @@ records the message.
 | `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
 | `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after it's issued, in seconds; must be positive. An expired token gets a 401 and is deleted. Signing in hands back the current token while it has half this left, and otherwise issues a new one. |
 | `CAMPHORIC_REGISTRATION_DRAFT_RATE` | `30/minute` | How many times one client address may save a registration form as it's filled in. The form saves at most every 30 seconds per page, so this leaves room for people sharing an address. Saves refused are tried again later and never interrupt the form. |
-| `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the Django admin) one client address may make; more get a 429. |
+| `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the OAuth sign-in page, the Django admin) one client address may make; more get a 429. |
 | `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
 | `CAMPHORIC_MAX_OPEN_DRAFTS` | `2000` | How many registration drafts nobody has sent an event may hold. Past that, a save that would start another draft, or reopen a sent one, is refused (the browser tries again ten minutes later, and the person registering isn't told) and a warning is logged; sending the form still works. It bounds what the public draft endpoint can store. If that warning keeps appearing, someone may be holding the event full: raise this, or have a Registrar or Admin delete drafts (`DELETE /api/registrationdrafts/{id}/`). |
 | `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` | `30` | How many days a registration that was started but never finished is kept without activity, before the worker deletes it; from 1 to 36500. The worker reads it, so give it the same value as the web container. |
+| `CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL` | `3600` (1 hour) | How long an OAuth access token works, for apps an Admin registers (see [doc/oauth-apps.md](doc/oauth-apps.md)); must be positive. |
+| `CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL` | `7776000` (90 days) | How long an app's refresh token keeps working unused after its access token expired; each use replaces it with a new one. Must be positive. |
+| `CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS` | `DEBUG` | Allow apps to register `http` redirect URIs, not only `https`: for an app being developed. Leave it off in production. |
+| `CAMPHORIC_OAUTH_TOKEN_RATE` | `300/minute` | How many requests to the OAuth token and revocation endpoints (`/o/token/`, `/o/revoke_token/`) one client address may make; more get a 429. An app refreshes each user's token about once an hour. |
+| `CAMPHORIC_OAUTH_BEARER_FAILURE_RATE` | `30/minute` | How many requests with an OAuth access token that isn't valid one client address may make; past that, every request with one gets a 429 until the oldest failure ages out. |
 
 ### The task worker
 
 Run a second container from the same image as the worker; it delivers queued email, retries
 temporary failures, keeps to each account's sending limits, and recovers messages from a worker
 that died mid-send. Each night at 10:00 UTC it also deletes the registrations that were started
-but never finished and have had no activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days.
+but never finished and have had no activity in `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` days, and
+apps' expired OAuth tokens.
 `docker-compose.image.yml` includes it
 as the `worker` service.
 

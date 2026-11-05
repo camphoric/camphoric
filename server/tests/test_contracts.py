@@ -446,6 +446,11 @@ class PrivacyPolicyTests(APITestCase):
         self.assertEqual(self.client.get('/api/eventlist').status_code, 200)
 
 
+# Not in any organization: users, and apps using OAuth with who approved them.
+SITE_WIDE_VIEWS = {
+    'UserViewSet', 'ApplicationViewSet', 'MyConnectedAppsView', 'MyConnectedAppView'}
+
+
 def _fill_route(pattern, values):
     '''A route's path with its parameters filled in from `values`, or None if one is unknown.'''
     route = str(pattern.pattern)
@@ -586,8 +591,8 @@ class RouteWalkTests(APITestCase):
                 continue  # public: registrants never meet the gate
             if getattr(callback, 'view_class', None) is not None and view is None:
                 continue  # a plain Django view (unsubscribing), public
-            if view is not None and view.__name__ == 'UserViewSet':
-                continue  # users are site-wide
+            if view is not None and view.__name__ in SITE_WIDE_VIEWS:
+                continue  # users and apps are site-wide
             names = set(pattern.pattern.regex.groupindex)
             pattern_values = dict(values)
             if 'pk' in names:

@@ -1,0 +1,21 @@
+{% extends "camphoric/oauth/base.html" %}
+{% block title %}Sign in to Camphoric{% endblock %}
+{% block content %}
+  <h1>Sign in to Camphoric</h1>
+  <p>Sign in to choose whether to connect an app to your account.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+    {% endif %}
+    <label for="{{ form.username.id_for_label }}">Username</label>
+    <input type="text" name="username" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default_if_none:'' }}" autocomplete="username" autocapitalize="none" required autofocus>
+    <label for="{{ form.password.id_for_label }}">Password</label>
+    <input type="password" name="password" id="{{ form.password.id_for_label }}" autocomplete="current-password" required>
+    <input type="hidden" name="next" value="{{ next }}">
+    <p>Forgot your password? Ask for a link from <a href="/admin">Camphoric’s sign-in page</a>.</p>
+    <div class="actions">
+      <button type="submit" class="primary">Sign in</button>
+    </div>
+  </form>
+{% endblock %}

@@ -2,7 +2,8 @@
  * Users (SPEC §8.10; §15 DR-50, DR-52), for Admins only, shown in the Users
  * overlay (UsersOverlay). Lists everyone who can sign in; add a user
  * (`?userId=new`) or edit one (`?userId=<id>`); email or copy a set-password
- * link; deactivate, reactivate or delete; and, for superusers, set a password.
+ * link; see and disconnect their connected apps; deactivate, reactivate or
+ * delete; and, for superusers, set a password.
  * Choosing a user shows what they changed beside the list (`?historyUserId`).
  * Its search params ride on the URL of the page under the overlay.
  */
@@ -24,11 +25,13 @@ import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import type { ApiManagedUser, NewUserRequest } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
+import { confirmDisconnect, ConnectedAppsList } from 'components/ConnectedApps';
 import { InlineLoading } from 'components/Loading';
 import { useCurrentUser } from 'hooks/auth';
 import { usePermissions } from 'hooks/permissions';
 import { useOverlay } from 'navigation/overlay';
 import { useState } from 'react';
+import { useDisconnectApp, useUserConnectedApps } from 'store/apps';
 import {
   useCopyPasswordLink,
   useCreateUser,
@@ -83,6 +86,9 @@ export function UsersPage() {
   const copyLink = useCopyPasswordLink();
   const setPassword = useSetUserPassword();
   const [settingPasswordFor, setSettingPasswordFor] = useState<ApiManagedUser | null>(null);
+  const [appsOf, setAppsOf] = useState<ApiManagedUser | null>(null);
+  const appsOfUser = useUserConnectedApps(appsOf?.id);
+  const disconnect = useDisconnectApp();
   const [copied, setCopied] = useState<{ username: string; url: string; expires: string } | null>(
     null,
   );
@@ -120,6 +126,7 @@ export function UsersPage() {
   const actions = {
     onShowHistory: (user: ApiManagedUser) => showHistory(user.id),
     onEdit: (user: ApiManagedUser) => openForm(String(user.id)),
+    onShowApps: (user: ApiManagedUser) => setAppsOf(user),
     onSendLink: (user: ApiManagedUser) =>
       modals.openConfirmModal({
         title: 'Email a set-password link?',
@@ -254,6 +261,38 @@ export function UsersPage() {
           )
         }
       />
+
+      <Modal
+        opened={appsOf !== null}
+        onClose={() => setAppsOf(null)}
+        title={appsOf ? `${appsOf.username}’s connected apps` : ''}
+        size="lg"
+      >
+        {appsOfUser.isPending ? (
+          <InlineLoading />
+        ) : appsOfUser.isError ? (
+          <Text c="red">{apiErrorMessage(appsOfUser.error)}</Text>
+        ) : (
+          <ConnectedAppsList
+            connections={appsOfUser.data}
+            show="application"
+            emptyMessage="They haven’t connected any apps."
+            disconnectingId={disconnect.isPending ? disconnect.variables?.connectionId : undefined}
+            onDisconnect={(connection) =>
+              confirmDisconnect({
+                connection,
+                yours: false,
+                onConfirm: () =>
+                  disconnect.mutate({
+                    applicationId: connection.application.id,
+                    userId: connection.user.id,
+                    connectionId: connection.id,
+                  }),
+              })
+            }
+          />
+        )}
+      </Modal>
 
       <Modal opened={copied !== null} onClose={() => setCopied(null)} title="Set-password link">
         {copied && (

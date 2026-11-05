@@ -1,0 +1,36 @@
+{% extends "camphoric/oauth/base.html" %}
+{% block title %}{% if error %}This app can’t connect{% else %}Connect {{ application.name }}{% endif %}{% endblock %}
+{% block content %}
+  {% if error %}
+    <h1>This app can’t connect</h1>
+    <p>{{ error.description|default:error.error }}</p>
+    <p>Tell whoever runs the app. <a href="/admin">Go to Camphoric</a></p>
+  {% else %}
+    <h1>Connect <strong>{{ application.name }}</strong> to your Camphoric account?</h1>
+    <div class="who">
+      <span>Signed in as {% if user.get_full_name %}<strong>{{ user.get_full_name }}</strong> ({{ user.username }}){% else %}<strong>{{ user.username }}</strong>{% endif %}{% if role_name %}, {{ role_name }}{% endif %}.</span>
+      <form method="post" action="/o/switch-account/">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ switch_next }}">
+        <button type="submit" class="link">Not you? Sign in as someone else</button>
+      </form>
+    </div>
+    <p><strong>{{ application.name }}</strong> is asking to:</p>
+    <ul>
+      {% for description in scopes_descriptions %}<li>{{ description }}</li>{% endfor %}
+    </ul>
+    {% if write_limited_by_role %}
+      <p>As a {{ role_name }} you can’t change anything in Camphoric, so neither can it.</p>
+    {% endif %}
+    <p>It acts as you, and can never do more than your Camphoric permission group allows. You can disconnect it at any time from <strong>Connected apps</strong> in your Camphoric user menu.</p>
+    <form id="authorizationForm" method="post">
+      {% csrf_token %}
+      {% for field in form %}{% if field.is_hidden %}{{ field }}{% endif %}{% endfor %}
+      {% if form.errors %}<p class="error" role="alert">This request can’t be approved as sent. Start again from the app.</p>{% endif %}
+      <div class="actions">
+        <button type="submit" class="secondary">Cancel</button>
+        <button type="submit" class="primary" name="allow" value="Authorize">Connect</button>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}

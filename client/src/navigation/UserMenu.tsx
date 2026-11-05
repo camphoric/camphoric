@@ -1,33 +1,38 @@
 /**
  * Who's signed in and their Camphoric permission group (SPEC §6, §8.2), with the
- * account actions: Users (Admins; it opens over the current page), change
- * password, the terms you've agreed to (DR-145), sign out. On a narrow screen the button shows the person's
+ * account actions: Users and Apps (Admins; each opens over the current page),
+ * change password, your connected apps (DR-149), the terms you've agreed to
+ * (DR-145), sign out. On a narrow screen the button shows the person's
  * initials, so the header keeps room for the event's name (#755); the menu
  * still names them.
  */
 
 import { Avatar, Badge, Button, Group, Menu, Text, VisuallyHidden } from '@mantine/core';
 import {
+  IconApps,
   IconChevronDown,
   IconFileCheck,
   IconKey,
   IconLogout,
+  IconPlugConnected,
   IconUsers,
 } from '@tabler/icons-react';
 import { useCurrentUser, useLogout } from 'hooks/auth';
 import { ROLE_LABEL, usePermissions } from 'hooks/permissions';
 import { useOpenOverlay } from 'navigation/overlay';
 import { ChangePasswordModal } from 'pages/account/ChangePasswordModal';
+import { ConnectedAppsModal } from 'pages/account/ConnectedAppsModal';
 import { MyAgreementsModal } from 'pages/account/MyAgreementsModal';
 import { useState } from 'react';
 
 export function UserMenu() {
   const { data: user } = useCurrentUser();
-  const { canManageUsers } = usePermissions();
+  const { canManageUsers, canManageApps } = usePermissions();
   const logout = useLogout();
   const openOverlay = useOpenOverlay();
   const [changing, setChanging] = useState(false);
   const [readingAgreements, setReadingAgreements] = useState(false);
+  const [seeingApps, setSeeingApps] = useState(false);
   if (!user?.username) return null;
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username;
 
@@ -60,8 +65,19 @@ export function UserMenu() {
               Users
             </Menu.Item>
           )}
+          {canManageApps && (
+            <Menu.Item leftSection={<IconApps size={16} />} onClick={() => openOverlay('apps')}>
+              Apps
+            </Menu.Item>
+          )}
           <Menu.Item leftSection={<IconKey size={16} />} onClick={() => setChanging(true)}>
             Change password
+          </Menu.Item>
+          <Menu.Item
+            leftSection={<IconPlugConnected size={16} />}
+            onClick={() => setSeeingApps(true)}
+          >
+            Connected apps
           </Menu.Item>
           <Menu.Item
             leftSection={<IconFileCheck size={16} />}
@@ -76,6 +92,7 @@ export function UserMenu() {
       </Menu>
       <ChangePasswordModal opened={changing} onClose={() => setChanging(false)} />
       <MyAgreementsModal opened={readingAgreements} onClose={() => setReadingAgreements(false)} />
+      <ConnectedAppsModal opened={seeingApps} onClose={() => setSeeingApps(false)} />
     </>
   );
 }

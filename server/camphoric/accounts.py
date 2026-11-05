@@ -8,6 +8,9 @@ User accounts and passwords (SPEC §6, DR-52).
 - A superuser can set a password for someone and require them to change it at
   their next sign-in; until they do, the API refuses everything but changing it
   (camphoric.permissions).
+- Changing a password, however it's done — here, in the Django admin, or with
+  `manage.py changepassword` — ends what the old one may have handed out: the
+  API token, and every app's OAuth access (camphoric.oauth, DR-149).
 '''
 
 from datetime import timedelta
@@ -15,13 +18,14 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.db.models.signals import post_save
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework.authtoken.models import Token
 
-from camphoric import models, roles
+from camphoric import models, oauth, roles
 from camphoric.mail import outbox
 from camphoric.templating.urls import admin_url
 
@@ -56,13 +60,30 @@ def set_must_change_password(user, value):
 
 def set_password(user, password, *, must_change=False):
     '''
-    Set the password (already validated) and whether it must be changed next,
-    and remove the user's API token, which the old password may have handed out.
+    Set the password (already validated) and whether it must be changed next.
+    Saving it ends the user's API token and apps' access (`end_old_credentials`).
     '''
     user.set_password(password)
     user.save(update_fields=['password'])
     set_must_change_password(user, must_change)
-    Token.objects.filter(user=user).delete()
+
+
+def end_old_credentials(sender, instance, created, **kwargs):
+    '''
+    A password changed ends what the old one may have handed out: the user's API
+    token and every app's OAuth access (DR-149). Django sets `_password` until
+    the save that changes a password, and leaves it unset when it only upgrades
+    the stored hash at sign-in, which changes nothing.
+    '''
+    if created or getattr(instance, '_password', None) is None:
+        return
+    Token.objects.filter(user=instance).delete()
+    oauth.revoke(instance)
+
+
+post_save.connect(
+    end_old_credentials, sender=get_user_model(),
+    dispatch_uid='camphoric.accounts.end_old_credentials')
 
 
 # --- Set-password links -----------------------------------------------------------

@@ -1,17 +1,18 @@
 /**
  * Admin overlays (SPEC §4, §8.10; §15, DR-84): screens that open over whatever
- * admin page is showing, kept in that page's URL (`?overlay=users`), so the
- * page stays as it was underneath and closing the overlay returns to it.
+ * admin page is showing, kept in that page's URL (`?overlay=users`,
+ * `?overlay=apps`), so the page stays as it was underneath and closing the
+ * overlay returns to it.
  */
 
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 
 import { parseSearch, stringifySearch } from './search';
 
-export type Overlay = 'users';
+export type Overlay = 'users' | 'apps';
 
 /** The search params that belong to an overlay rather than to the page under it. */
-export const OVERLAY_PARAMS = ['overlay', 'userId', 'historyUserId'];
+export const OVERLAY_PARAMS = ['overlay', 'userId', 'historyUserId', 'appId'];
 
 type Search = Record<string, string | undefined>;
 

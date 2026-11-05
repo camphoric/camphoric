@@ -1488,3 +1488,31 @@ class ContractAgreement(models.Model):
 
     def __str__(self):
         return f'{self.username} agreed to {self.contract}'
+
+
+class ConnectedApp(models.Model):
+    '''
+    A user's approval of an app (camphoric.oauth, SPEC §6, DR-146): made when they
+    approve it on the consent page, with the scopes they approved, and removed with
+    every token and code it gave the app when it's disconnected or its access ends
+    (DR-149). `last_used_at` is when the app last used one of its access tokens,
+    to the minute.
+    '''
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='connected_apps', on_delete=models.CASCADE)
+    application = models.ForeignKey(
+        settings.OAUTH2_PROVIDER_APPLICATION_MODEL, related_name='connections',
+        on_delete=models.CASCADE)
+    scope = models.CharField(max_length=255)
+    approved_at = models.DateTimeField()
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['approved_at', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'application'], name='one_connection_per_user_and_app'),
+        ]
+
+    def __str__(self):
+        return f'{self.application.name} for {self.user.username}'

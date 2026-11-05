@@ -25,6 +25,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models as django_models
 from django.db.models.signals import pre_save
+from oauth2_provider.models import Application
 
 _request = ContextVar('camphoric_audit_request', default=None)
 _request_id = ContextVar('camphoric_audit_request_id', default=None)
@@ -95,6 +96,10 @@ def register_models():
     auditlog.register(models.Payment, exclude_fields=TIMESTAMPS + ['paypal_response'])
     auditlog.register(
         get_user_model(), exclude_fields=['password', 'last_login'], m2m_fields={'groups'})
+    # Apps registered for OAuth, and the users who approved them (camphoric.oauth, DR-146):
+    # never the client secret, and not each time a connection is used.
+    auditlog.register(Application, include_fields=['name', 'client_id', 'redirect_uris'])
+    auditlog.register(models.ConnectedApp, exclude_fields=['last_used_at'])
 
     pre_save.connect(credit_request_user, sender=LogEntry, dispatch_uid='camphoric-audit-actor')
 

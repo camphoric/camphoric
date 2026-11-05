@@ -416,6 +416,29 @@ test.describe('User administration', DESKTOP_ONLY, () => {
   });
 });
 
+test.describe('Apps using OAuth', () => {
+  test('your connected apps fit the screen, each with its own Disconnect', async ({ page }) => {
+    await page.goto(story('connected-apps-list--your-apps'));
+    await expect(page.getByText('Roster sync')).toBeVisible();
+    const root = page.locator('#storybook-root');
+    expect(await root.evaluate(overflows)).toBe(false);
+    await page.getByRole('button', { name: 'Disconnect Lark admin tool' }).click();
+    await expect(page.getByTestId('last')).toHaveText('Disconnect: Lark admin tool for pat');
+  });
+
+  test('an Admin registers an app with its redirect URIs', DESKTOP_ONLY, async ({ page }) => {
+    await page.goto(story('app-form--new-app'));
+    await page.getByRole('textbox', { name: 'Name' }).fill('Roster sync');
+    await page
+      .getByRole('textbox', { name: 'Redirect URIs' })
+      .fill('https://sync.example.org/cb\n\nhttps://sync.example.org/other');
+    await page.getByRole('button', { name: 'Register app' }).click();
+    await expect(page.getByTestId('saved')).toHaveText(
+      '{"name":"Roster sync","redirect_uris":["https://sync.example.org/cb","https://sync.example.org/other"]}',
+    );
+  });
+});
+
 test.describe('Passwords', () => {
   test('choosing a password checks the two match', async ({ page }) => {
     await page.goto(story('password-forms--set-password'));

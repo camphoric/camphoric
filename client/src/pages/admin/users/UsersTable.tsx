@@ -2,7 +2,7 @@
  * The users list (SPEC §8.10): each user's name and email, Camphoric permission
  * group, Django access (when it's more than a regular user's), whether they're
  * active and have a password, and when they last signed in — with a menu of
- * what an Admin can do to them. Your own row can't be deactivated or deleted.
+ * what an Admin can do to them, their connected apps among it. Your own row can't be deactivated or deleted.
  * Choosing a row (or "Change history" in its menu) shows what that user changed.
  */
 
@@ -16,6 +16,7 @@ import {
   IconPencil,
   IconPlayerPause,
   IconPlayerPlay,
+  IconPlugConnected,
   IconTrash,
 } from '@tabler/icons-react';
 import type { ApiManagedUser } from 'api-types';
@@ -26,6 +27,7 @@ import { DJANGO_ACCESS_LABEL, groupLabel } from './userLabels';
 export interface UserActions {
   onShowHistory: (user: ApiManagedUser) => void;
   onEdit: (user: ApiManagedUser) => void;
+  onShowApps: (user: ApiManagedUser) => void;
   onSendLink: (user: ApiManagedUser) => void;
   onCopyLink: (user: ApiManagedUser) => void;
   /** Superusers only: omit it to leave the action out. */
@@ -123,6 +125,12 @@ export function UsersTable({ users, currentUserId, selectedUserId, ...actions }:
                         onClick={() => actions.onEdit(user)}
                       >
                         Edit
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconPlugConnected size={16} />}
+                        onClick={() => actions.onShowApps(user)}
+                      >
+                        Connected apps
                       </Menu.Item>
                       {user.is_active && (
                         <>

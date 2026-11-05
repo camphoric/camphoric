@@ -8,6 +8,9 @@ is refused everything here until they change it (403, code
 `password_change_required`); signing out and changing the password aren't
 behind these classes.
 
+An app using an OAuth access token is also held to the token's scope, and kept
+from views that say `refuses_apps`, before any of these (camphoric.oauth, DR-147).
+
 Someone who hasn't agreed to an organization's latest contract is refused
 whatever reaches that organization (403, code `contract_agreement_required`;
 camphoric.contracts, DR-145): by the ids the request names, here, and by each
@@ -36,7 +39,7 @@ def _check_access(request, view):
     contracts.check_request(request, view)
 
 
-def _reads(request, view):
+def reads(request, view):
     '''Whether the request only reads: a safe method, or one the view lists as not writing.'''
     return request.method in SAFE_METHODS or \
         request.method in getattr(view, 'read_only_methods', ())
@@ -63,7 +66,7 @@ class RolePermission(GatedPermission):
         if role is None:
             return False
         _check_access(request, view)
-        return _reads(request, view) or role in roles.WRITERS
+        return reads(request, view) or role in roles.WRITERS
 
 
 class WritersOnly(GatedPermission):
@@ -96,7 +99,7 @@ class AdminWrites(GatedPermission):
         if role is None:
             return False
         _check_access(request, view)
-        return _reads(request, view) or role == roles.ADMIN
+        return reads(request, view) or role == roles.ADMIN
 
 
 class AnyRole(GatedPermission):

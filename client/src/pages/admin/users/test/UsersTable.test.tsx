@@ -9,6 +9,7 @@ function setup(withSetPassword: boolean) {
   const actions = {
     onShowHistory: vi.fn(),
     onEdit: vi.fn(),
+    onShowApps: vi.fn(),
     onSendLink: vi.fn(),
     onCopyLink: vi.fn(),
     onSetPassword: withSetPassword ? vi.fn() : undefined,
@@ -93,6 +94,7 @@ describe('UsersTable', () => {
         selectedUserId={2}
         onShowHistory={vi.fn()}
         onEdit={vi.fn()}
+        onShowApps={vi.fn()}
         onSendLink={vi.fn()}
         onCopyLink={vi.fn()}
         onToggleActive={vi.fn()}
