@@ -85,6 +85,9 @@ class LoginThrottleTests(ThrottleTestCase):
         self.assertEqual(self.login('tom', address='10.8.1.1').status_code, 400)
         self.assertEqual(self.login('tom', 'password', address='10.8.1.2').status_code, 429)
 
+    # With no proxy configured, whatever this machine's server/.env says (the Ansible
+    # role writes NUM_PROXIES=1 there, and `pipenv run` loads it).
+    @override_settings(REST_FRAMEWORK={**settings.REST_FRAMEWORK, 'NUM_PROXIES': 0})
     def test_a_forged_forwarded_for_does_not_help(self):
         def attempt(i):
             return self.login(f'user{i}', HTTP_X_FORWARDED_FOR=f'192.0.2.{i}').status_code
