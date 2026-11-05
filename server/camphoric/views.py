@@ -1404,7 +1404,8 @@ class InvitationRedeemed(serializers.Conflict):
 class RegistrationNotFound(NotFound):
     '''
     A register step names a registration the server doesn't have: an organizer
-    deleted it, or it was purged as incomplete (DR-76). The `code` tells the
+    deleted it, it was purged as incomplete (DR-76), or a save reopened it after
+    its lodging filled up (DR-142). The `code` tells the
     browser to forget the one it saved and send the form again (SPEC §7.1).
     '''
     def __init__(self):
@@ -1445,6 +1446,11 @@ def new_draft(event, wanted):
     return draft
 
 
+def reopen_token(draft):
+    '''What a save sends to reopen this submission of a draft (DR-142).'''
+    return draft.submitted_at.isoformat()
+
+
 def price_quote(server_pricing_results, payment_options):
     '''
     A digest of what a payment page asks for, which its buttons send back: a draft
@@ -1477,10 +1483,12 @@ class LodgingTaken(serializers.Conflict):
     '''
     The lodging a submitted draft asked for has filled up since: a bed is only
     taken as a registration is completed (DR-140). The browser goes back to the form,
-    and its saves reopen the draft (DR-142).
+    and its saves reopen the draft with `reopen`, which names this submission of it:
+    one sent again since takes no save from before (DR-142).
     '''
-    def __init__(self, message):
-        super().__init__({'detail': message, 'code': 'lodging_unavailable'})
+    def __init__(self, message, draft):
+        super().__init__({
+            'detail': message, 'code': 'lodging_unavailable', 'reopen': reopen_token(draft)})
 
 
 class RegistrationThrottled(Throttled):
@@ -1825,7 +1833,7 @@ class RegisterView(APIView):
         registration.client_reported_pricing = draft.client_reported_pricing
         problem = cls.requested_lodging_problem(event, campers)
         if problem:
-            raise LodgingTaken(problem[1])
+            raise LodgingTaken(problem[1], draft)
 
         registration.completed_at = timezone.now()
         server_pricing_results = pricing.calculate_price(registration, campers)
@@ -2131,8 +2139,8 @@ class RegisterView(APIView):
                     invoices.prepare_registration_invoice(registration, option, payment_type)
                 except invoices.PaymentProblem as problem:
                     return self.problem_response(request, registration, problem)
-            confirmations.send_confirmation(registration, request)
-            return Response(self.payment_result(request, registration))
+            error = confirmations.send_confirmation(registration, request)
+            return Response(self.payment_result(request, registration, error))
 
     def capture(self, request, event, payment_type):
         '''
@@ -2163,14 +2171,15 @@ class RegisterView(APIView):
             problem = raised
         with transaction.atomic():
             registration = self.locked_registration(request, event)
+            error = None
             if problem is None or problem.code in ('unknown', 'pending'):
                 # After a lost answer money may have moved, and a pending
                 # capture did move it: the registrant is told not to pay
                 # again, and gets their confirmation now.
-                confirmations.send_confirmation(registration, request)
+                error = confirmations.send_confirmation(registration, request)
             if problem is not None:
                 return self.problem_response(request, registration, problem)
-            return Response(self.payment_result(request, registration))
+            return Response(self.payment_result(request, registration, error))
 
     def post_finish(self, request, event):
         '''Finish without paying now: the confirmation says what's still due.'''
@@ -2180,10 +2189,11 @@ class RegisterView(APIView):
             registration = self.locked_registration(request, event)
             if registration.confirmation_sent_at is None:
                 invoices.clear_unpaid_online_choice(registration)
-            confirmations.send_confirmation(registration, request)
-            return Response(self.payment_result(request, registration))
+            error = confirmations.send_confirmation(registration, request)
+            return Response(self.payment_result(request, registration, error))
 
-    def payment_result(self, request, registration):
+    def payment_result(self, request, registration, email_error=None):
+        '''`email_error`: why the confirmation just sent couldn't be queued, if it couldn't.'''
         registration.refresh_from_db()
         return {
             # Rendered on the server (markdown); the client only displays it (SPEC §7.3).
@@ -2191,7 +2201,8 @@ class RegisterView(APIView):
             'serverPricingResults': registration.server_pricing_results,
             # The confirmation couldn't be queued. Delivery happens later, so a
             # delivery failure shows in the email history, not here.
-            'emailError': confirmations.confirmation_email_problem(registration),
+            'emailError': bool(email_error)
+            or confirmations.confirmation_email_problem(registration),
             'invoice': self.invoice_data(invoices.registration_invoice(registration)),
             'ledger': invoices.ledger(registration).as_dict(),
         }
@@ -2438,10 +2449,12 @@ class RegistrationDraftView(APIView):
                     return Response({'uuid': draft_uuid})
                 self.refuse_if_full(event)
                 draft = new_draft(event, draft_uuid)
-            elif draft.submitted_at is not None and request.data.get('reopen') is not True:
+            elif (draft.submitted_at is not None
+                  and request.data.get('reopen') != reopen_token(draft)):
                 # What was sent stands until the form is sent again (#952): a save
                 # from before it went, or from another tab, changes nothing. Only a
-                # browser sent back to the form, its lodging gone, reopens it.
+                # browser sent back to the form, its lodging gone, reopens it, and
+                # only the submission it was sent back from.
                 return Response({'uuid': draft.uuid})
             action = None
             if draft.pk is None:

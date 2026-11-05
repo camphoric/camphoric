@@ -102,7 +102,7 @@ export function PaymentNeeded({ eventId, paymentStep }: PaymentNeededProps) {
     }
     const problem = paymentProblem(e);
     if (problem.code === 'lodging_unavailable') {
-      forgetSentRegistration(registrationUUID, problem.message);
+      forgetSentRegistration(registrationUUID, problem.message, problem.reopen);
       return true;
     }
     if (problem.code === 'cancelled') {

@@ -90,14 +90,14 @@ export function useDraftSaving(
         if (uuid) saveDraftUUID(storageKey, uuid);
       }
       let saved = false;
-      const { registration, lodgingProblem } = useRegistrationStore.getState();
+      const { registration, reopen } = useRegistrationStore.getState();
       saving.settled = saveDraft(
         eventId,
         {
           formData: registration,
           ...(uuid ? { uuid } : {}),
           ...(invitation ? { invitation } : {}),
-          ...(lodgingProblem ? { reopen: true as const } : {}),
+          ...(reopen ? { reopen } : {}),
         },
         keepalive,
       )

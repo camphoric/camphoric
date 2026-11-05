@@ -310,12 +310,14 @@ describe('PaymentNeeded', () => {
         new ApiError(409, 'Conflict', {
           code: 'lodging_unavailable',
           detail: 'There’s no room left in Cabin A.',
+          reopen: 'sent-at',
         }),
       );
       await user.click(screen.getByRole('button', { name: 'Pay $1,000.00 by check' }));
 
       const state = useRegistrationStore.getState();
       expect(state.lodgingProblem).toBe('There’s no room left in Cabin A.');
+      expect(state.reopen).toBe('sent-at');
       expect(state.sentNotFound).toBe(false);
       expect(state.paymentStep).toBeUndefined();
       expect(state.registration).toEqual({ campers: [{ first_name: 'Pat' }] });

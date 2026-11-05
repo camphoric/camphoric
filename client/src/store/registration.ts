@@ -39,6 +39,8 @@ export interface RegistrationState {
   sentNotFound: boolean;
   /** Why it couldn't be completed: lodging filled up meanwhile, and step 1 says to choose again. */
   lodgingProblem: string | null;
+  /** What the draft saves send to reopen the submission whose lodging filled up (§15, DR-142). */
+  reopen: string | null;
   /** Why the payment step just changed: what's due did (§15, DR-105, DR-140). */
   paymentNotice: string | null;
 
@@ -53,7 +55,7 @@ export interface RegistrationState {
   /** The server no longer has the sent registration: drop its payment step, keep what was entered. */
   forgetSent: () => void;
   /** Its lodging filled up before it was completed: back to the form to choose again. */
-  lodgingTaken: (message: string) => void;
+  lodgingTaken: (message: string, reopen?: string) => void;
   reset: () => void;
 }
 
@@ -64,6 +66,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
   updating: false,
   sentNotFound: false,
   lodgingProblem: null,
+  reopen: null,
   paymentNotice: null,
 
   setRegistration: (registration) => set({ registration }),
@@ -74,6 +77,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       paymentStep,
       sentNotFound: false,
       lodgingProblem: null,
+      reopen: null,
       paymentNotice: notice ?? null,
     }),
   setConfirmationStep: (confirmationStep) => set({ confirmationStep }),
@@ -86,6 +90,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       totals: paymentStep.serverPricingResults,
       sentNotFound: false,
       lodgingProblem: null,
+      reopen: null,
       paymentNotice: null,
     }),
   forgetSent: () =>
@@ -93,10 +98,16 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       paymentStep: undefined,
       sentNotFound: true,
       lodgingProblem: null,
+      reopen: null,
       paymentNotice: null,
     }),
-  lodgingTaken: (message) =>
-    set({ paymentStep: undefined, lodgingProblem: message, paymentNotice: null }),
+  lodgingTaken: (message, reopen) =>
+    set({
+      paymentStep: undefined,
+      lodgingProblem: message,
+      reopen: reopen ?? null,
+      paymentNotice: null,
+    }),
   reset: () =>
     set({
       registration: emptyRegistration,
@@ -107,6 +118,7 @@ export const useRegistrationStore = create<RegistrationState>((set) => ({
       updating: false,
       sentNotFound: false,
       lodgingProblem: null,
+      reopen: null,
       paymentNotice: null,
     }),
 }));

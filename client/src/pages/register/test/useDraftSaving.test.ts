@@ -100,12 +100,12 @@ describe('useDraftSaving', () => {
   });
 
   it('reopens the draft sent, once sent back to the form because its lodging filled up', async () => {
-    useRegistrationStore.getState().lodgingTaken('Cabin A is full.');
+    useRegistrationStore.getState().lodgingTaken('Cabin A is full.', '2026-11-04T10:00:00+00:00');
     const drafts = hook();
     drafts.current.changed();
     drafts.current.fieldBlurred();
     await settle();
-    expect(save.mock.calls[0]?.[1]).toMatchObject({ reopen: true });
+    expect(save.mock.calls[0]?.[1]).toMatchObject({ reopen: '2026-11-04T10:00:00+00:00' });
   });
 
   it('leaves the server to choose where the page can’t', async () => {

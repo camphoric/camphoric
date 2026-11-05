@@ -88,8 +88,11 @@ export interface SaveDraftBody {
   uuid?: string;
   formData: RegistrationFormData;
   invitation?: ApiRegister['invitation'];
-  /** Sent back to the form, its lodging gone: the save reopens the draft (§15, DR-142). */
-  reopen?: true;
+  /**
+   * Sent back to the form, its lodging gone: what the refusal gave, which reopens
+   * that submission of the draft (§15, DR-142).
+   */
+  reopen?: string;
 }
 
 /**
@@ -235,17 +238,21 @@ export function paymentProblem(error: unknown): {
   code?: PaymentProblemCode;
   message: string;
   paymentStep?: ApiRegisterPaymentStep;
+  /** With `lodging_unavailable`: what the draft saves send to reopen it (§15, DR-142). */
+  reopen?: string;
 } {
   if (error instanceof ApiError && error.body && typeof error.body === 'object') {
     const body = error.body as {
       code?: PaymentProblemCode;
       detail?: string;
       paymentStep?: ApiRegisterPaymentStep;
+      reopen?: string;
     };
     return {
       code: body.code,
       message: body.detail ?? error.message,
       paymentStep: body.paymentStep,
+      reopen: body.reopen,
     };
   }
   return { message: error instanceof Error ? error.message : String(error) };

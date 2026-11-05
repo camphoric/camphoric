@@ -186,8 +186,9 @@ flowchart TD
   the draft as it was. Every registration is completed (DR-141), so it's in the admin lists. A
   draft holds no lodging, so the check runs again here, under the lodging lock, and a place that
   has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
-  again; the browser's saves then carry `reopen: true`, and changed answers return the draft to
-  being filled in. Any other save to a submitted draft changes nothing. The price is worked out again too. The payment step carries a `quote`, a digest of what
+  again. The refusal gives a `reopen` naming that submission; the browser's saves carry it, and
+  changed answers return the draft to being filled in while it's still that submission. Any other
+  save to a submitted draft changes nothing. The price is worked out again too. The payment step carries a `quote`, a digest of what
   it asks for (the total, each option's name and amounts, the default, the handling percent, but
   not the options' titles), and a payment
   button sends it back: one that's out of date is refused (`invoice_changed`, with the new payment
@@ -211,7 +212,8 @@ flowchart TD
   window — resumes paying for the same registration, still showing what was entered. Coming back
   to the form offers "Continue to payment" or "Start a new registration".
 - **A saved registration the server no longer has (#769)** — an organizer deleted it, it was
-  purged as incomplete — gets 404 `registration_not_found` from every step after `registration`
+  purged as incomplete, or a save reopened it after its lodging filled up — gets 404
+  `registration_not_found` from every step after `registration`
   (`RegisterView.named_registration`), and nothing is changed or charged. The browser forgets
   the saved one and goes back to the form, keeping what was entered, and asks for it to be sent
   again (`pages/register/useForgetSentRegistration.ts`).
