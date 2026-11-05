@@ -135,11 +135,12 @@ class AuthorizeView(AuthorizationView):
         response = super().form_valid(form)
         # The toolkit redirects with a code when it grants the request, and with an
         # error (or renders one) when it doesn't.
+        # The code issued is the last: a registered redirect URI may carry its own.
         code = parse_qs(urlparse(response.get('Location', '')).query).get('code')
         if form.cleaned_data.get('allow') and response.status_code == 302 and code:
             application = Application.objects.get(client_id=form.cleaned_data['client_id'])
             oauth.connect(self.request.user, application,
-                          ' '.join(oauth.scope_names(form.cleaned_data.get('scope'))), code[0])
+                          ' '.join(oauth.scope_names(form.cleaned_data.get('scope'))), code[-1])
         return response
 
 
