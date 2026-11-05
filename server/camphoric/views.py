@@ -1164,10 +1164,19 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
-        try:
-            contract = contracts.publish(self.get_object(), request.user)
-        except contracts.ContractError as error:
-            raise serializers.Conflict(str(error))
+        '''
+        Publish the draft. With `If-Match`, only the version of it the Admin
+        read: 412 if it has been saved since (DR-109), as what's published
+        can't change afterwards.
+        '''
+        with transaction.atomic():
+            conflict = self.version_conflict()
+            if conflict:
+                return conflict
+            try:
+                contract = contracts.publish(self.get_object(), request.user)
+            except contracts.ContractError as error:
+                raise serializers.Conflict(str(error))
         return Response(self.get_serializer(self.get_queryset().get(pk=contract.pk)).data)
 
     @action(detail=True, methods=['get'])
@@ -1211,6 +1220,8 @@ class OrganizationContractAgreeView(APIView):
 
     def post(self, request, organization_id=None):
         organization = get_object_or_404(models.Organization, pk=organization_id)
+        if not isinstance(request.data, dict):
+            raise ValidationError({'detail': 'Send {contract_id, content_sha256, assent_text}.'})
         try:
             contracts.agree(
                 request, organization, request.data.get('contract_id'),

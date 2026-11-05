@@ -16,7 +16,7 @@ import type {
   ApiPrivacyPolicy,
   ApiUser,
 } from 'api-types';
-import { ApiError, apiFetch } from 'utils/fetch';
+import { ApiError, apiFetch, ifMatch } from 'utils/fetch';
 
 import { createEntityHooks } from './createEntityHooks';
 
@@ -117,7 +117,8 @@ export function useStartContractDraft() {
   return useMutation({
     mutationFn: (organization: number) =>
       apiFetch<ApiContract>('/api/contracts/', { method: 'POST', body: { organization } }),
-    onSuccess: invalidate,
+    // Refused, it may be that the versions changed (another draft, a new version).
+    onSettled: invalidate,
   });
 }
 
@@ -146,19 +147,25 @@ export function useSaveContractDraft() {
 
 /**
  * Publish the draft as the next version: everyone, the publisher included,
- * must then agree to it before reaching the organization again.
+ * must then agree to it before reaching the organization again. Only the
+ * `version` of the draft the Admin read: a 412 if it was saved since (DR-109),
+ * and the draft is fetched again to read.
  */
 export function usePublishContract() {
   const client = useQueryClient();
   const invalidate = useInvalidateContracts();
   return useMutation({
-    mutationFn: (id: number) =>
-      apiFetch<ApiContract>(`/api/contracts/${id}/publish/`, { method: 'POST' }),
+    mutationFn: ({ id, version }: { id: number; version: number }) =>
+      apiFetch<ApiContract>(`/api/contracts/${id}/publish/`, {
+        method: 'POST',
+        headers: ifMatch(version),
+      }),
     meta: { suppressErrorNotification: true },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: WHOAMI });
       return invalidate();
     },
+    onError: invalidate,
   });
 }
 

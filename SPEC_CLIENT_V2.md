@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-04
+**Last updated:** 2026-11-05
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -629,12 +629,15 @@ Non-CRUD admin endpoints:
     the privacy policy; `If-Match` as for any record). `DELETE` removes the draft. `POST
     /api/contracts/{id}/publish/` makes the draft the next version: its `number`, the
     `content_sha256` of its ordered section titles and bodies, `published_at` (its effective
-    date) and `published_by`; 400 when a section has no title or text. A published version
+    date) and `published_by`; 400 when a section has no title or text; with `If-Match`, 412 when
+    the draft was saved since that version (§15, DR-109), which the client always sends, as a
+    published version can't change. A published version
     answers 409 to `PATCH`, `DELETE` and `publish`. `GET /api/contracts/{id}/agreements/` → who
     agreed: `{ id, organization, contract, contract_number, user, agreed_at, username, email,
     full_name, ip_address, user_agent, content_sha256, assent_text, app_version }[]`. Managing an
     organization's versions is gated like anything of the organization's.
-  - An organization with versions can't be deleted (the delete plan says why).
+  - An organization whose terms someone has agreed to can't be deleted (the delete plan says
+    why); otherwise its versions go with it.
 - **Registration drafts** (§15, DR-140): `GET /api/registrationdrafts/?event=&…`,
   `GET /api/registrationdrafts/{id}/` (any role) → `{ id, event, invitation,
   registration_type, promo_code, registrant_email, form_data, server_pricing_results,
@@ -1249,10 +1252,14 @@ hooks):
   - Each organization is agreed to separately, once per version; moving to another organization
     asks again if it needs agreeing to.
   - **A version published mid-session** is found by session monitoring's next whoami check, or
-    sooner by a 403 `contract_agreement_required`, which re-checks whoami rather than being
-    reported. For the organization on screen, the terms open over the admin as the sign-in prompt
-    does (DR-127): the admin stays in place, out of reach, with its unsaved edits; agreeing
-    returns to it and fetches again what was refused meanwhile, and declining signs out.
+    sooner by a 403 `contract_agreement_required`, which re-checks whoami. A refused fetch isn't
+    reported, as the gate explains it; a refused change is ("Agree to the organization's terms
+    before continuing."), since it can happen where there's no gate, such as renaming the
+    organization from the chooser. For the organization on screen, the terms open over the
+    admin as the sign-in prompt does (DR-127): the admin stays in place, out of reach, with its
+    unsaved edits; agreeing returns to it and fetches again what was refused meanwhile, and
+    declining signs out. Once the user has left the organization (for a chooser, or another
+    organization), reaching it again shows the terms in place of its pages.
   - Anyone can reread the versions they've agreed to, with when they agreed, from their account
     actions.
 - **Proactive session monitoring (admin).** Rather than waiting for a request to fail, the admin

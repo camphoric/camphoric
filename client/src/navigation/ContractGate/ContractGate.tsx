@@ -31,12 +31,12 @@ export function ContractGate({ children }: { children: ReactNode }) {
   const pending = user?.pending_contract_organizations ?? [];
   const needsAgreement = organizationId !== null && pending.includes(organizationId);
 
-  // The organization whose admin has been shown here, so a version published
-  // while it's showing is agreed to over it rather than in its place.
+  // The organization whose admin is showing here, so a version published while
+  // it is is agreed to over it rather than in its place. Leaving it (for the
+  // choosers, or another organization) ends that.
   const [shownFor, setShownFor] = useState<number | null>(null);
-  if (organizationId !== null && !needsAgreement && shownFor !== organizationId) {
-    setShownFor(organizationId);
-  }
+  const showing = needsAgreement ? (shownFor === organizationId ? shownFor : null) : organizationId;
+  if (showing !== shownFor) setShownFor(showing);
 
   if (!needsAgreement) return <>{children}</>;
   if (shownFor === organizationId) {

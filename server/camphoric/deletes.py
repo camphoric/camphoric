@@ -42,8 +42,8 @@ BLOCKED_BECAUSE = {
     ('payment', 'refund_of'): 'It has been refunded. Delete its refunds first.',
     ('customcharge', 'custom_charge_type'): 'Campers still have this charge.',
     # Kept as the record of who agreed to what (DR-145).
-    ('contract', 'organization'): 'It has terms that people agree to.',
     ('contractagreement', 'organization'): 'People have agreed to its terms.',
+    ('contractagreement', 'contract'): 'People have agreed to its terms.',
 }
 
 # What happens to things left behind, by (model, field) cleared.

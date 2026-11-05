@@ -97,13 +97,16 @@ function OrganizationContracts({ organization }: { organization: ApiOrganization
           error={draftError}
           onSave={(sections) => save.mutate({ id: draft.id, version: draft.version, sections })}
           onPublish={() =>
-            publish.mutate(draft.id, {
-              onSuccess: (contract) =>
-                notifications.show({
-                  color: 'green',
-                  message: `Published version ${contract.number}. Everyone will be asked to agree to it.`,
-                }),
-            })
+            publish.mutate(
+              { id: draft.id, version: draft.version },
+              {
+                onSuccess: (contract) =>
+                  notifications.show({
+                    color: 'green',
+                    message: `Published version ${contract.number}. Everyone will be asked to agree to it.`,
+                  }),
+              },
+            )
           }
           onDelete={() => remove.mutate({ id: draft.id, version: draft.version })}
         />

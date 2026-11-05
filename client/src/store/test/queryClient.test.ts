@@ -258,12 +258,27 @@ describe('terms still to agree to (DR-145)', () => {
     vi.mocked(notifications.show).mockClear();
   });
 
-  it('asks who is signed in, whose answer opens the gate, instead of reporting it', async () => {
+  it('asks who is signed in, whose answer opens the gate, and says why a change failed', async () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await queryClient
       .getMutationCache()
       .build(queryClient, { mutationFn: () => Promise.reject(gated()), retry: false })
       .execute(undefined)
+      .catch(() => undefined);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: WHOAMI });
+    // Renaming the organization from the chooser, where there's no gate to explain it.
+    expect(notifications.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Agree to the organization’s terms before continuing.',
+      }),
+    );
+    invalidate.mockRestore();
+  });
+
+  it('lets the gate explain a refused query', async () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    await queryClient
+      .fetchQuery({ queryKey: ['Event', 1], queryFn: () => Promise.reject(gated()), retry: false })
       .catch(() => undefined);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: WHOAMI });
     expect(notifications.show).not.toHaveBeenCalled();

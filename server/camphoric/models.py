@@ -1396,8 +1396,10 @@ class Contract(TimeStampedModel):
     `number`; `published_at` is that version's effective date. (`version`, from
     TimeStampedModel, counts edits to a draft, as for every record.)
     '''
+    # Its versions go with the organization, unless someone agreed to one: an
+    # agreement keeps the organization and the version it's for (PROTECT).
     organization = models.ForeignKey(
-        Organization, related_name='contracts', on_delete=models.PROTECT)
+        Organization, related_name='contracts', on_delete=models.CASCADE)
     number = models.PositiveIntegerField(null=True, blank=True)
     content_sha256 = models.CharField(max_length=64, blank=True, default='')
     published_at = models.DateTimeField(null=True, blank=True)
