@@ -115,10 +115,20 @@ def send_confirmation(registration, request=None):
 
 
 def confirmation_email_problem(registration):
-    '''Whether the registration's confirmation email couldn't be queued.'''
+    '''
+    Whether the registration's confirmation email couldn't be queued. One marked
+    sent with nothing queued, and no problem report, was dealt with some other way:
+    sent before the outbox, an organizer adding it, or migration 0090 settling it
+    (#955). (An event with no "from" address gets no report, so a template that
+    can't be rendered isn't caught there; neither is anything else it sends.)
+    '''
     message = models.EmailMessage.objects.filter(
         dedupe_key=f'confirmation:{registration.id}').first()
-    return message is None or message.status in (
+    if message is None:
+        return registration.confirmation_sent_at is None or models.EmailMessage.objects.filter(
+            dedupe_key=f'{models.EmailMessageKind.CONFIRMATION_REPORT}:{registration.id}',
+        ).exists()
+    return message.status in (
         models.EmailMessageStatus.FAILED, models.EmailMessageStatus.CANCELLED)
 
 

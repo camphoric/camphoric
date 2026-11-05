@@ -188,7 +188,8 @@ flowchart TD
   has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
   again; the browser's saves then carry `reopen: true`, and changed answers return the draft to
   being filled in. Any other save to a submitted draft changes nothing. The price is worked out again too. The payment step carries a `quote`, a digest of what
-  it asks for (the total, the options and their amounts, the handling percent), and a payment
+  it asks for (the total, each option's name and amounts, the default, the handling percent, but
+  not the options' titles), and a payment
   button sends it back: one that's out of date is refused (`invoice_changed`, with the new payment
   step), so no one is charged an amount they haven't seen, and that holds for a completed
   registration too, as with a second tab left open. A request with no `quote`, as from the
@@ -489,7 +490,9 @@ is the sweep, called from the worker's `reconcile` task — after `check_unrecor
 (§6). The sweep skips a registration while one of its invoices has a capture not yet settled
 (for up to a day), so a confirmation sent late says what was paid — but not one PayPal says is
 pending, which may take days (#767). Registrations converted by migration 0076
-have `confirmation_sent_at` set, so the sweep never emails anyone from before.
+have `confirmation_sent_at` set, so the sweep never emails anyone from before, and so do those
+migration 0090 settles. Neither has a confirmation in the outbox, so a payment step a registrant
+comes back to doesn't report an email problem unless a problem report was queued (#955).
 
 It also passes over a registration whose invoice has a pending PayPal order made in the last
 three hours (`PENDING_PAYPAL_ORDER_WINDOW`, #767): the payer may still be in PayPal's window, and

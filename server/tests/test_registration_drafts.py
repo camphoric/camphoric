@@ -380,6 +380,32 @@ class SubmittingTests(DraftTestCase):
         self.submit(formData=changed, draftUUID=str(draft_uuid))
         self.assertEqual(models.RegistrationDraft.objects.get().form_data, changed)
 
+    def test_a_price_more_than_an_invoice_holds_is_refused_not_a_server_error(self):
+        # As from a priced number field with no maximum (#956).
+        cabins, *rest = self.event.registration_pricing_logic
+        for price in (100_000, 1e30):
+            with self.subTest(price=price):
+                self.event.registration_pricing_logic = [{**cabins, 'exp': price}, *rest]
+                self.event.save()
+                response = self.client.post(self.url, {
+                    'formData': self.valid_form_data, 'pricingResults': {}}, format='json')
+                self.assertEqual(response.status_code, 400, response.data)
+                self.assertIn('formData', response.data)
+        self.assertFalse(models.RegistrationDraft.objects.exists())
+
+    def test_the_most_an_invoice_holds_can_be_paid(self):
+        cabins, *rest = self.event.registration_pricing_logic
+        self.event.registration_pricing_logic = [{**cabins, 'exp': 0}, *rest]
+        self.event.save()
+        total = self.submit().data['serverPricingResults']['total']
+        self.event.registration_pricing_logic = [
+            {**cabins, 'exp': float(invoices.MAX_AMOUNT) - total}, *rest]
+        self.event.save()
+        sent = self.submit().data
+        self.assertEqual(sent['serverPricingResults']['total'], float(invoices.MAX_AMOUNT))
+        response = complete(self.client, self.event, sent['registrationUUID'])
+        self.assertEqual(response.status_code, 200, response.data)
+
     def test_it_submits_a_draft_under_the_uuid_the_browser_chose(self):
         # The first save, under that uuid, may not have got there yet (#953).
         chosen = uuid.uuid4()
@@ -586,6 +612,18 @@ class PriceChangedTests(DraftTestCase):
         option = response.data['paymentStep']['paymentOptions']['options'][0]
         self.assertEqual(option['amount'], self.total * 0.75)
         self.assertFalse(models.Invoice.objects.exists())
+
+    def test_an_option_retitled_asks_no_more_and_isnt_refused(self):
+        option = json.dumps({'name': 'Deposit', 'logic': {'*': [{'var': 'total'}, 0.25]}})
+        deposit = {'title': 'Payment', 'enum': [option], 'enumNames': ['Deposit']}
+        self.event.registration_deposit_schema = deposit
+        self.event.save()
+        self.sent = self.submit().data
+        self.event.registration_deposit_schema = {
+            **deposit, 'title': 'How much now?', 'enumNames': ['A deposit']}
+        self.event.save()
+        response = self.pay(step='payment', paymentType='Check', paymentOption='Deposit')
+        self.assertEqual(response.status_code, 200, response.data)
 
     def test_a_handling_fee_changed_is_refused(self):
         self.event.epayment_handling = 5

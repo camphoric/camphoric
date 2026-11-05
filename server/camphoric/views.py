@@ -1,4 +1,5 @@
 import copy
+import decimal
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
@@ -1447,12 +1448,18 @@ def new_draft(event, wanted):
 def price_quote(server_pricing_results, payment_options):
     '''
     A digest of what a payment page asks for, which its buttons send back: a draft
-    is completed only at the price the page was showing (DR-140). Not the pricing's
-    other lines, which may read the clock without changing what's asked.
+    is completed only at the price the page was showing (DR-140). The total, each
+    option's name (what a button sends) and amounts, the default and the handling
+    percent; not the options' titles or descriptions, which change no amount (#958),
+    nor the pricing's other lines, which may read the clock without changing what's asked.
     '''
     total = invoices.money((server_pricing_results or {}).get('total'))
-    shown = json.dumps([str(total), payment_options], sort_keys=True)
-    return hashlib.sha256(shown.encode()).hexdigest()
+    options = payment_options['paymentOptions']
+    asked = [
+        str(total), options.get('default'), payment_options['handlingPercent'],
+        [[option['name'], option['amount'], option['handling']] for option in options['options']],
+    ]
+    return hashlib.sha256(json.dumps(asked).encode()).hexdigest()
 
 
 class DraftRepriced(Exception):
@@ -1723,7 +1730,17 @@ class RegisterView(APIView):
             index, message = problem
             raise ValidationError({f'campers.{index}.lodging.lodging_requested.id': [message]})
 
-        server_pricing_results = pricing.calculate_price(registration, campers)
+        try:
+            server_pricing_results = pricing.calculate_price(registration, campers)
+            shown = self.payment_options(event, server_pricing_results)
+            asked = [invoices.money(server_pricing_results.get('total')), *(
+                invoices.money(option['amount']) + invoices.money(option['handling'])
+                for option in shown['paymentOptions']['options'])]
+        except decimal.InvalidOperation:  # past even what Decimal holds
+            asked = None
+        # More than an invoice holds, as from a priced number field with no maximum (#956).
+        if asked is None or max(asked) > invoices.MAX_AMOUNT:
+            raise ValidationError({'formData': 'A number in this form makes its price too large.'})
 
         if invitation:
             # Locked, as completing takes it: one completed since it was found
@@ -1758,7 +1775,7 @@ class RegisterView(APIView):
         return Response({
             'registrationUUID': draft.uuid,
             'serverPricingResults': server_pricing_results,
-            **self.payment_options(event, server_pricing_results),
+            **shown,
         })
 
     @staticmethod
