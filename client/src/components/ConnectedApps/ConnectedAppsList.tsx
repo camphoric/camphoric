@@ -47,7 +47,7 @@ export function ConnectedAppsList({
         return (
           <Paper key={connection.id} withBorder p="sm" radius="md">
             <Group justify="space-between" wrap="nowrap" align="flex-start">
-              <Stack gap={4} miw={0}>
+              <Stack gap={4} miw={0} style={{ flex: 1 }}>
                 <Text fw={500} style={{ overflowWrap: 'anywhere' }}>
                   {name}
                 </Text>
@@ -72,6 +72,8 @@ export function ConnectedAppsList({
                   variant="light"
                   color="red"
                   size="xs"
+                  // Its label stays whole however much the details wrap.
+                  style={{ flexShrink: 0 }}
                   loading={disconnectingId === connection.id}
                   onClick={() => onDisconnect(connection)}
                   aria-label={`Disconnect ${name}`}
