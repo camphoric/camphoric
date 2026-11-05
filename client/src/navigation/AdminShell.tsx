@@ -21,11 +21,12 @@ export function AdminShell() {
   return (
     <AuthGuard>
       <AdminPermissions>
+        {/* The overlays too: nothing of the admin is reachable before agreeing. */}
         <ContractGate>
           <Outlet />
+          <UsersOverlay />
+          <AppsOverlay />
         </ContractGate>
-        <UsersOverlay />
-        <AppsOverlay />
       </AdminPermissions>
     </AuthGuard>
   );

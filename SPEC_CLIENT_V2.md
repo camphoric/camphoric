@@ -610,8 +610,8 @@ Non-CRUD admin endpoints:
     the app. `POST /api/applications/{id}/new-secret/` → `{ client_secret }`: the old secret
     stops working; connections are kept. `GET /api/applications/{id}/connections/` → the
     connected apps of everyone who approved it.
-  - None of these, nor `/api/users/`, `POST /api/user/password` or agreeing to an organization's
-    terms, answers a request made with an app's access token: 403 `{ detail, code:
+  - None of these, nor `/api/users/`, `POST /api/user/password`, agreeing to an organization's
+    terms or publishing a version of them, answers a request made with an app's access token: 403 `{ detail, code:
     'app_not_allowed' }`.
 - **Contracts** (§6; §15, DR-145). Each organization has a series of contract versions, each an
   ordered list of sections (`{ kind: 'privacy_policy' | 'custom', title, body }`, `body` in
@@ -1249,8 +1249,8 @@ hooks):
     needs only `read`). An app's access is its token's scope and the person's current permission
     group, both (§15, DR-147): a `read` token's write is refused (403 `{ detail, code:
     'insufficient_scope' }`), and a token never does more than the person's group allows.
-    Managing users, apps and connections, changing a password and agreeing to an organization's
-    terms are for people only (403 `app_not_allowed`).
+    Managing users, apps and connections, changing a password, and agreeing to or publishing an
+    organization's terms are for people only (403 `app_not_allowed`; §15, DR-151).
   - **Tokens.** An app sends `Authorization: Bearer <access token>`, with no CSRF token, and acts
     as the person, in the audit log too. An access token works for
     `CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL` seconds (an hour); the refresh token is replaced each time
@@ -6415,7 +6415,8 @@ publisher's apps too). So everyone else meets the new terms when they next sign 
 when its person connects it again. The OAuth agreement pages are rendered by the server, with
 the Markdown rendered there (cmark-gfm's safe mode: raw HTML and unsafe links left out). The
 admin client asks in its own screens. API tokens for scripts are left; the gate still refuses
-them. The gate stays, as the backstop.
+them. Publishing is for people only (403 `app_not_allowed`), as agreeing is (DR-147): an app
+could otherwise sign everyone out and disconnect every app. The gate stays, as the backstop.
 **Context:** #980. With OAuth (DR-146 to DR-150), someone could sign in at `/o/login/`, approve
 an app and never open the admin, where the gate used to ask per organization; the app can't
 agree for them (DR-147), so its calls kept failing with `contract_agreement_required`, which it

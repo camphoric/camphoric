@@ -89,7 +89,7 @@ Ask for `read write` to do both; with no `scope`, the app gets `read`. The app i
 scopes **and** to the person's Camphoric permission group as it is now: a Reporter's token can't
 change anything, whatever its scopes. A request outside its scopes is refused with
 `403 { "code": "insufficient_scope" }`. No app may manage users, apps or connections, change a
-password, or agree to an organization's terms: `403 { "code": "app_not_allowed" }`. Everything else
+password, or agree to or publish an organization's terms: `403 { "code": "app_not_allowed" }`. Everything else
 answers as it would to the person. Connecting asks the person to agree to every organization's
 terms first, and publishing new terms ends every app's access (below), so an app shouldn't meet
 `403 { "code": "contract_agreement_required" }`; if it does (terms published in the moment between

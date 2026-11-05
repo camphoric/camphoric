@@ -1152,6 +1152,11 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
     filterset_fields = ['organization']
     pagination_class = None
 
+    @property
+    def refuses_apps(self):
+        # Publishing signs everyone out and disconnects every app (DR-151): for people only.
+        return getattr(self, 'action', None) == 'publish'
+
     def destroy(self, request, *args, **kwargs):
         with transaction.atomic():
             conflict = self.version_conflict()

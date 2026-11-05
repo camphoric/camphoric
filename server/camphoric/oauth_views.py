@@ -23,6 +23,7 @@ API:
 
 import functools
 import hashlib
+import re
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from auditlog.models import LogEntry
@@ -98,9 +99,10 @@ def refusal(user):
 
 ROLE_NAMES = {roles.ADMIN: 'Admin', roles.REGISTRAR: 'Registrar', roles.REPORTER: 'Reporter'}
 
-# How many organizations' terms the person has agreed to on the way to the
+# The organizations whose terms the person has agreed to on the way to the
 # consent page, for "2 of 3"; forgotten once the consent page shows.
 TERMS_AGREED = 'camphoric_oauth_terms_agreed'
+DECISIONS = ('agree', 'decline')
 
 
 class AuthorizeView(AuthorizationView):
@@ -127,7 +129,9 @@ class AuthorizeView(AuthorizationView):
                 return render(request, 'camphoric/oauth/message.html', {
                     'title': 'You can\'t connect apps', 'message': problem,
                     'user': request.user}, status=403)
-            if contracts.pending_organization_ids(request.user):
+            # A decision is answered even once nothing is pending (sent twice, or
+            # from a second tab), so declining always signs out and tells the app.
+            if contracts.pending_organization_ids(request.user) or self.decision(request):
                 return self.ask_to_agree(request)
             request.session.pop(TERMS_AGREED, None)
         return super().dispatch(request, *args, **kwargs)
@@ -142,8 +146,8 @@ class AuthorizeView(AuthorizationView):
         other post (the consent form, sent while terms are pending) comes back
         here too: no code is issued until nothing is pending.
         '''
-        decision = request.POST.get('terms') if request.method == 'POST' else None
-        if request.method == 'POST' and decision not in ('agree', 'decline'):
+        decision = self.decision(request)
+        if request.method == 'POST' and decision is None:
             return HttpResponseRedirect(request.get_full_path())
         self.oauth2_data = {}
         try:
@@ -162,9 +166,11 @@ class AuthorizeView(AuthorizationView):
             except OAuthToolkitError as denied:
                 return self.error_response(denied, application)
         if decision == 'agree':
-            error = self.agree(request)
+            organization_id, error = self.agree(request)
             if error is None:
-                request.session[TERMS_AGREED] = request.session.get(TERMS_AGREED, 0) + 1
+                agreed = request.session.get(TERMS_AGREED, [])
+                if organization_id not in agreed:
+                    request.session[TERMS_AGREED] = [*agreed, organization_id]
                 return HttpResponseRedirect(request.get_full_path())
 
         pending = contracts.pending_organization_ids(request.user)
@@ -172,7 +178,7 @@ class AuthorizeView(AuthorizationView):
             # Agreed meanwhile (in another tab): on to the consent page.
             return HttpResponseRedirect(request.get_full_path())
         contract = contracts.latest_contract(pending[0])
-        agreed = request.session.get(TERMS_AGREED, 0)
+        agreed = len(set(request.session.get(TERMS_AGREED, [])) - set(pending))
         return render(request, 'camphoric/oauth/terms.html', {
             'application': application,
             'user': request.user,
@@ -190,19 +196,31 @@ class AuthorizeView(AuthorizationView):
         }, status=409 if error else 200)
 
     @staticmethod
+    def decision(request):
+        '''The answer posted from the terms page, or None for anything else.'''
+        if request.method != 'POST':
+            return None
+        decision = request.POST.get('terms')
+        return decision if decision in DECISIONS else None
+
+    @staticmethod
     def agree(request):
-        '''Record the agreement posted; the reason it can't be, or None once it is.'''
+        '''
+        Record the agreement posted: (the organization's id, None) once it is,
+        or (None, the reason it can't be).
+        '''
+        changed = 'These terms have changed since you opened them. Read them again, then agree.'
         organization_id = request.POST.get('organization', '')
-        organization = models.Organization.objects.filter(
-            pk=int(organization_id)).first() if organization_id.isdigit() else None
+        organization = (models.Organization.objects.filter(pk=int(organization_id)).first()
+                        if re.fullmatch(r'[0-9]+', organization_id) else None)
         if organization is None:
-            return 'These terms have changed since you opened them. Read them again, then agree.'
+            return None, changed
         try:
             contracts.agree(request, organization, request.POST.get('contract_id'),
                             request.POST.get('content_sha256'), contracts.ASSENT_TEXT)
         except contracts.ContractError as problem:
-            return str(problem)
-        return None
+            return None, str(problem)
+        return organization.pk, None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
