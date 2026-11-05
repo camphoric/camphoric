@@ -18,17 +18,26 @@ import { camper_admin_schema, registration_admin_schema } from './adminSchemas.t
 import camper_schema from './camperSchema.ts';
 import {
   confirmation_email_from,
+  confirmation_email_reply_to,
   confirmation_email_subject,
   confirmation_email_template,
 } from './confirmationEmailTemplate.ts';
 import confirmation_page_template from './confirmationPageTemplate.ts';
 import { dates, lengthInDays, year, zone } from './dates.ts';
+import email_templates from './groupEmails.ts';
+import {
+  invoice_email_from,
+  invoice_email_reply_to,
+  invoice_email_subject,
+  invoice_email_template,
+} from './invoiceEmailTemplate.ts';
 import lodgings from './lodgings.ts';
 import organization from './organization.ts';
 import camperPricingLogic, { placeholder as camper_pricing_logic } from './pricing/camperPricingLogic.ts';
 import pricing from './pricing/pricing.ts';
 import registration_pricing_logic from './pricing/registrationPricingLogic.ts';
 import pre_submit_template from './preSubmitTemplate.ts';
+import promo_codes from './promoCodes.ts';
 import registration_deposit_schema from './registrationDepositSchema.ts';
 import registration_error_messages from './registrationErrorMessages.ts';
 import registration_schema from './registrationSchema.ts';
@@ -74,6 +83,11 @@ const data: EventImport = {
     confirmation_email_subject,
     confirmation_email_template,
     confirmation_email_from,
+    confirmation_email_reply_to,
+    invoice_email_subject,
+    invoice_email_template,
+    invoice_email_from,
+    invoice_email_reply_to,
   },
   lodgings,
   reports,
@@ -82,6 +96,8 @@ const data: EventImport = {
     { name: 'other', label: 'Other' },
   ],
   registration_types,
+  email_templates,
+  promo_codes,
 };
 
 // Online payments, only where a PayPal client is configured
