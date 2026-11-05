@@ -539,7 +539,9 @@ class PrivacyPolicyTests(APITestCase):
 
 # Not in any organization: users, and apps using OAuth with who approved them.
 SITE_WIDE_VIEWS = {
-    'UserViewSet', 'ApplicationViewSet', 'MyConnectedAppsView', 'MyConnectedAppView'}
+    'UserViewSet', 'ApplicationViewSet', 'MyConnectedAppsView', 'MyConnectedAppView',
+    # Approving an app: it waits for every organization's terms itself (test_oauth).
+    'AuthorizationRequestView'}
 
 
 def _fill_route(pattern, values):

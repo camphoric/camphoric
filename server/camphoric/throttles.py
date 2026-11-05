@@ -1,7 +1,7 @@
 '''
-Throttles for signing in with a password (SPEC §6, DR-124): the admin's
-/api/login, the importer's /api-token-auth/, the OAuth sign-in page (/o/login/)
-and the Django admin's login page.
+Throttles for signing in with a password (SPEC §6, DR-124): the client's
+/api/login (the admin's, and the OAuth authorization page's), the importer's
+/api-token-auth/ and the Django admin's login page.
 
 - Every sign-in POST counts against the client's address, at the `login` rate,
   so one address can't try many passwords or usernames.

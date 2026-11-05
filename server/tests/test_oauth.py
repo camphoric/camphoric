@@ -11,22 +11,25 @@ import os
 import secrets
 import subprocess
 import sys
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from auditlog.models import LogEntry
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.test import override_settings
+from django.urls import reverse
 from freezegun import freeze_time
 from oauth2_provider.models import AccessToken, Application, Grant, RefreshToken
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from camphoric import contracts, models, oauth, roles
-from camphoric import oauth_views as views_module
 from camphoric.throttles import OAuthTokenThrottle
 from tests.factories import create_template_event, make_user
 
+API = '/api/oauth/authorize'
 REDIRECT_URI = 'https://admin-tool.example.com/oauth/callback'
 SECRET = 'the-app-secret'
 NOW = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
@@ -58,6 +61,7 @@ class OAuthTestCase(APITestCase):
         cache.clear()
 
     def authorize_query(self, scope='read write', challenge=None, **more):
+        '''The query string of an app's authorization request.'''
         query = {
             'response_type': 'code', 'client_id': self.app.client_id,
             'redirect_uri': REDIRECT_URI, 'state': 'xyz',
@@ -67,21 +71,25 @@ class OAuthTestCase(APITestCase):
         if challenge:
             query.update(code_challenge=challenge, code_challenge_method='S256')
         query.update(more)
-        return f'/o/authorize/?{urlencode(query)}'
+        return urlencode(query)
+
+    def describe(self, query):
+        '''What the consent page asks the API about the app's request.'''
+        return self.client.get(f'{API}?{query}')
+
+    def decide(self, query, allow):
+        '''The consent page's Connect (allow) or Cancel.'''
+        return self.client.post(f'{API}?{query}', {'allow': allow}, format='json')
 
     def approve(self, user, scope='read write', redirect_uri=REDIRECT_URI):
         '''Sign in as `user`, approve the app for `scope`, and return the code and verifier.'''
         verifier, challenge = pkce_pair()
         self.client.force_login(user)
-        url = self.authorize_query(scope, challenge, redirect_uri=redirect_uri)
-        page = self.client.get(url)
-        self.assertEqual(page.status_code, 200, page.content)
-        form = page.context['form']
-        data = {name: value for name, value in form.initial.items() if value is not None}
-        data['allow'] = 'Authorize'
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 302, response.content)
-        location = urlparse(response['Location'])
+        query = self.authorize_query(scope, challenge, redirect_uri=redirect_uri)
+        self.assertEqual(self.describe(query).status_code, 200)
+        response = self.decide(query, True)
+        self.assertEqual(response.status_code, 200, response.content)
+        location = urlparse(response.json()['redirect_to'])
         self.assertEqual(f'{location.scheme}://{location.netloc}{location.path}',
                          redirect_uri.partition('?')[0])
         query = parse_qs(location.query)
@@ -114,40 +122,39 @@ class OAuthTestCase(APITestCase):
 
 
 class AuthorizationFlowTests(OAuthTestCase):
-    def test_a_signed_out_user_signs_in_then_sees_the_consent_page(self):
+    def test_the_authorization_endpoint_is_a_page_of_the_client(self):
+        with mock.patch('frontend_bootstrap.views.FrontendBootstrapView.get',
+                        return_value=HttpResponse('the client app')) as client_app:
+            response = self.client.get(f'/o/authorize/?{self.authorize_query()}')
+        self.assertEqual(response.content, b'the client app')
+        client_app.assert_called_once()
+        self.assertEqual(reverse('oauth2_provider:authorize'), '/o/authorize/')
+
+    def test_the_consent_page_is_told_what_the_app_asks_for(self):
         _, challenge = pkce_pair()
-        url = self.authorize_query(challenge=challenge)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response['Location'].startswith('/o/login/?next='))
+        self.client.force_login(self.registrar)
+        response = self.describe(self.authorize_query(challenge=challenge))
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {
+            'application': {'id': self.app.pk, 'name': 'Lark admin tool'},
+            'scopes': [
+                {'name': 'read', 'description':
+                 'See what your Camphoric permission group lets you see'},
+                {'name': 'write', 'description':
+                 'Make the changes your Camphoric permission group lets you make'},
+            ],
+            'write_limited_by_role': False,
+        })
+        self.client.force_login(self.reporter)
+        response = self.describe(self.authorize_query(challenge=challenge))
+        self.assertTrue(response.json()['write_limited_by_role'])
 
-        login = self.client.get(response['Location'])
-        self.assertEqual(login.status_code, 200)
-        signed_in = self.client.post(response['Location'], {
-            'username': 'registrar', 'password': 'password', 'next': url})
-        self.assertEqual(signed_in.status_code, 302)
-        self.assertEqual(signed_in['Location'], url)
-
-        consent = self.client.get(url)
-        self.assertContains(consent, 'Lark admin tool')
-        self.assertContains(consent, 'registrar')
-        self.assertContains(consent, 'Make the changes your Camphoric permission group')
-
-    def test_signing_in_goes_nowhere_but_the_consent_page(self):
-        response = self.client.post('/o/login/', {
-            'username': 'registrar', 'password': 'password',
-            'next': 'https://evil.example.com/'})
-        self.assertEqual(response['Location'], '/admin')
-        self.client.logout()
-        response = self.client.post('/o/login/', {
-            'username': 'registrar', 'password': 'password', 'next': '/admin/users'})
-        self.assertEqual(response['Location'], '/admin')
-
-    def test_a_wrong_password_is_refused_and_throttled(self):
-        for _ in range(10):
-            self.client.post('/o/login/', {'username': 'registrar', 'password': 'wrong'})
-        self.assertEqual(self.client.post(
-            '/o/login/', {'username': 'registrar', 'password': 'password'}).status_code, 429)
+    def test_only_someone_signed_in(self):
+        _, challenge = pkce_pair()
+        query = self.authorize_query(challenge=challenge)
+        self.assertEqual(self.describe(query).status_code, 403)
+        self.assertEqual(self.decide(query, True).status_code, 403)
+        self.assertFalse(Grant.objects.exists())
 
     def test_approving_gives_the_app_tokens_for_the_user(self):
         with freeze_time(NOW):
@@ -166,30 +173,40 @@ class AuthorizationFlowTests(OAuthTestCase):
             response = self.api('get', '/api/user', tokens['access_token'])
         self.assertEqual(response.data['username'], 'registrar')
 
+    def test_the_answer_names_the_server(self):
+        _, challenge = pkce_pair()
+        self.client.force_login(self.registrar)
+        redirect = self.decide(self.authorize_query(challenge=challenge), True).json()
+        self.assertIn('iss', parse_qs(urlparse(redirect['redirect_to']).query))
+
     def test_an_app_that_asks_for_no_scope_gets_read(self):
         tokens = self.connect(self.registrar, scope=None)
         self.assertEqual(tokens['scope'], 'read')
         self.assertEqual(models.ConnectedApp.objects.get(user=self.registrar).scope, 'read')
 
     def test_cancelling_gives_the_app_nothing(self):
-        verifier, challenge = pkce_pair()
+        _, challenge = pkce_pair()
         self.client.force_login(self.registrar)
-        url = self.authorize_query(challenge=challenge)
-        form = self.client.get(url).context['form']
-        response = self.client.post(
-            url, {k: v for k, v in form.initial.items() if v is not None})
-        self.assertIn('error=access_denied', response['Location'])
+        response = self.decide(self.authorize_query(challenge=challenge), False)
+        self.assertEqual(response.status_code, 200)
+        redirect = urlparse(response.json()['redirect_to'])
+        self.assertEqual(f'{redirect.scheme}://{redirect.netloc}{redirect.path}', REDIRECT_URI)
+        self.assertEqual(parse_qs(redirect.query)['error'], ['access_denied'])
+        self.assertEqual(parse_qs(redirect.query)['state'], ['xyz'])
         self.assertFalse(models.ConnectedApp.objects.exists())
         self.assertFalse(Grant.objects.exists())
 
-    def test_an_app_cant_skip_the_consent_page(self):
+    def test_nothing_is_approved_without_the_person_saying_so(self):
         self.connect(self.registrar)
         _, challenge = pkce_pair()
         self.client.force_login(self.registrar)
-        response = self.client.get(self.authorize_query(
-            challenge=challenge, approval_prompt='auto'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Connect')
+        for allow in (None, 'true', 1):
+            response = self.client.post(
+                f'{API}?{self.authorize_query(challenge=challenge, approval_prompt="auto")}',
+                {} if allow is None else {'allow': allow}, format='json')
+            self.assertIn('error=access_denied', response.json()['redirect_to'])
+        response = self.describe(self.authorize_query(challenge=challenge, approval_prompt='auto'))
+        self.assertNotIn('redirect_to', response.json())
 
     def test_approving_again_replaces_what_was_approved_before(self):
         first = self.connect(self.registrar)
@@ -212,17 +229,27 @@ class AuthorizationFlowTests(OAuthTestCase):
 
     def test_pkce_is_required(self):
         self.client.force_login(self.registrar)
-        response = self.client.get(self.authorize_query())
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('error=invalid_request', response['Location'])
+        for response in (self.describe(self.authorize_query()),
+                         self.decide(self.authorize_query(), True)):
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('error=invalid_request', response.json()['redirect_to'])
+        self.assertFalse(Grant.objects.exists())
 
     def test_the_redirect_uri_must_match_exactly(self):
         _, challenge = pkce_pair()
         self.client.force_login(self.registrar)
-        response = self.client.get(self.authorize_query(
-            challenge=challenge, redirect_uri=REDIRECT_URI + '/extra'))
+        query = self.authorize_query(challenge=challenge, redirect_uri=REDIRECT_URI + '/extra')
+        for response in (self.describe(query), self.decide(query, True), self.decide(query, False)):
+            self.assertEqual(response.status_code, 400)
+            # Never sent to an address the app didn't register.
+            self.assertIsNone(response.json()['redirect_to'])
+            self.assertTrue(response.json()['error'])
+
+    def test_an_unknown_app(self):
+        self.client.force_login(self.registrar)
+        response = self.describe(self.authorize_query(challenge=pkce_pair()[1], client_id='nope'))
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, 'can’t connect', status_code=400)
+        self.assertIsNone(response.json()['redirect_to'])
 
     def test_the_code_needs_its_verifier_and_the_secret_and_works_once(self):
         code, verifier = self.approve(self.registrar)
@@ -235,23 +262,31 @@ class AuthorizationFlowTests(OAuthTestCase):
     def test_someone_without_a_group_or_with_a_password_to_change_cant_approve(self):
         nobody = make_user(None)
         _, challenge = pkce_pair()
+        query = self.authorize_query(challenge=challenge)
         self.client.force_login(nobody)
-        response = self.client.get(self.authorize_query(challenge=challenge))
-        self.assertContains(response, 'no Camphoric permission group', status_code=403)
+        response = self.describe(query)
+        self.assertEqual((response.status_code, response.json()['code']),
+                         (403, 'cannot_connect_apps'))
+        self.assertIn('no Camphoric permission group', response.json()['detail'])
 
         models.UserAccount.objects.create(user=self.registrar, must_change_password=True)
         self.client.force_login(self.registrar)
-        response = self.client.post(self.authorize_query(challenge=challenge), {'allow': 'x'})
-        self.assertContains(response, 'Choose a new password', status_code=403)
+        response = self.decide(query, True)
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('Choose a new password', response.json()['detail'])
         self.assertFalse(models.ConnectedApp.objects.exists())
 
-    def test_switching_account_signs_out_and_keeps_the_request(self):
-        _, challenge = pkce_pair()
-        url = self.authorize_query(challenge=challenge)
-        self.client.force_login(self.admin)
-        response = self.client.post('/o/switch-account/', {'next': url})
-        self.assertEqual(response['Location'], f'/o/login/?{urlencode({"next": url})}')
-        self.assertEqual(self.client.get(url).status_code, 302)  # signed out
+    def test_only_a_person_signed_in_approves_apps_not_a_token(self):
+        tokens = self.connect(self.admin)
+        script_token = Token.objects.create(user=self.admin)
+        query = self.authorize_query(challenge=pkce_pair()[1])
+        for header in (f'Bearer {tokens["access_token"]}', f'Token {script_token.key}'):
+            for response in (
+                    self.client.get(f'{API}?{query}', HTTP_AUTHORIZATION=header),
+                    self.client.post(f'{API}?{query}', {'allow': True}, format='json',
+                                     HTTP_AUTHORIZATION=header)):
+                self.assertEqual(response.status_code, 403, header)
+        self.assertEqual(Grant.objects.count(), 0)
 
     def test_approving_is_recorded_in_the_audit_log(self):
         self.connect(self.registrar)
@@ -269,14 +304,14 @@ def publish_terms(organization, waiver='Use at your own risk.'):
 
 
 class TermsBeforeConsentTests(OAuthTestCase):
-    '''Each organization's pending terms, in turn, before the consent page (DR-151).'''
+    '''No code until the person has agreed to every organization's terms (DR-151).'''
 
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         cls.camp = cls.made.organization  # "Camp Org"
         cls.another = models.Organization.objects.create(name='Another camp')
-        publish_terms(cls.camp, waiver='**Bold** waiver <script>alert(1)</script>')
+        publish_terms(cls.camp)
         publish_terms(cls.another)
 
     def start(self, user=None):
@@ -284,133 +319,46 @@ class TermsBeforeConsentTests(OAuthTestCase):
         self.client.force_login(user or self.registrar)
         return self.authorize_query(challenge=challenge)
 
-    def agree_to_shown(self, url, page, **headers):
-        contract = page.context['contract']
-        return self.client.post(url, {
-            'terms': 'agree', 'organization': contract.organization_id,
-            'contract_id': contract.pk, 'content_sha256': contract.content_sha256}, **headers)
+    def agree_to_all(self):
+        for organization in (self.another, self.camp):
+            contract = contracts.latest_contract(organization.pk)
+            response = self.client.post(
+                f'/api/organizations/{organization.pk}/contract/agree',
+                {'contract_id': contract.pk, 'content_sha256': contract.content_sha256,
+                 'assent_text': 'I agree'}, format='json')
+            self.assertEqual(response.status_code, 200, response.content)
 
-    def test_each_organization_in_turn_by_name_then_the_consent_page(self):
-        url = self.start()
-        first = self.client.get(url)
-        self.assertEqual(first.status_code, 200)
-        self.assertTemplateUsed(first, 'camphoric/oauth/terms.html')
-        self.assertEqual(first.context['contract'].organization, self.another)
-        self.assertContains(first, 'Organization 1 of 2')
-        self.assertContains(first, 'Lark admin tool')
-        self.assertContains(first, f'/organizations/{self.another.pk}/privacy-policy')
-
-        response = self.agree_to_shown(url, first)
-        self.assertEqual(response['Location'], url)
-        second = self.client.get(url)
-        self.assertEqual(second.context['contract'].organization, self.camp)
-        self.assertContains(second, 'Organization 2 of 2')
-        # Its Markdown as written, every word of it, for the page's script to render as
-        # the admin does; any HTML in it is text until then.
-        self.assertContains(
-            second, '<div data-terms-markdown>**Bold** waiver &lt;script&gt;alert(1)&lt;/script&gt;'
-            '</div>', html=False)
-        self.assertNotContains(second, '<script>alert(1)')
-        self.assertContains(second, '<script type="module" src="/static/terms-markdown.js">')
-        with override_settings(CAMPHORIC_VERSION='1.2.3'):
-            self.assertContains(self.client.get(url),
-                                'src="/static/terms-markdown.js?v=1.2.3"')
-
-        self.agree_to_shown(url, second)
-        consent = self.client.get(url)
-        self.assertTemplateUsed(consent, 'camphoric/oauth/authorize.html')
-        self.assertNotIn(views_module.TERMS_AGREED, self.client.session)
-
-    @freeze_time(NOW)
-    @override_settings(CAMPHORIC_VERSION='9.9.9')
-    def test_agreeing_records_what_the_admin_client_does(self):
-        url = self.start()
-        self.agree_to_shown(url, self.client.get(url), HTTP_USER_AGENT='Firefox 200',
-                            REMOTE_ADDR='203.0.113.5')
-        agreement = models.ContractAgreement.objects.get()
-        self.assertEqual((agreement.organization, agreement.user), (self.another, self.registrar))
-        self.assertEqual(agreement.contract, contracts.latest_contract(self.another.pk))
-        self.assertEqual((agreement.agreed_at, agreement.username, agreement.ip_address,
-                          agreement.user_agent, agreement.assent_text, agreement.app_version),
-                         (NOW, 'registrar', '203.0.113.5', 'Firefox 200', 'I agree', '9.9.9'))
-        self.assertEqual(agreement.content_sha256, agreement.contract.content_sha256)
+    def test_the_page_is_told_which_in_order(self):
+        self.start()
+        self.assertEqual(self.client.get('/api/user').json()['pending_contract_organizations'],
+                         [self.another.pk, self.camp.pk])
 
     def test_no_code_while_terms_are_pending(self):
-        url = self.start()
-        response = self.client.post(url, {
-            'client_id': self.app.client_id, 'redirect_uri': REDIRECT_URI,
-            'response_type': 'code', 'state': 'xyz', 'scope': 'read write', 'allow': 'Authorize'})
-        self.assertEqual(response['Location'], url)
+        query = self.start()
+        # The consent page can still describe the request, for after the terms.
+        self.assertEqual(self.describe(query).status_code, 200)
+        response = self.decide(query, True)
+        self.assertEqual((response.status_code, response.json()['code'],
+                          response.json()['organization']),
+                         (403, 'contract_agreement_required', self.another.pk))
         self.assertFalse(Grant.objects.exists())
         self.assertFalse(models.ConnectedApp.objects.exists())
 
-    def test_declining_signs_out_and_tells_the_app(self):
-        url = self.start()
-        response = self.client.post(url, {'terms': 'decline'})
-        location = urlparse(response['Location'])
-        self.assertEqual(f'{location.scheme}://{location.netloc}{location.path}', REDIRECT_URI)
-        query = parse_qs(location.query)
-        self.assertEqual((query['error'], query['state']), (['access_denied'], ['xyz']))
-        self.assertNotIn('_auth_user_id', self.client.session)
-        self.assertFalse(models.ContractAgreement.objects.exists())
+    def test_declining_tells_the_app(self):
+        # Declining terms denies the request (then the page signs out).
+        response = self.decide(self.start(), False)
+        self.assertIn('error=access_denied', response.json()['redirect_to'])
         self.assertFalse(Grant.objects.exists())
 
-    def test_terms_changed_since_they_were_shown(self):
-        url = self.start()
-        page = self.client.get(url)
-        publish_terms(self.another, waiver='Changed.')
-        response = self.agree_to_shown(url, page)
-        self.assertEqual(response.status_code, 409)
-        self.assertContains(response, 'changed since you opened them', status_code=409)
-        self.assertContains(response, 'Changed.', status_code=409)
-        self.assertFalse(models.ContractAgreement.objects.exists())
-
-    def test_an_invalid_request_isnt_asked_about(self):
-        self.client.force_login(self.registrar)
-        response = self.client.get(self.authorize_query(redirect_uri='https://evil.example.com/'))
-        self.assertTemplateNotUsed(response, 'camphoric/oauth/terms.html')
-        self.assertFalse(response.has_header('Location')
-                         and 'evil.example.com' in response['Location'])
-
-    def test_signing_in_leads_to_the_terms(self):
-        url = self.authorize_query(challenge=pkce_pair()[1])
-        login = f'/o/login/?{urlencode({"next": url})}'
-        self.client.post(login, {'username': 'registrar', 'password': 'password', 'next': url})
-        self.assertTemplateUsed(self.client.get(url), 'camphoric/oauth/terms.html')
-
-    def test_agreeing_twice_counts_once_and_ends_on_the_consent_page(self):
-        url = self.start()
-        first = self.client.get(url)
-        self.agree_to_shown(url, first)
-        self.agree_to_shown(url, first)  # a double click
-        self.assertContains(self.client.get(url), 'Organization 2 of 2')
-        last = self.client.get(url)
-        self.agree_to_shown(url, last)
-        # Again, once nothing is pending: back to the consent page, not a broken form.
-        response = self.agree_to_shown(url, last)
-        self.assertEqual(response['Location'], url)
-        self.assertTemplateUsed(self.client.get(url), 'camphoric/oauth/authorize.html')
-
-    def test_declining_once_nothing_is_pending_still_signs_out_and_tells_the_app(self):
-        url = self.start()
-        for _ in range(2):
-            self.agree_to_shown(url, self.client.get(url))
-        # A second tab, still showing the terms.
-        response = self.client.post(url, {'terms': 'decline'})
-        self.assertIn('error=access_denied', response['Location'])
-        self.assertNotIn('_auth_user_id', self.client.session)
-
-    def test_an_organization_that_isnt_a_plain_number(self):
-        url = self.start()
-        for organization in ('²', '-1', 'x', ''):
-            response = self.client.post(url, {'terms': 'agree', 'organization': organization})
-            self.assertEqual(response.status_code, 409, organization)
-        self.assertFalse(models.ContractAgreement.objects.exists())
+    def test_once_agreed_the_app_connects(self):
+        query = self.start()
+        self.agree_to_all()
+        response = self.decide(query, True)
+        self.assertIn('code=', response.json()['redirect_to'])
 
     def test_an_app_cant_publish_terms(self):
-        url = self.start(self.admin)
-        for _ in range(2):
-            self.agree_to_shown(url, self.client.get(url))
+        self.start(self.admin)
+        self.agree_to_all()
         self.client.logout()
         tokens = self.connect(self.admin)
         draft = contracts.start_draft(self.camp)
@@ -420,9 +368,8 @@ class TermsBeforeConsentTests(OAuthTestCase):
         self.assertTrue(AccessToken.objects.exists())
 
     def test_an_app_connected_afterwards_isnt_refused_for_terms(self):
-        url = self.start()
-        for _ in range(2):
-            self.agree_to_shown(url, self.client.get(url))
+        self.start()
+        self.agree_to_all()
         self.client.logout()
         tokens = self.connect(self.registrar)
         event = self.made.event

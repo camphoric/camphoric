@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-151)
+- §15 — Decision Records (DR-1…DR-152)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -92,8 +92,7 @@ behaviors specified throughout this document.
 
 - **Language/Framework:** React (function components + hooks) in TypeScript.
 - **Build tool:** Vite. Dev server on port 3000; build output to `build/` with hashed assets
-  under `static/`, plus one script at a fixed name, `static/terms-markdown.js`, that the server's
-  OAuth terms page loads to render contract Markdown (§6; §15, DR-151).
+  under `static/`.
 - **Server-state / data fetching:** TanStack Query (React Query) for all API reads and
   mutations, with query-key invalidation (see §5).
 - **Client state:** Zustand for the small amount of genuine client state (the in-progress
@@ -216,6 +215,12 @@ ending in `/` to the non-slash form.
 - `/organizations/:organizationId/privacy-policy` — the organization's public privacy policy: the
   privacy policy section of its latest contract version, with the version and its effective date
   (§6; §15, DR-145). No sign-in; a page saying there's none when nothing is published.
+- `/o/authorize` — the OAuth authorization endpoint apps send people to, with their
+  authorization request as the query string (§6; §15, DR-152). It signs the person in itself,
+  so it isn't behind the admin guard. The request is passed to the API exactly as it was in the
+  address the page was loaded with (with or without a trailing slash), not as the router reads
+  and rewrites search params (DR-83), which would change some values; the page puts it back in
+  the address bar after the router rewrites it, so reloading sends the same request.
 
 The `eventId` is parsed from the URL by the registration API layer; the registration store's
 queries derive it from `window.location` rather than props, through the routing library.
@@ -590,7 +595,22 @@ Non-CRUD admin endpoints:
     every app's access to their account; it doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
-- **Apps using OAuth** (§6, §8.10; §15, DR-146 to DR-149). A connected app is
+- **Apps using OAuth** (§6, §8.10; §15, DR-146 to DR-152).
+  - `GET /api/oauth/authorize?<the app's authorization request>` (any role) → `{ application:
+    { id, name }, scopes: { name, description }[], write_limited_by_role }`: what the app asks
+    for, for the consent page (`write_limited_by_role`: it asks to change things the person's
+    group can't). `POST /api/oauth/authorize?<the same>` `{ allow: boolean }` → `{ redirect_to }`:
+    where to send the person — the app's redirect URI with a code (`allow: true`, recording the
+    connection with the scopes approved) or with `error=access_denied` (anything else). Allowing
+    answers 403 `contract_agreement_required` (with the first organization) while the person has
+    terms to agree to (§15, DR-151). A request that can't be approved (a bad or missing PKCE
+    challenge, an unknown scope…) answers 400 `{ error, description, redirect_to }`: with
+    `redirect_to`, the app is to be told there; with it null (an unknown app, or a redirect URI
+    that isn't registered), nowhere can be trusted, so the page says so. 403 `{ detail, code:
+    'cannot_connect_apps' }`, with why, for someone with no permission group or a password to
+    change. Only a session signed in to Camphoric is accepted: 403 for anyone else, an app's or a
+    script's token included, so no app is approved without the person seeing the consent screen.
+  - A connected app is
   `{ id, application: { id, name }, user: { id, username, name }, scopes: ('read' | 'write')[],
   approved_at, last_used_at }` (`last_used_at`: when the app last used its access, to the minute;
   null if it hasn't).
@@ -612,8 +632,8 @@ Non-CRUD admin endpoints:
     stops working; connections are kept. `GET /api/applications/{id}/connections/` → the
     connected apps of everyone who approved it.
   - None of these, nor `/api/users/`, `POST /api/user/password`, agreeing to an organization's
-    terms or publishing a version of them, answers a request made with an app's access token: 403 `{ detail, code:
-    'app_not_allowed' }`.
+    terms or publishing a version of them, answers a request made with an app's access token: 403
+    `{ detail, code: 'app_not_allowed' }`.
 - **Contracts** (§6; §15, DR-145). Each organization has a series of contract versions, each an
   ordered list of sections (`{ kind: 'privacy_policy' | 'custom', title, body }`, `body` in
   Markdown), exactly one of them its privacy policy:
@@ -1227,29 +1247,33 @@ hooks):
   returns the user's token while it has at least half its lifetime left, and otherwise (nearer
   its end, or expired) replaces it with a new key, so every sign-in gets at least half a
   lifetime (§15, DR-131).
-- **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-151). Apps an Admin registers (§8.10) call
-  the API for the people who approve them. Camphoric is the OAuth 2.0 authorization server; the
-  admin client takes no part in the flow beyond the screens in §8.10:
-  - **Approving an app.** The app sends the person to `GET /o/authorize/` (authorization code
-    grant, with PKCE `S256` required). Someone signed out is sent to `/o/login/` first, a sign-in
-    page rendered by the server (throttled like every sign-in, DR-124) that returns only to the
-    consent page; its session is the admin's too. The consent page, also rendered by the server,
-    names the app, who is signed in (with their permission group, and a way to sign in as someone
-    else, `POST /o/switch-account/`) and what the app asks for, and offers Cancel and Connect;
-    it's shown every time, and an app can't skip it. It refuses anyone with no permission group
-    or a password to change. Before it, at the same URL, someone with organizations' terms to
-    agree to is asked for each in turn, as the admin asks (*Agreeing to an organization's terms*,
-    below), on pages the server renders. Each section's Markdown is sent as written and rendered
-    in the page by the client's own sanitizing pipeline (§9.3) — a script the client build
-    provides at `static/terms-markdown.js`, loaded with the release as its query so a new
-    release isn't served the last one's copy — so it reads exactly as in the admin, with every
-    link opening in a new tab so the page stays put; until the script runs, or if it doesn't
-    load, the Markdown shows as written. No code is issued until
-    nothing is pending, and declining signs them out and sends the app `error=access_denied`, as
-    Cancel does (§15, DR-151). Connecting records the connection with the scopes approved,
-    replacing any earlier approval of the same app and the tokens it gave; the app is sent back to its redirect URI, which must
-    match one registered exactly, with a code it exchanges at `POST /o/token/` with its client
-    id, secret and PKCE verifier.
+- **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-152). Apps an Admin registers (§8.10) call
+  the API for the people who approve them. Camphoric is the OAuth 2.0 authorization server, and
+  the client provides its authorization page:
+  - **Approving an app.** The app sends the person to `/o/authorize/` (authorization code grant,
+    with PKCE `S256` required), a page of the client (§4; §15, DR-152), which asks
+    `/api/oauth/authorize` about the request as sent (§5). In turn, at that same address:
+    - **Sign-in.** Someone signed out signs in there (`/api/login`, throttled like every sign-in,
+      DR-124, with "Forgot password?"); the session is the admin's too.
+    - **Terms.** Someone with organizations' terms to agree to is asked for each in turn, exactly
+      as the admin asks (*Agreeing to an organization's terms*, below). Declining tells the app
+      `error=access_denied` (the request is denied), then signs out (§15, DR-151); if the app
+      can't be told, it signs out all the same and says so.
+    - **Consent.** The consent screen names the app, who is signed in (with their permission
+      group, and a way to sign in as someone else — signing out, the request kept), what the app
+      asks for (and, for a Reporter asking to write, that it can't change anything either), and
+      offers Cancel and Connect. It's shown every time, and an app can't skip it. Connect is
+      refused while terms are pending, which brings the terms back. Connecting records the
+      connection with the scopes approved, replacing any earlier approval of the same app and the
+      tokens it gave; the person is sent back to the app's redirect URI, which must match one
+      registered exactly, with a code it exchanges at `POST /o/token/` with its client id, secret
+      and PKCE verifier. Cancel sends them back with `error=access_denied`.
+    - **Refusals.** Someone with no permission group or a password to change is told why, and can
+      sign in as someone else. A request that can't be approved sends the person back to the app
+      with its error, or, when the request can't be trusted to say where to go (an unknown app, a
+      redirect URI that isn't registered), says the app can't connect and to tell whoever runs
+      it. When the request can't be checked at all (the server unreachable, say), the page says
+      so and offers to try again.
   - **Scopes.** `read` (to read) and `write` (to change anything; a POST that only reads, §5,
     needs only `read`). An app's access is its token's scope and the person's current permission
     group, both (§15, DR-147): a `read` token's write is refused (403 `{ detail, code:
@@ -6389,6 +6413,8 @@ nothing reads them again, and deleting leaves nothing to restore by mistake.
 
 ### DR-150 — The OAuth sign-in and consent pages are rendered by the server
 
+*Superseded by DR-152: the pages are the client's.*
+
 **Decision:** The sign-in page an app's user is sent to (`/o/login/`) and the consent page
 (`/o/authorize/`) are Django templates, styled like the other server pages (unsubscribing,
 DR-48), not routes of the admin client. Sign-in returns only to the consent page (any other
@@ -6408,7 +6434,7 @@ step. The Django admin's login — refuses everyone without staff access.
 ### DR-151 — People agree to every organization's terms when they sign in, and new terms sign everyone out
 
 **Decision:** Agreeing is part of signing in, not of reaching an organization. Straight after
-signing in — to the admin, or on the OAuth sign-in or consent page — the person is asked for
+signing in — to the admin, or on the OAuth authorization page — the person is asked for
 every organization whose latest version they haven't agreed to, one after another, ordered by
 the organizations' names (whoami lists them so), with how far along they are. Agreeing records
 what DR-145 records; declining signs out, and on the OAuth path also sends the app
@@ -6417,11 +6443,9 @@ never given a token for someone the gate would refuse. Publishing a version ends
 sign-ins at once, in the same transaction: every web session that signs someone in, except the
 publisher's session, which is asked to agree straight away, and every app's OAuth access (the
 publisher's apps too). So everyone else meets the new terms when they next sign in, and each app
-when its person connects it again. The OAuth agreement pages are rendered by the server; each
-section's Markdown goes out as written, and a script from the client build renders it in place
-with the admin's own pipeline (§9.3), so both show the same text, and the Markdown stays
-readable as written if the script doesn't load. The admin client asks in its own screens. API tokens for scripts are left; the gate still refuses
-them. Publishing is for people only (403 `app_not_allowed`), as agreeing is (DR-147): an app
+when its person connects it again. Both paths ask with the same screens of the client (the
+OAuth page since DR-152), so the terms read the same everywhere. API tokens for scripts are
+left; the gate still refuses them. Publishing is for people only (403 `app_not_allowed`), as agreeing is (DR-147): an app
 could otherwise sign everyone out and disconnect every app. The gate stays, as the backstop.
 **Context:** #980. With OAuth (DR-146 to DR-150), someone could sign in at `/o/login/`, approve
 an app and never open the admin, where the gate used to ask per organization; the app can't
@@ -6438,12 +6462,35 @@ would keep their tokens and fail with an error they can't fix. Sending the admin
 server's pages too, for one flow — loses signing in again in place (DR-127) and needs a
 server-checked redirect back to the client. Signing out the publisher as well — they'd be asked
 anyway, and would lose the page they published from. Ending API tokens too — a script still
-can't agree, and its user signing in again is what fixes it either way. Rendering the Markdown on
-the server with cmark-gfm's safe mode — it drops raw HTML blocks with their text, so a clause the
-admin shows could be missing from what an app's person agrees to, while the agreement records
-the hash of the whole. A second sanitizer on the server (nh3) — another pipeline to keep in step
-with §9.3, which could still disagree. Refusing raw HTML in terms — the admin already allows it,
-and versions published with it would still differ.
+can't agree, and its user signing in again is what fixes it either way. Server-rendered terms
+pages for the OAuth path (DR-150's pages), with the Markdown rendered by cmark-gfm's safe mode —
+it drops raw HTML blocks with their text, so a clause the admin shows could be missing from what
+an app's person agrees to, while the agreement records the hash of the whole; a second sanitizer
+on the server, or a script from the client build rendering it in the page, would be one more
+thing to keep in step (DR-152).
+
+### DR-152 — The OAuth authorization page is a page of the client
+
+**Decision:** `/o/authorize/`, where apps send people, is a route of the client, which the
+server answers with the client app; no page of the OAuth flow is rendered by the server, and
+`/o/login/` and `/o/switch-account/` are gone. The page signs the person in with the admin's
+sign-in form, asks for pending terms with the admin's contract gate, and shows the consent
+screen, talking to `GET`/`POST /api/oauth/authorize`: the server checks the app's request as the
+toolkit does, describes it, and on Connect or Cancel answers where to send the person, so codes
+and errors are still made by the toolkit. The request goes to the API exactly as in the address
+the page was loaded with, which the client keeps before its router rewrites search params. The
+dev server sends only `/o/token/` and `/o/revoke_token/` on to Django.
+**Context:** #980 put the terms on the OAuth path; DR-150's server pages needed the contract
+Markdown rendered on the server too, which either loses raw HTML (cmark-gfm's safe mode) or adds
+a second renderer to keep in step with §9.3 (a sanitizer on the server, or a script from the
+client build that the page had to find by a fixed name). One set of screens means one look, one
+Markdown pipeline, one contract gate and one sign-in form, and no server HTML to style apart.
+The page needs the client's build to be served, as the admin already does.
+**Alternatives:** Keeping DR-150's pages and rendering the terms with a script from the client
+build — a second entry point at a fixed name, and nothing checking the template and the build
+agree on it. Rendering on the server — loses or differently sanitizes raw HTML (DR-151). The
+client redirecting to its own `/admin` sign-in with a `next` — a redirect allow-list to keep, and
+a second hop for the app's request.
 
 ---
 
@@ -6463,9 +6510,9 @@ must be coordinated with the backend. Grouped by status.
   §5 (§8.1, §8.10; DR-50, DR-52); the 404 for anyone but a superuser acting on a user with
   Django access (DR-116).
 - **Apps using OAuth:** `/api/user/apps`, `/api/users/{id}/apps/`, `/api/applications/` with
-  `new-secret` and `connections`, and the `app_not_allowed` 403, with the shapes in §5; the
-  server-rendered `/o/login/`, `/o/authorize/`, `/o/switch-account/`, `/o/token/` and
-  `/o/revoke_token/` (§6, §8.10; DR-146 to DR-151), the terms asked for before the consent page.
+  `new-secret` and `connections`, `/api/oauth/authorize` and the `app_not_allowed` and
+  `cannot_connect_apps` 403s, with the shapes in §5; `/o/authorize/` answered with the client app,
+  and `/o/token/` and `/o/revoke_token/` (§4, §6, §8.10; DR-146 to DR-152).
 - **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
   shapes in §5 (DR-56).
 - **Contracts:** `pending_contract_organizations` on whoami and the login response, in order of

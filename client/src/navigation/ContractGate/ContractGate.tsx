@@ -20,7 +20,14 @@ import { type ReactNode, useState } from 'react';
 
 import { ContractPrompt } from './ContractPrompt';
 
-export function ContractGate({ children }: { children: ReactNode }) {
+interface ContractGateProps {
+  children: ReactNode;
+  /** What declining does instead of signing out (the OAuth consent page; DR-152). */
+  onDecline?: () => void;
+  declining?: boolean;
+}
+
+export function ContractGate({ children, onDecline, declining }: ContractGateProps) {
   const { data: user } = useCurrentUser();
   const pending = user?.pending_contract_organizations ?? [];
   const next = pending.length > 0 ? pending[0] : null;
@@ -46,9 +53,24 @@ export function ContractGate({ children }: { children: ReactNode }) {
     return (
       <>
         {children}
-        <ContractPrompt key={next} organizationId={next} progress={progress} over />
+        <ContractPrompt
+          key={next}
+          organizationId={next}
+          progress={progress}
+          over
+          onDecline={onDecline}
+          declining={declining}
+        />
       </>
     );
   }
-  return <ContractPrompt key={next} organizationId={next} progress={progress} />;
+  return (
+    <ContractPrompt
+      key={next}
+      organizationId={next}
+      progress={progress}
+      onDecline={onDecline}
+      declining={declining}
+    />
+  );
 }

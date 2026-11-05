@@ -21,8 +21,8 @@ the records of organizations the user still has to agree with
 role is gated unless it says `skips_contract_gate`.
 
 People are asked to agree when they sign in, to every organization pending, in
-turn (§15 DR-151): the admin client after `/api/login`, and the OAuth consent
-page (camphoric.oauth_views) before it lets an app have a code. So publishing a
+turn (§15 DR-151): by the admin client after `/api/login`, and by its OAuth
+consent page, before which no app gets a code (camphoric.oauth_views). So publishing a
 version ends everyone's sign-ins (`end_sign_ins`): web sessions but the
 publisher's own, and every app's access, so each person meets the new version
 when they next sign in, and each app when its person connects it again. The
@@ -48,10 +48,6 @@ from rest_framework.throttling import BaseThrottle
 from camphoric import models
 
 CONTRACT_AGREEMENT_REQUIRED = 'contract_agreement_required'
-
-# The wording of the agree action on the server's pages, recorded with each
-# agreement; the same as the admin client's (client/src/components/Contract).
-ASSENT_TEXT = 'I agree'
 
 DEFAULT_PRIVACY_POLICY_TITLE = 'Privacy Policy'
 

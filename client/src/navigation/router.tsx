@@ -7,6 +7,9 @@
  * record editor are URL-addressable search params.
  */
 
+// First: the address as loaded, before the router rewrites it (the OAuth page needs it).
+import 'navigation/initialSearch';
+
 import {
   createRootRoute,
   createRoute,
@@ -75,6 +78,7 @@ const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'Reg
 const PaymentStep = lazyRouteComponent(() => import('pages/register'), 'PaymentStep');
 const ConfirmationStep = lazyRouteComponent(() => import('pages/register'), 'ConfirmationStep');
 const InvoicePayPage = lazyRouteComponent(() => import('pages/invoice'), 'InvoicePayPage');
+const AuthorizePage = lazyRouteComponent(() => import('pages/oauth'), 'AuthorizePage');
 const PrivacyPolicyPage = lazyRouteComponent(
   () => import('pages/privacyPolicy'),
   'PrivacyPolicyPage',
@@ -262,6 +266,15 @@ const privacyPolicyRoute = createRoute({
 // --- Account (public: reached before signing in) --------------------------------
 
 // A set-password link from an email (SPEC §6, DR-52).
+// The OAuth authorization endpoint apps send people to (SPEC §6; §15 DR-152). Its
+// query string is the app's request, read as sent rather than through the search
+// parsing below.
+const authorizeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/o/authorize',
+  component: AuthorizePage,
+});
+
 const setPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/account/set-password/$uid/$token',
@@ -348,6 +361,7 @@ const eventAdminCatchAllRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   splashRoute,
   setPasswordRoute,
+  authorizeRoute,
   invoicePayRoute,
   privacyPolicyRoute,
   registerLayoutRoute.addChildren([
