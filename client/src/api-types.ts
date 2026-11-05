@@ -685,6 +685,32 @@ export interface ApiConnectedApp {
   last_used_at: string | null;
 }
 
+/**
+ * What an app's authorization request asks for, as the OAuth consent page shows
+ * it (`GET /api/oauth/authorize?<the request>`; SPEC §6; §15 DR-152).
+ */
+export interface ApiOAuthRequest {
+  application: { id: number; name: string };
+  scopes: { name: string; description: string }[];
+  /** It asks to change things, but the person's group can't (a Reporter), so it can't either. */
+  write_limited_by_role: boolean;
+}
+
+/** Where to send the person once they've connected the app or cancelled. */
+export interface ApiOAuthDecision {
+  redirect_to: string;
+}
+
+/**
+ * Why an app's request can't be approved (400). With `redirect_to`, the app is told
+ * there; with none, the request can't be trusted to say where to go.
+ */
+export interface ApiOAuthRefusal {
+  error: string;
+  description: string;
+  redirect_to: string | null;
+}
+
 /** An app registered to use OAuth: GET/POST/PATCH/DELETE /api/applications/ (Admins). */
 export interface ApiApplication {
   id: number;

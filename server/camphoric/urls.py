@@ -48,6 +48,7 @@ urlpatterns = [
     path('user/password', views.ChangePasswordView.as_view()),
     path('user/agreements', views.MyContractAgreementsView.as_view()),
     # The apps the user has approved to use their account (OAuth, DR-149).
+    path('oauth/authorize', oauth_views.AuthorizationRequestView.as_view()),
     path('user/apps', oauth_views.MyConnectedAppsView.as_view()),
     path('user/apps/<int:application_id>', oauth_views.MyConnectedAppView.as_view()),
     # An organization's terms: to read and agree to, and its public privacy policy (DR-145).

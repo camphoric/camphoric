@@ -29,14 +29,25 @@ interface ContractPromptProps {
   progress?: ContractProgress;
   /** Open over the admin, which stays as it is underneath. */
   over?: boolean;
+  /** What declining does instead of signing out (the OAuth consent page; DR-152). */
+  onDecline?: () => void;
+  declining?: boolean;
 }
 
-export function ContractPrompt({ organizationId, progress, over = false }: ContractPromptProps) {
+export function ContractPrompt({
+  organizationId,
+  progress,
+  over = false,
+  onDecline,
+  declining,
+}: ContractPromptProps) {
   const client = useQueryClient();
   const contract = useOrganizationContract(organizationId);
   const agree = useAgreeToContract(organizationId);
   const logout = useLogout();
   const alreadyAgreed = contract.data?.agreed ?? false;
+  const decline = onDecline ?? (() => logout.mutate());
+  const isDeclining = declining ?? logout.isPending;
 
   // Agreed meanwhile (in another tab): who's signed in says so once refreshed.
   useEffect(() => {
@@ -71,7 +82,7 @@ export function ContractPrompt({ organizationId, progress, over = false }: Contr
           {apiErrorMessage(contract.error)}
         </Alert>
         <Group justify="flex-end">
-          <Button variant="default" onClick={() => logout.mutate()} loading={logout.isPending}>
+          <Button variant="default" onClick={decline} loading={isDeclining}>
             Sign out
           </Button>
           <Button onClick={() => void contract.refetch()}>Try again</Button>
@@ -85,9 +96,9 @@ export function ContractPrompt({ organizationId, progress, over = false }: Contr
         progress={progress}
         error={agree.isError ? apiErrorMessage(agree.error) : null}
         agreeing={agree.isPending}
-        declining={logout.isPending}
+        declining={isDeclining}
         onAgree={submit}
-        onDecline={() => logout.mutate()}
+        onDecline={decline}
         textHeight={over ? '50vh' : '60vh'}
       />
     );

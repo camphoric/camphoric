@@ -15,9 +15,9 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      // The OAuth sign-in, consent and token endpoints (SPEC §6, DR-146). A pattern,
-      // so the public /organizations/… pages aren't taken for them.
-      '^/o/': {
+      // The OAuth token endpoints (SPEC §6, DR-146). The authorization endpoint,
+      // /o/authorize, is a page of the client (DR-152), so it isn't sent on.
+      '^/o/(token|revoke_token)/': {
         target: process.env.VITE_API_PROXY || 'http://localhost:8000/',
         changeOrigin: true,
         secure: false,
@@ -32,17 +32,10 @@ export default defineConfig({
     // Monaco's chunks that older browsers can't parse.
     target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
     rolldownOptions: {
-      input: {
-        index: fileURLToPath(new URL('./index.html', import.meta.url)),
-        // The server's OAuth terms page renders contracts with it (src/termsMarkdown.ts).
-        'terms-markdown': fileURLToPath(new URL('./src/termsMarkdown.ts', import.meta.url)),
-      },
       output: {
         assetFileNames: 'static/[name]-[hash][extname]',
         chunkFileNames: 'static/[name]-[hash].js',
-        // A fixed name for the terms page's script, which the server's template names.
-        entryFileNames: (chunk) =>
-          chunk.name === 'terms-markdown' ? 'static/terms-markdown.js' : 'static/[name]-[hash].js',
+        entryFileNames: 'static/[name]-[hash].js',
       },
     },
   },

@@ -1,2 +1,3 @@
-export { Login } from './Login';
+export { ForgotPasswordForm } from './ForgotPasswordForm';
+export { Login, SignInForm } from './Login';
 export { SignInAgain } from './SignInAgain';

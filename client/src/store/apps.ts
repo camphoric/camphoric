@@ -11,13 +11,58 @@ import type {
   ApiApplication,
   ApiApplicationSecret,
   ApiConnectedApp,
+  ApiOAuthDecision,
+  ApiOAuthRefusal,
+  ApiOAuthRequest,
   ApplicationRequest,
 } from 'api-types';
-import { apiFetch } from 'utils/fetch';
+import { ApiError, apiFetch } from 'utils/fetch';
 
 // Every list of connections, so a disconnect anywhere refreshes them all.
 const CONNECTIONS = 'ConnectedApp';
 const APPLICATIONS = 'Application';
+
+// --- Approving an app (the OAuth consent page; SPEC §6; §15 DR-152) -----------------
+
+/** The API's address for the app's authorization request, which is passed on as sent. */
+const authorizationRequestUrl = (query: string) => `/api/oauth/authorize?${query}`;
+
+/** What the app's request asks for (`query` is the request's query string). */
+export function useOAuthRequest(query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['OAuthRequest', query],
+    queryFn: ({ signal }) => apiFetch<ApiOAuthRequest>(authorizationRequestUrl(query), { signal }),
+    enabled,
+    // A refusal is the answer, not a hiccup.
+    retry: false,
+  });
+}
+
+/** Connect the app (true) or cancel (false): where to send the person next. */
+export function useDecideOAuthRequest(query: string) {
+  return useMutation({
+    mutationFn: (allow: boolean) =>
+      apiFetch<ApiOAuthDecision>(authorizationRequestUrl(query), {
+        method: 'POST',
+        body: { allow },
+      }),
+    meta: { suppressErrorNotification: true },
+  });
+}
+
+/** Why the app's request can't be approved, from its 400; null for any other error. */
+export function oauthRefusal(error: unknown): ApiOAuthRefusal | null {
+  if (!(error instanceof ApiError) || error.status !== 400) return null;
+  const body = error.body as Partial<ApiOAuthRefusal> | null;
+  if (typeof body?.error !== 'string') return null;
+  return {
+    error: body.error,
+    description: typeof body.description === 'string' ? body.description : '',
+    redirect_to: typeof body.redirect_to === 'string' ? body.redirect_to : null,
+  };
+}
+
+// --- Connected and registered apps --------------------------------------------------
 
 /** The apps you've connected to your account. */
 export function useMyConnectedApps(enabled = true) {

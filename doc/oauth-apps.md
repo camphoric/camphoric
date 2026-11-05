@@ -5,7 +5,7 @@ Third-party apps — the first is
 Camphoric's API **on behalf of the Camphoric users who approve them**, through OAuth 2.0. The app
 never sees anyone's password, can be limited to reading, and its access can be ended for one person
 or for everyone at once. The contract is in [SPEC_CLIENT_V2.md](../SPEC_CLIENT_V2.md) §6 and §8.10,
-and the reasons in its decision records DR-146 to DR-151.
+and the reasons in its decision records DR-146 to DR-152.
 
 ```mermaid
 sequenceDiagram
@@ -65,13 +65,15 @@ endpoints with its client ID and secret, in the body (`client_secret_post`) or a
    `redirect_uri` (one of those registered), `scope` (below), a random `state`, and PKCE:
    `code_challenge` (the base64url SHA-256 of a random `code_verifier`) and
    `code_challenge_method=S256`. PKCE is required, and only `S256` is accepted.
-2. Camphoric asks them to **sign in** if they aren't, then shows the **consent page**: the app's
-   name, who they're signed in as (and a way to sign in as someone else), and what the app asks
-   for. Someone without a Camphoric permission group, or with a password to change, can't connect
-   apps. Before the consent page, they're asked to **agree to the terms** of every organization
-   whose latest terms they haven't agreed to yet, one after another (sorted by name, "2 of 3").
-   No code is issued until they've agreed to all of them; **declining** signs them out and sends
-   them to the redirect URI with `error=access_denied`, as Cancel does.
+2. On that page Camphoric asks them to **sign in** if they aren't, then to **agree to the terms**
+   of every organization whose latest terms they haven't agreed to yet, one after another (sorted
+   by name, "2 of 3"), then shows the **consent screen**: the app's name, who they're signed in as
+   (and a way to sign in as someone else), and what the app asks for. No code is issued until
+   they've agreed to all the terms; **declining** the terms sends them to the redirect URI with
+   `error=access_denied`, as Cancel does, and signs them out. Someone without a Camphoric
+   permission group, or with a password to change, can't connect apps. A request with a bad
+   parameter (no PKCE, an unknown scope) comes back to the redirect URI with its `error`; one
+   with an unknown `client_id` or a redirect URI that isn't registered stops on Camphoric's page.
 3. **Connect** sends them to the redirect URI with `code`, the `state` sent (check it), and `iss`,
    the server's address (check it too: RFC 9207). **Cancel** sends `error=access_denied`.
 4. **Exchange the code** within a minute, once: `POST /o/token/` with `grant_type=authorization_code`,
@@ -145,8 +147,8 @@ The app can move to OAuth while it still uses one shared Camphoric account:
 
 1. An Admin creates the account the app will act as (e.g. "Lark admin tool"), with the lowest
    permission group that covers what it does (sending invitations needs Registrar).
-2. They sign in to the app's "Connect Camphoric" as that account — on the consent page, **Not you?
-   Sign in as someone else** — and approve it. The app keeps that refresh token.
+2. They sign in to the app's "Connect Camphoric" as that account — on the consent screen, **Not
+   you? Sign in as someone else** — and approve it. The app keeps that refresh token.
 
 When each of the app's users gets their own Camphoric account, each connects through the same flow.
 
@@ -174,6 +176,7 @@ and the callback, and store each person's access token, its expiry and refresh t
 
 ## Developing locally
 
-Against the docker-compose stack, the admin's Vite server (`http://localhost:3000`) passes `/o/`
-and `/api/` to Django, so use `http://localhost:3000` as `CAMPHORIC_URL`. `DEBUG` is on there, so
+Against the docker-compose stack, the admin's Vite server (`http://localhost:3000`) serves the
+authorization page (`/o/authorize/`) itself and passes `/api/`, `/o/token/` and `/o/revoke_token/`
+to Django, so use `http://localhost:3000` as `CAMPHORIC_URL`. `DEBUG` is on there, so
 an `http://localhost:…` redirect URI is accepted. Register the app in the admin as above.

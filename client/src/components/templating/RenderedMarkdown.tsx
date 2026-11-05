@@ -10,7 +10,7 @@ import './markdown.css';
 
 import { useLayoutEffect, useRef } from 'react';
 
-import { TABLE_SCROLL_CLASS } from './markdown';
+import { TABLE_SCROLL_CLASS } from './pipeline';
 
 /** What a scrolling table's box is called, to a screen reader. */
 export const SCROLLING_TABLE_LABEL = 'Table, scrolls sideways';

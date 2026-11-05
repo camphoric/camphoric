@@ -1,21 +1,20 @@
 '''
-The pages and API of OAuth for third-party apps (camphoric.oauth, SPEC §6,
-§8.10, DR-146 to DR-150).
+OAuth for third-party apps: its endpoints and API (camphoric.oauth, SPEC §6,
+§8.10, DR-146 to DR-152).
 
-Pages, under /o/ and rendered here (not by the admin app), so the flow needs
-nothing but the server:
+Under /o/:
 
-- /o/login/ signs a person in and returns them to the consent page.
-- /o/authorize/ is the consent page: it names the app, who is signed in, and
-  what the app asks for, and records the approval (`ConnectedApp`). Before it,
-  the signed-in person agrees to each organization's terms they have yet to
-  agree to, in turn (DR-151); declining signs them out and tells the app
-  `access_denied`.
-- /o/switch-account/ signs out and back in as someone else, keeping the request.
+- /o/authorize/ is the authorization endpoint apps send people to. It's a page
+  of the client (DR-152), which the server answers with the client app; the
+  page signs the person in if need be, asks for every organization's terms they
+  have yet to agree to (DR-151), and shows the consent screen, through
+  /api/oauth/authorize (`AuthorizationRequestView`).
 - /o/token/ and /o/revoke_token/ are the toolkit's, throttled per address.
 
 API:
 
+- /api/oauth/authorize: what the app's request asks for, and approving or
+  denying it.
 - /api/user/apps: the signed-in user's connected apps; DELETE one to disconnect it.
 - /api/users/<id>/apps (camphoric.views.UserViewSet): an Admin's view of a user's.
 - /api/applications/: the registered apps, for Admins.
@@ -23,32 +22,24 @@ API:
 
 import functools
 import hashlib
-import re
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, urlparse
 
 from auditlog.models import LogEntry
 
-from django.conf import settings
-from django.contrib.auth import logout
-from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count
-from django.http import HttpResponseRedirect
-from django.shortcuts import render
 from django.urls import path
-from django.utils.decorators import method_decorator
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.views import View
-from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_POST
-from oauth2_provider.exceptions import OAuthToolkitError
+from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
 from oauth2_provider.generators import generate_client_secret
 from oauth2_provider.models import AccessToken, Application, RefreshToken
-from oauth2_provider.views import AuthorizationView, RevokeTokenView, TokenView
+from oauth2_provider.scopes import get_scopes_backend
+from oauth2_provider.views import RevokeTokenView, TokenView
+from oauth2_provider.views.mixins import OAuthLibMixin
 from rest_framework import serializers, status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -56,37 +47,13 @@ from rest_framework.viewsets import ModelViewSet
 from camphoric import accounts, contracts, models, oauth, roles
 from camphoric.permissions import AnyRole, IsAdmin
 from camphoric.serializers import ModelSerializer
-from camphoric.throttles import throttle_login, throttle_oauth_token
+from camphoric.throttles import throttle_oauth_token
+from frontend_bootstrap.views import FrontendBootstrapView
 
-AUTHORIZE_PATH = '/o/authorize/'
-LOGIN_PATH = '/o/login/'
-
-
-# Pages -------------------------------------------------------------------------------------
-
-def consent_url(next_url):
-    '''`next_url` if it's the consent page on this server, else None.'''
-    if next_url and next_url.startswith(AUTHORIZE_PATH):
-        return next_url
-    return None
+CANNOT_CONNECT_APPS = 'cannot_connect_apps'
 
 
-class OAuthLoginView(LoginView):
-    '''
-    Sign in to approve an app, then back to the consent page. It goes nowhere
-    else: a `next` that isn't the consent page goes to the admin instead. The
-    sign-in throttles apply (camphoric.throttles), and the session is the
-    admin's too.
-    '''
-    template_name = 'camphoric/oauth/login.html'
-    redirect_authenticated_user = True
-
-    def get_redirect_url(self):
-        return consent_url(super().get_redirect_url()) or ''
-
-    def get_default_redirect_url(self):
-        return '/admin'
-
+# The authorization request --------------------------------------------------------------
 
 def refusal(user):
     '''Why the signed-in user can't approve apps, or None if they can.'''
@@ -98,170 +65,102 @@ def refusal(user):
     return None
 
 
-ROLE_NAMES = {roles.ADMIN: 'Admin', roles.REGISTRAR: 'Registrar', roles.REPORTER: 'Reporter'}
+class RequestRefused(Exception):
+    '''The app's request can't be approved: where to send the person, or what to show them.'''
 
-# The organizations whose terms the person has agreed to on the way to the
-# consent page, for "2 of 3"; forgotten once the consent page shows.
-TERMS_AGREED = 'camphoric_oauth_terms_agreed'
-DECISIONS = ('agree', 'decline')
+    def __init__(self, error):
+        super().__init__()
+        self.error = error
 
 
-class AuthorizeView(AuthorizationView):
+class AuthorizationRequestView(OAuthLibMixin, APIView):
     '''
-    The consent page (the toolkit's authorization endpoint). Someone signed out
-    is sent to /o/login/ first. It's refused to anyone who couldn't use the app's
-    access: no permission group, or a password to change. Then, while the person
-    has organizations' terms to agree to, it asks for each in turn instead
-    (`ask_to_agree`), and issues no code. Approving records the connection, with
-    the scopes approved.
+    /api/oauth/authorize?<the app's authorization request, as sent to /o/authorize/>,
+    for the consent page (DR-152). Signed-in people only, by their session (403
+    otherwise, an app's or a script's token included), and only those who could use
+    the app's access: 403 `cannot_connect_apps`, with why, for no permission group or
+    a password to change.
+
+    GET → `{application: {id, name}, scopes: [{name, description}],
+    write_limited_by_role}`: what the app asks for. The consent page is shown every
+    time: nothing here approves on its own (DR-150).
+
+    POST `{allow}` → `{redirect_to}`: where to send the person — back to the app with
+    a code once allowed, recording the connection, or with `error=access_denied`.
+    Allowing waits for every organization's terms (403 `contract_agreement_required`,
+    DR-151); denying doesn't.
+
+    A request that can't be approved answers 400 `{error, description, redirect_to}`:
+    with `redirect_to`, the app is told (the person is sent there); with it null,
+    the request can't be trusted to name where to go, and the page says so.
     '''
-    template_name = 'camphoric/oauth/authorize.html'
-    login_url = LOGIN_PATH
+    # A person at the consent screen, signed in to Camphoric: never an app's token, nor a
+    # script's, which could otherwise approve an app with no one seeing the screen (DR-150).
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [AnyRole]
+    refuses_apps = True
+    skips_contract_gate = True
 
-    def dispatch(self, request, *args, **kwargs):
-        if 'approval_prompt' in request.GET:
-            # The toolkit lets the request choose to skip the consent page
-            # (`approval_prompt=auto`); here it's always shown (DR-150).
-            request.GET = request.GET.copy()
-            del request.GET['approval_prompt']
-        if request.user.is_authenticated:
-            problem = refusal(request.user)
-            if problem:
-                return render(request, 'camphoric/oauth/message.html', {
-                    'title': 'You can\'t connect apps', 'message': problem,
-                    'user': request.user}, status=403)
-            # A decision is answered even once nothing is pending (sent twice, or
-            # from a second tab), so declining always signs out and tells the app.
-            if contracts.pending_organization_ids(request.user) or self.decision(request):
-                return self.ask_to_agree(request)
-            request.session.pop(TERMS_AGREED, None)
-        return super().dispatch(request, *args, **kwargs)
+    def check_permissions(self, request):
+        # Saying why, where AnyRole would refuse with less: no group, a password to change.
+        problem = refusal(request.user) if request.user.is_authenticated else None
+        if problem:
+            raise PermissionDenied({'detail': problem, 'code': CANNOT_CONNECT_APPS})
+        super().check_permissions(request)
 
-    def ask_to_agree(self, request):
-        '''
-        The terms of the first organization the person has yet to agree to (in
-        the order whoami lists them, DR-151), on the consent page's URL, so the
-        app's request is kept. Agreeing records it as the admin client does
-        (DR-145) and comes back here, for the next or, after the last, the
-        consent page. Declining signs out and sends the app `access_denied`. Any
-        other post (the consent form, sent while terms are pending) comes back
-        here too: no code is issued until nothing is pending.
-        '''
-        decision = self.decision(request)
-        if request.method == 'POST' and decision is None:
-            return HttpResponseRedirect(request.get_full_path())
-        self.oauth2_data = {}
+    def handle_exception(self, exc):
+        if isinstance(exc, RequestRefused):
+            redirect, response = self.error_response(exc.error)
+            error = response['error']
+            return Response({
+                'error': error.error,
+                'description': error.description or '',
+                'redirect_to': response['url'] if redirect else None,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return super().handle_exception(exc)
+
+    def validated(self, request):
+        '''The app's request, checked as the toolkit checks it: (scopes, credentials, app).'''
         try:
-            scopes, credentials = self.validate_authorization_request(request)
+            scopes, credentials = self.validate_authorization_request(request._request)
         except OAuthToolkitError as error:
-            return self.error_response(error, application=None)
-        application = Application.objects.get(client_id=credentials['client_id'])
+            raise RequestRefused(error)
+        return scopes, credentials, Application.objects.get(client_id=credentials['client_id'])
 
-        error = None
-        if decision == 'decline':
-            logout(request)
-            try:
-                self.create_authorization_response(
-                    request=request, scopes=' '.join(scopes), credentials=credentials,
-                    allow=False)
-            except OAuthToolkitError as denied:
-                return self.error_response(denied, application)
-        if decision == 'agree':
-            organization_id, error = self.agree(request)
-            if error is None:
-                agreed = request.session.get(TERMS_AGREED, [])
-                if organization_id not in agreed:
-                    request.session[TERMS_AGREED] = [*agreed, organization_id]
-                return HttpResponseRedirect(request.get_full_path())
-
-        pending = contracts.pending_organization_ids(request.user)
-        if not pending:
-            # Agreed meanwhile (in another tab): on to the consent page.
-            return HttpResponseRedirect(request.get_full_path())
-        contract = contracts.latest_contract(pending[0])
-        agreed = len(set(request.session.get(TERMS_AGREED, [])) - set(pending))
-        return render(request, 'camphoric/oauth/terms.html', {
-            'application': application,
-            'user': request.user,
-            'role_name': ROLE_NAMES.get(roles.role_of(request.user), ''),
-            'switch_next': request.get_full_path(),
-            'contract': contract,
-            'organization_name': contract.organization.name,
-            # Each section's Markdown, as written: the page's script renders it with the
-            # admin's own pipeline, and it reads as it is if that never loads (DR-151).
-            'sections': contract.sections.all(),
-            'privacy_policy_path': f'/organizations/{contract.organization_id}/privacy-policy',
-            'position': agreed + 1,
-            'total': agreed + len(pending),
-            'assent_text': contracts.ASSENT_TEXT,
-            'release': settings.CAMPHORIC_VERSION,
-            'error': error,
-        }, status=409 if error else 200)
-
-    @staticmethod
-    def decision(request):
-        '''The answer posted from the terms page, or None for anything else.'''
-        if request.method != 'POST':
-            return None
-        decision = request.POST.get('terms')
-        return decision if decision in DECISIONS else None
-
-    @staticmethod
-    def agree(request):
-        '''
-        Record the agreement posted: (the organization's id, None) once it is,
-        or (None, the reason it can't be).
-        '''
-        changed = 'These terms have changed since you opened them. Read them again, then agree.'
-        organization_id = request.POST.get('organization', '')
-        organization = (models.Organization.objects.filter(pk=int(organization_id)).first()
-                        if re.fullmatch(r'[0-9]+', organization_id) else None)
-        if organization is None:
-            return None, changed
-        try:
-            contracts.agree(request, organization, request.POST.get('contract_id'),
-                            request.POST.get('content_sha256'), contracts.ASSENT_TEXT)
-        except contracts.ContractError as problem:
-            return None, str(problem)
-        return organization.pk, None
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        role = roles.role_of(self.request.user)
-        scopes = context.get('scopes') or []
-        context.update({
-            'role_name': ROLE_NAMES.get(role, ''),
+    def get(self, request):
+        scopes, _credentials, application = self.validated(request)
+        role = roles.role_of(request.user)
+        descriptions = get_scopes_backend().get_all_scopes()
+        names = oauth.scope_names(' '.join(scopes))
+        return Response({
+            'application': {'id': application.pk, 'name': application.name},
+            'scopes': [{'name': name, 'description': descriptions[name]} for name in names],
             # A Reporter can't change anything, so an app acting for them can't either.
-            'write_limited_by_role': 'write' in scopes and role not in roles.WRITERS,
-            'switch_next': self.request.get_full_path(),
+            'write_limited_by_role': 'write' in names and role not in roles.WRITERS,
         })
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        # The toolkit redirects with a code when it grants the request, and with an
-        # error (or renders one) when it doesn't.
-        # The code issued is the last: a registered redirect URI may carry its own.
-        code = parse_qs(urlparse(response.get('Location', '')).query).get('code')
-        if form.cleaned_data.get('allow') and response.status_code == 302 and code:
-            application = Application.objects.get(client_id=form.cleaned_data['client_id'])
-            oauth.connect(self.request.user, application,
-                          ' '.join(oauth.scope_names(form.cleaned_data.get('scope'))), code[-1])
-        return response
-
-
-@method_decorator(csrf_protect, name='dispatch')
-@method_decorator(require_POST, name='dispatch')
-class SwitchAccountView(View):
-    '''Sign out, then sign in as someone else and return to the consent page.'''
 
     def post(self, request):
-        next_url = request.POST.get('next', '')
-        if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-            next_url = ''
-        logout(request)
-        query = {'next': consent_url(next_url)} if consent_url(next_url) else {}
-        return HttpResponseRedirect(LOGIN_PATH + (f'?{urlencode(query)}' if query else ''))
+        allow = isinstance(request.data, dict) and request.data.get('allow') is True
+        scopes, credentials, application = self.validated(request)
+        if allow:
+            pending = contracts.pending_organization_ids(request.user)
+            if pending:
+                raise contracts.ContractAgreementRequired(pending[0])
+        try:
+            uri, _headers, _body, _status = self.create_authorization_response(
+                request=request._request, scopes=' '.join(scopes), credentials=credentials,
+                allow=allow)
+        except OAuthToolkitError as error:
+            if allow or isinstance(error, FatalClientError):
+                raise RequestRefused(error)
+            # Denied: back to the app with `access_denied`.
+            return Response({'redirect_to': self.error_response(error)[1]['url']})
+        # The code issued is the last: a registered redirect URI may carry its own.
+        code = parse_qs(urlparse(uri).query).get('code')
+        if code:
+            oauth.connect(request.user, application,
+                          ' '.join(oauth.scope_names(' '.join(scopes))), code[-1])
+        return Response({'redirect_to': uri})
 
 
 def token_pair(request):
@@ -295,9 +194,8 @@ def forgets_lapsed_connections(view):
 
 
 urlpatterns = [
-    path('login/', throttle_login(OAuthLoginView.as_view()), name='login'),
-    path('switch-account/', SwitchAccountView.as_view(), name='switch-account'),
-    path('authorize/', AuthorizeView.as_view(), name='authorize'),
+    # A page of the client (DR-152), which asks /api/oauth/authorize about the request.
+    path('authorize/', FrontendBootstrapView.as_view(), name='authorize'),
     path('token/', throttle_oauth_token(forgets_lapsed_connections(TokenView.as_view())),
          name='token'),
     path('revoke_token/', throttle_oauth_token(

@@ -10,8 +10,7 @@ import type { ApiPublishedContract } from 'api-types';
 
 import { ContractText, formatEffectiveDate } from './ContractText';
 
-/** The wording of the agree action, recorded with each agreement (the server's pages
- * use the same: `ASSENT_TEXT` in server/camphoric/contracts.py). */
+/** The wording of the agree action, recorded with each agreement. */
 export const ASSENT_TEXT = 'I agree';
 
 /** Where these terms come among those asked for one after another (DR-151). */
