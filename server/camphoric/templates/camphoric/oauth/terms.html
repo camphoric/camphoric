@@ -1,4 +1,5 @@
 {% extends "camphoric/oauth/base.html" %}
+{% load static %}
 {% block title %}{{ organization_name }} terms{% endblock %}
 {% block main_class %} class="wide"{% endblock %}
 {% block content %}
@@ -16,10 +17,15 @@
   <p>Before you connect <strong>{{ application.name }}</strong>, read {{ organization_name }}’s terms and agree to them. If you don’t agree, you’ll be signed out and the app won’t be connected.</p>
   <div class="terms" tabindex="0" role="region" aria-label="{{ organization_name }} terms">
     {% for section in sections %}
-      <h2>{{ section.title }}</h2>
-      {{ section.html|safe }}
+      <section aria-label="{{ section.title }}">
+        <h2>{{ section.title }}</h2>
+        <div data-terms-markdown>{{ section.body }}</div>
+      </section>
     {% endfor %}
   </div>
+  {# Renders each section's Markdown in place, as the admin does (client/src/termsMarkdown.ts). #}
+  {# Its name is fixed, so the release keeps a browser from using a copy from the last one. #}
+  <script type="module" src="{% static 'terms-markdown.js' %}{% if release %}?v={{ release|urlencode }}{% endif %}"></script>
   <p class="small">The privacy policy is also published at <a href="{{ privacy_policy_path }}" target="_blank" rel="noreferrer">{{ request.scheme }}://{{ request.get_host }}{{ privacy_policy_path }}</a>.</p>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <form method="post">

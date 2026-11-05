@@ -103,21 +103,6 @@ class PendingTests(TestCase):
                          [sooner.pk, self.organization.pk, self.other.pk, later.pk])
 
 
-class SectionHtmlTests(TestCase):
-    def test_markdown_without_raw_html_or_unsafe_links(self):
-        html = contracts.section_html(
-            '## Waiver\n\n<script>alert(1)</script>\n\n'
-            '[bad](javascript:alert(1)) [good](https://example.com) '
-            '<img src=x onerror=alert(1)>\n\n| a | b |\n|---|---|\n| 1 | 2 |')
-        self.assertIn('<h2>Waiver</h2>', html)
-        self.assertIn('<table>', html)
-        self.assertNotIn('<script', html)
-        self.assertNotIn('javascript:', html)
-        self.assertNotIn('onerror', html)
-        self.assertIn('<a target="_blank" rel="noopener noreferrer" href="https://example.com">',
-                      html)
-
-
 class PublishingEndsSignInsTests(APITestCase):
     '''Publishing a version ends everyone's sign-ins but the publisher's own (DR-151).'''
 

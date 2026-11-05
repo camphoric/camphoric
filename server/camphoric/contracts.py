@@ -32,10 +32,8 @@ gate stays, as the backstop.
 import hashlib
 import ipaddress
 import json
-import re
 from importlib import import_module
 
-import cmarkgfm
 from django.conf import settings
 from django.contrib.auth import SESSION_KEY
 from django.db import IntegrityError, transaction
@@ -343,18 +341,6 @@ def content_sha256(sections):
     content = [[field(section, 'title'), field(section, 'body')] for section in sections]
     encoded = json.dumps(content, ensure_ascii=False, separators=(',', ':'))
     return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
-
-
-def section_html(body):
-    '''
-    A section's Markdown as HTML for a page the server renders (the OAuth consent
-    page's terms; the admin client renders its own, SPEC §9.3): GitHub-flavoured,
-    with raw HTML and unsafe links left out, and links opening in a new tab so
-    the page asking for agreement stays put.
-    '''
-    html = cmarkgfm.github_flavored_markdown_to_html(body or '')
-    # Safe mode writes every link as `<a href="…"`; nothing else can, since raw HTML is omitted.
-    return re.sub(r'<a href=', '<a target="_blank" rel="noopener noreferrer" href=', html)
 
 
 def privacy_policy_section(contract):

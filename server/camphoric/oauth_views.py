@@ -28,6 +28,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 from auditlog.models import LogEntry
 
+from django.conf import settings
 from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -186,12 +187,14 @@ class AuthorizeView(AuthorizationView):
             'switch_next': request.get_full_path(),
             'contract': contract,
             'organization_name': contract.organization.name,
-            'sections': [{'title': section.title, 'html': contracts.section_html(section.body)}
-                         for section in contract.sections.all()],
+            # Each section's Markdown, as written: the page's script renders it with the
+            # admin's own pipeline, and it reads as it is if that never loads (DR-151).
+            'sections': contract.sections.all(),
             'privacy_policy_path': f'/organizations/{contract.organization_id}/privacy-policy',
             'position': agreed + 1,
             'total': agreed + len(pending),
             'assent_text': contracts.ASSENT_TEXT,
+            'release': settings.CAMPHORIC_VERSION,
             'error': error,
         }, status=409 if error else 200)
 
