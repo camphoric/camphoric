@@ -92,19 +92,20 @@ class BearerAuthentication(OAuth2Authentication):
     '''
     An app's access token (`Authorization: Bearer …`). A token that isn't valid
     (unknown, expired or revoked) is refused with 401 and counted against the
-    client's address; once too many have failed from it, requests with a token
-    are refused with 429 until the window passes. A valid token is also held to
-    its scope and to what apps may do (`check_app_request`).
+    client's address; once too many have failed from it, such tokens are refused
+    with 429 until the window passes. A valid token is never throttled here, so
+    one user's stale token doesn't lock out others behind the same address. A
+    valid token is held to its scope and to what apps may do (`check_app_request`).
     '''
 
     def authenticate(self, request):
         if not has_bearer_token(request):
             return None
-        throttle = BearerFailureThrottle()
-        if not throttle.allow_request(request, None):
-            raise exceptions.Throttled(throttle.wait())
         result = super().authenticate(request)
         if result is None:
+            throttle = BearerFailureThrottle()
+            if not throttle.allow_request(request, None):
+                raise exceptions.Throttled(throttle.wait())
             throttle.record_failure(request)
             raise exceptions.AuthenticationFailed('The access token is invalid or has expired.')
         user, token = result

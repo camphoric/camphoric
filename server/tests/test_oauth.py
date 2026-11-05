@@ -7,7 +7,10 @@ throttles, the audit log, and the API for connected and registered apps.
 
 import base64
 import hashlib
+import os
 import secrets
+import subprocess
+import sys
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -65,11 +68,11 @@ class OAuthTestCase(APITestCase):
         query.update(more)
         return f'/o/authorize/?{urlencode(query)}'
 
-    def approve(self, user, scope='read write'):
+    def approve(self, user, scope='read write', redirect_uri=REDIRECT_URI):
         '''Sign in as `user`, approve the app for `scope`, and return the code and verifier.'''
         verifier, challenge = pkce_pair()
         self.client.force_login(user)
-        url = self.authorize_query(scope, challenge)
+        url = self.authorize_query(scope, challenge, redirect_uri=redirect_uri)
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200, page.content)
         form = page.context['form']
@@ -78,11 +81,12 @@ class OAuthTestCase(APITestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302, response.content)
         location = urlparse(response['Location'])
-        self.assertEqual(f'{location.scheme}://{location.netloc}{location.path}', REDIRECT_URI)
+        self.assertEqual(f'{location.scheme}://{location.netloc}{location.path}',
+                         redirect_uri.partition('?')[0])
         query = parse_qs(location.query)
         self.assertEqual(query['state'], ['xyz'])
         self.client.logout()
-        return query['code'][0], verifier
+        return query['code'][-1], verifier
 
     def exchange(self, code, verifier, secret=SECRET):
         return self.client.post('/o/token/', {
@@ -193,6 +197,17 @@ class AuthorizationFlowTests(OAuthTestCase):
         self.assertEqual(self.refresh(first['refresh_token']).status_code, 400)
         self.assertEqual(self.api('get', '/api/user', first['access_token']).status_code, 401)
         self.assertEqual(self.refresh(second['refresh_token']).json()['scope'], 'read')
+
+    def test_a_redirect_uri_with_a_code_of_its_own_still_works(self):
+        uri = REDIRECT_URI + '?code=fixed'
+        self.app.redirect_uris = f'{REDIRECT_URI} {uri}'
+        self.app.save()
+        code, verifier = self.approve(self.registrar, redirect_uri=uri)
+        response = self.client.post('/o/token/', {
+            'grant_type': 'authorization_code', 'code': code, 'redirect_uri': uri,
+            'client_id': self.app.client_id, 'client_secret': SECRET,
+            'code_verifier': verifier})
+        self.assertEqual(response.status_code, 200, response.content)
 
     def test_pkce_is_required(self):
         self.client.force_login(self.registrar)
@@ -498,6 +513,13 @@ class ThrottleTests(OAuthTestCase):
             self.assertEqual(self.api('get', '/api/user', 'not-a-token').status_code, 401)
         self.assertEqual(self.api('get', '/api/user', 'not-a-token').status_code, 429)
 
+    def test_a_valid_token_isnt_refused_for_others_failures(self):
+        tokens = self.connect(self.registrar)
+        for _ in range(31):
+            self.api('get', '/api/user', 'not-a-token')
+        self.assertEqual(self.api('get', '/api/user', 'not-a-token').status_code, 429)
+        self.assertEqual(self.api('get', '/api/user', tokens['access_token']).status_code, 200)
+
     def test_the_token_endpoint_is_throttled_per_address(self):
         for _ in range(OAuthTokenThrottle().num_requests):
             self.refresh('not-a-refresh-token')
@@ -527,6 +549,25 @@ class OtherGrantTests(OAuthTestCase):
         response = self.client.post(
             f'/django-admin/oauth2_provider/application/{self.app.pk}/delete/', {'post': 'yes'})
         self.assertEqual(response.status_code, 403)
+
+
+class SignalTests(APITestCase):
+    def test_access_ends_in_processes_that_load_no_urls(self):
+        # manage.py changepassword, or a shell, never loads the URLconf.
+        script = (
+            'import django, sys; django.setup()\n'
+            'from django.contrib.auth import get_user_model\n'
+            'from django.db.models.signals import post_save\n'
+            'import weakref\n'
+            'refs = [r[1] for r in post_save.receivers]\n'
+            'names = {getattr(r() if isinstance(r, weakref.ref) else r, "__name__", "")'
+            ' for r in refs}\n'
+            'sys.exit(0 if {"end_old_credentials", "revoke_when_deactivated"} <= names else 1)\n'
+        )
+        result = subprocess.run(
+            [sys.executable, '-c', script], env={**os.environ},
+            capture_output=True, text=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class OtherAuthenticationTests(OAuthTestCase):

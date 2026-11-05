@@ -134,7 +134,7 @@ records the message.
 | `CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL` | `7776000` (90 days) | How long an app's refresh token keeps working unused after its access token expired; each use replaces it with a new one. Must be positive. |
 | `CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS` | `DEBUG` | Allow apps to register `http` redirect URIs, not only `https`: for an app being developed. Leave it off in production. |
 | `CAMPHORIC_OAUTH_TOKEN_RATE` | `300/minute` | How many requests to the OAuth token and revocation endpoints (`/o/token/`, `/o/revoke_token/`) one client address may make; more get a 429. An app refreshes each user's token about once an hour. |
-| `CAMPHORIC_OAUTH_BEARER_FAILURE_RATE` | `30/minute` | How many requests with an OAuth access token that isn't valid one client address may make; past that, every request with one gets a 429 until the oldest failure ages out. |
+| `CAMPHORIC_OAUTH_BEARER_FAILURE_RATE` | `30/minute` | How many requests with an OAuth access token that isn't valid one client address may make; past that, such requests get a 429 until the oldest failure ages out. Valid tokens are never refused by it. |
 
 ### The task worker
 
