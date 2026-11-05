@@ -6,12 +6,17 @@
  * touched the form and something has changed since: the form reports its schema's
  * defaults as a change as it loads, and opening the page must leave no record, nor
  * count as activity on a draft it comes back to. The first save starts the draft,
- * and its uuid is kept beside the form data. A failed save never interrupts the
- * form: the change waits for the next chance, and a 429 or 503 backs off. It's
- * off while a registration already sent is on offer: what was sent stands until
- * the form is sent again, and an edit would otherwise take it away. Sending the
- * form, or starting again, waits for a save under way only so long: an answer
- * that comes later changes nothing here, and a draft it started is discarded.
+ * under a uuid chosen here and kept beside the form data before it goes, so a save
+ * whose answer is lost as the page closes still names it. A failed save never
+ * interrupts the form: the change waits for the next chance, and a 429 or 503 backs
+ * off. A change made while a save is on its way goes as it's done if the page has
+ * been hidden meanwhile. It's off while a registration already sent is on offer:
+ * what was sent stands until the form is sent again, and the server takes no save
+ * of a sent draft but one that reopens it, from a page sent back to the form
+ * because its lodging filled up. Sending the form, or starting
+ * again, waits for a save under way only so long: an answer that comes later
+ * changes nothing here, and a draft it brought back after starting again, or
+ * started under another uuid, is discarded.
  */
 
 import type { ApiRegister } from 'api-types';
@@ -28,11 +33,20 @@ export const MAX_BACKOFF_MS = 10 * 60_000;
 /** How long sending the form waits for a save under way: a save never holds up the form. */
 export const SETTLE_WAIT_MS = 3_000;
 
+type GivenUpBy = 'sending' | 'starting again';
+
+/** A uuid for a new draft, where the page may make one (only a secure page may). */
+const chosenUUID = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : null;
+
 /** Resolves once any save under way has settled, or it's been given up on. */
-const orTimeout = (saving: { settled: Promise<void>; overdue: boolean }) =>
+const orTimeout = (
+  saving: { settled: Promise<void>; overdue: GivenUpBy | null },
+  givenUpBy: GivenUpBy,
+) =>
   new Promise<void>((resolve) => {
     const giveUp = setTimeout(() => {
-      saving.overdue = true;
+      saving.overdue = givenUpBy;
       resolve();
     }, SETTLE_WAIT_MS);
     void saving.settled.then(() => {
@@ -53,8 +67,8 @@ export function useDraftSaving(
     sending: false,
     /** Settles once the save under way, if any, has. */
     settled: Promise.resolve(),
-    /** That save was given up on: what's going on no longer waits for it. */
-    overdue: false,
+    /** That save was given up on, and by what: it no longer waits for it. */
+    overdue: null as GivenUpBy | null,
     paused: false,
     nextSaveAt: 0,
     backedOffUntil: 0,
@@ -62,7 +76,7 @@ export function useDraftSaving(
   });
 
   const send = useCallback(
-    (keepalive: boolean) => {
+    function send(keepalive: boolean) {
       const saving = state.current;
       if (!enabled || !storageKey) return;
       if (!saving.changed || saving.sending || saving.paused) return;
@@ -70,20 +84,30 @@ export function useDraftSaving(
       saving.changed = false;
       saving.sending = true;
       saving.nextSaveAt = Date.now() + SAVE_INTERVAL_MS;
-      const uuid = loadDraftUUID(storageKey);
+      let uuid = loadDraftUUID(storageKey);
+      if (!uuid) {
+        uuid = chosenUUID();
+        if (uuid) saveDraftUUID(storageKey, uuid);
+      }
+      let saved = false;
+      const { registration, lodgingProblem } = useRegistrationStore.getState();
       saving.settled = saveDraft(
         eventId,
         {
-          formData: useRegistrationStore.getState().registration,
+          formData: registration,
           ...(uuid ? { uuid } : {}),
           ...(invitation ? { invitation } : {}),
+          ...(lodgingProblem ? { reopen: true as const } : {}),
         },
         keepalive,
       )
         .then((draft) => {
+          saved = true;
           saving.backoff = 0;
           if (!saving.overdue) saveDraftUUID(storageKey, draft.uuid);
-          else if (draft.uuid !== uuid) void discardDraft(eventId, draft.uuid).catch(() => {});
+          else if (saving.overdue === 'starting again' || draft.uuid !== uuid) {
+            void discardDraft(eventId, draft.uuid).catch(() => {});
+          }
         })
         .catch((error: unknown) => {
           saving.changed = true;
@@ -94,7 +118,9 @@ export function useDraftSaving(
         })
         .finally(() => {
           saving.sending = false;
-          saving.overdue = false;
+          saving.overdue = null;
+          // Hidden as it went, the page has had its last chance to send what changed since.
+          if (saved && document.visibilityState === 'hidden') send(true);
         });
     },
     [eventId, storageKey, invitation, enabled],
@@ -129,7 +155,7 @@ export function useDraftSaving(
       pause: () => {
         state.current.paused = true;
         state.current.changed = false;
-        return orTimeout(state.current);
+        return orTimeout(state.current, 'sending');
       },
       /** Submitting failed: go on saving. */
       resume: () => {
@@ -140,7 +166,7 @@ export function useDraftSaving(
       stop: () => {
         state.current.changed = false;
         state.current.touched = false;
-        return orTimeout(state.current);
+        return orTimeout(state.current, 'starting again');
       },
     }),
     [send],

@@ -81,10 +81,15 @@ export function useSubmitRegistration(eventId: string) {
 }
 
 export interface SaveDraftBody {
-  /** The draft to go on with; without one, or one the server no longer has, it starts another. */
+  /**
+   * The draft to go on with; without one, or one the server no longer has, it starts
+   * another, under this uuid if no one else has it (§15, DR-143).
+   */
   uuid?: string;
   formData: RegistrationFormData;
   invitation?: ApiRegister['invitation'];
+  /** Sent back to the form, its lodging gone: the save reopens the draft (§15, DR-142). */
+  reopen?: true;
 }
 
 /**

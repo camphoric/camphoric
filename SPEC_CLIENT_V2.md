@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-10-31
+**Last updated:** 2026-11-04
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-141)
+- §15 — Decision Records (DR-1…DR-143)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -639,13 +639,17 @@ Non-CRUD admin endpoints:
 - `POST /api/events/{eventId}/register/draft` with `{ uuid?, formData, invitation? }` (anyone) →
   200 `{ uuid }` and nothing else: the answers are for registrars, so a leaked `uuid` reveals
   none (§15, DR-140). It saves the form as it stands, with no validation or pricing. A `uuid` this
-  event has no draft for starts a new draft, and so does leaving it out. A valid `invitation` is
+  event has no draft for starts a new draft under that `uuid`, so the browser can choose it before
+  the first save; one another draft or registration has, one that isn't a `uuid`, or none, starts
+  one under a new `uuid` (§15, DR-143). A valid `invitation` is
   recorded on the draft; one that isn't valid is ignored until the form is sent. While the event
   isn't open, a save without a valid invitation is a 409. A `formData` that isn't an object, or a
   request body over 60 KB or holding a NUL character, half of a character or a number too large for
   JSON, is a 400. A `uuid` of a registration of this event, whose
-  draft has been completed, saves nothing and returns that `uuid`. Changing the answers of a submitted draft returns it to being filled
-  in, so its `uuid` then needs the form sent again; the same answers leave it as it is. It's
+  draft has been completed, saves nothing and returns that `uuid`, and so does a save to a submitted
+  draft: what was sent stands until the form is sent again. The exception is a save with `reopen:
+  true`, which a browser sent back to the form because a camper's lodging filled up sends: its
+  changed answers return the draft to being filled in (§15, DR-142). It's
   throttled per client address (scope `registration_draft`, `CAMPHORIC_REGISTRATION_DRAFT_RATE`, 30
   a minute by default) apart from `register`, and looking up an invitation counts as above.
 - `DELETE /api/events/{eventId}/register/draft/{uuid}` (anyone holding the `uuid`) → 204, whether
@@ -654,7 +658,8 @@ Non-CRUD admin endpoints:
   pricingResults, draftUUID?, invitation?, promoCode? }` → payment-step payload
   (`{ registrationUUID, serverPricingResults, paymentOptions, handlingPercent, quote }`). A request
   body holding a NUL character, half of a character or a number too large for JSON is a 400. The form is
-  checked and priced and its draft (`draftUUID`, or a new one) becomes *submitted*; no
+  checked and priced and its draft (`draftUUID`, or a new one, under that `draftUUID` if no draft
+  or registration has it, §15, DR-143) becomes *submitted*; no
   registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
   is the draft's `uuid`, which the registration keeps. `paymentOptions` is
   `{ title, description, default, options: [{ name, title, amount, handling }] }`: the event's
@@ -699,7 +704,8 @@ Non-CRUD admin endpoints:
   'invitation_redeemed' }` when another registration started with the same invitation has been
   completed, which leaves this one a draft with nothing saved (§15, DR-137); 409 `{ detail, code:
   'lodging_unavailable' }` when a camper's lodging has filled up since the form was sent, which
-  also leaves it a draft, and the registrant returns to the form (§7.1; §15, DR-140); 409 `{
+  also leaves it a submitted draft, and the registrant returns to the form, whose saves reopen it
+  (§7.1; §15, DR-140, DR-142); 409 `{
   detail, code: 'invoice_changed', invoice: null, paymentStep }` when `quote` isn't what the
   payment step would show now, which saves the new price on the draft and nothing else, and
   `step: 'payment'` answers the same (§7.2; §15, DR-140). For a completed registration it's the
@@ -767,7 +773,7 @@ Non-CRUD admin endpoints:
 - Every step after `registration` (`payment-step`, `paypal-order`, `payment`, `finish`) answers
   404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names neither a
   registration nor a submitted draft the server has — an organizer deleted it, it was purged as
-  incomplete (§15, DR-76), or its answers changed after it was sent (§15, DR-140) — or isn't a
+  incomplete (§15, DR-76) — or isn't a
   registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
   A registration of another event counts as none: each step checks the registration against
   this event's settings.
@@ -1276,13 +1282,17 @@ Before any step renders, the app loads the registration config (`GET …/registe
 - **Saving to the server:** the first change to the form starts a draft on the server, so nothing
   is recorded for someone who only opens the page (§15, DR-140). A changed field is saved when it
   loses focus, not on each keystroke, at most every 30 seconds; a change held back by that limit
-  is sent when the page is hidden. The draft's `uuid` is kept in localStorage beside the form
-  data, and returning to the page goes on with it; if the server no longer has it, the next save
-  starts another from what the browser holds. A failed save never interrupts the form, and the
-  browser backs off on a 429 or 503. While a sent registration is offered (below) nothing is
-  saved, since what was sent stands until the form is sent again; submitting waits up to three
-  seconds for a save under way, and an answer that comes later is ignored, and any draft it
-  started is discarded. The step says that answers are saved as the form is filled
+  is sent when the page is hidden, and so is a change made while a save was on its way, once it's
+  done, if the page was hidden meanwhile. The browser chooses the draft's `uuid` before the first
+  save, where the page can (a secure page), and keeps it in localStorage beside the form data, so
+  a first save whose answer is lost as the page closes still names it (§15, DR-143); returning to
+  the page goes on with it, and if the server no longer has it, the next save starts it again from
+  what the browser holds. A failed save never interrupts the form, and the browser backs off on a
+  429 or 503. While a sent registration is offered (below) nothing is saved, since what was sent
+  stands until the form is sent again (§15, DR-142); once the browser is sent back to the form
+  because a camper's lodging filled up, its saves carry `reopen: true` until the page is reloaded. Submitting, or starting a new registration,
+  waits up to three seconds for a save under way; an answer that comes later is ignored, and a
+  draft it started under another `uuid`, or brought back after starting again, is discarded. The step says that answers are saved as the form is filled
   in, and deleted after `draftRetentionDays` days if the registration isn't finished.
 - **Submit:** posts `{ step: 'registration', formData, pricingResults, draftUUID?, invitation?,
   promoCode? }` (`promoCode` only when one is applied). On success it stores the returned payment-step payload
@@ -2487,7 +2497,9 @@ section is the contract.
 
 - **A registration's states.** *Draft*: the form is being filled in, and then, once *submitted*,
   sent but with no payment button pressed; it isn't a registration yet, holds no lodging, and is
-  deleted after the retention period without activity (§15, DR-76, DR-139, DR-140). *Completed*: a
+  deleted after the retention period without activity (§15, DR-76, DR-139, DR-140); a submitted
+  draft is filled in again when a registrant sent back because a camper's lodging filled up changes
+  the answers (§15, DR-142). *Completed*: a
   payment button was pressed — Pay by check, PayPal or Card, or Finish registration when nothing
   is owed (§15, DR-91). From then on it's in every admin list, unpaid until a payment arrives.
 - **Invoice.** A request for one chunk of the balance: `amount` toward the registration, plus
@@ -5879,7 +5891,8 @@ from the draft in the transaction that completes it, and removes the draft: if a
 the draft is still there. The registration is dated when the form was submitted, since early-bird
 pricing reads `created_at`. Lodging is held by nothing until then, so the check runs again at
 completion under the lodging lock; if the place has gone the step answers 409
-`lodging_unavailable` and the registrant goes back to the form with their answers. The price is
+`lodging_unavailable` and the registrant goes back to the form with their answers, whose saves
+reopen the draft (DR-142). The price is
 worked out again too. A payment step carries a `quote`, a digest of what it asks for (the
 total, the options and their amounts, the handling percent), and a payment button sends it back; one
 that isn't what the step would ask for now, because the pricing, the options or a date they read
@@ -5946,6 +5959,44 @@ registrar should see a payment that was recorded. Send them their confirmation: 
 registration from long ago, which the sweep would otherwise send. Remove `registration.completed` from
 templates as well: templates and recipient rules live in events' own repositories and saved
 records, and would break for no gain.
+
+### DR-142 — A save never changes a sent draft
+
+**Decision:** A draft save to a submitted draft saves nothing and returns its `uuid`: what was sent
+stands until the form is sent again, which replaces it. The one way back to the form that keeps the
+draft, a payment button finding a camper's lodging gone (`lodging_unavailable`), leaves it
+submitted; the browser then marks its saves `reopen: true`, from the store, until the page is
+reloaded, and a marked save whose answers differ returns the draft to being filled in.
+**Context:** A save whose answers differed from a submitted draft's used to return it to being
+filled in. A save stuck for longer than sending the form waits, or a second tab opened before the
+form was sent, could then reach the server afterwards, and the next payment button found no
+registration and sent the registrant back to the form to send it again (#952). The browser already
+stops saving while a sent registration is on offer, so a save that reaches a submitted draft is
+one of these, or one made after sending failed in the browser though it reached the server, which
+sending again covers.
+**Alternatives:** Have the browser send a revision with each save and the form, and ignore a save
+older than the submission: more state in both places, and a second tab's later edit would still
+undo what the first is paying for. Return the draft to being filled in as the lodging is refused:
+someone who leaves then, without choosing again, would drop out of the incomplete-registrations
+report and group email, though they're the ones to follow up. Keep the mark in localStorage so it
+outlives a reload: a reloaded page's saves wait for the form to be sent again, which it must be
+anyway. Keep returning the draft to being filled in on any change and word the message better:
+the registrant would still have to send the form again for nothing.
+
+### DR-143 — The browser chooses a new draft's `uuid`
+
+**Decision:** The browser makes the draft's `uuid` before the first save and keeps it beside the form
+data before the save goes. The draft save and the `registration` step start a draft under a `uuid`
+that no draft or registration has, and under a new one otherwise. Two requests starting the same
+draft at once don't fail: of two saves the first stands, and the `registration` step sends the
+draft a save started.
+**Context:** The first save made as the page is hidden can lose its answer when the page closes,
+and the browser never learnt the new draft's `uuid`: the next visit started a second draft with the
+same answers, and both stayed until the retention period ended (#953). A `uuid` is the draft's only
+key, and a random one chosen in the browser is as hard to guess as one the server makes.
+**Alternatives:** Make sure the first save goes out as a field loses focus, before the page can be
+hidden: closing a tab can still cut it off. A page that can't make one (not a secure page) leaves it
+to the server, as before.
 
 ---
 

@@ -231,8 +231,9 @@ class RegisterLodgingTests(APITestCase):
         self.assertEqual(response.status_code, 409, response.data)
         self.assertEqual(response.data['code'], 'lodging_unavailable')
         self.assertRegex(response.data['detail'], 'no room left in Cabin A')
-        self.assertTrue(models.RegistrationDraft.objects.filter(uuid=uuid).exists())
         self.assertFalse(models.Registration.all_objects.filter(uuid=uuid).exists())
+        # Still sent, so still in reports and group email, until they choose again.
+        self.assertIsNotNone(models.RegistrationDraft.objects.get(uuid=uuid).submitted_at)
 
     def test_the_paypal_button_is_refused_when_the_bed_has_gone(self):
         uuid = self.register(self.cabin_a).data['registrationUUID']
