@@ -14,7 +14,7 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 BEFORE_REMOVING = '0089_registration_draft'
-LATEST = '0090_remove_registration_completed'
+REMOVING = '0090_remove_registration_completed'
 UPDATE = 1
 
 
@@ -23,6 +23,12 @@ def migrate_to(name):
     target = [('camphoric', name)]
     MigrationExecutor(connection).migrate(target)
     return MigrationExecutor(connection).loader.project_state(target).apps
+
+
+def migrate_to_latest():
+    '''Migrate forward to the app's latest migration, for the tests that follow.'''
+    executor = MigrationExecutor(connection)
+    executor.migrate(executor.loader.graph.leaf_nodes('camphoric'))
 
 
 def migration(name):
@@ -37,7 +43,7 @@ class MigrationTestCase(TransactionTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        migrate_to(LATEST)
+        migrate_to_latest()
         super().tearDownClass()
 
     def setUp(self):
@@ -354,7 +360,7 @@ class RemovingCompletedTests(MigrationTestCase):
     '''0090 settles what 0089 left incomplete.'''
 
     def settle(self):
-        migration(LATEST).settle_incomplete_registrations(self.apps)
+        migration(REMOVING).settle_incomplete_registrations(self.apps)
 
     def invoiced(self, **fields):
         registration = self.registration(**fields)
@@ -406,7 +412,7 @@ class RemovingCompletedTests(MigrationTestCase):
         self.camper(self.registration())
         kept = self.invoiced()
         try:
-            apps = migrate_to(LATEST)
+            apps = migrate_to(REMOVING)
             Registration = apps.get_model('camphoric', 'Registration')
             self.assertEqual([r.id for r in Registration._base_manager.all()], [kept.id])
         finally:
@@ -414,7 +420,7 @@ class RemovingCompletedTests(MigrationTestCase):
 
     def test_going_back_every_registration_is_completed(self):
         self.registration(completed=True)
-        migrate_to(LATEST)
+        migrate_to(REMOVING)
         apps = migrate_to(BEFORE_REMOVING)
         registration = apps.get_model('camphoric', 'Registration')._base_manager.get()
         self.assertTrue(registration.completed)
