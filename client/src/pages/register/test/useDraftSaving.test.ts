@@ -21,6 +21,7 @@ const INVITATION = {
   recipient_email: 'sam@example.com',
   invitation_code: 'ABC123',
 };
+const CHOSEN = '00000000-0000-4000-8000-000000000001';
 const save = vi.mocked(saveDraft);
 const discard = vi.mocked(discardDraft);
 
@@ -46,6 +47,7 @@ describe('useDraftSaving', () => {
     save.mockResolvedValue({ uuid: 'draft-1' });
     discard.mockReset();
     discard.mockResolvedValue();
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(CHOSEN);
     useRegistrationStore.getState().reset();
   });
 
@@ -81,10 +83,43 @@ describe('useDraftSaving', () => {
     await settle();
     expect(save).toHaveBeenCalledExactlyOnceWith(
       '1',
-      { formData: { registrant_email: 'pat@', campers: [] } },
+      { formData: { registrant_email: 'pat@', campers: [] }, uuid: CHOSEN },
       false,
     );
     expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-1');
+  });
+
+  it('keeps the uuid it chose for a new draft before the save answers', async () => {
+    save.mockReturnValueOnce(new Promise(() => {}));
+    const drafts = hook();
+    drafts.current.changed();
+    hidePage();
+    await settle();
+    expect(save.mock.calls[0]?.[1]).toMatchObject({ uuid: CHOSEN });
+    expect(localStorage.getItem(`${KEY} (draft)`)).toBe(CHOSEN);
+  });
+
+  it('reopens the draft sent, once sent back to the form because its lodging filled up', async () => {
+    useRegistrationStore.getState().lodgingTaken('Cabin A is full.');
+    const drafts = hook();
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+    await settle();
+    expect(save.mock.calls[0]?.[1]).toMatchObject({ reopen: true });
+  });
+
+  it('leaves the server to choose where the page can’t', async () => {
+    vi.stubGlobal('crypto', {});
+    try {
+      const drafts = hook();
+      drafts.current.changed();
+      drafts.current.fieldBlurred();
+      await settle();
+      expect(save.mock.calls[0]?.[1]).not.toHaveProperty('uuid');
+      expect(localStorage.getItem(`${KEY} (draft)`)).toBe('draft-1');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('goes on with the draft it has, and sends the invitation', async () => {
@@ -136,6 +171,33 @@ describe('useDraftSaving', () => {
     await settle();
     expect(save).toHaveBeenCalledTimes(2);
     expect(save.mock.calls[1]?.[2]).toBe(true);
+  });
+
+  it('sends a change made during a save once it’s done, if the page was hidden meanwhile', async () => {
+    let answer = (_draft: { uuid: string }) => {};
+    save.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const drafts = hook();
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+    drafts.current.changed();
+    hidePage();
+    await settle();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    answer({ uuid: 'draft-1' });
+    await settle();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]?.[2]).toBe(true);
+  });
+
+  it('doesn’t try a failed save again at once because the page is hidden', async () => {
+    save.mockRejectedValue(new Error('offline'));
+    const drafts = hook();
+    drafts.current.changed();
+    hidePage();
+    await settle();
+    await settle();
+    expect(save).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a change whose save failed, and tells no one', async () => {
@@ -283,6 +345,20 @@ describe('useDraftSaving', () => {
     hidePage();
     await settle();
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('discards the draft a save given up on by starting again brings back', async () => {
+    let answer = (_draft: { uuid: string }) => {};
+    save.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const drafts = hook();
+    drafts.current.changed();
+    drafts.current.fieldBlurred();
+    void drafts.current.stop();
+    await act(() => vi.advanceTimersByTimeAsync(SETTLE_WAIT_MS));
+
+    answer({ uuid: CHOSEN });
+    await settle();
+    expect(discard).toHaveBeenCalledExactlyOnceWith('1', CHOSEN);
   });
 
   it('forgets what it held on starting again, and needs touching again', async () => {

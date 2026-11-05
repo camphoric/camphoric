@@ -14,7 +14,7 @@ from deepmerge import always_merger
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.core import signing
 from django.http import Http404
@@ -1430,6 +1430,20 @@ def check_storable(data):
     return size
 
 
+def new_draft(event, wanted):
+    '''
+    A new draft, under the uuid the browser chose for it (#953) unless that's no uuid
+    or another event's draft, or a registration, has it. One of this event's started
+    since the caller looked makes saving it collide, which the caller takes as that.
+    '''
+    draft = models.RegistrationDraft(event=event)
+    taken = (models.RegistrationDraft.objects.filter(uuid=wanted).exclude(event=event).exists()
+             or models.Registration.all_objects.filter(uuid=wanted).exists())
+    if wanted is not None and not taken:
+        draft.uuid = wanted
+    return draft
+
+
 def price_quote(server_pricing_results, payment_options):
     '''
     A digest of what a payment page asks for, which its buttons send back: a draft
@@ -1455,7 +1469,8 @@ class DraftRepriced(Exception):
 class LodgingTaken(serializers.Conflict):
     '''
     The lodging a submitted draft asked for has filled up since: a bed is only
-    taken as a registration is completed (DR-140). The browser goes back to the form.
+    taken as a registration is completed (DR-140). The browser goes back to the form,
+    and its saves reopen the draft (DR-142).
     '''
     def __init__(self, message):
         super().__init__({'detail': message, 'code': 'lodging_unavailable'})
@@ -1688,9 +1703,10 @@ class RegisterView(APIView):
             request, event, registration.registration_type)
 
         # Locked first, as completing takes it, then the lodging, then the invitation.
+        draft_uuid = parsed_uuid(request.data.get('draftUUID'))
         draft = (models.RegistrationDraft.objects.select_for_update()
-                 .filter(event=event, uuid=parsed_uuid(request.data.get('draftUUID'))).first()
-                 or models.RegistrationDraft(event=event))
+                 .filter(event=event, uuid=draft_uuid).first()
+                 or new_draft(event, draft_uuid))
 
         # It comes before pricing, which reads the requested lodging.
         problem = self.requested_lodging_problem(event, campers)
@@ -1719,7 +1735,15 @@ class RegisterView(APIView):
         draft.server_pricing_results = server_pricing_results
         draft.client_reported_pricing = client_reported_pricing
         draft.submitted_at = draft.last_activity_at = timezone.now()
-        draft.save()
+        try:
+            with transaction.atomic():
+                draft.save()
+        except IntegrityError:
+            # A save started a draft under the same uuid as this went: this sends it.
+            draft.pk = (models.RegistrationDraft.objects.select_for_update()
+                        .values_list('pk', flat=True).get(event=event, uuid=draft.uuid))
+            draft.save(force_update=True)
+            created = False
         live.notify_draft(draft, 'created' if created else 'updated')
 
         return Response({
@@ -2348,8 +2372,9 @@ class RegistrationDraftView(APIView):
     `{uuid?, formData, invitation?}` as a changed field loses focus, and gets only
     the `uuid` back: the answers are for registrars, so one leaked reveals nothing.
     A `uuid` the server doesn't have starts a new draft from what's sent. No
-    validation or pricing: those wait for the `registration` step, as an edit to a
-    submitted draft does, since what was checked is no longer what's held.
+    validation or pricing: those wait for the `registration` step. A submitted draft
+    takes no save but a reopening one (DR-142), whose changed answers return it to
+    being filled in, since what was checked is no longer what's held.
     '''
     permission_classes = [permissions.AllowAny]
     throttle_classes = [InvitationLookupThrottle, ScopedRateThrottle]
@@ -2385,7 +2410,12 @@ class RegistrationDraftView(APIView):
                 # Completed as this was on its way: it's done with, not a new draft.
                 if models.Registration.all_objects.filter(event=event, uuid=draft_uuid).exists():
                     return Response({'uuid': draft_uuid})
-                draft = models.RegistrationDraft(event=event)
+                draft = new_draft(event, draft_uuid)
+            elif draft.submitted_at is not None and request.data.get('reopen') is not True:
+                # What was sent stands until the form is sent again (#952): a save
+                # from before it went, or from another tab, changes nothing. Only a
+                # browser sent back to the form, its lodging gone, reopens it.
+                return Response({'uuid': draft.uuid})
             action = None
             if draft.pk is None:
                 action = 'created'
@@ -2400,7 +2430,12 @@ class RegistrationDraftView(APIView):
                 draft.invitation = invitation
                 draft.registration_type = invitation.registration_type
             draft.last_activity_at = now
-            draft.save()
+            try:
+                with transaction.atomic():
+                    draft.save()
+            except IntegrityError:
+                # Another request started a draft under this uuid at the same moment: it stands.
+                return Response({'uuid': draft.uuid})
             if action:
                 live.notify_draft(draft, action)
         return Response({'uuid': draft.uuid})

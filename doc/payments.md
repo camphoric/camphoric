@@ -118,6 +118,7 @@ stateDiagram-v2
     Draft --> Submitted: form sent (step 'registration')
     Draft --> Deleted: retention period without activity (30 days by default)<br/>(nightly clean-up, DR-76)
     Submitted --> Deleted: the same
+    Submitted --> Draft: a save that changes the answers after lodging_unavailable (DR-142)
     Submitted --> Unpaid: a payment button pressed
     Unpaid --> PartiallyPaid: a payment smaller than the balance
     Unpaid --> Paid: a payment for the balance
@@ -185,7 +186,8 @@ flowchart TD
   the draft as it was. Every registration is completed (DR-141), so it's in the admin lists. A
   draft holds no lodging, so the check runs again here, under the lodging lock, and a place that
   has gone is 409 `lodging_unavailable`, which sends the registrant back to the form to choose
-  again. The price is worked out again too. The payment step carries a `quote`, a digest of what
+  again; the browser's saves then carry `reopen: true`, and changed answers return the draft to
+  being filled in. Any other save to a submitted draft changes nothing. The price is worked out again too. The payment step carries a `quote`, a digest of what
   it asks for (the total, the options and their amounts, the handling percent), and a payment
   button sends it back: one that's out of date is refused (`invoice_changed`, with the new payment
   step), so no one is charged an amount they haven't seen, and that holds for a completed
@@ -208,7 +210,7 @@ flowchart TD
   window — resumes paying for the same registration, still showing what was entered. Coming back
   to the form offers "Continue to payment" or "Start a new registration".
 - **A saved registration the server no longer has (#769)** — an organizer deleted it, it was
-  purged as incomplete, or its answers changed after it was sent — gets 404 `registration_not_found` from every step after `registration`
+  purged as incomplete — gets 404 `registration_not_found` from every step after `registration`
   (`RegisterView.named_registration`), and nothing is changed or charged. The browser forgets
   the saved one and goes back to the form, keeping what was entered, and asks for it to be sent
   again (`pages/register/useForgetSentRegistration.ts`).

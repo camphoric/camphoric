@@ -79,12 +79,36 @@ class SavingTests(DraftTestCase):
         self.assertEqual(draft.last_activity_at.minute, 5)
         self.assertEqual(draft.created_at.minute, 0)
 
-    def test_a_uuid_the_server_doesnt_have_starts_a_new_draft(self):
-        gone = uuid.uuid4()
-        for sent in (str(gone), 'not a uuid'):
+    def test_a_new_draft_takes_the_uuid_the_browser_chose(self):
+        # So a first save whose answer is lost as the page closes still names it (#953).
+        chosen = uuid.uuid4()
+        self.assertEqual(self.save(uuid=str(chosen)).data['uuid'], chosen)
+        self.assertEqual(models.RegistrationDraft.objects.get().uuid, chosen)
+        self.save({'registrant_email': 'pat@example.com'}, uuid=str(chosen))
+        self.assertEqual(models.RegistrationDraft.objects.get().registrant_email, 'pat@example.com')
+
+    def test_a_uuid_only_this_events_draft_has_is_left_to_collide(self):
+        # One started since the caller looked: saving it then fails, and the caller takes that.
+        chosen = uuid.uuid4()
+        models.RegistrationDraft.objects.create(event=self.event, uuid=chosen)
+        self.assertEqual(views.new_draft(self.event, chosen).uuid, chosen)
+
+    def test_a_save_without_a_uuid_starts_a_draft_under_a_new_one(self):
+        for sent in ({}, {'uuid': 'not a uuid'}):
             with self.subTest(sent=sent):
-                self.assertNotEqual(self.save(uuid=sent).data['uuid'], gone)
+                self.assertIsInstance(self.save(**sent).data['uuid'], uuid.UUID)
         self.assertEqual(models.RegistrationDraft.objects.count(), 2)
+
+    def test_a_save_starting_the_draft_another_request_just_started_leaves_it(self):
+        chosen = uuid.uuid4()
+
+        def started_meanwhile(event, wanted):
+            models.RegistrationDraft.objects.create(event=event, uuid=wanted, form_data={'a': 1})
+            return models.RegistrationDraft(event=event, uuid=wanted)
+
+        with mock.patch('camphoric.views.new_draft', side_effect=started_meanwhile):
+            self.assertEqual(self.save({'b': 2}, uuid=str(chosen)).data['uuid'], chosen)
+        self.assertEqual(models.RegistrationDraft.objects.get().form_data, {'a': 1})
 
     def test_a_uuid_from_another_event_starts_a_new_draft(self):
         other = models.RegistrationDraft.objects.create(event=models.Event.objects.create(
@@ -199,6 +223,15 @@ class SavingTests(DraftTestCase):
 
 
 class LateSaveTests(DraftTestCase):
+    def test_a_save_landing_after_the_form_was_sent_changes_nothing(self):
+        # It left before the form did, but took longer (#952).
+        draft_uuid = self.submit().data['registrationUUID']
+        self.save({'campers': [{}]}, uuid=str(draft_uuid))
+        draft = models.RegistrationDraft.objects.get()
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.form_data, self.valid_form_data)
+        self.assertEqual(complete(self.client, self.event, draft_uuid).status_code, 200)
+
     def test_a_save_landing_after_completion_makes_no_ghost_draft(self):
         draft_uuid = self.submit().data['registrationUUID']
         complete(self.client, self.event, draft_uuid)
@@ -280,15 +313,56 @@ class SubmittingTests(DraftTestCase):
         self.save(copy.deepcopy(self.valid_form_data), uuid=str(draft_uuid))
         self.assertIsNotNone(models.RegistrationDraft.objects.get().submitted_at)
 
-    def test_changing_the_answers_means_sending_it_again(self):
+    def test_another_tab_changing_the_answers_leaves_what_was_sent(self):
         draft_uuid = self.submit().data['registrationUUID']
         self.save({**self.valid_form_data, 'billing_name': 'Changed'}, uuid=str(draft_uuid))
         draft = models.RegistrationDraft.objects.get()
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.form_data, self.valid_form_data)
+        response = complete(self.client, self.event, draft_uuid)
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_a_browser_sent_back_to_the_form_reopens_it_by_changing_the_answers(self):
+        # Its lodging filled up before it was completed (DR-142).
+        draft_uuid = self.submit().data['registrationUUID']
+        self.save(copy.deepcopy(self.valid_form_data), uuid=str(draft_uuid), reopen=True)
+        self.assertIsNotNone(models.RegistrationDraft.objects.get().submitted_at)
+
+        changed = {**self.valid_form_data, 'billing_name': 'Changed'}
+        self.save(changed, uuid=str(draft_uuid), reopen=True)
+        draft = models.RegistrationDraft.objects.get()
         self.assertIsNone(draft.submitted_at)
         self.assertIsNone(draft.server_pricing_results)
-        response = complete(self.client, self.event, draft_uuid)
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.data['code'], 'registration_not_found')
+        self.assertEqual(draft.form_data, changed)
+
+    def test_sending_the_form_again_replaces_what_was_sent(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        changed = {**self.valid_form_data, 'billing_name': 'Changed'}
+        self.submit(formData=changed, draftUUID=str(draft_uuid))
+        self.assertEqual(models.RegistrationDraft.objects.get().form_data, changed)
+
+    def test_it_submits_a_draft_under_the_uuid_the_browser_chose(self):
+        # The first save, under that uuid, may not have got there yet (#953).
+        chosen = uuid.uuid4()
+        self.assertEqual(self.submit(draftUUID=str(chosen)).data['registrationUUID'], chosen)
+        self.save({'campers': [{}]}, uuid=str(chosen))
+        draft = models.RegistrationDraft.objects.get()
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.form_data, self.valid_form_data)
+
+    def test_it_sends_a_draft_a_save_started_as_it_went(self):
+        chosen = uuid.uuid4()
+
+        def started_meanwhile(event, wanted):
+            models.RegistrationDraft.objects.create(event=event, uuid=wanted, form_data={'a': 1})
+            return models.RegistrationDraft(event=event, uuid=wanted)
+
+        with mock.patch('camphoric.views.new_draft', side_effect=started_meanwhile):
+            response = self.submit(draftUUID=str(chosen))
+        self.assertEqual(response.data['registrationUUID'], chosen)
+        draft = models.RegistrationDraft.objects.get()
+        self.assertIsNotNone(draft.submitted_at)
+        self.assertEqual(draft.form_data, self.valid_form_data)
 
 
 class CompletingTests(DraftTestCase):
