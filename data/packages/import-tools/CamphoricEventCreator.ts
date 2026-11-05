@@ -428,11 +428,14 @@ export default class CamphoricEventCreator extends Fetcher {
       // amount from the payment option (the event's default when none is given).
       const paymentOption = lodash.get(testData, 'paymentData.paymentOption');
 
+      // The registration step's quote: the server completes it only at that price.
+      const { quote } = testData.response;
       const body = {
         step: 'payment',
         registrationUUID: testData.response.registrationUUID,
         paymentType: 'Check',
         ...(paymentOption ? { paymentOption } : {}),
+        ...(typeof quote === 'string' ? { quote } : {}),
       };
 
       const res = await fetch(`${this.urlBase}/api/events/${event.id}/register`, {
