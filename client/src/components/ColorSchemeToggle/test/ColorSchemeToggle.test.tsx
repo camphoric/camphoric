@@ -9,7 +9,7 @@ const STORAGE_KEY = 'mantine-color-scheme-value';
 
 function view() {
   render(
-    <MantineProvider defaultColorScheme="auto">
+    <MantineProvider defaultColorScheme="auto" env="test">
       <ColorSchemeToggle />
     </MantineProvider>,
   );

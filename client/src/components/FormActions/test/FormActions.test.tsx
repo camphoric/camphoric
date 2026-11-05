@@ -6,7 +6,7 @@ import { FormActions } from '../FormActions';
 
 function view(dirty?: boolean) {
   render(
-    <MantineProvider>
+    <MantineProvider env="test">
       <FormActions dirty={dirty}>
         <Button>Save</Button>
       </FormActions>
