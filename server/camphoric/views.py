@@ -1486,6 +1486,15 @@ class RegistrationThrottled(Throttled):
     extra_detail_plural = 'Please wait {wait} seconds and try again.'
 
 
+class DraftsFull(Throttled):
+    '''
+    The event holds as many drafts nobody has sent as it may (DR-144): a save that
+    would start another is a 429, which the browser waits out without a word.
+    '''
+    default_detail = 'Your answers can\'t be saved just now.'
+    WAIT = 10 * 60
+
+
 class EventList(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -2410,6 +2419,7 @@ class RegistrationDraftView(APIView):
                 # Completed as this was on its way: it's done with, not a new draft.
                 if models.Registration.all_objects.filter(event=event, uuid=draft_uuid).exists():
                     return Response({'uuid': draft_uuid})
+                self.refuse_if_full(event)
                 draft = new_draft(event, draft_uuid)
             elif draft.submitted_at is not None and request.data.get('reopen') is not True:
                 # What was sent stands until the form is sent again (#952): a save
@@ -2422,6 +2432,7 @@ class RegistrationDraftView(APIView):
             elif draft.last_activity_at < now - self.IDLE_AFTER:
                 action = 'updated'
             if draft.submitted_at is not None and form_data != draft.form_data:
+                self.refuse_if_full(event)  # Reopened, it's one more nobody has sent.
                 draft.submitted_at = draft.server_pricing_results = None
             draft.form_data = form_data
             email = form_data.get('registrant_email')
@@ -2439,6 +2450,15 @@ class RegistrationDraftView(APIView):
             if action:
                 live.notify_draft(draft, action)
         return Response({'uuid': draft.uuid})
+
+    @staticmethod
+    def refuse_if_full(event):
+        '''DraftsFull if the event holds as many drafts nobody has sent as it may (DR-144).'''
+        unsent = models.RegistrationDraft.objects.filter(
+            event=event, submitted_at__isnull=True).count()
+        if unsent >= settings.CAMPHORIC_MAX_OPEN_DRAFTS:
+            logger.warning(f'event {event.id} holds {unsent} unsent drafts: refusing more')
+            raise DraftsFull(DraftsFull.WAIT)
 
     def delete(self, request, event_id=None, draft_uuid=None):
         '''"Start a new registration": whoever holds a draft's uuid may discard it.'''

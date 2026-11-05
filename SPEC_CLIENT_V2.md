@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-143)
+- §15 — Decision Records (DR-1…DR-144)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -649,7 +649,10 @@ Non-CRUD admin endpoints:
   draft has been completed, saves nothing and returns that `uuid`, and so does a save to a submitted
   draft: what was sent stands until the form is sent again. The exception is a save with `reopen:
   true`, which a browser sent back to the form because a camper's lodging filled up sends: its
-  changed answers return the draft to being filled in (§15, DR-142). It's
+  changed answers return the draft to being filled in (§15, DR-142). Once the event holds
+  `CAMPHORIC_MAX_OPEN_DRAFTS` (2,000 by default) drafts nobody has sent, a save that would start
+  another, or reopen a sent one, is a 429 with `Retry-After`; other saves to the drafts it holds,
+  and sending the form, go on (§15, DR-144). It's
   throttled per client address (scope `registration_draft`, `CAMPHORIC_REGISTRATION_DRAFT_RATE`, 30
   a minute by default) apart from `register`, and looking up an invitation counts as above.
 - `DELETE /api/events/{eventId}/register/draft/{uuid}` (anyone holding the `uuid`) → 204, whether
@@ -5998,6 +6001,30 @@ key, and a random one chosen in the browser is as hard to guess as one the serve
 hidden: closing a tab can still cut it off. A page that can't make one (not a secure page) leaves it
 to the server, as before.
 
+
+### DR-144 — An event holds only so many drafts nobody has sent
+
+**Decision:** Once an event holds `CAMPHORIC_MAX_OPEN_DRAFTS` drafts that haven't been sent (2,000 by
+default), a draft save that would start another, or reopen a sent one (DR-142), is refused with a
+429 asking for ten minutes' wait, and a warning is logged. Other saves to the drafts it holds go
+on, and so does the `registration` step, which starts or sends a draft whatever the count: it
+checks the form and has its own throttle. A sent draft doesn't count until it's reopened. The count
+isn't locked, so saves arriving together can pass the cap by a few. Drafts kept active stay until
+they've been idle for the retention period, so someone who fills an event's places and re-saves
+them keeps it full: registering goes on, but registrars see no new drafts until an operator raises
+the setting or a Registrar or Admin deletes drafts (`DELETE /api/registrationdrafts/{id}/`).
+**Context:** The public draft endpoint stores up to 60 KB a save, unchecked, and a save without a
+`uuid` starts a new draft, kept for the retention period. At 30 saves a minute per address, with
+the throttle's counts held per process, one address could store gigabytes a day (#957). A draft is
+a convenience for registrars: refusing new ones loses only their view of someone still filling in
+the form, and the browser waits a refusal out without a word, so registering still works. The cap
+bounds the unsent drafts at about 120 MB an event.
+**Alternatives:** A cap per client address: drafts would have to keep addresses, personal data the
+retention policy would then cover, and an attacker with many addresses gets round it. A smaller
+limit for a save that starts a draft: a browser whose draft was purged starts again with
+everything it holds. A throttle cache shared by the workers (database or Redis) makes the rate
+exact but still lets one address fill the table over days; it's an ops change worth making
+apart from this. An alert on the table's size: needs monitoring the deployment doesn't have.
 ---
 
 ## Appendix A — Backend / API Dependencies

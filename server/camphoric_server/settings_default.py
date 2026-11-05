@@ -158,6 +158,12 @@ if not 1 <= CAMPHORIC_INCOMPLETE_RETENTION_DAYS <= 36500:
     # clean-up's cutoff is a date before the calendar starts.
     raise ImproperlyConfigured(
         'CAMPHORIC_INCOMPLETE_RETENTION_DAYS must be between 1 and 36500 days')
+# How many drafts nobody has sent an event may hold before a save that would start
+# another is refused (SPEC DR-144): the public draft endpoint stores what it's sent
+# unchecked, and this bounds what one client can fill the database with.
+CAMPHORIC_MAX_OPEN_DRAFTS = env.int('CAMPHORIC_MAX_OPEN_DRAFTS', default=2000)
+if CAMPHORIC_MAX_OPEN_DRAFTS < 1:
+    raise ImproperlyConfigured('CAMPHORIC_MAX_OPEN_DRAFTS must be at least 1')
 
 # Every outgoing email is a row in an outbox (camphoric.mail) that the task worker
 # delivers (`manage.py camphoric_worker`). 'immediate' delivers during the request

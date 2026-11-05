@@ -222,6 +222,45 @@ class SavingTests(DraftTestCase):
         self.assertEqual(LogEntry.objects.count(), before)
 
 
+@override_settings(CAMPHORIC_MAX_OPEN_DRAFTS=2)
+class TooManyDraftsTests(DraftTestCase):
+    '''An event holds only so many drafts nobody has sent (DR-144).'''
+
+    def test_a_save_that_would_start_another_waits(self):
+        first = self.save().data['uuid']
+        self.save()
+        response = self.save(status=429)
+        self.assertEqual(response['Retry-After'], '600')
+        self.assertEqual(models.RegistrationDraft.objects.count(), 2)
+        # The drafts it holds go on saving.
+        self.save({'registrant_email': 'pat@example.com'}, uuid=str(first))
+        self.assertTrue(models.RegistrationDraft.objects.filter(
+            registrant_email='pat@example.com').exists())
+
+    def test_sending_the_form_goes_on_and_frees_a_place(self):
+        draft = self.save().data['uuid']
+        self.save()
+        self.submit(draftUUID=str(draft))
+        self.submit()
+        self.save()
+        self.assertEqual(models.RegistrationDraft.objects.filter(
+            submitted_at__isnull=True).count(), 2)
+
+    def test_reopening_a_sent_draft_counts_as_starting_one(self):
+        sent = self.submit().data['registrationUUID']
+        self.save()
+        self.save()
+        changed = {**self.valid_form_data, 'billing_name': 'Changed'}
+        self.save(changed, uuid=str(sent), reopen=True, status=429)
+        self.assertIsNotNone(models.RegistrationDraft.objects.get(uuid=sent).submitted_at)
+
+    def test_another_events_drafts_dont_count(self):
+        other = models.Event.objects.create(organization=self.event.organization, name='Other')
+        models.RegistrationDraft.objects.bulk_create(
+            [models.RegistrationDraft(event=other) for _ in range(2)])
+        self.save()
+
+
 class LateSaveTests(DraftTestCase):
     def test_a_save_landing_after_the_form_was_sent_changes_nothing(self):
         # It left before the form did, but took longer (#952).
