@@ -129,3 +129,32 @@ class CamphoricUserAdmin(UserAdmin):
     def camphoric_permission_group(self, user):
         role = roles.role_of(user)
         return roles.GROUP_NAMES[role] if role else 'No access'
+
+
+class ReadOnlyOAuthAdmin(admin.ModelAdmin):
+    '''
+    Apps using OAuth, and their tokens and codes, shown to read only (SPEC
+    DR-146): Admins register apps in the Camphoric admin, which makes each a
+    confidential client with the authorization code grant, and an app's access
+    ends there or through the OAuth flow, which also removes its connection.
+    django-oauth-toolkit registers its models with these (OAUTH2_PROVIDER).
+    '''
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class OAuthApplicationAdmin(ReadOnlyOAuthAdmin):
+    list_display = ['name', 'client_id', 'client_type', 'authorization_grant_type', 'created']
+    exclude = ['client_secret']
+
+
+class OAuthTokenAdmin(ReadOnlyOAuthAdmin):
+    list_display = ['__str__', 'user', 'application', 'created']
+    exclude = ['token', 'code']

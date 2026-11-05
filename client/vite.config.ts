@@ -15,6 +15,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // The OAuth sign-in, consent and token endpoints (SPEC §6, DR-146). A pattern,
+      // so the public /organizations/… pages aren't taken for them.
+      '^/o/': {
+        target: process.env.VITE_API_PROXY || 'http://localhost:8000/',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   build: {

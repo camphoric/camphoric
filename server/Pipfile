@@ -35,6 +35,8 @@ uvicorn-worker = "*"
 django-tasks-db = "*"
 cryptography = "*"
 django-auditlog = ">=3.4"
+# Camphoric as an OAuth 2.0 authorization server for third-party apps (SPEC §6, DR-146).
+django-oauth-toolkit = "*"
 
 [requires]
 python_version = "3.15"

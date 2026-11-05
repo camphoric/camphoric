@@ -21,6 +21,8 @@ export interface Permissions {
   canDeletePromoCodes: boolean;
   /** The Users screen (Admins). */
   canManageUsers: boolean;
+  /** The Apps screen: registering apps that use OAuth (Admins; §15, DR-146). */
+  canManageApps: boolean;
   /** Create, rename and delete organizations (Admins). */
   canManageOrganizations: boolean;
 }
@@ -38,6 +40,7 @@ export function permissionsFor(role: Role | null): Permissions {
     canDeletePayments: role === 'admin',
     canDeletePromoCodes: role === 'admin',
     canManageUsers: role === 'admin',
+    canManageApps: role === 'admin',
     canManageOrganizations: role === 'admin',
   };
 }

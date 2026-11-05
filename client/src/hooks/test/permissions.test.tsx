@@ -11,6 +11,7 @@ describe('permissionsFor', () => {
       canDeletePayments: true,
       canDeletePromoCodes: true,
       canManageUsers: true,
+      canManageApps: true,
       canManageOrganizations: true,
     });
     expect(permissionsFor('registrar')).toMatchObject({
@@ -18,6 +19,7 @@ describe('permissionsFor', () => {
       canDeletePayments: false,
       canDeletePromoCodes: false,
       canManageUsers: false,
+      canManageApps: false,
       canManageOrganizations: false,
     });
     expect(permissionsFor('reporter')).toMatchObject({ canEdit: false, canManageUsers: false });

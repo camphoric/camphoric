@@ -1,0 +1,10 @@
+{% extends "camphoric/oauth/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+  <h1>{{ title }}</h1>
+  <p>{{ message }}</p>
+  {% if user.is_authenticated %}
+    <p>You’re signed in as {% if user.get_full_name %}<strong>{{ user.get_full_name }}</strong> ({{ user.username }}){% else %}<strong>{{ user.username }}</strong>{% endif %}.</p>
+  {% endif %}
+  <p><a href="/admin">Go to Camphoric</a></p>
+{% endblock %}

@@ -68,6 +68,8 @@ const TYPE_NAMES: Record<string, string> = {
   emailunsubscribe: 'Unsubscribe',
   user: 'User',
   useraccount: 'User account',
+  application: 'App',
+  connectedapp: 'Connected app',
 };
 
 // Labels that already say what they are: "Registration #5 (Lark Camp)".
@@ -111,6 +113,13 @@ const FIELD_NAMES: Record<string, string> = {
   custom_charge_type: 'Charge type',
   var: 'Line',
   reason: 'Reason',
+  // Apps using OAuth (§15, DR-146).
+  client_id: 'Client ID',
+  client_secret: 'Secret',
+  redirect_uris: 'Redirect URIs',
+  scope: 'Scopes',
+  approved_at: 'Approved',
+  application: 'App',
 };
 
 // Recorded but not worth showing: the action says it, or it never changes by hand.

@@ -1,7 +1,9 @@
 '''
 The nightly clean-up (SPEC §9.3, DR-76). Registration drafts with no activity in
 CAMPHORIC_INCOMPLETE_RETENTION_DAYS are deleted, leaving nothing in the audit log
-(DR-139, DR-140). Lapsed edit leases (camphoric.leases) are deleted too.
+(DR-139, DR-140). Lapsed edit leases (camphoric.leases) are deleted too, and so are
+expired OAuth tokens and codes, with the app connections they leave with nothing
+that works (camphoric.oauth, DR-148).
 
 `clean_up` runs at CLEAN_UP_AT each night and schedules the next night's run,
 a chain like the reconciler's (camphoric.worker); `manage.py camphoric_worker`
@@ -15,7 +17,7 @@ from django.conf import settings
 from django.tasks import task
 from django.utils import timezone
 
-from camphoric import leases, models, worker
+from camphoric import leases, models, oauth, worker
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,7 @@ def clean_up():
             'deleted_drafts': delete_abandoned_drafts(),
             # Lapsed edit leases are ignored anyway; this only tidies them away.
             'purged_leases': leases.purge_lapsed(),
+            'lapsed_app_connections': oauth.clean_up(),
         }
     finally:
         schedule_clean_up()

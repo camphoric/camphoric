@@ -46,7 +46,17 @@ def issue_token(user):
 
 
 class ExpiringTokenAuthentication(TokenAuthentication):
-    '''DRF's token authentication, refusing (and deleting) a token past its lifetime.'''
+    '''
+    DRF's token authentication, refusing (and deleting) a token past its lifetime.
+    Being the first authentication class, its challenge is the 401's: `Bearer`
+    when the request carried an app's OAuth token (RFC 6750), `Token` otherwise.
+    '''
+
+    def authenticate_header(self, request):
+        from camphoric import oauth
+        if oauth.has_bearer_token(request):
+            return oauth.BearerAuthentication().authenticate_header(request)
+        return super().authenticate_header(request)
 
     def authenticate_credentials(self, key):
         user, token = super().authenticate_credentials(key)

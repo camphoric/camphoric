@@ -663,6 +663,53 @@ export const anonymousUser: ApiUser = {
 };
 
 // ---------------------------------------------------------------------------
+// Apps using OAuth: registered by Admins, connected by users (SPEC §5, §6, §8.10; DR-146–DR-150)
+// ---------------------------------------------------------------------------
+
+/** What an app may do for a user, on top of their permission group: read, and change. */
+export type OAuthScope = 'read' | 'write';
+
+/**
+ * An app a user approved to use their account: GET /api/user/apps (yours),
+ * /api/users/{id}/apps/ (an Admin's view of a user's) and
+ * /api/applications/{id}/connections/ (who approved an app).
+ */
+export interface ApiConnectedApp {
+  id: number;
+  application: { id: number; name: string };
+  user: { id: number; username: string; name: string };
+  scopes: OAuthScope[];
+  approved_at: string;
+  /** When the app last used its access, to the minute; null if it hasn't. */
+  last_used_at: string | null;
+}
+
+/** An app registered to use OAuth: GET/POST/PATCH/DELETE /api/applications/ (Admins). */
+export interface ApiApplication {
+  id: number;
+  name: string;
+  /** Made by the server; the app sends it with its secret. */
+  client_id: string;
+  /** Where the app may be sent back after the consent page, each matched exactly. */
+  redirect_uris: string[];
+  created: string;
+  updated: string;
+  /** How many users have it connected. */
+  connected_users: number;
+}
+
+/** The answer to registering an app or asking for a new secret: the secret, shown only now. */
+export interface ApiApplicationSecret {
+  client_secret: string;
+}
+
+/** POST /api/applications/ and PATCH /api/applications/{id}/. */
+export interface ApplicationRequest {
+  name: string;
+  redirect_uris: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Contracts: each organization's terms, agreed to before reaching it (SPEC §5, §6; DR-145)
 // ---------------------------------------------------------------------------
 

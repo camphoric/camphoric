@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-145)
+- §15 — Decision Records (DR-1…DR-150)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -228,6 +228,9 @@ queries derive it from `window.location` rather than props, through the routing 
   edited: an id, or `new` for a new one; `?historyUserId` — the user whose change history is
   shown. For anyone else the overlay doesn't open. `/admin/users` (earlier links) redirects to
   `/admin` with the overlay open, keeping its `?userId` and `?historyUserId` (§15, DR-84).
+- **Apps** (§8.10), for Admins only, opens over whatever admin page is showing in the same way:
+  `?overlay=apps` — Apps is open; `?appId` — the app being edited: an id, or `new` for a new one.
+  For anyone else the overlay doesn't open.
 - `/admin/organization/:organizationId/event/:eventId/*` — the Event Admin container, which
   hosts the admin sections (see §10). Unmatched admin subpaths redirect to `…/home`.
 - `/admin/organization/:organizationId/event/:eventId/registrations` and `…/campers` — search
@@ -567,24 +570,49 @@ Non-CRUD admin endpoints:
   - Set-password links point at `CAMPHORIC_PUBLIC_URL`, never at the host the request named; with
     it unset no link is made (§15, DR-129).
   - `POST /api/users/{id}/set-password/` `{ password, require_change? (default true) }` —
-    superusers only (404 for anyone else): set the password, ending the user's sessions → 204;
+    superusers only (404 for anyone else): set the password, ending the user's sessions, API
+    token and apps' access (§15, DR-149) → 204;
     400 `{ password: [...] }` when the password rules refuse it; 409 for your own account.
   - The account of a user with Django access (staff or superuser) is only for superusers to act
     on: to anyone else, `PATCH`/`PUT`/`DELETE /api/users/{id}/`, `GET …/delete-preview/`,
     `send-password-link` and `password-link` on them answer 404 `{ detail }`. Reading them — the
     list, the user, their history — is unaffected (§15, DR-116).
   - `POST /api/user/password` `{ current_password, new_password }` — change your own password
-    (you stay signed in; it clears a must-change flag and removes your API token) → 204, or 400
-    keyed by field.
+    (you stay signed in; it clears a must-change flag, removes your API token and ends every
+    app's access to your account, §15, DR-149) → 204, or 400 keyed by field.
   - `POST /api/password-reset` `{ email }` (public) — always 202 `{ detail }` with the same
     message, whether or not the address has an account; emails a link to each active user with
     that address and a Camphoric permission group. Throttled per client address (429).
   - `GET /api/password-reset/{uid}/{token}` (public) → `{ username }` while the link works, 400
     `{ detail }` once it's used, expired or wrong. `POST` `{ new_password }` → 204 (or 400 keyed
-    by field) sets the password, clears a must-change flag and removes the user's API token; it
-    doesn't sign the user in.
+    by field) sets the password, clears a must-change flag, removes the user's API token and ends
+    every app's access to their account; it doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
+- **Apps using OAuth** (§6, §8.10; §15, DR-146 to DR-149). A connected app is
+  `{ id, application: { id, name }, user: { id, username, name }, scopes: ('read' | 'write')[],
+  approved_at, last_used_at }` (`last_used_at`: when the app last used its access, to the minute;
+  null if it hasn't).
+  - `GET /api/user/apps` (any role) → the apps you've connected. `DELETE
+    /api/user/apps/{application_id}` → 204, ending the app's access to your account at once (its
+    tokens and unused codes deleted); 404 `{ detail }` when it isn't connected.
+  - `GET /api/users/{id}/apps/` (Admins only; 404 for everyone else) → that user's connected apps.
+    `DELETE /api/users/{id}/apps/{application_id}/` → 204, or 404 `{ detail }` when it isn't
+    connected; for a user with Django access, superusers only (404 to anyone else; §15, DR-116).
+  - `/api/applications/` (Admins only; 404 for everyone else) — the registered apps:
+    `{ id, name, client_id, redirect_uris: string[], created, updated, connected_users }`.
+    `POST` `{ name, redirect_uris }` registers one (a confidential client using the
+    authorization code grant with PKCE) → 201 with `client_secret` added: the secret is in that
+    answer only, and stored hashed. `PATCH` changes `name` and `redirect_uris`. Both answer 400
+    keyed by field: `name` must not be blank, and `redirect_uris` must be one or more absolute
+    URIs with no fragment or wildcard, https unless the server allows http
+    (`CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS`). `DELETE` → 204, ending every user's access through
+    the app. `POST /api/applications/{id}/new-secret/` → `{ client_secret }`: the old secret
+    stops working; connections are kept. `GET /api/applications/{id}/connections/` → the
+    connected apps of everyone who approved it.
+  - None of these, nor `/api/users/`, `POST /api/user/password` or agreeing to an organization's
+    terms, answers a request made with an app's access token: 403 `{ detail, code:
+    'app_not_allowed' }`.
 - **Contracts** (§6; §15, DR-145). Each organization has a series of contract versions, each an
   ordered list of sections (`{ kind: 'privacy_policy' | 'custom', title, body }`, `body` in
   Markdown), exactly one of them its privacy policy:
@@ -919,9 +947,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `is_superuser`, groups and permissions can't be written. Nobody may change their own `role`
   or `django_access`, deactivate or delete themselves (409 `{ detail }`); a superuser's `role`
   can't change while they're a superuser (400). Only a superuser may change or delete a user
-  with Django access (404 to anyone else; §15, DR-116). Deactivating ends the user's sessions and
-  API
-  tokens.
+  with Django access (404 to anyone else; §15, DR-116). Deactivating ends the user's sessions, API
+  tokens and every app's access to their account (§15, DR-149).
 - **Event:** `id`, `name`; `registration_start`/`registration_end` (the registration window:
   ISO instants, which the server answers in UTC, `…Z`, or `null` when unbounded; registration is
   open from the start, inclusive, until the end; a value written without a UTC offset is refused
@@ -1195,6 +1222,48 @@ hooks):
   returns the user's token while it has at least half its lifetime left, and otherwise (nearer
   its end, or expired) replaces it with a new key, so every sign-in gets at least half a
   lifetime (§15, DR-131).
+- **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-150). Apps an Admin registers (§8.10) call
+  the API for the people who approve them. Camphoric is the OAuth 2.0 authorization server; the
+  admin client takes no part in the flow beyond the screens in §8.10:
+  - **Approving an app.** The app sends the person to `GET /o/authorize/` (authorization code
+    grant, with PKCE `S256` required). Someone signed out is sent to `/o/login/` first, a sign-in
+    page rendered by the server (throttled like every sign-in, DR-124) that returns only to the
+    consent page; its session is the admin's too. The consent page, also rendered by the server,
+    names the app, who is signed in (with their permission group, and a way to sign in as someone
+    else, `POST /o/switch-account/`) and what the app asks for, and offers Cancel and Connect;
+    it's shown every time, and an app can't skip it. It refuses anyone with no permission group
+    or a password to change. Connecting records the connection with the scopes approved,
+    replacing any earlier approval of the same app and the tokens it gave; the app is sent back to its redirect URI, which must
+    match one registered exactly, with a code it exchanges at `POST /o/token/` with its client
+    id, secret and PKCE verifier.
+  - **Scopes.** `read` (to read) and `write` (to change anything; a POST that only reads, §5,
+    needs only `read`). An app's access is its token's scope and the person's current permission
+    group, both (§15, DR-147): a `read` token's write is refused (403 `{ detail, code:
+    'insufficient_scope' }`), and a token never does more than the person's group allows.
+    Managing users, apps and connections, changing a password and agreeing to an organization's
+    terms are for people only (403 `app_not_allowed`).
+  - **Tokens.** An app sends `Authorization: Bearer <access token>`, with no CSRF token, and acts
+    as the person, in the audit log too. An access token works for
+    `CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL` seconds (an hour); the refresh token is replaced each time
+    it's used, and stops working once left unused for `CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL` (90
+    days). Presenting a refresh token already replaced ends every token of that approval (§15,
+    DR-148). A token that isn't valid is refused with 401, and too many of those from one address
+    (`CAMPHORIC_OAUTH_BEARER_FAILURE_RATE`) with 429; requests to the token endpoint are
+    throttled per address too (`CAMPHORIC_OAUTH_TOKEN_RATE`). `POST /o/revoke_token/` lets the
+    app give a token back; once the app holds nothing that works, by that or by a reused refresh
+    token, it's no longer connected. Only tokens a person approved work: any other is refused
+    with 401.
+  - **Ending an app's access** (§15, DR-149), at once, its tokens and unused codes deleted: the
+    person disconnects it (Connected apps, below), an Admin disconnects it for them or removes the
+    app (§8.10), the person is deactivated, or their password changes in any way (theirs, a
+    reset, a superuser's, the Django admin's or `manage.py changepassword`) — after which they
+    approve their apps again.
+  - **Connected apps.** Everyone can see the apps they've connected — what each may do, when they
+    approved it and when it was last used — and disconnect any of them, from their account
+    actions.
+  - Approving, disconnecting, and registering, changing, giving a new secret to or removing an
+    app are in the audit log (§15, DR-53); the secret isn't. The Django admin shows apps and
+    tokens, and changes none of them.
 - A **401** on any admin request (query or mutation) means the session has lapsed. A global
   handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
   and, when the session is gone, the admin asks the user to sign in again without navigating, so
@@ -1228,8 +1297,8 @@ hooks):
   create, change, delete or send are hidden, forms and editors are shown but can't be changed,
   and dragging on the lodging timeline is off; records still open for reading, a template opens
   to read, and previews, renders and recipient review work. The signed-in user's name and group
-  are always visible, with Sign out, Change password, and — for Admins — Users (§8.1, §8.2,
-  §8.10). A 403 the admin didn't prevent is reported as "You don't have permission to do that."
+  are always visible, with Sign out, Change password, Connected apps, and — for Admins — Users
+  and Apps (§8.1, §8.2, §8.10). A 403 the admin didn't prevent is reported as "You don't have permission to do that."
   (§10).
 - **Passwords** (§15, DR-52): anyone can ask for a link to choose a new password from the sign-in
   form; new users get one by email; signed-in users can change their own; and a superuser can set
@@ -2148,7 +2217,7 @@ when. Every group email leaves them out (as "Unsubscribed"); confirmations and i
 reach them. The admin can add an address (e.g. someone who asked by replying) and remove one
 (after confirming), which lets group email reach it again.
 
-### 8.10 Users
+### 8.10 Users and apps
 
 Admins manage who can sign in (§15, DR-50, DR-52); the screen and its API are hidden from
 everyone else, and the way there (the user menu's **Users**) only appears for Admins. Users
@@ -2199,6 +2268,29 @@ within Users (editing a user, …), not Users itself.
 - **A password to be changed** — when a superuser set someone's password and required a change,
   signing in shows only a "Choose a new password" form (and Sign out) until they do; a 403 saying
   so (from a request already under way) brings that form up too.
+
+**Apps using OAuth** (§6; §15, DR-146, DR-149):
+
+- **A user's connected apps** — for each user, the apps they've connected (what each may do, when
+  they approved it, when it was last used), each of which an Admin can disconnect after
+  confirming; only a superuser disconnects one for a user with Django access (§15, DR-116), and a
+  refusal is shown.
+- **Apps** — the apps that may use the API for the people who approve them, for Admins only. It
+  opens over whatever admin page the Admin is on, as Users does, and closing it returns to that
+  page as it was (URL-addressable, `?overlay=apps`, §4); the way there (the user menu's **Apps**)
+  only appears for Admins.
+  - **The list** — each app's name, client ID and redirect URIs, and how many people have it
+    connected.
+  - **Registering an app** — its name, which people see on the consent page, and one or more
+    redirect URIs (`?appId=new`). Once it's registered, its setup details are shown: the client
+    ID, the secret — this once only, to copy — the authorization, token and revocation URLs, and
+    the scopes it may ask for.
+  - **Editing an app** — its name and redirect URIs (`?appId=<id>`).
+  - **For each app** — its setup details again, without the secret; who has it connected, each
+    of whom can be disconnected after confirming; a new secret, after confirming (the old one
+    stops working at once, connections are kept, and the new one is shown once); and removing it,
+    after confirming, which says how many people lose its access.
+  - Refusals from the server are shown, under their fields when they name one.
 
 ---
 
@@ -6182,6 +6274,116 @@ a bigger change to the role model, and still needing assent per organization. Ve
 place, with a "material change" flag deciding who must agree again: a judgment the software
 can't check, and the hash would no longer show what was agreed to.
 
+### DR-146 — Third-party apps use OAuth 2.0, with the authorization code grant and PKCE
+
+**Decision:** Camphoric is an OAuth 2.0 authorization server (django-oauth-toolkit) for apps
+that call the API on behalf of the people who approve them. Admins register apps in the admin
+client (Apps, §8.10). Each app is a confidential client: a secret, stored hashed and shown once,
+and redirect URIs matched exactly (https, or http where `CAMPHORIC_OAUTH_ALLOW_HTTP_REDIRECTS`
+allows it, by default with DEBUG on). The only grant is the authorization code with PKCE
+(`S256`); the implicit and password grants, `plain` PKCE and tokens in the query string are
+refused, and authorization responses carry `iss` (RFC 9700, RFC 9207). Tokens are opaque and
+stored only as SHA-256 checksums. Each approval is recorded as a connection, with its scopes and
+when it was approved and last used, for the person and Admins to see and end. The Django admin
+shows apps and tokens but can't add, change or delete them, so no app is made another way, and
+a token no person approved is refused. Sessions and `/api-token-auth/` (DR-131) are unchanged.
+**Context:** #964. The first app, lark-camp-admin-tool (a Laravel server app), signed in as one
+shared account with its password in a `.env`, and is to give each of its users their own
+Camphoric account. With a password or a token derived from one, an app holds every user's
+credentials, can't be limited to what it needs, can't be cut off as a whole, and shows up in the
+audit log as a shared account. The authorization code flow keeps passwords with Camphoric, works
+with standard client libraries (league/oauth2-client, Socialite), and covers the shared-account
+case too: an Admin approves the app once as a service user. Admins hold the Admin role but not
+Django access (DR-50), so registering apps can't be left to the Django admin.
+**Alternatives:** Personal access tokens pasted into the app — one long-lived, full-role token
+per user, all leaked together with the app, no scopes and no way to end the app's access as a
+whole; still right for a person's own scripts (#965). JWT access tokens — stateless checking
+pays off across services without a shared database, which Camphoric doesn't have, and ending
+access at once would need a deny list anyway (sessions were chosen over simplejwt for the same
+reason, #69). The client credentials grant for a shared account — no person behind a request,
+which the roles (DR-50) need. Registering apps in the Django admin — only staff and superusers
+reach it.
+
+### DR-147 — An app may do what its scopes and the person's group both allow
+
+**Decision:** An app's access token carries the scopes approved: `read` for reading (a POST that
+only reads, such as a report render, counts as reading) and `write` for any change. Each request
+needs its scope and passes the same permission checks as the person's own request, with the
+group they have now (DR-50), the password to change and the contract gate (DR-145) included. A
+`read` token's write is refused with 403 `insufficient_scope`. Managing users, apps and
+connections, changing a password and agreeing to an organization's terms are refused to every
+app, whatever its scopes (403 `app_not_allowed`). The scope check is made as the token is
+checked, for every API view, so a view can't leave it out.
+**Context:** #964 asked for least privilege: the person approves what the app may do, and the
+app can never do more than the person could. Taking the person's current group, not the one
+they had when approving, means a change of group (or a removal) applies to their apps at once.
+The account-level actions would let an app keep or widen its own access — make users, connect
+other apps, change the password that would end its access — or assent to terms in the person's
+name.
+**Alternatives:** Finer scopes (`invitations:write`, `reports:render`) — none of the first app's
+needs calls for them yet; they can be added. The group at the time of approval — a person
+demoted or removed would leave their apps their old power. Letting `write` include reading —
+the toolkit's convention is that each scope covers its own methods, and an app asks for both.
+
+### DR-148 — Access tokens last an hour; refresh tokens rotate and lapse after 90 days unused
+
+**Decision:** An access token works for `CAMPHORIC_OAUTH_ACCESS_TOKEN_TTL` seconds (an hour). A
+refresh token is replaced with a new one each time it's used, with no grace period; one left
+unused for `CAMPHORIC_OAUTH_REFRESH_TOKEN_TTL` seconds (90 days) after its access token expired
+stops working. Presenting a refresh token already replaced ends every token of that approval.
+A code lasts a minute and works once. The nightly clean-up deletes expired tokens and codes, and
+the connections they leave with nothing that works.
+**Context:** An hour bounds what a leaked access token can do; refreshing is cheap and automatic
+in client libraries. The first app syncs from cron, so its refresh token has to outlast the
+gaps between runs; 90 days covers a season off. A stolen refresh token used after the app has
+used it (or the reverse) shows itself, and ending the whole approval then is RFC 9700's advice.
+Tokens are stored only as checksums, so a grace period, which hands back the previous token,
+isn't possible.
+**Alternatives:** Longer access tokens — fewer refreshes, more damage from a leak. Refresh tokens
+that never lapse — an app abandoned without being disconnected would keep its access for good. A
+grace period for retried refreshes — needs the token stored in plaintext.
+
+### DR-149 — When an app's access ends
+
+**Decision:** An app's access to an account ends at once — its tokens and unused codes deleted
+with the connection, so its next request is refused with 401 — when the person disconnects it,
+an Admin disconnects it for them (a superuser, for a user with Django access, DR-116), an Admin
+removes the app (every account's), the person is deactivated, or their password changes, however
+it's changed — by them, a reset, a superuser, the Django admin or `manage.py changepassword`
+(Django upgrading the stored hash at sign-in isn't a change). The API token ends with it too. A
+deactivated person's token is refused even if one is left. Approving an app again replaces the
+earlier approval and its tokens, so the app holds no more than the connection shows. When the
+app gives its token back, or a reused refresh token ends the approval's tokens (DR-148), the
+connection goes as well. Giving an app a new secret keeps its connections. Each connection made
+or ended, and each new secret, is in the audit log under whoever did it.
+**Context:** #964. A password change often follows a suspected compromise, and it already ends
+the person's API token (DR-131); an app the attacker connected would otherwise outlive it. People
+approve their apps again afterwards. Deactivating ends sessions and API tokens by refusing them;
+OAuth tokens are deleted as well, so nothing is left to work if the person is reactivated. Ending
+access a connection at a time keeps one app's trouble from affecting others.
+**Alternatives:** Keeping apps' access across a password change — the change would leave an
+attacker's app in place. Revoking an app by turning it off — removing it does the same, and it
+can be registered again. Ending access by marking tokens revoked instead of deleting them —
+nothing reads them again, and deleting leaves nothing to restore by mistake.
+
+### DR-150 — The OAuth sign-in and consent pages are rendered by the server
+
+**Decision:** The sign-in page an app's user is sent to (`/o/login/`) and the consent page
+(`/o/authorize/`) are Django templates, styled like the other server pages (unsubscribing,
+DR-48), not routes of the admin client. Sign-in returns only to the consent page (any other
+`next` goes to the admin), is throttled like every sign-in (DR-124), and starts the same session
+the admin uses. The consent page is shown every time: the toolkit's `approval_prompt=auto`,
+which would skip it while the app holds a token, is ignored. It offers a way to sign out and
+back in as someone else, keeping the app's request, so an Admin can approve an app as a service
+user.
+**Context:** The toolkit's authorization view expects a server-side login URL that honours
+`next`; Django's admin login only admits staff. Keeping the flow on the server means it works
+without the client's routing, its CSRF bootstrap or a redirect allow-list in the client, and
+can't be broken by a client release.
+**Alternatives:** The admin client's sign-in, taking a `next` back to `/o/authorize/` — the same
+look as the admin, but client routing, a server-checked redirect allow-list and more to keep in
+step. The Django admin's login — refuses everyone without staff access.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -6199,6 +6401,10 @@ must be coordinated with the backend. Grouped by status.
   `/api/password-reset/{uid}/{token}`, and the `password_change_required` 403, with the shapes in
   §5 (§8.1, §8.10; DR-50, DR-52); the 404 for anyone but a superuser acting on a user with
   Django access (DR-116).
+- **Apps using OAuth:** `/api/user/apps`, `/api/users/{id}/apps/`, `/api/applications/` with
+  `new-secret` and `connections`, and the `app_not_allowed` 403, with the shapes in §5; the
+  server-rendered `/o/login/`, `/o/authorize/`, `/o/switch-account/`, `/o/token/` and
+  `/o/revoke_token/` (§6, §8.10; DR-146 to DR-150).
 - **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
   shapes in §5 (DR-56).
 - **Contracts:** `pending_contract_organizations` on whoami and the login response; the
