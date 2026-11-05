@@ -9,6 +9,9 @@
     "directory": "data/packages/import-tools"
   },
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=23.5.0"
+  },
   "files": [
     "dist",
     "CamphoricFetcher.ts",
