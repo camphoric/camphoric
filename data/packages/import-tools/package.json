@@ -92,7 +92,7 @@
     "@camphoric/camphoric-event-import-spec": "*",
     "@jest/globals": "^30.5.2",
     "@playwright/test": "^1.64.1",
-    "@swc/core": "^1.16.20",
+    "@swc/core": "^1.16.21",
     "@swc/jest": "^0.2.39",
     "@types/cli-progress": "^3.11.6",
     "@types/lodash": "^4.17.27",
