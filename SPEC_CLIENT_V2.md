@@ -647,9 +647,9 @@ Non-CRUD admin endpoints:
   request body over 60 KB or holding a NUL character, half of a character or a number too large for
   JSON, is a 400. A `uuid` of a registration of this event, whose
   draft has been completed, saves nothing and returns that `uuid`, and so does a save to a submitted
-  draft: what was sent stands until the form is sent again. The exception is a save with `reopen:
-  true`, which a browser sent back to the form because a camper's lodging filled up sends: its
-  changed answers return the draft to being filled in (§15, DR-142). Once the event holds
+  draft: what was sent stands until the form is sent again. The exception is a save with the
+  `reopen` a `lodging_unavailable` refusal gave, while the draft is still the submission refused:
+  its changed answers return the draft to being filled in (§15, DR-142). Once the event holds
   `CAMPHORIC_MAX_OPEN_DRAFTS` (2,000 by default) drafts nobody has sent, a save that would start
   another, or reopen a sent one, is a 429 with `Retry-After`; other saves to the drafts it holds,
   and sending the form, go on (§15, DR-144). It's
@@ -709,9 +709,9 @@ Non-CRUD admin endpoints:
   for an option from before they changed it (§15, DR-105); 409 `{ detail, code:
   'invitation_redeemed' }` when another registration started with the same invitation has been
   completed, which leaves this one a draft with nothing saved (§15, DR-137); 409 `{ detail, code:
-  'lodging_unavailable' }` when a camper's lodging has filled up since the form was sent, which
-  also leaves it a submitted draft, and the registrant returns to the form, whose saves reopen it
-  (§7.1; §15, DR-140, DR-142); 409 `{
+  'lodging_unavailable', reopen }` when a camper's lodging has filled up since the form was sent,
+  which also leaves it a submitted draft, and the registrant returns to the form, whose saves send
+  `reopen`, naming this submission, to reopen it (§7.1; §15, DR-140, DR-142); 409 `{
   detail, code: 'invoice_changed', invoice: null, paymentStep }` when `quote` isn't what the
   payment step would show now, which saves the new price on the draft and nothing else, and
   `step: 'payment'` answers the same (§7.2; §15, DR-140). For a completed registration it's the
@@ -779,7 +779,8 @@ Non-CRUD admin endpoints:
 - Every step after `registration` (`payment-step`, `paypal-order`, `payment`, `finish`) answers
   404 `{ detail, code: 'registration_not_found' }` when the `registrationUUID` names neither a
   registration nor a submitted draft the server has — an organizer deleted it, it was purged as
-  incomplete (§15, DR-76) — or isn't a
+  incomplete (§15, DR-76), or a save reopened it after its lodging filled up (§15, DR-142) — or
+  isn't a
   registration id at all. Nothing is changed or charged (§7.1; §15, DR-120).
   A registration of another event counts as none: each step checks the registration against
   this event's settings.
@@ -1296,7 +1297,8 @@ Before any step renders, the app loads the registration config (`GET …/registe
   what the browser holds. A failed save never interrupts the form, and the browser backs off on a
   429 or 503. While a sent registration is offered (below) nothing is saved, since what was sent
   stands until the form is sent again (§15, DR-142); once the browser is sent back to the form
-  because a camper's lodging filled up, its saves carry `reopen: true` until the page is reloaded. Submitting, or starting a new registration,
+  because a camper's lodging filled up, its saves carry the refusal's `reopen` until the form is
+  sent again or the page is reloaded. Submitting, or starting a new registration,
   waits up to three seconds for a save under way; an answer that comes later is ignored, and a
   draft it started under another `uuid`, or brought back after starting again, is discarded. The step says that answers are saved as the form is filled
   in, and deleted after `draftRetentionDays` days if the registration isn't finished.
@@ -5971,20 +5973,24 @@ registration from long ago, which the sweep would otherwise send. Remove `regist
 templates as well: templates and recipient rules live in events' own repositories and saved
 records, and would break for no gain.
 
-### DR-142 — A save never changes a sent draft
+### DR-142 — Only a save reopening it changes a sent draft
 
 **Decision:** A draft save to a submitted draft saves nothing and returns its `uuid`: what was sent
 stands until the form is sent again, which replaces it. The one way back to the form that keeps the
 draft, a payment button finding a camper's lodging gone (`lodging_unavailable`), leaves it
-submitted; the browser then marks its saves `reopen: true`, from the store, until the page is
-reloaded, and a marked save whose answers differ returns the draft to being filled in.
+submitted and gives the browser a `reopen` naming that submission (when it was sent). The browser
+sends it with its saves, from the store, until the form is sent again or the page is reloaded, and
+a save carrying it whose answers differ returns the draft to being filled in, while the draft is
+still that submission: a save that left before the form was sent again, and arrives after, changes
+nothing.
 **Context:** A save whose answers differed from a submitted draft's used to return it to being
 filled in. A save stuck for longer than sending the form waits, or a second tab opened before the
 form was sent, could then reach the server afterwards, and the next payment button found no
 registration and sent the registrant back to the form to send it again (#952). The browser already
 stops saving while a sent registration is on offer, so a save that reaches a submitted draft is
 one of these, or one made after sending failed in the browser though it reached the server, which
-sending again covers.
+sending again covers. A plain flag to reopen would have let a slow save, marked before the form was
+sent again, undo the new submission the same way.
 **Alternatives:** Have the browser send a revision with each save and the form, and ignore a save
 older than the submission: more state in both places, and a second tab's later edit would still
 undo what the first is paying for. Return the draft to being filled in as the lodging is refused:

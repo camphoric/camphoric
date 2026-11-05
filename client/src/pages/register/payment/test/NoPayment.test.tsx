@@ -71,6 +71,7 @@ describe('NoPayment', () => {
         new ApiError(409, 'Conflict', {
           code: 'lodging_unavailable',
           detail: 'There’s no room left in Cabin A.',
+          reopen: 'sent-at',
         }),
       ),
     );
@@ -79,6 +80,7 @@ describe('NoPayment', () => {
     await user.click(screen.getByRole('button', { name: 'Finish registration' }));
 
     expect(useRegistrationStore.getState().lodgingProblem).toBe('There’s no room left in Cabin A.');
+    expect(useRegistrationStore.getState().reopen).toBe('sent-at');
     expect(useRegistrationStore.getState().sentNotFound).toBe(false);
     expect(navigate).toHaveBeenCalledWith(
       expect.objectContaining({ to: '/events/$eventId/register/registration' }),

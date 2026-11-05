@@ -92,6 +92,13 @@ class ConfirmationTests(APITestCase):
                 self.assertFalse(models.EmailMessage.objects.exists())
                 self.assertEqual(mail.outbox, [])
 
+    def test_a_template_that_cant_be_rendered_is_a_problem_with_no_from_address_to_report_to(self):
+        set_email(self.event.confirmation_template, body='{{ registration.nope.deeper }}')
+        self.event.confirmation_email_from = ''
+        self.event.save()
+        self.assertTrue(self.pay(self.start()).data['emailError'])
+        self.assertFalse(models.EmailMessage.objects.exists())
+
     @NO_WORKER
     def test_the_response_does_not_wait_for_delivery(self):
         response = self.pay(self.start())

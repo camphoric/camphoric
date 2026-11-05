@@ -44,7 +44,7 @@ export function NoPayment({ eventId, registrationUUID, quote }: NoPaymentProps) 
           const problem = paymentProblem(e);
           if (registrationNotFound(e)) forgetSentRegistration(registrationUUID);
           else if (problem.code === 'lodging_unavailable') {
-            forgetSentRegistration(registrationUUID, problem.message);
+            forgetSentRegistration(registrationUUID, problem.message, problem.reopen);
           } else if (problem.code === 'invoice_changed' && problem.paymentStep) {
             replacePaymentStep(problem.paymentStep, problem.message);
           } else {

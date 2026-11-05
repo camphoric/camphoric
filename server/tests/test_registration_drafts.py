@@ -251,7 +251,8 @@ class TooManyDraftsTests(DraftTestCase):
         self.save()
         self.save()
         changed = {**self.valid_form_data, 'billing_name': 'Changed'}
-        self.save(changed, uuid=str(sent), reopen=True, status=429)
+        reopen = views.reopen_token(models.RegistrationDraft.objects.get(uuid=sent))
+        self.save(changed, uuid=str(sent), reopen=reopen, status=429)
         self.assertIsNotNone(models.RegistrationDraft.objects.get(uuid=sent).submitted_at)
 
     def test_another_events_drafts_dont_count(self):
@@ -361,18 +362,31 @@ class SubmittingTests(DraftTestCase):
         response = complete(self.client, self.event, draft_uuid)
         self.assertEqual(response.status_code, 200, response.data)
 
+    def reopen(self):
+        '''What a lodging refusal gives the browser to reopen the draft as it now is.'''
+        return views.reopen_token(models.RegistrationDraft.objects.get())
+
     def test_a_browser_sent_back_to_the_form_reopens_it_by_changing_the_answers(self):
         # Its lodging filled up before it was completed (DR-142).
         draft_uuid = self.submit().data['registrationUUID']
-        self.save(copy.deepcopy(self.valid_form_data), uuid=str(draft_uuid), reopen=True)
+        reopen = self.reopen()
+        self.save(copy.deepcopy(self.valid_form_data), uuid=str(draft_uuid), reopen=reopen)
         self.assertIsNotNone(models.RegistrationDraft.objects.get().submitted_at)
 
         changed = {**self.valid_form_data, 'billing_name': 'Changed'}
-        self.save(changed, uuid=str(draft_uuid), reopen=True)
+        self.save(changed, uuid=str(draft_uuid), reopen=reopen)
         draft = models.RegistrationDraft.objects.get()
         self.assertIsNone(draft.submitted_at)
         self.assertIsNone(draft.server_pricing_results)
         self.assertEqual(draft.form_data, changed)
+
+    def test_a_reopening_save_arriving_after_the_form_was_sent_again_changes_nothing(self):
+        draft_uuid = self.submit().data['registrationUUID']
+        reopen = self.reopen()
+        self.submit(draftUUID=str(draft_uuid))
+        self.save({'campers': [{}]}, uuid=str(draft_uuid), reopen=reopen)
+        self.assertIsNotNone(models.RegistrationDraft.objects.get().submitted_at)
+        self.assertEqual(complete(self.client, self.event, draft_uuid).status_code, 200)
 
     def test_sending_the_form_again_replaces_what_was_sent(self):
         draft_uuid = self.submit().data['registrationUUID']

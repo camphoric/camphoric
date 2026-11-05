@@ -119,8 +119,8 @@ def confirmation_email_problem(registration):
     Whether the registration's confirmation email couldn't be queued. One marked
     sent with nothing queued, and no problem report, was dealt with some other way:
     sent before the outbox, an organizer adding it, or migration 0090 settling it
-    (#955). (An event with no "from" address gets no report, so a template that
-    can't be rendered isn't caught there; neither is anything else it sends.)
+    (#955). An event with no "from" address gets no report, so the payment step
+    that sent it also passes on what sending it returned.
     '''
     message = models.EmailMessage.objects.filter(
         dedupe_key=f'confirmation:{registration.id}').first()
