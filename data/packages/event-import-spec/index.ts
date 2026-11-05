@@ -40,6 +40,16 @@ function eml(description: string) {
 
 const opt = <T extends TSchema>(schema: T) => Type.Optional(schema);
 
+// One of a fixed list of strings: in the JSON Schema, an anyOf of consts
+function oneOf<const T extends readonly string[]>(values: T, description: string) {
+  return Type.Unsafe<T[number]>(Type.Union(values.map(value => Type.Literal(value)), { description }));
+}
+
+// An email's single-line text (a subject, a sender, a reply-to): the server keeps up to 255 characters.
+function line(description: string, otherProps = {}) {
+  return str(description, { maxLength: 255, ...otherProps });
+}
+
 /**
  * One line of pricing logic: `exp` is a JSON Logic expression whose result is
  * stored under `var`, for later lines (and the total) to read.
@@ -81,6 +91,10 @@ export const LodgingNodeSchema = Type.Object({
   visible: opt(bool('whether this shows up on the reg form')),
   name: opt(str('name of this lodging node')),
   notes: opt(str('notes about this lodging node')),
+  availability: opt(oneOf(
+    ['auto', 'full', 'open'],
+    'whether registration offers it: auto (by capacity, the default), full (never) or open (even past its capacity)',
+  )),
 }, {
   additionalProperties: false,
 });
@@ -107,6 +121,103 @@ const lodgings = Type.Unsafe<Lodgings>(Type.Object({
 }, {
   additionalProperties: LodgingNodeSchema,
 }));
+
+/**
+ * The operators a group email's recipient rule can use, by the kind of field
+ * it reads (server/camphoric/templating/rules.py OPERATORS, which the server
+ * checks each rule against when the email is saved).
+ */
+export const RECIPIENT_RULE_OPERATORS = [
+  'contains', 'not_contains', 'is', 'is_not', 'is_set', 'is_not_set',
+  'eq', 'ne', 'gt', 'lt', 'gte', 'lte',
+  'is_true', 'is_false',
+  'any_of',
+  'before', 'after', 'on',
+] as const;
+
+// The operators that compare with nothing: their rules take no value
+export const VALUELESS_RULE_OPERATORS = ['is_set', 'is_not_set', 'is_true', 'is_false'] as const;
+
+const ruleField = Type.String({
+  minLength: 1,
+  description: 'a dotted path into the variables the expressions see, e.g. registration.balance or camper.attributes.age',
+});
+
+// A rule, which (as the server requires) has a value unless its operator takes none
+const recipientRule = Type.Union([
+  Type.Object({
+    field: ruleField,
+    op: oneOf(VALUELESS_RULE_OPERATORS, 'how the field is checked'),
+    value: opt(Type.Unknown({ description: 'unused' })),
+  }, { additionalProperties: false }),
+  Type.Object({
+    field: ruleField,
+    op: oneOf(
+      RECIPIENT_RULE_OPERATORS.filter(op => !(VALUELESS_RULE_OPERATORS as readonly string[]).includes(op)),
+      'how the field is compared',
+    ),
+    value: Type.Unknown({
+      description: 'what the field is compared with: not empty (null, "" or [])',
+      not: { enum: [null, '', []] },
+    }),
+  }, { additionalProperties: false }),
+]);
+
+const recipientRules = Type.Object({
+  combinator: opt(oneOf(['and', 'or'], 'whether a recipient must pass every rule (and, the default) or any of them (or)')),
+  rules: Type.Array(recipientRule),
+}, {
+  description: 'the no-code rules choosing recipients: {combinator, rules: [{field, op, value}]}',
+  additionalProperties: false,
+});
+
+/**
+ * A group email (an email template whose purpose is `group`, SPEC §8.9,
+ * DR-45): what an admin sends to registrations, campers or listed addresses.
+ * Its subject, body and expressions are Jinja. The sending account belongs to
+ * the organization, so it's not imported: the event's is used.
+ */
+export const GroupEmailSchema = Type.Object({
+  name: line('the group email\'s name, unique within the event', { minLength: 1 }),
+  subject: line('Jinja subject'),
+  body: text('Jinja markdown body'),
+  from_email: opt(line('the sender (default: the event\'s confirmation_email_from)')),
+  reply_to: opt(line('where replies go (default: the sending account\'s)')),
+  recipient_source: opt(oneOf(
+    ['registrations', 'campers', 'manual'],
+    'who it goes to by default: registrations (the default), campers, or the addresses in recipient_list (manual)',
+  )),
+  filter: opt(recipientRules),
+  filter_expression: opt(text('a Jinja expression each recipient must also pass')),
+  address_expression: opt(text('a Jinja expression for each recipient\'s address (default: the registrant\'s, or the camper\'s own)')),
+  name_expression: opt(text('a Jinja expression for each recipient\'s name')),
+  recipient_list: opt(text('for manual: the addresses, one per line, as email or Name <email>')),
+  include_incomplete: opt(bool('also choose from registrations that weren\'t completed')),
+}, {
+  additionalProperties: false,
+});
+
+/**
+ * A promo code (SPEC DR-67, DR-107): a code a registrant enters for a
+ * discount, worked out by its JsonLogic after every other price line.
+ */
+export const PromoCodeSchema = Type.Object({
+  label: line('the name shown on the discount\'s price line', { minLength: 1 }),
+  code: Type.String({ minLength: 1, maxLength: 255, pattern: '\\S', description: 'what the registrant enters (case doesn\'t matter)' }),
+  pricing_logic: Type.Unknown({ description: 'a JsonLogic expression for the discount: a positive amount' }),
+  scope: opt(oneOf(
+    ['registration', 'camper'],
+    'whether the discount is worked out once for the registration (the default) or for each camper',
+  )),
+  enabled: opt(bool('whether registrants can use it (default: true)')),
+  expiration_date: opt(date('when it stops being usable (an ISO timestamp with an offset)')),
+  excluded_registration_types: opt(Type.Array(Type.String({ minLength: 1 }), {
+    description: 'the names of the registration types (of this event) whose invited registrants can\'t use it',
+  })),
+  excludes_uninvited: opt(bool('whether registrants without an invitation can\'t use it')),
+}, {
+  additionalProperties: false,
+});
 
 export const EventImportSchema = Type.Object({
   organization: Type.Union([Type.Number(), Type.String()], {
@@ -140,7 +251,12 @@ export const EventImportSchema = Type.Object({
     confirmation_page_template: opt(text('Jinja markdown template, rendered on the server when registration completes')),
     confirmation_email_subject: opt(str('')),
     confirmation_email_template: opt(text('')),
-    confirmation_email_from: opt(eml('')),
+    confirmation_email_from: opt(eml('the event\'s sending address: the confirmation email\'s, and the default for its other email')),
+    confirmation_email_reply_to: opt(line('where replies to the confirmation email go (default: the sending account\'s)')),
+    invoice_email_subject: opt(line('Jinja subject of the email a registrar sends with an invoice')),
+    invoice_email_template: opt(text('Jinja markdown body of the email a registrar sends with an invoice')),
+    invoice_email_from: opt(line('the invoice email\'s sender (default: confirmation_email_from)')),
+    invoice_email_reply_to: opt(line('where replies to the invoice email go (default: the sending account\'s)')),
   }, {
     description: 'an object which has the JSON data to be POSTed to /api/events',
     additionalProperties: false,
@@ -157,6 +273,7 @@ export const EventImportSchema = Type.Object({
       [Type.Literal('client'), Type.Literal('server')],
       { description: 'where the template variables come from: client (legacy; what the importer uses by default) or server' },
     )),
+    variables_schema: opt(obj('JSON schema of the variables a client-variable report reads')),
   })),
   custom_charge_types: opt(Type.Array(Type.Object({
     name: str('custom charge type name'),
@@ -167,7 +284,17 @@ export const EventImportSchema = Type.Object({
     label: str('reg type label'),
     invitation_email_subject: str('subject of reg type invitation email'),
     invitation_email_template: text('Email template of reg type invitation email'),
+    invitation_email_from: opt(line('the invitation email\'s sender (default: the event\'s confirmation_email_from)')),
+    invitation_email_reply_to: opt(line('where replies to the invitation email go (default: the sending account\'s)')),
+    camper_schema_overrides: opt(obj('JSON schema merged into the camper schema for registrants invited as this type')),
     registration_schema_overrides: opt(obj('JSON schema for overriding registration schema items')),
+    ui_schema_overrides: opt(obj('uiSchema merged into the registration form\'s uiSchema for registrants invited as this type')),
+  })),
+  email_templates: opt(Type.Array(GroupEmailSchema, {
+    description: 'the event\'s group emails (SPEC §8.9), matched to the saved ones by name',
+  })),
+  promo_codes: opt(Type.Array(PromoCodeSchema, {
+    description: 'codes a registrant can enter for a discount, matched to the saved ones by code (ignoring case)',
   })),
 }, {
   additionalProperties: false,
@@ -178,6 +305,8 @@ export type EventData = EventImport['event'];
 export type Report = EventImport['reports'][number];
 export type RegistrationType = EventImport['registration_types'][number];
 export type CustomChargeType = NonNullable<EventImport['custom_charge_types']>[number];
+export type GroupEmail = Static<typeof GroupEmailSchema>;
+export type PromoCode = Static<typeof PromoCodeSchema>;
 
 export default EventImportSchema;
 
@@ -214,6 +343,10 @@ export interface ImportResults {
   event?: Saved;
   lodging?: Lodgings;
   reports?: Saved[];
+  registration_types?: Saved[];
+  // the group emails
+  email_templates?: Saved[];
+  promo_codes?: Saved[];
 }
 
 /**

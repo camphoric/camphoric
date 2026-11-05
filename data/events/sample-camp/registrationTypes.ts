@@ -18,8 +18,13 @@ export default [
     label: 'Staff',
     invitation_email_subject: 'Register as Sample Camp staff',
     invitation_email_template: invitation('staff'),
-    // Staff register one person at a time
+    invitation_email_from: 'staff@example.com',
+    invitation_email_reply_to: 'staff@example.com',
+    // Staff register one person at a time, are told they arrive early, and
+    // are prompted for their role in the comments
     registration_schema_overrides: { properties: { campers: { maxItems: 1 } } },
+    camper_schema_overrides: { properties: { arrival: { description: 'Staff arrive two days before camp.' } } },
+    ui_schema_overrides: { comments: { 'ui:placeholder': 'Your role at camp, and anything the staff coordinator should know' } },
   },
   {
     name: 'late-registrant',

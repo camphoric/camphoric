@@ -1,6 +1,6 @@
 /**
  * Sample Camp is meant to use as much of the import contract as it can, so
- * it tests importing every feature. The contract's schema drives these
+ * it tests importing every feature (group emails and promo codes included). The contract's schema drives these
  * checks, so a field added to it fails here until Sample Camp uses it.
  */
 
@@ -43,7 +43,7 @@ describe('Sample Camp covers the import contract', () => {
     expect(unsetBy([data], Object.keys(contract))).toEqual([]);
   });
 
-  test.each(['reports', 'registration_types', 'custom_charge_types'] as const)(
+  test.each(['reports', 'registration_types', 'custom_charge_types', 'email_templates', 'promo_codes'] as const)(
     'every field of %s, on at least one of them',
     (part) => {
       expect(unsetBy(data[part] ?? [], Object.keys(itemProperties(contract[part])))).toEqual([]);
@@ -65,6 +65,16 @@ describe('Sample Camp covers the import contract', () => {
       const used = new Set(data.reports.map(r => (r as Record<string, unknown>)[field]));
       expect({ field, unused: values.filter(value => !used.has(value)) }).toEqual({ field, unused: [] });
     }
+  });
+
+  test.each([
+    ['email_templates', 'recipient_source'],
+    ['promo_codes', 'scope'],
+  ] as const)('every %s %s', (part, field) => {
+    const options = itemProperties(contract[part])[field].anyOf ?? [];
+    expect(options.length).toBeGreaterThan(0);
+    const used = new Set((data[part] ?? []).map(item => (item as Record<string, unknown>)[field]));
+    expect(options.map(option => option.const).filter(value => !used.has(value))).toEqual([]);
   });
 
   test('every email account field of its organization', () => {

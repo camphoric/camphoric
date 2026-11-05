@@ -17,6 +17,13 @@ export default [
   { title: 'Lodging', output: 'html', variables_source: 'server', template: readFile('server/Lodging.html.j2') },
   { title: 'Summary', output: 'txt', variables_source: 'server', template: readFile('server/Summary.txt.j2') },
   { title: 'Campers', output: 'csv', variables_source: 'server', template: readFile('server/Campers.csv.j2') },
-  { title: 'Legacy roster', output: 'csv', variables_source: 'client', template: readFile('Legacy-Roster.csv.j2') },
+  {
+    title: 'Legacy roster',
+    output: 'csv',
+    variables_source: 'client',
+    template: readFile('Legacy-Roster.csv.j2'),
+    // what the template reads from the browser's bundle
+    variables_schema: { type: 'object', properties: { campers: { type: 'array' } } },
+  },
   { title: 'Legacy balances', output: 'md', variables_source: 'client', template: readFile('Legacy-Balances.md.j2') },
 ] satisfies Report[];

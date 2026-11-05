@@ -25,6 +25,7 @@ export interface LodgingNode {
   visible?: boolean;
   name?: string;
   notes?: string;
+  availability?: 'auto' | 'full' | 'open';
   id?: number;
 }
 
@@ -42,6 +43,11 @@ export interface ImportData {
     registration_end?: string;
     confirmation_email_subject?: string;
     confirmation_email_template?: string;
+    confirmation_email_reply_to?: string;
+    invoice_email_subject?: string;
+    invoice_email_template?: string;
+    invoice_email_from?: string;
+    invoice_email_reply_to?: string;
     [field: string]: unknown;
   };
   lodgings?: Lodgings;
@@ -51,6 +57,18 @@ export interface ImportData {
     name: string,
     invitation_email_subject: string,
     invitation_email_template: string,
+    invitation_email_from?: string,
+    invitation_email_reply_to?: string,
+    [field: string]: unknown,
+  }[];
+  // Group emails, matched to the saved ones by name
+  email_templates?: { name: string, [field: string]: unknown }[];
+  // Matched to the saved ones by code, ignoring case
+  promo_codes?: {
+    code: string,
+    expiration_date?: string,
+    // registration type names
+    excluded_registration_types?: string[],
     [field: string]: unknown,
   }[];
 }
@@ -60,6 +78,9 @@ export interface ImportResults {
   event?: Saved;
   lodging?: Lodgings;
   reports?: Saved[];
+  registration_types?: Saved[];
+  email_templates?: Saved[];
+  promo_codes?: Saved[];
 }
 
 /** What has been saved by the time an event's overrides and sample registrations run. */

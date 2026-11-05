@@ -17,7 +17,12 @@ importer:
   the same check.
 - `@camphoric/camphoric-event-import-tools/creator`: `CamphoricEventCreator`, which imports an
   event module into a Camphoric server. Pass it the spec's `validateEventImport` as `validate`;
-  the tools don't depend on any particular spec version.
+  the tools don't depend on any particular spec version. Group emails are matched to the event's
+  saved ones by name and promo codes by code (ignoring case), so importing again updates them
+  rather than adding copies; ones the event has that the data doesn't name are left alone. Once
+  everything (and any sample registrations) is in, the server checks the event's templates
+  (`GET /api/events/<id>/templates/check`, as `manage.py check_templates` does), and a template
+  with an error fails the import, rather than its first send.
 - `@camphoric/camphoric-event-import-tools/organizations`: `organizationLoader()` (loads each
   organization once, creating it and its email account when missing) and `Organizations`.
 - `@camphoric/camphoric-event-import-tools/e2e`: Playwright scaffolding for testing an event's

@@ -3,8 +3,9 @@
  * and exports an event, its import object passes validateEventImport (the
  * check the importer runs before any request), every JSON Schema it carries is
  * well-formed, its sample registrations fit the registration form's schema
- * without any field the schema doesn't declare, and it declares the
- * organization it names.
+ * without any field the schema doesn't declare, its group emails' names and
+ * promo codes are distinct, its promo codes exclude only its own registration
+ * types, and it declares the organization it names.
  *
  * An event package runs them from its own tests, inside a describe:
  *
@@ -204,6 +205,25 @@ export function describeEventModule(load: () => Promise<LoadedEventModule>) {
       validate(formData);
       expect({ index, errors: validate.errors ?? [] }).toEqual({ index, errors: [] });
     });
+  });
+
+  // The importer matches the group emails it saved by name and the promo codes
+  // by code (the server's are unique ignoring case), so two alike would save
+  // over each other.
+  test('group emails have distinct names, and promo codes distinct codes', () => {
+    const { email_templates = [], promo_codes = [] } = mod.default.data;
+    const repeated = (values: string[]) => values.filter((value, i) => values.indexOf(value) !== i);
+    expect(repeated(email_templates.map(t => t.name))).toEqual([]);
+    expect(repeated(promo_codes.map(p => p.code.trim().toLowerCase()))).toEqual([]);
+  });
+
+  test('promo codes exclude only the event\'s registration types', () => {
+    const { promo_codes = [], registration_types } = mod.default.data;
+    const names = registration_types.map(t => t.name);
+    const unknown = promo_codes.flatMap(p => (p.excluded_registration_types ?? [])
+      .filter(name => !names.includes(name))
+      .map(name => ({ code: p.code, name })));
+    expect(unknown).toEqual([]);
   });
 
   test('overrides and sampleRegGenerator are functions', () => {

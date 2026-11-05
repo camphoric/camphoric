@@ -20,3 +20,5 @@ The Sample Camp team
 `;
 
 export const confirmation_email_from = 'registrar@example.com';
+
+export const confirmation_email_reply_to = 'questions@example.com';

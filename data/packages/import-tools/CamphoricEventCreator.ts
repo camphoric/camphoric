@@ -18,10 +18,12 @@
  * ---------
  *
  * data: an event import object (the spec's EventImport), checked first with
- * `validate`, the spec's validateEventImport. Every field of `data.event` is sent to the
- * events API as-is, including optional ones such as
- * `registration_error_messages` (custom validation messages for the
- * registration form).
+ * `validate`, the spec's validateEventImport, and then for names it refers to
+ * (a promo code's excluded registration types must be the event's). Every
+ * field of `data.event` is sent to the events API as-is, including optional
+ * ones such as `registration_error_messages` (custom validation messages for
+ * the registration form), except its emails' fields, which are set on the
+ * event's confirmation and invoice email templates.
  *
  * sampleRegGenerator: a SampleRegGenerator, called with
  *   - fetch: a fetch function
@@ -66,6 +68,61 @@ export interface CamphoricEventCreatorOptions {
 // A sample registration, with the server's answer to its last step
 type PostedRegistration = SampleRegistration & { response: Record<string, unknown> };
 
+// An email template's fields the import sets: undefined leaves one as it is
+type EmailTemplateFields = Record<string, string | undefined>;
+
+// One template's result from GET /api/events/<id>/templates/check
+interface TemplateCheckResult {
+  kind: string;
+  label: string;
+  diagnostics: { severity: string, message: string, line?: number | null, field?: string | null }[];
+}
+
+// A group email's fields, as a new template has them: one the data leaves out
+// is set to this, so a template matched by name ends up as the data declares it.
+const GROUP_EMAIL_DEFAULTS = {
+  from_email: '',
+  reply_to: '',
+  recipient_source: 'registrations',
+  filter: {},
+  filter_expression: '',
+  address_expression: '',
+  name_expression: '',
+  recipient_list: '',
+  include_incomplete: false,
+};
+
+// Likewise for a promo code
+const PROMO_CODE_DEFAULTS = {
+  scope: 'registration',
+  enabled: true,
+  expiration_date: null,
+  excluded_registration_types: [],
+  excludes_uninvited: false,
+};
+
+/**
+ * What the import data names that it doesn't hold: each promo code's excluded
+ * registration types must be among the event's. An empty list when there are
+ * none.
+ */
+export function referenceProblems(data: ImportData): string[] {
+  const typeNames = new Set(data.registration_types.map(t => t.name));
+  return (data.promo_codes ?? []).flatMap(promo => (promo.excluded_registration_types ?? [])
+    .filter(name => !typeNames.has(name))
+    .map(name => `promo code '${promo.code}' excludes registration type '${name}', which the event doesn't have`));
+}
+
+/** The problems a template check found that are errors, by template. */
+export function templateErrors(results: TemplateCheckResult[]): string[] {
+  return results.flatMap(result => result.diagnostics
+    .filter(d => d.severity === 'error')
+    .map(d => {
+      const where = [d.field, d.line ? `line ${d.line}` : ''].filter(Boolean).join(', ');
+      return `${result.label}${where ? ` (${where})` : ''}: ${d.message}`;
+    }));
+}
+
 /**
  * Requests started ahead of the Promise.all that collects them, pausing
  * between batches so the server keeps up. Each is handled as it starts, so
@@ -103,6 +160,12 @@ export default class CamphoricEventCreator extends Fetcher {
         'event data object did not pass JSON schema validation',
         ...errors,
       );
+    }
+
+    const references = referenceProblems(data);
+
+    if (references.length) {
+      throw this.error('event data object names what it does not hold', ...references);
     }
 
     this.setOrganizations(organizations, data.organization);
@@ -175,10 +238,16 @@ export default class CamphoricEventCreator extends Fetcher {
     const emailAccounts: Saved[] = await this.fetch('GET', '/api/emailaccounts/');
     const email = emailAccounts.find(e => e.organization === org.id);
 
-    // The confirmation email is the event's email template, updated below.
+    // The confirmation and invoice emails are the event's email templates,
+    // updated below.
     const {
-      confirmation_email_subject: subject,
-      confirmation_email_template: body,
+      confirmation_email_subject,
+      confirmation_email_template,
+      confirmation_email_reply_to,
+      invoice_email_subject,
+      invoice_email_template,
+      invoice_email_from,
+      invoice_email_reply_to,
       ...eventData
     } = this.data.event;
     const event: Record<string, unknown> = {
@@ -207,7 +276,17 @@ export default class CamphoricEventCreator extends Fetcher {
       event,
     );
 
-    await this.loadEmailTemplate(eventResponse.confirmation_template, subject, body);
+    await this.updateEmailTemplate(eventResponse.confirmation_template, {
+      subject: confirmation_email_subject,
+      body: confirmation_email_template,
+      reply_to: confirmation_email_reply_to,
+    });
+    await this.updateEmailTemplate(eventResponse.invoice_template, {
+      subject: invoice_email_subject,
+      body: invoice_email_template,
+      from_email: invoice_email_from,
+      reply_to: invoice_email_reply_to,
+    });
 
     this.results.event = eventResponse;
     return eventResponse;
@@ -216,11 +295,15 @@ export default class CamphoricEventCreator extends Fetcher {
   // An event's confirmation and a registration type's invitation are email
   // templates, created with them (SPEC DR-45); set the text the data gives.
   async loadEmailTemplate(templateId: unknown, subject?: string, body?: string) {
-    if (!templateId || (subject === undefined && body === undefined)) return;
-    await this.fetch('PATCH', `/api/emailtemplates/${templateId}/`, {
-      ...(subject !== undefined ? { subject } : {}),
-      ...(body !== undefined ? { body } : {}),
-    });
+    await this.updateEmailTemplate(templateId, { subject, body });
+  }
+
+  // Set the fields of an email template created with its event or
+  // registration type that the data gives (an undefined one is left as is).
+  async updateEmailTemplate(templateId: unknown, fields: EmailTemplateFields) {
+    const given = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+    if (!templateId || !Object.keys(given).length) return;
+    await this.fetch('PATCH', `/api/emailtemplates/${templateId}/`, given);
   }
 
   async loadLodgings() {
@@ -258,6 +341,7 @@ export default class CamphoricEventCreator extends Fetcher {
           reserved: lodging.reserved || 0,
           sharing_multiplier: lodging.sharing_multiplier || 1,
           notes: lodging.notes || '',
+          availability: lodging.availability || 'auto',
         };
         const saved: Saved = await this.fetch('POST', '/api/lodgings/', data);
         createdLodging = saved;
@@ -340,7 +424,7 @@ export default class CamphoricEventCreator extends Fetcher {
 
     const existingRegTypes = response.filter(regType => regType.event === event.id);
 
-    await Promise.all(
+    this.results.registration_types = await Promise.all(
       this.data.registration_types.map(
         async (regType) => {
           const exists = existingRegTypes.find(r => r.name === regType.name);
@@ -348,6 +432,8 @@ export default class CamphoricEventCreator extends Fetcher {
           const {
             invitation_email_subject: subject,
             invitation_email_template: body,
+            invitation_email_from: from_email,
+            invitation_email_reply_to: reply_to,
             ...typeData
           } = regType;
 
@@ -360,11 +446,115 @@ export default class CamphoricEventCreator extends Fetcher {
               event: event.id,
             },
           );
-          await this.loadEmailTemplate(saved.invitation_template, subject, body);
+          await this.updateEmailTemplate(saved.invitation_template, { subject, body, from_email, reply_to });
           return saved;
         }
       )
     );
+  }
+
+  // The event's group emails (SPEC §8.9): each one the data declares is
+  // created, or, when the event has one by its name, updated to match.
+  // Others the event has are left alone.
+  async loadGroupEmails() {
+    const { email_templates } = this.data;
+
+    if (!email_templates || !email_templates.length) return;
+
+    const event = this.savedEvent();
+    const all: Saved[] = await this.fetch('GET', '/api/emailtemplates/');
+    const existing = all.filter(t => t.event === event.id && t.purpose === 'group');
+
+    this.results.email_templates = await Promise.all(email_templates.map((template) => {
+      const exists = existing.find(t => t.name === template.name);
+
+      return this.fetch(
+        exists ? 'PUT' : 'POST',
+        `/api/emailtemplates/${exists ? `${exists.id}/` : ''}`,
+        { ...GROUP_EMAIL_DEFAULTS, ...template, purpose: 'group', event: event.id },
+      ) as Promise<Saved>;
+    }));
+  }
+
+  // The event's promo codes (SPEC DR-67): each one the data declares is
+  // created, or, when the event has a live one with its code (ignoring case),
+  // updated to match. Its excluded registration types are given by name, so
+  // this runs once they're saved. Others the event has are left alone.
+  async loadPromoCodes() {
+    const { promo_codes } = this.data;
+
+    if (!promo_codes || !promo_codes.length) return;
+
+    const event = this.savedEvent();
+    const regTypes = this.results.registration_types ?? [];
+    // Every code is worked out before any is sent, so a problem sends none.
+    const bodies = promo_codes.map((promo) => {
+      const excluded = (promo.excluded_registration_types ?? []).map((name) => {
+        const regType = regTypes.find(t => t.name === name);
+        if (!regType) {
+          throw this.error(`promo code '${promo.code}' excludes registration type '${name}', which was not imported`);
+        }
+        return regType.id;
+      });
+
+      // An expiry that can't be read must not save as "never expires"
+      const expiration = formatDateTime(promo.expiration_date);
+      if (promo.expiration_date !== undefined && expiration === undefined) {
+        throw this.error(`promo code '${promo.code}' has an expiration_date that can't be read: '${promo.expiration_date}'`);
+      }
+
+      return {
+        ...PROMO_CODE_DEFAULTS,
+        ...promo,
+        expiration_date: expiration ?? null,
+        excluded_registration_types: excluded,
+        event: event.id,
+      };
+    });
+
+    const all: Saved[] = await this.fetch('GET', '/api/promocodes/');
+    const existing = all.filter(p => p.event === event.id);
+    const sameCode = (a: unknown, b: string) => String(a).trim().toLowerCase() === b.trim().toLowerCase();
+
+    this.results.promo_codes = await Promise.all(bodies.map((body) => {
+      const exists = existing.find(p => sameCode(p.code, body.code));
+
+      return this.fetch(
+        exists ? 'PUT' : 'POST',
+        `/api/promocodes/${exists ? `${exists.id}/` : ''}`,
+        body,
+      ) as Promise<Saved>;
+    }));
+  }
+
+  // Check every template of the event through the server (SPEC §9.3), as
+  // `manage.py check_templates` does: each is rendered against the event's
+  // registrations (or, with none, parsed), so one that won't render fails the
+  // import rather than its first send.
+  async checkTemplates() {
+    const event = this.savedEvent();
+    const token = await this.getAuthToken();
+    // (Not this.fetch, which ends every path with a slash: this one has none.)
+    const res = await fetch(`${this.urlBase}/api/events/${event.id}/templates/check`, {
+      headers: { 'Authorization': `Token ${token}` },
+    });
+    const text = await res.text();
+
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw this.error(`template check returned non-JSON (${res.status})`, { status: res.status, body: text });
+    }
+
+    if (!res.ok) {
+      throw this.error(`template check failed (${res.status})`, { status: res.status, response: json });
+    }
+
+    const errors = templateErrors(json.results ?? []);
+    if (errors.length) {
+      throw this.error(`${errors.length} template problem(s): ${errors.join('; ')}`, ...errors);
+    }
   }
 
   async loadTestRegs() {
@@ -517,6 +707,8 @@ export default class CamphoricEventCreator extends Fetcher {
     await imp('custom charge types', this.loadCustomChargeTypes());
     await imp('reports', this.loadReports());
     await imp('registration types', this.loadRegTypes());
+    await imp('group emails', this.loadGroupEmails());
+    await imp('promo codes', this.loadPromoCodes());
 
     await this.loadLodgings();
     await imp('lodging', Promise.resolve());
@@ -533,6 +725,9 @@ export default class CamphoricEventCreator extends Fetcher {
     if (this.sampleRegGenerator && process.env.SKIP_TEST_REGS !== '1') {
       await imp('test registrations', this.loadTestRegs());
     }
+
+    // After the sample registrations, so the templates render against them
+    await imp('template check', this.checkTemplates());
 
     this.log(`🎉 Finished Importing ${this.data.event.name}!`);
 

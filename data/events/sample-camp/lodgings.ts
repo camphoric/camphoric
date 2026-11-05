@@ -2,8 +2,8 @@ import type { Lodgings } from '@camphoric/camphoric-event-import-spec';
 
 // Every lodging feature the importer sends: a tree of choices, capacity,
 // spots held back (reserved), campers sharing a spot (sharing_multiplier),
-// a node registrants never see (visible: false), notes and the prompts for
-// each level (children_title).
+// a node registrants never see (visible: false), one offered whatever its
+// count (availability), notes and the prompts for each level (children_title).
 export default {
   root: {
     name: 'Lodging',
@@ -28,5 +28,6 @@ export default {
   },
   tent_large: { parentKey: 'tents', name: 'Large Tent Site', capacity: 6, visible: true },
 
-  day: { parentKey: 'root', name: 'Day Visitor', capacity: 50, visible: true, notes: 'No overnight stay' },
+  // Day visitors are never turned away, whatever the count (availability)
+  day: { parentKey: 'root', name: 'Day Visitor', capacity: 50, visible: true, notes: 'No overnight stay', availability: 'open' },
 } satisfies Lodgings;
