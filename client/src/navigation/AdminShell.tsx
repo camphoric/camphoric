@@ -1,15 +1,17 @@
 /**
  * The admin surface entry (SPEC §4, §11). Wraps the admin outlet in the auth
- * guard, provides the signed-in user's permissions (DR-51), and hosts the
- * overlays that open over any admin page (Users, DR-84). Extracted into its own module so the whole admin application — and its
- * heavy, admin-only dependencies — can be lazy-loaded behind `/admin` and kept
- * out of the registration entry bundle.
+ * guard and the contract gate in front of each organization (DR-145), provides
+ * the signed-in user's permissions (DR-51), and hosts the overlays that open
+ * over any admin page (Users, DR-84). Extracted into its own module so the whole
+ * admin application — and its heavy, admin-only dependencies — can be
+ * lazy-loaded behind `/admin` and kept out of the registration entry bundle.
  */
 
 import { Outlet } from '@tanstack/react-router';
 import { useCurrentUser } from 'hooks/auth';
 import { PermissionsProvider } from 'hooks/permissions';
 import { AuthGuard } from 'navigation/AuthGuard';
+import { ContractGate } from 'navigation/ContractGate';
 import { UsersOverlay } from 'pages/admin/users/UsersOverlay';
 import type { ReactNode } from 'react';
 
@@ -17,7 +19,9 @@ export function AdminShell() {
   return (
     <AuthGuard>
       <AdminPermissions>
-        <Outlet />
+        <ContractGate>
+          <Outlet />
+        </ContractGate>
         <UsersOverlay />
       </AdminPermissions>
     </AuthGuard>

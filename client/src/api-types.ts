@@ -600,6 +600,11 @@ export interface ApiUser {
   role: Role | null;
   /** A superuser set this user's password; they must choose a new one first. */
   must_change_password: boolean;
+  /**
+   * The organizations whose latest contract they have yet to agree to; until they
+   * do, the server refuses whatever reaches those organizations (SPEC §6; §15 DR-145).
+   */
+  pending_contract_organizations: number[];
 }
 
 /** Whether someone may use Django's admin site (SPEC §8.10; §15 DR-50). Superusers only change it. */
@@ -654,7 +659,101 @@ export const anonymousUser: ApiUser = {
   is_active: false,
   role: null,
   must_change_password: false,
+  pending_contract_organizations: [],
 };
+
+// ---------------------------------------------------------------------------
+// Contracts: each organization's terms, agreed to before reaching it (SPEC §5, §6; DR-145)
+// ---------------------------------------------------------------------------
+
+/** What a contract section is: the privacy policy (exactly one per version), or any other. */
+export type ContractSectionKind = 'privacy_policy' | 'custom';
+
+/** A section of a contract version; `body` is Markdown. */
+export interface ApiContractSection {
+  kind: ContractSectionKind;
+  title: string;
+  body: string;
+}
+
+/**
+ * A contract version as Admins manage it: GET/POST/PATCH/DELETE /api/contracts/.
+ * A draft has no `number` or `published_at`; a published version can't change.
+ */
+export interface ApiContract extends TimeStamped {
+  id: number;
+  organization: number;
+  /** The version's number, given when it's published; null for the draft. */
+  number: number | null;
+  content_sha256: string;
+  /** When it was published: the version's effective date. Null for the draft. */
+  published_at: string | null;
+  published_by: number | null;
+  published_by_name: string | null;
+  agreement_count: number;
+  sections: ApiContractSection[];
+}
+
+/** A published version, as someone agreeing to it (or rereading it) sees it. */
+export interface ApiPublishedContract {
+  id: number;
+  organization: number;
+  organization_name: string;
+  number: number;
+  content_sha256: string;
+  published_at: string;
+  sections: ApiContractSection[];
+}
+
+/** GET /api/organizations/{id}/contract: its latest version, and whether you've agreed to it. */
+export interface ApiOrganizationContract {
+  contract: ApiPublishedContract;
+  agreed: boolean;
+}
+
+/** POST /api/organizations/{id}/contract/agree; it answers with the new whoami. */
+export interface AgreeToContractRequest {
+  contract_id: number;
+  content_sha256: string;
+  /** The wording of the control used to agree. */
+  assent_text: string;
+}
+
+/** The record that someone agreed to a version: GET /api/contracts/{id}/agreements/. */
+export interface ApiContractAgreement {
+  id: number;
+  organization: number;
+  contract: number;
+  contract_number: number;
+  user: number | null;
+  agreed_at: string;
+  username: string;
+  email: string;
+  full_name: string;
+  ip_address: string | null;
+  user_agent: string;
+  content_sha256: string;
+  assent_text: string;
+  app_version: string;
+}
+
+/** One of your own agreements, with what you agreed to: GET /api/user/agreements. */
+export interface ApiMyContractAgreement extends Omit<ApiContractAgreement, 'contract'> {
+  contract: ApiPublishedContract;
+}
+
+/** An organization's public privacy policy: GET /api/organizations/{id}/privacy-policy. */
+export interface ApiPrivacyPolicy {
+  organization: number;
+  organization_name: string;
+  title: string;
+  /** Markdown. */
+  body: string;
+  /** The contract version it's from. */
+  number: number;
+  /** Its effective date. */
+  published_at: string;
+}
 
 // ---------------------------------------------------------------------------
 // Deletes, restores and change history (SPEC §5; DR-53, DR-54, DR-55)
@@ -805,6 +904,8 @@ export interface ApiRegister {
   /** Whether the event has a promo code this registrant could use now (§7.1; §15, DR-107). */
   hasPromoCodes?: boolean;
   payPalOptions?: Hash;
+  /** The event's organization's public privacy policy, to link to; null when it has none (DR-145). */
+  privacyPolicy?: { organization: number; title: string } | null;
 }
 
 /**

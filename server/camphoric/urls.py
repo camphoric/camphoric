@@ -30,6 +30,7 @@ router.register('emailbatches', views.EmailBatchViewSet, basename='emailbatch')
 router.register(
     'emailunsubscribes', views.EmailUnsubscribeViewSet, basename='emailunsubscribe')
 router.register('users', views.UserViewSet, basename='user')
+router.register('contracts', views.ContractViewSet, basename='contract')
 router.register('leases', views.EditLeaseViewSet, basename='editlease')
 
 
@@ -44,6 +45,12 @@ urlpatterns = [
     path('login', views.LoginView.as_view()),
     path('user', views.UserView.as_view()),
     path('user/password', views.ChangePasswordView.as_view()),
+    path('user/agreements', views.MyContractAgreementsView.as_view()),
+    # An organization's terms: to read and agree to, and its public privacy policy (DR-145).
+    path('organizations/<int:organization_id>/contract', views.OrganizationContractView.as_view()),
+    path('organizations/<int:organization_id>/contract/agree',
+         views.OrganizationContractAgreeView.as_view()),
+    path('organizations/<int:organization_id>/privacy-policy', views.PrivacyPolicyView.as_view()),
     path('version', views.VersionView.as_view()),
     path('password-reset', views.PasswordResetRequestView.as_view()),
     path('password-reset/<str:uidb64>/<str:token>', views.PasswordResetView.as_view()),

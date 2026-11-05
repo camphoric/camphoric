@@ -1379,3 +1379,110 @@ class EditLease(models.Model):
 
     def __str__(self):
         return f'{self.user} editing {self.content_type.model} #{self.object_id}'
+
+
+class ContractSectionKind(models.TextChoices):
+    PRIVACY_POLICY = 'privacy_policy', 'Privacy policy'
+    CUSTOM = 'custom', 'Custom'
+
+
+class Contract(TimeStampedModel):
+    '''
+    One version of an organization's contract (SPEC §6, DR-145): the terms
+    everyone who signs in must agree to before they reach the organization.
+    A draft (`published_at` null) can be changed; publishing gives it the next
+    `number` and the hash of its sections, and from then on it can't change.
+    The organization's latest version is its published one with the highest
+    `number`; `published_at` is that version's effective date. (`version`, from
+    TimeStampedModel, counts edits to a draft, as for every record.)
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='contracts', on_delete=models.PROTECT)
+    number = models.PositiveIntegerField(null=True, blank=True)
+    content_sha256 = models.CharField(max_length=64, blank=True, default='')
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, related_name='+',
+        on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'number'], name='one_contract_number_per_organization'),
+            # A version is either a draft or published with its number and hash.
+            models.CheckConstraint(
+                condition=Q(published_at__isnull=True, number__isnull=True)
+                | Q(published_at__isnull=False, number__isnull=False),
+                name='published_contract_has_number'),
+            models.UniqueConstraint(
+                fields=['organization'], condition=Q(published_at__isnull=True),
+                name='one_contract_draft_per_organization'),
+        ]
+
+    @property
+    def is_published(self):
+        return self.published_at is not None
+
+    def __str__(self):
+        if self.number is None:
+            return f'{self.organization} contract draft'
+        return f'{self.organization} contract version {self.number}'
+
+
+class ContractSection(models.Model):
+    '''
+    A section of a contract version, in `order`. Every version has exactly one
+    `privacy_policy` section, which can be retitled, edited and moved but not
+    removed; it's also the organization's public privacy policy (DR-145).
+    `body` is Markdown.
+    '''
+    contract = models.ForeignKey(Contract, related_name='sections', on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
+    kind = models.CharField(
+        max_length=20, choices=ContractSectionKind.choices, default=ContractSectionKind.CUSTOM)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['contract', 'order'], name='one_contract_section_per_place'),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class ContractAgreement(models.Model):
+    '''
+    The record that someone agreed to a contract version (DR-145), written only
+    by their agreeing and never changed. What identifies them is copied, so it
+    stands alone if the user is later changed or deleted (the link is then
+    cleared); `content_sha256` is the hash of what they were shown.
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='contract_agreements', on_delete=models.PROTECT)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, related_name='contract_agreements',
+        on_delete=models.SET_NULL)
+    contract = models.ForeignKey(Contract, related_name='agreements', on_delete=models.PROTECT)
+    agreed_at = models.DateTimeField()
+    username = models.CharField(max_length=150)
+    email = models.CharField(max_length=254, blank=True, default='')
+    full_name = models.CharField(max_length=300, blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    content_sha256 = models.CharField(max_length=64)
+    assent_text = models.CharField(max_length=200)
+    app_version = models.CharField(max_length=100, blank=True, default='')
+
+    class Meta:
+        ordering = ['agreed_at', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'contract'], name='one_contract_agreement_per_user'),
+        ]
+
+    def __str__(self):
+        return f'{self.username} agreed to {self.contract}'

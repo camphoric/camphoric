@@ -36,7 +36,7 @@ from django.views.decorators.http import require_GET
 import psycopg
 from psycopg.conninfo import make_conninfo
 
-from camphoric import accounts, live, models, roles
+from camphoric import accounts, contracts, live, models, roles
 from camphoric.permissions import PASSWORD_CHANGE_REQUIRED
 
 logger = logging.getLogger(__name__)
@@ -157,18 +157,20 @@ def sse(event, data):
     return f'event: {event}\ndata: {json.dumps(data)}\n\n'
 
 
-def still_allowed(session_key, user_id):
+def still_allowed(session_key, user_id, organization_id):
     '''
     Whether the session still signs the user in — as Django checks each request:
     not signed out, the user active, the password not changed since — and the
-    user still has a role and isn't due to change their password.
+    user still has a role, isn't due to change their password, and has agreed
+    to the organization's latest contract (DR-145).
     '''
     try:
         session = import_module(settings.SESSION_ENGINE).SessionStore(session_key)
         user = get_user(SimpleNamespace(session=session))
         return (user.is_authenticated and user.pk == user_id
                 and roles.role_of(user) is not None
-                and not accounts.must_change_password(user))
+                and not accounts.must_change_password(user)
+                and organization_id not in contracts.pending_organization_ids(user))
     finally:
         connection.close()
 
@@ -178,7 +180,7 @@ def close_unless_in_transaction():
         connection.close()
 
 
-async def events(event_id, session_key, user_id):
+async def events(event_id, organization_id, session_key, user_id):
     '''The stream's text: hello, then notices and pings, until MAX_SECONDS.'''
     queue = broadcaster.subscribe(event_id)
     try:
@@ -196,7 +198,8 @@ async def events(event_id, session_key, user_id):
                 yield sse('bye', {})
                 return
             if loop.time() >= recheck:
-                if not await sync_to_async(still_allowed)(session_key, user_id):
+                if not await sync_to_async(still_allowed)(
+                        session_key, user_id, organization_id):
                     return
                 recheck = loop.time() + RECHECK_SECONDS
             try:
@@ -228,15 +231,22 @@ async def event_stream(request, event_id):
     if await sync_to_async(accounts.must_change_password)(user):
         return JsonResponse({'detail': 'Choose a new password before continuing.',
                              'code': PASSWORD_CHANGE_REQUIRED}, status=403)
-    if not await models.Event.objects.filter(pk=event_id).aexists():
+    event = await models.Event.objects.filter(pk=event_id).afirst()
+    if event is None:
         return JsonResponse({'detail': 'No such event.'}, status=404)
+    # As the API refuses them (camphoric.contracts), until they agree to its terms.
+    pending = await sync_to_async(contracts.pending_organization_ids)(user)
+    if event.organization_id in pending:
+        return JsonResponse({'detail': 'Agree to the organization\'s terms before continuing.',
+                             'code': contracts.CONTRACT_AGREEMENT_REQUIRED,
+                             'organization': event.organization_id}, status=403)
     if not isinstance(request, ASGIRequest):
         return JsonResponse({'detail': 'Live updates need the ASGI server.'}, status=503)
     # Streaming holds no database connection; rechecks open their own briefly.
     # (Never mid-transaction, as in a test.)
     await sync_to_async(close_unless_in_transaction)()
     response = StreamingHttpResponse(
-        events(event_id, request.session.session_key, user.pk),
+        events(event_id, event.organization_id, request.session.session_key, user.pk),
         content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'  # nginx: pass each notice on at once

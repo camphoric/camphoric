@@ -1,11 +1,12 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
+from rest_framework.fields import empty
 import zoneinfo
 
 from rest_framework.serializers import (
-    BooleanField, CharField, ChoiceField, DateTimeField, DecimalField, ListSerializer,
-    ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField, SerializerMethodField,
-    ValidationError,
+    BooleanField, CharField, ChoiceField, DateTimeField, DecimalField, IntegerField,
+    ListSerializer, ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField,
+    SerializerMethodField, ValidationError,
 )
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -15,6 +16,7 @@ from django.utils import timezone
 import jsonschema  # Using Draft-7
 from camphoric import (
     accounts,
+    contracts,
     invoices,
     models,
     pricing,
@@ -31,8 +33,15 @@ class ModelSerializer(BaseModelSerializer):
     '''
     DRF's, except that `deleted_at` is never written: deleting and restoring go
     through their own endpoints (SPEC DR-55). Nor is `version`: saving bumps it,
-    and a client sends the one it read as `If-Match` (DR-109).
+    and a client sends the one it read as `If-Match` (DR-109). And no record it
+    resolves from what's sent may belong to an organization whose terms the
+    user has yet to agree to (403; camphoric.contracts, DR-145).
     '''
+
+    def run_validation(self, data=empty):
+        value = super().run_validation(data)
+        contracts.check_related(self.context.get('request'), value)
+        return value
 
     def get_extra_kwargs(self):
         extra_kwargs = super().get_extra_kwargs()
@@ -809,18 +818,23 @@ class CurrentUserSerializer(ModelSerializer):
     role = SerializerMethodField()
 
     must_change_password = SerializerMethodField()
+    # The organizations whose latest contract they have yet to agree to (DR-145).
+    pending_contract_organizations = SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff',
                   'is_superuser', 'is_active', 'last_login', 'date_joined', 'role',
-                  'must_change_password']
+                  'must_change_password', 'pending_contract_organizations']
 
     def get_role(self, user):
         return roles.role_of(user)
 
     def get_must_change_password(self, user):
         return accounts.must_change_password(user)
+
+    def get_pending_contract_organizations(self, user):
+        return contracts.pending_organization_ids(user)
 
 
 class EditLeaseSerializer(ModelSerializer):
@@ -1042,3 +1056,96 @@ def validate_attributes(data, schema):
     except jsonschema.exceptions.ValidationError as e:
         raise ValidationError({'attributes': e.message})
     return data
+
+
+# --- Contracts (SPEC §5, §6; DR-145) --------------------------------------------------
+
+class ContractSectionSerializer(ModelSerializer):
+    kind = ChoiceField(choices=models.ContractSectionKind.choices,
+                       default=models.ContractSectionKind.CUSTOM)
+    # Kept as typed, so what's saved is what the editor holds.
+    title = CharField(max_length=200, allow_blank=True, trim_whitespace=False)
+    body = CharField(allow_blank=True, trim_whitespace=False)
+
+    class Meta:
+        model = models.ContractSection
+        fields = ['kind', 'title', 'body']
+
+
+class ContractSerializer(ModelSerializer):
+    '''
+    A contract version, with its sections in order. Creating one starts the
+    organization's draft (from its latest version's sections); only a draft's
+    `sections` can be changed, as a whole list in its new order.
+    '''
+    sections = ContractSectionSerializer(many=True, required=False)
+    published_by_name = SerializerMethodField()
+    agreement_count = SerializerMethodField()
+
+    class Meta:
+        model = models.Contract
+        fields = ['id', 'organization', 'number', 'content_sha256', 'published_at',
+                  'published_by', 'published_by_name', 'agreement_count', 'sections',
+                  'created_at', 'updated_at', 'version']
+        read_only_fields = ['number', 'content_sha256', 'published_at', 'published_by',
+                            'created_at', 'updated_at']
+
+    def get_published_by_name(self, contract):
+        user = contract.published_by
+        if user is None:
+            return None
+        return ' '.join(p for p in (user.first_name, user.last_name) if p) or user.username
+
+    def get_agreement_count(self, contract):
+        return contract.agreements.count()
+
+    def validate_organization(self, organization):
+        if self.instance is not None and organization.pk != self.instance.organization_id:
+            raise ValidationError('A version stays with its organization.')
+        return organization
+
+    def validate_sections(self, sections):
+        contracts.validate_sections(sections)
+        return sections
+
+    def create(self, validated_data):
+        try:
+            draft = contracts.start_draft(validated_data['organization'])
+        except contracts.ContractError as error:
+            raise Conflict(str(error))
+        if 'sections' in validated_data:
+            contracts.replace_sections(draft, validated_data['sections'])
+        return draft
+
+    def update(self, instance, validated_data):
+        if instance.is_published:
+            raise Conflict('A published version can\'t change. Start a new draft instead.')
+        with transaction.atomic():
+            if 'sections' in validated_data:
+                contracts.replace_sections(instance, validated_data['sections'])
+            # A save, so the draft's `version` counts the edit (DR-109).
+            instance.save()
+        return instance
+
+
+class PublishedContractSerializer(ModelSerializer):
+    '''The latest published version, as someone asked to agree to it reads it.'''
+    sections = ContractSectionSerializer(many=True, read_only=True)
+    organization_name = CharField(source='organization.name', read_only=True)
+
+    class Meta:
+        model = models.Contract
+        fields = ['id', 'organization', 'organization_name', 'number', 'content_sha256',
+                  'published_at', 'sections']
+
+
+class ContractAgreementSerializer(ModelSerializer):
+    '''Who agreed to a version, and what shows they did.'''
+    contract_number = IntegerField(source='contract.number', read_only=True)
+
+    class Meta:
+        model = models.ContractAgreement
+        fields = ['id', 'organization', 'contract', 'contract_number', 'user', 'agreed_at',
+                  'username', 'email', 'full_name', 'ip_address', 'user_agent',
+                  'content_sha256', 'assent_text', 'app_version']
+        read_only_fields = fields

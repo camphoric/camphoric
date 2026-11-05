@@ -41,6 +41,9 @@ BLOCKED_BECAUSE = {
     ('payment', 'invoice'): 'It has payments. Only an invoice with none can be deleted.',
     ('payment', 'refund_of'): 'It has been refunded. Delete its refunds first.',
     ('customcharge', 'custom_charge_type'): 'Campers still have this charge.',
+    # Kept as the record of who agreed to what (DR-145).
+    ('contract', 'organization'): 'It has terms that people agree to.',
+    ('contractagreement', 'organization'): 'People have agreed to its terms.',
 }
 
 # What happens to things left behind, by (model, field) cleared.
@@ -52,6 +55,9 @@ LEFT_BEHIND = {
     ('invitation', 'registration'): 'will no longer link to a registration',
     ('registration', 'started_with_invitation'): 'will no longer link to the invitation',
     ('logentry', 'actor'): 'stay in the audit log with their email, no longer linked to the user',
+    ('contractagreement', 'user'): (
+        'stay as the record of what they agreed to, no longer linked to the user'),
+    ('contract', 'published_by'): 'will no longer say who published them',
     # Many-to-many, by (model, field) of the link.
     ('promocode', 'excluded_registration_types'): 'will no longer exclude it',
 }

@@ -3,7 +3,8 @@
  * registration config, shows a spinner while fetching, sets the document title,
  * presents a closed-registration message when the event isn't open and there's
  * no invitation, and otherwise surfaces invitation context and renders the
- * current step.
+ * current step, with a link to the organization's privacy policy below it
+ * (DR-145).
  */
 
 import { Alert, Container, Stack } from '@mantine/core';
@@ -15,6 +16,7 @@ import { useEventId } from 'hooks/useEventId';
 import { useRegistrationConfig } from 'store/registrationApi';
 
 import { InvitationInfo } from './InvitationInfo';
+import { PrivacyPolicyLink } from './PrivacyPolicyLink';
 import { RegistrationClosed } from './RegistrationClosed';
 
 export function RegisterContainer() {
@@ -52,6 +54,7 @@ export function RegisterContainer() {
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
+        <PrivacyPolicyLink policy={config.privacyPolicy} />
       </Stack>
     </Container>
   );

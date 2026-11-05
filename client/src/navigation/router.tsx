@@ -75,6 +75,10 @@ const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'Reg
 const PaymentStep = lazyRouteComponent(() => import('pages/register'), 'PaymentStep');
 const ConfirmationStep = lazyRouteComponent(() => import('pages/register'), 'ConfirmationStep');
 const InvoicePayPage = lazyRouteComponent(() => import('pages/invoice'), 'InvoicePayPage');
+const PrivacyPolicyPage = lazyRouteComponent(
+  () => import('pages/privacyPolicy'),
+  'PrivacyPolicyPage',
+);
 
 // --- Admin search-param contract (SPEC §4, §8.2) -------------------------------
 
@@ -248,6 +252,13 @@ const invoicePayRoute = createRoute({
   component: InvoicePayPage,
 });
 
+// An organization's public privacy policy (SPEC §4, §7; DR-145).
+const privacyPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/organizations/$organizationId/privacy-policy',
+  component: PrivacyPolicyPage,
+});
+
 // --- Account (public: reached before signing in) --------------------------------
 
 // A set-password link from an email (SPEC §6, DR-52).
@@ -338,6 +349,7 @@ const routeTree = rootRoute.addChildren([
   splashRoute,
   setPasswordRoute,
   invoicePayRoute,
+  privacyPolicyRoute,
   registerLayoutRoute.addChildren([
     registerIndexRoute,
     registrationStepRoute,

@@ -10,7 +10,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APITestCase
 
 from camphoric import models, roles, views
-from camphoric.permissions import AdminWrites, IsAdmin, IsSuperuser, RolePermission, WritersOnly
+from camphoric.permissions import (
+    AdminOnly, AdminWrites, AnyRole, IsAdmin, IsSuperuser, RolePermission, WritersOnly)
 from tests.factories import create_template_event, make_user
 
 
@@ -61,11 +62,11 @@ PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
     views.EventList, views.RegisterView, views.ObtainTokenView,
     views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
-    views.InvoicePayView, views.RegistrationDraftView,
+    views.InvoicePayView, views.RegistrationDraftView, views.PrivacyPolicyView,
 }
 # Any signed-in user, for their own account.
 SELF_SERVICE = {views.ChangePasswordView}
-PROTECTING = (RolePermission, AdminWrites, IsAdmin, IsSuperuser, WritersOnly)
+PROTECTING = (RolePermission, AdminOnly, AdminWrites, AnyRole, IsAdmin, IsSuperuser, WritersOnly)
 
 
 def _drf_views(patterns):
