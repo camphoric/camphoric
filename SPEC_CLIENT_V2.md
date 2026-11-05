@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-144)
+- §15 — Decision Records (DR-1…DR-145)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -212,6 +212,9 @@ ending in `/` to the non-slash form.
   §15, DR-95). No sign-in.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
   (§6; §15, DR-52). Reached before signing in, so it isn't behind the admin guard.
+- `/organizations/:organizationId/privacy-policy` — the organization's public privacy policy: the
+  privacy policy section of its latest contract version, with the version and its effective date
+  (§6; §15, DR-145). No sign-in; a page saying there's none when nothing is published.
 
 The `eventId` is parsed from the URL by the registration API layer; the registration store's
 queries derive it from `window.location` rather than props, through the routing library.
@@ -255,7 +258,11 @@ queries derive it from `window.location` rather than props, through the routing 
   URL.
 
 All admin routes are wrapped by a guard that fetches the current user and renders a login
-form if the user is not authenticated; otherwise it renders the requested route. Heavy route
+form if the user is not authenticated; otherwise it renders the requested route. Inside it,
+every route past an organization (`/admin/organization/:organizationId/…`, the event chooser and
+the Event Admin included) is behind the **contract gate**: someone who has yet to agree to that
+organization's latest contract version is asked to first, at the same URL (§6; §15, DR-145).
+`/admin` and `/admin/organization` stay open, so an organization can be chosen. Heavy route
 components are code-split/lazy-loaded with a spinner fallback.
 
 ---
@@ -410,13 +417,16 @@ invalidate `Registration` queries (because totals/augmented data change), and a 
 Entities (each with the standard CRUD set unless noted): `Organization`, `Event`,
 `Registration`, `RegistrationType`, `Report`, `Invitation`, `Lodging`, `Camper`, `Deposit`,
 `Invoice` (no create, §9.7), `Payment`, `CustomCharge`, `CustomChargeType`, `PromoCode`, `EmailAccount`, `EmailTemplate`,
-`EmailUnsubscribe` (no update), `User` (as ManagedUser, Admins only).
+`EmailUnsubscribe` (no update), `User` (as ManagedUser, Admins only), `Contract` (Admins only;
+below).
 
 Non-CRUD admin endpoints:
 
 - `GET /api/user` — current user (whoami): the Django user fields, plus `role` (the user's
   Camphoric permission group: `admin` | `registrar` | `reporter`, or `null` when signed out or
-  without one; a superuser is always `admin`) and `must_change_password` (§6; §15, DR-50).
+  without one; a superuser is always `admin`), `must_change_password` (§6; §15, DR-50), and
+  `pending_contract_organizations` — the ids of the organizations whose latest contract version
+  the user has yet to agree to (§6; §15, DR-145).
 - `GET /api/version` — the release the server runs → `{ version: string | null }`: the version
   without the tag's `v` (`0.12.0`, `0.13.0-alpha.1`), or `null` when the server isn't a release
   build. Any role may read it (§8.1; §15, DR-98).
@@ -575,6 +585,56 @@ Non-CRUD admin endpoints:
     doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
+- **Contracts** (§6; §15, DR-145). Each organization has a series of contract versions, each an
+  ordered list of sections (`{ kind: 'privacy_policy' | 'custom', title, body }`, `body` in
+  Markdown), exactly one of them its privacy policy:
+  - **The gate.** While a signed-in user has yet to agree to an organization's latest published
+    version, every request that reaches that organization or what belongs to it — by a record or
+    id in its URL (`/api/events/{id}/…`, a record's detail and actions), or an `organization`,
+    `event`, `registration`, `registration_type`, `camper`, `custom_charge_type`, `invoice`,
+    `lodging` or `account` id in its query string or body, in any form the API reads as that id,
+    or any record a write refers to (an event's email account, a lodging's parent) — answers 403
+    `{ detail, code: 'contract_agreement_required', organization }`, by session or API token
+    alike, the live change feed's stream included. A list that names none, a deleted list, and a
+    user's change history leave out the records of the organizations they have yet to agree
+    with; the organization list (the chooser) has them all. An email belongs to its event's
+    organization, or, with no event, its account's. An organization with no published version
+    has no gate. A password to change comes first. Not gated: whoami, login, logout, changing
+    your password, `GET /api/organizations/`, users, the endpoints below for reading and agreeing
+    to a contract, and every public endpoint.
+  - `GET /api/organizations/{id}/contract` (any role) → `{ contract: { id, organization,
+    organization_name, number, content_sha256, published_at, sections }, agreed }`: the latest
+    published version, sections in order, and whether the user has agreed to it; 404 when
+    nothing is published.
+  - `POST /api/organizations/{id}/contract/agree` `{ contract_id, content_sha256, assent_text }`
+    (any role) → the whoami shape, now without the organization pending. The server records the
+    organization, user, version, its own time, the username, email and full name as they are
+    then, the client address (as the throttles see it, behind `NUM_PROXIES` proxies), the user
+    agent, the hash, `assent_text` (the wording of the control used) and the server's release.
+    409 `{ detail }` when the id or hash isn't the latest version's (it changed since it was
+    shown); agreeing again does nothing more. Agreements are never changed or deleted through the
+    API, and outlive the user (the link to them is cleared).
+  - `GET /api/user/agreements` (any role) → the user's agreements, newest first, each with its
+    `contract` as above, to reread.
+  - `GET /api/organizations/{id}/privacy-policy` (public) → `{ organization, organization_name,
+    title, body, number, published_at }`: the privacy policy section of the latest version and
+    nothing else of it; 404 when nothing is published.
+  - **Managing versions** (Admins only; 403 for other roles): `GET /api/contracts/?organization=`
+    → `{ id, organization, number, content_sha256, published_at, published_by,
+    published_by_name, agreement_count, sections, created_at, updated_at, version }[]` (`number`
+    and `published_at` null for the draft). `POST /api/contracts/` `{ organization }` starts the
+    organization's one draft (409 when it has one), with a copy of the latest version's sections,
+    or one empty "Privacy Policy" section for the first. `PATCH /api/contracts/{id}/` `{ sections
+    }` replaces the draft's sections with the list given, in its order (400 unless exactly one is
+    the privacy policy; `If-Match` as for any record). `DELETE` removes the draft. `POST
+    /api/contracts/{id}/publish/` makes the draft the next version: its `number`, the
+    `content_sha256` of its ordered section titles and bodies, `published_at` (its effective
+    date) and `published_by`; 400 when a section has no title or text. A published version
+    answers 409 to `PATCH`, `DELETE` and `publish`. `GET /api/contracts/{id}/agreements/` → who
+    agreed: `{ id, organization, contract, contract_number, user, agreed_at, username, email,
+    full_name, ip_address, user_agent, content_sha256, assent_text, app_version }[]`. Managing an
+    organization's versions is gated like anything of the organization's.
+  - An organization with versions can't be deleted (the delete plan says why).
 - **Registration drafts** (§15, DR-140): `GET /api/registrationdrafts/?event=&…`,
   `GET /api/registrationdrafts/{id}/` (any role) → `{ id, event, invitation,
   registration_type, promo_code, registrant_email, form_data, server_pricing_results,
@@ -623,7 +683,9 @@ Non-CRUD admin endpoints:
   `registrationErrorMessages` — the event's custom validation messages, `{}` when it has none;
   §7.1 — and `hasPromoCodes`, whether the event has a promo code this registrant could use now:
   one that's usable and doesn't exclude the registration type of the query's invitation, or, with
-  no valid invitation, registrants without one; §15, DR-107). A request that looks up an
+  no valid invitation, registrants without one; §15, DR-107 — and `privacyPolicy`, `{
+  organization, title }` naming the event's organization's public privacy policy, or null when it
+  has published none; §7, DR-145). A request that looks up an
   invitation — this query's `email` and `code`, or a `registration` step's `invitation` — is
   throttled per client address (429).
 - `POST /api/events/{eventId}/checkpromo` with `{ code, invitation? }` (anyone; throttled per
@@ -1089,8 +1151,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     (`{ var: computed }`, on the registration's results and each camper's). It's for the admin:
     templates, emails and the registrant never see it, only the new amounts.
 - **User** (whoami): `id`, `username`, `email`, `first_name`, `last_name`, `is_staff`,
-  `is_superuser`, `is_active`, `last_login`, `date_joined`, `role` and `must_change_password`; an
-  anonymous user has `username: ''`, `id: null` and `role: null`.
+  `is_superuser`, `is_active`, `last_login`, `date_joined`, `role`, `must_change_password` and
+  `pending_contract_organizations`; an anonymous user has `username: ''`, `id: null`, `role: null`
+  and no pending organizations.
 
 The client also derives **augmented** view models that a V2 should reproduce (in selectors or
 hooks):
@@ -1168,6 +1231,30 @@ hooks):
 - **Passwords** (§15, DR-52): anyone can ask for a link to choose a new password from the sign-in
   form; new users get one by email; signed-in users can change their own; and a superuser can set
   someone's password, requiring them to change it before they can do anything else (§8.10).
+- **Agreeing to an organization's terms** (§15, DR-145). Each organization has a contract — a
+  privacy policy and other terms, such as a liability waiver for using the software — that
+  everyone who signs in must agree to before reaching it. Registrants never sign in, so never
+  meet it; the privacy policy is also public (§4, §7). The gate (§4) comes after the auth guard:
+  sign-in, a password to change and no access come first.
+  - Which organizations need agreeing to comes from whoami's `pending_contract_organizations`.
+    At a URL past one of them, its latest version shows in place of the organization's pages —
+    straight after signing in, for a deep link — with every section in order, its Markdown
+    rendered and sanitized (§9.3), the version and its effective date, a link to the public
+    privacy policy, wording saying that agreeing is required to continue, and two separate
+    actions, agree and decline. Nothing is chosen for them.
+  - Agreeing sends the version's id and hash with the agree action's wording, and goes on to the
+    URL asked for. If the version changed since it was shown (409), the latest is shown to read
+    again. Declining isn't recorded: it signs out at once, as Sign out does (the cache cleared
+    and the other tabs following; §15, DR-117, DR-127).
+  - Each organization is agreed to separately, once per version; moving to another organization
+    asks again if it needs agreeing to.
+  - **A version published mid-session** is found by session monitoring's next whoami check, or
+    sooner by a 403 `contract_agreement_required`, which re-checks whoami rather than being
+    reported. For the organization on screen, the terms open over the admin as the sign-in prompt
+    does (DR-127): the admin stays in place, out of reach, with its unsaved edits; agreeing
+    returns to it and fetches again what was refused meanwhile, and declining signs out.
+  - Anyone can reread the versions they've agreed to, with when they agreed, from their account
+    actions.
 - **Proactive session monitoring (admin).** Rather than waiting for a request to fail, the admin
   surface checks session validity (against the lightweight whoami endpoint, `GET /api/user`) on
   window **focus**, on **user activity** (throttled), and on a **regular interval**, and treats
@@ -1217,7 +1304,9 @@ Before any step renders, the app loads the registration config (`GET …/registe
 - if the event is not currently open **and** there's no invitation, presents a
   registration-closed message;
 - otherwise sets the document title, surfaces invitation context when an invitation/type is
-  present (and any invitation error), then shows the current step.
+  present (and any invitation error), then shows the current step, with a link to the event's
+  organization's public privacy policy (§4) when the config's `privacyPolicy` (`{ organization,
+  title } | null`) names one; none when it's null (§15, DR-145).
 
 ### 7.1 Step 1 — Registration form
 
@@ -1454,6 +1543,14 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 - **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
   rename one, and delete one after confirming — refused, with the reason, while it still has
   events. Registrars and Reporters only see and open them.
+- **Admins manage each organization's terms** from the organization chooser (§6; §15, DR-145):
+  its published versions — each one's text, effective date, who published it, and who has
+  agreed to it, when and from where — and its draft. A new draft starts from the latest
+  version's sections. In the draft, sections can be added, removed, retitled, edited (Markdown,
+  with a preview) and reordered; the privacy policy section can't be removed. Publishing, once
+  the draft is saved and every section has a title and text, says first that everyone, the
+  publisher included, must then agree again, even for a typo. Someone who has yet to agree to
+  the organization's latest version is told to open it and agree before changing its terms.
 
 ### 8.2 Event Admin container and navigation
 
@@ -2897,6 +2994,10 @@ that is out of scope for this pass.
 - **Receipts for payments made later.** A registrant gets one confirmation email; a payment a
   registrar records, or one found by "Check PayPal order", sends nothing. Decide whether
   payments (and refunds) after the confirmation should email a receipt.
+- **The parties to an organization's contract** (§15, DR-145). A waiver needs a legal entity on
+  each side. With a contract per organization that's probably the organization, but the people
+  who run Camphoric may need covering too. The wording itself should come from a lawyer before a
+  version is published.
 
 ### B. Deferred with the plugin system (§14)
 
@@ -6039,6 +6140,41 @@ limit for a save that starts a draft: a browser whose draft was purged starts ag
 everything it holds. A throttle cache shared by the workers (database or Redis) makes the rate
 exact but still lets one address fill the table over days; it's an ops change worth making
 apart from this. An alert on the table's size: needs monitoring the deployment doesn't have.
+
+### DR-145 — Agreeing to an organization's terms gates the organization
+
+**Decision:** Each organization has a versioned contract: drafted, then published, after which a
+version can't change. Every signed-in user must agree to an organization's latest version before
+the server lets them reach the organization or anything of its, by session or API token (403
+`contract_agreement_required`, with the organization's id), and the client asks them to at any
+URL past the organization, over the admin when a version is published mid-session. Every new
+version asks again. An agreement records the version, its hash, the server's time, the user's
+details as they are then, the client address, the user agent, the wording agreed with and the
+release, and outlives the user. Each version has exactly one privacy policy section, which is also
+public. The gate is applied by the permission classes, from the ids a request names (URL, query
+string, body) and each record a view fetches; by the serializers, from every record a write refers
+to; and by leaving pending organizations' records out of lists, deleted lists and users' change
+histories. A test walks every API route. Users stay site-wide, but what a user changed in an
+organization is that organization's data, so their history leaves it out (entries of a record
+since deleted outright can't be placed, and stay). Admins publish, and only Admins see who
+agreed.
+**Context:** Nothing recorded that anyone had accepted terms for using Camphoric (#946). A
+click-wrap holds up when the user had reasonable notice of the terms and clearly showed assent
+(*Berman v. Freedom Financial*, 9th Cir. 2022): an explicit action, the full text on the page,
+wording that agreeing is required, and a record of who agreed to which version and when. Changed
+terms need direct notice and fresh assent (*Douglas*, 9th Cir. 2007), which the gate gives. Users
+aren't tied to organizations and roles are site-wide (DR-50), so the organization comes from what
+a request reaches, not from the user. California's CalOPPA requires a conspicuously posted privacy
+policy, and most of what Camphoric holds comes from registrants, who never sign in: hence the
+public page, linked from registration. An organization with nothing published has no gate, so
+deploying it locks no one out.
+**Alternatives:** One site-wide contract: organizations are run by different people with their
+own policies. A gate in the client alone: the API, the importer's token and the live stream would
+still serve the data. A link from users to the organizations they may use, gating by membership:
+a bigger change to the role model, and still needing assent per organization. Version edits in
+place, with a "material change" flag deciding who must agree again: a judgment the software
+can't check, and the hash would no longer show what was agreed to.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -6058,6 +6194,12 @@ must be coordinated with the backend. Grouped by status.
   Django access (DR-116).
 - **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
   shapes in §5 (DR-56).
+- **Contracts:** `pending_contract_organizations` on whoami and the login response; the
+  `contract_agreement_required` 403 on every gated endpoint and the live stream; lists leaving out
+  pending organizations' records; `/api/organizations/{id}/contract` and `…/contract/agree`,
+  `/api/user/agreements`, the public `/api/organizations/{id}/privacy-policy`, `/api/contracts/`
+  with `publish` and `agreements`, and `privacyPolicy` in the register config, with the shapes
+  in §5 (§4, §6, §7, §8.1; DR-145).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Record versions:** `version` on every record, `ETag` on detail responses, and the

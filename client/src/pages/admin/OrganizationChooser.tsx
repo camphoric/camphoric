@@ -1,7 +1,8 @@
 /**
  * Organization chooser (SPEC §8.1). Lists organizations; selecting one navigates
  * to its event chooser. Admins can also add, rename and delete organizations
- * (§15, DR-50); one that still has events can't be deleted.
+ * (§15, DR-50); one that still has events can't be deleted. Admins also manage
+ * each organization's terms here (DR-145).
  */
 
 import {
@@ -18,13 +19,14 @@ import {
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconDots, IconFileText, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ApiOrganization } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { FormActions } from 'components/FormActions';
 import { InlineLoading } from 'components/Loading';
 import { usePermissions } from 'hooks/permissions';
+import { ContractsModal } from 'pages/admin/contracts';
 import { useState } from 'react';
 import { organizationHooks } from 'store/entities';
 
@@ -38,6 +40,7 @@ export function OrganizationChooser() {
   const update = organizationHooks.useUpdate();
   const remove = organizationHooks.useDelete();
   const [naming, setNaming] = useState<Naming>(null);
+  const [termsOf, setTermsOf] = useState<ApiOrganization | null>(null);
 
   if (isLoading) return <InlineLoading />;
 
@@ -108,6 +111,12 @@ export function OrganizationChooser() {
                     Rename
                   </Menu.Item>
                   <Menu.Item
+                    leftSection={<IconFileText size={16} />}
+                    onClick={() => setTermsOf(org)}
+                  >
+                    Terms and privacy policy
+                  </Menu.Item>
+                  <Menu.Item
                     color="red"
                     leftSection={<IconTrash size={16} />}
                     onClick={() => confirmDeleteOrganization(org)}
@@ -136,6 +145,7 @@ export function OrganizationChooser() {
           />
         )}
       </Modal>
+      <ContractsModal organization={termsOf} onClose={() => setTermsOf(null)} />
     </Container>
   );
 }

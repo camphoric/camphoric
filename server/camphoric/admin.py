@@ -4,8 +4,8 @@ from django.contrib.auth.models import User
 
 from . import roles
 from .models import (
-    Camper, Deposit, EmailMessage, Event, Invoice, Lodging, Payment, PromoCode, Registration,
-    WorkerHeartbeat,
+    Camper, Contract, ContractAgreement, ContractSection, Deposit, EmailMessage, Event, Invoice,
+    Lodging, Payment, PromoCode, Registration, WorkerHeartbeat,
 )
 
 admin.site.register(Event)
@@ -69,6 +69,47 @@ class EmailMessageAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+class ReadOnlyAdmin(admin.ModelAdmin):
+    '''Shown, never changed here: contracts change through the API, and agreements never do.'''
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class ContractSectionInline(admin.TabularInline):
+    model = ContractSection
+    fields = ['order', 'kind', 'title', 'body']
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Contract)
+class ContractAdmin(ReadOnlyAdmin):
+    '''Each organization's contract versions (SPEC DR-145).'''
+    list_display = ['__str__', 'organization', 'number', 'published_at', 'published_by']
+    list_filter = ['organization']
+    inlines = [ContractSectionInline]
+
+
+@admin.register(ContractAgreement)
+class ContractAgreementAdmin(ReadOnlyAdmin):
+    '''Who agreed to which contract version, and what shows they did (SPEC DR-145).'''
+    list_display = ['username', 'organization', 'contract', 'agreed_at', 'ip_address']
+    list_filter = ['organization']
+    search_fields = ['username', 'email', 'full_name']
+    date_hierarchy = 'agreed_at'
 
 
 @admin.register(WorkerHeartbeat)

@@ -7,12 +7,17 @@ Someone whose password a superuser set, to be changed at their next sign-in,
 is refused everything here until they change it (403, code
 `password_change_required`); signing out and changing the password aren't
 behind these classes.
+
+Someone who hasn't agreed to an organization's latest contract is refused
+whatever reaches that organization (403, code `contract_agreement_required`;
+camphoric.contracts, DR-145): by the ids the request names, here, and by each
+record the view fetches, as it fetches it (`has_object_permission`).
 '''
 
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from camphoric import accounts, roles
+from camphoric import accounts, contracts, roles
 
 PASSWORD_CHANGE_REQUIRED = 'password_change_required'
 
@@ -25,13 +30,28 @@ def _check_password_change(request):
         })
 
 
+def _check_access(request, view):
+    '''What every role's permission checks besides the role: the password, then the contracts.'''
+    _check_password_change(request)
+    contracts.check_request(request, view)
+
+
 def _reads(request, view):
     '''Whether the request only reads: a safe method, or one the view lists as not writing.'''
     return request.method in SAFE_METHODS or \
         request.method in getattr(view, 'read_only_methods', ())
 
 
-class RolePermission(BasePermission):
+class GatedPermission(BasePermission):
+    '''A permission by Camphoric role, refusing each record an unagreed contract gates.'''
+
+    def has_object_permission(self, request, view, obj):
+        if not getattr(view, 'skips_contract_gate', False):
+            contracts.check_record(request, obj)
+        return True
+
+
+class RolePermission(GatedPermission):
     '''
     Any role may read; Registrars and Admins may also write. A view whose POST
     only reads (a preview, a render) lists it in `read_only_methods`. Anonymous
@@ -42,41 +62,51 @@ class RolePermission(BasePermission):
         role = roles.role_of(request.user)
         if role is None:
             return False
-        _check_password_change(request)
+        _check_access(request, view)
         return _reads(request, view) or role in roles.WRITERS
 
 
-class WritersOnly(BasePermission):
+class WritersOnly(GatedPermission):
     '''Registrars and Admins only, even to read (change history).'''
 
     def has_permission(self, request, view):
         role = roles.role_of(request.user)
         if role is None:
             return False
-        _check_password_change(request)
+        _check_access(request, view)
         return role in roles.WRITERS
 
 
-class AdminOnly(BasePermission):
+class AdminOnly(GatedPermission):
     '''Admins only (deleting an event or an organization); 403 for other roles.'''
 
     def has_permission(self, request, view):
         role = roles.role_of(request.user)
         if role is None:
             return False
-        _check_password_change(request)
+        _check_access(request, view)
         return role == roles.ADMIN
 
 
-class AdminWrites(BasePermission):
+class AdminWrites(GatedPermission):
     '''Any role may read; only Admins may write (organizations).'''
 
     def has_permission(self, request, view):
         role = roles.role_of(request.user)
         if role is None:
             return False
-        _check_password_change(request)
+        _check_access(request, view)
         return _reads(request, view) or role == roles.ADMIN
+
+
+class AnyRole(GatedPermission):
+    '''Any role, for reading or writing: what's the user's own (agreeing to a contract).'''
+
+    def has_permission(self, request, view):
+        if roles.role_of(request.user) is None:
+            return False
+        _check_access(request, view)
+        return True
 
 
 class IsAdmin(BasePermission):

@@ -13,11 +13,17 @@
  * A 401 means the admin's session has lapsed: rather than report it, both caches
  * re-check who's signed in, so the auth guard asks them to sign in again without
  * navigating away from the URL (SPEC §6, DR-9).
+ *
+ * A 403 for terms the user has yet to agree to (`contract_agreement_required`)
+ * means a new version was published: rather than report it, both caches re-check
+ * who's signed in, whose answer names the organizations to agree with, so the
+ * contract gate asks them to (SPEC §6, DR-145).
  */
 
 import { notifications } from '@mantine/notifications';
 import { hashKey, MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import type { ApiUser, TemplateDiagnostic } from 'api-types';
+import { contractAgreementRequired } from 'store/contracts';
 import { registrationNotFound } from 'store/registrationApi';
 import { ApiError, versionConflict } from 'utils/fetch';
 
@@ -34,6 +40,9 @@ export function describeError(error: unknown): string {
   if (error instanceof ApiError && error.status === 403) {
     // A refusal the admin didn't hide (SPEC §10, DR-51), or a signed-out session.
     const body = error.body as { code?: unknown } | null;
+    if (contractAgreementRequired(error) !== null) {
+      return 'Agree to the organization’s terms before continuing.';
+    }
     if (body?.code !== 'password_change_required') {
       return "You don't have permission to do that.";
     }
@@ -69,6 +78,11 @@ function passwordChangeRequired(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 403) return false;
   const body = error.body as { code?: unknown } | null;
   return body?.code === 'password_change_required';
+}
+
+/** A 403 that whoami explains: a password to change, or terms to agree to (DR-145). */
+function explainedByWhoAmI(error: unknown) {
+  return passwordChangeRequired(error) || contractAgreementRequired(error) !== null;
 }
 
 // Mirrors hooks/auth WHOAMI_KEY (importing it here would pull hooks into the store).
@@ -114,7 +128,7 @@ function reportFailure(error: unknown, meta: Record<string, unknown> | undefined
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      if (passwordChangeRequired(error)) {
+      if (explainedByWhoAmI(error)) {
         void queryClient.invalidateQueries({ queryKey: WHOAMI });
       } else if (sessionLapsed(error) && query.queryHash !== hashKey(WHOAMI) && signedIn()) {
         // (Never for the whoami check itself: re-checking it would loop. Nor once
@@ -125,7 +139,7 @@ export const queryClient = new QueryClient({
   }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
-      if (passwordChangeRequired(error)) {
+      if (explainedByWhoAmI(error)) {
         void queryClient.invalidateQueries({ queryKey: WHOAMI });
         return;
       }

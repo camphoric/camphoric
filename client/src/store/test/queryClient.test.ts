@@ -243,3 +243,34 @@ describe('a lapsed session (DR-9)', () => {
     expect(queryClient.getQueryData(WHOAMI)).toEqual(pat);
   });
 });
+
+describe('terms still to agree to (DR-145)', () => {
+  const WHOAMI = ['WhoAmI'];
+  const gated = () =>
+    new ApiError(403, 'Forbidden', {
+      detail: 'Agree to the organization’s terms before continuing.',
+      code: 'contract_agreement_required',
+      organization: 3,
+    });
+
+  afterEach(() => {
+    queryClient.clear();
+    vi.mocked(notifications.show).mockClear();
+  });
+
+  it('asks who is signed in, whose answer opens the gate, instead of reporting it', async () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    await queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationFn: () => Promise.reject(gated()), retry: false })
+      .execute(undefined)
+      .catch(() => undefined);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: WHOAMI });
+    expect(notifications.show).not.toHaveBeenCalled();
+    invalidate.mockRestore();
+  });
+
+  it('describes the refusal as terms to agree to', () => {
+    expect(describeError(gated())).toBe('Agree to the organization’s terms before continuing.');
+  });
+});

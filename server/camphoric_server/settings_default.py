@@ -279,9 +279,12 @@ REST_FRAMEWORK = {
         'camphoric.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
-    # A list refuses a query parameter it doesn't filter by (camphoric.filters).
+    # A list refuses a query parameter it doesn't filter by (camphoric.filters),
+    # and leaves out the organizations whose terms the user hasn't agreed to
+    # (camphoric.contracts, SPEC DR-145).
     'DEFAULT_FILTER_BACKENDS': [
         'camphoric.filters.StrictFilterBackend',
+        'camphoric.contracts.ContractGateFilterBackend',
     ],
     # Closed unless a view says otherwise: any Camphoric permission group may
     # read, Registrars and Admins may write (camphoric.permissions, SPEC DR-50).

@@ -45,6 +45,7 @@ from camphoric import (
     audit,
     authentication,
     confirmations,
+    contracts,
     deletes,
     filters,
     invoices,
@@ -58,7 +59,8 @@ from camphoric import (
 )
 from camphoric.lodging import LodgingTree, get_lodging_schema, registration_lodging_problem
 from camphoric.mail import batches, outbox, unsubscribe
-from camphoric.permissions import AdminOnly, AdminWrites, IsAdmin, IsSuperuser, WritersOnly
+from camphoric.permissions import (
+    AdminOnly, AdminWrites, AnyRole, IsAdmin, IsSuperuser, WritersOnly)
 from camphoric.templating import bulk, deadline, rules
 from camphoric.templating.contexts import report_context
 from camphoric.templating.emails import render_invitation_email, render_invoice_email
@@ -345,7 +347,9 @@ class SoftDeleteMixin:
         if not filters:
             raise ValidationError({name: 'This field is required.'
                                    for name in self.deleted_filters})
-        instances = list(self.deleted_queryset().filter(**filters).order_by('-deleted_at', '-id'))
+        # Only the organizations whose terms the user has agreed to (DR-145).
+        deleted = contracts.exclude_pending(self.deleted_queryset(), request.user)
+        instances = list(deleted.filter(**filters).order_by('-deleted_at', '-id'))
         deleters = audit.deleted_by(instances)
         rows = self.get_serializer(instances, many=True).data
         for row, instance in zip(rows, instances):
@@ -356,7 +360,12 @@ class SoftDeleteMixin:
 
 
 class OrganizationViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
-    '''Any role may list organizations; only Admins create, rename or delete them.'''
+    '''
+    Any role may list organizations; only Admins create, rename or delete them.
+    The list is the organization chooser's, so it has every organization, even
+    those whose terms the user has yet to agree to (DR-145).
+    '''
+    lists_every_organization = True
     queryset = models.Organization.objects.all()
     serializer_class = serializers.OrganizationSerializer
     permission_classes = [AdminWrites]
@@ -431,6 +440,7 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
         account = None
         if data.get('account'):
             account = get_object_or_404(models.EmailAccount, id=data['account'])
+            contracts.check_record(request, account)
         try:
             batch = batches.create_batch(
                 template, recipient_keys=data.get('recipient_keys') or [], account=account,
@@ -1090,6 +1100,7 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
             models.EditLease.objects.select_related('user', 'content_type').order_by('id'))
         if params.get('model'):
             record = tracked.record(params['model'], params.get('object_id'))
+            contracts.check_record(self.request, record)
             return current.filter(
                 content_type__model=params['model'], object_id=record.pk)
         if params.get('event', '').isdigit():
@@ -1102,6 +1113,7 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
         if not client_id or len(client_id) > 64:
             raise ValidationError({'client_id': 'Up to 64 characters naming the browser tab.'})
         record = tracked.record(str(data.get('model') or ''), data.get('object_id'))
+        contracts.check_record(request, record)
         if tracked.event_id_of(record) is None:
             raise ValidationError({'object_id': 'That record belongs to no event.'})
         try:
@@ -1121,6 +1133,125 @@ class EditLeaseViewSet(ListModelMixin, GenericViewSet):
             raise Http404
         leases.release(pk, request.user, request.query_params.get('client_id', ''))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ContractViewSet(VersionCheckMixin, ModelViewSet):
+    '''
+    An organization's contract versions (SPEC §5, DR-145), for Admins only:
+    list them (`?organization=`), start the draft (POST `{organization}`, from
+    the latest version's sections), change its sections (PATCH `{sections}`,
+    the whole list in order), delete it, and publish it
+    (`POST …/{id}/publish/`). A published version can't change or be
+    deleted. `GET …/{id}/agreements/` is who has agreed to it.
+    '''
+    serializer_class = serializers.ContractSerializer
+    queryset = models.Contract.objects.select_related('published_by') \
+        .prefetch_related('sections').order_by('organization', 'published_at', 'number', 'id')
+    permission_classes = [AdminOnly]
+    filterset_fields = ['organization']
+    pagination_class = None
+
+    def destroy(self, request, *args, **kwargs):
+        with transaction.atomic():
+            conflict = self.version_conflict()
+            if conflict:
+                return conflict
+            contract = self.get_object()
+            if contract.is_published:
+                raise serializers.Conflict('A published version can\'t be deleted.')
+            contract.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def publish(self, request, pk=None):
+        try:
+            contract = contracts.publish(self.get_object(), request.user)
+        except contracts.ContractError as error:
+            raise serializers.Conflict(str(error))
+        return Response(self.get_serializer(self.get_queryset().get(pk=contract.pk)).data)
+
+    @action(detail=True, methods=['get'])
+    def agreements(self, request, pk=None):
+        contract = self.get_object()
+        return Response(serializers.ContractAgreementSerializer(
+            contract.agreements.order_by('agreed_at', 'id'), many=True).data)
+
+
+class OrganizationContractView(APIView):
+    '''
+    GET: the organization's latest contract version, with its sections in order,
+    and whether the signed-in user has agreed to it (`{contract, agreed}`); 404
+    when nothing is published. Any role may read it, whether or not they have
+    agreed: it's what they're asked to agree to (DR-145).
+    '''
+    permission_classes = [AnyRole]
+    skips_contract_gate = True
+
+    def get(self, request, organization_id=None):
+        organization = get_object_or_404(models.Organization, pk=organization_id)
+        contract = contracts.latest_contract(organization.pk)
+        if contract is None:
+            raise NotFound('This organization has no terms to agree to.')
+        agreed = contract.agreements.filter(user=request.user).exists()
+        return Response({
+            'contract': serializers.PublishedContractSerializer(contract).data,
+            'agreed': agreed,
+        })
+
+
+class OrganizationContractAgreeView(APIView):
+    '''
+    POST `{contract_id, content_sha256, assent_text}`: the signed-in user agrees
+    to the organization's latest version, the one they were shown (409 when it
+    has changed since). Agreeing again does no harm. Answers with what
+    GET /api/user answers, now without this organization pending (DR-145).
+    '''
+    permission_classes = [AnyRole]
+    skips_contract_gate = True
+
+    def post(self, request, organization_id=None):
+        organization = get_object_or_404(models.Organization, pk=organization_id)
+        try:
+            contracts.agree(
+                request, organization, request.data.get('contract_id'),
+                request.data.get('content_sha256'), request.data.get('assent_text'))
+        except contracts.ContractError as error:
+            raise serializers.Conflict(str(error))
+        return Response(serializers.CurrentUserSerializer(request.user).data)
+
+
+class MyContractAgreementsView(APIView):
+    '''
+    GET: the contract versions the signed-in user has agreed to, newest first,
+    each with its text, so they can reread them (DR-145).
+    '''
+    permission_classes = [AnyRole]
+    skips_contract_gate = True
+
+    def get(self, request):
+        agreements = models.ContractAgreement.objects.filter(user=request.user) \
+            .select_related('contract__organization') \
+            .prefetch_related('contract__sections').order_by('-agreed_at', '-id')
+        return Response([
+            {**serializers.ContractAgreementSerializer(agreement).data,
+             'contract': serializers.PublishedContractSerializer(agreement.contract).data}
+            for agreement in agreements])
+
+
+class PrivacyPolicyView(APIView):
+    '''
+    GET, public: the privacy policy section of the organization's latest
+    contract version — `{organization, organization_name, title, body, number,
+    published_at}` — and nothing else of it; 404 when nothing is published
+    (DR-145).
+    '''
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, organization_id=None):
+        policy = contracts.public_privacy_policy(organization_id)
+        if policy is None:
+            raise NotFound('This organization has no privacy policy here.')
+        return Response(policy)
 
 
 class UserViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -1173,7 +1304,10 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
         entries (SPEC §5) they're credited with, 50 a page (`?page=`).
         '''
         paginator = UserHistoryPagination()
-        page = paginator.paginate_queryset(audit.changes_by(self.get_object()), request, view=self)
+        # Not what they changed in organizations whose terms you have yet to agree to (DR-145).
+        changes = contracts.exclude_pending_log_entries(
+            audit.changes_by(self.get_object()), request.user)
+        page = paginator.paginate_queryset(changes, request, view=self)
         return paginator.get_paginated_response([audit.describe(entry) for entry in page])
 
     @action(detail=True, methods=['post'], url_path='send-password-link')
@@ -1618,6 +1752,13 @@ class RegisterView(APIView):
                 'registration': event.registration_pricing_logic or {},
             },
         }
+
+        # The organization's public privacy policy, to link to (DR-145).
+        policy = contracts.public_privacy_policy(event.organization_id)
+        response_data['privacyPolicy'] = {
+            'organization': event.organization_id,
+            'title': policy['title'],
+        } if policy else None
 
         if event.paypal_enabled and event.paypal_client_id:
             response_data['payPalOptions'] = {

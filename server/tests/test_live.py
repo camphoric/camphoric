@@ -215,7 +215,7 @@ class StreamLifeTests(SimpleTestCase):
         broadcaster.task = asyncio.get_running_loop().create_future()
         with mock.patch.object(live_stream, 'broadcaster', broadcaster), \
                 mock.patch.object(live_stream, 'READY_SECONDS', 0.05):
-            chunks = [chunk async for chunk in live_stream.events(4, 'key', 1)]
+            chunks = [chunk async for chunk in live_stream.events(4, 1, 'key', 1)]
         self.assertEqual(chunks, [])  # it ends, and the browser tries again
         self.assertEqual(broadcaster.streams, {})
 
@@ -226,7 +226,7 @@ class StreamLifeTests(SimpleTestCase):
         with mock.patch.object(live_stream, 'broadcaster', broadcaster), \
                 mock.patch.object(live_stream, 'RECHECK_SECONDS', 0), \
                 mock.patch.object(live_stream, 'still_allowed', return_value=False):
-            chunks = [chunk async for chunk in live_stream.events(4, 'key', 1)]
+            chunks = [chunk async for chunk in live_stream.events(4, 1, 'key', 1)]
         self.assertEqual(len(chunks), 1)  # hello, then nothing more
         self.assertEqual(broadcaster.streams, {})
 
@@ -236,7 +236,7 @@ class StreamLifeTests(SimpleTestCase):
         broadcaster.listening.set()
         with mock.patch.object(live_stream, 'broadcaster', broadcaster), \
                 mock.patch.object(live_stream, 'MAX_SECONDS', 0):
-            chunks = [chunk async for chunk in live_stream.events(4, 'key', 1)]
+            chunks = [chunk async for chunk in live_stream.events(4, 1, 'key', 1)]
         self.assertTrue(chunks[-1].startswith('event: bye\n'))
 
     async def test_it_ends_when_its_worker_stops_hearing_notices(self):
@@ -244,7 +244,7 @@ class StreamLifeTests(SimpleTestCase):
         broadcaster.task = asyncio.get_running_loop().create_future()
         broadcaster.listening.set()
         with mock.patch.object(live_stream, 'broadcaster', broadcaster):
-            stream = live_stream.events(4, 'key', 1)
+            stream = live_stream.events(4, 1, 'key', 1)
             await anext(stream)  # hello
             broadcaster.deliver({'type': 'lost'}, broadcaster.everyone())
             self.assertEqual([chunk async for chunk in stream], [])
@@ -276,9 +276,9 @@ class SessionCheckTests(TestCase):
         key = client.session.session_key
         with mock.patch.object(live_stream, 'close_unless_in_transaction'), \
                 mock.patch.object(live_stream.connection, 'close'):
-            self.assertTrue(live_stream.still_allowed(key, user.id))
+            self.assertTrue(live_stream.still_allowed(key, user.id, None))
             client.logout()
-            self.assertFalse(live_stream.still_allowed(key, user.id))
+            self.assertFalse(live_stream.still_allowed(key, user.id, None))
 
     def test_a_password_to_be_changed_ends_its_streams(self):
         from django.test import Client
@@ -288,7 +288,7 @@ class SessionCheckTests(TestCase):
         key = client.session.session_key
         accounts.set_must_change_password(user, True)
         with mock.patch.object(live_stream.connection, 'close'):
-            self.assertFalse(live_stream.still_allowed(key, user.id))
+            self.assertFalse(live_stream.still_allowed(key, user.id, None))
 
     def test_changing_the_password_signs_its_streams_out(self):
         from django.test import Client
@@ -299,7 +299,7 @@ class SessionCheckTests(TestCase):
         user.set_password('a-new-one')
         user.save()
         with mock.patch.object(live_stream.connection, 'close'):
-            self.assertFalse(live_stream.still_allowed(key, user.id))
+            self.assertFalse(live_stream.still_allowed(key, user.id, None))
 
 
 class BroadcasterTests(SimpleTestCase):
