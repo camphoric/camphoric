@@ -1,6 +1,7 @@
 /**
  * The admin surface entry (SPEC §4, §11). Wraps the admin outlet in the auth
- * guard and the contract gate in front of each organization (DR-145), provides
+ * guard and the contract gate, which asks for every organization's pending terms
+ * in turn before the admin shows (DR-145, DR-151), provides
  * the signed-in user's permissions (DR-51), and hosts the overlays that open
  * over any admin page (Users and Apps, DR-84). Extracted into its own module so the whole
  * admin application — and its heavy, admin-only dependencies — can be

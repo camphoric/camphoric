@@ -16,7 +16,8 @@ authorization server (django-oauth-toolkit) for the apps an Admin registers:
   Camphoric may do, whatever the scope: a view saying `refuses_apps`.
 - An app's access ends at once (every token and unused code removed, with the
   connection) when the user disconnects it, an Admin disconnects it for them or
-  removes the app, the user is deactivated, or their password changes (DR-149).
+  removes the app, the user is deactivated, or their password changes (DR-149);
+  and everyone's, when an organization publishes new terms (DR-151).
 '''
 
 from datetime import timedelta
@@ -166,6 +167,22 @@ def revoke(user, application=None):
         # One at a time, so the audit log records each (camphoric.audit).
         connection.delete()
     return bool(connections)
+
+
+def revoke_everyone():
+    '''
+    End every app's access for every user at once, as publishing new terms does
+    (camphoric.contracts, DR-151): each app is refused (401) until its person
+    connects it again, which asks them to agree first.
+    '''
+    with transaction.atomic():
+        Grant.objects.all().delete()
+        # Refresh tokens first: an access token points back at the one it came from.
+        RefreshToken.objects.all().delete()
+        AccessToken.objects.all().delete()
+        IDToken.objects.all().delete()
+        for connection in models.ConnectedApp.objects.all():
+            connection.delete()
 
 
 def revoke_when_deactivated(sender, instance, **kwargs):

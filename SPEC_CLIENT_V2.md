@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-150)
+- §15 — Decision Records (DR-1…DR-151)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -262,10 +262,9 @@ queries derive it from `window.location` rather than props, through the routing 
 
 All admin routes are wrapped by a guard that fetches the current user and renders a login
 form if the user is not authenticated; otherwise it renders the requested route. Inside it,
-every route past an organization (`/admin/organization/:organizationId/…`, the event chooser and
-the Event Admin included) is behind the **contract gate**: someone who has yet to agree to that
-organization's latest contract version is asked to first, at the same URL (§6; §15, DR-145).
-`/admin` and `/admin/organization` stay open, so an organization can be chosen. Heavy route
+every admin route is behind the **contract gate**: someone who has yet to agree to organizations'
+latest contract versions is asked for each in turn first, at the URL asked for, which then shows
+(§6; §15, DR-145, DR-151). Heavy route
 components are code-split/lazy-loaded with a spinner fallback.
 
 ---
@@ -429,7 +428,8 @@ Non-CRUD admin endpoints:
   Camphoric permission group: `admin` | `registrar` | `reporter`, or `null` when signed out or
   without one; a superuser is always `admin`), `must_change_password` (§6; §15, DR-50), and
   `pending_contract_organizations` — the ids of the organizations whose latest contract version
-  the user has yet to agree to (§6; §15, DR-145).
+  the user has yet to agree to, in the order they're asked to: by the organizations' names
+  (§6; §15, DR-145, DR-151).
 - `GET /api/version` — the release the server runs → `{ version: string | null }`: the version
   without the tag's `v` (`0.12.0`, `0.13.0-alpha.1`), or `null` when the server isn't a release
   build. Any role may read it (§8.1; §15, DR-98).
@@ -657,7 +657,11 @@ Non-CRUD admin endpoints:
     the privacy policy; `If-Match` as for any record). `DELETE` removes the draft. `POST
     /api/contracts/{id}/publish/` makes the draft the next version: its `number`, the
     `content_sha256` of its ordered section titles and bodies, `published_at` (its effective
-    date) and `published_by`; 400 when a section has no title or text; with `If-Match`, 412 when
+    date) and `published_by`, and ends everyone's sign-ins (§15, DR-151): every web session that
+    signs someone in, except the session that published (whose whoami then has the organization
+    pending), and every app's OAuth access, the publisher's included, its tokens, codes and
+    connections deleted as when the person disconnects it; API tokens are left to the gate. A
+    refused publish ends nothing. 400 when a section has no title or text; with `If-Match`, 412 when
     the draft was saved since that version (§15, DR-109), which the client always sends, as a
     published version can't change. A published version
     answers 409 to `PATCH`, `DELETE` and `publish`. `GET /api/contracts/{id}/agreements/` → who
@@ -1222,7 +1226,7 @@ hooks):
   returns the user's token while it has at least half its lifetime left, and otherwise (nearer
   its end, or expired) replaces it with a new key, so every sign-in gets at least half a
   lifetime (§15, DR-131).
-- **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-150). Apps an Admin registers (§8.10) call
+- **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-151). Apps an Admin registers (§8.10) call
   the API for the people who approve them. Camphoric is the OAuth 2.0 authorization server; the
   admin client takes no part in the flow beyond the screens in §8.10:
   - **Approving an app.** The app sends the person to `GET /o/authorize/` (authorization code
@@ -1232,7 +1236,12 @@ hooks):
     names the app, who is signed in (with their permission group, and a way to sign in as someone
     else, `POST /o/switch-account/`) and what the app asks for, and offers Cancel and Connect;
     it's shown every time, and an app can't skip it. It refuses anyone with no permission group
-    or a password to change. Connecting records the connection with the scopes approved,
+    or a password to change. Before it, at the same URL, someone with organizations' terms to
+    agree to is asked for each in turn, as the admin asks (*Agreeing to an organization's terms*,
+    below), on pages the server renders, the Markdown rendered by the server (GitHub-flavoured,
+    raw HTML and unsafe links left out, links opening in a new tab); no code is issued until
+    nothing is pending, and declining signs them out and sends the app `error=access_denied`, as
+    Cancel does (§15, DR-151). Connecting records the connection with the scopes approved,
     replacing any earlier approval of the same app and the tokens it gave; the app is sent back to its redirect URI, which must
     match one registered exactly, with a code it exchanges at `POST /o/token/` with its client
     id, secret and PKCE verifier.
@@ -1257,7 +1266,9 @@ hooks):
     person disconnects it (Connected apps, below), an Admin disconnects it for them or removes the
     app (§8.10), the person is deactivated, or their password changes in any way (theirs, a
     reset, a superuser's, the Django admin's or `manage.py changepassword`) — after which they
-    approve their apps again.
+    approve their apps again. Publishing a version of any organization's terms ends every app's
+    access for everyone (§15, DR-151): the app's next call is refused with 401 and its refresh
+    with `invalid_grant`, and connecting again asks for the new terms first.
   - **Connected apps.** Everyone can see the apps they've connected — what each may do, when they
     approved it and when it was last used — and disconnect any of them, from their account
     actions.
@@ -1303,32 +1314,36 @@ hooks):
 - **Passwords** (§15, DR-52): anyone can ask for a link to choose a new password from the sign-in
   form; new users get one by email; signed-in users can change their own; and a superuser can set
   someone's password, requiring them to change it before they can do anything else (§8.10).
-- **Agreeing to an organization's terms** (§15, DR-145). Each organization has a contract — a
-  privacy policy and other terms, such as a liability waiver for using the software — that
-  everyone who signs in must agree to before reaching it. Registrants never sign in, so never
-  meet it; the privacy policy is also public (§4, §7). The gate (§4) comes after the auth guard:
-  sign-in, a password to change and no access come first.
-  - Which organizations need agreeing to comes from whoami's `pending_contract_organizations`.
-    At a URL past one of them, its latest version shows in place of the organization's pages —
-    straight after signing in, for a deep link — with every section in order, its Markdown
-    rendered and sanitized (§9.3), the version and its effective date, a link to the public
-    privacy policy, wording saying that agreeing is required to continue, and two separate
-    actions, agree and decline. Nothing is chosen for them.
+- **Agreeing to an organization's terms** (§15, DR-145, DR-151). Each organization has a
+  contract — a privacy policy and other terms, such as a liability waiver for using the
+  software — that everyone who signs in must agree to before reaching it. Registrants never sign
+  in, so never meet it; the privacy policy is also public (§4, §7). People are asked when they
+  sign in, for every organization pending, one after another: in the admin (below) and on the
+  OAuth sign-in and consent pages (*Third-party apps*, above). The gate (§4) comes after the auth
+  guard: sign-in, a password to change and no access come first.
+  - Which organizations need agreeing to, and in what order (by name), comes from whoami's
+    `pending_contract_organizations`. Straight after signing in, before anything of the admin
+    shows and whatever the URL, the first one's latest version shows, with every section in
+    order, its Markdown rendered and sanitized (§9.3), the version and its effective date, a link
+    to the public privacy policy, wording saying that agreeing is required to continue, and two
+    separate actions, agree and decline. Nothing is chosen for them. With more than one pending,
+    it says how far along they are ("Organization 2 of 3").
   - Agreeing sends the version's id and hash with the agree action's wording, and goes on to the
-    URL asked for. If the version changed since it was shown (409), the latest is shown to read
-    again. Declining isn't recorded: it signs out at once, as Sign out does (the cache cleared
-    and the other tabs following; §15, DR-117, DR-127).
-  - Each organization is agreed to separately, once per version; moving to another organization
-    asks again if it needs agreeing to.
-  - **A version published mid-session** is found by session monitoring's next whoami check, or
-    sooner by a 403 `contract_agreement_required`, which re-checks whoami. A refused fetch isn't
-    reported, as the gate explains it; a refused change is ("Agree to the organization's terms
-    before continuing."), since it can happen where there's no gate, such as renaming the
-    organization from the chooser. For the organization on screen, the terms open over the
-    admin as the sign-in prompt does (DR-127): the admin stays in place, out of reach, with its
-    unsaved edits; agreeing returns to it and fetches again what was refused meanwhile, and
-    declining signs out. Once the user has left the organization (for a chooser, or another
-    organization), reaching it again shows the terms in place of its pages.
+    next pending organization; after the last, to the URL asked for. If the version changed since
+    it was shown (409), the latest is shown to read again. Declining isn't recorded: it signs out
+    at once, as Sign out does (the cache cleared and the other tabs following; §15, DR-117,
+    DR-127).
+  - Each organization is agreed to separately, once per version.
+  - **A new version** ends everyone's sign-ins but the publisher's (§5; §15, DR-151), so others
+    meet it when they sign in again — over the admin they had, when signing back in as the same
+    user (DR-127). The publisher is asked straight away. Whenever terms become pending with the
+    admin already showing — the publisher, signing back in over the admin, or a whoami check or
+    403 `contract_agreement_required` that finds a version published in the moment around
+    signing in — they open over the admin as the sign-in prompt does (DR-127): the admin stays in
+    place, out of reach, with its unsaved edits; agreeing to the last returns to it and fetches
+    again what was refused meanwhile, and declining signs out. A refused fetch isn't reported, as
+    the gate explains it; a refused change is ("Agree to the organization's terms before
+    continuing.").
   - Anyone can reread the versions they've agreed to, with when they agreed, from their account
     actions.
 - **Proactive session monitoring (admin).** Rather than waiting for a request to fail, the admin
@@ -1625,8 +1640,9 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   version's sections. In the draft, sections can be added, removed, retitled, edited (Markdown,
   with a preview) and reordered; the privacy policy section can't be removed. Publishing, once
   the draft is saved and every section has a title and text, says first that everyone, the
-  publisher included, must then agree again, even for a typo. Someone who has yet to agree to
-  the organization's latest version is told to open it and agree before changing its terms.
+  publisher included, must then agree again, even for a typo, and that everyone else is signed
+  out and every app disconnected (§15, DR-151). Someone who has yet to agree to the
+  organization's latest version is told to open it and agree before changing its terms.
 
 ### 8.2 Event Admin container and navigation
 
@@ -6245,9 +6261,8 @@ apart from this. An alert on the table's size: needs monitoring the deployment d
 **Decision:** Each organization has a versioned contract: drafted, then published, after which a
 version can't change. Every signed-in user must agree to an organization's latest version before
 the server lets them reach the organization or anything of its, by session or API token (403
-`contract_agreement_required`, with the organization's id), and the client asks them to at any
-URL past the organization, over the admin when a version is published mid-session. Every new
-version asks again. An agreement records the version, its hash, the server's time, the user's
+`contract_agreement_required`, with the organization's id), and the client asks them to (when
+they sign in, every organization pending in turn, DR-151). Every new version asks again. An agreement records the version, its hash, the server's time, the user's
 details as they are then, the client address, the user agent, the wording agreed with and the
 release, and outlives the user. Each version has exactly one privacy policy section, which is also
 public. The gate is applied by the permission classes, from the ids a request names (URL, query
@@ -6350,7 +6365,8 @@ with the connection, so its next request is refused with 401 — when the person
 an Admin disconnects it for them (a superuser, for a user with Django access, DR-116), an Admin
 removes the app (every account's), the person is deactivated, or their password changes, however
 it's changed — by them, a reset, a superuser, the Django admin or `manage.py changepassword`
-(Django upgrading the stored hash at sign-in isn't a change). The API token ends with it too. A
+(Django upgrading the stored hash at sign-in isn't a change). Every app's, for everyone, when an
+organization's terms are published (DR-151). The API token ends with it too. A
 deactivated person's token is refused even if one is left. Approving an app again replaces the
 earlier approval and its tokens, so the app holds no more than the connection shows. When the
 app gives its token back, or a reused refresh token ends the approval's tokens (DR-148), the
@@ -6375,7 +6391,7 @@ DR-48), not routes of the admin client. Sign-in returns only to the consent page
 the admin uses. The consent page is shown every time: the toolkit's `approval_prompt=auto`,
 which would skip it while the app holds a token, is ignored. It offers a way to sign out and
 back in as someone else, keeping the app's request, so an Admin can approve an app as a service
-user.
+user. Organizations' pending terms are asked for on server pages too, before it (DR-151).
 **Context:** The toolkit's authorization view expects a server-side login URL that honours
 `next`; Django's admin login only admits staff. Keeping the flow on the server means it works
 without the client's routing, its CSRF bootstrap or a redirect allow-list in the client, and
@@ -6383,6 +6399,41 @@ can't be broken by a client release.
 **Alternatives:** The admin client's sign-in, taking a `next` back to `/o/authorize/` — the same
 look as the admin, but client routing, a server-checked redirect allow-list and more to keep in
 step. The Django admin's login — refuses everyone without staff access.
+
+### DR-151 — People agree to every organization's terms when they sign in, and new terms sign everyone out
+
+**Decision:** Agreeing is part of signing in, not of reaching an organization. Straight after
+signing in — to the admin, or on the OAuth sign-in or consent page — the person is asked for
+every organization whose latest version they haven't agreed to, one after another, ordered by
+the organizations' names (whoami lists them so), with how far along they are. Agreeing records
+what DR-145 records; declining signs out, and on the OAuth path also sends the app
+`error=access_denied`. The consent page issues no code while anything is pending, so an app is
+never given a token for someone the gate would refuse. Publishing a version ends everyone's
+sign-ins at once, in the same transaction: every web session that signs someone in, except the
+publisher's session, which is asked to agree straight away, and every app's OAuth access (the
+publisher's apps too). So everyone else meets the new terms when they next sign in, and each app
+when its person connects it again. The OAuth agreement pages are rendered by the server, with
+the Markdown rendered there (cmark-gfm's safe mode: raw HTML and unsafe links left out). The
+admin client asks in its own screens. API tokens for scripts are left; the gate still refuses
+them. The gate stays, as the backstop.
+**Context:** #980. With OAuth (DR-146 to DR-150), someone could sign in at `/o/login/`, approve
+an app and never open the admin, where the gate used to ask per organization; the app can't
+agree for them (DR-147), so its calls kept failing with `contract_agreement_required`, which it
+couldn't fix, and again whenever a version was published. Signing everyone out on publish turns
+"published mid-session" into "asked at the next sign-in" for people, and into the 401 /
+`invalid_grant` apps already handle by having the person connect again, which now passes through
+the terms. In the admin, signing back in keeps the screen and its unsaved edits underneath
+(DR-127), so the terms open over it. Publishing is rare, so signing everyone out costs little.
+**Alternatives:** Keep the per-organization prompt in the admin and add only the OAuth path —
+an app's person still meets new terms only by chance. Asking only for the organization on
+screen when a version is published mid-session — fewer interruptions, but no sign-out, so apps
+would keep their tokens and fail with an error they can't fix. Sending the admin through the
+server's pages too, for one flow — loses signing in again in place (DR-127) and needs a
+server-checked redirect back to the client. Signing out the publisher as well — they'd be asked
+anyway, and would lose the page they published from. Ending API tokens too — a script still
+can't agree, and its user signing in again is what fixes it either way. A new Markdown
+sanitizer on the server (nh3) to allow the raw HTML the client's pipeline allows — terms don't
+need it, and cmark-gfm is already a dependency.
 
 ---
 
@@ -6404,10 +6455,11 @@ must be coordinated with the backend. Grouped by status.
 - **Apps using OAuth:** `/api/user/apps`, `/api/users/{id}/apps/`, `/api/applications/` with
   `new-secret` and `connections`, and the `app_not_allowed` 403, with the shapes in §5; the
   server-rendered `/o/login/`, `/o/authorize/`, `/o/switch-account/`, `/o/token/` and
-  `/o/revoke_token/` (§6, §8.10; DR-146 to DR-150).
+  `/o/revoke_token/` (§6, §8.10; DR-146 to DR-151), the terms asked for before the consent page.
 - **Pricing overrides:** `/api/pricingoverrides/` and `overridden` in pricing results, with the
   shapes in §5 (DR-56).
-- **Contracts:** `pending_contract_organizations` on whoami and the login response; the
+- **Contracts:** `pending_contract_organizations` on whoami and the login response, in order of
+  the organizations' names; publishing ending everyone's sign-ins but the publisher's (DR-151); the
   `contract_agreement_required` 403 on every gated endpoint and the live stream; lists leaving out
   pending organizations' records; `/api/organizations/{id}/contract` and `…/contract/agree`,
   `/api/user/agreements`, the public `/api/organizations/{id}/privacy-policy`, `/api/contracts/`

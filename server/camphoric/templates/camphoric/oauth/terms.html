@@ -1,0 +1,35 @@
+{% extends "camphoric/oauth/base.html" %}
+{% block title %}{{ organization_name }} terms{% endblock %}
+{% block main_class %} class="wide"{% endblock %}
+{% block content %}
+  {% if total > 1 %}<p class="progress">Organization {{ position }} of {{ total }}</p>{% endif %}
+  <h1>{{ organization_name }} terms</h1>
+  <p class="small">Version {{ contract.number }}, effective {{ contract.published_at|date:"F j, Y" }}</p>
+  <div class="who">
+    <span>Signed in as {% if user.get_full_name %}<strong>{{ user.get_full_name }}</strong> ({{ user.username }}){% else %}<strong>{{ user.username }}</strong>{% endif %}{% if role_name %}, {{ role_name }}{% endif %}.</span>
+    <form method="post" action="/o/switch-account/">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ switch_next }}">
+      <button type="submit" class="link">Not you? Sign in as someone else</button>
+    </form>
+  </div>
+  <p>Before you connect <strong>{{ application.name }}</strong>, read {{ organization_name }}’s terms and agree to them. If you don’t agree, you’ll be signed out and the app won’t be connected.</p>
+  <div class="terms" tabindex="0" role="region" aria-label="{{ organization_name }} terms">
+    {% for section in sections %}
+      <h2>{{ section.title }}</h2>
+      {{ section.html|safe }}
+    {% endfor %}
+  </div>
+  <p class="small">The privacy policy is also published at <a href="{{ privacy_policy_path }}" target="_blank" rel="noreferrer">{{ request.scheme }}://{{ request.get_host }}{{ privacy_policy_path }}</a>.</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="organization" value="{{ contract.organization_id }}">
+    <input type="hidden" name="contract_id" value="{{ contract.pk }}">
+    <input type="hidden" name="content_sha256" value="{{ contract.content_sha256 }}">
+    <div class="actions">
+      <button type="submit" class="secondary" name="terms" value="decline">I don’t agree — sign out</button>
+      <button type="submit" class="primary" name="terms" value="agree">{{ assent_text }}</button>
+    </div>
+  </form>
+{% endblock %}

@@ -12,6 +12,7 @@
     }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
     main { max-width: 32rem; margin: 10vh auto; padding: 0 16px; }
+    main.wide { max-width: 48rem; margin-top: 5vh; }
     .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
     h1 { font-size: 1.4rem; margin: 0 0 12px; overflow-wrap: anywhere; }
     p, li { color: var(--muted); }
@@ -29,10 +30,18 @@
     .error { color: var(--error); }
     .who { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 12px 0; margin: 0 0 12px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .who form { margin: 0; }
+    .progress { font-size: .875rem; margin: 0 0 4px; }
+    .terms { max-height: 55vh; overflow: auto; padding: 0 16px; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 8px; overflow-wrap: anywhere; }
+    .terms h2 { font-size: 1.15rem; margin: 16px 0 8px; }
+    .terms h1, .terms h3, .terms h4 { font-size: 1rem; }
+    .terms p, .terms li { color: var(--text); }
+    .terms table { border-collapse: collapse; display: block; overflow-x: auto; margin: 0 0 12px; }
+    .terms th, .terms td { border: 1px solid var(--border); padding: 4px 8px; }
+    .small { font-size: .875rem; }
   </style>
 </head>
 <body>
-  <main>
+  <main{% block main_class %}{% endblock %}>
     <div class="card">
       {% block content %}{% endblock %}
     </div>

@@ -7,6 +7,7 @@ token, and lists leave its records out.
 
 import datetime
 from decimal import Decimal
+from importlib import import_module
 import re
 from unittest import mock
 
@@ -19,7 +20,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 from auditlog.models import LogEntry
 from rest_framework import serializers as drf_serializers
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from camphoric import (
     accounts, authentication, contracts, deletes, live_stream, models, roles, serializers)
@@ -91,6 +92,111 @@ class PendingTests(TestCase):
     def test_nobody_signed_in(self):
         publish_contract(self.organization)
         self.assertEqual(contracts.pending_organization_ids(AnonymousUser()), [])
+
+    def test_in_the_order_theyre_asked_for_by_name(self):
+        # Created out of order, so ids and names sort differently.
+        later = models.Organization.objects.create(name='zephyr camp')
+        sooner = models.Organization.objects.create(name='Apple camp')
+        for organization in (later, self.other, sooner, self.organization):
+            publish_contract(organization)
+        self.assertEqual(self.pending(),
+                         [sooner.pk, self.organization.pk, self.other.pk, later.pk])
+
+
+class SectionHtmlTests(TestCase):
+    def test_markdown_without_raw_html_or_unsafe_links(self):
+        html = contracts.section_html(
+            '## Waiver\n\n<script>alert(1)</script>\n\n'
+            '[bad](javascript:alert(1)) [good](https://example.com) '
+            '<img src=x onerror=alert(1)>\n\n| a | b |\n|---|---|\n| 1 | 2 |')
+        self.assertIn('<h2>Waiver</h2>', html)
+        self.assertIn('<table>', html)
+        self.assertNotIn('<script', html)
+        self.assertNotIn('javascript:', html)
+        self.assertNotIn('onerror', html)
+        self.assertIn('<a target="_blank" rel="noopener noreferrer" href="https://example.com">',
+                      html)
+
+
+class PublishingEndsSignInsTests(APITestCase):
+    '''Publishing a version ends everyone's sign-ins but the publisher's own (DR-151).'''
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.organization = models.Organization.objects.create(name='Camp')
+        cls.admin = make_user(roles.ADMIN, 'ada')
+        cls.registrar = make_user(roles.REGISTRAR, 'reg')
+
+    def signed_in(self, user):
+        client = APIClient()
+        client.force_login(user)
+        return client
+
+    def publish(self, client):
+        draft = client.post('/api/contracts/', {'organization': self.organization.pk},
+                            format='json').data
+        client.patch(f'/api/contracts/{draft["id"]}/', {'sections': [
+            {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'Kept safe.'}]},
+            format='json')
+        response = client.post(f'/api/contracts/{draft["id"]}/publish/')
+        self.assertEqual(response.status_code, 200, response.data)
+        return response
+
+    def test_everyones_sessions_end_but_the_publishers(self):
+        from oauth2_provider.models import AccessToken, Application, RefreshToken
+
+        publisher = self.signed_in(self.admin)
+        publisher_elsewhere = self.signed_in(self.admin)
+        someone_else = self.signed_in(self.registrar)
+        anonymous = import_module(settings.SESSION_ENGINE).SessionStore()
+        anonymous['kept'] = True
+        anonymous.create()
+        app = Application.objects.create(
+            name='App', client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+            redirect_uris='https://app.example.com/cb')
+        for user in (self.admin, self.registrar):
+            models.ConnectedApp.objects.create(user=user, application=app, scope='read',
+                                               approved_at=timezone.now())
+            access = AccessToken.objects.create(
+                user=user, application=app, token=f'access-{user.pk}', scope='read',
+                expires=timezone.now() + datetime.timedelta(hours=1))
+            RefreshToken.objects.create(user=user, application=app,
+                                        token=f'refresh-{user.pk}', access_token=access)
+
+        self.publish(publisher)
+
+        # The publisher carries on, asked to agree straight away.
+        me = publisher.get('/api/user').json()
+        self.assertEqual(me['username'], 'ada')
+        self.assertEqual(me['pending_contract_organizations'], [self.organization.pk])
+        # Everyone else signs in again, the publisher's other browsers too.
+        self.assertEqual(someone_else.get('/api/user').json()['username'], '')
+        self.assertEqual(publisher_elsewhere.get('/api/user').json()['username'], '')
+        # A session that signs nobody in (an OAuth sign-in under way, say) is left.
+        self.assertTrue(anonymous.exists(anonymous.session_key))
+        # Every app's access ends, the publisher's apps included.
+        self.assertFalse(AccessToken.objects.exists())
+        self.assertFalse(RefreshToken.objects.exists())
+        self.assertFalse(models.ConnectedApp.objects.exists())
+        self.assertEqual(LogEntry.objects.filter(
+            content_type=ContentType.objects.get_for_model(models.ConnectedApp),
+            action=LogEntry.Action.DELETE).count(), 2)
+
+    def test_an_api_token_is_left_to_the_gate(self):
+        token = authentication.issue_token(self.registrar)
+        self.publish(self.signed_in(self.admin))
+        response = self.client.get('/api/user', HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.assertEqual(response.data['pending_contract_organizations'], [self.organization.pk])
+
+    def test_a_refused_publish_ends_nothing(self):
+        publisher = self.signed_in(self.admin)
+        someone_else = self.signed_in(self.registrar)
+        draft = publisher.post('/api/contracts/', {'organization': self.organization.pk},
+                               format='json').json()
+        response = publisher.post(f'/api/contracts/{draft["id"]}/publish/')
+        self.assertEqual(response.status_code, 400)  # an empty section
+        self.assertEqual(someone_else.get('/api/user').json()['username'], 'reg')
 
 
 class DraftingTests(APITestCase):

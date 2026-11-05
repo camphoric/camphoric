@@ -1,51 +1,50 @@
 /**
- * The contract gate (SPEC §4, §6; §15 DR-145). Past an organization in the admin
- * (`/admin/organization/:organizationId/…`), someone who has yet to agree to that
- * organization's latest contract version is asked to first; the server refuses
- * the organization's data until they do. Agreeing goes on to the URL asked for;
- * declining signs them out. The choosers above it stay open.
+ * The contract gate (SPEC §4, §6; §15 DR-145, DR-151). Someone signed in who has
+ * yet to agree to organizations' latest contract versions is asked for each in
+ * turn — in the order whoami lists them, with how far along they are — before
+ * anything of the admin shows; the server refuses those organizations' data
+ * until they do. Agreeing to the last goes on to the URL asked for; declining
+ * signs them out.
  *
- * Who must agree with what comes from whoami (`pending_contract_organizations`),
- * which session monitoring re-checks and a 403 `contract_agreement_required`
- * refreshes. When a new version is published while the organization's admin is
- * showing, the terms open over it, as signing in again does (DR-127): the admin
- * stays mounted, out of reach, so agreeing carries on with any unsaved edits.
+ * Who must agree with what comes from whoami (`pending_contract_organizations`).
+ * Publishing a version ends everyone's sign-ins but the publisher's (DR-151), so
+ * it's usually met on signing in again. When it's met with the admin already
+ * showing — the publisher, or someone signing back in over the admin they had
+ * (DR-127), or a 403 `contract_agreement_required` re-checking whoami — the
+ * terms open over it: the admin stays mounted, out of reach, so agreeing
+ * carries on with any unsaved edits.
  */
 
-import { useParams } from '@tanstack/react-router';
 import { useCurrentUser } from 'hooks/auth';
 import { type ReactNode, useState } from 'react';
 
 import { ContractPrompt } from './ContractPrompt';
 
-/** The organization the current admin URL is past, or null. */
-function useRouteOrganizationId(): number | null {
-  const params: { organizationId?: string } = useParams({ strict: false });
-  const id = Number(params.organizationId);
-  return params.organizationId && Number.isInteger(id) ? id : null;
-}
-
 export function ContractGate({ children }: { children: ReactNode }) {
-  const organizationId = useRouteOrganizationId();
   const { data: user } = useCurrentUser();
   const pending = user?.pending_contract_organizations ?? [];
-  const needsAgreement = organizationId !== null && pending.includes(organizationId);
+  const next = pending.length > 0 ? pending[0] : null;
 
-  // The organization whose admin is showing here, so a version published while
-  // it is is agreed to over it rather than in its place. Leaving it (for the
-  // choosers, or another organization) ends that.
-  const [shownFor, setShownFor] = useState<number | null>(null);
-  const showing = needsAgreement ? (shownFor === organizationId ? shownFor : null) : organizationId;
-  if (showing !== shownFor) setShownFor(showing);
+  // Once the admin has shown, terms open over it rather than in its place.
+  const [adminShown, setAdminShown] = useState(false);
+  if (next === null && !adminShown) setAdminShown(true);
 
-  if (!needsAgreement) return <>{children}</>;
-  if (shownFor === organizationId) {
+  // Every organization asked about since nothing was last pending, for "2 of 3".
+  const [asked, setAsked] = useState<number[]>([]);
+  const newlyPending = pending.filter((id) => !asked.includes(id));
+  if (newlyPending.length > 0) setAsked([...asked, ...newlyPending]);
+  if (next === null && asked.length > 0) setAsked([]);
+
+  if (next === null) return <>{children}</>;
+  const total = Math.max(asked.length, pending.length);
+  const progress = { position: total - pending.length + 1, total };
+  if (adminShown) {
     return (
       <>
         {children}
-        <ContractPrompt organizationId={organizationId} over />
+        <ContractPrompt key={next} organizationId={next} progress={progress} over />
       </>
     );
   }
-  return <ContractPrompt organizationId={organizationId} />;
+  return <ContractPrompt key={next} organizationId={next} progress={progress} />;
 }

@@ -1168,7 +1168,8 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
         '''
         Publish the draft. With `If-Match`, only the version of it the Admin
         read: 412 if it has been saved since (DR-109), as what's published
-        can't change afterwards.
+        can't change afterwards. Everyone's sign-ins end with it, but this
+        session, which whoami then asks to agree (DR-151).
         '''
         with transaction.atomic():
             conflict = self.version_conflict()
@@ -1178,6 +1179,7 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
                 contract = contracts.publish(self.get_object(), request.user)
             except contracts.ContractError as error:
                 raise serializers.Conflict(str(error))
+            contracts.end_sign_ins(keep_session_key=request.session.session_key)
         return Response(self.get_serializer(self.get_queryset().get(pk=contract.pk)).data)
 
     @action(detail=True, methods=['get'])

@@ -103,7 +103,7 @@ function OrganizationContracts({ organization }: { organization: ApiOrganization
                 onSuccess: (contract) =>
                   notifications.show({
                     color: 'green',
-                    message: `Published version ${contract.number}. Everyone will be asked to agree to it.`,
+                    message: `Published version ${contract.number}. Everyone else has been signed out, and will be asked to agree to it.`,
                   }),
               },
             )

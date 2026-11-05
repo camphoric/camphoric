@@ -601,8 +601,9 @@ export interface ApiUser {
   /** A superuser set this user's password; they must choose a new one first. */
   must_change_password: boolean;
   /**
-   * The organizations whose latest contract they have yet to agree to; until they
-   * do, the server refuses whatever reaches those organizations (SPEC §6; §15 DR-145).
+   * The organizations whose latest contract they have yet to agree to, in the order
+   * they're asked to (by name); until they do, the server refuses whatever reaches
+   * those organizations (SPEC §6; §15 DR-145, DR-151).
    */
   pending_contract_organizations: number[];
 }
