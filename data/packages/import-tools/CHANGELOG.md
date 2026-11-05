@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.2.1...camphoric-event-import-tools-v2.0.0) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **data:** @camphoric/camphoric-event-import-tools requires Node ^22.13.0 || >=23.5.0; Node 20 and Node 22 before 22.13.0 are no longer supported.
+
+### Bug Fixes
+
+* **data:** declare the Node versions the import tools run on ([e506ed3](https://github.com/camphoric/camphoric/commit/e506ed33910181d38b0a46b49e935e841d54e9b8))
+* **data:** send the payment step's quote from the import tools ([a804c0a](https://github.com/camphoric/camphoric/commit/a804c0a69570eaf7c6b73d699524354e48306997)), closes [#958](https://github.com/camphoric/camphoric/issues/958)
+* **deps:** bump ora from 9.4.1 to 10.0.0 in /data ([453dca8](https://github.com/camphoric/camphoric/commit/453dca8a1798bf6aeb781b00c7d435e3935c98ec))
+* **deps:** bump the minor-and-patch group in /data with 11 updates ([7b08ea4](https://github.com/camphoric/camphoric/commit/7b08ea47e53b68bb0f0144539225beb0d3665551))
+
 ## [1.2.1](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v1.2.0...camphoric-event-import-tools-v1.2.1) (2026-10-20)
 
 
