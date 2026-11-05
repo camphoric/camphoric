@@ -144,6 +144,18 @@ describe('ContractGate', () => {
     expect(screen.getByLabelText('Note').closest('[inert]')).toBeNull();
   });
 
+  it('asks in place of the organization when it’s reached again from the chooser', async () => {
+    const { becomes } = renderGate(pat([]));
+    route.params = {};
+    await becomes(pat([ORGANIZATION]));
+    // (Changed, so the gate renders at the new address.)
+    route.params = { organizationId: String(ORGANIZATION) };
+    await becomes(pat([ORGANIZATION, ORGANIZATION + 1]));
+    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Lark Camp terms' })).toBeInTheDocument();
+  });
+
   it('asks in place of another organization reached afterwards', async () => {
     const { becomes } = renderGate(pat([]));
     route.params = { organizationId: String(ORGANIZATION + 1) };

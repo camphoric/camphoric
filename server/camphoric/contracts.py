@@ -189,7 +189,12 @@ def pending_organization_ids(user):
 
 
 def forget_pending(user):
-    user.__dict__.pop('_camphoric_pending_contracts', None)
+    # An attribute, not the instance's __dict__: a session's request.user is a
+    # lazy wrapper, which passes deleting on to the user it wraps.
+    try:
+        del user._camphoric_pending_contracts
+    except AttributeError:
+        pass
 
 
 class ContractAgreementRequired(PermissionDenied):

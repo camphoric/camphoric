@@ -22,7 +22,7 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.test import APITestCase
 
 from camphoric import (
-    accounts, authentication, contracts, live_stream, models, roles, serializers)
+    accounts, authentication, contracts, deletes, live_stream, models, roles, serializers)
 from camphoric import urls as api_urls
 from tests.factories import create_template_event, make_user
 
@@ -183,6 +183,32 @@ class DraftingTests(APITestCase):
         self.assertEqual(self.client.post(f'/api/contracts/{draft["id"]}/publish/').status_code,
                          409)
 
+    def test_publishing_only_the_version_read(self):
+        draft = self.start().data
+        sections = [{'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'Changed.'}]
+        self.client.patch(f'/api/contracts/{draft["id"]}/', {'sections': sections},
+                          format='json')
+        response = self.client.post(f'/api/contracts/{draft["id"]}/publish/',
+                                    HTTP_IF_MATCH=f'"{draft["version"]}"')
+        self.assertEqual(response.status_code, 412)
+        self.assertIsNone(models.Contract.objects.get(pk=draft['id']).published_at)
+        response = self.client.post(f'/api/contracts/{draft["id"]}/publish/',
+                                    HTTP_IF_MATCH=f'"{draft["version"] + 1}"')
+        self.assertEqual(response.status_code, 200)
+
+    def test_an_organization_with_terms_nobody_agreed_to_can_be_deleted(self):
+        drafting = models.Organization.objects.create(name='Drafting')
+        contracts.start_draft(drafting)
+        self.assertEqual(
+            self.client.delete(f'/api/organizations/{drafting.pk}/').status_code, 204)
+        # Published, but nobody agreed (an Admin would have to agree to delete it here).
+        published = models.Organization.objects.create(name='Published')
+        publish_contract(published)
+        contracts.start_draft(published)
+        deletes.plan(published).carry_out()
+        self.assertFalse(models.Contract.objects.filter(
+            organization_id__in=[drafting.pk, published.pk]).exists())
+
     def test_a_published_version_cant_change_or_go(self):
         contract = self.publish()
         sections = [{'kind': 'privacy_policy', 'title': 'Changed', 'body': 'Changed'}]
@@ -306,6 +332,19 @@ class AgreeingTests(APITestCase):
         self.assertFalse(models.ContractAgreement.objects.exists())
         self.assertEqual(agree(self.client, self.organization, contract=newer).status_code, 200)
 
+    def test_a_body_that_isnt_an_object(self):
+        response = self.client.post(f'/api/organizations/{self.organization.pk}/contract/agree',
+                                    [1], format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_agreeing_clears_what_the_request_knew_was_pending(self):
+        from django.utils.functional import SimpleLazyObject
+        user = User.objects.get(pk=self.user.pk)
+        lazy = SimpleLazyObject(lambda: user)
+        self.assertEqual(contracts.pending_organization_ids(lazy), [self.organization.pk])
+        contracts.forget_pending(lazy)
+        self.assertFalse(hasattr(user, '_camphoric_pending_contracts'))
+
     def test_the_wording_they_agreed_with_is_required(self):
         response = agree(self.client, self.organization, assent_text='  ')
         self.assertEqual(response.status_code, 400)
@@ -361,6 +400,7 @@ class AgreeingTests(APITestCase):
         agree(self.client, self.organization)
         response = self.client.delete(f'/api/organizations/{self.organization.pk}/')
         self.assertEqual(response.status_code, 409)
+        self.assertIn('People have agreed to its terms.', response.data['detail'])
 
 
 class PrivacyPolicyTests(APITestCase):

@@ -15,9 +15,11 @@
  * navigating away from the URL (SPEC §6, DR-9).
  *
  * A 403 for terms the user has yet to agree to (`contract_agreement_required`)
- * means a new version was published: rather than report it, both caches re-check
- * who's signed in, whose answer names the organizations to agree with, so the
- * contract gate asks them to (SPEC §6, DR-145).
+ * means a new version was published: both caches re-check who's signed in, whose
+ * answer names the organizations to agree with, so the contract gate asks them
+ * to (SPEC §6, DR-145). A query's refusal isn't reported — the gate explains it
+ * — but a change's is, as it can be refused where there's no gate (renaming the
+ * organization from the chooser).
  */
 
 import { notifications } from '@mantine/notifications';
@@ -141,6 +143,7 @@ export const queryClient = new QueryClient({
     onError: (error, _variables, _context, mutation) => {
       if (explainedByWhoAmI(error)) {
         void queryClient.invalidateQueries({ queryKey: WHOAMI });
+        if (contractAgreementRequired(error) !== null) reportFailure(error, mutation.meta);
         return;
       }
       if (sessionLapsed(error)) {
