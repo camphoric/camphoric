@@ -305,9 +305,16 @@ class TermsBeforeConsentTests(OAuthTestCase):
         second = self.client.get(url)
         self.assertEqual(second.context['contract'].organization, self.camp)
         self.assertContains(second, 'Organization 2 of 2')
-        # Its Markdown, rendered and sanitized.
-        self.assertContains(second, '<strong>Bold</strong> waiver')
+        # Its Markdown as written, every word of it, for the page's script to render as
+        # the admin does; any HTML in it is text until then.
+        self.assertContains(
+            second, '<div data-terms-markdown>**Bold** waiver &lt;script&gt;alert(1)&lt;/script&gt;'
+            '</div>', html=False)
         self.assertNotContains(second, '<script>alert(1)')
+        self.assertContains(second, '<script type="module" src="/static/terms-markdown.js">')
+        with override_settings(CAMPHORIC_VERSION='1.2.3'):
+            self.assertContains(self.client.get(url),
+                                'src="/static/terms-markdown.js?v=1.2.3"')
 
         self.agree_to_shown(url, second)
         consent = self.client.get(url)

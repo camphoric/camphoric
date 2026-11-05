@@ -92,7 +92,8 @@ behaviors specified throughout this document.
 
 - **Language/Framework:** React (function components + hooks) in TypeScript.
 - **Build tool:** Vite. Dev server on port 3000; build output to `build/` with hashed assets
-  under `static/`.
+  under `static/`, plus one script at a fixed name, `static/terms-markdown.js`, that the server's
+  OAuth terms page loads to render contract Markdown (§6; §15, DR-151).
 - **Server-state / data fetching:** TanStack Query (React Query) for all API reads and
   mutations, with query-key invalidation (see §5).
 - **Client state:** Zustand for the small amount of genuine client state (the in-progress
@@ -1238,8 +1239,12 @@ hooks):
     it's shown every time, and an app can't skip it. It refuses anyone with no permission group
     or a password to change. Before it, at the same URL, someone with organizations' terms to
     agree to is asked for each in turn, as the admin asks (*Agreeing to an organization's terms*,
-    below), on pages the server renders, the Markdown rendered by the server (GitHub-flavoured,
-    raw HTML and unsafe links left out, links opening in a new tab); no code is issued until
+    below), on pages the server renders. Each section's Markdown is sent as written and rendered
+    in the page by the client's own sanitizing pipeline (§9.3) — a script the client build
+    provides at `static/terms-markdown.js`, loaded with the release as its query so a new
+    release isn't served the last one's copy — so it reads exactly as in the admin, with every
+    link opening in a new tab so the page stays put; until the script runs, or if it doesn't
+    load, the Markdown shows as written. No code is issued until
     nothing is pending, and declining signs them out and sends the app `error=access_denied`, as
     Cancel does (§15, DR-151). Connecting records the connection with the scopes approved,
     replacing any earlier approval of the same app and the tokens it gave; the app is sent back to its redirect URI, which must
@@ -6412,9 +6417,10 @@ never given a token for someone the gate would refuse. Publishing a version ends
 sign-ins at once, in the same transaction: every web session that signs someone in, except the
 publisher's session, which is asked to agree straight away, and every app's OAuth access (the
 publisher's apps too). So everyone else meets the new terms when they next sign in, and each app
-when its person connects it again. The OAuth agreement pages are rendered by the server, with
-the Markdown rendered there (cmark-gfm's safe mode: raw HTML and unsafe links left out). The
-admin client asks in its own screens. API tokens for scripts are left; the gate still refuses
+when its person connects it again. The OAuth agreement pages are rendered by the server; each
+section's Markdown goes out as written, and a script from the client build renders it in place
+with the admin's own pipeline (§9.3), so both show the same text, and the Markdown stays
+readable as written if the script doesn't load. The admin client asks in its own screens. API tokens for scripts are left; the gate still refuses
 them. Publishing is for people only (403 `app_not_allowed`), as agreeing is (DR-147): an app
 could otherwise sign everyone out and disconnect every app. The gate stays, as the backstop.
 **Context:** #980. With OAuth (DR-146 to DR-150), someone could sign in at `/o/login/`, approve
@@ -6432,9 +6438,12 @@ would keep their tokens and fail with an error they can't fix. Sending the admin
 server's pages too, for one flow — loses signing in again in place (DR-127) and needs a
 server-checked redirect back to the client. Signing out the publisher as well — they'd be asked
 anyway, and would lose the page they published from. Ending API tokens too — a script still
-can't agree, and its user signing in again is what fixes it either way. A new Markdown
-sanitizer on the server (nh3) to allow the raw HTML the client's pipeline allows — terms don't
-need it, and cmark-gfm is already a dependency.
+can't agree, and its user signing in again is what fixes it either way. Rendering the Markdown on
+the server with cmark-gfm's safe mode — it drops raw HTML blocks with their text, so a clause the
+admin shows could be missing from what an app's person agrees to, while the agreement records
+the hash of the whole. A second sanitizer on the server (nh3) — another pipeline to keep in step
+with §9.3, which could still disagree. Refusing raw HTML in terms — the admin already allows it,
+and versions published with it would still differ.
 
 ---
 
