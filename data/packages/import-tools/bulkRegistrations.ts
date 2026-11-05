@@ -134,6 +134,8 @@ export interface BulkRegistrationOptions {
 interface StepResponse {
   registrationUUID: string;
   serverPricingResults?: { total?: unknown };
+  // What the payment step asks for, sent back to complete at that price
+  quote?: string;
 }
 
 class BulkRegistrar extends Fetcher {
@@ -228,7 +230,9 @@ export async function runBulkRegistrations({ eventName, makeRegistration }: Bulk
 
     // Choosing "pay by check" completes the registration (unpaid until the
     // check comes in, which is recorded below for some of them).
-    await registrar.post(event, { step: 'payment', registrationUUID: reg.registrationUUID, paymentType: 'Check' });
+    await registrar.post(event, {
+      step: 'payment', registrationUUID: reg.registrationUUID, paymentType: 'Check', quote: reg.quote,
+    });
 
     const total = Number(reg.serverPricingResults?.total) || 0;
     const roll = gen.rand();
