@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.1...camphoric-event-import-spec-v1.0.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** bump the minor-and-patch group in /data with 11 updates ([7b08ea4](https://github.com/camphoric/camphoric/commit/7b08ea47e53b68bb0f0144539225beb0d3665551))
+
 ## [1.0.1](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.0...camphoric-event-import-spec-v1.0.1) (2026-10-20)
 
 
