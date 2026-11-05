@@ -7,7 +7,10 @@ nothing but the server:
 
 - /o/login/ signs a person in and returns them to the consent page.
 - /o/authorize/ is the consent page: it names the app, who is signed in, and
-  what the app asks for, and records the approval (`ConnectedApp`).
+  what the app asks for, and records the approval (`ConnectedApp`). Before it,
+  the signed-in person agrees to each organization's terms they have yet to
+  agree to, in turn (DR-151); declining signs them out and tells the app
+  `access_denied`.
 - /o/switch-account/ signs out and back in as someone else, keeping the request.
 - /o/token/ and /o/revoke_token/ are the toolkit's, throttled per address.
 
@@ -37,6 +40,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
+from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.generators import generate_client_secret
 from oauth2_provider.models import AccessToken, Application, RefreshToken
 from oauth2_provider.views import AuthorizationView, RevokeTokenView, TokenView
@@ -47,7 +51,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from camphoric import accounts, models, oauth, roles
+from camphoric import accounts, contracts, models, oauth, roles
 from camphoric.permissions import AnyRole, IsAdmin
 from camphoric.serializers import ModelSerializer
 from camphoric.throttles import throttle_login, throttle_oauth_token
@@ -94,13 +98,19 @@ def refusal(user):
 
 ROLE_NAMES = {roles.ADMIN: 'Admin', roles.REGISTRAR: 'Registrar', roles.REPORTER: 'Reporter'}
 
+# How many organizations' terms the person has agreed to on the way to the
+# consent page, for "2 of 3"; forgotten once the consent page shows.
+TERMS_AGREED = 'camphoric_oauth_terms_agreed'
+
 
 class AuthorizeView(AuthorizationView):
     '''
     The consent page (the toolkit's authorization endpoint). Someone signed out
     is sent to /o/login/ first. It's refused to anyone who couldn't use the app's
-    access: no permission group, or a password to change. Approving records the
-    connection, with the scopes approved.
+    access: no permission group, or a password to change. Then, while the person
+    has organizations' terms to agree to, it asks for each in turn instead
+    (`ask_to_agree`), and issues no code. Approving records the connection, with
+    the scopes approved.
     '''
     template_name = 'camphoric/oauth/authorize.html'
     login_url = LOGIN_PATH
@@ -117,7 +127,82 @@ class AuthorizeView(AuthorizationView):
                 return render(request, 'camphoric/oauth/message.html', {
                     'title': 'You can\'t connect apps', 'message': problem,
                     'user': request.user}, status=403)
+            if contracts.pending_organization_ids(request.user):
+                return self.ask_to_agree(request)
+            request.session.pop(TERMS_AGREED, None)
         return super().dispatch(request, *args, **kwargs)
+
+    def ask_to_agree(self, request):
+        '''
+        The terms of the first organization the person has yet to agree to (in
+        the order whoami lists them, DR-151), on the consent page's URL, so the
+        app's request is kept. Agreeing records it as the admin client does
+        (DR-145) and comes back here, for the next or, after the last, the
+        consent page. Declining signs out and sends the app `access_denied`. Any
+        other post (the consent form, sent while terms are pending) comes back
+        here too: no code is issued until nothing is pending.
+        '''
+        decision = request.POST.get('terms') if request.method == 'POST' else None
+        if request.method == 'POST' and decision not in ('agree', 'decline'):
+            return HttpResponseRedirect(request.get_full_path())
+        self.oauth2_data = {}
+        try:
+            scopes, credentials = self.validate_authorization_request(request)
+        except OAuthToolkitError as error:
+            return self.error_response(error, application=None)
+        application = Application.objects.get(client_id=credentials['client_id'])
+
+        error = None
+        if decision == 'decline':
+            logout(request)
+            try:
+                self.create_authorization_response(
+                    request=request, scopes=' '.join(scopes), credentials=credentials,
+                    allow=False)
+            except OAuthToolkitError as denied:
+                return self.error_response(denied, application)
+        if decision == 'agree':
+            error = self.agree(request)
+            if error is None:
+                request.session[TERMS_AGREED] = request.session.get(TERMS_AGREED, 0) + 1
+                return HttpResponseRedirect(request.get_full_path())
+
+        pending = contracts.pending_organization_ids(request.user)
+        if not pending:
+            # Agreed meanwhile (in another tab): on to the consent page.
+            return HttpResponseRedirect(request.get_full_path())
+        contract = contracts.latest_contract(pending[0])
+        agreed = request.session.get(TERMS_AGREED, 0)
+        return render(request, 'camphoric/oauth/terms.html', {
+            'application': application,
+            'user': request.user,
+            'role_name': ROLE_NAMES.get(roles.role_of(request.user), ''),
+            'switch_next': request.get_full_path(),
+            'contract': contract,
+            'organization_name': contract.organization.name,
+            'sections': [{'title': section.title, 'html': contracts.section_html(section.body)}
+                         for section in contract.sections.all()],
+            'privacy_policy_path': f'/organizations/{contract.organization_id}/privacy-policy',
+            'position': agreed + 1,
+            'total': agreed + len(pending),
+            'assent_text': contracts.ASSENT_TEXT,
+            'error': error,
+        }, status=409 if error else 200)
+
+    @staticmethod
+    def agree(request):
+        '''Record the agreement posted; the reason it can't be, or None once it is.'''
+        organization_id = request.POST.get('organization', '')
+        organization = models.Organization.objects.filter(
+            pk=int(organization_id)).first() if organization_id.isdigit() else None
+        if organization is None:
+            return 'These terms have changed since you opened them. Read them again, then agree.'
+        try:
+            contracts.agree(request, organization, request.POST.get('contract_id'),
+                            request.POST.get('content_sha256'), contracts.ASSENT_TEXT)
+        except contracts.ContractError as problem:
+            return str(problem)
+        return None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

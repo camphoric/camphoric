@@ -5,7 +5,7 @@ Third-party apps — the first is
 Camphoric's API **on behalf of the Camphoric users who approve them**, through OAuth 2.0. The app
 never sees anyone's password, can be limited to reading, and its access can be ended for one person
 or for everyone at once. The contract is in [SPEC_CLIENT_V2.md](../SPEC_CLIENT_V2.md) §6 and §8.10,
-and the reasons in its decision records DR-146 to DR-150.
+and the reasons in its decision records DR-146 to DR-151.
 
 ```mermaid
 sequenceDiagram
@@ -14,7 +14,8 @@ sequenceDiagram
     participant Camphoric
     Person->>App: "Connect Camphoric"
     App->>Camphoric: GET /o/authorize/ (client_id, redirect_uri, scope, state, PKCE challenge)
-    Camphoric->>Person: Sign in (if needed), then the consent page
+    Camphoric->>Person: Sign in (if needed), each organization's pending terms in turn, then the consent page
+    Person->>Camphoric: Agree to each
     Person->>Camphoric: Connect
     Camphoric->>App: redirect_uri?code=…&state=…&iss=…
     App->>Camphoric: POST /o/token/ (code, verifier, client_id, client_secret)
@@ -67,7 +68,10 @@ endpoints with its client ID and secret, in the body (`client_secret_post`) or a
 2. Camphoric asks them to **sign in** if they aren't, then shows the **consent page**: the app's
    name, who they're signed in as (and a way to sign in as someone else), and what the app asks
    for. Someone without a Camphoric permission group, or with a password to change, can't connect
-   apps.
+   apps. Before the consent page, they're asked to **agree to the terms** of every organization
+   whose latest terms they haven't agreed to yet, one after another (sorted by name, "2 of 3").
+   No code is issued until they've agreed to all of them; **declining** signs them out and sends
+   them to the redirect URI with `error=access_denied`, as Cancel does.
 3. **Connect** sends them to the redirect URI with `code`, the `state` sent (check it), and `iss`,
    the server's address (check it too: RFC 9207). **Cancel** sends `error=access_denied`.
 4. **Exchange the code** within a minute, once: `POST /o/token/` with `grant_type=authorization_code`,
@@ -86,8 +90,10 @@ scopes **and** to the person's Camphoric permission group as it is now: a Report
 change anything, whatever its scopes. A request outside its scopes is refused with
 `403 { "code": "insufficient_scope" }`. No app may manage users, apps or connections, change a
 password, or agree to an organization's terms: `403 { "code": "app_not_allowed" }`. Everything else
-answers as it would to the person, including `403 { "code": "contract_agreement_required" }` until
-they've agreed to an organization's terms in the Camphoric admin.
+answers as it would to the person. Connecting asks the person to agree to every organization's
+terms first, and publishing new terms ends every app's access (below), so an app shouldn't meet
+`403 { "code": "contract_agreement_required" }`; if it does (terms published in the moment between
+connecting and calling), show the person "Connect Camphoric" again.
 
 ## Calling the API
 
@@ -120,7 +126,12 @@ At once, with every token deleted, when:
   **Apps** › the app's menu › **Who's connected**), or removes the app, ending everyone's access;
 - the person is deactivated;
 - the person's password changes, however it's changed — they connect their apps again
-  afterwards.
+  afterwards;
+- an Admin publishes a new version of any organization's terms, which ends **every** app's access
+  for **everyone**, so each person meets the new terms when they connect again.
+
+The app sees a `401` on its next call and `400 { "error": "invalid_grant" }` when it refreshes:
+show the person "Connect Camphoric" again.
 
 Approving the app again replaces the earlier approval: the tokens from before stop working, and
 the app has only what was approved the second time.

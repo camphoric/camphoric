@@ -1,7 +1,7 @@
 /**
- * The organization's latest terms, to agree to or decline (SPEC §6; §15 DR-145):
- * a page of its own in place of the admin, or, `over` an admin already showing,
- * a prompt nothing underneath can be reached past (DR-127).
+ * The organization's latest terms, to agree to or decline (SPEC §6; §15 DR-145,
+ * DR-151): a page of its own in place of the admin, or, `over` an admin already
+ * showing, a prompt nothing underneath can be reached past (DR-127).
  */
 
 import {
@@ -16,7 +16,7 @@ import {
   Stack,
 } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { ASSENT_TEXT, ContractAgreementForm } from 'components/Contract';
+import { ASSENT_TEXT, ContractAgreementForm, type ContractProgress } from 'components/Contract';
 import { useLogout, WHOAMI_KEY } from 'hooks/auth';
 import { useOnlyReachable } from 'navigation/useOnlyReachable';
 import { type ReactNode, useEffect } from 'react';
@@ -25,11 +25,13 @@ import { apiErrorMessage } from 'utils/fetch';
 
 interface ContractPromptProps {
   organizationId: number;
+  /** Where these terms come among those to agree to now. */
+  progress?: ContractProgress;
   /** Open over the admin, which stays as it is underneath. */
   over?: boolean;
 }
 
-export function ContractPrompt({ organizationId, over = false }: ContractPromptProps) {
+export function ContractPrompt({ organizationId, progress, over = false }: ContractPromptProps) {
   const client = useQueryClient();
   const contract = useOrganizationContract(organizationId);
   const agree = useAgreeToContract(organizationId);
@@ -80,6 +82,7 @@ export function ContractPrompt({ organizationId, over = false }: ContractPromptP
     body = (
       <ContractAgreementForm
         contract={contract.data.contract}
+        progress={progress}
         error={agree.isError ? apiErrorMessage(agree.error) : null}
         agreeing={agree.isPending}
         declining={logout.isPending}

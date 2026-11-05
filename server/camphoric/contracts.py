@@ -19,16 +19,29 @@ the records of organizations the user still has to agree with
 (`ContractGateFilterBackend`, `exclude_pending`). The permission classes
 (camphoric.permissions) call the checks here, so every view behind a Camphoric
 role is gated unless it says `skips_contract_gate`.
+
+People are asked to agree when they sign in, to every organization pending, in
+turn (§15 DR-151): the admin client after `/api/login`, and the OAuth consent
+page (camphoric.oauth_views) before it lets an app have a code. So publishing a
+version ends everyone's sign-ins (`end_sign_ins`): web sessions but the
+publisher's own, and every app's access, so each person meets the new version
+when they next sign in, and each app when its person connects it again. The
+gate stays, as the backstop.
 '''
 
 import hashlib
 import ipaddress
 import json
+import re
+from importlib import import_module
 
+import cmarkgfm
 from django.conf import settings
+from django.contrib.auth import SESSION_KEY
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Max, Model, OuterRef, Q, Subquery
+from django.db.models.functions import Lower
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import BaseFilterBackend
@@ -37,6 +50,10 @@ from rest_framework.throttling import BaseThrottle
 from camphoric import models
 
 CONTRACT_AGREEMENT_REQUIRED = 'contract_agreement_required'
+
+# The wording of the agree action on the server's pages, recorded with each
+# agreement; the same as the admin client's (client/src/components/Contract).
+ASSENT_TEXT = 'I agree'
 
 DEFAULT_PRIVACY_POLICY_TITLE = 'Privacy Policy'
 
@@ -174,16 +191,19 @@ _UNSET = object()
 def pending_organization_ids(user):
     '''
     The ids of the organizations whose latest version the user hasn't agreed
-    to, sorted; empty for someone not signed in.
+    to, in the order they're asked to agree: by the organizations' names. Empty
+    for someone not signed in.
     '''
     if user is None or not user.is_authenticated:
         return []
     # Cached on the user object: a request checks it more than once.
     pending = getattr(user, '_camphoric_pending_contracts', _UNSET)
     if pending is _UNSET:
-        pending = sorted(latest_contracts()
-                         .exclude(agreements__user=user)
-                         .values_list('organization_id', flat=True))
+        pending = list(latest_contracts()
+                       .exclude(agreements__user=user)
+                       .order_by(Lower('organization__name'), 'organization__name',
+                                 'organization_id')
+                       .values_list('organization_id', flat=True))
         user._camphoric_pending_contracts = pending
     return pending
 
@@ -325,6 +345,18 @@ def content_sha256(sections):
     return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
 
 
+def section_html(body):
+    '''
+    A section's Markdown as HTML for a page the server renders (the OAuth consent
+    page's terms; the admin client renders its own, SPEC §9.3): GitHub-flavoured,
+    with raw HTML and unsafe links left out, and links opening in a new tab so
+    the page asking for agreement stays put.
+    '''
+    html = cmarkgfm.github_flavored_markdown_to_html(body or '')
+    # Safe mode writes every link as `<a href="…"`; nothing else can, since raw HTML is omitted.
+    return re.sub(r'<a href=', '<a target="_blank" rel="noopener noreferrer" href=', html)
+
+
 def privacy_policy_section(contract):
     return contract.sections.filter(kind=models.ContractSectionKind.PRIVACY_POLICY).first()
 
@@ -404,7 +436,8 @@ def replace_sections(contract, sections):
 def publish(contract, user):
     '''
     Publish the draft as the organization's next version. A section with an
-    empty title or body is refused. Everyone then needs to agree again.
+    empty title or body is refused. Everyone then needs to agree again; the
+    view publishing it ends their sign-ins too (`end_sign_ins`).
     '''
     with transaction.atomic():
         contract = models.Contract.objects.select_for_update().get(pk=contract.pk)
@@ -426,6 +459,27 @@ def publish(contract, user):
         contract.published_by = user
         contract.save()
         return contract
+
+
+def end_sign_ins(keep_session_key=None):
+    '''
+    End everyone's sign-ins, once a version is published (DR-151): every web
+    session that signs someone in, except `keep_session_key` (the publisher's,
+    who is asked to agree straight away), and every app's OAuth access, the
+    publisher's apps included. Each person then meets the new version when they
+    next sign in. API tokens for scripts are left; the gate refuses them until
+    their user agrees.
+    '''
+    # Imported here: camphoric.oauth reaches this module through camphoric.permissions.
+    from camphoric import oauth
+
+    store = import_module(settings.SESSION_ENGINE).SessionStore
+    sessions = store.get_model_class().objects.filter(expire_date__gt=timezone.now())
+    for session in sessions.exclude(session_key=keep_session_key or '').iterator():
+        if SESSION_KEY in store().decode(session.session_data):
+            # By the store, so a cached session goes from the cache too.
+            store(session.session_key).delete()
+    oauth.revoke_everyone()
 
 
 # --- Agreeing -----------------------------------------------------------------------

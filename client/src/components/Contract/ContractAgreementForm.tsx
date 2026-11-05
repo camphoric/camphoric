@@ -10,11 +10,20 @@ import type { ApiPublishedContract } from 'api-types';
 
 import { ContractText, formatEffectiveDate } from './ContractText';
 
-/** The wording of the agree action, recorded with each agreement. */
+/** The wording of the agree action, recorded with each agreement (the server's pages
+ * use the same: `ASSENT_TEXT` in server/camphoric/contracts.py). */
 export const ASSENT_TEXT = 'I agree';
+
+/** Where these terms come among those asked for one after another (DR-151). */
+export interface ContractProgress {
+  position: number;
+  total: number;
+}
 
 interface ContractAgreementFormProps {
   contract: ApiPublishedContract;
+  /** Shown as "Organization 2 of 3" when there's more than one to agree to. */
+  progress?: ContractProgress;
   /** The terms changed since this version was opened, or agreeing failed. */
   error?: string | null;
   agreeing?: boolean;
@@ -27,6 +36,7 @@ interface ContractAgreementFormProps {
 
 export function ContractAgreementForm({
   contract,
+  progress,
   error,
   agreeing = false,
   declining = false,
@@ -38,6 +48,11 @@ export function ContractAgreementForm({
   return (
     <Stack>
       <div>
+        {progress && progress.total > 1 && (
+          <Text size="sm" c="dimmed">
+            Organization {progress.position} of {progress.total}
+          </Text>
+        )}
         <Title order={3}>{contract.organization_name} terms</Title>
         <Text size="sm" c="dimmed">
           Version {contract.number}, effective {formatEffectiveDate(contract.published_at)}

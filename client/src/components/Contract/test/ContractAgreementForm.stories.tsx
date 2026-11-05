@@ -1,6 +1,6 @@
 /**
  * Stories for the contract an organization asks people to agree to before
- * reaching it (SPEC §6; §15 DR-145): its text, and agreeing or declining.
+ * reaching it (SPEC §6; §15 DR-145, DR-151): its text, and agreeing or declining.
  * Run `npm run storybook`.
  */
 
@@ -27,6 +27,8 @@ function Frame(props: Partial<Parameters<typeof ContractAgreementForm>[0]>) {
 export default { title: 'Contract Agreement Form' } satisfies Meta;
 
 export const AskingToAgree: StoryFn = () => <Frame />;
+/** One of several organizations asked for in turn after signing in (DR-151). */
+export const OneOfSeveral: StoryFn = () => <Frame progress={{ position: 2, total: 3 }} />;
 export const Agreeing: StoryFn = () => <Frame agreeing />;
 export const TermsChanged: StoryFn = () => (
   <Frame error="These terms have changed since you opened them. Read the latest version, then agree to it." />

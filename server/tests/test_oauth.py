@@ -22,7 +22,8 @@ from oauth2_provider.models import AccessToken, Application, Grant, RefreshToken
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from camphoric import models, oauth, roles
+from camphoric import contracts, models, oauth, roles
+from camphoric import oauth_views as views_module
 from camphoric.throttles import OAuthTokenThrottle
 from tests.factories import create_template_event, make_user
 
@@ -256,6 +257,129 @@ class AuthorizationFlowTests(OAuthTestCase):
         self.connect(self.registrar)
         entry = LogEntry.objects.get_for_model(models.ConnectedApp).get()
         self.assertEqual((entry.action, entry.actor), (LogEntry.Action.CREATE, self.registrar))
+
+
+def publish_terms(organization, waiver='Use at your own risk.'):
+    draft = contracts.start_draft(organization)
+    contracts.replace_sections(draft, [
+        {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'We keep it safe.'},
+        {'kind': 'custom', 'title': 'Liability Waiver', 'body': waiver},
+    ])
+    return contracts.publish(draft, None)
+
+
+class TermsBeforeConsentTests(OAuthTestCase):
+    '''Each organization's pending terms, in turn, before the consent page (DR-151).'''
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.camp = cls.made.organization  # "Camp Org"
+        cls.another = models.Organization.objects.create(name='Another camp')
+        publish_terms(cls.camp, waiver='**Bold** waiver <script>alert(1)</script>')
+        publish_terms(cls.another)
+
+    def start(self, user=None):
+        _, challenge = pkce_pair()
+        self.client.force_login(user or self.registrar)
+        return self.authorize_query(challenge=challenge)
+
+    def agree_to_shown(self, url, page, **headers):
+        contract = page.context['contract']
+        return self.client.post(url, {
+            'terms': 'agree', 'organization': contract.organization_id,
+            'contract_id': contract.pk, 'content_sha256': contract.content_sha256}, **headers)
+
+    def test_each_organization_in_turn_by_name_then_the_consent_page(self):
+        url = self.start()
+        first = self.client.get(url)
+        self.assertEqual(first.status_code, 200)
+        self.assertTemplateUsed(first, 'camphoric/oauth/terms.html')
+        self.assertEqual(first.context['contract'].organization, self.another)
+        self.assertContains(first, 'Organization 1 of 2')
+        self.assertContains(first, 'Lark admin tool')
+        self.assertContains(first, f'/organizations/{self.another.pk}/privacy-policy')
+
+        response = self.agree_to_shown(url, first)
+        self.assertEqual(response['Location'], url)
+        second = self.client.get(url)
+        self.assertEqual(second.context['contract'].organization, self.camp)
+        self.assertContains(second, 'Organization 2 of 2')
+        # Its Markdown, rendered and sanitized.
+        self.assertContains(second, '<strong>Bold</strong> waiver')
+        self.assertNotContains(second, '<script>alert(1)')
+
+        self.agree_to_shown(url, second)
+        consent = self.client.get(url)
+        self.assertTemplateUsed(consent, 'camphoric/oauth/authorize.html')
+        self.assertNotIn(views_module.TERMS_AGREED, self.client.session)
+
+    @freeze_time(NOW)
+    @override_settings(CAMPHORIC_VERSION='9.9.9')
+    def test_agreeing_records_what_the_admin_client_does(self):
+        url = self.start()
+        self.agree_to_shown(url, self.client.get(url), HTTP_USER_AGENT='Firefox 200',
+                            REMOTE_ADDR='203.0.113.5')
+        agreement = models.ContractAgreement.objects.get()
+        self.assertEqual((agreement.organization, agreement.user), (self.another, self.registrar))
+        self.assertEqual(agreement.contract, contracts.latest_contract(self.another.pk))
+        self.assertEqual((agreement.agreed_at, agreement.username, agreement.ip_address,
+                          agreement.user_agent, agreement.assent_text, agreement.app_version),
+                         (NOW, 'registrar', '203.0.113.5', 'Firefox 200', 'I agree', '9.9.9'))
+        self.assertEqual(agreement.content_sha256, agreement.contract.content_sha256)
+
+    def test_no_code_while_terms_are_pending(self):
+        url = self.start()
+        response = self.client.post(url, {
+            'client_id': self.app.client_id, 'redirect_uri': REDIRECT_URI,
+            'response_type': 'code', 'state': 'xyz', 'scope': 'read write', 'allow': 'Authorize'})
+        self.assertEqual(response['Location'], url)
+        self.assertFalse(Grant.objects.exists())
+        self.assertFalse(models.ConnectedApp.objects.exists())
+
+    def test_declining_signs_out_and_tells_the_app(self):
+        url = self.start()
+        response = self.client.post(url, {'terms': 'decline'})
+        location = urlparse(response['Location'])
+        self.assertEqual(f'{location.scheme}://{location.netloc}{location.path}', REDIRECT_URI)
+        query = parse_qs(location.query)
+        self.assertEqual((query['error'], query['state']), (['access_denied'], ['xyz']))
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertFalse(models.ContractAgreement.objects.exists())
+        self.assertFalse(Grant.objects.exists())
+
+    def test_terms_changed_since_they_were_shown(self):
+        url = self.start()
+        page = self.client.get(url)
+        publish_terms(self.another, waiver='Changed.')
+        response = self.agree_to_shown(url, page)
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, 'changed since you opened them', status_code=409)
+        self.assertContains(response, 'Changed.', status_code=409)
+        self.assertFalse(models.ContractAgreement.objects.exists())
+
+    def test_an_invalid_request_isnt_asked_about(self):
+        self.client.force_login(self.registrar)
+        response = self.client.get(self.authorize_query(redirect_uri='https://evil.example.com/'))
+        self.assertTemplateNotUsed(response, 'camphoric/oauth/terms.html')
+        self.assertFalse(response.has_header('Location')
+                         and 'evil.example.com' in response['Location'])
+
+    def test_signing_in_leads_to_the_terms(self):
+        url = self.authorize_query(challenge=pkce_pair()[1])
+        login = f'/o/login/?{urlencode({"next": url})}'
+        self.client.post(login, {'username': 'registrar', 'password': 'password', 'next': url})
+        self.assertTemplateUsed(self.client.get(url), 'camphoric/oauth/terms.html')
+
+    def test_an_app_connected_afterwards_isnt_refused_for_terms(self):
+        url = self.start()
+        for _ in range(2):
+            self.agree_to_shown(url, self.client.get(url))
+        self.client.logout()
+        tokens = self.connect(self.registrar)
+        event = self.made.event
+        response = self.api('get', f'/api/events/{event.pk}/', tokens['access_token'])
+        self.assertEqual(response.status_code, 200, response.content)
 
 
 class ScopeAndRoleTests(OAuthTestCase):

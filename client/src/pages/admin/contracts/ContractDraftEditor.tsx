@@ -4,7 +4,7 @@
  * edited and moved; the privacy policy section can be retitled, edited and
  * moved, but not removed. Saving sends the whole list in its new order;
  * publishing (once saved) makes it the next version, which everyone must then
- * agree to.
+ * agree to — signing everyone else out and disconnecting every app (DR-151).
  */
 
 import {
@@ -176,8 +176,9 @@ export function ContractDraftEditor({
           <Stack>
             <Text size="sm">
               Everyone — you included — will need to agree to it before they can reach{' '}
-              {organizationName} again, even if only a typo changed. Once published, it can’t be
-              changed.
+              {organizationName} again, even if only a typo changed. Everyone else is signed out,
+              and every connected app is disconnected until its user connects it again; you’ll be
+              asked to agree straight away. Once published, it can’t be changed.
             </Text>
             <FormActions>
               <Button variant="default" onClick={() => setConfirmingPublish(false)}>

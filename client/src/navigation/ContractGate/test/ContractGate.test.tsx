@@ -10,10 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContractGate } from '../ContractGate';
 
-const route: { params: { organizationId?: string } } = vi.hoisted(() => ({ params: {} }));
 const calls = vi.hoisted(() => ({ agree: vi.fn(), logout: vi.fn() }));
 
-vi.mock('@tanstack/react-router', () => ({ useParams: () => route.params }));
 vi.mock('utils/fetch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('utils/fetch')>()),
   apiFetch: () => new Promise(() => undefined),
@@ -77,34 +75,37 @@ function renderGate(user: ApiUser) {
 
 describe('ContractGate', () => {
   beforeEach(() => {
-    route.params = { organizationId: String(ORGANIZATION) };
     calls.agree.mockReset();
     calls.logout.mockReset();
   });
 
-  it('lets someone who has agreed through', () => {
+  it('lets someone through who has nothing to agree to', () => {
     renderGate(pat([]));
     expect(screen.getByLabelText('Note')).toBeInTheDocument();
   });
 
-  it('leaves the choosers open', () => {
-    route.params = {};
-    renderGate(pat([ORGANIZATION]));
-    expect(screen.getByLabelText('Note')).toBeInTheDocument();
-  });
-
-  it('gates only the organizations still to agree with', () => {
-    renderGate(pat([ORGANIZATION + 1]));
-    expect(screen.getByLabelText('Note')).toBeInTheDocument();
-  });
-
-  it('asks for agreement in place of the organization', () => {
+  it('asks before anything of the admin shows, wherever they were headed', () => {
     renderGate(pat([ORGANIZATION]));
     expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Lark Camp terms' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Privacy Policy' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Liability Waiver' })).toBeInTheDocument();
     expect(screen.getByText(/agree to them\. If you don’t agree/)).toBeInTheDocument();
+    // Only one to agree to: no count.
+    expect(screen.queryByText(/Organization 1 of/)).not.toBeInTheDocument();
+  });
+
+  it('asks for each organization in turn, then goes on', async () => {
+    const { becomes } = renderGate(pat([ORGANIZATION, ORGANIZATION + 1, ORGANIZATION + 2]));
+    expect(screen.getByText('Organization 1 of 3')).toBeInTheDocument();
+    await becomes(pat([ORGANIZATION + 1, ORGANIZATION + 2]));
+    expect(screen.getByText('Organization 2 of 3')).toBeInTheDocument();
+    await becomes(pat([ORGANIZATION + 2]));
+    expect(screen.getByText('Organization 3 of 3')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+    await becomes(pat([]));
+    expect(screen.getByLabelText('Note')).toBeInTheDocument();
   });
 
   it('agrees to exactly the version shown, then goes on', async () => {
@@ -130,37 +131,29 @@ describe('ContractGate', () => {
     expect(calls.agree).not.toHaveBeenCalled();
   });
 
-  it('asks over the admin when a new version is published, keeping unsaved edits', async () => {
+  it('asks over the admin once it has shown, keeping unsaved edits', async () => {
     const { becomes } = renderGate(pat([]));
     await userEvent.type(screen.getByLabelText('Note'), 'half done');
-    await becomes(pat([ORGANIZATION]));
+    // Any organization, not only one on screen.
+    await becomes(pat([ORGANIZATION + 5, ORGANIZATION]));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Organization 1 of 2')).toBeInTheDocument();
     expect(screen.getByLabelText('Note')).toHaveValue('half done');
     // Out of reach underneath.
     expect(screen.getByLabelText('Note').closest('[inert]')).not.toBeNull();
+    await becomes(pat([ORGANIZATION]));
+    expect(screen.getByText('Organization 2 of 2')).toBeInTheDocument();
     await becomes(pat([]));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Note')).toHaveValue('half done');
     expect(screen.getByLabelText('Note').closest('[inert]')).toBeNull();
   });
 
-  it('asks in place of the organization when it’s reached again from the chooser', async () => {
-    const { becomes } = renderGate(pat([]));
-    route.params = {};
-    await becomes(pat([ORGANIZATION]));
-    // (Changed, so the gate renders at the new address.)
-    route.params = { organizationId: String(ORGANIZATION) };
-    await becomes(pat([ORGANIZATION, ORGANIZATION + 1]));
-    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Lark Camp terms' })).toBeInTheDocument();
-  });
-
-  it('asks in place of another organization reached afterwards', async () => {
-    const { becomes } = renderGate(pat([]));
-    route.params = { organizationId: String(ORGANIZATION + 1) };
+  it('counts afresh the next time something is pending', async () => {
+    const { becomes } = renderGate(pat([ORGANIZATION, ORGANIZATION + 1]));
     await becomes(pat([ORGANIZATION + 1]));
-    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await becomes(pat([]));
+    await becomes(pat([ORGANIZATION + 1, ORGANIZATION + 2]));
+    expect(screen.getByText('Organization 1 of 2')).toBeInTheDocument();
   });
 });
