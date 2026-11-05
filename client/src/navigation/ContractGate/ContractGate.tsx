@@ -15,7 +15,7 @@
  * carries on with any unsaved edits.
  */
 
-import { useCurrentUser } from 'hooks/auth';
+import { isAuthenticated, useCurrentUser } from 'hooks/auth';
 import { type ReactNode, useState } from 'react';
 
 import { ContractPrompt } from './ContractPrompt';
@@ -26,8 +26,9 @@ export function ContractGate({ children }: { children: ReactNode }) {
   const next = pending.length > 0 ? pending[0] : null;
 
   // Once the admin has shown, terms open over it rather than in its place.
+  const signedIn = isAuthenticated(user);
   const [adminShown, setAdminShown] = useState(false);
-  if (next === null && !adminShown) setAdminShown(true);
+  if (next === null && signedIn && !adminShown) setAdminShown(true);
 
   // Every organization asked about since nothing was last pending, for "2 of 3".
   const [asked, setAsked] = useState<number[]>([]);
@@ -35,6 +36,9 @@ export function ContractGate({ children }: { children: ReactNode }) {
   if (newlyPending.length > 0) setAsked([...asked, ...newlyPending]);
   if (next === null && asked.length > 0) setAsked([]);
 
+  // Signed out before ever getting past the terms (the guard asks them to sign
+  // in again): the admin stays out until they're back and have agreed.
+  if (!adminShown && !signedIn) return null;
   if (next === null) return <>{children}</>;
   const total = Math.max(asked.length, pending.length);
   const progress = { position: total - pending.length + 1, total };

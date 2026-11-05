@@ -149,6 +149,17 @@ describe('ContractGate', () => {
     expect(screen.getByLabelText('Note').closest('[inert]')).toBeNull();
   });
 
+  it('keeps the admin out when signed out before getting past the terms', async () => {
+    const { becomes } = renderGate(pat([ORGANIZATION]));
+    await becomes(anonymousUser);
+    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+    // Back in, still to agree: asked in place, not over an admin never reached.
+    await becomes(pat([ORGANIZATION]));
+    expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Lark Camp terms' })).toBeInTheDocument();
+  });
+
   it('counts afresh the next time something is pending', async () => {
     const { becomes } = renderGate(pat([ORGANIZATION, ORGANIZATION + 1]));
     await becomes(pat([ORGANIZATION + 1]));

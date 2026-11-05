@@ -371,6 +371,47 @@ class TermsBeforeConsentTests(OAuthTestCase):
         self.client.post(login, {'username': 'registrar', 'password': 'password', 'next': url})
         self.assertTemplateUsed(self.client.get(url), 'camphoric/oauth/terms.html')
 
+    def test_agreeing_twice_counts_once_and_ends_on_the_consent_page(self):
+        url = self.start()
+        first = self.client.get(url)
+        self.agree_to_shown(url, first)
+        self.agree_to_shown(url, first)  # a double click
+        self.assertContains(self.client.get(url), 'Organization 2 of 2')
+        last = self.client.get(url)
+        self.agree_to_shown(url, last)
+        # Again, once nothing is pending: back to the consent page, not a broken form.
+        response = self.agree_to_shown(url, last)
+        self.assertEqual(response['Location'], url)
+        self.assertTemplateUsed(self.client.get(url), 'camphoric/oauth/authorize.html')
+
+    def test_declining_once_nothing_is_pending_still_signs_out_and_tells_the_app(self):
+        url = self.start()
+        for _ in range(2):
+            self.agree_to_shown(url, self.client.get(url))
+        # A second tab, still showing the terms.
+        response = self.client.post(url, {'terms': 'decline'})
+        self.assertIn('error=access_denied', response['Location'])
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_an_organization_that_isnt_a_plain_number(self):
+        url = self.start()
+        for organization in ('²', '-1', 'x', ''):
+            response = self.client.post(url, {'terms': 'agree', 'organization': organization})
+            self.assertEqual(response.status_code, 409, organization)
+        self.assertFalse(models.ContractAgreement.objects.exists())
+
+    def test_an_app_cant_publish_terms(self):
+        url = self.start(self.admin)
+        for _ in range(2):
+            self.agree_to_shown(url, self.client.get(url))
+        self.client.logout()
+        tokens = self.connect(self.admin)
+        draft = contracts.start_draft(self.camp)
+        response = self.api('post', f'/api/contracts/{draft.pk}/publish/', tokens['access_token'])
+        self.assertEqual((response.status_code, response.json()['code']),
+                         (403, 'app_not_allowed'))
+        self.assertTrue(AccessToken.objects.exists())
+
     def test_an_app_connected_afterwards_isnt_refused_for_terms(self):
         url = self.start()
         for _ in range(2):
