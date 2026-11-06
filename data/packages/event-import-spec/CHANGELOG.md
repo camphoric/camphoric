@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.2...camphoric-event-import-spec-v1.1.0) (2026-11-06)
+
+
+### Features
+
+* **data:** import group emails, promo codes and the invoice email ([03e7ab5](https://github.com/camphoric/camphoric/commit/03e7ab51b9ca9d7283f80facddd38ee623c96645)), closes [#970](https://github.com/camphoric/camphoric/issues/970)
+
 ## [1.0.2](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.1...camphoric-event-import-spec-v1.0.2) (2026-11-05)
 
 
