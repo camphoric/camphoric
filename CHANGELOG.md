@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.16.0](https://github.com/camphoric/camphoric/compare/v0.15.0...v0.16.0) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** make each version of an organization's terms one Markdown document
+* **client:** contract versions have `body` in place of `sections` (GET/POST/PATCH /api/contracts/, /api/organizations/{id}/contract, /api/user/agreements); the public privacy-policy endpoint answers the whole text without `title`, and the register config's `privacyPolicy` is `{ organization }`.
+
+### Features
+
+* **api:** answer the unsubscribe link with a redirect, and the page with JSON ([876ab47](https://github.com/camphoric/camphoric/commit/876ab473b65c4a0e8d256c51b899786e32573a6c)), closes [#982](https://github.com/camphoric/camphoric/issues/982)
+* **api:** ask for every organization's terms at sign-in, OAuth included ([23945ec](https://github.com/camphoric/camphoric/commit/23945ecbc0c2100d7f3a0f69dcde4034ee35271e))
+* **api:** describe and decide an app's authorization request at /api/oauth/authorize ([e140620](https://github.com/camphoric/camphoric/commit/e1406207622e7c7ece38074d7878dfa8808479ce)), closes [#980](https://github.com/camphoric/camphoric/issues/980)
+* **api:** let third-party apps call the API for users with OAuth 2.0 ([52e12bf](https://github.com/camphoric/camphoric/commit/52e12bf13e7ae528bb01e6f30ede04319a515f26))
+* **api:** make each version of an organization's terms one Markdown document ([02d6e7a](https://github.com/camphoric/camphoric/commit/02d6e7afde4c11904d5593e42b893aa448ac8911))
+* **api:** require agreeing to each organization's terms ([b55d3a1](https://github.com/camphoric/camphoric/commit/b55d3a1ea13f28e6e59d756227aa2918b0e3c8f6)), closes [#946](https://github.com/camphoric/camphoric/issues/946)
+* **client:** ask for every pending organization's terms in turn after sign-in ([23945ec](https://github.com/camphoric/camphoric/commit/23945ecbc0c2100d7f3a0f69dcde4034ee35271e)), closes [#980](https://github.com/camphoric/camphoric/issues/980)
+* **client:** connected apps for everyone, and an Apps screen for Admins ([52e12bf](https://github.com/camphoric/camphoric/commit/52e12bf13e7ae528bb01e6f30ede04319a515f26)), closes [#964](https://github.com/camphoric/camphoric/issues/964)
+* **client:** edit an organization's terms as one Markdown document, with a preview ([02d6e7a](https://github.com/camphoric/camphoric/commit/02d6e7afde4c11904d5593e42b893aa448ac8911)), closes [#980](https://github.com/camphoric/camphoric/issues/980)
+* **client:** gate each organization behind its terms ([b55d3a1](https://github.com/camphoric/camphoric/commit/b55d3a1ea13f28e6e59d756227aa2918b0e3c8f6))
+* **client:** make the group-email unsubscribe page a page of the client ([876ab47](https://github.com/camphoric/camphoric/commit/876ab473b65c4a0e8d256c51b899786e32573a6c))
+* **client:** make the OAuth authorization page a page of the client ([e140620](https://github.com/camphoric/camphoric/commit/e1406207622e7c7ece38074d7878dfa8808479ce))
+* **data:** import group emails, promo codes and the invoice email ([03e7ab5](https://github.com/camphoric/camphoric/commit/03e7ab51b9ca9d7283f80facddd38ee623c96645)), closes [#970](https://github.com/camphoric/camphoric/issues/970)
+
+
+### Bug Fixes
+
+* **api:** answer every terms decision, and keep publishing for people ([3b9db31](https://github.com/camphoric/camphoric/commit/3b9db311980497f35113d774b59ff10369779a03))
+* **api:** ask search engines not to index the unsubscribe link or page ([c11427f](https://github.com/camphoric/camphoric/commit/c11427fce81f1799723dda64e5e3feb68032d67d)), closes [#982](https://github.com/camphoric/camphoric/issues/982)
+* **api:** end app access in every process, and throttle only bad tokens ([e459b74](https://github.com/camphoric/camphoric/commit/e459b7453a4c5e9d1289e3acba45738eab9c5b5d)), closes [#964](https://github.com/camphoric/camphoric/issues/964)
+* **api:** publish only the contract draft the admin read ([90a0df1](https://github.com/camphoric/camphoric/commit/90a0df1ea1ecd2a72b87e1b08f78b79749eabfce))
+* **api:** render the OAuth terms with the admin's own Markdown pipeline ([36394b2](https://github.com/camphoric/camphoric/commit/36394b2a3b4920a8360d706cdbd0ce077ae4b056))
+* **api:** wrap long addresses on the OAuth terms page on a phone ([c4c3922](https://github.com/camphoric/camphoric/commit/c4c3922d19947d4693c027670aebb6cea369d553))
+* **client:** keep the Disconnect button whole beside long app details ([19ae662](https://github.com/camphoric/camphoric/commit/19ae6623e28b821b0b1a0f6065ed65b4e078f57a))
+* **client:** keep the unsubscribe page's answer through a later read ([c11427f](https://github.com/camphoric/camphoric/commit/c11427fce81f1799723dda64e5e3feb68032d67d))
+* **client:** keep Users and Apps behind the terms, and the admin out after a lost sign-in ([3b9db31](https://github.com/camphoric/camphoric/commit/3b9db311980497f35113d774b59ff10369779a03))
+* **client:** say why a change was refused for unagreed terms ([90a0df1](https://github.com/camphoric/camphoric/commit/90a0df1ea1ecd2a72b87e1b08f78b79749eabfce))
+
 ## [0.15.0](https://github.com/camphoric/camphoric/compare/v0.14.0...v0.15.0) (2026-11-05)
 
 
