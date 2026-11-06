@@ -32,8 +32,10 @@ for tarball in *.tgz; do
   fi
 done
 grep -q '^package/tsconfig\.base\.json$' camphoric-camphoric-event-import-spec-*.tgz.files
-# The compose file the e2e harness's throwaway server comes from
+# The compose file the e2e harness's throwaway server comes from, and the
+# fake PayPal it runs
 grep -q '^package/e2e-compose\.yml$' camphoric-camphoric-event-import-tools-*.tgz.files
+grep -q '^package/e2eFakePayPal\.py$' camphoric-camphoric-event-import-tools-*.tgz.files
 
 npm init -y > /dev/null
 npm pkg set type=module
@@ -73,7 +75,8 @@ assert.throws(() => new CamphoricEventCreator({
 }), /did not pass/);
 // The e2e harness loads, with its parts
 const e2e = await import('@camphoric/camphoric-event-import-tools/e2e');
-for (const name of ['defineEventE2EConfig', 'setUpEvent', 'camphoricServer', 'importForE2E', 'RegistrationForm', 'test', 'expect']) {
+for (const name of ['defineEventE2EConfig', 'setUpEvent', 'camphoricServer', 'importForE2E', 'RegistrationForm',
+  'ListQuestion', 'CamphoricAdmin', 'FakePayPal', 'test', 'expect']) {
   assert.ok(e2e[name], 'e2e exports ' + name);
 }
 assert.equal(e2e.defineEventE2EConfig({ globalSetup: './setup.ts' }).globalSetup, './setup.ts');
@@ -105,7 +108,7 @@ export const load: Load = async (): Promise<LoadedEventModule> => ({ default: ev
 
 // An event repository's e2e setup and tests, against the packed declarations
 export const config = defineEventE2EConfig({ globalSetup: './e2e/global-setup.ts' });
-export const setup = setUpEvent({ event, validate: validateEventImport });
+export const setup = setUpEvent({ event, validate: validateEventImport, onlinePayment: true });
 test('the form opens', async ({ registration }) => {
   await registration.open();
   const camper = registration.camper(1);
@@ -113,6 +116,18 @@ test('the form opens', async ({ registration }) => {
   expect(lodging).toContain('Cabins');
   await expect(camper.lodgingLevels()).toHaveCount(2);
   await registration.expectTotal(100);
+  const pass = await camper.list('Parking Passes').add();
+  await pass.select('Vehicle Type', 'Regular car');
+  await registration.removeCamper(2);
+});
+test('payment, invitations and email', async ({ page, registration, admin, payPal }) => {
+  const invitation = await admin.invite('staff', { send: true });
+  await page.goto(invitation.registerUrl);
+  const [email] = await admin.emails({ to: invitation.email, kind: 'invitation' });
+  expect(email.subject).toBeTruthy();
+  const online: number = await registration.paymentTotal('online');
+  const order = await payPal.order(await registration.startOnlinePayment('Card'));
+  expect(order.amount).toBe(online.toFixed(2));
 });
 TS
 "$DATA/node_modules/.bin/tsc" --noEmit --strict \

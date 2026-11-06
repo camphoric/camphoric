@@ -2,11 +2,13 @@ import { ages } from './pricing/camperPricingLogic.ts';
 
 export const shirtSizes = ['Small', 'Medium', 'Large', 'X-Large'];
 export const diets = ['Vegetarian', 'Vegan', 'Gluten free', 'Nut free'];
+export const vehicles = ['Car', 'Van or truck', 'RV'];
 
 // The camper form: text, a required choice the pricing reads (with a
 // default among its choices), formats (email, date), a $ref to a
-// definition in the registration schema, a multiple choice, and a section
-// that appears only when its first question is answered (dependencies).
+// definition in the registration schema, a multiple choice, a section
+// that appears only when its first question is answered (dependencies), and
+// a list of things with questions of their own (parking passes).
 export default {
   type: 'object',
   required: ['first_name', 'last_name', 'age'],
@@ -52,6 +54,20 @@ export default {
               required: ['size'],
             },
           ],
+        },
+      },
+    },
+    parking_passes: {
+      type: 'array',
+      title: 'Parking passes',
+      description: 'One for each vehicle you bring.',
+      maxItems: 3,
+      items: {
+        type: 'object',
+        title: 'parking pass',
+        properties: {
+          vehicle: { type: 'string', title: 'Vehicle', enum: vehicles, default: vehicles[0] },
+          plate: { type: 'string', title: 'License plate', maxLength: 10 },
         },
       },
     },

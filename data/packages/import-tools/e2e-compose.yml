@@ -1,6 +1,7 @@
 # A throwaway Camphoric for an event's e2e tests (camphoricServer() in
 # e2eServer.ts): the release image and its Postgres, on a free port, with an
-# admin to import as. It holds nothing worth keeping: `down -v` removes it.
+# admin to import as, and a stand-in for PayPal's API. It holds nothing worth
+# keeping: `down -v` removes it.
 services:
   postgres:
     image: postgres:16-alpine
@@ -23,10 +24,20 @@ services:
       SECRET_KEY: e2e-only-not-a-secret
       DATABASE_URL: postgres://camphoric:camphoric@postgres/camphoric
       DEBUG: "off"
-      PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      # PayPal's API is the fake below, which records the orders it's asked
+      # for (started only for online payment: without it, no order is made)
+      PAYPAL_BASE_URL: http://paypal:8000
       PAYPAL_SECRET: unused
-      # Registrations queue confirmation emails; nothing delivers them here
+      # Email is delivered as it's queued (no worker), to the console: the
+      # outbox (/api/emailmessages/) keeps what was sent, for the tests to read
+      CAMPHORIC_EMAIL_QUEUE: immediate
       CAMPHORIC_EMAIL_FORCE_BACKEND: django.core.mail.backends.console.EmailBackend
+      # A suite registers more a minute than a registrant would (from the
+      # throttles' one address): their limits would make tests fail at random
+      CAMPHORIC_REGISTER_RATE: ${CAMPHORIC_E2E_REGISTER_RATE:-1000/minute}
+      CAMPHORIC_REGISTRATION_DRAFT_RATE: ${CAMPHORIC_E2E_REGISTRATION_DRAFT_RATE:-1000/minute}
+      CAMPHORIC_INVITATION_LOOKUP_RATE: ${CAMPHORIC_E2E_INVITATION_LOOKUP_RATE:-1000/minute}
+      CAMPHORIC_PROMO_CODE_CHECK_RATE: ${CAMPHORIC_E2E_PROMO_CODE_CHECK_RATE:-1000/minute}
       ALLOWED_HOSTS: localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: http://localhost:${CAMPHORIC_E2E_PORT},http://127.0.0.1:${CAMPHORIC_E2E_PORT}
       SESSION_COOKIE_SECURE: "false"
@@ -38,3 +49,27 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      paypal:
+        condition: service_healthy
+        # (in the paypal profile only)
+        required: false
+
+  # PayPal's Orders API, faked (e2eFakePayPal.py): it creates orders, never
+  # captures them, and tells the tests what each order asked for. It runs on
+  # the app image's Python, so there's nothing more to pull, but needs Docker
+  # to see this package's files (the bind mount), so it's started only for an
+  # event imported with online payment (COMPOSE_PROFILES=paypal).
+  paypal:
+    profiles: [paypal]
+    image: ${CAMPHORIC_E2E_IMAGE:-ghcr.io/camphoric/camphoric:latest}
+    pull_policy: missing
+    entrypoint: ["python", "/e2e/fake_paypal.py"]
+    volumes:
+      - ./e2eFakePayPal.py:/e2e/fake_paypal.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "127.0.0.1:${CAMPHORIC_E2E_PAYPAL_PORT}:8000"

@@ -47,7 +47,11 @@ importer:
   - **The server:** `setUpEvent()` starts a throwaway Camphoric from the release image, pulled
     fresh each run (`CAMPHORIC_IMAGE_TAG` picks the tag, default `latest`;
     `CAMPHORIC_E2E_IMAGE` names a locally built image instead), imports the event, and removes the
-    server when the tests end.
+    server when the tests end. Its registration throttles (registering, saving drafts, opening an
+    invitation, checking a promo code) allow `1000/minute` from one address, so a suite isn't told
+    to wait (`CAMPHORIC_E2E_REGISTER_RATE`, `_REGISTRATION_DRAFT_RATE`, `_INVITATION_LOOKUP_RATE`
+    and `_PROMO_CODE_CHECK_RATE` change them; a real server's are 10 to 30 a minute). It sends email as it's queued, to its console, keeping what it sent in its outbox
+    (see `admin.emails()` below).
   - **An existing server:** `CAMPHORIC_E2E_SERVER_URL`, with `CAMPHORIC_E2E_SERVER_USERNAME` /
     `_PASSWORD` for its admin, makes it import into that server instead. Not `CAMPHORIC_URL`, so
     tests never import into a development server by accident. One that isn't local also needs
@@ -56,9 +60,53 @@ importer:
     can be tested whatever its dates say (`openRegistration: false` keeps them).
   - **One shared event:** every test, on desktop and mobile Chrome, shares the one imported event.
     A registration one test completes stays, taking lodging capacity the others see.
-  - **What tests use:** a `test` with `registration` (a `RegistrationForm` page object: fields by
-    label, campers, lodging, the price ticker, submitting and paying) and `eventId` fixtures, and
-    `expect`.
+  - **What tests use:** a `test` with these fixtures, and `expect`:
+    - `registration`: a `RegistrationForm` page object (fields by label, campers, lodging, lists,
+      the price ticker, submitting and paying);
+    - `admin`: a `CamphoricAdmin`, what an organizer does, through the admin API as the admin the
+      event was imported as (invitations, and the email sent);
+    - `payPal`: a `FakePayPal`, the orders the server asked the throwaway server's fake PayPal for;
+    - `eventId`: the imported event's id.
+  - **Campers and lists:** `addCamper()` adds one and `removeCamper(n)` removes the nth (from 1;
+    the ones after it move up). A list question (an array of objects in the schema, such as a
+    camper's parking passes) is `list(title)`, on the form or a camper: `items()` (to count),
+    `item(n)` (its questions), `add()` (returns the new item's questions) and `remove(n)`:
+
+    ```ts
+    const passes = registration.camper(1).list('Parking Passes');
+    const pass = await passes.add();
+    await pass.select('Vehicle Type', 'Regular car');
+    await passes.remove(1);
+    await expect(passes.items()).toHaveCount(0);
+    ```
+  - **The payment step:** `choosePaymentOption(title)` picks a payment option, and
+    `paymentTotal()` is what it costs as the step shows it, by check, or with `'online'`, with
+    the event's e-payment handling. `payByCheck()` completes the registration.
+  - **Paying online:** `setUpEvent({ ..., onlinePayment: true })` imports the event with PayPal
+    enabled (a client id only the fakes accept), so the payment step offers PayPal's buttons and
+    adds the handling. The throwaway server's PayPal API is then a fake (`e2eFakePayPal.py`, run
+    on the app image and mounted from this package, so Docker must see its files), and the browser
+    gets a fake of PayPal's script. Neither is there without `onlinePayment`, or with an existing
+    server, whose own PayPal would refuse the client id: `onlinePayment` needs the throwaway
+    server. `startOnlinePayment()` (or `('Card')`) presses a
+    PayPal button: the registration is completed and the server creates its PayPal order, but the
+    payer never approves, so nothing is paid. `payPal.order(id)` is what the server asked for,
+    its amount as sent:
+
+    ```ts
+    const online = await registration.paymentTotal('online');
+    const order = await payPal.order(await registration.startOnlinePayment());
+    expect(order.amount).toBe(online.toFixed(2)); // to the cent, as PayPal takes it
+    ```
+  - **Invitations:** `admin.invite(type)` creates an invitation to register as the registration
+    type with that `name`, for a new `@example.com` address (or `{ email, name }`), as the
+    admin's "Invite" does, and returns its `code`, `email` and `registerUrl` (the form with the
+    invitation, to `page.goto()`). `{ send: true }` emails it too.
+  - **Sent email:** `admin.emails({ to, kind })` is the email the server sent about the event
+    (from its outbox, newest first): each one's `kind` (`confirmation`, `invitation`, …),
+    `status`, `subject`, `text` and `html`. Email is recorded before the request that sends it
+    answers, so after a registration's last step it's there; `to` matches the address in any
+    case. It works with an existing server too.
   - **Lodging:** a camper's `chooseLodging(...names)` picks a name at each level and returns the
     choices each level offered; `lodgingLevels()` is the lodging dropdowns shown now, one per
     level. A lodging offers nothing below it when no dropdown appears under it: after

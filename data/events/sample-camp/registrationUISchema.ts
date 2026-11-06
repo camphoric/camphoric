@@ -7,7 +7,7 @@ export default {
     'ui:field': 'Campers',
     'ui:options': { orderable: false },
     items: {
-      'ui:order': ['first_name', 'last_name', 'age', 'email', 'phone', 'arrival', 'lodging', 'diet', 't_shirt', '*'],
+      'ui:order': ['first_name', 'last_name', 'age', 'email', 'phone', 'arrival', 'lodging', 'diet', 't_shirt', 'parking_passes', '*'],
       phone: { 'ui:widget': 'PhoneInput' },
       diet: { 'ui:widget': 'checkboxes' },
       age: { 'ui:placeholder': 'Choose an age group' },
