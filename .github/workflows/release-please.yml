@@ -8,6 +8,11 @@
 # of their own, each with its own release PR and tag
 # (camphoric-event-import-spec-vX.Y.Z, camphoric-event-import-tools-vX.Y.Z);
 # merging one publishes that package to npm (release-packages.yml).
+#
+# Releasing and maintaining the release PRs are separate jobs. With
+# "always-update" (release-please-config.json) every run rewrites every open
+# release PR, and a failure doing that mustn't stop a release just created from
+# being published: re-running wouldn't help, since the release then exists.
 name: Release Please
 
 on:
@@ -43,6 +48,19 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # Uses release-please-config.json + .release-please-manifest.json.
+          # Only tags releases; release-prs maintains the PRs.
+          skip-github-pull-request: true
+
+  # Open or rebuild the release PRs from the latest main (after any release this
+  # run created, as the action does when it does both). Nothing waits on it.
+  release-prs:
+    needs: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          skip-github-release: true
 
   # Build + attach the frontend asset only when the release PR was just merged
   # (i.e. a release was actually created this run).
