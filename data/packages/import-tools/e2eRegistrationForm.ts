@@ -83,6 +83,55 @@ export class FormSection {
   message(text: string | RegExp): Locator {
     return this.root.getByText(text);
   }
+
+  /**
+   * A list question (an array of objects in the event's schema, such as a
+   * camper's parking passes), by its title: its items, and adding and
+   * removing them.
+   */
+  list(title: string): ListQuestion {
+    // The list's own title (its heading, a child of the list's box), not
+    // that of a list inside one of its items
+    const heading = this.page.locator(':scope > h3').filter({ hasText: new RegExp(`^${escapeRegExp(title)}$`) });
+    return new ListQuestion(this.page, this.root.locator('.rjsf-field-array').filter({ has: heading }));
+  }
+}
+
+/** A list question's items, each with questions of its own (FormSection.list). */
+export class ListQuestion {
+  readonly page: Page;
+  readonly root: Locator;
+
+  constructor(page: Page, root: Locator) {
+    this.page = page;
+    this.root = root;
+  }
+
+  /** Its items, in order: count them with `expect(list.items()).toHaveCount(n)`. */
+  items(): Locator {
+    return this.root.locator(':scope > .rjsf-array-item-list > .rjsf-array-item');
+  }
+
+  /** The nth item's questions (from 1). */
+  item(n: number): FormSection {
+    return new FormSection(this.page, this.items().nth(n - 1));
+  }
+
+  /** Adds an item (its "Add …" button), returning its questions. */
+  async add(): Promise<FormSection> {
+    const count = await this.items().count();
+    await this.root.locator(':scope > * > .rjsf-array-item-add').click();
+    await expect(this.items()).toHaveCount(count + 1);
+    return this.item(count + 1);
+  }
+
+  /** Removes the nth item (from 1), with its × button. */
+  async remove(n: number): Promise<void> {
+    const count = await this.items().count();
+    await this.items().nth(n - 1).locator(':scope > .rjsf-array-item-toolbar')
+      .getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(this.items()).toHaveCount(count - 1);
+  }
 }
 
 /** One camper's questions, under its "1st Camper", "2nd Camper", … heading. */
@@ -154,6 +203,18 @@ export class RegistrationForm extends FormSection {
     return this.camper(count + 1);
   }
 
+  /**
+   * Removes the nth camper (from 1), with the Remove button by its heading;
+   * the campers after it move up (the 3rd becomes the 2nd).
+   */
+  async removeCamper(n: number): Promise<void> {
+    const count = await this.page.locator('.camphoric-camper').count();
+    // (The heading's row, not the Remove buttons of the camper's lists)
+    await this.camper(n).root.locator(':scope > .mantine-Group-root')
+      .getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(this.page.locator('.camphoric-camper')).toHaveCount(count - 1);
+  }
+
   /** Waits until the price ticker shows this total (in dollars). */
   async expectTotal(amount: number): Promise<void> {
     await expect(this.page.getByText(/^Total: /)).toHaveText(`Total: ${money(amount)}`);
@@ -186,5 +247,51 @@ export class RegistrationForm extends FormSection {
   /** On the payment step: pays by check, completing the registration. */
   async payByCheck(): Promise<void> {
     await this.page.getByRole('button', { name: /by check$/ }).click();
+  }
+
+  /**
+   * On the payment step: what the chosen payment option costs, in dollars,
+   * as it shows it: by check (the default), or online, which adds the
+   * event's e-payment handling (shown only when the event takes payments
+   * online: import it with `onlinePayment`).
+   */
+  async paymentTotal(how: 'check' | 'online' = 'check'): Promise<number> {
+    const due = this.page.getByRole('table', { name: 'Amount due now' });
+    const row = due.getByRole('row').filter({ hasText: how === 'check' ? /^By check/ : /^Online/ });
+    const amount = row.getByRole('cell').last();
+    await expect(amount).toBeVisible();
+    return Number(((await amount.textContent()) ?? '').replace(/[^0-9.-]/g, ''));
+  }
+
+  /**
+   * On the payment step of an event imported with `onlinePayment`: presses
+   * a PayPal button ('PayPal', or 'Card' for "Debit or Credit Card"), which
+   * completes the registration and has the server create its PayPal order,
+   * and returns the order's id. The fake PayPal's window then stays open: the
+   * payer never approves, so nothing is paid. Read what the order asked for
+   * with the `payPal` fixture's `order(id)`.
+   */
+  async startOnlinePayment(button: 'PayPal' | 'Card' = 'PayPal'): Promise<string> {
+    const name = button === 'Card' ? 'Debit or Credit Card' : 'PayPal';
+    const created = this.page.waitForResponse((response) => {
+      const request = response.request();
+      // (With an invitation, the form posts with its code in the query)
+      if (request.method() !== 'POST' || new URL(response.url()).pathname !== `/api/events/${this.eventId}/register`) {
+        return false;
+      }
+      try {
+        return (request.postDataJSON() as { step?: string } | null)?.step === 'paypal-order';
+      } catch {
+        return false;
+      }
+    });
+    await this.page.locator('[data-camphoric-e2e-paypal]')
+      .getByRole('button', { name, exact: true }).click();
+    const response = await created;
+    const body = await response.json() as { orderID?: string, detail?: string };
+    if (!response.ok() || !body.orderID) {
+      throw new Error(`the server didn't create a PayPal order (${response.status()}): ${body.detail ?? JSON.stringify(body)}`);
+    }
+    return body.orderID;
   }
 }

@@ -13,6 +13,7 @@ interface Camper {
   lodging: string[];
   shirt?: string;
   diet?: string[];
+  parking?: { vehicle: string, plate: string }[];
   shared_with?: string;
 }
 
@@ -32,7 +33,7 @@ const households: Household[] = [
     address: ['1 Example Way', 'Sampletown', 'CA', '90001'],
     donation: 25,
     campers: [
-      { first_name: 'Alex', last_name: 'Example', age: 'adult', lodging: ['cabins', 'cabin_1'], shirt: 'Medium', shared_with: 'Jo Example' },
+      { first_name: 'Alex', last_name: 'Example', age: 'adult', lodging: ['cabins', 'cabin_1'], shirt: 'Medium', parking: [{ vehicle: 'Car', plate: '7SAM123' }], shared_with: 'Jo Example' },
       { first_name: 'Jo', last_name: 'Example', age: 'adult', lodging: ['cabins', 'cabin_1'], diet: ['Vegetarian'], shared_with: 'Alex Example' },
       { first_name: 'Kit', last_name: 'Example', age: 'child', lodging: ['cabins', 'cabin_1'] },
     ],
@@ -67,6 +68,7 @@ function camperData(camper: Camper, household: Household, lodgingMap: LodgingLoo
     phone: household.phone,
     arrival: `${year}-08-01`,
     ...(camper.diet ? { diet: camper.diet } : {}),
+    ...(camper.parking ? { parking_passes: camper.parking } : {}),
     t_shirt: camper.shirt ? { wanted: true, size: camper.shirt } : { wanted: false },
     lodging: {
       lodging_requested: {

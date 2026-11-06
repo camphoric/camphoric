@@ -18,6 +18,9 @@ export interface CamphoricServer {
   // the admin to import as
   username: string;
   password: string;
+  // A throwaway server's fake PayPal API (e2eFakePayPal.py), which its
+  // PAYPAL_BASE_URL names, when it was asked for (none for an existing server)
+  payPalUrl?: string;
   // Removes a throwaway server and its data (a no-op for an existing one)
   stop: () => Promise<void>;
 }
@@ -27,6 +30,9 @@ export interface CamphoricServerOptions {
   // tag, else ghcr.io/camphoric/camphoric:<CAMPHORIC_IMAGE_TAG or latest>,
   // pulled fresh each run)
   image?: string;
+  // Also start the fake PayPal API (default: no), for online payment. It's
+  // mounted from this package, so Docker must see its files.
+  fakePayPal?: boolean;
 }
 
 // This package's e2e-compose.yml, from its source or its build in dist/
@@ -69,6 +75,9 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
   }
 
   const port = await freePort();
+  let payPalPort = await freePort();
+  while (payPalPort === port) payPalPort = await freePort();
+  const fakePayPal = options.fakePayPal ?? false;
   const username = 'e2e-admin';
   const password = randomBytes(12).toString('hex');
   const project = `camphoric-e2e-${randomBytes(4).toString('hex')}`;
@@ -78,6 +87,9 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
     CAMPHORIC_E2E_IMAGE: local ?? `ghcr.io/camphoric/camphoric:${process.env.CAMPHORIC_IMAGE_TAG ?? 'latest'}`,
     CAMPHORIC_E2E_PULL_POLICY: local ? 'missing' : 'always',
     CAMPHORIC_E2E_PORT: String(port),
+    CAMPHORIC_E2E_PAYPAL_PORT: String(payPalPort),
+    // (for every compose command, so `down` removes the fake PayPal too)
+    COMPOSE_PROFILES: fakePayPal ? 'paypal' : '',
     CAMPHORIC_E2E_USERNAME: username,
     CAMPHORIC_E2E_PASSWORD: password,
   };
@@ -110,5 +122,11 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
     process.off('SIGTERM', interrupted);
   }
 
-  return { url: `http://localhost:${port}`, username, password, stop };
+  return {
+    url: `http://localhost:${port}`,
+    username,
+    password,
+    payPalUrl: fakePayPal ? `http://127.0.0.1:${payPalPort}` : undefined,
+    stop,
+  };
 }

@@ -4,6 +4,7 @@
 
 import { getAuthToken } from './getAuthInfo.ts';
 import CamphoricEventCreator from './CamphoricEventCreator.ts';
+import { E2E_PAYPAL_CLIENT_ID } from './e2ePayPal.ts';
 import { Organizations, organizationLoader } from './organizations.ts';
 import type { ImportableEvent } from './types.ts';
 
@@ -22,12 +23,19 @@ export interface ImportForE2EOptions {
   // the page says registration is closed and shows no form). Its other dates
   // are unchanged.
   openRegistration?: boolean;
+  // Take payments online (default: no, unless the event's data does): PayPal
+  // is enabled with a client id only the fake PayPal accepts, so the payment
+  // step offers PayPal's buttons and adds the event's e-payment handling.
+  // Only for a throwaway server, whose PayPal is the fake (setUpEvent refuses
+  // it for an existing one).
+  onlinePayment?: boolean;
 }
 
 /** Imports the event (and creates its organization), returning its id. */
 export async function importForE2E(options: ImportForE2EOptions): Promise<number> {
   const {
     event, validate, url, username, password, withSampleRegistrations = false, openRegistration = true,
+    onlinePayment = false,
   } = options;
   // The fetcher logs in with these
   process.env.DJANGO_SUPERUSER_USERNAME = username;
@@ -41,7 +49,10 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
     registration_start: new Date(Date.now() - day).toISOString(),
     registration_end: new Date(Date.now() + 365 * day).toISOString(),
   };
-  const data = openRegistration ? { ...event.data, event: { ...event.data.event, ...window } } : event.data;
+  const payPal = { paypal_enabled: true, paypal_client_id: E2E_PAYPAL_CLIENT_ID };
+  // Set again afterwards too, like the window
+  const changes = { ...(openRegistration ? window : {}), ...(onlinePayment ? payPal : {}) };
+  const data = { ...event.data, event: { ...event.data.event, ...changes } };
 
   const token = await getAuthToken(url);
   const organization = await organizationLoader(token, url)(event.organization);
@@ -55,7 +66,7 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
   });
   await creator.create();
   const { id } = creator.savedEvent();
-  if (openRegistration) await creator.fetch('PATCH', `/api/events/${id}/`, window);
+  if (Object.keys(changes).length) await creator.fetch('PATCH', `/api/events/${id}/`, changes);
 
   return id;
 }
