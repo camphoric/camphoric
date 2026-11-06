@@ -2,13 +2,13 @@
 Each organization's contract, and the gate it puts in front of the
 organization (SPEC §5, §6; §15 DR-145).
 
-An organization's contract is a series of versions, each an ordered list of
-sections in Markdown, one of them its privacy policy. A version is drafted,
-then published, and can't change after that. Someone signed in needs to agree
-with an organization while it has a published version they haven't agreed to;
-until they do, the API refuses whatever reaches that organization or what
-belongs to it (403, code `contract_agreement_required`, with the organization's
-id). An organization with nothing published has no gate.
+An organization's contract is a series of versions, each one Markdown
+document whose headings are its sections (DR-153). A version is drafted, then
+published, and can't change after that. Its latest version is also public.
+Someone signed in needs to agree with an organization while it has a published
+version they haven't agreed to; until they do, the API refuses whatever reaches
+that organization or what belongs to it (403, code `contract_agreement_required`,
+with the organization's id). An organization with nothing published has no gate.
 
 Users aren't tied to organizations (DR-50), so which organization a request
 reaches comes from what it names: a record (its organization, by
@@ -31,7 +31,6 @@ gate stays, as the backstop.
 
 import hashlib
 import ipaddress
-import json
 from importlib import import_module
 
 from django.conf import settings
@@ -48,8 +47,6 @@ from rest_framework.throttling import BaseThrottle
 from camphoric import models
 
 CONTRACT_AGREEMENT_REQUIRED = 'contract_agreement_required'
-
-DEFAULT_PRIVACY_POLICY_TITLE = 'Privacy Policy'
 
 
 # --- Which organization a record belongs to ---------------------------------------
@@ -326,38 +323,24 @@ class ContractGateFilterBackend(BaseFilterBackend):
 
 # --- Content ------------------------------------------------------------------------
 
-def content_sha256(sections):
+def content_sha256(body):
+    '''The hash of a version's text, which shows it hasn't changed: SHA-256 of its UTF-8.'''
+    return hashlib.sha256(body.encode('utf-8')).hexdigest()
+
+
+def public_terms(organization_id):
     '''
-    The hash of a version's ordered section titles and bodies, which shows
-    they haven't changed: SHA-256 of `[[title, body], …]` as compact JSON.
-    `sections` are ContractSections or dicts with `title` and `body`.
-    '''
-    def field(section, name):
-        return section[name] if isinstance(section, dict) else getattr(section, name)
-    content = [[field(section, 'title'), field(section, 'body')] for section in sections]
-    encoded = json.dumps(content, ensure_ascii=False, separators=(',', ':'))
-    return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
-
-
-def privacy_policy_section(contract):
-    return contract.sections.filter(kind=models.ContractSectionKind.PRIVACY_POLICY).first()
-
-
-def public_privacy_policy(organization_id):
-    '''
-    What anyone may read of the organization's latest version: its privacy
-    policy section, the version and its effective date. None when nothing is
-    published.
+    The organization's latest version, as anyone may read it — the privacy policy
+    among its terms is public (DR-145, DR-153): its text, the version and its
+    effective date. None when nothing is published.
     '''
     contract = latest_contract(organization_id)
     if contract is None:
         return None
-    section = privacy_policy_section(contract)
     return {
         'organization': contract.organization_id,
         'organization_name': contract.organization.name,
-        'title': section.title,
-        'body': section.body,
+        'body': contract.body,
         'number': contract.number,
         'published_at': contract.published_at,
     }
@@ -371,72 +354,40 @@ class ContractError(Exception):
 
 def start_draft(organization):
     '''
-    A new draft: a copy of the latest version's sections, or, for the first,
-    one empty Privacy Policy section. One draft per organization.
+    A new draft: a copy of the latest version's text, or, for the first, empty.
+    One draft per organization.
     '''
     with transaction.atomic():
         if models.Contract.objects.filter(
                 organization=organization, published_at__isnull=True).exists():
             raise ContractError('This organization already has a draft.')
         latest = latest_contract(organization.pk)
-        if latest is not None:
-            sections = [{'kind': s.kind, 'title': s.title, 'body': s.body}
-                        for s in latest.sections.all()]
-        else:
-            sections = [{'kind': models.ContractSectionKind.PRIVACY_POLICY,
-                         'title': DEFAULT_PRIVACY_POLICY_TITLE, 'body': ''}]
         try:
             with transaction.atomic():
-                draft = models.Contract.objects.create(organization=organization)
+                return models.Contract.objects.create(
+                    organization=organization, body=latest.body if latest else '')
         except IntegrityError:
             raise ContractError('This organization already has a draft.')
-        replace_sections(draft, sections)
-        return draft
-
-
-def validate_sections(sections):
-    '''A version's sections, as given: exactly one privacy policy among them.'''
-    if not sections:
-        raise ValidationError({'sections': 'A contract needs its privacy policy section.'})
-    kinds = [section.get('kind', models.ContractSectionKind.CUSTOM) for section in sections]
-    if kinds.count(models.ContractSectionKind.PRIVACY_POLICY) != 1:
-        raise ValidationError(
-            {'sections': 'A contract has exactly one privacy policy section.'})
-
-
-def replace_sections(contract, sections):
-    '''Make the draft's sections these, in this order.'''
-    contract.sections.all().delete()
-    models.ContractSection.objects.bulk_create(
-        models.ContractSection(
-            contract=contract, order=order,
-            kind=section.get('kind', models.ContractSectionKind.CUSTOM),
-            title=section.get('title', ''), body=section.get('body', ''))
-        for order, section in enumerate(sections))
 
 
 def publish(contract, user):
     '''
-    Publish the draft as the organization's next version. A section with an
-    empty title or body is refused. Everyone then needs to agree again; the
-    view publishing it ends their sign-ins too (`end_sign_ins`).
+    Publish the draft as the organization's next version; a draft with no text
+    is refused. Everyone then needs to agree again; the view publishing it ends
+    their sign-ins too (`end_sign_ins`).
     '''
     with transaction.atomic():
         contract = models.Contract.objects.select_for_update().get(pk=contract.pk)
         if contract.is_published:
             raise ContractError('This version is already published.')
-        sections = list(contract.sections.all())
-        validate_sections([{'kind': s.kind} for s in sections])
-        empty = [s for s in sections if not s.title.strip() or not s.body.strip()]
-        if empty:
-            raise ValidationError({'sections': 'Give every section a title and some text '
-                                   'before publishing.'})
+        if not contract.body.strip():
+            raise ValidationError({'body': 'Write the terms before publishing them.'})
         # Taking the organization keeps two publishes from picking the same number.
         models.Organization.objects.select_for_update().get(pk=contract.organization_id)
         latest = models.Contract.objects.filter(
             organization_id=contract.organization_id).aggregate(Max('number'))['number__max']
         contract.number = (latest or 0) + 1
-        contract.content_sha256 = content_sha256(sections)
+        contract.content_sha256 = content_sha256(contract.body)
         contract.published_at = timezone.now()
         contract.published_by = user
         contract.save()

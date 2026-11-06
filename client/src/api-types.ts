@@ -740,16 +740,6 @@ export interface ApplicationRequest {
 // Contracts: each organization's terms, agreed to before reaching it (SPEC §5, §6; DR-145)
 // ---------------------------------------------------------------------------
 
-/** What a contract section is: the privacy policy (exactly one per version), or any other. */
-export type ContractSectionKind = 'privacy_policy' | 'custom';
-
-/** A section of a contract version; `body` is Markdown. */
-export interface ApiContractSection {
-  kind: ContractSectionKind;
-  title: string;
-  body: string;
-}
-
 /**
  * A contract version as Admins manage it: GET/POST/PATCH/DELETE /api/contracts/.
  * A draft has no `number` or `published_at`; a published version can't change.
@@ -765,7 +755,8 @@ export interface ApiContract extends TimeStamped {
   published_by: number | null;
   published_by_name: string | null;
   agreement_count: number;
-  sections: ApiContractSection[];
+  /** The terms: one Markdown document, its headings its sections (DR-153). */
+  body: string;
 }
 
 /** A published version, as someone agreeing to it (or rereading it) sees it. */
@@ -776,7 +767,8 @@ export interface ApiPublishedContract {
   number: number;
   content_sha256: string;
   published_at: string;
-  sections: ApiContractSection[];
+  /** The terms, in Markdown. */
+  body: string;
 }
 
 /** GET /api/organizations/{id}/contract: its latest version, and whether you've agreed to it. */
@@ -820,10 +812,9 @@ export interface ApiMyContractAgreement extends Omit<ApiContractAgreement, 'cont
 export interface ApiPrivacyPolicy {
   organization: number;
   organization_name: string;
-  title: string;
-  /** Markdown. */
+  /** The terms, in Markdown: the privacy policy among them. */
   body: string;
-  /** The contract version it's from. */
+  /** The contract version. */
   number: number;
   /** Its effective date. */
   published_at: string;
@@ -978,8 +969,11 @@ export interface ApiRegister {
   /** Whether the event has a promo code this registrant could use now (§7.1; §15, DR-107). */
   hasPromoCodes?: boolean;
   payPalOptions?: Hash;
-  /** The event's organization's public privacy policy, to link to; null when it has none (DR-145). */
-  privacyPolicy?: { organization: number; title: string } | null;
+  /**
+   * The event's organization's public terms, its privacy policy among them, to link to;
+   * null when it has none (DR-145, DR-153).
+   */
+  privacyPolicy?: { organization: number } | null;
 }
 
 /**

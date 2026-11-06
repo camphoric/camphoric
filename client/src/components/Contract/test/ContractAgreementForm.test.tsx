@@ -20,13 +20,10 @@ function renderForm(props: Partial<Parameters<typeof ContractAgreementForm>[0]> 
 }
 
 describe('ContractAgreementForm', () => {
-  it('shows every section in order, with the version and its effective date', () => {
+  it('shows the whole text, its headings in order, with the version and its effective date', () => {
     renderForm();
-    const sections = screen.getAllByRole('region');
-    expect(sections.map((s) => s.getAttribute('aria-label'))).toEqual([
-      'Privacy Policy',
-      'Liability Waiver',
-    ]);
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings.map((h) => h.textContent)).toEqual(['Privacy Policy', 'Liability Waiver']);
     expect(screen.getByText(/Version 2, effective/)).toBeInTheDocument();
     expect(screen.getByText('PayPal', { selector: 'strong' })).toBeInTheDocument();
   });

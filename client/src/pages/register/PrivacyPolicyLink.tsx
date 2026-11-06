@@ -1,6 +1,7 @@
 /**
- * A link to the privacy policy of the event's organization, at the foot of the
- * registration steps (SPEC §7; §15 DR-145). None when it has published none.
+ * A link to the terms of the event's organization, its privacy policy among them,
+ * at the foot of the registration steps (SPEC §7; §15 DR-145, DR-153). None when it
+ * has published none.
  */
 
 import { Anchor, Text } from '@mantine/core';
@@ -16,7 +17,7 @@ export function PrivacyPolicyLink({ policy }: { policy: ApiRegister['privacyPoli
         rel="noreferrer"
         size="sm"
       >
-        {policy.title}
+        Privacy policy and terms
       </Anchor>
     </Text>
   );

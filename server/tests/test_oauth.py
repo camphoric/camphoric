@@ -296,10 +296,8 @@ class AuthorizationFlowTests(OAuthTestCase):
 
 def publish_terms(organization, waiver='Use at your own risk.'):
     draft = contracts.start_draft(organization)
-    contracts.replace_sections(draft, [
-        {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'We keep it safe.'},
-        {'kind': 'custom', 'title': 'Liability Waiver', 'body': waiver},
-    ])
+    draft.body = f'## Privacy Policy\n\nWe keep it safe.\n\n## Liability Waiver\n\n{waiver}'
+    draft.save()
     return contracts.publish(draft, None)
 
 

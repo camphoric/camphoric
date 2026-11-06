@@ -10,7 +10,6 @@ import type {
   AgreeToContractRequest,
   ApiContract,
   ApiContractAgreement,
-  ApiContractSection,
   ApiMyContractAgreement,
   ApiOrganizationContract,
   ApiPrivacyPolicy,
@@ -111,7 +110,7 @@ function useInvalidateContracts() {
   return () => client.invalidateQueries({ queryKey: [contractHooks.name] });
 }
 
-/** Start the organization's draft, from its latest version's sections. */
+/** Start the organization's draft, from its latest version's text. */
 export function useStartContractDraft() {
   const invalidate = useInvalidateContracts();
   return useMutation({
@@ -122,22 +121,14 @@ export function useStartContractDraft() {
   });
 }
 
-/** Save the draft's sections, as a whole list in order (errors are shown inline). */
+/** Save the draft's text (errors are shown inline). */
 export function useSaveContractDraft() {
   const invalidate = useInvalidateContracts();
   return useMutation({
-    mutationFn: ({
-      id,
-      version,
-      sections,
-    }: {
-      id: number;
-      version: number;
-      sections: ApiContractSection[];
-    }) =>
+    mutationFn: ({ id, version, body }: { id: number; version: number; body: string }) =>
       apiFetch<ApiContract>(`/api/contracts/${id}/`, {
         method: 'PATCH',
-        body: { sections },
+        body: { body },
         headers: { 'If-Match': `"${version}"` },
       }),
     meta: { suppressErrorNotification: true },

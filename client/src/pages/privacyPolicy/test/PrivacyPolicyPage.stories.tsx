@@ -1,5 +1,6 @@
 /**
- * Stories for an organization's public privacy policy (SPEC §4, §7; §15 DR-145).
+ * Stories for an organization's public terms, its privacy policy among them
+ * (SPEC §4, §7; §15 DR-145, DR-153).
  * Run `npm run storybook`.
  */
 
@@ -15,8 +16,7 @@ export const Published: StoryFn = () => (
     policy={{
       organization: 3,
       organization_name: 'Lark Camp',
-      title: PUBLISHED_CONTRACT.sections[0].title,
-      body: PUBLISHED_CONTRACT.sections[0].body,
+      body: PUBLISHED_CONTRACT.body,
       number: 2,
       published_at: PUBLISHED_CONTRACT.published_at,
     }}

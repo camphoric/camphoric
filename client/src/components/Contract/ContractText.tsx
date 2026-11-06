@@ -1,36 +1,19 @@
 /**
- * A contract version's text (SPEC §6; §15 DR-145): each section in order, its
- * title and its Markdown, rendered through the sanitizing pipeline (§9.3).
+ * A contract version's text (SPEC §6; §15 DR-145, DR-153): one Markdown document,
+ * its headings its sections, rendered through the sanitizing pipeline (§9.3).
  */
 
-import { Stack, Title } from '@mantine/core';
-import type { ApiContractSection } from 'api-types';
 import { markdownToHtml, RenderedMarkdown } from 'components/templating';
 import { useMemo } from 'react';
 
-interface ContractTextProps {
-  sections: ApiContractSection[];
-}
+import classes from './ContractText.module.css';
 
-export function ContractText({ sections }: ContractTextProps) {
+export function ContractText({ body }: { body: string }) {
+  const html = useMemo(() => markdownToHtml(body), [body]);
   return (
-    <Stack gap="lg">
-      {sections.map((section, index) => (
-        <ContractSectionText key={index} section={section} />
-      ))}
-    </Stack>
-  );
-}
-
-function ContractSectionText({ section }: { section: ApiContractSection }) {
-  const html = useMemo(() => markdownToHtml(section.body), [section.body]);
-  return (
-    <section aria-label={section.title}>
-      <Title order={4} mb="xs">
-        {section.title}
-      </Title>
+    <div className={classes.text}>
       <RenderedMarkdown html={html} />
-    </section>
+    </div>
   );
 }
 

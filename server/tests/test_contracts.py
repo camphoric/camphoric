@@ -6,6 +6,7 @@ token, and lists leave its records out.
 '''
 
 import datetime
+import hashlib
 from decimal import Decimal
 from importlib import import_module
 import re
@@ -30,13 +31,15 @@ from tests.factories import create_template_event, make_user
 GATED = 'contract_agreement_required'
 
 
-def publish_contract(organization, sections=None, by=None):
+TERMS = ('## Privacy Policy\n\nWe keep your data safe.\n\n'
+         '## Liability Waiver\n\nUse at your own risk.')
+
+
+def publish_contract(organization, body=TERMS, by=None):
     '''Publish the organization's next version: by default a privacy policy and a waiver.'''
     draft = contracts.start_draft(organization)
-    contracts.replace_sections(draft, sections or [
-        {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'We keep your data safe.'},
-        {'kind': 'custom', 'title': 'Liability Waiver', 'body': 'Use at your own risk.'},
-    ])
+    draft.body = body
+    draft.save()
     return contracts.publish(draft, by)
 
 
@@ -120,9 +123,8 @@ class PublishingEndsSignInsTests(APITestCase):
     def publish(self, client):
         draft = client.post('/api/contracts/', {'organization': self.organization.pk},
                             format='json').data
-        client.patch(f'/api/contracts/{draft["id"]}/', {'sections': [
-            {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'Kept safe.'}]},
-            format='json')
+        client.patch(f'/api/contracts/{draft["id"]}/', {'body': '## Privacy\n\nKept safe.'},
+                     format='json')
         response = client.post(f'/api/contracts/{draft["id"]}/publish/')
         self.assertEqual(response.status_code, 200, response.data)
         return response
@@ -203,58 +205,51 @@ class DraftingTests(APITestCase):
         return self.client.post('/api/contracts/', {'organization': self.organization.pk},
                                 format='json')
 
-    def test_the_first_draft_is_an_empty_privacy_policy(self):
+    def test_the_first_draft_is_empty(self):
         response = self.start()
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data['sections'], [
-            {'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': ''}])
+        self.assertEqual(response.data['body'], '')
         self.assertIsNone(response.data['number'])
         self.assertIsNone(response.data['published_at'])
 
     def test_a_later_draft_copies_the_latest_version(self):
         self.publish()
-        sections = self.start().data['sections']
-        self.assertEqual([s['title'] for s in sections], ['Privacy Policy', 'Liability Waiver'])
+        self.assertEqual(self.start().data['body'], TERMS)
 
     def test_one_draft_at_a_time(self):
         self.start()
         self.assertEqual(self.start().status_code, 409)
 
-    def test_sections_are_changed_and_reordered_as_a_whole(self):
+    def test_the_text_is_changed(self):
         draft = self.start().data
-        sections = [
-            {'kind': 'custom', 'title': 'Liability Waiver', 'body': 'Risky.'},
-            {'kind': 'privacy_policy', 'title': 'Your data', 'body': 'Kept safe.'},
-        ]
-        response = self.client.patch(f'/api/contracts/{draft["id"]}/', {'sections': sections},
+        body = '# Waiver\n\nRisky.\n\n# Your data\n\nKept safe.'
+        response = self.client.patch(f'/api/contracts/{draft["id"]}/', {'body': body},
                                      format='json', HTTP_IF_MATCH=f'"{draft["version"]}"')
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['sections'], sections)
+        self.assertEqual(response.data['body'], body)
         self.assertEqual(response.data['version'], draft['version'] + 1)
 
-    def test_a_title_is_kept_as_typed(self):
+    def test_sections_from_an_old_page_are_refused_not_lost(self):
         draft = self.start().data
-        sections = [{'kind': 'privacy_policy', 'title': 'Your data ', 'body': 'Kept safe. '}]
-        response = self.client.patch(
-            f'/api/contracts/{draft["id"]}/', {'sections': sections}, format='json')
-        self.assertEqual(response.data['sections'], sections)
-
-    def test_the_privacy_policy_cant_be_removed_or_doubled(self):
-        draft = self.start().data
-        for sections in (
-            [{'kind': 'custom', 'title': 'Waiver', 'body': 'Risky.'}],
-            [{'kind': 'privacy_policy', 'title': 'A', 'body': 'a'},
-             {'kind': 'privacy_policy', 'title': 'B', 'body': 'b'}],
-            [],
-        ):
-            response = self.client.patch(
-                f'/api/contracts/{draft["id"]}/', {'sections': sections}, format='json')
-            self.assertEqual(response.status_code, 400, sections)
-
-    def test_publishing_refuses_an_empty_section(self):
-        draft = self.start().data
-        response = self.client.post(f'/api/contracts/{draft["id"]}/publish/')
+        response = self.client.patch(f'/api/contracts/{draft["id"]}/', {'sections': [
+            {'kind': 'privacy_policy', 'title': 'Privacy', 'body': 'Kept safe.'}]}, format='json')
         self.assertEqual(response.status_code, 400)
+        self.assertIn('sections', response.data)
+        self.assertEqual(models.Contract.objects.get(pk=draft['id']).version, draft['version'])
+
+    def test_the_text_is_kept_as_typed(self):
+        draft = self.start().data
+        response = self.client.patch(
+            f'/api/contracts/{draft["id"]}/', {'body': '  Kept safe. \n'}, format='json')
+        self.assertEqual(response.data['body'], '  Kept safe. \n')
+
+    def test_publishing_refuses_no_text(self):
+        draft = self.start().data
+        for body in ('', ' \n '):
+            self.client.patch(f'/api/contracts/{draft["id"]}/', {'body': body}, format='json')
+            response = self.client.post(f'/api/contracts/{draft["id"]}/publish/')
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('body', response.data)
         self.assertIsNone(models.Contract.objects.get(pk=draft['id']).published_at)
 
     @freeze_time('2026-11-04 12:00:00')
@@ -267,8 +262,8 @@ class DraftingTests(APITestCase):
         self.assertEqual(response.data['published_by'], self.admin.pk)
         self.assertEqual(response.data['published_at'], '2026-11-04T12:00:00Z')
         contract = models.Contract.objects.get(pk=draft['id'])
-        self.assertEqual(contract.content_sha256, contracts.content_sha256(
-            [{'title': s['title'], 'body': s['body']} for s in draft['sections']]))
+        self.assertEqual(contract.content_sha256,
+                         hashlib.sha256(draft['body'].encode('utf-8')).hexdigest())
         # (Agreeing to it first, to go on managing them.)
         agree(self.client, self.organization)
         self.assertEqual(self.client.post(f'/api/contracts/{draft["id"]}/publish/').status_code,
@@ -276,9 +271,7 @@ class DraftingTests(APITestCase):
 
     def test_publishing_only_the_version_read(self):
         draft = self.start().data
-        sections = [{'kind': 'privacy_policy', 'title': 'Privacy Policy', 'body': 'Changed.'}]
-        self.client.patch(f'/api/contracts/{draft["id"]}/', {'sections': sections},
-                          format='json')
+        self.client.patch(f'/api/contracts/{draft["id"]}/', {'body': 'Changed.'}, format='json')
         response = self.client.post(f'/api/contracts/{draft["id"]}/publish/',
                                     HTTP_IF_MATCH=f'"{draft["version"]}"')
         self.assertEqual(response.status_code, 412)
@@ -302,12 +295,12 @@ class DraftingTests(APITestCase):
 
     def test_a_published_version_cant_change_or_go(self):
         contract = self.publish()
-        sections = [{'kind': 'privacy_policy', 'title': 'Changed', 'body': 'Changed'}]
-        response = self.client.patch(f'/api/contracts/{contract.pk}/', {'sections': sections},
+        response = self.client.patch(f'/api/contracts/{contract.pk}/', {'body': 'Changed'},
                                      format='json')
         self.assertEqual(response.status_code, 409)
         self.assertEqual(self.client.delete(f'/api/contracts/{contract.pk}/').status_code, 409)
-        self.assertEqual(contract.sections.first().title, 'Privacy Policy')
+        contract.refresh_from_db()
+        self.assertEqual(contract.body, TERMS)
 
     def test_a_draft_can_be_deleted(self):
         draft = self.start().data
@@ -361,8 +354,7 @@ class AgreeingTests(APITestCase):
         self.assertEqual(contract['number'], 1)
         self.assertEqual(contract['organization_name'], 'Camp')
         self.assertEqual(contract['content_sha256'], self.contract.content_sha256)
-        self.assertEqual([s['title'] for s in contract['sections']],
-                         ['Privacy Policy', 'Liability Waiver'])
+        self.assertEqual(contract['body'], TERMS)
 
     def test_signing_in_says_so_too(self):
         self.client.logout()
@@ -465,7 +457,7 @@ class AgreeingTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         [row] = response.data
         self.assertEqual(row['contract']['number'], 1)
-        self.assertEqual(row['contract']['sections'][1]['title'], 'Liability Waiver')
+        self.assertEqual(row['contract']['body'], TERMS)
 
     def test_deleting_the_user_keeps_their_agreement(self):
         agree(self.client, self.organization)
@@ -500,23 +492,18 @@ class PrivacyPolicyTests(APITestCase):
         cls.made = create_template_event()
         cls.organization = cls.made.organization
 
-    def test_anyone_can_read_it(self):
+    def test_anyone_can_read_the_latest_terms(self):
+        publish_contract(self.organization, body='Version one.')
         contract = publish_contract(self.organization)
         response = self.client.get(f'/api/organizations/{self.organization.pk}/privacy-policy')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {
             'organization': self.organization.pk,
             'organization_name': 'Camp Org',
-            'title': 'Privacy Policy',
-            'body': 'We keep your data safe.',
-            'number': 1,
+            'body': TERMS,
+            'number': 2,
             'published_at': contract.published_at,
         })
-
-    def test_only_the_privacy_policy(self):
-        publish_contract(self.organization)
-        response = self.client.get(f'/api/organizations/{self.organization.pk}/privacy-policy')
-        self.assertNotIn('Use at your own risk', str(response.data))
 
     def test_none_until_published(self):
         contracts.start_draft(self.organization)
@@ -528,7 +515,7 @@ class PrivacyPolicyTests(APITestCase):
         self.assertIsNone(self.client.get(path).data['privacyPolicy'])
         publish_contract(self.organization)
         self.assertEqual(self.client.get(path).data['privacyPolicy'],
-                         {'organization': self.organization.pk, 'title': 'Privacy Policy'})
+                         {'organization': self.organization.pk})
 
     def test_registrants_never_meet_the_gate(self):
         publish_contract(self.organization)
