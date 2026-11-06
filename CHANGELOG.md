@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.0](https://github.com/camphoric/camphoric/compare/v0.16.0...v0.17.0) (2026-11-06)
+
+
+### Features
+
+* **data:** add and remove list items and campers in the e2e page object (list, removeCamper) ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+* **data:** create invitations in the e2e harness (admin.invite) ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+* **data:** raise the e2e server's registration throttles ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+* **data:** read the email the e2e server sent (admin.emails) ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+* **data:** read the payment step's totals in the e2e page object (paymentTotal) ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+* **data:** take online payments in e2e tests through a fake PayPal (onlinePayment, startOnlinePayment, payPal.order) ([57da044](https://github.com/camphoric/camphoric/commit/57da044c1eee79d92a6811572b9b8f012c2b79ef))
+
 ## [0.16.0](https://github.com/camphoric/camphoric/compare/v0.15.0...v0.16.0) (2026-11-06)
 
 
