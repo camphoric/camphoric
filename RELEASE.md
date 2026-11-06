@@ -192,13 +192,19 @@ components alongside the app:
   publishes that version (`release-packages.yml`), so a package can be released without releasing
   the app, and the other way round.
 - **Release PRs are rebuilt on every push to `main`.** Every release PR bumps its own line of
-  the one `.release-please-manifest.json`, so merging one leaves the others conflicting.
-  `"always-update": true` in `release-please-config.json` has release-please rebuild each open
-  release PR from the latest `main` on every run, even when its notes haven't changed (by
-  default it leaves those alone, conflicts and all). To merge several, merge one, wait for the
-  Release Please run its merge starts (about a minute) to rebuild the others, then merge the
-  next. Rebuilding force-pushes the release branches with `GITHUB_TOKEN`, which starts no other
-  workflows, and doesn't change what's released: releases come only from merged release PRs.
+  the one `.release-please-manifest.json`, and git takes changes to neighbouring lines as a
+  conflict, so merging one can leave another conflicting (the app's and the tools', two lines
+  apart, don't). `"always-update": true` in `release-please-config.json` has release-please
+  rebuild each open release PR from the latest `main` on every run, even when its notes haven't
+  changed (by default it leaves those alone, conflicts and all). To merge several, merge one,
+  wait for the Release Please run its merge starts (a minute or two) to rebuild the others, then
+  merge the next. Rebuilding force-pushes the release branches with `GITHUB_TOKEN`, which starts
+  no other workflows, and doesn't change what's released: releases come only from merged release
+  PRs. It's its own job (`release-prs`), after the release job, so a failure rebuilding them
+  can't stop a release from being published.
+- **Don't snooze a release PR.** With `always-update`, a release PR closed with the
+  `autorelease: snooze` label keeps being rewritten and is never reopened; to skip a release,
+  leave its PR open. Removing the label makes the next run open a new release PR.
 - **The app ignores package-only changes.** A commit that only touches `data/packages/` doesn't
   bump the app's version (`exclude-paths` in `release-please-config.json`); one that also touches
   anything else does. The app's tags stay `vX.Y.Z`.
