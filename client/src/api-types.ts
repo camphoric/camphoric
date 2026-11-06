@@ -1374,6 +1374,24 @@ export interface ApiEmailUnsubscribe {
   version: number;
 }
 
+/**
+ * An emailed unsubscribe link, as its page shows it (`/api/email/unsubscribe/{token}`;
+ * SPEC §5; §15 DR-48, DR-154).
+ */
+export interface ApiUnsubscribeLink {
+  event: { name: string };
+  /** The address the link unsubscribes, lowercased. */
+  address: string;
+  /** Whether it's already unsubscribed from the event's group email. */
+  unsubscribed: boolean;
+}
+
+/** Why an unsubscribe link can't be used: changed or incomplete, or its event is gone. */
+export interface ApiUnsubscribeProblem {
+  code: 'invalid' | 'gone';
+  detail: string;
+}
+
 export interface AudienceResolution {
   recipients: AudienceRecipient[];
   skipped: AudienceSkipped[];

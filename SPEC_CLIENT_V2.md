@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-153)
+- §15 — Decision Records (DR-1…DR-154)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -210,6 +210,11 @@ ending in `/` to the non-slash form.
   spelled it (`@` or `%40`, say).
 - `/invoices/:token` — an invoice's public pay page, reached by its unguessable link (§9.7;
   §15, DR-95). No sign-in.
+- `/unsubscribe/:token` — the page a group email's unsubscribe link opens, by the link's signed
+  token (§8.9; §15, DR-48, DR-154). No sign-in. Opening it changes nothing: it shows the event
+  and the address and asks to confirm, or says the address is already unsubscribed, or why the
+  link can't be used (changed or incomplete, or its event no longer exists). The emailed link,
+  `/api/unsubscribe/{token}/`, redirects a browser here.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
   (§6; §15, DR-52). Reached before signing in, so it isn't behind the admin guard.
 - `/organizations/:organizationId/privacy-policy` — the organization's public terms, its privacy
@@ -561,12 +566,19 @@ Non-CRUD admin endpoints:
   - `GET /api/emailunsubscribes/?event=` — the event's unsubscribed addresses, newest first;
     `POST` `{ event, email }` adds one as an organizer (the address is lowercased; 400 on `email`
     when it's already there); `DELETE /api/emailunsubscribes/{id}/` removes one.
-- **Unsubscribe** (public, no login; §15, DR-48): `GET /api/unsubscribe/{token}/` is a page,
-  rendered by the server, that asks to confirm unsubscribing the token's address from the
-  token's event's group email (a GET changes nothing); `POST` to the same URL — the page's
-  button, or a mail provider's one-click `List-Unsubscribe=One-Click` (RFC 8058) — records it
-  and says so. The token is signed; a tampered one is a 400 page, an event that no longer exists
-  a 404 page.
+- **Unsubscribe** (public, no login: the signed token is the permission; §15, DR-48, DR-154):
+  - `/api/unsubscribe/{token}/` — the link in each group email's footer and `List-Unsubscribe`
+    header. `GET` changes nothing and redirects (302) to the client's page,
+    `/unsubscribe/{token}` (§4). `POST` is a mail provider's one-click
+    `List-Unsubscribe=One-Click` (RFC 8058), made without a browser: it unsubscribes the token's
+    address from the token's event's group email and answers JSON, as below. No HTML is rendered
+    for either.
+  - `GET /api/email/unsubscribe/{token}` → `{ event: { name }, address, unsubscribed }` — what
+    the page shows (`address` lowercased; `unsubscribed` whether it's already on the event's
+    list); it changes nothing. `POST` to the same URL — the page's confirm — records the address
+    (source `link`; again is harmless) → the same, `unsubscribed: true`.
+  - A changed or incomplete token is a 400, an event that no longer exists a 404, each
+    `{ code: 'invalid' | 'gone', detail }`, from either URL.
 - **Users and passwords** (§6, §8.10; §15, DR-52):
   - `POST /api/users/{id}/send-password-link/` — email the user a set-password link → 202
     `{ to, status, last_error }` (never the link); 409 `{ detail }` for a deactivated user or no
@@ -2253,8 +2265,9 @@ can't be rendered is recorded as failed with the problem while the others still 
 
 Each copy ends with a short footer saying which event it's about, with a link to **unsubscribe**
 from the event's group email, and carries the same link as a one-click `List-Unsubscribe` header
-(§15, DR-48). Following the link opens a page that asks to confirm; confirming — or a mail
-provider's one-click unsubscribe — adds the address to the event's unsubscribed list. Tests and
+(§15, DR-48). Following the link opens the unsubscribe page (§4; DR-154), which asks to confirm;
+confirming — or a mail provider's one-click unsubscribe — adds the address to the event's
+unsubscribed list. Tests and
 the editor's preview don't have the footer.
 
 **Unsubscribed** — the addresses that don't get the event's group email, newest first: each
@@ -4212,10 +4225,9 @@ for a group email sent from a different address.
 **Decision:** Each copy of a group email carries a link, in a footer and as a `List-Unsubscribe`
 header with `List-Unsubscribe-Post` (RFC 8058 one-click), to unsubscribe its address from that
 event's group email. The link holds a token signed with Django's signing (the event and the
-address), so it needs no login and can't be made for another address. A GET shows a page asking
-to confirm and changes nothing; a POST — the page's button, or the provider's one-click request —
-records the address. The page is rendered by the server, so it works from any mail client without
-the app. Group email skips unsubscribed addresses when the recipients are worked out and again
+address), so it needs no login and can't be made for another address. Following the link shows
+a page asking to confirm and changes nothing; confirming on the page, or the provider's one-click
+POST to the link, records the address. The page is the client's (DR-154). Group email skips unsubscribed addresses when the recipients are worked out and again
 when a send is prepared; confirmations, invitations and tests aren't affected. Organizers see
 the list and can add or remove addresses. Links point at `CAMPHORIC_PUBLIC_URL`, else the host the
 send was made from, recorded on the send because copies are prepared by the worker, outside any
@@ -4316,9 +4328,8 @@ usable. Setting a password is sometimes simply faster (a new helper at the regis
 and requiring a change keeps it from becoming their permanent password; enforcing that on the
 server means a stale browser tab can't skip it.
 **Alternatives:** Admins set every password — they'd know them, and resets would all go through
-them. A server-rendered set-password page (like the unsubscribe page, DR-48) — that page must
-work in any mail client with one click; this one belongs to the admin app, with its forms and
-validation. Enforcing the forced change only in the client — the API would still accept the old
+them. A server-rendered set-password page (as the unsubscribe page then was, DR-48, DR-154) —
+this one belongs to the admin app, with its forms and validation. Enforcing the forced change only in the client — the API would still accept the old
 password's session for everything.
 
 ### DR-53 — An audit log of changes, with old and new values
@@ -6515,6 +6526,28 @@ section — the policy must stay posted where registrants can read it (DR-145). 
 organization's terms with its events — organizations are imported once; publishing signs
 everyone out, and the importer's user would then have to agree before importing further.
 
+### DR-154 — The unsubscribe page is a page of the client
+
+**Decision:** The page a group email's unsubscribe link opens is a route of the client,
+`/unsubscribe/:token`; the server renders no HTML for unsubscribing. The emailed link keeps its
+URL, `/api/unsubscribe/{token}/`, in the footer and the `List-Unsubscribe` header alike: a `GET`
+of it (a person, or a link scanner) changes nothing and redirects to the client's page, and a
+`POST` stays the one-click endpoint mail providers call without a browser, answering JSON. The
+page reads the link and confirms through `GET`/`POST /api/email/unsubscribe/{token}`, which say
+when the address is already unsubscribed and why a link can't be used (`invalid`, `gone`).
+**Context:** After DR-152, the unsubscribe page was the last page the server rendered, with its
+own styling, light/dark handling and copy kept in step with the client by hand (#982). The client
+is served for every path that isn't the API, so the page needs nothing the admin and the invoice
+page don't already. RFC 8058's one-click `POST` must go to the URL in the header and is made by
+the provider's servers, so that stays a plain server endpoint. Keeping the link's URL means links
+in emails already sent keep working, without a second URL to record per copy.
+**Alternatives:** Linking the footer straight to `/unsubscribe/{token}` and keeping
+`/api/unsubscribe/{token}/` for the header only — saves one redirect, but two URLs per copy, and
+sent emails still need the redirect. Answering the link's `GET` with the client app at its `/api/`
+URL (as `/o/authorize/` is answered, DR-152) — the dev server sends `/api/` to Django, and the
+client would route an API path. Choosing JSON or a redirect by the request's `Accept` header —
+one URL, but its behaviour hinges on a header a link scanner or mail client sets as it likes.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -6599,7 +6632,8 @@ must be coordinated with the backend. Grouped by status.
   (§5).
 - **Email:** the email templates (`EmailTemplate`; the event's `confirmation_template` and each
   registration type's `invitation_template`) and their save-time checks, the confirmation-failure
-  report to `confirmation_email_from`, the unsubscribe page and list, the group email endpoints
+  report to `confirmation_email_from`, the unsubscribe link and the page's endpoint and the list
+  (DR-154), the group email endpoints
   (recipient fields, recipients, send, test, duplicate, batches with cancel and retry), the
   outbox (`emailmessages`, the queue, retry and cancel) and email accounts, with the shapes in §5
   (§8.3, §8.8, §8.9; DR-44 to DR-48).

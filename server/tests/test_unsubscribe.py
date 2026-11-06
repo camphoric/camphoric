@@ -1,12 +1,12 @@
 '''
-Unsubscribing from an event's group email (SPEC §8.9, DR-48): the signed link,
-the public page and one-click POST, skipping unsubscribed addresses, and the
-organizers' list.
+Unsubscribing from an event's group email (SPEC §8.9, DR-48, DR-154): the
+signed link (on to the client's page, and one-click POST), the page's endpoint,
+skipping unsubscribed addresses, and the organizers' list.
 '''
 
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test import TestCase
+from django.test import Client, TestCase
 
 from camphoric import models
 from camphoric.mail import unsubscribe
@@ -27,43 +27,104 @@ class TokenTests(TestCase):
         self.assertTrue(url.endswith('/'))
 
 
-class UnsubscribePageTests(GroupEmailTestCase):
+class UnsubscribeLinkTests(GroupEmailTestCase):
+    '''The emailed link (DR-154): GET goes on to the client's page; POST is one-click.'''
+
     def setUp(self):
         super().setUp()
         self.client.logout()
-        self.url = f'/api/unsubscribe/{unsubscribe.make_token(self.event.id, "Pat@Example.com")}/'
+        self.token = unsubscribe.make_token(self.event.id, 'Pat@Example.com')
+        self.url = f'/api/unsubscribe/{self.token}/'
 
     def rows(self):
         return list(models.EmailUnsubscribe.objects.values_list('email', 'source'))
 
-    def test_get_asks_and_changes_nothing(self):
+    def test_get_goes_to_the_client_page_and_changes_nothing(self):
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Unsubscribe?')
-        self.assertContains(response, 'pat@example.com')
-        self.assertContains(response, self.event.name)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], f'/unsubscribe/{self.token}')
         self.assertEqual(self.rows(), [])
-
-    def test_confirming_unsubscribes_once(self):
-        response = self.client.post(self.url)
-        self.assertContains(response, 'You’re unsubscribed')
-        self.client.post(self.url)
-        self.assertEqual(self.rows(), [('pat@example.com', 'link')])
-        # Visiting again says so.
-        self.assertContains(self.client.get(self.url), 'You’re unsubscribed')
+        # A changed link goes on too: the page says what's wrong with it.
+        response = self.client.get('/api/unsubscribe/a%3Cb%3E%3F/')
+        self.assertEqual(response['Location'], '/unsubscribe/a%3Cb%3E%3F')
 
     def test_one_click_post(self):
         response = self.client.post(self.url, 'List-Unsubscribe=One-Click',
                                     content_type='application/x-www-form-urlencoded')
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertEqual(response.json(), {
+            'event': {'name': self.event.name}, 'address': 'pat@example.com',
+            'unsubscribed': True})
         self.assertEqual(self.rows(), [('pat@example.com', 'link')])
 
-    def test_bad_links(self):
+    def test_one_click_post_with_a_bad_link(self):
         response = self.client.post(self.url[:-4] + 'zz/')
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, 'doesn’t work', status_code=400)
+        self.assertEqual(response.json()['code'], 'invalid')
         gone = f'/api/unsubscribe/{unsubscribe.make_token(99999, "pat@example.com")}/'
-        self.assertEqual(self.client.get(gone).status_code, 404)
+        self.assertEqual(self.client.post(gone).json()['code'], 'gone')
+        self.assertEqual(self.rows(), [])
+
+
+class UnsubscribePageTests(GroupEmailTestCase):
+    '''The client page's endpoint, /api/email/unsubscribe/<token> (DR-154).'''
+
+    def setUp(self):
+        super().setUp()
+        self.client.logout()
+        token = unsubscribe.make_token(self.event.id, 'Pat@Example.com')
+        self.url = f'/api/email/unsubscribe/{token}'
+
+    def rows(self):
+        return list(models.EmailUnsubscribe.objects.values_list('email', 'source'))
+
+    def test_get_describes_and_changes_nothing(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            'event': {'name': self.event.name}, 'address': 'pat@example.com',
+            'unsubscribed': False})
+        self.assertEqual(self.rows(), [])
+
+    def test_confirming_unsubscribes_once(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['unsubscribed'])
+        self.client.post(self.url)
+        self.assertEqual(self.rows(), [('pat@example.com', 'link')])
+        # Visiting again says so.
+        self.assertTrue(self.client.get(self.url).json()['unsubscribed'])
+
+    def test_a_browser_gets_json_not_html(self):
+        browser = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        response = self.client.get(self.url, HTTP_ACCEPT=browser)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+
+    def test_only_this_events_list_counts(self):
+        other = models.Event.objects.create(
+            organization=self.event.organization, name='Another event')
+        unsubscribe.unsubscribe(other, 'pat@example.com', source='admin')
+        self.assertFalse(self.client.get(self.url).json()['unsubscribed'])
+
+    def test_signed_in_needs_no_csrf_token(self):
+        # The token is the permission; a signed-in organizer's session changes nothing.
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        self.assertEqual(client.post(self.url).status_code, 200)
+
+    def test_bad_links(self):
+        response = self.client.get(self.url[:-2] + 'zz')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['code'], 'invalid')
+        self.assertIn('incomplete or has been changed', response.json()['detail'])
+        self.assertEqual(self.client.post(self.url[:-2] + 'zz').status_code, 400)
+        gone = f'/api/email/unsubscribe/{unsubscribe.make_token(99999, "pat@example.com")}'
+        response = self.client.get(gone)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], 'gone')
+        self.assertEqual(self.client.post(gone).status_code, 404)
         self.assertEqual(self.rows(), [])
 
 
