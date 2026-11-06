@@ -79,6 +79,7 @@ const PaymentStep = lazyRouteComponent(() => import('pages/register'), 'PaymentS
 const ConfirmationStep = lazyRouteComponent(() => import('pages/register'), 'ConfirmationStep');
 const InvoicePayPage = lazyRouteComponent(() => import('pages/invoice'), 'InvoicePayPage');
 const AuthorizePage = lazyRouteComponent(() => import('pages/oauth'), 'AuthorizePage');
+const UnsubscribePage = lazyRouteComponent(() => import('pages/unsubscribe'), 'UnsubscribePage');
 const PrivacyPolicyPage = lazyRouteComponent(
   () => import('pages/privacyPolicy'),
   'PrivacyPolicyPage',
@@ -256,6 +257,14 @@ const invoicePayRoute = createRoute({
   component: InvoicePayPage,
 });
 
+// A group email's unsubscribe page, which the emailed link sends people to
+// (SPEC §4, §8.9; DR-48, DR-154).
+const unsubscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/unsubscribe/$token',
+  component: UnsubscribePage,
+});
+
 // An organization's public privacy policy (SPEC §4, §7; DR-145).
 const privacyPolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -265,7 +274,6 @@ const privacyPolicyRoute = createRoute({
 
 // --- Account (public: reached before signing in) --------------------------------
 
-// A set-password link from an email (SPEC §6, DR-52).
 // The OAuth authorization endpoint apps send people to (SPEC §6; §15 DR-152). Its
 // query string is the app's request, read as sent rather than through the search
 // parsing below.
@@ -275,6 +283,7 @@ const authorizeRoute = createRoute({
   component: AuthorizePage,
 });
 
+// A set-password link from an email (SPEC §6, DR-52).
 const setPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/account/set-password/$uid/$token',
@@ -363,6 +372,7 @@ const routeTree = rootRoute.addChildren([
   setPasswordRoute,
   authorizeRoute,
   invoicePayRoute,
+  unsubscribeRoute,
   privacyPolicyRoute,
   registerLayoutRoute.addChildren([
     registerIndexRoute,

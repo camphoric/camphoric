@@ -82,7 +82,10 @@ urlpatterns = [
     ),
     path('reports/<int:report_id>/render', views.RenderReportView.as_view()),
     path('events/<int:event_id>/email/queue', views.EmailQueueView.as_view()),
-    path('unsubscribe/<str:token>/', views.UnsubscribeView.as_view(), name='unsubscribe'),
+    # A group email's unsubscribe link (GET: on to the client's page; POST: one-click),
+    # and the page's own endpoint (SPEC §5, §8.9; DR-48, DR-154).
+    path('unsubscribe/<str:token>/', views.UnsubscribeLinkView.as_view(), name='unsubscribe'),
+    path('email/unsubscribe/<str:token>', views.UnsubscribeView.as_view()),
     path('events/<int:event_id>/email/recipients', views.EmailRecipientsView.as_view()),
     path('events/<int:event_id>/email/recipient-fields',
          views.EmailRecipientFieldsView.as_view()),

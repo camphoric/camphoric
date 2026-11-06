@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import traceback
+from urllib.parse import quote
 import uuid
 
 from dateutil.relativedelta import relativedelta
@@ -18,8 +19,8 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.core import signing
-from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
@@ -31,6 +32,7 @@ from rest_framework import mixins, permissions, status
 from rest_framework.exceptions import APIException, NotFound, Throttled
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
@@ -528,46 +530,96 @@ class EmailUnsubscribeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSe
         serializer.save(source=models.EmailUnsubscribeSource.ADMIN, created_by=self.request.user)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-class UnsubscribeView(View):
+def unsubscribe_target(token):
     '''
-    GET /api/unsubscribe/<token>/: a page asking to confirm (a link scanner's
-    GET changes nothing). POST — the page's button, or a mail provider's
-    one-click `List-Unsubscribe=One-Click` (RFC 8058) — unsubscribes the
-    token's address from the event's group email (SPEC DR-48). No login: the
-    signed token is the permission.
+    `(event, address, None)` for an unsubscribe link's token, or
+    `(None, None, (status, problem))` when the link can't be used: changed or
+    incomplete (400 `invalid`), or its event no longer exists (404 `gone`).
     '''
-    template = 'camphoric/unsubscribe.html'
+    try:
+        event_id, address = unsubscribe.read_token(token)
+    except signing.BadSignature:
+        return None, None, (status.HTTP_400_BAD_REQUEST, {
+            'code': 'invalid',
+            'detail': 'The unsubscribe link is incomplete or has been changed. '
+                      'Try the link in the email again.'})
+    event = models.Event.objects.filter(id=event_id).first()
+    if event is None:
+        return None, None, (status.HTTP_404_NOT_FOUND, {
+            'code': 'gone',
+            'detail': 'The event this email was about no longer exists, so it won’t '
+                      'send you anything more.'})
+    return event, address, None
 
-    def target(self, request, token):
-        try:
-            event_id, address = unsubscribe.read_token(token)
-        except signing.BadSignature:
-            return None, None, render(request, self.template, {
-                'problem': 'The unsubscribe link is incomplete or has been changed. '
-                           'Try the link in the email again.'}, status=400)
-        event = models.Event.objects.filter(id=event_id).first()
-        if event is None:
-            return None, None, render(request, self.template, {
-                'problem': 'The event this email was about no longer exists, so it won’t '
-                           'send you anything more.'}, status=404)
-        return event, address, None
+
+def unsubscribe_state(event, address):
+    '''What the unsubscribe page shows: the event, the address, and whether it's done.'''
+    return {
+        'event': {'name': event.name},
+        'address': address,
+        'unsubscribed': models.EmailUnsubscribe.objects.filter(
+            event=event, email=address).exists(),
+    }
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UnsubscribeLinkView(View):
+    '''
+    `/api/unsubscribe/<token>/`, the link in each group email's footer and
+    `List-Unsubscribe` header (SPEC §5, §8.9; DR-48, DR-154). No login: the
+    signed token is the permission.
+
+    - GET (a person following the link, or a link scanner) changes nothing: it
+      sends them on to the client's page, `/unsubscribe/<token>`, which asks to
+      confirm.
+    - POST is a mail provider's one-click `List-Unsubscribe=One-Click`
+      (RFC 8058), made without a browser: it unsubscribes the token's address
+      from the event's group email and answers JSON, as `UnsubscribeView` does.
+    '''
 
     def get(self, request, token):
-        event, address, problem = self.target(request, token)
-        if problem:
-            return problem
-        done = address in unsubscribe.unsubscribed(event)
-        return render(request, self.template,
-                      {'event_name': event.name, 'address': address, 'done': done})
+        return HttpResponseRedirect(f'/unsubscribe/{quote(token, safe=":.")}')
 
     def post(self, request, token):
-        event, address, problem = self.target(request, token)
+        event, address, problem = unsubscribe_target(token)
         if problem:
-            return problem
+            code, body = problem
+            return JsonResponse(body, status=code)
         unsubscribe.unsubscribe(event, address, source=models.EmailUnsubscribeSource.LINK)
-        return render(request, self.template,
-                      {'event_name': event.name, 'address': address, 'done': True})
+        return JsonResponse(unsubscribe_state(event, address))
+
+
+class UnsubscribeView(APIView):
+    '''
+    The client's unsubscribe page (SPEC §5, §8.9; DR-48, DR-154), by the
+    token in the emailed link. No login: the signed token is the permission.
+
+    - `GET /api/email/unsubscribe/<token>` → `{event: {name}, address,
+      unsubscribed}`; it changes nothing.
+    - `POST` the same → unsubscribes the address from the event's group email
+      (source `link`) → the same, `unsubscribed` true.
+
+    A changed or incomplete token is a 400, an event that no longer exists a
+    404, each `{code, detail}`. Always JSON: a browser opening it gets no HTML.
+    '''
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request, token):
+        event, address, problem = unsubscribe_target(token)
+        if problem:
+            code, body = problem
+            return Response(body, status=code)
+        return Response(unsubscribe_state(event, address))
+
+    def post(self, request, token):
+        event, address, problem = unsubscribe_target(token)
+        if problem:
+            code, body = problem
+            return Response(body, status=code)
+        unsubscribe.unsubscribe(event, address, source=models.EmailUnsubscribeSource.LINK)
+        return Response(unsubscribe_state(event, address))
 
 
 class EmailRecipientFieldsView(APIView):

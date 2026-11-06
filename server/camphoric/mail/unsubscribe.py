@@ -3,7 +3,8 @@ Unsubscribing from an event's group email (SPEC §8.9, DR-48).
 
 Each copy of a group email carries a one-click unsubscribe link: a signed token
 naming the event and the address, so the link needs no login and can't be
-forged for another address. Following it (or a mail provider's one-click POST)
+forged for another address. Following it opens the client's page, which asks to
+confirm (DR-154); confirming, or a mail provider's one-click POST to the link,
 records the address as unsubscribed; group email then skips it. Confirmations
 and invitations aren't affected.
 '''
@@ -46,12 +47,6 @@ def unsubscribe_url(base, event_id, address):
     if not base:
         return ''
     return f'{base}/api/unsubscribe/{make_token(event_id, address)}/'
-
-
-def unsubscribed(event):
-    '''The event's unsubscribed addresses (lowercased).'''
-    return set(models.EmailUnsubscribe.objects.filter(event=event)
-               .values_list('email', flat=True))
 
 
 def unsubscribe(event, address, *, source, created_by=None):

@@ -63,6 +63,8 @@ PUBLIC_VIEWS = {
     views.EventList, views.RegisterView, views.ObtainTokenView,
     views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
     views.InvoicePayView, views.RegistrationDraftView, views.PrivacyPolicyView,
+    # An emailed unsubscribe link's page: the signed token is the permission (DR-154).
+    views.UnsubscribeView,
 }
 # Any signed-in user, for their own account.
 SELF_SERVICE = {views.ChangePasswordView}
