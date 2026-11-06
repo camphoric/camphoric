@@ -1,9 +1,7 @@
-import type { ApiContract, ApiContractAgreement, ApiContractSection } from 'api-types';
+import type { ApiContract, ApiContractAgreement } from 'api-types';
 
-export const DRAFT_SECTIONS: ApiContractSection[] = [
-  { kind: 'privacy_policy', title: 'Privacy Policy', body: 'We keep your data safe.' },
-  { kind: 'custom', title: 'Liability Waiver', body: 'Use at your own risk.' },
-];
+export const DRAFT_BODY =
+  '## Privacy Policy\n\nWe keep your data safe.\n\n## Liability Waiver\n\nUse at your own risk.';
 
 export const PUBLISHED_VERSION: ApiContract = {
   id: 7,
@@ -14,7 +12,7 @@ export const PUBLISHED_VERSION: ApiContract = {
   published_by: 1,
   published_by_name: 'Ada Admin',
   agreement_count: 2,
-  sections: DRAFT_SECTIONS,
+  body: DRAFT_BODY,
   created_at: '2026-10-30T17:00:00Z',
   updated_at: '2026-11-01T17:00:00Z',
   version: 3,

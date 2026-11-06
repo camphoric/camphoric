@@ -89,13 +89,13 @@ function OrganizationContracts({ organization }: { organization: ApiOrganization
         <ContractDraftEditor
           key={draft.id}
           organizationName={organization.name}
-          saved={draft.sections}
+          saved={draft.body}
           nextNumber={nextNumber}
           saving={save.isPending}
           publishing={publish.isPending}
           deleting={remove.isPending}
           error={draftError}
-          onSave={(sections) => save.mutate({ id: draft.id, version: draft.version, sections })}
+          onSave={(body) => save.mutate({ id: draft.id, version: draft.version, body })}
           onPublish={() =>
             publish.mutate(
               { id: draft.id, version: draft.version },
@@ -155,7 +155,7 @@ function PublishedVersions({ versions }: { versions: ApiContract[] }) {
             </Accordion.Control>
             <Accordion.Panel>
               <Stack>
-                <ContractText sections={version.sections} />
+                <ContractText body={version.body} />
                 <Text fw={500}>Who has agreed</Text>
                 <ContractAgreements contractId={version.id} />
               </Stack>

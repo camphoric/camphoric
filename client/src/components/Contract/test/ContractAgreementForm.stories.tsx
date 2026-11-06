@@ -36,6 +36,6 @@ export const TermsChanged: StoryFn = () => (
 /** A version's text alone, as rereading an agreement shows it. */
 export const TextOnly: StoryFn = () => (
   <Card withBorder padding="lg" m="md" maw={760}>
-    <ContractText sections={PUBLISHED_CONTRACT.sections} />
+    <ContractText body={PUBLISHED_CONTRACT.body} />
   </Card>
 );

@@ -89,8 +89,8 @@ describe('ContractGate', () => {
     expect(screen.queryByLabelText('Note')).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Lark Camp terms' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Privacy Policy' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Liability Waiver' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Privacy Policy' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Liability Waiver' })).toBeInTheDocument();
     expect(screen.getByText(/agree to them\. If you don’t agree/)).toBeInTheDocument();
     // Only one to agree to: no count.
     expect(screen.queryByText(/Organization 1 of/)).not.toBeInTheDocument();

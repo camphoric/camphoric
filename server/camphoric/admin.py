@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 from . import roles
 from .models import (
-    Camper, Contract, ContractAgreement, ContractSection, Deposit, EmailMessage, Event, Invoice,
+    Camper, Contract, ContractAgreement, Deposit, EmailMessage, Event, Invoice,
     Lodging, Payment, PromoCode, Registration, WorkerHeartbeat,
 )
 
@@ -84,23 +84,11 @@ class ReadOnlyAdmin(admin.ModelAdmin):
         return False
 
 
-class ContractSectionInline(admin.TabularInline):
-    model = ContractSection
-    fields = ['order', 'kind', 'title', 'body']
-    readonly_fields = fields
-    extra = 0
-    can_delete = False
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
 @admin.register(Contract)
 class ContractAdmin(ReadOnlyAdmin):
     '''Each organization's contract versions (SPEC DR-145).'''
     list_display = ['__str__', 'organization', 'number', 'published_at', 'published_by']
     list_filter = ['organization']
-    inlines = [ContractSectionInline]
 
 
 @admin.register(ContractAgreement)

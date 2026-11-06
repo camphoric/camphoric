@@ -1,0 +1,24 @@
+/*
+ * A version's headings are its sections (DR-153). They sit under the page's own
+ * title (the organization's terms), so they're kept smaller than it.
+ */
+.text :where(h1) {
+  font-size: var(--mantine-h3-font-size);
+}
+
+.text :where(h2) {
+  font-size: var(--mantine-h4-font-size);
+}
+
+.text :where(h3, h4, h5, h6) {
+  font-size: var(--mantine-h5-font-size);
+}
+
+.text :where(h1, h2, h3, h4, h5, h6) {
+  margin: var(--mantine-spacing-md) 0 var(--mantine-spacing-xs);
+  line-height: 1.3;
+}
+
+.text :global(.md-template) > :first-child {
+  margin-top: 0;
+}

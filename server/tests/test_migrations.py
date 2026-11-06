@@ -424,3 +424,58 @@ class RemovingCompletedTests(MigrationTestCase):
         apps = migrate_to(BEFORE_REMOVING)
         registration = apps.get_model('camphoric', 'Registration')._base_manager.get()
         self.assertTrue(registration.completed)
+
+
+class ContractSectionsIntoBodyTests(TransactionTestCase):
+    '''A version's sections become one Markdown document, its headings (DR-153).'''
+
+    # Each test starts before the change and ends at the latest migration, where the
+    # test case's clean-up expects the tables to be.
+    def setUp(self):
+        self.apps = migrate_to('0092_connected_apps')
+
+    def tearDown(self):
+        migrate_to_latest()
+
+    def test_sections_become_headings_in_order(self):
+        Organization = self.apps.get_model('camphoric', 'Organization')
+        Contract = self.apps.get_model('camphoric', 'Contract')
+        Section = self.apps.get_model('camphoric', 'ContractSection')
+        draft = Contract.objects.create(organization=Organization.objects.create(name='Org'))
+        for order, (title, body) in enumerate([
+                ('Privacy Policy', 'We keep it safe.\n'), (' Waiver ', ''), ('Rules', 'Be kind.')]):
+            Section.objects.create(contract=draft, order=order, title=title, body=body,
+                                   kind='privacy_policy' if order == 0 else 'custom')
+
+        apps = migrate_to('0093_contract_body')
+        draft = apps.get_model('camphoric', 'Contract').objects.get(pk=draft.pk)
+        self.assertEqual(draft.body, '## Privacy Policy\n\nWe keep it safe.\n\n## Waiver\n\n'
+                                     '## Rules\n\nBe kind.')
+
+    def test_a_published_version_keeps_its_hash(self):
+        Organization = self.apps.get_model('camphoric', 'Organization')
+        Contract = self.apps.get_model('camphoric', 'Contract')
+        Section = self.apps.get_model('camphoric', 'ContractSection')
+        published = Contract.objects.create(
+            organization=Organization.objects.create(name='Org'), number=1,
+            published_at=timezone.now(), content_sha256='a' * 64)
+        Section.objects.create(contract=published, order=0, kind='privacy_policy',
+                               title='Privacy Policy', body='Kept safe.')
+
+        apps = migrate_to('0093_contract_body')
+        published = apps.get_model('camphoric', 'Contract').objects.get(pk=published.pk)
+        self.assertEqual(published.content_sha256, 'a' * 64)
+
+    def test_going_back_keeps_the_text_as_one_privacy_policy(self):
+        apps = migrate_to('0093_contract_body')
+        Organization = apps.get_model('camphoric', 'Organization')
+        Contract = apps.get_model('camphoric', 'Contract')
+        draft = Contract.objects.create(organization=Organization.objects.create(name='Org'),
+                                        body='## Privacy\n\nKept safe.')
+
+        apps = migrate_to('0092_connected_apps')
+        sections = list(apps.get_model('camphoric', 'ContractSection').objects.filter(
+            contract_id=draft.pk).values('order', 'kind', 'title', 'body'))
+        self.assertEqual(sections, [{'order': 0, 'kind': 'privacy_policy',
+                                     'title': 'Privacy Policy',
+                                     'body': '## Privacy\n\nKept safe.'}])

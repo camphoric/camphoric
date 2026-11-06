@@ -50,7 +50,7 @@ export function MyAgreementsList({ agreements }: { agreements: ApiMyContractAgre
             </Stack>
           </Accordion.Control>
           <Accordion.Panel>
-            <ContractText sections={agreement.contract.sections} />
+            <ContractText body={agreement.contract.body} />
           </Accordion.Panel>
         </Accordion.Item>
       ))}

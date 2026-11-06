@@ -1381,17 +1381,13 @@ class EditLease(models.Model):
         return f'{self.user} editing {self.content_type.model} #{self.object_id}'
 
 
-class ContractSectionKind(models.TextChoices):
-    PRIVACY_POLICY = 'privacy_policy', 'Privacy policy'
-    CUSTOM = 'custom', 'Custom'
-
-
 class Contract(TimeStampedModel):
     '''
     One version of an organization's contract (SPEC §6, DR-145): the terms
-    everyone who signs in must agree to before they reach the organization.
+    everyone who signs in must agree to before they reach the organization, as
+    one Markdown document (`body`) whose headings are its sections (DR-153).
     A draft (`published_at` null) can be changed; publishing gives it the next
-    `number` and the hash of its sections, and from then on it can't change.
+    `number` and the hash of its text, and from then on it can't change.
     The organization's latest version is its published one with the highest
     `number`; `published_at` is that version's effective date. (`version`, from
     TimeStampedModel, counts edits to a draft, as for every record.)
@@ -1401,6 +1397,7 @@ class Contract(TimeStampedModel):
     organization = models.ForeignKey(
         Organization, related_name='contracts', on_delete=models.CASCADE)
     number = models.PositiveIntegerField(null=True, blank=True)
+    body = models.TextField(blank=True, default='')
     content_sha256 = models.CharField(max_length=64, blank=True, default='')
     published_at = models.DateTimeField(null=True, blank=True)
     published_by = models.ForeignKey(
@@ -1429,31 +1426,6 @@ class Contract(TimeStampedModel):
         if self.number is None:
             return f'{self.organization} contract draft'
         return f'{self.organization} contract version {self.number}'
-
-
-class ContractSection(models.Model):
-    '''
-    A section of a contract version, in `order`. Every version has exactly one
-    `privacy_policy` section, which can be retitled, edited and moved but not
-    removed; it's also the organization's public privacy policy (DR-145).
-    `body` is Markdown.
-    '''
-    contract = models.ForeignKey(Contract, related_name='sections', on_delete=models.CASCADE)
-    order = models.PositiveIntegerField()
-    kind = models.CharField(
-        max_length=20, choices=ContractSectionKind.choices, default=ContractSectionKind.CUSTOM)
-    title = models.CharField(max_length=200)
-    body = models.TextField(blank=True, default='')
-
-    class Meta:
-        ordering = ['order']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['contract', 'order'], name='one_contract_section_per_place'),
-        ]
-
-    def __str__(self):
-        return self.title
 
 
 class ContractAgreement(models.Model):

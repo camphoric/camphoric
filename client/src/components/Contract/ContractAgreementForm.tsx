@@ -62,10 +62,10 @@ export function ContractAgreementForm({
         don’t agree, you’ll be signed out.
       </Text>
       <ScrollArea.Autosize mah={textHeight} type="auto" offsetScrollbars>
-        <ContractText sections={contract.sections} />
+        <ContractText body={contract.body} />
       </ScrollArea.Autosize>
       <Text size="xs" c="dimmed">
-        The privacy policy is also published at{' '}
+        These terms are also published at{' '}
         <Anchor href={policyPath} target="_blank" rel="noreferrer" size="xs">
           {window.location.origin}
           {policyPath}

@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-152)
+- §15 — Decision Records (DR-1…DR-153)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -212,9 +212,9 @@ ending in `/` to the non-slash form.
   §15, DR-95). No sign-in.
 - `/account/set-password/:uid/:token` — choose a password from an emailed set-password link
   (§6; §15, DR-52). Reached before signing in, so it isn't behind the admin guard.
-- `/organizations/:organizationId/privacy-policy` — the organization's public privacy policy: the
-  privacy policy section of its latest contract version, with the version and its effective date
-  (§6; §15, DR-145). No sign-in; a page saying there's none when nothing is published.
+- `/organizations/:organizationId/privacy-policy` — the organization's public terms, its privacy
+  policy among them: its latest contract version, with the version and its effective date (§6;
+  §15, DR-145, DR-153). No sign-in; a page saying there's none when nothing is published.
 - `/o/authorize` — the OAuth authorization endpoint apps send people to, with their
   authorization request as the query string (§6; §15, DR-152). It signs the person in itself,
   so it isn't behind the admin guard. The request is passed to the API exactly as it was in the
@@ -634,9 +634,9 @@ Non-CRUD admin endpoints:
   - None of these, nor `/api/users/`, `POST /api/user/password`, agreeing to an organization's
     terms or publishing a version of them, answers a request made with an app's access token: 403
     `{ detail, code: 'app_not_allowed' }`.
-- **Contracts** (§6; §15, DR-145). Each organization has a series of contract versions, each an
-  ordered list of sections (`{ kind: 'privacy_policy' | 'custom', title, body }`, `body` in
-  Markdown), exactly one of them its privacy policy:
+- **Contracts** (§6; §15, DR-145, DR-153). Each organization has a series of contract versions,
+  each one Markdown document (`body`) whose headings are its sections — a privacy policy, a
+  liability waiver, whatever the organization's terms are:
   - **The gate.** While a signed-in user has yet to agree to an organization's latest published
     version, every request that reaches that organization or what belongs to it — by a record or
     id in its URL (`/api/events/{id}/…`, a record's detail and actions), or an `organization`,
@@ -652,9 +652,8 @@ Non-CRUD admin endpoints:
     your password, `GET /api/organizations/`, users, the endpoints below for reading and agreeing
     to a contract, and every public endpoint.
   - `GET /api/organizations/{id}/contract` (any role) → `{ contract: { id, organization,
-    organization_name, number, content_sha256, published_at, sections }, agreed }`: the latest
-    published version, sections in order, and whether the user has agreed to it; 404 when
-    nothing is published.
+    organization_name, number, content_sha256, published_at, body }, agreed }`: the latest
+    published version and whether the user has agreed to it; 404 when nothing is published.
   - `POST /api/organizations/{id}/contract/agree` `{ contract_id, content_sha256, assent_text }`
     (any role) → the whoami shape, now without the organization pending. The server records the
     organization, user, version, its own time, the username, email and full name as they are
@@ -666,23 +665,23 @@ Non-CRUD admin endpoints:
   - `GET /api/user/agreements` (any role) → the user's agreements, newest first, each with its
     `contract` as above, to reread.
   - `GET /api/organizations/{id}/privacy-policy` (public) → `{ organization, organization_name,
-    title, body, number, published_at }`: the privacy policy section of the latest version and
-    nothing else of it; 404 when nothing is published.
+    body, number, published_at }`: the latest version's text, its privacy policy among its terms;
+    404 when nothing is published.
   - **Managing versions** (Admins only; 403 for other roles): `GET /api/contracts/?organization=`
     → `{ id, organization, number, content_sha256, published_at, published_by,
-    published_by_name, agreement_count, sections, created_at, updated_at, version }[]` (`number`
-    and `published_at` null for the draft). `POST /api/contracts/` `{ organization }` starts the
-    organization's one draft (409 when it has one), with a copy of the latest version's sections,
-    or one empty "Privacy Policy" section for the first. `PATCH /api/contracts/{id}/` `{ sections
-    }` replaces the draft's sections with the list given, in its order (400 unless exactly one is
-    the privacy policy; `If-Match` as for any record). `DELETE` removes the draft. `POST
+    published_by_name, agreement_count, body, created_at, updated_at, version }[]` (`number` and
+    `published_at` null for the draft). `POST /api/contracts/` `{ organization }` starts the
+    organization's one draft (409 when it has one), with a copy of the latest version's text, or
+    empty for the first. `PATCH /api/contracts/{id}/` `{ body }` changes the draft's text, kept as
+    typed (`If-Match` as for any record); `sections`, from a page older than DR-153, is refused
+    (400 `{ sections }`) rather than ignored. `DELETE` removes the draft. `POST
     /api/contracts/{id}/publish/` makes the draft the next version: its `number`, the
-    `content_sha256` of its ordered section titles and bodies, `published_at` (its effective
+    `content_sha256` of its text (SHA-256 of its UTF-8), `published_at` (its effective
     date) and `published_by`, and ends everyone's sign-ins (§15, DR-151): every web session that
     signs someone in, except the session that published (whose whoami then has the organization
     pending), and every app's OAuth access, the publisher's included, its tokens, codes and
     connections deleted as when the person disconnects it; API tokens are left to the gate. A
-    refused publish ends nothing. 400 when a section has no title or text; with `If-Match`, 412 when
+    refused publish ends nothing. 400 `{ body }` when it has no text; with `If-Match`, 412 when
     the draft was saved since that version (§15, DR-109), which the client always sends, as a
     published version can't change. A published version
     answers 409 to `PATCH`, `DELETE` and `publish`. `GET /api/contracts/{id}/agreements/` → who
@@ -740,8 +739,8 @@ Non-CRUD admin endpoints:
   §7.1 — and `hasPromoCodes`, whether the event has a promo code this registrant could use now:
   one that's usable and doesn't exclude the registration type of the query's invitation, or, with
   no valid invitation, registrants without one; §15, DR-107 — and `privacyPolicy`, `{
-  organization, title }` naming the event's organization's public privacy policy, or null when it
-  has published none; §7, DR-145). A request that looks up an
+  organization }` naming the event's organization, whose public terms include its privacy policy,
+  or null when it has published none; §7, DR-145, DR-153). A request that looks up an
   invitation — this query's `email` and `code`, or a `registration` step's `invitation` — is
   throttled per client address (429).
 - `POST /api/events/{eventId}/checkpromo` with `{ code, invitation? }` (anyone; throttled per
@@ -1344,17 +1343,18 @@ hooks):
   form; new users get one by email; signed-in users can change their own; and a superuser can set
   someone's password, requiring them to change it before they can do anything else (§8.10).
 - **Agreeing to an organization's terms** (§15, DR-145, DR-151). Each organization has a
-  contract — a privacy policy and other terms, such as a liability waiver for using the
-  software — that everyone who signs in must agree to before reaching it. Registrants never sign
-  in, so never meet it; the privacy policy is also public (§4, §7). People are asked when they
+  contract — its terms, such as a privacy policy and a liability waiver for using the software,
+  as one Markdown document whose headings are its sections (§15, DR-153) — that everyone who
+  signs in must agree to before reaching it. Registrants never sign in, so never meet it; the
+  terms, privacy policy included, are also public (§4, §7). People are asked when they
   sign in, for every organization pending, one after another: in the admin (below) and on the
   OAuth sign-in and consent pages (*Third-party apps*, above). The gate (§4) comes after the auth
   guard: sign-in, a password to change and no access come first.
   - Which organizations need agreeing to, and in what order (by name), comes from whoami's
     `pending_contract_organizations`. Straight after signing in, before anything of the admin
-    shows and whatever the URL, the first one's latest version shows, with every section in
-    order, its Markdown rendered and sanitized (§9.3), the version and its effective date, a link
-    to the public privacy policy, wording saying that agreeing is required to continue, and two
+    shows and whatever the URL, the first one's latest version shows, its whole text, its Markdown
+    rendered and sanitized (§9.3), the version and its effective date, a link to the public
+    terms, wording saying that agreeing is required to continue, and two
     separate actions, agree and decline. Nothing is chosen for them. With more than one pending,
     it says how far along they are ("Organization 2 of 3").
   - Agreeing sends the version's id and hash with the agree action's wording, and goes on to the
@@ -1425,8 +1425,9 @@ Before any step renders, the app loads the registration config (`GET …/registe
   registration-closed message;
 - otherwise sets the document title, surfaces invitation context when an invitation/type is
   present (and any invitation error), then shows the current step, with a link to the event's
-  organization's public privacy policy (§4) when the config's `privacyPolicy` (`{ organization,
-  title } | null`) names one; none when it's null (§15, DR-145).
+  organization's public terms, its privacy policy among them (§4), when the config's
+  `privacyPolicy` (`{ organization } | null`) names one; none when it's null (§15, DR-145,
+  DR-153).
 
 ### 7.1 Step 1 — Registration form
 
@@ -1663,12 +1664,12 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 - **Admins manage organizations** from the organization chooser (§15, DR-50): add one (a name),
   rename one, and delete one after confirming — refused, with the reason, while it still has
   events. Registrars and Reporters only see and open them.
-- **Admins manage each organization's terms** from the organization chooser (§6; §15, DR-145):
-  its published versions — each one's text, effective date, who published it, and who has
-  agreed to it, when and from where — and its draft. A new draft starts from the latest
-  version's sections. In the draft, sections can be added, removed, retitled, edited (Markdown,
-  with a preview) and reordered; the privacy policy section can't be removed. Publishing, once
-  the draft is saved and every section has a title and text, says first that everyone, the
+- **Admins manage each organization's terms** from the organization chooser (§6; §15, DR-145,
+  DR-153): its published versions — each one's text, effective date, who published it, and who
+  has agreed to it, when and from where — and its draft. A new draft starts from the latest
+  version's text, or empty. The draft is edited as one Markdown document, its headings its
+  sections, with a preview. Publishing, once the draft is saved and has some text, says first
+  that everyone, the
   publisher included, must then agree again, even for a typo, and that everyone else is signed
   out and every app disconnected (§15, DR-151). Someone who has yet to agree to the
   organization's latest version is told to open it and agree before changing its terms.
@@ -6293,8 +6294,9 @@ the server lets them reach the organization or anything of its, by session or AP
 `contract_agreement_required`, with the organization's id), and the client asks them to (when
 they sign in, every organization pending in turn, DR-151). Every new version asks again. An agreement records the version, its hash, the server's time, the user's
 details as they are then, the client address, the user agent, the wording agreed with and the
-release, and outlives the user. Each version has exactly one privacy policy section, which is also
-public. The gate is applied by the permission classes, from the ids a request names (URL, query
+release, and outlives the user. Each version's text is public, so its privacy policy is (DR-153
+made a version one Markdown document, where it had been sections, exactly one of them a privacy
+policy that alone was public). The gate is applied by the permission classes, from the ids a request names (URL, query
 string, body) and each record a view fetches; by the serializers, from every record a write refers
 to; and by leaving pending organizations' records out of lists, deleted lists and users' change
 histories. A test walks every API route. Users stay site-wide, but what a user changed in an
@@ -6492,6 +6494,27 @@ agree on it. Rendering on the server — loses or differently sanitizes raw HTML
 client redirecting to its own `/admin` sign-in with a `next` — a redirect allow-list to keep, and
 a second hop for the app's request.
 
+### DR-153 — A contract version is one Markdown document
+
+**Decision:** Each contract version's text is one Markdown document, its sections its headings,
+rather than a list of separately stored sections. A new organization's first draft is empty; a
+later one copies the latest version's text. Publishing needs some text, and the version's hash is
+of the text. No section is required or set apart: the privacy policy is whatever the terms say,
+and the public page (and the registration page's link) shows the latest version's whole text,
+so the privacy policy in it stays publicly posted. Versions made as sections became one
+document, each section a `## title` heading followed by its text; a published version keeps the
+hash recorded when it was published (its agreements recorded the same), and going back to
+sections makes each text one privacy policy section, so nothing is lost either way.
+**Context:** Organizations write their terms as a document: a required, separately edited privacy
+policy section, and a list of titled sections to add, remove and reorder, was more machinery
+than the text needed, and a heading does the same job. No version had been published when the
+change was made.
+**Alternatives:** Keeping sections with the privacy policy optional (marked, at most one) — still
+the list editor, and a rule about marking. Dropping the public page with the privacy-policy
+section — the policy must stay posted where registrants can read it (DR-145). Importing an
+organization's terms with its events — organizations are imported once; publishing signs
+everyone out, and the importer's user would then have to agree before importing further.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -6519,7 +6542,8 @@ must be coordinated with the backend. Grouped by status.
   the organizations' names; publishing ending everyone's sign-ins but the publisher's (DR-151); the
   `contract_agreement_required` 403 on every gated endpoint and the live stream; lists leaving out
   pending organizations' records; `/api/organizations/{id}/contract` and `…/contract/agree`,
-  `/api/user/agreements`, the public `/api/organizations/{id}/privacy-policy`, `/api/contracts/`
+  `/api/user/agreements`, the public `/api/organizations/{id}/privacy-policy` (the latest
+  version's text), `/api/contracts/`
   with `publish` and `agreements`, and `privacyPolicy` in the register config, with the shapes
   in §5 (§4, §6, §7, §8.1; DR-145).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something

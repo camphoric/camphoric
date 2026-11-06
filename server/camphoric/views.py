@@ -1140,14 +1140,14 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
     '''
     An organization's contract versions (SPEC §5, DR-145), for Admins only:
     list them (`?organization=`), start the draft (POST `{organization}`, from
-    the latest version's sections), change its sections (PATCH `{sections}`,
-    the whole list in order), delete it, and publish it
+    the latest version's text), change its text (PATCH `{body}`, one Markdown
+    document, DR-153), delete it, and publish it
     (`POST …/{id}/publish/`). A published version can't change or be
     deleted. `GET …/{id}/agreements/` is who has agreed to it.
     '''
     serializer_class = serializers.ContractSerializer
     queryset = models.Contract.objects.select_related('published_by') \
-        .prefetch_related('sections').order_by('organization', 'published_at', 'number', 'id')
+        .order_by('organization', 'published_at', 'number', 'id')
     permission_classes = [AdminOnly]
     filterset_fields = ['organization']
     pagination_class = None
@@ -1196,8 +1196,8 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
 
 class OrganizationContractView(APIView):
     '''
-    GET: the organization's latest contract version, with its sections in order,
-    and whether the signed-in user has agreed to it (`{contract, agreed}`); 404
+    GET: the organization's latest contract version, with its text, and
+    whether the signed-in user has agreed to it (`{contract, agreed}`); 404
     when nothing is published. Any role may read it, whether or not they have
     agreed: it's what they're asked to agree to (DR-145).
     '''
@@ -1251,8 +1251,7 @@ class MyContractAgreementsView(APIView):
 
     def get(self, request):
         agreements = models.ContractAgreement.objects.filter(user=request.user) \
-            .select_related('contract__organization') \
-            .prefetch_related('contract__sections').order_by('-agreed_at', '-id')
+            .select_related('contract__organization').order_by('-agreed_at', '-id')
         return Response([
             {**serializers.ContractAgreementSerializer(agreement).data,
              'contract': serializers.PublishedContractSerializer(agreement.contract).data}
@@ -1261,18 +1260,17 @@ class MyContractAgreementsView(APIView):
 
 class PrivacyPolicyView(APIView):
     '''
-    GET, public: the privacy policy section of the organization's latest
-    contract version — `{organization, organization_name, title, body, number,
-    published_at}` — and nothing else of it; 404 when nothing is published
-    (DR-145).
+    GET, public: the organization's latest contract version, its privacy policy
+    among its terms — `{organization, organization_name, body, number,
+    published_at}`; 404 when nothing is published (DR-145, DR-153).
     '''
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, organization_id=None):
-        policy = contracts.public_privacy_policy(organization_id)
-        if policy is None:
+        terms = contracts.public_terms(organization_id)
+        if terms is None:
             raise NotFound('This organization has no privacy policy here.')
-        return Response(policy)
+        return Response(terms)
 
 
 class UserViewSet(PlannedDeleteMixin, ModelViewSet):
@@ -1790,12 +1788,11 @@ class RegisterView(APIView):
             },
         }
 
-        # The organization's public privacy policy, to link to (DR-145).
-        policy = contracts.public_privacy_policy(event.organization_id)
+        # The organization's public terms, its privacy policy among them, to link to
+        # (DR-145, DR-153).
         response_data['privacyPolicy'] = {
             'organization': event.organization_id,
-            'title': policy['title'],
-        } if policy else None
+        } if contracts.latest_contract(event.organization_id) else None
 
         if event.paypal_enabled and event.paypal_client_id:
             response_data['payPalOptions'] = {
