@@ -81,13 +81,15 @@ export const FAKE_PAYPAL_SDK = `(() => {
     FUNDING: { PAYPAL: 'paypal', CARD: 'card' },
     Buttons(props) {
       let container = null;
-      let disabled = false;
-      const actions = {
-        enable: () => { disabled = false; return Promise.resolve(); },
-        disable: () => { disabled = true; return Promise.resolve(); },
+      const elements = [];
+      // Disabled (as the client does while it's busy) by the buttons' own
+      // attribute, so a test's click waits until they're enabled
+      const setDisabled = (disabled) => {
+        for (const button of elements) button.disabled = disabled;
+        return Promise.resolve();
       };
+      const actions = { enable: () => setDisabled(false), disable: () => setDisabled(true) };
       const pay = async (fundingSource) => {
-        if (disabled) return;
         const data = { fundingSource };
         const clickActions = { resolve: () => Promise.resolve(), reject: () => Promise.resolve() };
         if (props.onClick && (await props.onClick(data, clickActions)) === false) return;
@@ -108,6 +110,7 @@ export const FAKE_PAYPAL_SDK = `(() => {
             button.type = 'button';
             button.textContent = label;
             button.addEventListener('click', () => { pay(fundingSource); });
+            elements.push(button);
             box.appendChild(button);
           }
           container.appendChild(box);
