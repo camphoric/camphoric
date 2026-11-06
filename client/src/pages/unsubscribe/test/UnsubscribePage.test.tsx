@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react';
 import { renderWithProviders, screen } from 'test/utils';
 import { ApiError } from 'utils/fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,11 +20,12 @@ const LINK_URL = '/api/email/unsubscribe/tok%3Aen';
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderWithProviders(
+  renderWithProviders(
     <QueryClientProvider client={client}>
       <UnsubscribePage />
     </QueryClientProvider>,
   );
+  return client;
 }
 
 function answer(get: () => unknown, post?: () => unknown) {
@@ -72,6 +74,20 @@ describe('UnsubscribePage', () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'You’re unsubscribed' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unsubscribe' })).toBeNull();
+  });
+
+  it('keeps showing the answer when a later read fails', async () => {
+    let calls = 0;
+    answer(() => {
+      calls += 1;
+      if (calls > 1) throw new ApiError(502, 'Bad Gateway', null);
+      return { ...LINK, unsubscribed: true };
+    });
+    const client = renderPage();
+    expect(await screen.findByRole('heading', { name: 'You’re unsubscribed' })).toBeInTheDocument();
+    await act(() => client.refetchQueries());
+    expect(calls).toBe(2);
+    expect(screen.getByRole('heading', { name: 'You’re unsubscribed' })).toBeInTheDocument();
   });
 
   it('says when the link has been changed', async () => {

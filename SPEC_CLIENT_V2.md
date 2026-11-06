@@ -578,7 +578,11 @@ Non-CRUD admin endpoints:
     list); it changes nothing. `POST` to the same URL — the page's confirm — records the address
     (source `link`; again is harmless) → the same, `unsubscribed: true`.
   - A changed or incomplete token is a 400, an event that no longer exists a 404, each
-    `{ code: 'invalid' | 'gone', detail }`, from either URL.
+    `{ code: 'invalid' | 'gone', detail }` — from either method of
+    `/api/email/unsubscribe/{token}` and from a `POST` to the link (a `GET` of the link always
+    redirects; the page then says what's wrong).
+  - The link, the endpoint and the page are all sent `X-Robots-Tag: noindex` (the page also
+    carries a robots `noindex` meta tag), since they name the recipient's address.
 - **Users and passwords** (§6, §8.10; §15, DR-52):
   - `POST /api/users/{id}/send-password-link/` — email the user a set-password link → 202
     `{ to, status, last_error }` (never the link); 409 `{ detail }` for a deactivated user or no

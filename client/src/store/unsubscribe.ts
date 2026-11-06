@@ -13,12 +13,19 @@ const unsubscribeUrl = (token: string) => `/api/email/unsubscribe/${encodeURICom
 
 const key = (token: string) => ['UnsubscribeLink', token];
 
-/** What the link unsubscribes; reading it changes nothing. */
+/**
+ * What the link unsubscribes; reading it changes nothing. Read once: only confirming
+ * here changes the answer, so a read on returning to the tab could only lose it (a
+ * stale one overwriting the confirmation, or a failed one hiding it).
+ */
 export function useUnsubscribeLink(token: string) {
   return useQuery({
     queryKey: key(token),
     queryFn: ({ signal }) => apiFetch<ApiUnsubscribeLink>(unsubscribeUrl(token), { signal }),
     retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     meta: { suppressErrorNotification: true },
   });
 }

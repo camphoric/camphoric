@@ -562,6 +562,12 @@ def unsubscribe_state(event, address):
     }
 
 
+def no_index(response):
+    '''Ask search engines not to index `response`: unsubscribing names the recipient's address.'''
+    response['X-Robots-Tag'] = 'noindex'
+    return response
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class UnsubscribeLinkView(View):
     '''
@@ -576,6 +582,9 @@ class UnsubscribeLinkView(View):
       (RFC 8058), made without a browser: it unsubscribes the token's address
       from the event's group email and answers JSON, as `UnsubscribeView` does.
     '''
+
+    def dispatch(self, request, *args, **kwargs):
+        return no_index(super().dispatch(request, *args, **kwargs))
 
     def get(self, request, token):
         return HttpResponseRedirect(f'/unsubscribe/{quote(token, safe=":.")}')
@@ -605,6 +614,9 @@ class UnsubscribeView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
     renderer_classes = [JSONRenderer]
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        return no_index(super().finalize_response(request, response, *args, **kwargs))
 
     def get(self, request, token):
         event, address, problem = unsubscribe_target(token)
