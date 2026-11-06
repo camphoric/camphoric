@@ -27,7 +27,7 @@ export function UnsubscribePage() {
   let card: UnsubscribeCardProps | null = null;
   if (problem) {
     card = { state: 'problem', detail: problem.detail };
-  } else if (link.isError) {
+  } else if (link.isError && !link.data) {
     card = {
       state: 'unreachable',
       detail: 'Something went wrong checking this link. Please try again in a moment.',

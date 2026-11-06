@@ -4,9 +4,12 @@ signed link (on to the client's page, and one-click POST), the page's endpoint,
 skipping unsubscribed addresses, and the organizers' list.
 '''
 
+import os
+import tempfile
+
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from camphoric import models
 from camphoric.mail import unsubscribe
@@ -43,6 +46,7 @@ class UnsubscribeLinkTests(GroupEmailTestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], f'/unsubscribe/{self.token}')
+        self.assertEqual(response['X-Robots-Tag'], 'noindex')
         self.assertEqual(self.rows(), [])
         # A changed link goes on too: the page says what's wrong with it.
         response = self.client.get('/api/unsubscribe/a%3Cb%3E%3F/')
@@ -67,6 +71,19 @@ class UnsubscribeLinkTests(GroupEmailTestCase):
         self.assertEqual(self.rows(), [])
 
 
+class UnsubscribePageServedTests(TestCase):
+    def test_the_client_page_asks_not_to_be_indexed(self):
+        with tempfile.TemporaryDirectory() as build:
+            with open(os.path.join(build, 'index.html'), 'w') as f:
+                f.write('<!doctype html>')
+            with override_settings(REACT_BUILD_DIR=build):
+                page = self.client.get('/unsubscribe/abc')
+                other = self.client.get('/admin')
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page['X-Robots-Tag'], 'noindex')
+        self.assertNotIn('X-Robots-Tag', other)
+
+
 class UnsubscribePageTests(GroupEmailTestCase):
     '''The client page's endpoint, /api/email/unsubscribe/<token> (DR-154).'''
 
@@ -85,6 +102,7 @@ class UnsubscribePageTests(GroupEmailTestCase):
         self.assertEqual(response.json(), {
             'event': {'name': self.event.name}, 'address': 'pat@example.com',
             'unsubscribed': False})
+        self.assertEqual(response['X-Robots-Tag'], 'noindex')
         self.assertEqual(self.rows(), [])
 
     def test_confirming_unsubscribes_once(self):

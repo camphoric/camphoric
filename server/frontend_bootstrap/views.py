@@ -14,7 +14,11 @@ class FrontendBootstrapView(View):
     def get(self, request):
         try:
             with open(os.path.join(settings.REACT_BUILD_DIR, 'index.html')) as f:
-                return HttpResponse(f.read())
+                response = HttpResponse(f.read())
+            # The unsubscribe page names the recipient's address (SPEC DR-154).
+            if request.path.startswith('/unsubscribe/'):
+                response['X-Robots-Tag'] = 'noindex'
+            return response
         except FileNotFoundError:
             return HttpResponse(
                 """
