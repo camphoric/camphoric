@@ -87,7 +87,8 @@ export class FormSection {
   /**
    * A list question (an array of objects in the event's schema, such as a
    * camper's parking passes), by its title: its items, and adding and
-   * removing them.
+   * removing them. A camper's list is the camper's: `camper(n).list(title)`
+   * (on the whole form, every camper's list has that title).
    */
   list(title: string): ListQuestion {
     // The list's own title (its heading, a child of the list's box), not

@@ -134,7 +134,9 @@ export class CamphoricAdmin {
     while (next) {
       const page: Page<{ id: number, to: string }> = await this.request('GET', next);
       listed.push(...page.results);
-      next = page.next;
+      // (Its path only: behind a proxy the server may name itself by another
+      // scheme or host, where the token wouldn't be sent)
+      next = page.next ? `${new URL(page.next).pathname}${new URL(page.next).search}` : null;
     }
     // (q matches part of the recipient or subject)
     const wanted = options.to ? listed.filter(m => address(m.to) === address(options.to ?? '')) : listed;

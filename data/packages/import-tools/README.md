@@ -69,7 +69,8 @@ importer:
     - `eventId`: the imported event's id.
   - **Campers and lists:** `addCamper()` adds one and `removeCamper(n)` removes the nth (from 1;
     the ones after it move up). A list question (an array of objects in the schema, such as a
-    camper's parking passes) is `list(title)`, on the form or a camper: `items()` (to count),
+    camper's parking passes) is `list(title)`, on the form or a camper (a camper's list through
+    `camper(n)`: on the form, every camper's list has that title): `items()` (to count),
     `item(n)` (its questions), `add()` (returns the new item's questions) and `remove(n)`:
 
     ```ts
