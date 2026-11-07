@@ -3,7 +3,8 @@
  * saves numbers in E.164 form. A number filled in all at once, as browser
  * autofill and paste do, without a `+` (`(202) 555-1234`) is a number in the
  * selected country; one with `+` and another country code switches the
- * country. Also a render target for the Playwright e2e suite.
+ * country. A field left at its dial code has no answer, so a required one is
+ * rejected as missing (#986). Also a render target for the Playwright e2e suite.
  */
 
 import { Code, Stack, Title } from '@mantine/core';
@@ -23,12 +24,18 @@ const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
 
 export default { title: 'Phone Input' } satisfies Meta;
 
-const PhoneForm = ({ initial = {} }: { initial?: { phone?: string } }) => {
+const PhoneForm = ({
+  initial = {},
+  required = false,
+}: {
+  initial?: { phone?: string };
+  required?: boolean;
+}) => {
   const [formData, setFormData] = useState<unknown>(initial);
   return (
     <Stack maw={420} p="md">
       <JsonSchemaForm
-        schema={schema}
+        schema={required ? { ...schema, required: ['phone'] } : schema}
         uiSchema={uiSchema}
         formData={formData}
         onChange={setFormData}
@@ -46,3 +53,6 @@ export const Empty: StoryFn = () => <PhoneForm />;
 
 /** A saved number from another country shows that country's flag. */
 export const International: StoryFn = () => <PhoneForm initial={{ phone: '+442079460958' }} />;
+
+/** A required number: submitting with only the dial code says it's required. */
+export const Required: StoryFn = () => <PhoneForm required />;

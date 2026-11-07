@@ -10,8 +10,10 @@ recipients from one graph). Templates build their own lists and dicts for
 computed values.
 '''
 
+from dataclasses import dataclass, field
 import datetime
 from decimal import Decimal
+from types import MappingProxyType
 
 # Methods a template may not call on Camphoric's objects.
 MUTATING_METHODS = frozenset({
@@ -30,6 +32,66 @@ class ReadOnlyDict(ReadOnly, dict):
 
 class ReadOnlyList(ReadOnly, list):
     pass
+
+
+@dataclass(frozen=True)
+class DictType:
+    '''
+    The keys an event's data dict may have (its forms' questions, its pricing
+    lines), from the describe type `name` (e.g. `pricing:camper`), so a
+    template that reads any other key can be warned. `fields` is None when the
+    dict may hold any key. `children` are the types of its nested objects and
+    of each item of its lists of objects, by key.
+    '''
+    name: str
+    label: str            # how a warning names it: 'camper.pricing'
+    fields: frozenset | None
+    children: MappingProxyType = field(default_factory=lambda: MappingProxyType({}),
+                                       compare=False, repr=False)
+
+    def defines(self, key):
+        return self.fields is None or key in self.fields
+
+    def union(self, other):
+        '''The keys either type allows (e.g. two registration types' forms).'''
+        fields = None if self.fields is None or other.fields is None \
+            else self.fields | other.fields
+        children = {}
+        for key in self.children.keys() | other.children.keys():
+            mine, theirs = self.children.get(key), other.children.get(key)
+            children[key] = mine.union(theirs) if mine and theirs else mine or theirs
+        return DictType(name=self.name, label=self.label, fields=fields,
+                        children=MappingProxyType(children))
+
+
+class DescribedDict(ReadOnlyDict):
+    '''
+    An event's data dict, with the `DictType` its keys are checked against.
+    The type is kept under an underscore name, which the sandbox won't let a
+    template read, so it can't hide an answer of the same name (`x.dict_type`
+    reads the key, as on any dict).
+    '''
+
+    def __init__(self, items, dict_type):
+        super().__init__(items)
+        self._dict_type = dict_type
+
+
+def freeze_described(value, dict_type):
+    '''
+    `freeze`, tagging dicts (and the dicts in lists) with `dict_type`, and
+    their nested dicts with its children's types. No type: plain `freeze`.
+    '''
+    if dict_type is None or isinstance(value, ReadOnly):
+        return freeze(value)
+    if isinstance(value, dict):
+        return DescribedDict(
+            ((key, freeze_described(item, dict_type.children.get(key)))
+             for key, item in value.items()),
+            dict_type)
+    if isinstance(value, (list, tuple)):
+        return ReadOnlyList(freeze_described(item, dict_type) for item in value)
+    return value
 
 
 class TemplateObject(ReadOnly, dict):

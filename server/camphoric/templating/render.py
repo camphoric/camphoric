@@ -9,6 +9,9 @@ never returned.
 
 Typos are reported as warnings: using a field a Camphoric object doesn't have
 (`camper.frist_name`) renders blank, as in plain Jinja, but is flagged. So is
+reading a key the event doesn't define in its own data: a pricing line
+(`camper.pricing.badge`), an `event.pricing` variable, or a form question or
+admin attribute no schema has (one that's defined but unanswered isn't). So is
 printing a method instead of calling it (`{{ day.isoformat }}`), which is also
 what a key named like a dict method gives (`camper.attributes.items` is the
 method; `camper.attributes['items']` is the answer).
@@ -28,7 +31,7 @@ from jinja2.exceptions import SecurityError, TemplateSyntaxError, UndefinedError
 from . import filters, registry, values
 from .deadline import RenderTimeout, check_deadline, time_limit, watch, watch_modules
 from .env import blank_none, make_env
-from .values import ReadOnlyDict, TemplateObject
+from .values import DescribedDict, ReadOnlyDict, TemplateObject
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +134,9 @@ class TrackingUndefined(Undefined):
     def _undefined_message(self):
         if self._undefined_hint is None and isinstance(self._undefined_obj, TemplateObject):
             return f"{self._undefined_obj.type_name} has no field '{self._undefined_name}'"
+        if self._undefined_hint is None and _is_undefined_key(self._undefined_obj,
+                                                              self._undefined_name):
+            return _undefined_key_message(self._undefined_obj, self._undefined_name)
         if self._undefined_hint is None and isinstance(self._undefined_obj, ReadOnlyDict):
             # A form answer (or other key) that isn't there, e.g. an unanswered question.
             return (f"'{self._undefined_name}' is missing — check for it first "
@@ -139,10 +145,23 @@ class TrackingUndefined(Undefined):
 
     def __init__(self, hint=None, obj=None, name=None, exc=UndefinedError):
         super().__init__(hint=hint, obj=obj, name=name, exc=exc)
-        if hint is not None or not isinstance(obj, TemplateObject) or not isinstance(name, str):
+        if hint is not None or not isinstance(name, str):
             return
-        if name not in FIELDS_BY_TYPE.get(obj.type_name, set()):
-            _warn((obj.type_name, name), f"{obj.type_name} has no field '{name}'")
+        if isinstance(obj, TemplateObject):
+            if name not in FIELDS_BY_TYPE.get(obj.type_name, set()):
+                _warn((obj.type_name, name), f"{obj.type_name} has no field '{name}'")
+        elif _is_undefined_key(obj, name):
+            _warn((obj._dict_type.name, name), _undefined_key_message(obj, name))
+
+
+def _is_undefined_key(obj, name):
+    '''A key the event doesn't define for this dict (not merely unanswered).'''
+    return isinstance(obj, DescribedDict) and isinstance(name, str) \
+        and not obj._dict_type.defines(name)
+
+
+def _undefined_key_message(obj, name):
+    return f"{obj._dict_type.label} has no field '{name}'"
 
 
 def _printed_method_message(value):
