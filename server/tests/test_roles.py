@@ -9,7 +9,7 @@ from django.urls import URLPattern, URLResolver, get_resolver
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APITestCase
 
-from camphoric import models, roles, views
+from camphoric import api_token_views, models, roles, views
 from camphoric.permissions import (
     AdminOnly, AdminWrites, AnyRole, IsAdmin, IsSuperuser, RolePermission, WritersOnly)
 from tests.factories import create_template_event, make_user
@@ -60,14 +60,14 @@ class RoleTests(TestCase):
 
 PUBLIC_VIEWS = {
     views.SetCSRFCookieView, views.LoginView, views.LogoutView, views.UserView,
-    views.EventList, views.RegisterView, views.ObtainTokenView,
+    views.EventList, views.RegisterView, views.RetiredTokenAuthView,
     views.PasswordResetRequestView, views.PasswordResetView, views.CheckPromoCodeView,
     views.InvoicePayView, views.RegistrationDraftView, views.PrivacyPolicyView,
     # An emailed unsubscribe link's page: the signed token is the permission (DR-154).
     views.UnsubscribeView,
 }
-# Any signed-in user, for their own account.
-SELF_SERVICE = {views.ChangePasswordView}
+# Any signed-in user, for their own account; and a token revoking itself.
+SELF_SERVICE = {views.ChangePasswordView, api_token_views.CurrentApiTokenView}
 PROTECTING = (RolePermission, AdminOnly, AdminWrites, AnyRole, IsAdmin, IsSuperuser, WritersOnly)
 
 

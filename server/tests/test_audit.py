@@ -8,10 +8,9 @@ from decimal import Decimal
 from auditlog.models import LogEntry
 from django.contrib.auth.models import User
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from camphoric import models, roles
+from camphoric import api_tokens, models, roles
 from tests.factories import complete, create_template_event, make_user
 
 
@@ -46,8 +45,8 @@ class CreditTests(APITestCase):
         self.assertIsNotNone(entry.cid)
 
     def test_an_api_token_is_credited(self):
-        token = Token.objects.create(user=self.registrar)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        _, key = api_tokens.issue(self.registrar, 'script', None)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(self.patch_registration().status_code, 200)
         self.assertEqual(self.last_edit().actor, self.registrar)
 

@@ -280,3 +280,11 @@ describe('where a JSON change is', () => {
     expect(diffLines('a\nb', 'a\nc').some((d) => d.kind === 'where')).toBe(false);
   });
 });
+
+it('names a personal access token', () => {
+  const entry: ApiHistoryEntry = {
+    ...ENTRIES[5],
+    object: { type: 'apitoken', id: 4, label: 'import' },
+  };
+  expect(objectName(entry)).toBe('Personal access token “import”');
+});

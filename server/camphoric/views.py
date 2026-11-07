@@ -35,7 +35,6 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, SimpleRateThrottle
 from rest_framework.serializers import ValidationError
@@ -45,8 +44,9 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 
 from camphoric import (
     accounts,
+    api_token_views,
+    api_tokens,
     audit,
-    authentication,
     confirmations,
     contracts,
     deletes,
@@ -134,22 +134,19 @@ class LoginView(APIView):
         return Response({'detail': 'Login failed'}, status=400)
 
 
-class ObtainTokenView(ObtainAuthToken):
+class RetiredTokenAuthView(APIView):
     '''
-    POST /api-token-auth/ `username`, `password` → `{token}`, for scripts such
-    as the importer (data/). Throttled like LoginView. The token has at least
-    half of CAMPHORIC_API_TOKEN_TTL left (camphoric.authentication).
+    /api-token-auth/, where scripts used to sign in with a password: gone (410),
+    saying how to get a personal access token instead (DR-157). It reads no
+    credentials, so it never checks a password.
     '''
-    throttle_classes = LOGIN_THROTTLES
-    # Signing in checks only the username and password, so a script still
-    # sending its expired token (a 401 otherwise) can get a new one.
     authentication_classes = []
+    permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        token = authentication.issue_token(serializer.validated_data['user'])
-        return Response({'token': token.key})
+    def _gone(self, request, *args, **kwargs):
+        return Response({'detail': api_tokens.RETIRED_TOKENS}, status=status.HTTP_410_GONE)
+
+    get = post = put = patch = delete = _gone
 
 
 class LogoutView(APIView):
@@ -1222,7 +1219,7 @@ class ContractViewSet(VersionCheckMixin, ModelViewSet):
     pagination_class = None
 
     @property
-    def refuses_apps(self):
+    def people_only(self):
         # Publishing signs everyone out and disconnects every app (DR-151): for people only.
         return getattr(self, 'action', None) == 'publish'
 
@@ -1294,8 +1291,8 @@ class OrganizationContractAgreeView(APIView):
     '''
     permission_classes = [AnyRole]
     skips_contract_gate = True
-    # Agreeing is for the person, not an app acting for them (DR-147).
-    refuses_apps = True
+    # Agreeing is for the person, not an app or a script acting for them (DR-147, DR-159).
+    people_only = True
 
     def post(self, request, organization_id=None):
         organization = get_object_or_404(models.Organization, pk=organization_id)
@@ -1353,18 +1350,19 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     take over their account — and with it Django's admin, and for a superuser
     the database.
 
-    No app may manage users through OAuth, whatever its scope (DR-147).
+    No app may manage users through OAuth, whatever its scope (DR-147), nor a
+    script with a personal access token (DR-159).
     '''
     queryset = User.objects.all().order_by('username')
     serializer_class = serializers.ManagedUserSerializer
     permission_classes = [IsAdmin]
     delete_permission_classes = [IsAdmin]
-    refuses_apps = True
+    people_only = True
     # What only a superuser may do to a user with Django access. Admins still
     # see them (the list, their history, their connected apps).
     ACCOUNT_TAKEOVER_ACTIONS = frozenset({
         'update', 'partial_update', 'destroy', 'delete_preview',
-        'send_password_link', 'password_link', 'disconnect_app',
+        'send_password_link', 'password_link', 'disconnect_app', 'revoke_token',
     })
 
     def get_object(self):
@@ -1412,6 +1410,17 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
         '''End an app's access to the user's account → 204 (404: it isn't connected).'''
         return oauth_views.disconnect(self.get_object(), application_id)
 
+    @action(detail=True, methods=['get'])
+    def tokens(self, request, pk=None):
+        '''The user's personal access tokens (DR-157).'''
+        return Response(api_token_views.ApiTokenSerializer(
+            api_token_views.tokens_of(self.get_object()), many=True).data)
+
+    @action(detail=True, methods=['delete'], url_path=r'tokens/(?P<token_id>\d+)')
+    def revoke_token(self, request, pk=None, token_id=None):
+        '''Revoke one of the user's tokens → 204 (404: they have no such token).'''
+        return api_token_views.revoke_one(self.get_object(), token_id)
+
     @action(detail=True, methods=['post'], url_path='send-password-link')
     def send_password_link(self, request, pk=None):
         '''Email the user a set-password link → 202 `{to, status, last_error}`.'''
@@ -1442,7 +1451,7 @@ class UserViewSet(PlannedDeleteMixin, ModelViewSet):
     def set_password(self, request, pk=None):
         '''
         Superusers: set the user's password `{password, require_change = true}`
-        → 204. It signs them out everywhere (and removes their API token).
+        → 204. It signs them out everywhere, and revokes their apps' access and API tokens.
         '''
         user = self.get_object()
         if user.pk == request.user.pk:
@@ -1461,11 +1470,12 @@ class ChangePasswordView(APIView):
     '''
     POST /api/user/password `{current_password, new_password}` → 204: change
     your own password (and clear a must-change-password flag). You stay signed in
-    here; your API token, if you have one, is removed, and so is every app's
-    access to your account (DR-149). No app may change your password.
+    here; every app's access to your account ends (DR-149), and every personal
+    access token you have is revoked (DR-157). No app or API token may change
+    your password.
     '''
     permission_classes = [permissions.IsAuthenticated]
-    refuses_apps = True
+    people_only = True
 
     def post(self, request):
         user = request.user
@@ -1515,7 +1525,8 @@ class PasswordResetView(APIView):
     '''
     A set-password link (SPEC DR-52). GET /api/password-reset/<uid>/<token> →
     `{username}` while the link works; POST `{new_password}` → 204 sets the
-    password (and clears a must-change flag) and removes their API token. A
+    password (and clears a must-change flag), and revokes their apps' access and
+    API tokens. A
     used, expired or wrong link is a 400. It doesn't sign the user in.
     '''
     permission_classes = [permissions.AllowAny]

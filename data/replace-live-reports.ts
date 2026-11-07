@@ -6,15 +6,18 @@
  * Replace one event's reports with copies of another's, on the server at
  * CAMPHORIC_URL (usually production):
  *
- *     CAMPHORIC_ALLOW_REMOTE=1 CAMPHORIC_URL=https://<server> \
+ *     CAMPHORIC_ALLOW_REMOTE=1 CAMPHORIC_URL=https://<server> CAMPHORIC_API_TOKEN=<token> \
  *       ./replace-live-reports.ts <fromEventId> <toEventId>
  *
- * shows what it would do; add --yes to do it. It logs in as
- * DJANGO_SUPERUSER_USERNAME / DJANGO_SUPERUSER_PASSWORD, and asks for them when
- * neither is set.
+ * shows what it would do; add --yes to do it. CAMPHORIC_API_TOKEN is an Admin's
+ * personal access token, minted on the server for this, e.g.
  *
- * The importer's tools refuse to log in to a server that isn't local, so a
- * live server also needs CAMPHORIC_ALLOW_REMOTE=1. Set it on the command line:
+ *     CAMPHORIC_API_TOKEN=$(<on the server> ./manage.py camphoric_api_token create <you> --name reports)
+ *
+ * (it lasts an hour; `camphoric_api_token revoke <its prefix>` ends it sooner).
+ *
+ * The importer's tools refuse to send a token to a server that isn't local, so
+ * a live server also needs CAMPHORIC_ALLOW_REMOTE=1. Set it on the command line:
  * the script doesn't set it for itself, so pointing at a live server stays a
  * choice made each time.
  *

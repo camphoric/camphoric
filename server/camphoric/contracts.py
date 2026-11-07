@@ -208,17 +208,34 @@ def forget_pending(user):
         pass
 
 
+def agreement_required(organization_id):
+    '''
+    What a refusal for the organization's terms answers (403): the code, the
+    organization by id and by name, and a `detail` and `contract_url` (where to
+    sign in and agree; null without CAMPHORIC_PUBLIC_URL) that a script can
+    print as they are (DR-145, DR-157).
+    '''
+    from camphoric.templating.urls import admin_url
+
+    name = models.Organization.objects.filter(pk=organization_id) \
+        .values_list('name', flat=True).first() or 'This organization'
+    return {
+        'detail': f'{name} has new terms to agree to. Sign in to Camphoric to agree to '
+                  'them, then try again.',
+        'code': CONTRACT_AGREEMENT_REQUIRED,
+        'organization': organization_id,
+        'organization_name': name,
+        'contract_url': admin_url('/admin') or None,
+    }
+
+
 class ContractAgreementRequired(PermissionDenied):
     '''403: the user has yet to agree to the organization's latest version.'''
 
     def __init__(self, organization_id):
         super().__init__()
         # Kept as given: DRF would make the id a string.
-        self.detail = {
-            'detail': 'Agree to the organization\'s terms before continuing.',
-            'code': CONTRACT_AGREEMENT_REQUIRED,
-            'organization': organization_id,
-        }
+        self.detail = agreement_required(organization_id)
 
 
 def check_organization(request, organization_id):

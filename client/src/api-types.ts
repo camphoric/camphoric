@@ -610,6 +610,11 @@ export interface ApiUser {
    * those organizations (SPEC §6; §15 DR-145, DR-151).
    */
   pending_contract_organizations: number[];
+  /**
+   * The most days a personal access token may last; null when there's no cap and a
+   * token may never expire (`CAMPHORIC_API_TOKEN_MAX_DAYS`; SPEC §6).
+   */
+  api_token_max_days: number | null;
 }
 
 /** Whether someone may use Django's admin site (SPEC §8.10; §15 DR-50). Superusers only change it. */
@@ -665,6 +670,7 @@ export const anonymousUser: ApiUser = {
   role: null,
   must_change_password: false,
   pending_contract_organizations: [],
+  api_token_max_days: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -738,6 +744,43 @@ export interface ApiApplicationSecret {
 export interface ApplicationRequest {
   name: string;
   redirect_uris: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Personal access tokens: a user's own scripts acting as them (SPEC §6; #965)
+// ---------------------------------------------------------------------------
+
+/**
+ * A personal access token, as listed: GET /api/user/tokens (yours) and
+ * /api/users/{id}/tokens/ (an Admin's view of a user's). The token itself is
+ * never listed, only its prefix.
+ */
+export interface ApiToken {
+  id: number;
+  name: string;
+  /** The token's first 13 characters (e.g. `cmph_Q2xabc12`), to tell it apart. */
+  prefix: string;
+  /** It may only read (safe methods); anything else is refused. */
+  read_only: boolean;
+  created_at: string;
+  /** Null: it never expires. */
+  expires_at: string | null;
+  /** When it was last used, to the hour; null if it hasn't been. */
+  last_used_at: string | null;
+  /** Made from the account screens, or on the server with `manage.py camphoric_api_token`. */
+  created_via: 'account' | 'command';
+}
+
+/** POST /api/user/tokens. `expires_at` must be sent: null is "never". */
+export interface NewTokenRequest {
+  name: string;
+  expires_at: string | null;
+  read_only?: boolean;
+}
+
+/** The answer to making a token: the full token, in this answer only. */
+export interface ApiNewToken extends ApiToken {
+  token: string;
 }
 
 // ---------------------------------------------------------------------------

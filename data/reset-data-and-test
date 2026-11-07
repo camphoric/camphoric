@@ -10,6 +10,11 @@ docker compose rm -fv data
 docker compose exec -T django python manage.py migrate
 docker compose exec -T django python manage.py flush --noinput
 docker compose exec -T django python manage.py createsuperuser --noinput
+# The flush deleted the data service's API token with the rest, so mint it
+# again, as the django service does when it starts (see docker-compose.yml).
+docker compose exec -T django bash -c 'umask 077 &&
+  python manage.py camphoric_api_token create "$DJANGO_SUPERUSER_USERNAME" --name docker-import --expires never --replace > /import-token/token.new &&
+  mv /import-token/token.new /import-token/token' || exit 1
 
 # Import every event (any rejected event, registration or payment fails it).
 docker compose run --rm data /bin/sh -c "import"

@@ -41,8 +41,8 @@ on [npm](https://www.npmjs.com/org/camphoric), released on their own versions (s
 - **`@camphoric/camphoric-event-import-spec`** — the event import object's schema and types,
   `validateEventImport()`, the module contract, the conformance tests every event runs, and the
   shared `tsconfig.base.json`. A major version is a change event modules must follow.
-- **`@camphoric/camphoric-event-import-tools`** — the Camphoric REST client, login, the event
-  importer (`CamphoricEventCreator` and the organization loader, given the spec's
+- **`@camphoric/camphoric-event-import-tools`** — the Camphoric REST client, its API token, the
+  event importer (`CamphoricEventCreator` and the organization loader, given the spec's
   `validateEventImport`), Playwright scaffolding for an event's registration-form e2e tests, and
   the bulk-registration runner. It depends on no spec version.
 

@@ -31,7 +31,7 @@ function Harness({ superuser }: { superuser: boolean }) {
           act('History')(user);
         }}
         onEdit={act('Edit')}
-        onShowApps={act('Connected apps')}
+        onShowApps={act('Apps and tokens')}
         onSendLink={act('Email link')}
         onCopyLink={act('Copy link')}
         onSetPassword={superuser ? act('Set password') : undefined}

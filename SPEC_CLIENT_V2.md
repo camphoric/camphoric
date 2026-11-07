@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-06
+**Last updated:** 2026-11-07
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -592,23 +592,24 @@ Non-CRUD admin endpoints:
   - Set-password links point at `CAMPHORIC_PUBLIC_URL`, never at the host the request named; with
     it unset no link is made (§15, DR-129).
   - `POST /api/users/{id}/set-password/` `{ password, require_change? (default true) }` —
-    superusers only (404 for anyone else): set the password, ending the user's sessions, API
-    token and apps' access (§15, DR-149) → 204;
+    superusers only (404 for anyone else): set the password, ending the user's sessions, apps'
+    access and personal access tokens (§15, DR-149, DR-157) → 204;
     400 `{ password: [...] }` when the password rules refuse it; 409 for your own account.
   - The account of a user with Django access (staff or superuser) is only for superusers to act
     on: to anyone else, `PATCH`/`PUT`/`DELETE /api/users/{id}/`, `GET …/delete-preview/`,
-    `send-password-link` and `password-link` on them answer 404 `{ detail }`. Reading them — the
-    list, the user, their history — is unaffected (§15, DR-116).
+    `send-password-link`, `password-link`, disconnecting their apps and revoking their personal
+    access tokens answer 404 `{ detail }`. Reading them — the list, the user, their history,
+    apps and tokens — is unaffected (§15, DR-116).
   - `POST /api/user/password` `{ current_password, new_password }` — change your own password
-    (you stay signed in; it clears a must-change flag, removes your API token and ends every
-    app's access to your account, §15, DR-149) → 204, or 400 keyed by field.
+    (you stay signed in; it clears a must-change flag, ends every app's access to your account
+    and revokes your personal access tokens, §15, DR-149, DR-157) → 204, or 400 keyed by field.
   - `POST /api/password-reset` `{ email }` (public) — always 202 `{ detail }` with the same
     message, whether or not the address has an account; emails a link to each active user with
     that address and a Camphoric permission group. Throttled per client address (429).
   - `GET /api/password-reset/{uid}/{token}` (public) → `{ username }` while the link works, 400
     `{ detail }` once it's used, expired or wrong. `POST` `{ new_password }` → 204 (or 400 keyed
-    by field) sets the password, clears a must-change flag, removes the user's API token and ends
-    every app's access to their account; it doesn't sign the user in.
+    by field) sets the password, clears a must-change flag, ends every app's access to their
+    account and revokes their personal access tokens; it doesn't sign the user in.
   - While a user must change their password, every admin endpoint except whoami, logout and
     `POST /api/user/password` answers 403 `{ detail, code: 'password_change_required' }`.
 - **Apps using OAuth** (§6, §8.10; §15, DR-146 to DR-152).
@@ -649,7 +650,32 @@ Non-CRUD admin endpoints:
     connected apps of everyone who approved it.
   - None of these, nor `/api/users/`, `POST /api/user/password`, agreeing to an organization's
     terms or publishing a version of them, answers a request made with an app's access token: 403
-    `{ detail, code: 'app_not_allowed' }`.
+    `{ detail, code: 'app_not_allowed' }`; nor, with one made with a personal access token: 403
+    `{ detail, code: 'token_not_allowed' }` (§15, DR-159).
+- **Personal access tokens** (§6, §8.10; §15, DR-157 to DR-159).
+  - A token is `{ id, name, prefix, read_only, created_at, expires_at, last_used_at,
+    created_via }`: `prefix` its first 13 characters (`cmph_` and 8 more), shown to tell it
+    apart; `expires_at` null when it never expires; `last_used_at` to the hour, null if it hasn't
+    been used; `created_via` `'account'` (made from the account) or `'command'` (made on the
+    server with `manage.py camphoric_api_token`, §6). The token itself is never in it.
+  - `GET /api/user/tokens` (any role) → your tokens that haven't expired, newest first.
+  - `POST /api/user/tokens` `{ name, expires_at, read_only? }` (any role) → 201, the token with
+    `token` added: the whole token, in that answer only. `name` is required, not blank, at most
+    100 characters. `expires_at` must be sent: a time in the future, or null for never; when the
+    server caps tokens (`CAMPHORIC_API_TOKEN_MAX_DAYS`), it must be within that many days, and
+    null is refused. 400 keyed by field.
+  - `DELETE /api/user/tokens/{id}` (any role) → 204, revoking one of your tokens; 404 `{ detail }`
+    when you have no such token.
+  - `DELETE /api/user/tokens/current` → 204: revokes the token the request was made with, a
+    read-only one included, so a script can end its own when it's done; 400 `{ detail }` when the
+    request wasn't made with one.
+  - `GET /api/users/{id}/tokens/` (Admins only; 404 for everyone else) → that user's tokens.
+    `DELETE /api/users/{id}/tokens/{token_id}/` → 204, or 404 `{ detail }` when they have no such
+    token; for a user with Django access, superusers only (404 to anyone else; §15, DR-116).
+  - Whoami's `api_token_max_days` is the cap, or null when there is none and a token may never
+    expire.
+  - Making, listing and revoking tokens (all but `current`) is for people only: 403 `{ detail,
+    code: 'token_not_allowed' }` with a personal access token, `app_not_allowed` with an app's.
 - **Contracts** (§6; §15, DR-145, DR-153). Each organization has a series of contract versions,
   each one Markdown document (`body`) whose headings are its sections — a privacy policy, a
   liability waiver, whatever the organization's terms are:
@@ -659,8 +685,11 @@ Non-CRUD admin endpoints:
     `event`, `registration`, `registration_type`, `camper`, `custom_charge_type`, `invoice`,
     `lodging` or `account` id in its query string or body, in any form the API reads as that id,
     or any record a write refers to (an event's email account, a lodging's parent) — answers 403
-    `{ detail, code: 'contract_agreement_required', organization }`, by session or API token
-    alike, the live change feed's stream included. A list that names none, a deleted list, and a
+    `{ detail, code: 'contract_agreement_required', organization, organization_name,
+    contract_url }`, by session, app or personal access token alike, the live change feed's
+    stream included. `detail` says, in words a script can print as they are, that the
+    organization has new terms to agree to by signing in; `contract_url` is where to sign in (the
+    admin, from `CAMPHORIC_PUBLIC_URL`), null when there's no public address (§15, DR-157). A list that names none, a deleted list, and a
     user's change history leave out the records of the organizations they have yet to agree
     with; the organization list (the chooser) has them all. An email belongs to its event's
     organization, or, with no event, its account's. An organization with no published version
@@ -696,7 +725,8 @@ Non-CRUD admin endpoints:
     date) and `published_by`, and ends everyone's sign-ins (§15, DR-151): every web session that
     signs someone in, except the session that published (whose whoami then has the organization
     pending), and every app's OAuth access, the publisher's included, its tokens, codes and
-    connections deleted as when the person disconnects it; API tokens are left to the gate. A
+    connections deleted as when the person disconnects it; personal access tokens are left to the
+    gate. A
     refused publish ends nothing. 400 `{ body }` when it has no text; with `If-Match`, 412 when
     the draft was saved since that version (§15, DR-109), which the client always sends, as a
     published version can't change. A published version
@@ -1257,15 +1287,78 @@ hooks):
   server enforces this too: outside the registration dates, only a submission carrying a valid
   invitation for the event is accepted (§5).
 - A **logout** action (`POST /api/logout`) clears the session.
-- The client authenticates with the session alone; it never asks for an API token. Scripts such
-  as the importer (`data/`) sign in at `POST /api-token-auth/` (`username`, `password` →
-  `{ token }`; it checks only those, ignoring any token sent with them) and send
-  `Authorization: Token <key>`. A token works for `CAMPHORIC_API_TOKEN_TTL` seconds (a day by
-  default) from when it was issued, however often the user signs in; after that a request
-  carrying it is refused with 401 (`Token has expired.`) and the token is deleted. Signing in
-  returns the user's token while it has at least half its lifetime left, and otherwise (nearer
-  its end, or expired) replaces it with a new key, so every sign-in gets at least half a
-  lifetime (§15, DR-131).
+- The client authenticates with the session alone; it never sends a token.
+- **Personal access tokens (scripts)** (§15, DR-157 to DR-159). A person's own scripts, such as
+  the importer (`data/`), call the API with a personal access token, sent as
+  `Authorization: Bearer cmph_…`, with no CSRF token (endpoints in §5):
+  - **The token** is `cmph_` and 43 URL-safe characters; the prefix tells it from an app's OAuth
+    token (also `Bearer`) and lets secret scanners find committed ones. The server keeps only its
+    SHA-256 hash and its first 13 characters, so the whole token is shown once, when it's made.
+  - **Making one.** Anyone signed in with a permission group makes their own from their account
+    actions (*Personal access tokens*, below), with a name, an expiry and, if they want,
+    read-only access.
+    Anyone with a shell on the server makes one for any active user with `manage.py
+    camphoric_api_token` (§15, DR-158) — for instance just before an import:
+    - `create <username> [--name NAME] [--expires DURATION|never] [--read-only] [--replace]`
+      prints only the token and a newline on stdout, so `TOKEN=$(…)` captures it; everything else
+      it says goes to stderr, and a problem (an unknown or inactive user, a bad or too long
+      expiry, a blank name) exits 1. `--name` defaults to `manage.py`; `--expires` takes a number
+      and `m`, `h`, `d` or `w`, or `never`, and defaults to `1h`; `--replace` first revokes the
+      user's other tokens of the same name (a token made afresh each time something starts).
+    - `list <username>` lists the user's tokens; `revoke <prefix or token>` revokes one (refused
+      when a prefix matches more than one), `revoke --all <username>` all of theirs.
+    - The importer (`data/`) reads its token from `CAMPHORIC_API_TOKEN`, or the file
+      `CAMPHORIC_API_TOKEN_FILE` names, and never a password. CI and the Ansible role mint one
+      for each import (two hours) and revoke it afterwards; the import-tools e2e harness mints one
+      in its throwaway server, and against an existing server takes `CAMPHORIC_E2E_SERVER_TOKEN`;
+      the local Docker stack's server mints one that never expires (`docker-import`, replacing
+      the last) each time it starts, for its data service. With `--if-empty`, the importer first
+      checks that the token's user has no terms pending, since lists leave out what the gate
+      hides.
+  - **Expiry.** A token expires when it was made to, or never. `CAMPHORIC_API_TOKEN_MAX_DAYS`,
+    unset by default, lets a deployment cap it: set, every token must expire within that many
+    days, and "never" is refused, by the API and the command alike. Expiry is a time limit, not
+    single use, so a script that's done can revoke its own token (`DELETE
+    /api/user/tokens/current`; the importer's `--revoke-token`).
+  - **What a token may do.** It acts as its user with their current permission group, in the
+    audit log too. A read-only one is refused anything that writes (403 `{ detail, code:
+    'read_only_token' }`; a POST that only reads, §5, is a read), except revoking itself. No
+    token may do what only a person signed in to Camphoric may: make, list or revoke tokens,
+    manage users, apps and connections, change a password, or agree to or publish an
+    organization's terms (403 `{ detail, code: 'token_not_allowed' }`; §15, DR-159). The terms
+    gate applies to tokens as to sessions: until the user agrees — by signing in to the admin —
+    a request that reaches the organization is refused with a 403 a script can print as it is
+    (§5).
+  - **Refusals.** A token that's unknown, expired or revoked, or whose user is inactive, is
+    refused with 401; too many of those from one address (`CAMPHORIC_API_TOKEN_FAILURE_RATE`)
+    with 429, counted apart from apps' bad tokens, while a valid token is never throttled.
+    `Authorization: Token …`, from the retired `POST /api-token-auth/`, is refused with 401 saying
+    how to get a personal access token, and `/api-token-auth/` itself answers 410 the same way
+    (§15, DR-157).
+  - **Ending a token**, at once: its user or an Admin revokes it (§8.10), a script revokes the
+    one it's using, a superuser deletes it (or its user) in the Django admin, the user is
+    deactivated, or their password changes in any way (theirs, a
+    reset, a superuser's, the Django admin's or `manage.py changepassword`), after which scripts
+    need new tokens. Publishing an organization's terms leaves tokens alone; the gate refuses
+    them until the user agrees (§15, DR-151). Expired tokens are deleted by the nightly clean-up.
+  - Making and revoking a token are in the audit log, never its hash; one made or revoked with
+    `manage.py` is credited to the command and the account that ran it. Using a token isn't
+    logged, but its last use is kept, to the hour.
+  - **Personal access tokens** (account). Everyone with a permission group can, from their
+    account actions, see their tokens that haven't expired — each one's name, prefix, when it was
+    made, when it expires (or that it never does), when it was last used, whether it's
+    read-only, and whether it was made from the account or on the server — make one, and revoke
+    any of them. It says what a token may and may not do, and that changing the password revokes
+    them all. Making one asks for a name (required, at most 100 characters), read-only access if
+    wanted (off by default), and an expiry chosen on purpose — nothing is preselected and the
+    token can't be made without one: a few common lifetimes, a date and time of their choosing
+    (in the future), or never. With a cap (whoami's `api_token_max_days`), never isn't offered,
+    the lifetimes and dates offered stop at the cap, and it says so; the latest offered is a few
+    minutes short of it, so a browser clock running ahead isn't refused. The server's refusals
+    show under their fields. The new token is then shown once, in full, with a way to copy it,
+    how to send it (`Authorization: Bearer`), and word that it won't be shown again; closing it
+    forgets it. Revoking asks first, saying anything using the token is refused from then on,
+    and that it can't be undone. None of this is URL-addressable.
 - **Third-party apps (OAuth 2.0)** (§15, DR-146 to DR-152). Apps an Admin registers (§8.10) call
   the API for the people who approve them. Camphoric is the OAuth 2.0 authorization server, and
   the client provides its authorization page:
@@ -1321,8 +1414,8 @@ hooks):
     approved it and when it was last used — and disconnect any of them, from their account
     actions.
   - Approving, disconnecting, and registering, changing, giving a new secret to or removing an
-    app are in the audit log (§15, DR-53); the secret isn't. The Django admin shows apps and
-    tokens, and changes none of them.
+    app are in the audit log (§15, DR-53); the secret isn't. The Django admin shows apps and their
+    OAuth tokens and codes, and changes none of them.
 - A **401** on any admin request (query or mutation) means the session has lapsed. A global
   handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
   and, when the session is gone, the admin asks the user to sign in again without navigating, so
@@ -1356,8 +1449,8 @@ hooks):
   create, change, delete or send are hidden, forms and editors are shown but can't be changed,
   and dragging on the lodging timeline is off; records still open for reading, a template opens
   to read, and previews, renders and recipient review work. The signed-in user's name and group
-  are always visible, with Sign out, Change password, Connected apps, and — for Admins — Users
-  and Apps (§8.1, §8.2, §8.10). A 403 the admin didn't prevent is reported as "You don't have permission to do that."
+  are always visible, with Sign out, Change password, Connected apps, Personal access tokens
+  (for anyone with a group), and — for Admins — Users and Apps (§8.1, §8.2, §8.10). A 403 the admin didn't prevent is reported as "You don't have permission to do that."
   (§10).
 - **Passwords** (§15, DR-52): anyone can ask for a link to choose a new password from the sign-in
   form; new users get one by email; signed-in users can change their own; and a superuser can set
@@ -2303,7 +2396,7 @@ when. Every group email leaves them out (as "Unsubscribed"); confirmations and i
 reach them. The admin can add an address (e.g. someone who asked by replying) and remove one
 (after confirming), which lets group email reach it again.
 
-### 8.10 Users and apps
+### 8.10 Users, apps and API tokens
 
 Admins manage who can sign in (§15, DR-50, DR-52); the screen and its API are hidden from
 everyone else, and the way there (the user menu's **Users**) only appears for Admins. Users
@@ -2327,7 +2420,8 @@ within Users (editing a user, …), not Users itself.
   hand over yourself (shown with when it expires); deactivate or reactivate; delete (after
   confirming — deactivating keeps the account and its history instead); and, for superusers,
   **set their password** (twice, with "Require a password change at next sign-in", on by
-  default), which signs them out everywhere. Only a superuser may edit, deactivate, delete, or
+  default), which signs them out everywhere and, as it says, ends their apps' access and revokes
+  their API tokens. Only a superuser may edit, deactivate, delete, or
   email or copy a link for a user with Django access (staff or superuser); anyone else is refused
   by the server, and the refusal is shown (§15, DR-116). They still see those users in the list,
   with their change history.
@@ -2350,10 +2444,19 @@ within Users (editing a user, …), not Users itself.
 - **Forgot password** — the sign-in form offers "Forgot password?", which takes an email address
   and always answers the same way, whether or not an account uses it.
 - **Changing your own password** — from the user menu: the current password, then the new one
-  twice.
+  twice. It says that changing it disconnects your apps and revokes your API tokens, so scripts
+  need new ones; a password chosen from a link says the same.
 - **A password to be changed** — when a superuser set someone's password and required a change,
   signing in shows only a "Choose a new password" form (and Sign out) until they do; a 403 saying
   so (from a request already under way) brings that form up too.
+
+**API tokens** (§6; §15, DR-157):
+
+- **A user's apps and tokens** — for each user, with their connected apps (below), the personal
+  access tokens they have that haven't expired (as they see them themselves, §6), each of which
+  an Admin can revoke after confirming; only a superuser revokes one for a user with Django
+  access (§15, DR-116), and a refusal says that may be why. Admins don't make tokens for others
+  here; that's done on the server (§6).
 
 **Apps using OAuth** (§6; §15, DR-146, DR-149):
 
@@ -5712,9 +5815,9 @@ refused with every RV spot empty.
 
 ### DR-124 — Signing in is throttled: requests per address, failures per username
 
-**Decision:** Every way of signing in with a password — the admin's `POST /api/login`, the token
-endpoint `POST /api-token-auth/` (used by the importer in `data/`) and the Django admin's login
-page — is throttled twice. Every sign-in POST counts against the client's address, at the `login`
+**Decision:** Every way of signing in with a password — the admin's `POST /api/login` and the
+Django admin's login page (and, until DR-157 retired it, the importer's `POST /api-token-auth/`)
+— is throttled twice. Every sign-in POST counts against the client's address, at the `login`
 rate (`CAMPHORIC_LOGIN_RATE`, 10 a minute by default); a request refused for CSRF, and anything
 but a POST, doesn't count. Every **failed** sign-in counts against the username tried (normalized
 with NFKC and casefolded, since look-alikes sign in as the same user), from any address, at the
@@ -5724,7 +5827,6 @@ says how long to wait. The DRF browsable API's own login (`/api-auth/`) is remov
 it, and the browsable API still works with a session from the admin. The throttles count the
 connecting address unless `NUM_PROXIES` says how many proxies are in front (the development
 Ansible role sets 1, for its nginx), so a client can't get a fresh count by writing its own `X-Forwarded-For`.
-The importer signs in once per server per run.
 **Context:** #800: none of the sign-in paths was throttled, so passwords could be guessed without
 limit, and the token endpoint needs no CSRF token, which made it easy to script. Counting by
 address alone lets many addresses share the guessing at one username, so the username needs a
@@ -5738,7 +5840,8 @@ default, so with several web workers the effective limits are that many times th
 — more than this needs, and it has the same lockout trade-off. Counting every attempt per
 username — a person's own correct sign-ins would use up their limit, and the lockout would take
 only a few requests a minute. No per-username limit — many addresses could guess at one account
-unchecked. Removing `/api-token-auth/` — the importer gets its token there.
+unchecked. Removing `/api-token-auth/` — the importer got its token there then; it was removed
+later, for personal access tokens (DR-157).
 
 ### DR-125 — Anonymous registration steps are throttled per client address
 
@@ -5862,6 +5965,9 @@ but layouts on mobile would then be covered only where a test checks them). Dele
 duplicated e2e tests (they still prove the story renders in a real browser).
 
 ### DR-131 — API tokens expire a day after they're issued
+
+*Superseded by DR-157: `/api-token-auth/` and its tokens are gone, replaced by personal access
+tokens.*
 
 **Decision:** A token from `POST /api-token-auth/` works for `CAMPHORIC_API_TOKEN_TTL` seconds
 (86400, a day, by default; it must be positive) from when it was issued, however often its user
@@ -6370,7 +6476,8 @@ refused, and authorization responses carry `iss` (RFC 9700, RFC 9207). Tokens ar
 stored only as SHA-256 checksums. Each approval is recorded as a connection, with its scopes and
 when it was approved and last used, for the person and Admins to see and end. The Django admin
 shows apps and tokens but can't add, change or delete them, so no app is made another way, and
-a token no person approved is refused. Sessions and `/api-token-auth/` (DR-131) are unchanged.
+a token no person approved is refused. Sessions and `/api-token-auth/` (DR-131) are unchanged
+(the latter since replaced by personal access tokens, DR-157).
 **Context:** #964. The first app, lark-camp-admin-tool (a Laravel server app), signed in as one
 shared account with its password in a `.env`, and is to give each of its users their own
 Camphoric account. With a password or a token derived from one, an app holds every user's
@@ -6611,6 +6718,88 @@ dates are known, and the open date is what an organizer is working towards. Sort
 chooser: other consumers would still get an arbitrary order. Putting undated events last: they're
 the ones being worked on, so they'd be buried in their turn.
 
+### DR-157 — Personal access tokens replace `/api-token-auth/`
+
+**Decision:** Scripts call the API with personal access tokens (§6): each user has as many as they
+make, each named, `cmph_` and 43 random URL-safe characters, sent as `Authorization: Bearer`, and
+stored only as a SHA-256 hash with its first 13 characters to tell it apart. A token acts as its
+user with their current permission group, optionally read-only. Its user lists and revokes their
+own from their account, an Admin a user's from Users (a superuser's call for a user with Django
+access, DR-116), and a script the one it's using; a superuser may also delete one in the Django
+admin, which shows tokens (never their hash) but neither makes nor changes them, so that deleting
+a user there isn't refused for their tokens. A token ends when it expires, is revoked, its
+user is deactivated or their password changes in any way. `POST /api-token-auth/`, DRF's
+single per-user `Token`, `CAMPHORIC_API_TOKEN_TTL` and `rest_framework.authtoken` (its table
+dropped by a migration) are removed, in one breaking release: the route answers 410, and a
+`Token` header 401, each saying how to get a personal access token. The terms gate's 403 also
+carries the organization's name and a `contract_url` and a `detail` a script can print as they
+are. Bad tokens are throttled per address on their own count; making and revoking are audited.
+**Context:** #965. A script had one way in: post a username and password to `/api-token-auth/`
+for the user's one token. So the password lived in every script's environment, every script
+signed in as a user shared one token (`issue_token` handed the same key to each), revoking one
+meant changing the password, users couldn't see what had API access as them, the key sat in the
+database in plain text, and it lasted a fixed day whatever it was for. OAuth (DR-146) covers
+other people's apps, but its browser redirect gets in a script's way. A password change often
+follows a suspected compromise, so every credential derived from the account ends with it, as
+apps' access does (DR-149); scripts need new tokens afterwards. The recognizable prefix tells a
+token from an app's (both are `Bearer`), so the OAuth class and its throttle never see one, and
+lets secret scanners (GitGuardian runs on the repository) flag a committed token. Keeping the
+route alongside tokens would have kept the password in scripts, so every caller (the importer,
+its e2e harness, CI, the Ansible role, the local Docker stack) moved to tokens at once.
+**Alternatives:** Keeping `/api-token-auth/` with a deprecation period — two ways in to secure,
+and the password stays where it was. `django-rest-knox` — a library's model and views would fit
+the role, audit and throttle code less well than a small model here. OAuth for scripts (a public
+client with a loopback redirect, RFC 8252, or the device grant, RFC 8628) — needs a browser or a
+second device for every run, and apps are confidential clients with exact redirect URIs (DR-146).
+Answering 404 at the old route — an old importer would get a page it can't read instead of what
+to do.
+
+### DR-158 — A token can be made on the server, and may never expire
+
+**Decision:** `manage.py camphoric_api_token` makes (`create`), lists and revokes a user's tokens
+on the server (§6). `create` prints only the token on stdout, so `TOKEN=$(…)` captures it, and
+defaults to an hour; `--replace` revokes the user's other tokens of the same name first. A token
+made there is marked as made on the server, and the audit log credits the command and the
+account that ran it. Every token's expiry is chosen when it's made: a time, or never. Unless a
+deployment sets `CAMPHORIC_API_TOKEN_MAX_DAYS`, never is allowed; with it, every token must
+expire within that many days. The client never preselects never, and whoami's
+`api_token_max_days` tells it the cap. Expired tokens are deleted by the nightly clean-up.
+**Context:** #965. Most imports run where someone already has a shell on the server — a test
+site, CI's container, the Ansible play, the local Docker stack — and want a token for the run
+about to start, gone soon after. Shell access is a higher bar than knowing a password, and
+nothing the import needs is kept afterwards; with `--revoke-token` the importer ends the token
+when it finishes. Printing only the token keeps it out of anything but the variable it's
+captured in. A script that runs unattended for good (a nightly export) needs a token that never
+expires; since it still ends when it's revoked, its user is deactivated or their password
+changes, and its last use is shown, a stale one can be found and ended. Where a deployment's
+policy forbids lasting credentials, the cap enforces it.
+**Alternatives:** A fixed maximum with no "never" — a long-running script would need a new token
+by hand every so often. A token minted only from the account screens — every CI run and test
+site would need someone to sign in and paste a token. A bootstrap token set from an environment
+variable — the same secret in two places, and one that never changes. Revoking the token at the
+end of every importer run — it would end a token its user meant to keep, so it's opt-in.
+
+### DR-159 — Tokens and apps can't do what only a person may
+
+**Decision:** A view that only a person signed in to Camphoric may use says `people_only`, and
+both an app's OAuth token (`app_not_allowed`, DR-147) and a personal access token
+(`token_not_allowed`) are refused there: making, listing and revoking tokens, managing users,
+apps and connections, changing a password, approving an app, and agreeing to or publishing an
+organization's terms. A read-only token is refused anything that writes (`read_only_token`),
+except revoking itself. Revoking the token in use (`DELETE /api/user/tokens/current`) is open to
+the token itself.
+**Context:** #965. The API token from `/api-token-auth/` could do everything its user could, so a
+token copied from a script's environment could change the password, approve apps, make more
+credentials or agree to terms in its user's name. Agreeing is the person's act, recorded with
+their wording (DR-145), and a token that could make tokens would outlive its own revocation. The
+check was apps' only (`refuses_apps`); one name for both kinds of delegated credential keeps the
+list in one place. The person a token belongs to can always do these things by signing in,
+which is also how they agree to new terms before a script carries on.
+**Alternatives:** Letting tokens do everything their user can, as before — the risks above. A
+scope per token, like an app's — more to choose and explain, for scripts that are their user's
+own; read-only covers the case that matters (exports and reports). Refusing tokens everything
+but reads — the importer writes.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -6663,8 +6852,9 @@ must be coordinated with the backend. Grouped by status.
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
   (DR-80).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`
-  (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26). Scripts' API tokens:
-  `POST /api-token-auth/` (throttled; expiring, DR-131).
+  (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26). Scripts' personal access
+  tokens: `/api/user/tokens`, `/api/users/{id}/tokens/`, `manage.py camphoric_api_token`
+  (§5, §6; DR-157 to DR-159); `/api-token-auth/` answers 410.
 - **Server version:** `GET /api/version` with the shape in §5, read from the server's
   `CAMPHORIC_VERSION` (§8.1; DR-98).
 - **CRUD entities** over the DRF `DefaultRouter` with **trailing slashes** and `?field=`

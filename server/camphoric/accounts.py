@@ -9,8 +9,9 @@ User accounts and passwords (SPEC §6, DR-52).
   their next sign-in; until they do, the API refuses everything but changing it
   (camphoric.permissions).
 - Changing a password, however it's done — here, in the Django admin, or with
-  `manage.py changepassword` — ends what the old one may have handed out: the
-  API token, and every app's OAuth access (camphoric.oauth, DR-149).
+  `manage.py changepassword` — ends what the old one may have handed out: every
+  app's OAuth access (camphoric.oauth, DR-149) and every personal access token
+  (camphoric.api_tokens, DR-157).
 '''
 
 from datetime import timedelta
@@ -23,9 +24,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from rest_framework.authtoken.models import Token
 
-from camphoric import models, oauth, roles
+from camphoric import api_tokens, models, oauth, roles
 from camphoric.mail import outbox
 from camphoric.templating.urls import admin_url
 
@@ -70,14 +70,15 @@ def set_password(user, password, *, must_change=False):
 
 def end_old_credentials(sender, instance, created, **kwargs):
     '''
-    A password changed ends what the old one may have handed out: the user's API
-    token and every app's OAuth access (DR-149). Django sets `_password` until
-    the save that changes a password, and leaves it unset when it only upgrades
-    the stored hash at sign-in, which changes nothing.
+    A password changed ends what the old one may have handed out: every app's
+    OAuth access (DR-149) and the user's personal access tokens (DR-157), since a
+    password is often changed for fear someone else has it. Django sets
+    `_password` until the save that changes a password, and leaves it unset when
+    it only upgrades the stored hash at sign-in, which changes nothing.
     '''
     if created or getattr(instance, '_password', None) is None:
         return
-    Token.objects.filter(user=instance).delete()
+    api_tokens.revoke_all(instance)
     oauth.revoke(instance)
 
 

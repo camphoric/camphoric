@@ -124,9 +124,10 @@ records the message.
 | `PASSWORD_RESET_TIMEOUT`        | `259200` (3 days) | How long a set-password link works, in seconds. A link also stops working once it's used or the user signs in. |
 | `CAMPHORIC_PASSWORD_RESET_RATE` | `5/hour`  | How often one client address may ask for a password-reset link. |
 | `CAMPHORIC_INVITATION_LOOKUP_RATE` | `30/minute` | How often one client address may open the registration page with an invitation's email and code. |
-| `CAMPHORIC_API_TOKEN_TTL`       | `86400` (1 day) | How long an API token from `/api-token-auth/` (the importer's) works after it's issued, in seconds; must be positive. An expired token gets a 401 and is deleted. Signing in hands back the current token while it has half this left, and otherwise issues a new one. |
+| `CAMPHORIC_API_TOKEN_MAX_DAYS`  | unset     | The most days a personal access token (what scripts such as the importer sign in with) may last. Unset, there's no cap and a token may never expire; set, every token must expire within this many days. From 1 to 36500. |
+| `CAMPHORIC_API_TOKEN_FAILURE_RATE` | `30/minute` | How many requests with a personal access token that isn't valid (unknown, expired or revoked) one client address may make; past that, such requests get a 429 until the oldest failure ages out. Valid tokens are never refused by it. |
 | `CAMPHORIC_REGISTRATION_DRAFT_RATE` | `30/minute` | How many times one client address may save a registration form as it's filled in. The form saves at most every 30 seconds per page, so this leaves room for people sharing an address. Saves refused are tried again later and never interrupt the form. |
-| `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, `/api-token-auth/`, the OAuth sign-in page, the Django admin) one client address may make; more get a 429. |
+| `CAMPHORIC_LOGIN_RATE`          | `10/minute` | How many sign-in attempts (the admin, the OAuth sign-in page, the Django admin) one client address may make; more get a 429. |
 | `CAMPHORIC_LOGIN_USERNAME_RATE` | `30/hour` | How many failed sign-ins one username may have, from any address; more get a 429, even with the right password, until the oldest ages out. Anyone who keeps failing at a username keeps its owner out too: raise this, or restart the app (the counts are in memory), to let them in. |
 | `CAMPHORIC_MAX_OPEN_DRAFTS` | `2000` | How many registration drafts nobody has sent an event may hold. Past that, a save that would start another draft, or reopen a sent one, is refused (the browser tries again ten minutes later, and the person registering isn't told) and a warning is logged; sending the form still works. It bounds what the public draft endpoint can store. If that warning keeps appearing, someone may be holding the event full: raise this, or have a Registrar or Admin delete drafts (`DELETE /api/registrationdrafts/{id}/`). |
 | `CAMPHORIC_INCOMPLETE_RETENTION_DAYS` | `30` | How many days a registration that was started but never finished is kept without activity, before the worker deletes it; from 1 to 36500. The worker reads it, so give it the same value as the web container. |
@@ -191,7 +192,7 @@ rejects the legacy `DBBACKUP_STORAGE` / `DBBACKUP_STORAGE_OPTIONS` settings.
 
 | Variable                                                      | Default | Purpose                                                                                     |
 | ------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------- |
-| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL`          | unset   | When username **and** password are set, a superuser is created on boot (idempotent). A superuser is always a Camphoric Admin. |
+| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL`          | unset   | When username **and** password are set, a superuser is created on boot (idempotent). A superuser is always a Camphoric Admin. Scripts don't sign in with this password: give them a token (see *API tokens for scripts*). |
 | `CAMPHORIC_SKIP_MIGRATE`                                      | `0`     | `1` skips `manage.py migrate` at start (e.g. when running several replicas).                |
 | `GUNICORN_CMD_ARGS`                                           | unset   | Extra gunicorn options, e.g. `--workers 5`; they override `server/gunicorn.conf.py` (3 uvicorn workers serving the ASGI app), so keep its worker class. |
 | `CAMPHORIC_WORKER_CONCURRENCY`                                | `4`     | Requests each web worker serves at once; the rest wait. Database connections from the web tier are at most workers × this. At least 1. |
@@ -376,6 +377,26 @@ docker exec <container> python manage.py camphoric_password_link <username> --se
 docker exec -it <container> python manage.py camphoric_password_link <username> --set --require-change
 docker exec -it <container> python manage.py changepassword <username>               # Django's own
 ```
+
+### API tokens for scripts
+
+Scripts such as the event importer call the API with a **personal access token**
+(`Authorization: Bearer cmph_…`), never a password; `/api-token-auth/` is gone. Anyone signed in
+can make their own from the admin's account menu (**Personal access tokens**), or make one on the server for
+the import about to run. `create` prints only the token, so it can be captured:
+
+```bash
+TOKEN=$(docker exec <container> python manage.py camphoric_api_token create <username> --name import --expires 2h)
+docker exec <container> python manage.py camphoric_api_token list <username>
+docker exec <container> python manage.py camphoric_api_token revoke <prefix>        # or --all <username>
+```
+
+`--expires` takes `30m`, `2h`, `7d`, `4w` or `never` (an hour by default; `CAMPHORIC_API_TOKEN_MAX_DAYS`
+caps it), `--read-only` makes a token that may only read, and `--replace` revokes the user's other
+tokens of the same name first. A token acts as its user with their permission group, and ends
+when it expires or is revoked, or when its user is deactivated or changes their password. Its
+user must have agreed to each organization's terms (by signing in to the admin) before it can
+reach that organization.
 
 ---
 

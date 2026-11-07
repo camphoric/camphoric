@@ -149,7 +149,7 @@ their own repositories' packages (#780):
 | Folder | Package | What it is |
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
-| `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, login, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
+| `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, its API token, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
 | (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from npm by a caret range |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports, the confirmation, invoice and invitation emails, group emails and promo codes). A test fails when the contract's schema gains an event, report, registration type, custom charge type, group email, promo code or lodging field, a report output, a group email recipient source or a promo code scope, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
@@ -165,9 +165,11 @@ every workspace imports only its own files and the packages it declares.
                                                 # then each workspace's own tests
     npm test -w events/sample-camp              # one package's tests
     npm run import                              # import every event into a running server (CAMPHORIC_URL,
-                                                # default http://django:8000; a local one only, see below)
+                                                # default http://django:8000; a local one only, see below),
+                                                # with the API token in CAMPHORIC_API_TOKEN (see below)
     npm run import -- --if-empty                # only into a server with no events
     npm run import -- --wait                    # wait for the server to start first
+    npm run import -- --revoke-token            # revoke the token when the run ends, however it ends
     CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
     CAMPHORIC_E2E_IMAGE=camphoric:local npm run e2e -w events/sample-camp
                                                 # Sample Camp's registration-form e2e tests, against a
@@ -180,8 +182,25 @@ every workspace imports only its own files and the packages it declares.
     scripts/smoke-test-event-package.sh events/sample-camp   # build, pack and load an event from its build
                                                 # (npm run build -w events/<name> needs the spec built first)
 
-The importer, and every other tool that logs in through import-tools (the bulk-registration
-scripts, an e2e run's import), only uses a local server: `localhost`, `127.0.0.1`, `::1`, a
+The importer, and every other tool that calls the API through import-tools (the bulk-registration
+scripts, an e2e run's import), sends a personal access token (`Authorization: Bearer cmph_…`) from
+`CAMPHORIC_API_TOKEN`, or from the file `CAMPHORIC_API_TOKEN_FILE` names when that's unset. Mint
+one on the server for an Admin; it prints only the token, and lasts an hour unless given
+`--expires` (a duration such as `2h`, or `never`):
+
+    CAMPHORIC_URL=http://localhost:8000 \
+    CAMPHORIC_API_TOKEN=$(docker compose exec -T django ./manage.py camphoric_api_token create <you>) \
+      npm run import -- --revoke-token
+
+`--revoke-token` revokes it when the run ends, so a token minted for a run works for that run
+alone; without it, the token stays for its user to use again. The Docker `data` service needs
+none of this: the `django` service mints its token when it starts (see "Load the sample data").
+A token the server refuses says why: invalid, expired or revoked (401), or terms its user has yet to
+agree to (403, naming the organization and where to agree, by signing in to the admin as that
+user). Such a user's `--if-empty` import fails rather than guess, since the server leaves those
+organizations' events out of its events list.
+
+The tools only use a local server: `localhost`, `127.0.0.1`, `::1`, a
 `*.localhost` or `*.test` name, or the development stack's `django` service, so the Vagrant VM's
 and the Docker data service's imports work as they are. Importing replaces any event with the same
 name and deletes its lodging, so a stray `CAMPHORIC_URL` (say, in `data/.env`) mustn't reach a live
@@ -257,7 +276,10 @@ http://localhost:3000`.
 On a fresh database, `docker compose up` creates the admin (`DJANGO_SUPERUSER_*` in
 `env/local/shared.env`) and imports every event the importer loads (the camps and Sample Camp, from
 `data/eventModules.ts`): the `data` service runs `import --if-empty`, which waits for the server,
-imports, and exits. A database that already has events is left alone, as the Vagrant VM's is when
+imports, and exits. It imports as that admin, with an API token the `django` service mints each
+time it starts (named `docker-import`, replacing the last start's, and never expiring) into the
+`import-token` volume, which the `data` service reads through `CAMPHORIC_API_TOKEN_FILE`; the volume
+is in memory only, so the token is never written to disk. A database that already has events is left alone, as the Vagrant VM's is when
 it's provisioned (importing an event again deletes and recreates its lodging and unassigns its
 campers). If that first import is interrupted or fails, `docker compose logs data` says so; start
 again with `./data/reset-data-and-test`, which flushes the database first. Rebuild with
@@ -270,7 +292,8 @@ To import again, into a database that already has events:
 ./data/reset-data-and-test
 ```
 
-That flushes the database first. `docker compose run --rm data import` imports without flushing
+That flushes the database first, and mints the `data` service's token again (the flush deletes it
+with its user). `docker compose run --rm data import` imports without flushing
 (it starts the server if it isn't running, and waits for it). Add `--no-deps` for what doesn't need
 the server, such as `docker compose run --rm --no-deps data npm test`.
 

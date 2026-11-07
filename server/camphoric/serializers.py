@@ -8,6 +8,7 @@ from rest_framework.serializers import (
     ListSerializer, ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField,
     SerializerMethodField, ValidationError,
 )
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
@@ -820,12 +821,16 @@ class CurrentUserSerializer(ModelSerializer):
     must_change_password = SerializerMethodField()
     # The organizations whose latest contract they have yet to agree to (DR-145).
     pending_contract_organizations = SerializerMethodField()
+    # The most days a personal access token may last here; null: no cap, and one may
+    # never expire (camphoric.api_tokens, DR-158).
+    api_token_max_days = SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff',
                   'is_superuser', 'is_active', 'last_login', 'date_joined', 'role',
-                  'must_change_password', 'pending_contract_organizations']
+                  'must_change_password', 'pending_contract_organizations',
+                  'api_token_max_days']
 
     def get_role(self, user):
         return roles.role_of(user)
@@ -835,6 +840,9 @@ class CurrentUserSerializer(ModelSerializer):
 
     def get_pending_contract_organizations(self, user):
         return contracts.pending_organization_ids(user)
+
+    def get_api_token_max_days(self, user):
+        return settings.CAMPHORIC_API_TOKEN_MAX_DAYS
 
 
 class EditLeaseSerializer(ModelSerializer):

@@ -70,6 +70,7 @@ const TYPE_NAMES: Record<string, string> = {
   useraccount: 'User account',
   application: 'App',
   connectedapp: 'Connected app',
+  apitoken: 'Personal access token',
 };
 
 // Labels that already say what they are: "Registration #5 (Lark Camp)".

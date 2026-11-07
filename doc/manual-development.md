@@ -143,15 +143,18 @@ http://127.0.0.1:8000/api/
 
 ## Loading Sample Data
 
-Once your server is running, import the sample events with the importer in `data/`,
-logging in as your superuser:
+Once your server is running, import the sample events with the importer in `data/`, as your
+superuser, with a personal access token minted for the run (in `server/`, the command prints only
+the token; it lasts an hour unless given `--expires`):
 ```
 cd data
 npm ci
-CAMPHORIC_URL=http://localhost:8000 DJANGO_SUPERUSER_USERNAME=<you> DJANGO_SUPERUSER_PASSWORD=<yours> npm run import -- --if-empty
+CAMPHORIC_URL=http://localhost:8000 \
+CAMPHORIC_API_TOKEN=$(cd ../server && ./manage.py camphoric_api_token create <you> --name import) \
+  npm run import -- --if-empty --revoke-token
 ```
 (`--if-empty` leaves a database that already has events alone: importing again replaces each
-event's lodging, unassigning its campers.) The importer only imports into a local server
+event's lodging, unassigning its campers. `--revoke-token` revokes the token when the run ends.) The importer only imports into a local server
 (`localhost`, `127.0.0.1`, `::1`, `*.localhost`, `*.test`, or the Docker stack's `django`); it
 refuses any other `CAMPHORIC_URL` unless `CAMPHORIC_ALLOW_REMOTE=1` is set.
 
@@ -161,15 +164,14 @@ There are two options now.
 * To use the browsable API, sign in to the admin app or the Django admin (`/django-admin/`) first;
   the browsable API then uses that session.
 
-* Or using curl (and jq if you have it) you can interact with JSON API by requesting the token for your previously created user with:
+* Or, with curl, send a personal access token for your user. Mint one in `server/` (it prints only
+	the token, and lasts an hour unless given `--expires`, such as `--expires 1d` or `never`):
 	```
-	curl -d username=<user name> -d password=<password> http://127.0.0.1:8000/api-token-auth/ | jq
+	TOKEN=$(./manage.py camphoric_api_token create <user name> --name curl)
+	curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8000/api/user
 	```
-	If you want to request a resource that requires authentication run:
-	```
-	curl -H 'Authorization: Token <token>'
-	```
-	The token works for at least half a day (half of `CAMPHORIC_API_TOKEN_TTL`) from that request; after it expires, request it again.
+	`./manage.py camphoric_api_token list <user name>` lists your tokens, and
+	`./manage.py camphoric_api_token revoke <prefix>` ends one sooner.
 
 # Client development
 

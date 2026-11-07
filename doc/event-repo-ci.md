@@ -137,6 +137,15 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
 - **Any new version runs both workflows.** The e2e harness (`defineEventE2EConfig`, `e2eServer`)
   ships in import-tools, so a tools release can break the e2e tests as well as CI, and `ci.yml` is
   cheap.
+- **Tools and the image move together across personal access tokens.** Since the major that
+  replaced password sign-in with personal access tokens (camphoric#965), the e2e harness mints its
+  throwaway server's token with the image's `camphoric_api_token` command, so it needs an image that
+  has it: against an older `image_tag` it fails at once ("couldn't mint the throwaway Camphoric's API
+  token"), and an older tools version can't sign in to a newer image. An existing server
+  (`CAMPHORIC_E2E_SERVER_URL`) takes an Admin's token in `CAMPHORIC_E2E_SERVER_TOKEN`, no longer a
+  username and password. The import no longer sets `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD`, so a
+  test that signs in to the admin client in a browser takes the admin's from `adminCredentials()`
+  instead.
 - **A newer version outside the event's range** (a new major, or 1.1.0 against `~1.0.0`) isn't
   tested by the scheduled check. It appears as a note in the `camphoric-compat` issue ("`<package>`
   X is published, outside this event's range (`<range>`): this event needs migrating to it."), as
