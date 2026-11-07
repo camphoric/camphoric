@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-155)
+- §15 — Decision Records (DR-1…DR-156)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1015,7 +1015,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   with the event, §8.3), `invoice_template` (read-only: the id of the invoice email's
   `EmailTemplate`, likewise; §8.3, §15, DR-96) and `confirmation_email_from` (the event's
   sending address);
-  `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`.
+  `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`. The events
+  API lists them by `registration_start`, newest first with `null` first, then by name ignoring
+  case (then by `id`), so every consumer sees one order (§8.1; §15, DR-156).
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
   `registrant_email`, `server_pricing_results`, `client_reported_pricing`, `event`,
   `registration_type`, `promo_code` (the id of its promo code, or null), read-only
@@ -1674,7 +1676,10 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 - **Organization chooser:** lists organizations; selecting one navigates to its event chooser.
 - **Event chooser:** lists events for the org; selecting one navigates into the Event Admin
   container for that event. It offers a way back to organization selection (placed as in §9.6,
-  *Way back*).
+  *Way back*). Events are listed by open date (`registration_start`), newest first, with the
+  events that have no open date yet (ones being set up) at the top; events with the same open
+  date, or none, are listed by name, ignoring case. The events API returns them in this order
+  and the chooser shows them as returned (§15, DR-156).
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
 - Both show the server's version from `GET /api/version` beside the Camphoric title, in the place
   the Event Admin container shows the event's name (§8.2): `v` and the version (`v0.12.0`), or
@@ -6590,6 +6595,19 @@ needs its own screens to create, rename and delete categories, and the importer 
 create them first. Tags (a report in several groups): more than grouping needs, and a report would
 be listed more than once. Sorting only in the client: the API's order would stay arbitrary for
 its other consumers (the importer, scripts).
+
+### DR-156 — Events are listed newest open date first, undated events at the top
+
+**Decision:** `GET /api/events/` orders events by `registration_start` descending, events without
+one first, then by name ignoring case (then `id`). The event chooser shows them in that order.
+**Context:** An organization's events pile up year after year, and the chooser listed them in
+whatever order the database returned, burying the current event (#993). The event being worked
+on is the newest one, or one still being set up with no open date. Ordering on the server keeps
+every consumer of the API in the same order.
+**Alternatives:** Ordering by the event's own dates (`start`): an event can be set up before its
+dates are known, and the open date is what an organizer is working towards. Sorting in the
+chooser: other consumers would still get an arbitrary order. Putting undated events last: they're
+the ones being worked on, so they'd be buried in their turn.
 
 ---
 

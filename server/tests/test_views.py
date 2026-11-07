@@ -1313,6 +1313,28 @@ class EventTests(APITestCase):
 
         self.assertEqual(events.count(), 1, 'should only have the one event')
 
+    def test_listed_by_open_date_newest_first(self):
+        def event(name, start=None):
+            models.Event.objects.create(
+                organization=self.organization, name=name, registration_start=start)
+
+        utc = datetime.timezone.utc
+        event('Camp 2025', datetime.datetime(2025, 2, 1, tzinfo=utc))
+        event('camp draft')
+        event('Camp 2027', datetime.datetime(2027, 2, 1, tzinfo=utc))
+        event('Workshop 2027', datetime.datetime(2027, 2, 1, tzinfo=utc))
+        event('Camp 2026', datetime.datetime(2026, 2, 1, tzinfo=utc))
+        event('Workshop draft')
+
+        response = self.client.get('/api/events/', {'organization': self.organization.id})
+        self.assertEqual(response.status_code, 200)
+        # No open date first (being set up), then newest first; ties by name, ignoring
+        # case ('camp' before 'Workshop', which a case-sensitive sort reverses).
+        self.assertEqual([e['name'] for e in response.json()], [
+            'camp draft', 'Workshop draft', 'Camp 2027', 'Workshop 2027', 'Camp 2026',
+            'Camp 2025',
+        ])
+
 
 class LodgingSchemaTests(APITestCase):
     def setUp(self):

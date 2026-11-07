@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, F, OuterRef, Q
 from django.db.models.functions import Lower
 from django.core import signing
 from django.http import Http404, HttpResponseRedirect, JsonResponse
@@ -743,7 +743,10 @@ class EmailQueueView(APIView):
 
 
 class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Event.objects.all()
+    # Newest open date first, so past years sink; an event with none yet (one
+    # being set up) comes first. Then by name, ignoring case (SPEC §8.1).
+    queryset = models.Event.objects.order_by(
+        F('registration_start').desc(nulls_first=True), Lower('name'), 'id')
     serializer_class = serializers.EventSerializer
     filterset_fields = ['organization']
     # Deleting an event deletes everything in it: Admins only, and not once
