@@ -18,6 +18,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models.functions import Lower
 from django.core import signing
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -813,7 +814,8 @@ class RegistrationDraftViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
 
 
 class ReportViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
-    queryset = models.Report.objects.all()
+    # By title, ignoring case, so every consumer lists them in the same order.
+    queryset = models.Report.objects.order_by(Lower('title'), 'id')
     serializer_class = serializers.ReportSerializer
     filterset_fields = ['event']
 

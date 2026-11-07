@@ -1,7 +1,7 @@
 /**
- * Create or edit a report definition (SPEC §8.7): title, where its variables
- * come from, output format, and the template. Title must be non-empty before
- * saving. Saving an existing report PATCHes it; a new one POSTs.
+ * Create or edit a report definition (SPEC §8.7): title, category (one of the
+ * event's or a new one), description, where its variables come from, output
+ * format, and the template. Title must be non-empty before saving. Saving an existing report PATCHes it; a new one POSTs.
  *
  * - **Camphoric variables** (`server`, the default for new reports): the
  *   template is edited in the template editor, with autocomplete and a live
@@ -13,7 +13,16 @@
  * report (`onDirtyChange`), and Cancel goes through `onCancel`.
  */
 
-import { Alert, Button, Select, Stack, Text, TextInput } from '@mantine/core';
+import {
+  Alert,
+  Autocomplete,
+  Button,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { ApiReport, Hash, ReportOutputType, ReportVariablesSource } from 'api-types';
@@ -26,6 +35,8 @@ import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditable
 import { useEditLease } from 'hooks/useEditLease';
 import { useEffect, useMemo, useState } from 'react';
 import { reportHooks } from 'store/entities';
+
+import { canonicalCategory } from './reportGroups';
 
 const SOURCE_OPTIONS: { value: ReportVariablesSource; label: string }[] = [
   { value: 'server', label: 'Camphoric variables (rendered on the server)' },
@@ -51,13 +62,24 @@ const LEGACY_TEMPLATE_LANGUAGE: Record<ReportOutputType, string> = {
 
 type ReportFields = Pick<
   ApiReport,
-  'title' | 'output' | 'template' | 'variables_schema' | 'variables_source'
+  | 'title'
+  | 'category'
+  | 'description'
+  | 'output'
+  | 'template'
+  | 'variables_schema'
+  | 'variables_source'
 >;
 
 interface ReportEditFormProps {
   eventId: string;
   /** Omitted when creating a new report. */
   report?: ApiReport;
+  /**
+   * The categories of the event's other reports: offered as the category's
+   * choices, and the spellings a changed category is matched to.
+   */
+  categories?: string[];
   /** The Template Help page, linked from the editor's help. */
   helpHref?: string;
   onSaved: (reportId: number) => void;
@@ -68,6 +90,8 @@ interface ReportEditFormProps {
 
 const reportFields = (record: ApiReport): ReportFields => ({
   title: record.title,
+  category: record.category,
+  description: record.description,
   output: record.output,
   template: record.template,
   variables_schema: record.variables_schema,
@@ -76,6 +100,8 @@ const reportFields = (record: ApiReport): ReportFields => ({
 
 interface Starting {
   title: string;
+  category: string;
+  description: string;
   source: ReportVariablesSource;
   output: ReportOutputType;
   template: string;
@@ -85,6 +111,8 @@ interface Starting {
 /** What unsaved changes are measured from. */
 const startingFrom = (fields?: ReportFields): Starting => ({
   title: fields?.title ?? '',
+  category: fields?.category ?? '',
+  description: fields?.description ?? '',
   source: fields?.variables_source ?? 'server',
   output: fields?.output ?? 'csv',
   template: fields?.template ?? '',
@@ -94,6 +122,7 @@ const startingFrom = (fields?: ReportFields): Starting => ({
 export function ReportEditForm({
   eventId,
   report: latest,
+  categories = [],
   helpHref,
   onSaved,
   onCancel,
@@ -103,6 +132,8 @@ export function ReportEditForm({
   const update = reportHooks.useUpdate({ handlesVersionConflict: true });
   const [initial, setInitial] = useState(() => startingFrom(latest && reportFields(latest)));
   const [title, setTitle] = useState(initial.title);
+  const [category, setCategory] = useState(initial.category);
+  const [description, setDescription] = useState(initial.description);
   const [source, setSource] = useState<ReportVariablesSource>(initial.source);
   const [output, setOutput] = useState<ReportOutputType>(initial.output);
   const [template, setTemplate] = useState(initial.template);
@@ -110,6 +141,8 @@ export function ReportEditForm({
 
   const dirty =
     title !== initial.title ||
+    category !== initial.category ||
+    description !== initial.description ||
     source !== initial.source ||
     output !== initial.output ||
     template !== initial.template ||
@@ -121,6 +154,8 @@ export function ReportEditForm({
 
   const show = (fields: ReportFields) => {
     setTitle(fields.title);
+    setCategory(fields.category);
+    setDescription(fields.description);
     setOutput(fields.output);
     setTemplate(fields.template);
     setSource(fields.variables_source);
@@ -194,7 +229,20 @@ export function ReportEditForm({
     const variables_schema = isServer
       ? (report?.variables_schema ?? {})
       : (JSON.parse(schemaText) as Hash);
-    const fields = { title, output, template, variables_schema, variables_source: source };
+    const fields = {
+      title,
+      // Left as it was unless it was changed: a change of capitals alone is
+      // kept, so a category can be respelt.
+      category:
+        category.trim() === initial.category.trim()
+          ? initial.category
+          : canonicalCategory(category, categories),
+      description,
+      output,
+      template,
+      variables_schema,
+      variables_source: source,
+    };
     const onSuccess = (saved: ApiReport) => {
       notifications.show({ color: 'green', message: 'Report saved' });
       onSaved(saved.id);
@@ -223,6 +271,23 @@ export function ReportEditForm({
               value={title}
               onChange={(e) => setTitle(e.currentTarget.value)}
               error={title ? titleError : null}
+            />
+            <Autocomplete
+              label="Category"
+              description="Groups related reports in the list. Pick one of the event’s, or type a new one."
+              placeholder="None"
+              data={categories}
+              value={category}
+              onChange={setCategory}
+              maxLength={100}
+            />
+            <Textarea
+              label="Description"
+              description="What the report shows and who it’s for."
+              value={description}
+              onChange={(e) => setDescription(e.currentTarget.value)}
+              autosize
+              minRows={2}
             />
             <Select
               label="Variables"

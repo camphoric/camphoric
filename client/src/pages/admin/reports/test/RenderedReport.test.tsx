@@ -24,6 +24,8 @@ const report = (overrides: Partial<ApiReport>) =>
     id: 1,
     event: 7,
     title: 'Roster',
+    category: '',
+    description: '',
     output: 'csv',
     template: '',
     variables_schema: {},

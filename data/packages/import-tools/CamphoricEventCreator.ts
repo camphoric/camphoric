@@ -92,6 +92,16 @@ const GROUP_EMAIL_DEFAULTS = {
   include_incomplete: false,
 };
 
+// Likewise for a report, matched by title. data/ reports use the browser's
+// variable bundle unless they say otherwise.
+const REPORT_DEFAULTS = {
+  category: '',
+  description: '',
+  output: 'csv',
+  variables_source: 'client',
+  variables_schema: {},
+};
+
 // Likewise for a promo code
 const PROMO_CODE_DEFAULTS = {
   scope: 'registration',
@@ -375,16 +385,28 @@ export default class CamphoricEventCreator extends Fetcher {
     this.results.lodging = lodgingLookup;
   }
 
+  // The event's reports: each one the data declares is created, or, when the
+  // event has one by its title, updated to match (its category and description
+  // too; what the data leaves out is reset to its default). Others the event
+  // has are left alone.
   async loadReports() {
     const event = this.savedEvent();
-    this.results.reports = await Promise.all(this.data.reports.map(
-      report => this.fetch('POST', '/api/reports/', {
-        event: event.id,
-        // data/ reports use the browser's variable bundle unless they say otherwise.
-        variables_source: 'client',
-        ...report,
-      })
-    ));
+    const all: Saved[] = await this.fetch('GET', '/api/reports/');
+    const existing = all.filter(r => r.event === event.id);
+
+    this.results.reports = await Promise.all(this.data.reports.map((report) => {
+      const exists = existing.find(r => r.title === report.title);
+
+      return this.fetch(
+        exists ? 'PUT' : 'POST',
+        `/api/reports/${exists ? `${exists.id}/` : ''}`,
+        {
+          ...REPORT_DEFAULTS,
+          ...report,
+          event: event.id,
+        },
+      ) as Promise<Saved>;
+    }));
   }
 
   async loadCustomChargeTypes() {

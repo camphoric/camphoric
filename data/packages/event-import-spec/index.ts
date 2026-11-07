@@ -264,6 +264,11 @@ export const EventImportSchema = Type.Object({
   lodgings: opt(lodgings),
   reports: Type.Array(Type.Object({
     title: str('report title'),
+    category: opt(str(
+      'groups related reports in the report list, e.g. finance or rooming (default: none)',
+      { maxLength: 100 },
+    )),
+    description: opt(text('what the report shows and who it\'s for')),
     template: text('Template for report'),
     output: opt(Type.Union(
       [Type.Literal('csv'), Type.Literal('md'), Type.Literal('txt'), Type.Literal('html'), Type.Literal('hbs')],

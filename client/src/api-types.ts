@@ -437,6 +437,10 @@ export interface ApiReport extends TimeStamped {
   id: number;
   event: Scalar;
   title: string;
+  /** Groups related reports in the report list; '' when it has none. */
+  category: string;
+  /** What the report shows and who it's for; may be ''. */
+  description: string;
   output: ReportOutputType;
   template: string;
   variables_schema: Hash;

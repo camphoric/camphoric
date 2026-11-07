@@ -13,17 +13,46 @@ function readFile(filename: string): string {
 // bundle (DR-37, at the top of reports/, where the server's legacy report
 // tests find them). Handlebars reports are retired, so there is no hbs report.
 export default [
-  { title: 'Payments', output: 'md', variables_source: 'server', template: readFile('server/Payments.md.j2') },
-  { title: 'Lodging', output: 'html', variables_source: 'server', template: readFile('server/Lodging.html.j2') },
+  {
+    title: 'Payments',
+    category: 'Finance',
+    description: 'Every payment received, for the treasurer.',
+    output: 'md',
+    variables_source: 'server',
+    template: readFile('server/Payments.md.j2'),
+  },
+  {
+    title: 'Lodging',
+    category: 'Rooming',
+    description: 'Who is staying where, for the housing team.',
+    output: 'html',
+    variables_source: 'server',
+    template: readFile('server/Lodging.html.j2'),
+  },
+  // Uncategorised, so the sample shows reports without a category too
   { title: 'Summary', output: 'txt', variables_source: 'server', template: readFile('server/Summary.txt.j2') },
-  { title: 'Campers', output: 'csv', variables_source: 'server', template: readFile('server/Campers.csv.j2') },
+  {
+    title: 'Campers',
+    category: 'Registration',
+    description: 'One row per camper, for the registrars.',
+    output: 'csv',
+    variables_source: 'server',
+    template: readFile('server/Campers.csv.j2'),
+  },
   {
     title: 'Legacy roster',
+    category: 'Registration',
     output: 'csv',
     variables_source: 'client',
     template: readFile('Legacy-Roster.csv.j2'),
     // what the template reads from the browser's bundle
     variables_schema: { type: 'object', properties: { campers: { type: 'array' } } },
   },
-  { title: 'Legacy balances', output: 'md', variables_source: 'client', template: readFile('Legacy-Balances.md.j2') },
+  {
+    title: 'Legacy balances',
+    category: 'Finance',
+    output: 'md',
+    variables_source: 'client',
+    template: readFile('Legacy-Balances.md.j2'),
+  },
 ] satisfies Report[];

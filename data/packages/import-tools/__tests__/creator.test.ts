@@ -177,6 +177,51 @@ describe('group emails', () => {
   });
 });
 
+describe('reports', () => {
+  test('creates new ones and updates the event\'s by title, with their category and description', async () => {
+    const data = {
+      ...baseData(),
+      reports: [
+        { title: 'Balances', template: 'b', category: 'Finance', description: 'What each family owes' },
+        { title: 'Roster', template: 'r', variables_source: 'server' as const },
+      ],
+    };
+    const saved: Saved[] = [
+      // a legacy Handlebars report, which the data now makes a server one
+      { id: 5, event: 7, title: 'Roster', category: 'Old', description: 'Old', output: 'hbs' },
+      // the same title in another event: not this one
+      { id: 6, event: 8, title: 'Balances' },
+    ];
+    const { creator, requests } = creatorFor(data, ({ method, path }) => (
+      method === 'GET' && path === '/api/reports/' ? saved : undefined
+    ));
+    creator.results.event = { id: 7 };
+    await creator.loadReports();
+
+    const writes = requests.filter(r => r.method !== 'GET');
+    expect(writes).toEqual([
+      {
+        method: 'POST',
+        path: '/api/reports/',
+        data: {
+          title: 'Balances', template: 'b', category: 'Finance', description: 'What each family owes',
+          output: 'csv', variables_source: 'client', variables_schema: {}, event: 7,
+        },
+      },
+      {
+        method: 'PUT',
+        path: '/api/reports/5/',
+        // What the data leaves out is reset, so it ends up as the data declares it.
+        data: {
+          title: 'Roster', template: 'r', category: '', description: '',
+          output: 'csv', variables_source: 'server', variables_schema: {}, event: 7,
+        },
+      },
+    ]);
+    expect(creator.results.reports).toHaveLength(2);
+  });
+});
+
 describe('promo codes', () => {
   test('resolve excluded registration types by name, and match saved codes ignoring case', async () => {
     const data = {
