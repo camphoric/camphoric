@@ -178,6 +178,13 @@ describe('custom widgets', () => {
       expect(input).toHaveValue('+1 ');
     });
 
+    it.each(['+1', '+44'])('reports no answer for a dial code filled in alone (%s)', (value) => {
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      fireEvent.change(screen.getByRole('textbox', { name: /Phone/ }), { target: { value } });
+      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
+    });
+
     it("keeps the chosen country's dial code when its number is erased", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
@@ -312,6 +319,17 @@ describe('custom widgets', () => {
         expect(screen.getAllByText(message).length).toBeGreaterThan(0);
       },
     );
+
+    it("offers the schema's examples as suggestions", () => {
+      renderForm(<JsonSchemaForm schema={donationSchema({ examples: [25, 50] })} />);
+      // With suggestions, the input is a combobox.
+      const input = screen.getByRole('combobox', { name: /Donation/ });
+      const list = document.getElementById(input.getAttribute('list') ?? '');
+      expect([...(list?.querySelectorAll('option') ?? [])].map((o) => o.value)).toEqual([
+        '25',
+        '50',
+      ]);
+    });
 
     it('naturalNumber still keeps to the schema maximum and minimum', async () => {
       const user = userEvent.setup();

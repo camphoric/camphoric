@@ -29,7 +29,11 @@ import 'react-international-phone/style.css';
 import { TextInput } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 import type { ChangeEvent } from 'react';
-import { CountrySelector, usePhoneInput } from 'react-international-phone';
+import {
+  CountrySelector,
+  guessCountryByPartialPhoneNumber,
+  usePhoneInput,
+} from 'react-international-phone';
 
 import { WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
@@ -84,7 +88,13 @@ export function PhoneInput(props: WidgetProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const international = nationalToInternational(event.target.value, country.dialCode);
     if (isWholeValueChange(event.nativeEvent)) {
-      onChange(toE164(international, country.dialCode) || options.emptyValue);
+      // The country the value's own code gives, as the hook will switch to:
+      // a pasted `+44` alone is the UK's dial code, not an answer.
+      const { country: given } = guessCountryByPartialPhoneNumber({
+        phone: international,
+        currentCountryIso2: country.iso2,
+      });
+      onChange(toE164(international, given?.dialCode ?? country.dialCode) || options.emptyValue);
       return;
     }
     // Only rewrite a value that needs it, so typing keeps the cursor where it is.

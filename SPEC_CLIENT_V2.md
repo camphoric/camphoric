@@ -2553,7 +2553,8 @@ additive widgets are layered on (§15, DR-29):
   `integer` the decimal point can't; any other value outside `minimum` / `maximum` stays as typed
   and is rejected with the field's limit message, never clamped. A saved answer those keyboard
   rules exclude (`-5`, saved before a `minimum` of 0) is shown as it is, not stripped, and
-  rejected the same way. The schema's `multipleOf` is the step. The `ui:options` events give
+  rejected the same way. The schema's `multipleOf` is the step, and its `examples` are offered as
+  suggestions. The `ui:options` events give
   number fields — `prefix`, `suffix`, `thousandSeparator`, `decimalSeparator`, `decimalScale`,
   `fixedDecimalScale`, `hideControls`, `step` — apply. Its description is templated markdown
   between the label and the control, like every custom widget's.
