@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.1.0...camphoric-event-import-spec-v1.2.0) (2026-11-07)
+
+
+### Features
+
+* **data:** match an imported report to the event's by title and update it ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb))
+* **reports:** sort reports by title and group them by category ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb)), closes [#992](https://github.com/camphoric/camphoric/issues/992)
+
 ## [1.1.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.2...camphoric-event-import-spec-v1.1.0) (2026-11-06)
 
 
