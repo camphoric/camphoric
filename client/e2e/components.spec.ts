@@ -56,6 +56,37 @@ test.describe('Form engine', () => {
     await expect.poll(saved).toEqual({ phone: '+442079460958' });
   });
 
+  test('a required phone left at its dial code is required', async ({ page }) => {
+    await page.goto(story('phone-input--required'));
+    await expect(page.getByRole('textbox', { name: /Phone/ })).toHaveValue('+1 ');
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await expect(page.getByText('This field is required').first()).toBeVisible();
+  });
+
+  test('a number field keeps to its schema without changing the answer', async ({ page }) => {
+    const saved = async () =>
+      JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}') as unknown;
+
+    await page.goto(story('number-widget--donation'));
+    // Its description is markdown, like every field's.
+    await expect(page.getByRole('link', { name: 'our website' })).toBeVisible();
+    const donation = page.getByRole('textbox', { name: 'Donation' });
+    // A minimum of 0: the minus sign can't be typed.
+    await donation.pressSequentially('-10');
+    await donation.blur();
+    await expect(donation).toHaveValue('$10');
+    await expect.poll(saved).toEqual({ donation: 10 });
+
+    await page.goto(story('number-widget--limits'));
+    const count = page.getByRole('textbox', { name: 'Count' });
+    // Below the minimum: kept as typed (not clamped), and rejected on submit.
+    await count.pressSequentially('3');
+    await count.blur();
+    await expect(count).toHaveValue('3');
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await expect(page.getByText('Please enter 5 or more').first()).toBeVisible();
+  });
+
   test('a table wider than a phone scrolls in its own box, not the page', async ({
     page,
     browserName,

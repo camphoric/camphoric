@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-160)
+- §15 — Decision Records (DR-1…DR-162)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2537,15 +2537,29 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 
 **Custom widgets.** The `@rjsf/mantine` base theme already provides the standard inputs —
 including **Select** (enum with disabled options + value coercion), **Checkboxes** (inline +
-disabled options), and text inputs with integer and datalist-examples support — so only the
-genuinely additive widgets are layered on (§15, DR-29):
+disabled options), and text inputs with datalist-examples support — so only the genuinely
+additive widgets are layered on (§15, DR-29):
 - **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30),
   saved in E.164 form (`+12025551234`). It asks the browser for a whole number to autofill
   (`autocomplete="tel"`). A value filled in all at once — by autofill or paste — without a
   leading `+` is a number in the selected country, so `(202) 555-1234` saves as
   `+12025551234`; a North American one that starts with `1` is read as giving its country
-  code. A value with `+` and another country code switches the country.
-- **NaturalNumberInput** — digits-only non-negative integer.
+  code. A value with `+` and another country code switches the country. The field always shows
+  the selected country's dial code; a value of only that dial code is no answer (the field's
+  `emptyValue`), so a required phone number left blank is rejected as missing.
+- **Number** — every `number` and `integer` field without a `ui:widget` of its own (rjsf's
+  default `text` widget, for a number schema) (§15, DR-161). It never changes a registrant's
+  answer under them: with a `minimum` of 0 or more the minus sign can't be typed, and for an
+  `integer` the decimal point can't; any other value outside `minimum` / `maximum` stays as typed
+  and is rejected with the field's limit message, never clamped. A saved answer those keyboard
+  rules exclude (`-5`, saved before a `minimum` of 0) is shown as it is, not stripped, and
+  rejected the same way. The schema's `multipleOf` is the step. The `ui:options` events give
+  number fields — `prefix`, `suffix`, `thousandSeparator`, `decimalSeparator`, `decimalScale`,
+  `fixedDecimalScale`, `hideControls`, `step` — apply. Its description is templated markdown
+  between the label and the control, like every custom widget's.
+- **NaturalNumberInput** — a non-negative whole number (no minus sign, no decimal point) whatever
+  the schema's type; otherwise the Number widget, with the schema's own `minimum` (above 0) and
+  `maximum` and its `ui:options` applied, and no step controls unless they ask for them.
 - **Select** — overrides the base select to show the field's description (templated markdown)
   between the label and the control, which the base widget omits. Choosing the option that's
   already chosen keeps it. An optional select can be cleared with an explicit clear control;
@@ -2733,7 +2747,17 @@ example and its result.
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
   such as `camper.frist_name`) renders blank and is reported as a warning, and so is printing a
   method instead of calling it (`{{ event.start.isoformat }}`, or `camper.attributes.items` for
-  a question named `items`), with a message that says which. The read-only
+  a question named `items`), with a message that says which. Rendering against an event, so is
+  reading a key the event's own data doesn't define (§15, DR-162): a pricing line that isn't in
+  its pricing logic (`camper.pricing.badge`; the server's own `promo`, `total` and `overridden`
+  are always defined), an `event.pricing` variable it doesn't set, or a form question or admin
+  attribute that no schema of the event has — its own forms, or a registration type's with its
+  overrides merged in, every conditional branch included
+  (`camper.admin_attributes.meal_assignment`) — with a
+  message naming the dict and the key (`camper.pricing has no field 'badge'`). A question the
+  event does ask, left unanswered, renders blank without a warning; and a form or object whose
+  schema lists no questions, or allows keys it doesn't list (`additionalProperties` or
+  `patternProperties`, in the schema or any of its branches), isn't checked. The read-only
   refusal's message points authors to the *Computed values* guide, so that topic keeps its
   title.
 
@@ -3905,7 +3929,8 @@ tests ship *with* the feature, not necessarily *before* it).
 ### DR-29 — Custom form widgets/templates scoped to what the v6 theme lacks
 
 *For array fields, superseded by DR-49: the theme's array template doesn't cover what it was
-assumed to.*
+assumed to. For number fields, superseded by DR-161: the theme's number input clamps an answer
+on blur and shows its description as plain text.*
 
 **Decision:** Only re-implement the form widgets/templates whose behavior the official
 `@rjsf/mantine` v6 theme does **not** already provide. The custom widget layer is therefore just
@@ -6817,6 +6842,49 @@ user's connections, which the audit log records, go with them.
 its connection behind, and ending an app's access belongs to camphoric.oauth (DR-149). Telling
 superusers to deactivate instead — deactivating is the usual answer, but deleting is sometimes
 wanted (a test account, a duplicate), and the refusal names no way round it.
+
+### DR-161 — Number fields get a widget that keeps to the schema without clamping
+**Decision:** Every `number` and `integer` field without a `ui:widget` gets Camphoric's Number
+widget (§9.1): rjsf's default `text` widget is overridden, so a number schema gets it and any
+other schema the theme's input as before. It blocks at the keyboard only what no answer in range
+could contain — the minus sign when the `minimum` is 0 or more, the decimal point for an
+integer — and leaves every other out-of-range value as typed, for validation to reject with the
+field's `minimum` / `maximum` message. It renders through the same label-and-description frame
+as the other custom widgets, so its description is markdown. NaturalNumberInput is the same
+widget with no minus sign or decimal point whatever the schema says.
+**Context:** The theme's number input (Mantine's `NumberInput`, through rjsf's
+`BaseInputTemplate`) took any value and clamped it to the schema's limits when the field lost
+focus, so a registrant who typed `-1` for Lark Camp's donation (`minimum: 0`) saw `$0` with no
+word why (#988). It also handed the description to Mantine as a plain string, so a link in it
+showed as markdown source (#987). NaturalNumberInput blocked the minus sign but ignored the
+schema's limits and `ui:options` (Lark's `$` prefix) and had to be named in each uiSchema.
+**Alternatives:** Blocking every out-of-range value at the keyboard (Mantine's `strict` clamping)
+— a value below a `minimum` above 0 can't be blocked, since typing 12 for a minimum of 5 passes
+through 1, and a refused keystroke says nothing about why. Naming the widget in each event's
+uiSchema — every event would have to, and a field that forgot would clamp again. Overriding
+`BaseInputTemplate` — it also renders the theme's text, email and URL inputs.
+
+### DR-162 — Templates are warned of keys an event's own data doesn't define
+**Decision:** When the variable graph is built for an event, its pricing results, `event.pricing`,
+form answers (`attributes`) and admin attributes are tagged with the keys the event defines for
+them — the same field lists the describe payload builds for the template help (§9.3) — and a
+template reading any other key gets an `undefined` warning naming the dict and key, once per line,
+as for a Camphoric type's fields. Pricing lines also include what the server adds to every event's
+results (`promo`, `total`, `overridden`). A form's keys are those of the event's own form and of
+each registration type's with its overrides deeply merged in, as registering merges them, and an
+object's are those every branch of its schema gives it. A form type is checked only when its
+schema lists its questions and allows no others; a question the event asks but this camper
+didn't answer stays silent. The tag is kept where templates can't read it, so it can't hide an
+answer of the same name.
+**Context:** A report reading `camper.pricing.name_badge` after the pricing logic's `var` was
+renamed, or a misspelt `registration.pricing.donaton`, rendered a column of blanks or `$0.00`
+with nothing said (#994). These dicts are plain JSON, so the existing typo check, which knows only
+Camphoric's own types, couldn't see them; event packages could only search the template text for
+names, which misses names reached any other way.
+**Alternatives:** Warning on every missing key — a question left unanswered is the common case,
+not a typo. A strict undefined that fails on a missing key — breaks templates that rely on blank
+output (DR-37). Checking template text against the event's names before rendering — can't follow
+a key reached through a variable, a loop or `[]`.
 
 ---
 

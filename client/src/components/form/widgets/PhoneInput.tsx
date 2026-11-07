@@ -18,6 +18,10 @@
  * some autofill does. So a value that arrives all at once doesn't go through
  * the hook's handler: the widget reports it in E.164 form, and the hook, which
  * follows its `value`, formats it and picks its country.
+ *
+ * The field always shows a dial code (`+1`), which isn't an answer: a value of
+ * only a dial code is reported as empty (`options.emptyValue`), so a required
+ * phone number left blank is rejected as missing (#986).
  */
 
 import 'react-international-phone/style.css';
@@ -45,10 +49,14 @@ export function nationalToInternational(value: string, dialCode: string): string
   return `+${dialCode}${digits}`;
 }
 
-/** A phone value in E.164 form (`+` and its digits), or '' when it has none. */
-function toE164(international: string): string {
+/**
+ * A phone value in E.164 form (`+` and its digits), or '' when it has no digits
+ * but the dial code of the selected country (`dialCode`): the field shows that
+ * dial code even when nothing has been entered.
+ */
+export function toE164(international: string, dialCode: string): string {
   const digits = international.replace(/\D/g, '');
-  return digits ? `+${digits}` : '';
+  return digits && digits !== dialCode ? `+${digits}` : '';
 }
 
 /**
@@ -69,13 +77,14 @@ export function PhoneInput(props: WidgetProps) {
   const { inputValue, country, setCountry, handlePhoneValueChange, inputRef } = usePhoneInput({
     defaultCountry: 'us',
     value: value ?? '',
-    onChange: ({ phone }) => onChange(phone || options.emptyValue),
+    onChange: ({ phone, country: selected }) =>
+      onChange(toE164(phone, selected.dialCode) || options.emptyValue),
   });
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const international = nationalToInternational(event.target.value, country.dialCode);
     if (isWholeValueChange(event.nativeEvent)) {
-      onChange(toE164(international) || options.emptyValue);
+      onChange(toE164(international, country.dialCode) || options.emptyValue);
       return;
     }
     // Only rewrite a value that needs it, so typing keeps the cursor where it is.

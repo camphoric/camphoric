@@ -143,6 +143,197 @@ describe('custom widgets', () => {
     });
   });
 
+  describe('phone widget left at its dial code', () => {
+    const schema: RJSFSchema = {
+      type: 'object',
+      required: ['phone'],
+      properties: { phone: { type: 'string', title: 'Phone', pattern: '^\\+[0-9]+$' } },
+    };
+    const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
+
+    it('reports no answer, so a required phone is required (#986)', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onSubmit={onSubmit} />);
+
+      // The field shows the default country's dial code, which isn't an answer.
+      expect(screen.getByRole('textbox', { name: /Phone/ })).toHaveValue('+1 ');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
+    });
+
+    it('reports no answer once a number is erased back to the dial code', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      const input = screen.getByRole('textbox', { name: /Phone/ });
+
+      await user.type(input, '20');
+      expect(onChange).toHaveBeenLastCalledWith({ phone: '+120' }, expect.anything());
+      await user.type(input, '{Backspace}{Backspace}');
+
+      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
+      expect(input).toHaveValue('+1 ');
+    });
+
+    it("keeps the chosen country's dial code when its number is erased", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
+      const input = screen.getByRole('textbox', { name: /Phone/ });
+      fireEvent.change(input, { target: { value: '+44 20' } });
+      expect(onChange).toHaveBeenLastCalledWith({ phone: '+4420' }, expect.anything());
+
+      await user.type(input, '{Backspace}{Backspace}');
+
+      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
+      expect(input).toHaveValue('+44 ');
+      expect(
+        document
+          .querySelector('.react-international-phone-country-selector-button img')
+          ?.getAttribute('data-country'),
+      ).toBe('gb');
+    });
+  });
+
+  describe('number fields keep to the schema without changing an answer (#988)', () => {
+    const donationSchema = (limits: RJSFSchema = {}): RJSFSchema => ({
+      type: 'object',
+      properties: { donation: { type: 'integer', title: 'Donation', minimum: 0, ...limits } },
+    });
+
+    function renderNumber(schema: RJSFSchema, uiSchema: UiSchema = {}) {
+      const onChange = vi.fn();
+      const onSubmit = vi.fn();
+      renderForm(
+        <JsonSchemaForm
+          schema={schema}
+          uiSchema={uiSchema}
+          onChange={onChange}
+          onSubmit={onSubmit}
+        />,
+      );
+      return { onChange, onSubmit, input: screen.getByRole('textbox', { name: /Donation/ }) };
+    }
+
+    const reported = (onChange: ReturnType<typeof vi.fn>) =>
+      (onChange.mock.lastCall?.[0] as { donation?: number } | undefined)?.donation;
+
+    it("won't take a minus sign when the minimum is 0, and keeps the prefix", async () => {
+      const user = userEvent.setup();
+      const { onChange, input } = renderNumber(donationSchema(), {
+        donation: { 'ui:options': { prefix: '$' } },
+      });
+
+      await user.type(input, '-10');
+      await user.tab();
+
+      expect(input).toHaveValue('$10');
+      expect(reported(onChange)).toBe(10);
+    });
+
+    it("won't take a decimal point for an integer", async () => {
+      const user = userEvent.setup();
+      const { onChange, input } = renderNumber(donationSchema());
+
+      await user.type(input, '1.5');
+
+      expect(input).toHaveValue('15');
+      expect(reported(onChange)).toBe(15);
+    });
+
+    it('takes negative and decimal numbers when the schema allows them', async () => {
+      const user = userEvent.setup();
+      const schema: RJSFSchema = {
+        type: 'object',
+        properties: { donation: { type: 'number', title: 'Donation' } },
+      };
+      const { onChange, input } = renderNumber(schema);
+
+      await user.type(input, '-2.5');
+
+      expect(reported(onChange)).toBe(-2.5);
+    });
+
+    it.each([
+      ['below the minimum', { minimum: 5 }, '3', 'Please enter 5 or more'],
+      ['above the maximum', { maximum: 100 }, '150', 'Please enter 100 or less'],
+    ])(
+      'keeps a value %s as typed and rejects it with the limit message',
+      async (_case, limits, typed, message) => {
+        const user = userEvent.setup();
+        const { onChange, onSubmit, input } = renderNumber(donationSchema(limits));
+
+        await user.type(input, typed);
+        await user.tab();
+
+        // Not clamped on blur: the answer is still what was typed.
+        expect(input).toHaveValue(typed);
+        expect(reported(onChange)).toBe(Number(typed));
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getAllByText(message).length).toBeGreaterThan(0);
+      },
+    );
+
+    it('reports no answer when the field is cleared', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderForm(
+        <JsonSchemaForm
+          schema={donationSchema()}
+          formData={{ donation: 25 }}
+          onChange={onChange}
+        />,
+      );
+
+      await user.clear(screen.getByRole('textbox', { name: /Donation/ }));
+
+      expect(reported(onChange)).toBeUndefined();
+    });
+
+    it.each([
+      [{ type: 'integer', minimum: 0 }, -5, '-5', 'Please enter 0 or more'],
+      [{ type: 'integer' }, 2.5, '2.5', 'Please enter a number'],
+    ])(
+      'shows a saved %j answer the keyboard rules exclude as it is (%s)',
+      async (field, saved, shown, message) => {
+        const user = userEvent.setup();
+        const schema: RJSFSchema = {
+          type: 'object',
+          properties: { donation: { ...(field as RJSFSchema), title: 'Donation' } },
+        };
+        renderForm(<JsonSchemaForm schema={schema} formData={{ donation: saved }} />);
+
+        expect(screen.getByRole('textbox', { name: /Donation/ })).toHaveValue(shown);
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        expect(screen.getAllByText(message).length).toBeGreaterThan(0);
+      },
+    );
+
+    it('naturalNumber still keeps to the schema maximum and minimum', async () => {
+      const user = userEvent.setup();
+      const schema: RJSFSchema = {
+        type: 'object',
+        properties: { donation: { type: 'number', title: 'Donation', minimum: 2, maximum: 9 } },
+      };
+      const { onChange, onSubmit, input } = renderNumber(schema, {
+        donation: { 'ui:widget': 'NaturalNumberInput' },
+      });
+
+      await user.type(input, '-1.5');
+      await user.tab();
+
+      expect(input).toHaveValue('15');
+      expect(reported(onChange)).toBe(15);
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getAllByText('Please enter 9 or less').length).toBeGreaterThan(0);
+    });
+  });
+
   it('select renders the field description', () => {
     const schema: RJSFSchema = {
       type: 'object',
@@ -279,6 +470,9 @@ describe('custom widgets', () => {
   const customWidgetCases: [string, RJSFSchema, UiSchema][] = [
     ['PhoneInput', { type: 'string' }, { 'ui:widget': 'PhoneInput' }],
     ['NaturalNumberInput', { type: 'integer' }, { 'ui:widget': 'NaturalNumberInput' }],
+    // No widget named: rjsf's default text widget, which is NumberWidget for numbers (#987).
+    ['an integer', { type: 'integer' }, {}],
+    ['a number', { type: 'number' }, {}],
     ['date', { type: 'string', format: 'date' }, {}],
     ['textarea', { type: 'string' }, { 'ui:widget': 'textarea' }],
   ];
