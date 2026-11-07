@@ -126,7 +126,7 @@ At once, with every token deleted, when:
 - the person disconnects it (the user menu › **Connected apps**);
 - an Admin disconnects it for them (**Users** › the person's menu › **Connected apps**, or
   **Apps** › the app's menu › **Who's connected**), or removes the app, ending everyone's access;
-- the person is deactivated;
+- the person is deactivated, or deleted (by a superuser, in the Django admin);
 - the person's password changes, however it's changed — they connect their apps again
   afterwards;
 - an Admin publishes a new version of any organization's terms, which ends **every** app's access

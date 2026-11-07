@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
+from oauth2_provider.models import (
+    get_access_token_model, get_grant_model, get_id_token_model, get_refresh_token_model,
+)
 
 from . import roles
 from .models import (
@@ -105,8 +108,7 @@ class ApiTokenAdmin(ReadOnlyAdmin):
     '''
     Personal access tokens, shown, never their hash (SPEC DR-157): they're made and
     revoked from the account, Users, or `manage.py camphoric_api_token`. Deleting one
-    here revokes it; it's allowed so that deleting a user isn't refused for their
-    personal access tokens (their OAuth tokens still refuse it: ReadOnlyOAuthAdmin).
+    here revokes it, as deleting its user does.
     '''
     list_display = ['name', 'prefix', 'user', 'created_via', 'read_only', 'created_at',
                     'expires_at', 'last_used_at']
@@ -136,6 +138,24 @@ class CamphoricUserAdmin(UserAdmin):
         role = roles.role_of(user)
         return roles.GROUP_NAMES[role] if role else 'No access'
 
+    def get_deleted_objects(self, objs, request):
+        '''
+        A superuser deleting a user deletes their apps' tokens and codes too, which ends
+        those apps' access as deactivating them would (DR-149, DR-160). Those models'
+        admins refuse deletes (ReadOnlyOAuthAdmin), which would refuse deleting the user,
+        so for a superuser they aren't asked.
+        '''
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(objs, request)
+        if request.user.is_superuser:
+            perms_needed = perms_needed - _users_oauth_credentials()
+        return deleted, counts, perms_needed, protected
+
+
+def _users_oauth_credentials():
+    '''The verbose names of a user's OAuth tokens and codes, deleted with them.'''
+    return {model()._meta.verbose_name for model in (
+        get_access_token_model, get_refresh_token_model, get_id_token_model, get_grant_model)}
+
 
 class ReadOnlyOAuthAdmin(admin.ModelAdmin):
     '''
@@ -143,6 +163,7 @@ class ReadOnlyOAuthAdmin(admin.ModelAdmin):
     DR-146): Admins register apps in the Camphoric admin, which makes each a
     confidential client with the authorization code grant, and an app's access
     ends there or through the OAuth flow, which also removes its connection.
+    Deleting a user deletes their tokens and codes (CamphoricUserAdmin).
     django-oauth-toolkit registers its models with these (OAUTH2_PROVIDER).
     '''
 

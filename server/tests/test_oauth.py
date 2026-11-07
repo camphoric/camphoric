@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from auditlog.models import LogEntry
+from django.contrib.auth.models import Permission
 from django.core.cache import cache
 from django.http import HttpResponse
 from django.test import override_settings
@@ -555,6 +556,38 @@ class RevocationTests(OAuthTestCase):
         self.client.logout()
         self.assert_ended(tokens, self.registrar)
         self.assertFalse(models.ApiToken.objects.filter(user=self.registrar).exists())
+
+    def test_deleting_a_user_in_the_django_admin_deletes_their_apps_tokens(self):
+        superuser = make_user(roles.ADMIN, 'root', django_access=roles.SUPERUSER)
+        self.connect(self.registrar)
+        self.client.force_login(superuser)
+        url = f'/django-admin/auth/user/{self.registrar.id}/delete/'
+        self.assertNotContains(self.client.get(url), 'permission to delete')
+        self.assertEqual(self.client.post(url, {'post': 'yes'}).status_code, 302)
+        self.assertFalse(type(self.registrar).objects.filter(pk=self.registrar.pk).exists())
+        self.assertFalse(AccessToken.objects.exists())
+        self.assertFalse(RefreshToken.objects.exists())
+        self.assertFalse(models.ConnectedApp.objects.exists())
+        self.assertTrue(Application.objects.filter(pk=self.app.pk).exists())
+
+    def test_only_a_superuser_deletes_a_user_with_apps_in_the_django_admin(self):
+        staff = make_user(roles.ADMIN, 'staff', django_access=roles.STAFF)
+        staff.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label='auth', codename__in=['view_user', 'delete_user']))
+        self.connect(self.registrar)
+        self.client.force_login(staff)
+        url = f'/django-admin/auth/user/{self.registrar.id}/delete/'
+        self.assertEqual(self.client.post(url, {'post': 'yes'}).status_code, 403)
+        self.assertTrue(type(self.registrar).objects.filter(pk=self.registrar.pk).exists())
+
+    def test_the_django_admin_still_deletes_no_token_by_itself(self):
+        superuser = make_user(roles.ADMIN, 'root', django_access=roles.SUPERUSER)
+        self.connect(self.registrar)
+        token = AccessToken.objects.get()
+        self.client.force_login(superuser)
+        url = f'/django-admin/oauth2_provider/accesstoken/{token.pk}/delete/'
+        self.assertEqual(self.client.post(url, {'post': 'yes'}).status_code, 403)
+        self.assertTrue(AccessToken.objects.filter(pk=token.pk).exists())
 
     def test_an_upgraded_password_hash_changes_nothing(self):
         tokens = self.connect(self.registrar)
