@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.18.0](https://github.com/camphoric/camphoric/compare/v0.17.0...v0.18.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** replace /api-token-auth/ with personal access tokens
+* **data:** POST /api-token-auth/ answers 410 and `Authorization: Token` is refused with 401; scripts need a personal access token. CAMPHORIC_API_TOKEN_TTL and rest_framework.authtoken are removed, and migration 0096 drops the old token table. The admin's user menu item "Connected apps" for a user is now "Apps and tokens".
+
+### Features
+
+* **admin:** list events newest open date first in the event chooser ([95564b5](https://github.com/camphoric/camphoric/commit/95564b586053e5cde03a44bf819354ac8278f8ab)), closes [#993](https://github.com/camphoric/camphoric/issues/993)
+* **api:** replace /api-token-auth/ with personal access tokens ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **client:** manage personal access tokens from the account menu ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **data:** import with a minted token in CI, Ansible and Docker ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **data:** match an imported report to the event's by title and update it ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb))
+* **reports:** sort reports by title and group them by category ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb)), closes [#992](https://github.com/camphoric/camphoric/issues/992)
+
+
+### Bug Fixes
+
+* **api:** let a superuser delete a user with connected apps in the Django admin ([d2abeaf](https://github.com/camphoric/camphoric/commit/d2abeafb0daaddb4f068dec8836afde770bb671c))
+* **reports:** let a category shared by several reports be respelt ([2052d1c](https://github.com/camphoric/camphoric/commit/2052d1c164e6fd8e4bd6d53b7899fa27c13b438c))
+
 ## [0.17.0](https://github.com/camphoric/camphoric/compare/v0.16.0...v0.17.0) (2026-11-06)
 
 
