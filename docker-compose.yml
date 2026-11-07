@@ -1,5 +1,15 @@
 volumes:
     db:
+    # The API token the data service imports with, which the django service
+    # mints as it starts. In memory only (tmpfs), so it's never written to
+    # disk and goes when the stack stops; writable by the django service's
+    # user (not root), and the token file in it by that user alone (and root,
+    # which the data service runs as).
+    import-token:
+        driver_opts:
+            type: tmpfs
+            device: tmpfs
+            o: mode=1777
 
 # Every port is published on the host's loopback (127.0.0.1) only, so nothing
 # else on the network can reach the stack: Postgres has a known password and
@@ -34,13 +44,21 @@ services:
     build: server/
     volumes:
       - ./server:/app
-    # On a fresh database, also creates the admin the data service imports as
-    # (DJANGO_SUPERUSER_* in env/local/shared.env); once it exists,
-    # createsuperuser refuses and that's ignored.
+      - import-token:/import-token
+    # On a fresh database, also creates the admin (DJANGO_SUPERUSER_* in
+    # env/local/shared.env); once it exists, createsuperuser refuses and
+    # that's ignored. Then mints the token the data service imports as that
+    # admin with (into the import-token volume), replacing the one the last
+    # start minted, before the server answers (the data service waits for
+    # it). A failure to mint is reported, and the server starts anyway.
     command: >
       bash -c "./manage.py migrate &&
                ./manage.py collectstatic --no-input &&
                { ./manage.py createsuperuser --no-input > /dev/null 2>&1 || true; } &&
+               { ( umask 077 &&
+                   ./manage.py camphoric_api_token create \"$$DJANGO_SUPERUSER_USERNAME\" --name docker-import --expires never --replace > /import-token/token.new &&
+                   mv /import-token/token.new /import-token/token ) ||
+                 echo 'Could not mint the data service API token: the import will fail' >&2; } &&
                uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000"
     ports:
       - "127.0.0.1:8000:8000"
@@ -102,10 +120,14 @@ services:
     build:
       context: data
       shm_size: '2gb'
+    environment:
+      # Minted by the django service as it starts (see its command)
+      CAMPHORIC_API_TOKEN_FILE: /import-token/token
     volumes:
       - ./data:/app
       - ./data/import:/usr/local/bin/import
       - /app/node_modules
+      - import-token:/import-token:ro
     # On `docker compose up`, import every event into a fresh database (once
     # the server answers: the import script waits), and exit; a database
     # that has events is left alone (--if-empty), like the Vagrant VM's.

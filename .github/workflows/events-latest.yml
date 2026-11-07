@@ -105,13 +105,17 @@ jobs:
       - name: Start the image with Postgres
         run: docker compose -f docker-compose.image.yml up --wait --no-build
 
+      # With an API token minted for the run (as the image's admin), revoked
+      # when it ends
       - name: Live import of every event
         working-directory: data
         env:
           CAMPHORIC_URL: http://localhost:8000
-          DJANGO_SUPERUSER_USERNAME: admin
-          DJANGO_SUPERUSER_PASSWORD: admin
-        run: npm run import
+        run: |
+          token=$(docker compose -f ../docker-compose.image.yml exec -T app \
+            python manage.py camphoric_api_token create admin --name ci-import --expires 2h)
+          echo "::add-mask::$token"
+          CAMPHORIC_API_TOKEN=$token npm run import -- --revoke-token
 
       - name: Check the imported templates
         run: docker compose -f docker-compose.image.yml exec -T app python manage.py check_templates --all

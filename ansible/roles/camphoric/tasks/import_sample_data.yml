@@ -3,6 +3,7 @@
   become: true
   become_user: "{{ camphoric_user }}"
   environment:
+    # For createsuperuser below; the importer uses an API token instead
     DJANGO_SUPERUSER_USERNAME: "{{ camphoric_django_superuser_username }}"
     DJANGO_SUPERUSER_PASSWORD: "{{ camphoric_django_superuser_password }}"
     DJANGO_SUPERUSER_EMAIL: "{{ camphoric_django_superuser_email }}"
@@ -74,11 +75,30 @@
       register: camphoric_has_events
       changed_when: false
 
+    # The importer's API token, as the superuser: for this import alone (it
+    # revokes it when it ends, and it expires anyway). The command prints only
+    # the token, which no_log keeps out of the output (so should it fail, run
+    # it by hand to see why).
+    - name: Mint an API token for the import
+      tags: [camphoric_data_reset]
+      when: (camphoric_has_events.stdout_lines | last | default('')) == 'False'
+      no_log: true
+      become: yes
+      become_user: "{{ camphoric_user }}"
+      ansible.builtin.shell:
+        cmd: >-
+          pipenv run python manage.py camphoric_api_token create
+          {{ camphoric_django_superuser_username | quote }} --name ansible-import --expires 2h
+        chdir: "{{camphoric_folder}}/server"
+      register: camphoric_import_token
+
     - name: Load sample data
       tags: [camphoric_data_reset]
       when: (camphoric_has_events.stdout_lines | last | default('')) == 'False'
       become: yes
       become_user: "{{ camphoric_user }}"
+      environment:
+        CAMPHORIC_API_TOKEN: "{{ camphoric_import_token.stdout | trim }}"
       ansible.builtin.shell:
-        cmd: npm run import
+        cmd: npm run import -- --revoke-token
         chdir: "{{camphoric_folder}}/data"

@@ -98,7 +98,7 @@ class AuthorizationRequestView(OAuthLibMixin, APIView):
     # script's, which could otherwise approve an app with no one seeing the screen (DR-150).
     authentication_classes = [SessionAuthentication]
     permission_classes = [AnyRole]
-    refuses_apps = True
+    people_only = True
     skips_contract_gate = True
 
     def check_permissions(self, request):
@@ -246,7 +246,7 @@ def disconnect(user, application_id):
 class MyConnectedAppsView(APIView):
     '''GET /api/user/apps: the apps you've approved (DR-149).'''
     permission_classes = [AnyRole]
-    refuses_apps = True
+    people_only = True
 
     def get(self, request):
         return Response(ConnectedAppSerializer(
@@ -256,7 +256,7 @@ class MyConnectedAppsView(APIView):
 class MyConnectedAppView(APIView):
     '''DELETE /api/user/apps/<application_id> → 204: disconnect an app, ending its access.'''
     permission_classes = [AnyRole]
-    refuses_apps = True
+    people_only = True
 
     def delete(self, request, application_id):
         return disconnect(request.user, application_id)
@@ -323,7 +323,7 @@ class ApplicationViewSet(ModelViewSet):
     '''
     serializer_class = ApplicationSerializer
     permission_classes = [IsAdmin]
-    refuses_apps = True
+    people_only = True
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):

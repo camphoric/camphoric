@@ -9,12 +9,11 @@ from django.test import SimpleTestCase, override_settings
 from django.contrib.auth.models import User
 from django.core import mail
 import jsonschema  # Using Draft-7
-from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase, APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
-from camphoric import models, serializers, views
+from camphoric import api_tokens, models, serializers, views
 from camphoric.lodging import LODGING_SCHEMA
 from camphoric.test.mock_server import MockServer
 from tests import paypal_mocks
@@ -1045,7 +1044,8 @@ class RegisterThrottleTests(APITestCase):
     def test_signed_in_users_are_not_throttled(self):
         # The event importer and bulk tools post many registrations with a token.
         admin = User.objects.create_superuser('tom', 'tom@example.com', 'password')
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=admin)}')
+        _, key = api_tokens.issue(admin, 'importer', None)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {key}')
         statuses = {self.post().status_code for _ in range(self.limit + 5)}
         self.assertEqual(statuses, {400})
 

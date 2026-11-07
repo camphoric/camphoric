@@ -13,7 +13,8 @@ authorization server (django-oauth-toolkit) for the apps an Admin registers:
   who approved the app, and needs both the token's scope — `read` to read,
   `write` to change anything — and the user's permission group, as anyone's
   request does (camphoric.permissions). Some things only a person signed in to
-  Camphoric may do, whatever the scope: a view saying `refuses_apps`.
+  Camphoric may do, whatever the scope: a view saying `people_only`, which a
+  personal access token is kept from too (camphoric.api_tokens, DR-159).
 - An app's access ends at once (every token and unused code removed, with the
   connection) when the user disconnects it, an Admin disconnects it for them or
   removes the app, the user is deactivated, or their password changes (DR-149);
@@ -62,7 +63,7 @@ def check_app_request(token, request, view):
     people signed in to Camphoric, and anything outside the token's scope. The
     user's permission group is checked after, by the view's permissions.
     '''
-    if getattr(view, 'refuses_apps', False):
+    if getattr(view, 'people_only', False):
         raise exceptions.PermissionDenied({
             'detail': 'An app can\'t do this. Sign in to Camphoric to do it.',
             'code': APP_NOT_ALLOWED,

@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from camphoric import live_stream, oauth_views, views
+from camphoric import api_token_views, live_stream, oauth_views, views
 from camphoric.templating import views as template_views
 
 router = DefaultRouter()
@@ -51,6 +51,10 @@ urlpatterns = [
     path('oauth/authorize', oauth_views.AuthorizationRequestView.as_view()),
     path('user/apps', oauth_views.MyConnectedAppsView.as_view()),
     path('user/apps/<int:application_id>', oauth_views.MyConnectedAppView.as_view()),
+    # The user's personal access tokens, for their own scripts (DR-157).
+    path('user/tokens', api_token_views.MyApiTokensView.as_view()),
+    path('user/tokens/current', api_token_views.CurrentApiTokenView.as_view()),
+    path('user/tokens/<int:token_id>', api_token_views.MyApiTokenView.as_view()),
     # An organization's terms: to read and agree to, and its public privacy policy (DR-145).
     path('organizations/<int:organization_id>/contract', views.OrganizationContractView.as_view()),
     path('organizations/<int:organization_id>/contract/agree',

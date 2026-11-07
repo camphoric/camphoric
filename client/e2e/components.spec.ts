@@ -439,6 +439,41 @@ test.describe('Apps using OAuth', () => {
   });
 });
 
+test.describe('Personal access tokens', () => {
+  test('your tokens fit the screen, each with its own Revoke', async ({ page }) => {
+    await page.goto(story('api-token-list--your-tokens'));
+    await expect(page.getByText('Nightly export')).toBeVisible();
+    const root = page.locator('#storybook-root');
+    expect(await root.evaluate(overflows)).toBe(false);
+    await page.getByRole('button', { name: 'Revoke import (cmph_Zk9pq7Rt)' }).click();
+    await expect(page.getByTestId('last')).toHaveText('Revoke: import (cmph_Zk9pq7Rt)');
+  });
+
+  test('a new token’s expiry is chosen, within the server’s cap', async ({ page }) => {
+    await page.goto(story('new-token-form--capped'));
+    const create = page.getByRole('button', { name: 'Create token' });
+    await page.getByRole('textbox', { name: 'Name' }).fill('import');
+    await expect(create).toBeDisabled();
+    await page.getByRole('combobox', { name: 'Expires' }).click();
+    await expect(page.getByRole('option', { name: 'In 30 days' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Never' })).toHaveCount(0);
+    await page.getByRole('option', { name: 'In 30 days' }).click();
+    await page.getByRole('checkbox', { name: 'Read-only' }).check();
+    await create.click();
+    await expect(page.getByTestId('sent')).toHaveText(
+      '{"name":"import","read_only":true,"expires_in_days":30}',
+    );
+  });
+
+  test('a token just made is shown whole, to copy', async ({ page }) => {
+    await page.goto(story('new-token-secret--just-made'));
+    await expect(page.getByRole('textbox', { name: 'Roster script' })).toHaveValue(/^cmph_/);
+    await expect(page.getByText(/only time you’ll see this token/)).toBeVisible();
+    const root = page.locator('#storybook-root');
+    expect(await root.evaluate(overflows)).toBe(false);
+  });
+});
+
 test.describe('Passwords', () => {
   test('choosing a password checks the two match', async ({ page }) => {
     await page.goto(story('password-forms--set-password'));

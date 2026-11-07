@@ -18,7 +18,7 @@ from django.urls import include, path
 
 from camphoric import oauth_views
 from camphoric.throttles import throttle_login
-from camphoric.views import ObtainTokenView
+from camphoric.views import RetiredTokenAuthView
 
 urlpatterns = [
     # The admin's own login page, throttled (camphoric.throttles); it comes
@@ -27,8 +27,9 @@ urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('api/', include('camphoric.urls')),
 
-    # Token based authentication for JSON API (the importer, data/).
-    path('api-token-auth/', ObtainTokenView.as_view()),
+    # Where scripts once signed in with a password: gone (410), saying how to get a
+    # personal access token instead (camphoric.api_tokens, DR-157).
+    path('api-token-auth/', RetiredTokenAuthView.as_view()),
 
     # OAuth 2.0 for third-party apps: sign-in, consent, token and revocation
     # (camphoric.oauth_views, SPEC §6, DR-146). The toolkit's names, in its namespace.

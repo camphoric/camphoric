@@ -2,10 +2,11 @@
  * Change your own password (SPEC §6; §15 DR-52): the current one, then the new
  * one twice. The server's password rules are shown under the field they're
  * about. Used from the user menu and on the forced "choose a new password"
- * screen.
+ * screen. Changing it ends every app's access and revokes every personal
+ * access token (DR-149; #965), and the form says so.
  */
 
-import { Alert, Button, Group, PasswordInput, Stack } from '@mantine/core';
+import { Alert, Button, Group, PasswordInput, Stack, Text } from '@mantine/core';
 import { useChangePassword } from 'hooks/auth';
 import { useState } from 'react';
 import { apiErrorMessage, apiFieldErrors } from 'utils/fetch';
@@ -40,6 +41,10 @@ export function ChangePasswordForm({
       }}
     >
       <Stack>
+        <Text size="sm" c="dimmed">
+          Changing your password disconnects your connected apps and revokes your personal access
+          tokens: you’ll need to approve the apps again, and give your scripts new tokens.
+        </Text>
         <PasswordInput
           label="Current password"
           autoComplete="current-password"

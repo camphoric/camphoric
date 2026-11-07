@@ -1495,3 +1495,37 @@ class ConnectedApp(models.Model):
 
     def __str__(self):
         return f'{self.application.name} for {self.user.username}'
+
+
+class ApiToken(models.Model):
+    '''
+    A personal access token (camphoric.api_tokens, SPEC §6, DR-157): what a
+    user's own scripts sign in with, as `Authorization: Bearer cmph_…`. Made by
+    the user from their account, or on the server with `manage.py
+    camphoric_api_token` (`created_via`). Only a SHA-256 hash of the token is
+    kept, with its first characters (`prefix`) to tell it apart. It acts as its
+    user, with their current permission group; a read-only one only reads. It
+    stops working at `expires_at` (never, when that's null), and is deleted when
+    revoked, when its user is deactivated or their password changes.
+    `last_used_at` is when it was last used, to the hour.
+    '''
+    VIA_ACCOUNT = 'account'
+    VIA_COMMAND = 'command'
+    VIA_CHOICES = [(VIA_ACCOUNT, 'Account'), (VIA_COMMAND, 'manage.py')]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='api_tokens', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    prefix = models.CharField(max_length=16)
+    key_hash = models.CharField(max_length=64, unique=True)
+    read_only = models.BooleanField(default=False)
+    created_via = models.CharField(max_length=16, choices=VIA_CHOICES, default=VIA_ACCOUNT)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.name} ({self.prefix}…) for {self.user.username}'

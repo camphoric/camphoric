@@ -15,7 +15,14 @@ export const userHooks = createEntityHooks<ApiManagedUser>({ name: 'User', path:
 
 function useInvalidateUsers() {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: [userHooks.name] });
+  return () =>
+    Promise.all(
+      // Deactivating someone or setting their password ends their apps' access and
+      // revokes their personal access tokens, so their lists are out of date too.
+      [userHooks.name, 'ConnectedApp', 'ApiToken'].map((key) =>
+        client.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
 }
 
 /** Create a user (form errors are shown inline). */

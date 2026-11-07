@@ -2,7 +2,8 @@
  * Users (SPEC §8.10; §15 DR-50, DR-52), for Admins only, shown in the Users
  * overlay (UsersOverlay). Lists everyone who can sign in; add a user
  * (`?userId=new`) or edit one (`?userId=<id>`); email or copy a set-password
- * link; see and disconnect their connected apps; deactivate, reactivate or
+ * link; see and disconnect their connected apps, and see and revoke their
+ * personal access tokens (#965); deactivate, reactivate or
  * delete; and, for superusers, set a password.
  * Choosing a user shows what they changed beside the list (`?historyUserId`).
  * Its search params ride on the URL of the page under the overlay.
@@ -18,12 +19,14 @@ import {
   Stack,
   Text,
   TextInput,
+  Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import type { ApiManagedUser, NewUserRequest } from 'api-types';
+import { ApiTokenList, confirmRevokeToken } from 'components/ApiTokens';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { confirmDisconnect, ConnectedAppsList } from 'components/ConnectedApps';
 import { InlineLoading } from 'components/Loading';
@@ -32,6 +35,7 @@ import { usePermissions } from 'hooks/permissions';
 import { useOverlay } from 'navigation/overlay';
 import { useState } from 'react';
 import { useDisconnectApp, useUserConnectedApps } from 'store/apps';
+import { useRevokeToken, useUserTokens } from 'store/tokens';
 import {
   useCopyPasswordLink,
   useCreateUser,
@@ -89,6 +93,8 @@ export function UsersPage() {
   const [appsOf, setAppsOf] = useState<ApiManagedUser | null>(null);
   const appsOfUser = useUserConnectedApps(appsOf?.id);
   const disconnect = useDisconnectApp();
+  const tokensOfUser = useUserTokens(appsOf?.id);
+  const revokeToken = useRevokeToken();
   const [copied, setCopied] = useState<{ username: string; url: string; expires: string } | null>(
     null,
   );
@@ -265,33 +271,60 @@ export function UsersPage() {
       <Modal
         opened={appsOf !== null}
         onClose={() => setAppsOf(null)}
-        title={appsOf ? `${appsOf.username}’s connected apps` : ''}
+        title={appsOf ? `${appsOf.username}’s apps and tokens` : ''}
         size="lg"
       >
-        {appsOfUser.isPending ? (
-          <InlineLoading />
-        ) : appsOfUser.isError ? (
-          <Text c="red">{apiErrorMessage(appsOfUser.error)}</Text>
-        ) : (
-          <ConnectedAppsList
-            connections={appsOfUser.data}
-            show="application"
-            emptyMessage="They haven’t connected any apps."
-            disconnectingId={disconnect.isPending ? disconnect.variables?.connectionId : undefined}
-            onDisconnect={(connection) =>
-              confirmDisconnect({
-                connection,
-                yours: false,
-                onConfirm: () =>
-                  disconnect.mutate({
-                    applicationId: connection.application.id,
-                    userId: connection.user.id,
-                    connectionId: connection.id,
-                  }),
-              })
-            }
-          />
-        )}
+        <Stack>
+          <Title order={4}>Connected apps</Title>
+          {appsOfUser.isPending ? (
+            <InlineLoading />
+          ) : appsOfUser.isError ? (
+            <Text c="red">{apiErrorMessage(appsOfUser.error)}</Text>
+          ) : (
+            <ConnectedAppsList
+              connections={appsOfUser.data}
+              show="application"
+              emptyMessage="They haven’t connected any apps."
+              disconnectingId={
+                disconnect.isPending ? disconnect.variables?.connectionId : undefined
+              }
+              onDisconnect={(connection) =>
+                confirmDisconnect({
+                  connection,
+                  yours: false,
+                  onConfirm: () =>
+                    disconnect.mutate({
+                      applicationId: connection.application.id,
+                      userId: connection.user.id,
+                      connectionId: connection.id,
+                    }),
+                })
+              }
+            />
+          )}
+          <Title order={4}>Personal access tokens</Title>
+          {tokensOfUser.isPending ? (
+            <InlineLoading />
+          ) : tokensOfUser.isError ? (
+            <Text c="red">{apiErrorMessage(tokensOfUser.error)}</Text>
+          ) : (
+            <ApiTokenList
+              tokens={tokensOfUser.data}
+              emptyMessage="They don’t have any tokens."
+              revokingId={revokeToken.isPending ? revokeToken.variables?.tokenId : undefined}
+              onRevoke={(token) =>
+                appsOf &&
+                confirmRevokeToken({
+                  token,
+                  ownerUsername: appsOf.username,
+                  onConfirm: () =>
+                    // A 404 is explained in full (store/tokens, NOT_FOUND_FOR_ADMIN).
+                    revokeToken.mutate({ tokenId: token.id, userId: appsOf.id }),
+                })
+              }
+            />
+          )}
+        </Stack>
       </Modal>
 
       <Modal opened={copied !== null} onClose={() => setCopied(null)} title="Set-password link">

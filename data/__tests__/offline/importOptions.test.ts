@@ -1,26 +1,34 @@
 /**
  * The importer's options: development environments import, when they start,
- * only into a server with no events (--if-empty), once it answers (--wait).
+ * only into a server with no events (--if-empty), once it answers (--wait);
+ * a run with a token minted for it revokes it when it ends (--revoke-token).
  */
 
 import { describe, expect, test } from '@jest/globals';
 
 import { importOptions, serverEventNames, waitForServer } from '../../importOptions.ts';
 
-// A stand-in for the server's events list
-const serverWith = (body: unknown, status = 200) => (async (url: string | URL | Request, init?: RequestInit) => {
+// A stand-in for the server's events list, answering `body`, as `user`
+// (GET /api/user) sees it
+const serverWith = (
+  body: unknown,
+  status = 200,
+  user: unknown = { username: 'admin', pending_contract_organizations: [] },
+) => (async (url: string | URL | Request, init?: RequestInit) => {
+  expect(init?.headers).toEqual({ Authorization: 'Bearer secret' });
+  if (String(url) === 'http://camphoric.test/api/user') return Response.json(user);
   expect(String(url)).toBe('http://camphoric.test/api/events/');
-  expect(init?.headers).toEqual({ Authorization: 'Token secret' });
   return Response.json(body, { status });
 }) as typeof fetch;
 
 describe('importOptions', () => {
   test('imports every event, at once, by default', () => {
-    expect(importOptions([])).toEqual({ ifEmpty: false, wait: false });
+    expect(importOptions([])).toEqual({ ifEmpty: false, wait: false, revokeToken: false });
   });
 
-  test('takes --if-empty and --wait', () => {
-    expect(importOptions(['--wait', '--if-empty'])).toEqual({ ifEmpty: true, wait: true });
+  test('takes --if-empty, --wait and --revoke-token', () => {
+    expect(importOptions(['--wait', '--revoke-token', '--if-empty']))
+      .toEqual({ ifEmpty: true, wait: true, revokeToken: true });
   });
 
   test('refuses an option it doesn\'t know', () => {
@@ -43,6 +51,26 @@ describe('serverEventNames', () => {
   test('fails on a list it doesn\'t understand', async () => {
     await expect(serverEventNames('http://camphoric.test', 'secret', serverWith({ count: 1, results: [] })))
       .rejects.toThrow('isn\'t a list');
+  });
+
+  // The server leaves those organizations' events out of the list, which
+  // could then read as no events
+  test('fails when the token\'s user has terms to agree to', async () => {
+    const pending = serverWith([], 200, { username: 'admin', pending_contract_organizations: [3, 5] });
+    await expect(serverEventNames('http://camphoric.test', 'secret', pending)).rejects.toThrow(
+      'admin has yet to agree to the terms of organizations 3, 5 (by id), whose events the server leaves out',
+    );
+  });
+
+  test('fails when the server doesn\'t say whether there are terms to agree to', async () => {
+    await expect(serverEventNames('http://camphoric.test', 'secret', serverWith([], 200, { username: 'admin' })))
+      .rejects.toThrow('didn\'t say whether the token\'s user has terms to agree to');
+  });
+
+  test('says when the server refuses the token', async () => {
+    const refusing = (async () => Response.json({ detail: 'Invalid token.' }, { status: 401 })) as typeof fetch;
+    await expect(serverEventNames('http://camphoric.test', 'secret', refusing))
+      .rejects.toThrow('It\'s invalid, expired or revoked');
   });
 });
 

@@ -1,6 +1,6 @@
 '''
-Signing in is throttled (SPEC §6, DR-124) on /api/login, /api-token-auth/ and
-the Django admin's login page: every POST per client address, and failures per
+Signing in is throttled (SPEC §6, DR-124) on /api/login and the Django
+admin's login page: every POST per client address, and failures per
 username.
 '''
 
@@ -102,30 +102,6 @@ class LoginThrottleTests(ThrottleTestCase):
             return self.login(f'user{i}', HTTP_X_FORWARDED_FOR=forwarded).status_code
         self.assertEqual([attempt(i) for i in range(LIMIT)], [400] * LIMIT)
         self.assertEqual(attempt(LIMIT), 429)
-
-
-class TokenThrottleTests(ThrottleTestCase):
-    def token(self, username, password='wrong', address='127.0.0.1'):
-        return self.client.post(
-            '/api-token-auth/', {'username': username, 'password': password},
-            REMOTE_ADDR=address)
-
-    def test_per_address(self):
-        response = self.token('tom', 'password')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('token', response.data)
-        statuses = [self.token('tom').status_code for _ in range(LIMIT - 1)]
-        self.assertEqual(statuses, [400] * (LIMIT - 1))
-        self.assertEqual(self.token('tom', 'password').status_code, 429)
-
-    def test_shares_the_counts_with_api_login(self):
-        for i in range(LIMIT):
-            self.login(f'user{i}')
-        self.assertEqual(self.token('tom', 'password').status_code, 429)
-
-        statuses = [self.token('tom', address=address(i)).status_code for i in range(FAILURES)]
-        self.assertEqual(statuses, [400] * FAILURES)
-        self.assertEqual(self.login('tom', 'password', address='10.9.9.9').status_code, 429)
 
 
 class AdminLoginThrottleTests(TestCase):

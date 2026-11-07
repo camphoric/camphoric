@@ -15,10 +15,9 @@ from django.core.cache import cache
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
 from freezegun import freeze_time
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from camphoric import accounts, roles
+from camphoric import accounts, api_tokens, models, roles
 from tests.factories import make_user
 
 GOOD_PASSWORD = 'Correct-horse-battery-9'
@@ -95,11 +94,11 @@ class SetPasswordLinkTests(APITestCase):
         self.assertEqual(again.status_code, 400)
         self.assertIn('already been used', again.data['detail'])
 
-    def test_setting_it_removes_the_api_token(self):
-        Token.objects.create(user=self.pat)
+    def test_setting_it_revokes_the_api_tokens(self):
+        api_tokens.issue(self.pat, 'script', None)
         response = self.client.post(self.url, {'new_password': GOOD_PASSWORD}, format='json')
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Token.objects.filter(user=self.pat).exists())
+        self.assertFalse(models.ApiToken.objects.filter(user=self.pat).exists())
 
     def test_expired(self):
         with freeze_time(datetime.datetime.now() + datetime.timedelta(days=4)):
@@ -134,17 +133,18 @@ class ChangePasswordTests(APITestCase):
         self.assertEqual(self.client.get('/api/user').data['username'], 'pat')
         self.assertEqual(self.client.get('/api/events/').status_code, 200)
 
-    def test_changing_it_removes_the_api_token(self):
-        Token.objects.create(user=self.pat)
+    def test_changing_it_revokes_the_api_tokens(self):
+        api_tokens.issue(self.pat, 'one', None)
+        api_tokens.issue(self.pat, 'two', None)
         self.assertEqual(self.change('password', GOOD_PASSWORD).status_code, 204)
-        self.assertFalse(Token.objects.filter(user=self.pat).exists())
+        self.assertFalse(models.ApiToken.objects.filter(user=self.pat).exists())
         # Still signed in here.
         self.assertEqual(self.client.get('/api/user').data['username'], 'pat')
 
     def test_a_refused_change_keeps_it(self):
-        Token.objects.create(user=self.pat)
+        api_tokens.issue(self.pat, 'script', None)
         self.assertEqual(self.change('wrong', GOOD_PASSWORD).status_code, 400)
-        self.assertTrue(Token.objects.filter(user=self.pat).exists())
+        self.assertTrue(models.ApiToken.objects.filter(user=self.pat).exists())
 
     def test_problems(self):
         self.assertIn('current_password', self.change('wrong', GOOD_PASSWORD).data)
@@ -210,13 +210,13 @@ class CommandTests(TestCase):
             call_command('camphoric_password_link', 'nobody', '--base-url', 'https://x.org')
 
     def test_set_a_password(self):
-        Token.objects.create(user=self.pat)
+        api_tokens.issue(self.pat, 'script', None)
         with mock.patch('getpass.getpass', side_effect=[GOOD_PASSWORD, GOOD_PASSWORD]):
             self.run_command('--set', '--require-change')
         self.pat.refresh_from_db()
         self.assertTrue(self.pat.check_password(GOOD_PASSWORD))
         self.assertTrue(accounts.must_change_password(self.pat))
-        self.assertFalse(Token.objects.filter(user=self.pat).exists())
+        self.assertFalse(models.ApiToken.objects.filter(user=self.pat).exists())
         with mock.patch('getpass.getpass', side_effect=['one', 'two']), \
                 self.assertRaises(CommandError):
             self.run_command('--set')

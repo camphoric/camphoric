@@ -91,7 +91,8 @@ class ScheduleTests(CleanUpTestCase):
         abandoned = self.draft()
         self.assertEqual(
             cleanup.clean_up.call(),
-            {'deleted_drafts': 1, 'purged_leases': 0, 'lapsed_app_connections': 0})
+            {'deleted_drafts': 1, 'purged_leases': 0, 'lapsed_app_connections': 0,
+             'expired_api_tokens': 0})
         self.assertFalse(self.exists(abandoned))
         self.assertTrue(DBTaskResult.objects.filter(
             task_path=cleanup.clean_up.module_path, status='READY').exists())

@@ -22,11 +22,10 @@ from django.test import override_settings
 from django.urls import reverse
 from freezegun import freeze_time
 from oauth2_provider.models import AccessToken, Application, Grant, RefreshToken
-from rest_framework.authtoken.models import Token
-from rest_framework.test import APITestCase
+from rest_framework.test import APIRequestFactory, APITestCase
 
-from camphoric import contracts, models, oauth, roles
-from camphoric.throttles import OAuthTokenThrottle
+from camphoric import api_tokens, contracts, models, oauth, roles
+from camphoric.throttles import BearerFailureThrottle, OAuthTokenThrottle
 from tests.factories import create_template_event, make_user
 
 API = '/api/oauth/authorize'
@@ -278,9 +277,9 @@ class AuthorizationFlowTests(OAuthTestCase):
 
     def test_only_a_person_signed_in_approves_apps_not_a_token(self):
         tokens = self.connect(self.admin)
-        script_token = Token.objects.create(user=self.admin)
+        _, script_key = api_tokens.issue(self.admin, 'script', None)
         query = self.authorize_query(challenge=pkce_pair()[1])
-        for header in (f'Bearer {tokens["access_token"]}', f'Token {script_token.key}'):
+        for header in (f'Bearer {tokens["access_token"]}', f'Bearer {script_key}'):
             for response in (
                     self.client.get(f'{API}?{query}', HTTP_AUTHORIZATION=header),
                     self.client.post(f'{API}?{query}', {'allow': True}, format='json',
@@ -546,7 +545,7 @@ class RevocationTests(OAuthTestCase):
     def test_a_password_changed_in_the_django_admin_ends_the_apps_access(self):
         superuser = make_user(roles.ADMIN, 'root', django_access=roles.SUPERUSER)
         tokens = self.connect(self.registrar)
-        api_token = Token.objects.create(user=self.registrar)
+        api_tokens.issue(self.registrar, 'script', None)
         self.client.force_login(superuser)
         response = self.client.post(
             f'/django-admin/auth/user/{self.registrar.id}/password/',
@@ -555,7 +554,7 @@ class RevocationTests(OAuthTestCase):
         self.assertEqual(response.status_code, 302)
         self.client.logout()
         self.assert_ended(tokens, self.registrar)
-        self.assertFalse(Token.objects.filter(key=api_token.key).exists())
+        self.assertFalse(models.ApiToken.objects.filter(user=self.registrar).exists())
 
     def test_an_upgraded_password_hash_changes_nothing(self):
         tokens = self.connect(self.registrar)
@@ -692,9 +691,22 @@ class OtherAuthenticationTests(OAuthTestCase):
         self.client.force_login(self.registrar)
         self.assertEqual(self.client.get('/api/organizations/').status_code, 200)
         self.client.logout()
-        key = Token.objects.create(user=self.registrar).key
-        response = self.client.get('/api/organizations/', HTTP_AUTHORIZATION=f'Token {key}')
+        _, key = api_tokens.issue(self.registrar, 'script', None)
+        response = self.client.get('/api/organizations/', HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(response.status_code, 200)
+
+    def test_a_bad_api_token_never_counts_against_apps(self):
+        # Both are `Bearer`; a cmph_ token is the personal access token class's alone.
+        for _ in range(3):
+            response = self.client.get(
+                '/api/organizations/', HTTP_AUTHORIZATION='Bearer cmph_not-a-token')
+            self.assertEqual(response.status_code, 401)
+        throttle = BearerFailureThrottle()
+        key = throttle.key_for_request(APIRequestFactory().get('/'))
+        self.assertEqual(throttle.recent(key), [])
+        # While a bad app token does count, at the same address.
+        self.client.get('/api/organizations/', HTTP_AUTHORIZATION='Bearer not-a-token')
+        self.assertEqual(len(throttle.recent(key)), 1)
 
 
 class ApplicationApiTests(OAuthTestCase):

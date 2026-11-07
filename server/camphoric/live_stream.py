@@ -237,9 +237,8 @@ async def event_stream(request, event_id):
     # As the API refuses them (camphoric.contracts), until they agree to its terms.
     pending = await sync_to_async(contracts.pending_organization_ids)(user)
     if event.organization_id in pending:
-        return JsonResponse({'detail': 'Agree to the organization\'s terms before continuing.',
-                             'code': contracts.CONTRACT_AGREEMENT_REQUIRED,
-                             'organization': event.organization_id}, status=403)
+        return JsonResponse(await sync_to_async(contracts.agreement_required)(
+            event.organization_id), status=403)
     if not isinstance(request, ASGIRequest):
         return JsonResponse({'detail': 'Live updates need the ASGI server.'}, status=503)
     # Streaming holds no database connection; rechecks open their own briefly.

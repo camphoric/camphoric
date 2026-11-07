@@ -1,7 +1,7 @@
 '''
 Throttles for signing in with a password (SPEC §6, DR-124): the client's
-/api/login (the admin's, and the OAuth authorization page's), the importer's
-/api-token-auth/ and the Django admin's login page.
+/api/login (the admin's, and the OAuth authorization page's) and the Django
+admin's login page.
 
 - Every sign-in POST counts against the client's address, at the `login` rate,
   so one address can't try many passwords or usernames.
@@ -13,6 +13,8 @@ Throttles for signing in with a password (SPEC §6, DR-124): the client's
 And for apps using OAuth (camphoric.oauth, DR-146): requests to the token
 endpoint count against the client's address at the `oauth_token` rate, and
 requests whose access token isn't valid at the `oauth_bearer_failure` rate.
+Requests whose personal access token isn't valid (camphoric.api_tokens, DR-157)
+count apart, at the `api_token_failure` rate.
 '''
 
 import functools
@@ -130,6 +132,11 @@ class BearerFailureThrottle(FailureThrottle):
 
     def record_failure(self, request):
         self.record_failure_at(self.key_for_request(request))
+
+
+class ApiTokenFailureThrottle(BearerFailureThrottle):
+    '''Requests from one client address whose personal access token wasn't valid.'''
+    scope = 'api_token_failure'
 
 
 def record_failure(sender, credentials, request=None, **kwargs):

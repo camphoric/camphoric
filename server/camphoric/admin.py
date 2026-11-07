@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 from . import roles
 from .models import (
-    Camper, Contract, ContractAgreement, Deposit, EmailMessage, Event, Invoice,
+    ApiToken, Camper, Contract, ContractAgreement, Deposit, EmailMessage, Event, Invoice,
     Lodging, Payment, PromoCode, Registration, WorkerHeartbeat,
 )
 
@@ -98,6 +98,24 @@ class ContractAgreementAdmin(ReadOnlyAdmin):
     list_filter = ['organization']
     search_fields = ['username', 'email', 'full_name']
     date_hierarchy = 'agreed_at'
+
+
+@admin.register(ApiToken)
+class ApiTokenAdmin(ReadOnlyAdmin):
+    '''
+    Personal access tokens, shown, never their hash (SPEC DR-157): they're made and
+    revoked from the account, Users, or `manage.py camphoric_api_token`. Deleting one
+    here revokes it; it's allowed so that deleting a user isn't refused for their
+    personal access tokens (their OAuth tokens still refuse it: ReadOnlyOAuthAdmin).
+    '''
+    list_display = ['name', 'prefix', 'user', 'created_via', 'read_only', 'created_at',
+                    'expires_at', 'last_used_at']
+    list_filter = ['created_via', 'read_only']
+    search_fields = ['name', 'prefix', 'user__username']
+    exclude = ['key_hash']
+
+    def has_delete_permission(self, request, obj=None):
+        return admin.ModelAdmin.has_delete_permission(self, request, obj)
 
 
 @admin.register(WorkerHeartbeat)

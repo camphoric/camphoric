@@ -50,7 +50,7 @@ node --input-type=module -e "
 import assert from 'node:assert/strict';
 import { EventImportSchema, validateEventImport } from '@camphoric/camphoric-event-import-spec';
 import Fetcher from '@camphoric/camphoric-event-import-tools/fetcher';
-import { getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
+import { authorization, getAuthToken } from '@camphoric/camphoric-event-import-tools/auth';
 import CamphoricEventCreator from '@camphoric/camphoric-event-import-tools/creator';
 import { Organizations, organizationLoader } from '@camphoric/camphoric-event-import-tools/organizations';
 
@@ -61,6 +61,7 @@ assert.deepEqual(validateEventImport({
 }), []);
 assert.equal(typeof Fetcher, 'function');
 assert.equal(typeof getAuthToken, 'function');
+assert.deepEqual(authorization('cmph_token'), { Authorization: 'Bearer cmph_token' });
 assert.equal(typeof organizationLoader, 'function');
 assert.ok(new Organizations([{ id: 1, name: 'Org' }]).byName.Org);
 // The creator checks the data with the validator it's given, before any request

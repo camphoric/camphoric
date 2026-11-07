@@ -4,7 +4,8 @@ The audit log of admin changes (SPEC §15, DR-53), kept by django-auditlog.
 - Which models are tracked, and which of their fields are left out.
 - Who is credited: auditlog's middleware reads the user before DRF has
   authenticated an API token, so the middleware here also credits whoever the
-  view signed in by the time each entry is written.
+  view signed in by the time each entry is written. Outside a request, a
+  management command can name itself and who ran it (`crediting_command`).
 - One id per request (auditlog's `cid`), so the entries a single save causes —
   an edit and the pricing it recalculates — can be told apart from the next.
 - The history the admin reads back: each entry tags the registration and camper
@@ -16,6 +17,7 @@ The audit log of admin changes (SPEC §15, DR-53), kept by django-auditlog.
 
 import json
 import uuid
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 from auditlog.middleware import AuditlogMiddleware as BaseAuditlogMiddleware
@@ -29,6 +31,7 @@ from oauth2_provider.models import Application
 
 _request = ContextVar('camphoric_audit_request', default=None)
 _request_id = ContextVar('camphoric_audit_request_id', default=None)
+_command = ContextVar('camphoric_audit_command', default=None)
 
 
 def current_request():
@@ -66,6 +69,22 @@ def credit_request_user(sender, instance, **kwargs):
     if user is not None and user.is_authenticated:
         instance.actor = user
         instance.actor_email = user.email
+    elif not instance.actor_email and _command.get():
+        instance.actor_email = _command.get()
+
+
+@contextmanager
+def crediting_command(label):
+    '''
+    Credit what's saved meanwhile, outside any request, to `label` (a command
+    and who ran it, as `manage.py camphoric_api_token (will)`): there's no user
+    to credit, so the history shows the label as who acted.
+    '''
+    token = _command.set(label[:254])
+    try:
+        yield
+    finally:
+        _command.reset(token)
 
 
 # Every save changes these (`version` counts edits for If-Match, DR-109).
@@ -100,6 +119,9 @@ def register_models():
     # never the client secret, and not each time a connection is used.
     auditlog.register(Application, include_fields=['name', 'client_id', 'redirect_uris'])
     auditlog.register(models.ConnectedApp, exclude_fields=['last_used_at'])
+    # Personal access tokens (camphoric.api_tokens, DR-157): never the hash, and not each
+    # time one is used. One made or revoked with manage.py credits who ran it.
+    auditlog.register(models.ApiToken, exclude_fields=['key_hash', 'last_used_at'])
 
     pre_save.connect(credit_request_user, sender=LogEntry, dispatch_uid='camphoric-audit-actor')
 

@@ -10,10 +10,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import override_settings
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from camphoric import accounts, models, roles
+from camphoric import accounts, api_tokens, models, roles
 from tests.factories import make_user
 
 GOOD_PASSWORD = 'Correct-horse-battery-9'
@@ -132,11 +131,12 @@ class EditTests(UsersApiTestCase):
         self.assertEqual((other.is_superuser, roles.role_of(other)), (False, roles.REPORTER))
 
     def test_deactivating_signs_them_out(self):
-        token = Token.objects.create(user=self.pat)
+        _, key = api_tokens.issue(self.pat, 'script', None)
         self.as_user(self.boss)
         self.assertEqual(self.patch(self.pat, is_active=False).status_code, 200)
+        self.assertFalse(models.ApiToken.objects.filter(user=self.pat).exists())
         self.client.force_authenticate(user=None)
-        response = self.client.get('/api/events/', HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = self.client.get('/api/events/', HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(response.status_code, 401)
         # Their role is still shown.
         self.as_user(self.boss)
@@ -347,13 +347,13 @@ class SetPasswordTests(UsersApiTestCase):
         return self.client.post(f'/api/users/{user.id}/set-password/', data, format='json')
 
     def test_set_a_password_to_change_at_next_sign_in(self):
-        token = Token.objects.create(user=self.pat)
+        api_tokens.issue(self.pat, 'script', None)
         response = self.set_password(self.pat, password=GOOD_PASSWORD)
         self.assertEqual(response.status_code, 204)
         self.pat.refresh_from_db()
         self.assertTrue(self.pat.check_password(GOOD_PASSWORD))
         self.assertTrue(accounts.must_change_password(self.pat))
-        self.assertFalse(Token.objects.filter(key=token.key).exists())
+        self.assertFalse(models.ApiToken.objects.filter(user=self.pat).exists())
 
     def test_without_requiring_a_change(self):
         self.set_password(self.pat, password=GOOD_PASSWORD, require_change=False)

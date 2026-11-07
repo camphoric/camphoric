@@ -2,7 +2,8 @@
  * The users list (SPEC §8.10): each user's name and email, Camphoric permission
  * group, Django access (when it's more than a regular user's), whether they're
  * active and have a password, and when they last signed in — with a menu of
- * what an Admin can do to them, their connected apps among it. Your own row can't be deactivated or deleted.
+ * what an Admin can do to them, their connected apps and personal access
+ * tokens among it. Your own row can't be deactivated or deleted.
  * Choosing a row (or "Change history" in its menu) shows what that user changed.
  */
 
@@ -130,7 +131,7 @@ export function UsersTable({ users, currentUserId, selectedUserId, ...actions }:
                         leftSection={<IconPlugConnected size={16} />}
                         onClick={() => actions.onShowApps(user)}
                       >
-                        Connected apps
+                        Apps and tokens
                       </Menu.Item>
                       {user.is_active && (
                         <>

@@ -9,7 +9,9 @@ is refused everything here until they change it (403, code
 behind these classes.
 
 An app using an OAuth access token is also held to the token's scope, and kept
-from views that say `refuses_apps`, before any of these (camphoric.oauth, DR-147).
+from views that say `people_only`, before any of these (camphoric.oauth, DR-147);
+a personal access token is kept from them too, and a read-only one from anything
+that writes (camphoric.api_tokens, DR-159).
 
 Someone who hasn't agreed to an organization's latest contract is refused
 whatever reaches that organization (403, code `contract_agreement_required`;

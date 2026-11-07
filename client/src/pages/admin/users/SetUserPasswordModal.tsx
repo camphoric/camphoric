@@ -1,6 +1,7 @@
 /**
  * Superusers: set someone's password (SPEC §8.10; §15 DR-52), by default to be
- * changed at their next sign-in. It signs them out everywhere.
+ * changed at their next sign-in. It signs them out everywhere, disconnects
+ * their apps and revokes their personal access tokens (DR-149; #965).
  */
 
 import { Alert, Button, Checkbox, Group, Modal, PasswordInput, Stack, Text } from '@mantine/core';
@@ -53,7 +54,10 @@ function SetUserPasswordForm({
       }}
     >
       <Stack>
-        <Text size="sm">They’ll be signed out everywhere and need this password to sign in.</Text>
+        <Text size="sm">
+          They’ll be signed out everywhere and need this password to sign in. Their connected apps
+          are disconnected and their personal access tokens revoked.
+        </Text>
         <PasswordInput
           label="New password"
           autoComplete="new-password"

@@ -1,7 +1,8 @@
 '''
 The data migrations of incomplete registrations (SPEC DR-139, DR-140, DR-141).
 They read `Registration.completed`, since removed, so they run here on the models
-as they were, one migration back, and not on today's.
+as they were, one migration back, and not on today's. And the migration that
+retires DRF's API tokens (DR-157).
 '''
 
 import datetime
@@ -479,3 +480,29 @@ class ContractSectionsIntoBodyTests(TransactionTestCase):
         self.assertEqual(sections, [{'order': 0, 'kind': 'privacy_policy',
                                      'title': 'Privacy Policy',
                                      'body': '## Privacy\n\nKept safe.'}])
+
+
+class RetiringDrfTokensTests(TransactionTestCase):
+    '''0096 drops `rest_framework.authtoken`'s table and its migration records (DR-157).'''
+
+    def tearDown(self):
+        migrate_to_latest()
+
+    def test_the_old_tokens_table_goes(self):
+        migrate_to('0095_api_token')
+        with connection.cursor() as cursor:
+            cursor.execute('CREATE TABLE authtoken_token (key varchar(40) PRIMARY KEY)')
+            cursor.execute("INSERT INTO authtoken_token VALUES ('old')")
+            cursor.execute(
+                "INSERT INTO django_migrations (app, name, applied) "
+                "VALUES ('authtoken', '0001_initial', now())")
+        migrate_to_latest()
+        self.assertNotIn('authtoken_token', connection.introspection.table_names())
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM django_migrations WHERE app = 'authtoken'")
+            self.assertEqual(cursor.fetchone()[0], 0)
+
+    def test_it_runs_where_there_never_was_one(self):
+        migrate_to('0095_api_token')
+        migrate_to_latest()
+        self.assertNotIn('authtoken_token', connection.introspection.table_names())

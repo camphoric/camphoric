@@ -141,7 +141,13 @@ export function useChangePassword() {
     mutationFn: (body: ChangePasswordRequest) =>
       apiFetch<void>('/api/user/password', { method: 'POST', body }),
     meta: { suppressErrorNotification: true },
-    onSuccess: () => client.invalidateQueries({ queryKey: WHOAMI_KEY }),
+    onSuccess: () =>
+      Promise.all(
+        // It ends your apps' access and revokes your personal access tokens too.
+        [WHOAMI_KEY, ['ConnectedApp'], ['ApiToken']].map((queryKey) =>
+          client.invalidateQueries({ queryKey }),
+        ),
+      ),
   });
 }
 

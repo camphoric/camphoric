@@ -1,7 +1,8 @@
 /**
  * Choose a password (SPEC §6; §15 DR-52): the new password twice, for the
  * account a set-password link is for. The server's password rules are shown
- * under the field.
+ * under the field. Choosing one ends any app's access and revokes any personal
+ * access token (DR-149; #965), and the form says so.
  */
 
 import { Button, PasswordInput, Stack, Text } from '@mantine/core';
@@ -30,6 +31,10 @@ export function SetPasswordForm({ username, onSubmit, error, saving }: SetPasswo
       <Stack>
         <Text>
           Choose a password for <b>{username}</b>.
+        </Text>
+        <Text size="sm" c="dimmed">
+          This disconnects any apps connected to the account and revokes any personal access tokens
+          it has.
         </Text>
         {/* Lets password managers save it under the right account. */}
         <input type="hidden" name="username" autoComplete="username" value={username} />

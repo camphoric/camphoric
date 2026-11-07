@@ -24,7 +24,7 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.test import APIClient, APITestCase
 
 from camphoric import (
-    accounts, authentication, contracts, deletes, live_stream, models, roles, serializers)
+    accounts, api_tokens, contracts, deletes, live_stream, models, roles, serializers)
 from camphoric import urls as api_urls
 from tests.factories import create_template_event, make_user
 
@@ -171,9 +171,9 @@ class PublishingEndsSignInsTests(APITestCase):
             action=LogEntry.Action.DELETE).count(), 2)
 
     def test_an_api_token_is_left_to_the_gate(self):
-        token = authentication.issue_token(self.registrar)
+        _, key = api_tokens.issue(self.registrar, 'script', None)
         self.publish(self.signed_in(self.admin))
-        response = self.client.get('/api/user', HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = self.client.get('/api/user', HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(response.data['pending_contract_organizations'], [self.organization.pk])
 
     def test_a_refused_publish_ends_nothing(self):
@@ -527,6 +527,8 @@ class PrivacyPolicyTests(APITestCase):
 # Not in any organization: users, and apps using OAuth with who approved them.
 SITE_WIDE_VIEWS = {
     'UserViewSet', 'ApplicationViewSet', 'MyConnectedAppsView', 'MyConnectedAppView',
+    # The user's own personal access tokens.
+    'MyApiTokensView', 'MyApiTokenView', 'CurrentApiTokenView',
     # Approving an app: it waits for every organization's terms itself (test_oauth).
     'AuthorizationRequestView'}
 
@@ -672,7 +674,7 @@ class RouteWalkTests(APITestCase):
             if getattr(callback, 'view_class', None) is not None and view is None:
                 continue  # a plain Django view (unsubscribing), public
             if view is not None and view.__name__ in SITE_WIDE_VIEWS:
-                continue  # users and apps are site-wide
+                continue  # users, apps and tokens are site-wide
             names = set(pattern.pattern.regex.groupindex)
             pattern_values = dict(values)
             if 'pk' in names:
@@ -729,11 +731,21 @@ class RouteWalkTests(APITestCase):
         self.assertTrue(is_gated(response, self.organization), response.status_code)
 
     def test_an_api_token_is_gated_too(self):
-        token = authentication.issue_token(self.admin)
+        _, key = api_tokens.issue(self.admin, 'script', None)
         client = Client()
-        response = client.get(f'/api/events/{self.made.event.pk}/',
-                              HTTP_AUTHORIZATION=f'Token {token.key}')
+        with override_settings(CAMPHORIC_PUBLIC_URL='https://reg.example.org/'):
+            response = client.get(f'/api/events/{self.made.event.pk}/',
+                                  HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertTrue(is_gated(response, self.organization))
+        # What a script can print as it is (DR-157).
+        data = response.json()
+        self.assertEqual(data['organization_name'], self.organization.name)
+        self.assertEqual(data['contract_url'], 'https://reg.example.org/admin')
+        self.assertIn(f'{self.organization.name} has new terms to agree to', data['detail'])
+        with override_settings(CAMPHORIC_PUBLIC_URL=''):
+            response = client.get(f'/api/events/{self.made.event.pk}/',
+                                  HTTP_AUTHORIZATION=f'Bearer {key}')
+        self.assertIsNone(response.json()['contract_url'])
 
     def test_once_agreed_everything_is_reachable(self):
         agree(self.client, self.organization)

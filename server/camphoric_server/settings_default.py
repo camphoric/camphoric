@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework.authtoken',
     'frontend_bootstrap',
     'dbbackup',  # django-dbbackup
     'django_filters',
@@ -147,12 +146,11 @@ SERVER_EMAIL = env.str('SERVER_EMAIL', default='root@localhost')
 DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default=SERVER_EMAIL)
 # How long a set-password link works, in seconds (default 3 days).
 PASSWORD_RESET_TIMEOUT = env.int('PASSWORD_RESET_TIMEOUT', default=3 * 24 * 60 * 60)
-# How long an API token from /api-token-auth/ (the importer's) works after it's
-# issued, in seconds (camphoric.authentication, SPEC DR-131).
-CAMPHORIC_API_TOKEN_TTL = env.int('CAMPHORIC_API_TOKEN_TTL', default=24 * 60 * 60)
-if CAMPHORIC_API_TOKEN_TTL <= 0:
-    # Not "never": every token would be expired as soon as it was issued.
-    raise ImproperlyConfigured('CAMPHORIC_API_TOKEN_TTL must be a positive number of seconds')
+# The most days a personal access token may last (camphoric.api_tokens, SPEC DR-158).
+# Unset, there's no cap and a token may never expire; set, each must expire within it.
+CAMPHORIC_API_TOKEN_MAX_DAYS = env.int('CAMPHORIC_API_TOKEN_MAX_DAYS', default=None)
+if CAMPHORIC_API_TOKEN_MAX_DAYS is not None and not 1 <= CAMPHORIC_API_TOKEN_MAX_DAYS <= 36500:
+    raise ImproperlyConfigured('CAMPHORIC_API_TOKEN_MAX_DAYS must be from 1 to 36500 days')
 # OAuth 2.0 for third-party apps (camphoric.oauth, SPEC §6, DR-146, DR-148): an access
 # token works for an hour; a refresh token is replaced each time it's used, and one left
 # unused this long (90 days by default) stops working, so an app that syncs nightly
@@ -343,7 +341,9 @@ STORAGES = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'camphoric.authentication.ExpiringTokenAuthentication',
+        # A personal access token, `Authorization: Bearer cmph_…` (camphoric.api_tokens,
+        # DR-157): first, so an app's OAuth class never sees one.
+        'camphoric.api_tokens.ApiTokenAuthentication',
         # An app's OAuth access token, `Authorization: Bearer …` (camphoric.oauth, DR-146).
         'camphoric.oauth.BearerAuthentication',
         'rest_framework.authentication.SessionAuthentication',
@@ -391,6 +391,9 @@ REST_FRAMEWORK = {
         # Requests carrying an OAuth access token that isn't valid, per address: past this,
         # every request with one is refused (429) until the window has passed.
         'oauth_bearer_failure': env.str('CAMPHORIC_OAUTH_BEARER_FAILURE_RATE', default='30/minute'),
+        # Requests carrying a personal access token that isn't valid, per address: past this,
+        # such requests get 429 (camphoric.api_tokens, DR-157). Valid tokens never count.
+        'api_token_failure': env.str('CAMPHORIC_API_TOKEN_FAILURE_RATE', default='30/minute'),
     },
     # How many proxies in front of the app append to X-Forwarded-For: the throttles
     # count requests by the address the last of them saw (the one entry a client can't
