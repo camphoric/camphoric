@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v2.2.0...camphoric-event-import-tools-v3.0.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **data:** the tools no longer sign in with DJANGO_SUPERUSER_USERNAME/_PASSWORD at /api-token-auth/, and the e2e import no longer sets those variables (use adminCredentials()); CamphoricServer and importForE2E take a token instead of a username and password, and the e2e harness needs a server image with manage.py camphoric_api_token.
+
+### Features
+
+* **data:** match an imported report to the event's by title and update it ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb))
+* **data:** sign the import tools in with a personal access token ([bbe52fb](https://github.com/camphoric/camphoric/commit/bbe52fb0df0daf25460a3e5044b921ef31648dbc))
+* **reports:** sort reports by title and group them by category ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb)), closes [#992](https://github.com/camphoric/camphoric/issues/992)
+
 ## [2.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-tools-v2.1.0...camphoric-event-import-tools-v2.2.0) (2026-11-06)
 
 
