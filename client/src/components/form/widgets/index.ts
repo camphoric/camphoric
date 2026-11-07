@@ -3,10 +3,13 @@
  *
  * The base theme already covers most of the v4 reference's custom widgets —
  * Select (with enumDisabled + type coercion), Checkboxes (inline + enumDisabled),
- * and text/integer/datalist inputs (BaseInputTemplate). Only the genuinely
- * additive behaviors are provided here:
+ * and text/datalist inputs (BaseInputTemplate). Only the genuinely additive
+ * behaviors are provided here:
  *   - PhoneInput        — international phone input (no base equivalent)
  *   - NaturalNumberInput — digits-only non-negative integer input
+ *   - TextWidget        — overrides the base text widget so number and integer
+ *                         fields get NumberWidget, which keeps to the schema's
+ *                         limits rather than clamping on blur
  *   - TextareaWidget    — overrides the base textarea to enforce maxLength
  *   - DateWidget        — overrides the base date widget to display MM/DD/YYYY
  *                         while storing ISO YYYY-MM-DD
@@ -19,7 +22,8 @@
  * `PhoneInput` and `NaturalNumberInput` are keyed by the names event uiSchemas
  * reference (the v4 names, e.g. `ui:widget: 'PhoneInput'`). `textarea`,
  * `date`, `select` and `checkboxes` use rjsf's lowercase keys to OVERRIDE the
- * base widgets of the same name. The base theme already supplies TextWidget.
+ * base widgets of the same name. `TextWidget` is the registry name rjsf's
+ * default `text` widget resolves to, for strings and numbers alike.
  */
 
 import type { RegistryWidgetsType } from '@rjsf/utils';
@@ -27,9 +31,11 @@ import type { RegistryWidgetsType } from '@rjsf/utils';
 import { CheckboxesWidget } from './CheckboxesWidget';
 import { DateWidget } from './DateWidget';
 import { NaturalNumberInput } from './NaturalNumberInput';
+import { NumberWidget } from './NumberWidget';
 import { PhoneInput } from './PhoneInput';
 import { SelectWidget } from './SelectWidget';
 import { TextareaWidget } from './TextareaWidget';
+import { TextWidget } from './TextWidget';
 
 export const customWidgets: RegistryWidgetsType = {
   PhoneInput,
@@ -39,13 +45,16 @@ export const customWidgets: RegistryWidgetsType = {
   date: DateWidget,
   select: SelectWidget,
   checkboxes: CheckboxesWidget,
+  TextWidget,
 };
 
 export {
   CheckboxesWidget,
   DateWidget,
   NaturalNumberInput,
+  NumberWidget,
   PhoneInput,
   SelectWidget,
   TextareaWidget,
+  TextWidget,
 };

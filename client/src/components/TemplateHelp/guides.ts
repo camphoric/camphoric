@@ -241,6 +241,11 @@ Problems are listed under the preview and underlined in the template; choose one
 - **"camper has no field 'frist_name'"** (a warning) — a misspelled field. It prints nothing;
   fix the name (the editor's suggestions list the real ones). For form answers, check the key
   under \`attributes\`.
+- **"camper.pricing has no field 'badge'"** (a warning) — a key this event's data doesn't
+  have: a pricing line that isn't in its pricing logic, an \`event.pricing\` variable it doesn't
+  set, or a question or admin field none of its forms has. It prints nothing; check the name
+  against the event's pricing and forms (the editor's suggestions list them). A question the
+  event does ask but someone left unanswered also prints nothing, without a warning.
 - **"'None' has no attribute …"** — something in the middle of a chain is empty, such as
   \`camper.lodging.parent.name\` for an unassigned camper. Check first
   (\`{% if camper.lodging %}\`) or use \`default\`.
