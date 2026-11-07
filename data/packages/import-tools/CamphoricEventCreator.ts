@@ -40,6 +40,7 @@ import cliProgress from 'cli-progress';
 import lodash from 'lodash';
 
 import Fetcher from './CamphoricFetcher.ts';
+import { authorization, tokenRefusal } from './getAuthInfo.ts';
 import { Organizations, type Organization } from './organizations.ts';
 import type {
   ImportData,
@@ -63,6 +64,8 @@ export interface CamphoricEventCreatorOptions {
   // The organizations already loaded; fetched from the server when not given
   organizations?: Organizations;
   url?: string;
+  // The API token (default: CAMPHORIC_API_TOKEN's, see getAuthInfo.ts)
+  token?: string;
 }
 
 // A sample registration, with the server's answer to its last step
@@ -158,8 +161,10 @@ export default class CamphoricEventCreator extends Fetcher {
   results: ImportResults;
   organization?: Promise<Organization | undefined>;
 
-  constructor({ data, validate, organizations, sampleRegGenerator, overrides = [], url }: CamphoricEventCreatorOptions) {
-    super(url);
+  constructor({
+    data, validate, organizations, sampleRegGenerator, overrides = [], url, token,
+  }: CamphoricEventCreatorOptions) {
+    super(url, token);
 
     this.data = data;
 
@@ -558,7 +563,7 @@ export default class CamphoricEventCreator extends Fetcher {
     const token = await this.getAuthToken();
     // (Not this.fetch, which ends every path with a slash: this one has none.)
     const res = await fetch(`${this.urlBase}/api/events/${event.id}/templates/check`, {
-      headers: { 'Authorization': `Token ${token}` },
+      headers: authorization(token),
     });
     const text = await res.text();
 
@@ -570,7 +575,10 @@ export default class CamphoricEventCreator extends Fetcher {
     }
 
     if (!res.ok) {
-      throw this.error(`template check failed (${res.status})`, { status: res.status, response: json });
+      throw this.error(
+        tokenRefusal(res.status, text) ?? `template check failed (${res.status})`,
+        { status: res.status, response: json },
+      );
     }
 
     const errors = templateErrors(json.results ?? []);
@@ -598,7 +606,7 @@ export default class CamphoricEventCreator extends Fetcher {
           'Content-Type': 'application/json',
           // Signed in, so the server's throttle on anonymous registration steps
           // (#801) leaves the sample registrations alone.
-          'Authorization': `Token ${token}`,
+          ...authorization(token),
         },
         body: JSON.stringify({
           step: 'registration',
@@ -623,7 +631,7 @@ export default class CamphoricEventCreator extends Fetcher {
 
       if (!res.ok) {
         throw this.error(
-          `[reg step] test registration rejected (${res.status})`,
+          tokenRefusal(res.status, text) ?? `[reg step] test registration rejected (${res.status})`,
           { type: 'testRegistration', response: json, sent: testData.formData },
         );
       }
@@ -656,7 +664,7 @@ export default class CamphoricEventCreator extends Fetcher {
           'Content-Type': 'application/json',
           // Signed in, so the server's throttle on anonymous registration steps
           // (#801) leaves the sample registrations alone.
-          'Authorization': `Token ${token}`,
+          ...authorization(token),
         },
         body: JSON.stringify(body),
       });
@@ -675,7 +683,7 @@ export default class CamphoricEventCreator extends Fetcher {
 
       if (!res.ok) {
         throw this.error(
-          `[pay step] test payment rejected (${res.status})`,
+          tokenRefusal(res.status, text) ?? `[pay step] test payment rejected (${res.status})`,
           { type: 'testPayment', response: json, sent: body },
         );
       }

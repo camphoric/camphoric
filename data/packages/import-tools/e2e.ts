@@ -28,16 +28,15 @@
 
 import { defineConfig, devices, test as base, type PlaywrightTestConfig } from '@playwright/test';
 
-import { getAuthToken } from './getAuthInfo.ts';
 import { CamphoricAdmin } from './e2eAdmin.ts';
 import { importForE2E, type ImportForE2EOptions } from './e2eImport.ts';
 import { FAKE_PAYPAL_SDK, FakePayPal, PAYPAL_SDK_URL } from './e2ePayPal.ts';
 import { RegistrationForm } from './e2eRegistrationForm.ts';
-import { camphoricServer, type CamphoricServerOptions } from './e2eServer.ts';
+import { camphoricServer, type AdminCredentials, type CamphoricServerOptions } from './e2eServer.ts';
 
 export { expect } from '@playwright/test';
 export { camphoricServer } from './e2eServer.ts';
-export type { CamphoricServer, CamphoricServerOptions } from './e2eServer.ts';
+export type { AdminCredentials, CamphoricServer, CamphoricServerOptions } from './e2eServer.ts';
 export { importForE2E } from './e2eImport.ts';
 export type { ImportForE2EOptions } from './e2eImport.ts';
 export { CamperSection, FormSection, ListQuestion, RegistrationForm } from './e2eRegistrationForm.ts';
@@ -49,10 +48,13 @@ export type { PayPalOrder } from './e2ePayPal.ts';
 // What the global setup hands the tests (workers inherit its environment)
 const URL_VARIABLE = 'CAMPHORIC_E2E_RUN_URL';
 const EVENT_VARIABLE = 'CAMPHORIC_E2E_RUN_EVENT_ID';
-// The admin's API token (signing in once: Camphoric throttles sign-in)
+// The admin's API token (camphoricServer's), for the admin fixture
 const TOKEN_VARIABLE = 'CAMPHORIC_E2E_RUN_TOKEN';
 // A throwaway server's fake PayPal API
 const PAYPAL_VARIABLE = 'CAMPHORIC_E2E_RUN_PAYPAL_URL';
+// The admin's username and password (camphoricServer's), for adminCredentials
+const ADMIN_USERNAME_VARIABLE = 'CAMPHORIC_E2E_RUN_ADMIN_USERNAME';
+const ADMIN_PASSWORD_VARIABLE = 'CAMPHORIC_E2E_RUN_ADMIN_PASSWORD';
 
 export type SetUpEventOptions = Pick<ImportForE2EOptions,
   'event' | 'validate' | 'withSampleRegistrations' | 'openRegistration' | 'onlinePayment'>
@@ -73,9 +75,16 @@ export function setUpEvent(options: SetUpEventOptions): () => Promise<() => Prom
       const eventId = await importForE2E({ ...options, ...server });
       process.env[URL_VARIABLE] = server.url;
       process.env[EVENT_VARIABLE] = String(eventId);
-      process.env[TOKEN_VARIABLE] = await getAuthToken(server.url);
+      process.env[TOKEN_VARIABLE] = server.token;
       if (server.payPalUrl) process.env[PAYPAL_VARIABLE] = server.payPalUrl;
       else delete process.env[PAYPAL_VARIABLE];
+      if (server.admin) {
+        process.env[ADMIN_USERNAME_VARIABLE] = server.admin.username;
+        process.env[ADMIN_PASSWORD_VARIABLE] = server.admin.password;
+      } else {
+        delete process.env[ADMIN_USERNAME_VARIABLE];
+        delete process.env[ADMIN_PASSWORD_VARIABLE];
+      }
     } catch (e) {
       await server.stop();
       throw e;
@@ -115,6 +124,23 @@ function serverUrl(): string {
   const url = process.env[URL_VARIABLE];
   if (!url) throw new Error('no Camphoric server: run these tests with a config from defineEventE2EConfig');
   return url;
+}
+
+/**
+ * The admin's username and password, from the global setup, for a test that
+ * signs in to the admin client in a browser (`POST /api/login`), which takes
+ * a session rather than the `admin` fixture's API token. An existing server
+ * (CAMPHORIC_E2E_SERVER_URL) has them only when CAMPHORIC_E2E_SERVER_USERNAME
+ * and _PASSWORD are set.
+ */
+export function adminCredentials(): AdminCredentials {
+  const username = process.env[ADMIN_USERNAME_VARIABLE];
+  const password = process.env[ADMIN_PASSWORD_VARIABLE];
+  if (!username || !password) {
+    throw new Error('no admin credentials: run these tests with a config from defineEventE2EConfig, and, '
+      + 'for CAMPHORIC_E2E_SERVER_URL, set CAMPHORIC_E2E_SERVER_USERNAME / _PASSWORD');
+  }
+  return { username, password };
 }
 
 /**

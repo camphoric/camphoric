@@ -7,16 +7,37 @@ importer:
   for the Camphoric REST API (at `CAMPHORIC_URL`, default `http://django:8000`). A request whose
   connection is reset is sent again only if it's a GET, PUT or DELETE: a POST the server may
   already have acted on could otherwise create a second record.
-- `@camphoric/camphoric-event-import-tools/auth`: `getAuthToken()`, which logs in (once per server
-  per process, since Camphoric throttles sign-in) with
-  `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` (or asks for them). It only logs in to
-  a local server (`localhost`, `127.0.0.1`, `::1`, `*.localhost`, `*.test`, or the development
-  stack's `django`), so nothing that logs in through it (the fetcher, the creator, bulk
-  registrations, an e2e import) changes a live server by accident: any other server is refused
-  unless `CAMPHORIC_ALLOW_REMOTE=1` is set. `assertLocalServer(url)` and `isLocalServer(url)` make
-  the same check.
+- `@camphoric/camphoric-event-import-tools/auth`: the API token. Every tool sends a **personal
+  access token** (`cmph_…`) as `Authorization: Bearer …` (`authorization(token)` builds the
+  header). `getAuthToken()` reads it from `CAMPHORIC_API_TOKEN`, or, when that's unset, from the
+  file `CAMPHORIC_API_TOKEN_FILE` names. Mint one on the server, for a user with the role the work
+  needs (an Admin, to import):
+
+  ```bash
+  ./manage.py camphoric_api_token create <you>                                   # in server/
+  docker compose exec -T django ./manage.py camphoric_api_token create <you>     # the development stack
+  docker compose exec -T app python manage.py camphoric_api_token create <you>   # the release image
+  ```
+
+  It prints only the token, so `CAMPHORIC_API_TOKEN=$(…)` captures it. It lasts an hour unless
+  given `--expires` (a duration, such as `2h` or `7d`, or `never`), and `camphoric_api_token revoke
+  <its prefix>` ends it sooner. The tools no longer sign in with a username and password.
+
+  When the server refuses the token, the tools say why: a 401 means it's invalid, expired or
+  revoked; a 403 `read_only_token` that it's read-only; and a 403 `contract_agreement_required`
+  shows the server's message with the organization whose terms the token's user has yet to agree
+  to and where to agree to them (`tokenRefusal()` and `assertTokenAccepted()` make that check, and
+  `ApiTokenError` is what they throw). `revokeAuthToken(url, token)` revokes a token
+  (`DELETE /api/user/tokens/current`), as the importer's `--revoke-token` does when a run ends.
+
+  `getAuthToken()` only gives the token for a local server (`localhost`, `127.0.0.1`, `::1`,
+  `*.localhost`, `*.test`, or the development stack's `django`), so nothing that uses it (the
+  fetcher, the creator, bulk registrations, an e2e import) changes a live server by accident: any
+  other server is refused, before the token is sent to it, unless `CAMPHORIC_ALLOW_REMOTE=1` is
+  set. `assertLocalServer(url)` and `isLocalServer(url)` make the same check.
 - `@camphoric/camphoric-event-import-tools/creator`: `CamphoricEventCreator`, which imports an
-  event module into a Camphoric server. Pass it the spec's `validateEventImport` as `validate`;
+  event module into a Camphoric server (at `url`, with `token`, by default `CAMPHORIC_URL`'s and
+  `CAMPHORIC_API_TOKEN`'s). Pass it the spec's `validateEventImport` as `validate`;
   the tools don't depend on any particular spec version. Reports are matched to the event's saved
   ones by title (their category and description updated with the rest), group emails by name and
   promo codes by code (ignoring case), so importing again updates them
@@ -47,16 +68,18 @@ importer:
 
   - **The server:** `setUpEvent()` starts a throwaway Camphoric from the release image, pulled
     fresh each run (`CAMPHORIC_IMAGE_TAG` picks the tag, default `latest`;
-    `CAMPHORIC_E2E_IMAGE` names a locally built image instead), imports the event, and removes the
-    server when the tests end. Its registration throttles (registering, saving drafts, opening an
+    `CAMPHORIC_E2E_IMAGE` names a locally built image instead), mints an API token for its admin
+    (with `camphoric_api_token` in its `app` service, so the image must be one with personal access
+    tokens), imports the event, and removes the server when the tests end. Its registration throttles (registering, saving drafts, opening an
     invitation, checking a promo code) allow `1000/minute` from one address, so a suite isn't told
     to wait (`CAMPHORIC_E2E_REGISTER_RATE`, `_REGISTRATION_DRAFT_RATE`, `_INVITATION_LOOKUP_RATE`
     and `_PROMO_CODE_CHECK_RATE` change them; a real server's are 10 to 30 a minute). It sends email as it's queued, to its console, keeping what it sent in its outbox
     (see `admin.emails()` below).
-  - **An existing server:** `CAMPHORIC_E2E_SERVER_URL`, with `CAMPHORIC_E2E_SERVER_USERNAME` /
-    `_PASSWORD` for its admin, makes it import into that server instead. Not `CAMPHORIC_URL`, so
-    tests never import into a development server by accident. One that isn't local also needs
-    `CAMPHORIC_ALLOW_REMOTE=1` (see `/auth` above).
+  - **An existing server:** `CAMPHORIC_E2E_SERVER_URL`, with `CAMPHORIC_E2E_SERVER_TOKEN`, an
+    Admin's personal access token (see `/auth` above), makes it import into that server instead.
+    Not `CAMPHORIC_URL` and `CAMPHORIC_API_TOKEN`, so tests never import into a development server
+    by accident. One that isn't local also needs `CAMPHORIC_ALLOW_REMOTE=1`, and tests that sign in
+    to its admin client need that Admin's `CAMPHORIC_E2E_SERVER_USERNAME` / `_PASSWORD`.
   - **Registration is opened:** the imported copy's registration window is opened, so the form
     can be tested whatever its dates say (`openRegistration: false` keeps them).
   - **One shared event:** every test, on desktop and mobile Chrome, shares the one imported event.
@@ -64,8 +87,11 @@ importer:
   - **What tests use:** a `test` with these fixtures, and `expect`:
     - `registration`: a `RegistrationForm` page object (fields by label, campers, lodging, lists,
       the price ticker, submitting and paying);
-    - `admin`: a `CamphoricAdmin`, what an organizer does, through the admin API as the admin the
-      event was imported as (invitations, and the email sent);
+    - `admin`: a `CamphoricAdmin`, what an organizer does, through the admin API with the token the
+      event was imported with (invitations, and the email sent);
+    - and, outside the fixtures, `adminCredentials()`: that admin's username and password, for a
+      test that signs in to the admin client in a browser (`POST /api/login`, which a token can't
+      do);
     - `payPal`: a `FakePayPal`, the orders the server asked the throwaway server's fake PayPal for;
     - `eventId`: the imported event's id.
   - **Campers and lists:** `addCamper()` adds one and `removeCamper(n)` removes the nth (from 1;

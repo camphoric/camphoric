@@ -11,13 +11,28 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { MINT_TOKEN_HELP } from './getAuthInfo.ts';
+
 const run = promisify(execFile);
+
+// How long a throwaway server's token lasts: longer than any suite runs (the
+// server, and the token with it, is removed when the tests end)
+const THROWAWAY_TOKEN_EXPIRY = '1d';
+
+export interface AdminCredentials {
+  username: string;
+  password: string;
+}
 
 export interface CamphoricServer {
   url: string;
-  // the admin to import as
-  username: string;
-  password: string;
+  // An admin's personal access token, to import and administer the event with
+  token: string;
+  // That admin's username and password, for tests that sign in to the admin
+  // client in a browser (which takes a session, not a token): a throwaway
+  // server's admin, or CAMPHORIC_E2E_SERVER_USERNAME / _PASSWORD's for an
+  // existing server (none when they aren't set)
+  admin?: AdminCredentials;
   // A throwaway server's fake PayPal API (e2eFakePayPal.py), which its
   // PAYPAL_BASE_URL names, when it was asked for (none for an existing server)
   payPalUrl?: string;
@@ -57,27 +72,69 @@ function freePort(): Promise<number> {
   });
 }
 
+type Compose = (...args: string[]) => Promise<{ stdout: string, stderr: string }>;
+
+// Start the compose project, until the app's healthcheck passes (migrated and
+// serving, its admin created)
+async function startServer(compose: Compose): Promise<void> {
+  try {
+    await compose('up', '-d', '--wait', '--quiet-pull');
+  } catch (e) {
+    const logs = await compose('logs', '--tail', '50').then(r => r.stdout, () => '');
+    throw new Error(`the throwaway Camphoric didn't start: ${(e as Error).message}\n${logs}`, { cause: e });
+  }
+}
+
+// Mint a token for the throwaway server's admin, in its app service (the
+// command prints only the token on stdout)
+async function mintAdminToken(compose: Compose, username: string): Promise<string> {
+  try {
+    const minted = await compose('exec', '-T', 'app', 'python', 'manage.py', 'camphoric_api_token', 'create',
+      username, '--name', 'e2e', '--expires', THROWAWAY_TOKEN_EXPIRY);
+    return minted.stdout.trim();
+  } catch (e) {
+    // (An image from before personal access tokens has no such command)
+    throw new Error(`couldn't mint the throwaway Camphoric's API token: ${(e as Error).message}`, { cause: e });
+  }
+}
+
 /**
- * Start a throwaway Camphoric, ready for requests. To use an existing server
- * instead (it gets the event imported into it), set CAMPHORIC_E2E_SERVER_URL,
- * with its admin in CAMPHORIC_E2E_SERVER_USERNAME / _PASSWORD. (Not
- * CAMPHORIC_URL, which the importer's other tools use, so tests never import
- * into a development server by accident.)
+ * Start a throwaway Camphoric, ready for requests, with a token minted for
+ * its admin. To use an existing server instead (it gets the event imported
+ * into it), set CAMPHORIC_E2E_SERVER_URL, with an admin's personal access
+ * token in CAMPHORIC_E2E_SERVER_TOKEN, and, for tests that sign in to the
+ * admin client, that admin's CAMPHORIC_E2E_SERVER_USERNAME / _PASSWORD. (Not CAMPHORIC_URL and
+ * CAMPHORIC_API_TOKEN, which the importer's other tools use, so tests never
+ * import into a development server by accident.)
  */
 export async function camphoricServer(options: CamphoricServerOptions = {}): Promise<CamphoricServer> {
   const existing = process.env.CAMPHORIC_E2E_SERVER_URL;
   if (existing) {
-    const { CAMPHORIC_E2E_SERVER_USERNAME: username, CAMPHORIC_E2E_SERVER_PASSWORD: password } = process.env;
-    if (!username || !password) {
-      throw new Error('CAMPHORIC_E2E_SERVER_URL needs CAMPHORIC_E2E_SERVER_USERNAME and CAMPHORIC_E2E_SERVER_PASSWORD');
+    const token = process.env.CAMPHORIC_E2E_SERVER_TOKEN?.trim();
+    if (!token) {
+      const passwordNote = process.env.CAMPHORIC_E2E_SERVER_USERNAME || process.env.CAMPHORIC_E2E_SERVER_PASSWORD
+        ? ' (CAMPHORIC_E2E_SERVER_USERNAME / _PASSWORD only sign in to the admin client in a browser)'
+        : '';
+      throw new Error(
+        `CAMPHORIC_E2E_SERVER_URL needs CAMPHORIC_E2E_SERVER_TOKEN, an admin's personal access token${passwordNote}.\n`
+        + MINT_TOKEN_HELP,
+      );
     }
-    return { url: existing.replace(/\/$/, ''), username, password, stop: async () => {} };
+    const { CAMPHORIC_E2E_SERVER_USERNAME: username, CAMPHORIC_E2E_SERVER_PASSWORD: password } = process.env;
+    return {
+      url: existing.replace(/\/$/, ''),
+      token,
+      admin: username && password ? { username, password } : undefined,
+      stop: async () => {},
+    };
   }
 
   const port = await freePort();
   let payPalPort = await freePort();
   while (payPalPort === port) payPalPort = await freePort();
   const fakePayPal = options.fakePayPal ?? false;
+  // The admin the image's entrypoint creates, whom the token is minted for
+  // (its password is for tests that sign in to the admin client)
   const username = 'e2e-admin';
   const password = randomBytes(12).toString('hex');
   const project = `camphoric-e2e-${randomBytes(4).toString('hex')}`;
@@ -94,7 +151,7 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
     CAMPHORIC_E2E_PASSWORD: password,
   };
   const composeArgs = ['compose', '-p', project, '-f', composeFile()];
-  const compose = (...args: string[]) => run('docker', [...composeArgs, ...args], {
+  const compose: Compose = (...args) => run('docker', [...composeArgs, ...args], {
     env, maxBuffer: 16 * 1024 * 1024,
   });
   const stop = async () => {
@@ -110,13 +167,13 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
   process.once('SIGINT', interrupted);
   process.once('SIGTERM', interrupted);
 
+  let token: string;
   try {
-    // --wait: until the app's healthcheck passes (migrated and serving)
-    await compose('up', '-d', '--wait', '--quiet-pull');
+    await startServer(compose);
+    token = await mintAdminToken(compose, username);
   } catch (e) {
-    const logs = await compose('logs', '--tail', '50').then(r => r.stdout, () => '');
     await stop().catch(() => {});
-    throw new Error(`the throwaway Camphoric didn't start: ${(e as Error).message}\n${logs}`, { cause: e });
+    throw e;
   } finally {
     process.off('SIGINT', interrupted);
     process.off('SIGTERM', interrupted);
@@ -124,8 +181,8 @@ export async function camphoricServer(options: CamphoricServerOptions = {}): Pro
 
   return {
     url: `http://localhost:${port}`,
-    username,
-    password,
+    token,
+    admin: { username, password },
     payPalUrl: fakePayPal ? `http://127.0.0.1:${payPalPort}` : undefined,
     stop,
   };

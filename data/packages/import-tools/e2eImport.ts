@@ -2,7 +2,7 @@
  * Import an event into a Camphoric server for its e2e tests.
  */
 
-import { getAuthToken } from './getAuthInfo.ts';
+import { assertLocalServer } from './getAuthInfo.ts';
 import CamphoricEventCreator from './CamphoricEventCreator.ts';
 import { E2E_PAYPAL_CLIENT_ID } from './e2ePayPal.ts';
 import { Organizations, organizationLoader } from './organizations.ts';
@@ -14,8 +14,8 @@ export interface ImportForE2EOptions {
   // The spec's validateEventImport
   validate: (data: unknown) => unknown[];
   url: string;
-  username: string;
-  password: string;
+  // An admin's personal access token, to import with
+  token: string;
   // Also post its sample registrations (default: no, a form with no data)
   withSampleRegistrations?: boolean;
   // Open its registration window now, whatever its dates say (default: yes),
@@ -34,12 +34,11 @@ export interface ImportForE2EOptions {
 /** Imports the event (and creates its organization), returning its id. */
 export async function importForE2E(options: ImportForE2EOptions): Promise<number> {
   const {
-    event, validate, url, username, password, withSampleRegistrations = false, openRegistration = true,
+    event, validate, url, token, withSampleRegistrations = false, openRegistration = true,
     onlinePayment = false,
   } = options;
-  // The fetcher logs in with these
-  process.env.DJANGO_SUPERUSER_USERNAME = username;
-  process.env.DJANGO_SUPERUSER_PASSWORD = password;
+  // (Before the token is sent anywhere, as getAuthToken checks for the other tools)
+  assertLocalServer(url);
 
   // Imported with the window open, so its sample registrations (posted as
   // it's imported) are accepted, and set again afterwards, in case an
@@ -54,7 +53,6 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
   const changes = { ...(openRegistration ? window : {}), ...(onlinePayment ? payPal : {}) };
   const data = { ...event.data, event: { ...event.data.event, ...changes } };
 
-  const token = await getAuthToken(url);
   const organization = await organizationLoader(token, url)(event.organization);
   const creator = new CamphoricEventCreator({
     data,
@@ -63,6 +61,7 @@ export async function importForE2E(options: ImportForE2EOptions): Promise<number
     sampleRegGenerator: withSampleRegistrations ? event.sampleRegGenerator : undefined,
     organizations: new Organizations([organization]),
     url,
+    token,
   });
   await creator.create();
   const { id } = creator.savedEvent();

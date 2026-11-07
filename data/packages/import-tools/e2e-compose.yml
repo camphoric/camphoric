@@ -1,7 +1,8 @@
 # A throwaway Camphoric for an event's e2e tests (camphoricServer() in
 # e2eServer.ts): the release image and its Postgres, on a free port, with an
-# admin to import as, and a stand-in for PayPal's API. It holds nothing worth
-# keeping: `down -v` removes it.
+# admin (e2eServer.ts mints the tests' API token for it, in the app service),
+# and a stand-in for PayPal's API. It holds nothing worth keeping: `down -v`
+# removes it.
 services:
   postgres:
     image: postgres:16-alpine
@@ -41,6 +42,8 @@ services:
       ALLOWED_HOSTS: localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: http://localhost:${CAMPHORIC_E2E_PORT},http://127.0.0.1:${CAMPHORIC_E2E_PORT}
       SESSION_COOKIE_SECURE: "false"
+      # (The entrypoint creates the admin only with a password, though the
+      # tests use a token)
       DJANGO_SUPERUSER_USERNAME: ${CAMPHORIC_E2E_USERNAME}
       DJANGO_SUPERUSER_PASSWORD: ${CAMPHORIC_E2E_PASSWORD}
       DJANGO_SUPERUSER_EMAIL: e2e@example.com
