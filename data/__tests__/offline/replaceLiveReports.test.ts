@@ -15,6 +15,8 @@ const report = (id: number, event: number, title: string): LiveReport => ({
   id,
   event,
   title,
+  category: 'Rooming',
+  description: `The ${title} report`,
   output: 'csv',
   template: `{{ ${title} }}`,
   variables_schema: {},
@@ -133,6 +135,8 @@ describe('replaceReports', () => {
 
     expect(posted).toEqual([{
       title: 'Roster',
+      category: 'Rooming',
+      description: 'The Roster report',
       output: 'csv',
       template: '{{ Roster }}',
       variables_schema: {},

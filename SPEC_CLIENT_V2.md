@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-06
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-154)
+- §15 — Decision Records (DR-1…DR-155)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1036,9 +1036,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `lodging_requested`, `lodging_shared`/`lodging_shared_with`/`lodging_comments`,
   `server_pricing_results`, `sequence` (order within a registration), `stay` (array of ISO
   date strings the camper is present), timestamps.
-- **Report:** `id`, `event`, `title`, `output` (`csv` | `md` | `txt` | `html` | `hbs`),
-  `template`, `variables_schema`, `variables_source` (`client` | `server`; the API defaults to
-  `server` (§15, DR-40), and `hbs` requires `client`), timestamps.
+- **Report:** `id`, `event`, `title`, `category` (free text, at most 100 characters, trimmed; `''`
+  for none; §15, DR-155), `description` (free text; may be `''`), `output` (`csv` | `md` | `txt` |
+  `html` | `hbs`), `template`, `variables_schema`, `variables_source` (`client` | `server`; the
+  API defaults to `server` (§15, DR-40), and `hbs` requires `client`), timestamps. The reports
+  API lists them by title, ignoring case (then by `id`), so every consumer sees one order.
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_template`
   (read-only: the id of its invitation email's `EmailTemplate`, created with the type, §8.4).
 - **EmailTemplate** (`/api/emailtemplates/`, filter `event`, `purpose`; §15, DR-45): `id`,
@@ -2015,6 +2017,14 @@ selector).
 The admin can **browse/select the event's reports** (selection via `?reportId`), **view a
 report's rendered output**, and **create/edit/delete a report's definition**.
 
+**The report list** is grouped by **category** (§15, DR-155): each category's reports appear under
+its name, the categories in alphabetical order, and the reports with no category together after
+them. Within each group, reports are sorted by title. Both orders ignore case, and categories that
+differ only in case or surrounding spaces are one category, named as the first of its reports by
+title spells it. While no report has a category, the list is a single group, ordered by title. Each
+report's **description**, when it has one, is shown with it in the list and with the selected
+report. The order holds after a report is added, renamed or recategorised.
+
 A report's **`variables_source`** says where its template's variables come from:
 
 - **`server` — Camphoric variables.** The server builds the event's data itself (the
@@ -2025,11 +2035,18 @@ A report's **`variables_source`** says where its template's variables come from:
   Handlebars (`hbs`) reports always use it.
 
 The reports the data importer creates for new events (`data/`) all use Camphoric variables (§15,
-DR-41); only reports saved in existing events before then still use the browser bundle.
+DR-41); only reports saved in existing events before then still use the browser bundle. An event's
+import data gives each report's category and description, so its reports arrive already grouped.
 
-- **Editing a report** — its title; its variables source; output format (`csv` Jinja→CSV, `md`
-  Jinja→Markdown, `txt` Jinja→Text, `html` Jinja→HTML, and — for the `client` source only — `hbs`
-  Handlebars→Markdown); and the template body. Title must be non-empty — surface that error.
+- **Report category and description** — the admin sets a report's category by picking one of the
+  event's existing categories or entering a new one, or leaves it empty. A changed category that
+  matches another report's except for case or surrounding spaces is saved in that report's
+  spelling; an unchanged one is saved as it was, and a change of capitals alone is kept, so a
+  category can be respelt. The description is optional free text, saying what the report shows
+  and who it's for.
+- **Editing a report** — its title; its category and description; its variables source; output
+  format (`csv` Jinja→CSV, `md` Jinja→Markdown, `txt` Jinja→Text, `html` Jinja→HTML, and — for
+  the `client` source only — `hbs` Handlebars→Markdown); and the template body. Title must be non-empty — surface that error.
   - **`server`** — the template is edited in the template editor (§9.6): autocomplete and hover
     docs from the variable spec for the `report` context, problems marked in the text, and a
     live preview in the chosen format. There is no variables schema.
@@ -2038,8 +2055,8 @@ DR-41); only reports saved in existing events before then still use the browser 
   - Changing the source of a saved report with a template asks for confirmation (the two sources
     have different variables, so the template needs rewriting); the text is left unchanged.
     Switching to `server` moves an `hbs` report to `csv`.
-  - Saving writes `title`, `output`, `template`, `variables_schema` and `variables_source`.
-    Deleting drops the `reportId` selection.
+  - Saving writes `title`, `category`, `description`, `output`, `template`, `variables_schema`
+    and `variables_source`. Deleting drops the `reportId` selection.
 - **Viewing a report** — `csv`/`md`/`txt`/`html` render on the server via
   `/api/reports/{id}/render` (§5): `server` reports post `{}`, and legacy reports post the
   variable bundle, which is assembled only when a legacy (or Handlebars) report is shown. The
@@ -6551,6 +6568,28 @@ sent emails still need the redirect. Answering the link's `GET` with the client 
 URL (as `/o/authorize/` is answered, DR-152) — the dev server sends `/api/` to Django, and the
 client would route an API path. Choosing JSON or a redirect by the request's `Accept` header —
 one URL, but its behaviour hinges on a header a link scanner or mail client sets as it likes.
+
+### DR-155 — Reports are grouped by a free-text category
+
+**Decision:** A report has a `category`, a free-text field on the report (`''` for none), and a
+`description`. The report list groups reports by category, matched without regard to case or
+surrounding spaces, and sorts both the categories and each group's reports by title, ignoring case,
+with the uncategorised reports last. The category is chosen from the event's existing ones or
+typed new. A changed one that is another report's in other capitals is saved in that report's
+spelling, so near-duplicates aren't started by accident; the report's own category isn't matched,
+so its capitals can still be changed. The reports API orders reports by title, ignoring case, and
+the client groups and sorts them again itself the same way. The event import format carries both
+fields, and the importer matches a report to the event's saved one by title, so importing again
+updates it (resetting what the data leaves out) rather than adding a copy.
+**Context:** An event's report list grew long and was listed in whatever order the database
+returned (#992). Related reports (finance, rooming, kitchen) are looked for together, and an
+admin needs to know what a report is for before rendering it. Categories are few, per event, and
+need no properties of their own beyond a name.
+**Alternatives:** A category model that reports point to: renaming it renames it everywhere, but it
+needs its own screens to create, rename and delete categories, and the importer would have to
+create them first. Tags (a report in several groups): more than grouping needs, and a report would
+be listed more than once. Sorting only in the client: the API's order would stay arbitrary for
+its other consumers (the importer, scripts).
 
 ---
 

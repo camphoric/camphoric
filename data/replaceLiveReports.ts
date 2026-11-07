@@ -10,6 +10,9 @@ export interface LiveReport {
   id: number;
   event: number;
   title: string;
+  // Left out by a server from before reports had them
+  category?: string;
+  description?: string;
   output: string;
   template: string;
   variables_schema: unknown;
@@ -117,6 +120,8 @@ export async function replaceReports(
   for (const report of plan.toCopy) {
     const {
       title,
+      category,
+      description,
       output,
       template,
       variables_schema,
@@ -126,6 +131,8 @@ export async function replaceReports(
     try {
       const saved = await fetcher.fetch('POST', '/api/reports/', {
         title,
+        category,
+        description,
         output,
         template,
         variables_schema,

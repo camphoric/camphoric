@@ -49,6 +49,8 @@ const legacyReport = {
   id: 3,
   event: 7,
   title: 'Roster',
+  category: 'Rooming',
+  description: 'Who is where',
   output: 'hbs',
   template: '{{#each campers}}{{/each}}',
   variables_schema: { a: 1 },
@@ -81,6 +83,116 @@ describe('ReportEditForm', () => {
       }),
       expect.anything(),
     );
+  });
+
+  it('saves a category and description, joining an existing category typed in other capitals', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        categories={['Finance', 'Rooming']}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText('Title'), 'Balances');
+    await user.type(screen.getByRole('combobox', { name: 'Category' }), '  finance ');
+    await user.type(screen.getByLabelText(/^Description/), 'What each family owes');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Balances',
+        category: 'Finance',
+        description: 'What each family owes',
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("offers the event's categories, and takes a new one", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        categories={['Finance', 'Rooming']}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const category = screen.getByRole('combobox', { name: 'Category' });
+    await user.click(category);
+    expect(await screen.findByRole('option', { name: 'Rooming' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Rooming' }));
+    expect(category).toHaveValue('Rooming');
+
+    await user.clear(category);
+    await user.type(category, 'Kitchen');
+    await user.type(screen.getByLabelText('Title'), 'Meals');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'Kitchen', description: '' }),
+      expect.anything(),
+    );
+  });
+
+  it('sends only a changed category of a saved report', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        report={legacyReport}
+        categories={['Finance', 'Rooming']}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const category = screen.getByRole('combobox', { name: 'Category' });
+    expect(category).toHaveValue('Rooming');
+    expect(screen.getByLabelText(/^Description/)).toHaveValue('Who is where');
+    await user.clear(category);
+    await user.type(category, 'Finance');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledWith({ id: 3, version: 4, category: 'Finance' });
+  });
+
+  it("respells a report's category in other capitals", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        report={legacyReport}
+        categories={['Finance']}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const category = screen.getByRole('combobox', { name: 'Category' });
+    await user.clear(category);
+    await user.type(category, 'ROOMING');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledWith({ id: 3, version: 4, category: 'ROOMING' });
+  });
+
+  it("leaves an unchanged category as it is, though another report's is in other capitals", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReportEditForm
+        eventId="7"
+        report={legacyReport}
+        categories={['rooming']}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/^Description/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(update).toHaveBeenCalledWith({ id: 3, version: 4, description: 'Who is where!' });
   });
 
   it('keeps legacy reports on the plain editor with the variables schema', async () => {

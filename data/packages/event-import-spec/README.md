@@ -5,8 +5,9 @@ The contract a [Camphoric](https://github.com/camphoric/camphoric) event module 
 - `EventImportSchema`: the event import object, written with TypeBox, so it gives both the
   `EventImport` type and the JSON Schema the importer checks. Besides the event itself (its forms,
   pricing, confirmation page, and confirmation and invoice emails), it holds the event's lodging
-  tree, reports, custom charge types, registration types (with their invitation emails and schema
-  overrides), group emails (`email_templates`) and promo codes (`promo_codes`, excluding
+  tree, reports (each with an optional `category`, which groups related reports in the admin's
+  report list, and `description`), custom charge types, registration types (with their
+  invitation emails and schema overrides), group emails (`email_templates`) and promo codes (`promo_codes`, excluding
   registration types by name). Every part but the organization, the event, its reports and its
   registration types is optional. It holds no runtime data (registrations, invitations, invoices,
   payments) and no email accounts, which belong to the organization.

@@ -590,6 +590,8 @@ class Report(TimeStampedModel):
     Report for a given event.
     - Is owned by one Event
     - Has a title
+    - May have a category, which groups it with related reports, and a
+      description of what it shows and who it's for
     - Has a template: Jinja (csv/md/txt/html) or Handlebars (hbs)
     - Its Jinja variables come either from the server (`server`: the variable
       graph, SPEC §9.3) or, for older reports, from the client (`client`: the
@@ -597,6 +599,11 @@ class Report(TimeStampedModel):
     '''
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
+    category = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="groups related reports in the report list (blank: uncategorised)")
+    description = models.TextField(
+        blank=True, default='', help_text="what the report shows and who it's for")
     output = models.CharField(
         max_length=4,
         choices=ReportOutputType.choices,

@@ -25,6 +25,8 @@ const cwd = path.dirname(fileURLToPath(import.meta.url));
 interface DumpedReport {
   event: number;
   title: string;
+  category?: string;
+  description?: string;
   output: string;
   template: string;
 }
@@ -32,6 +34,8 @@ interface DumpedReport {
 // A report file written for an event's reports.ts
 interface ReportFile {
   title: string;
+  category?: string;
+  description?: string;
   output: string;
   filename: string;
 }
@@ -54,6 +58,8 @@ async function main() {
   await Promise.all(data.map(async (r) => {
     const {
       title,
+      category,
+      description,
       output,
       template,
     } = r;
@@ -61,7 +67,7 @@ async function main() {
     const filename = `${title.replace(/\W/ig, '-')}.${output === 'hbs' ? 'hbs' : 'j2'}`;
 
     reports.push({
-      title, output, filename,
+      title, category, description, output, filename,
     });
 
     const fullFileName = path.join(cwd, dir, 'reports', filename);
@@ -90,11 +96,16 @@ function readFile(filename: string): string {
 
 export default [
 ${
-  reports.map(({ title, output, filename}) => `  {
-    title: '${title}',
-    output: '${output}',
-    template: readFile('${filename}'),
-  },`).join('\n')
+  reports.map(({ title, category, description, output, filename}) => [
+    '  {',
+    `    title: '${title}',`,
+    // Only a report that has them; quoted as JSON, since they're free text
+    ...(category ? [`    category: ${JSON.stringify(category)},`] : []),
+    ...(description ? [`    description: ${JSON.stringify(description)},`] : []),
+    `    output: '${output}',`,
+    `    template: readFile('${filename}'),`,
+    '  },',
+  ].join('\n')).join('\n')
 }
 ] satisfies Report[];
 `);
