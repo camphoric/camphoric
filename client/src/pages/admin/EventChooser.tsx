@@ -1,6 +1,7 @@
 /**
- * Event chooser (SPEC §8.1). Lists the organization's events; selecting one
- * navigates into the Event Admin container for that event. The way back to
+ * Event chooser (SPEC §8.1). Lists the organization's events in the API's
+ * order (no open date yet first, then newest open date first, then by name);
+ * selecting one navigates into the Event Admin container for that event. The way back to
  * organization selection is in the frame's header (AdminFrame).
  */
 
