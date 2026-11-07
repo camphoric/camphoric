@@ -14,7 +14,8 @@ Conventions:
   - dates are `datetime.date`; datetimes are timezone-aware, in
     `CAMPHORIC_TEMPLATE_TIMEZONE`;
   - soft-deleted rows are left out;
-  - form answers (`attributes`) and pricing results are read-only dicts.
+  - form answers (`attributes`) and pricing results are read-only dicts,
+    tagged with the keys the event defines for them (`DescribedDict`).
 '''
 
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ from django.utils import timezone
 from camphoric import models
 from camphoric.lodging import LodgingTree
 
+from .describe import event_dict_types
 from .urls import invoice_pay_url, register_url
 from .values import (
     CamperVar,
@@ -43,6 +45,7 @@ from .values import (
     RegistrationTypeVar,
     RegistrationVar,
     freeze,
+    freeze_described,
 )
 
 CENT = Decimal('0.01')
@@ -102,12 +105,12 @@ def date_range(start, stop):
 HIDDEN_RESULTS = {'campers', 'overridden'}
 
 
-def pricing_results(results):
+def pricing_results(results, dict_type=None):
     '''Pricing results (minus the per-camper breakdown) with exact numbers.'''
-    return freeze({
+    return freeze_described({
         key: number(value) for key, value in (results or {}).items()
         if key not in HIDDEN_RESULTS
-    })
+    }, dict_type)
 
 
 def invoice_status(invoice):
@@ -188,10 +191,15 @@ def build_event_graph(event, *, registration_ids=None, request=None):
 
     organization_name = event.organization.name if event.organization_id else ''
 
+    registration_type_rows = list(
+        live(models.RegistrationType.objects.filter(event=event)).order_by('id'))
     registration_types = {
         rt.id: keep(RegistrationTypeVar(id=rt.id, name=rt.name, label=rt.label))
-        for rt in live(models.RegistrationType.objects.filter(event=event)).order_by('id')
+        for rt in registration_type_rows
     }
+    # The keys the event's forms and pricing define, so a template reading
+    # any other is warned (render.TrackingUndefined).
+    dict_types = event_dict_types(event, registration_types=registration_type_rows)
     custom_charge_types = {
         ct.id: keep(CustomChargeTypeVar(id=ct.id, name=ct.name, label=ct.label))
         for ct in live(models.CustomChargeType.objects.filter(event=event)).order_by('id')
@@ -285,15 +293,17 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             registrant_email=row.registrant_email,
             payment_type=None,
             paypal_response=None,
-            attributes=freeze(row.attributes or {}),
-            admin_attributes=freeze(row.admin_attributes or {}),
+            attributes=freeze_described(row.attributes or {},
+                                        dict_types['attributes:registration']),
+            admin_attributes=freeze_described(row.admin_attributes or {},
+                                              dict_types['admin_attributes:registration']),
             registration_type=registration_types.get(row.registration_type_id),
             campers=ReadOnlyList(),
             payments=ReadOnlyList(),
             invoices=ReadOnlyList(),
             invoice=None,
             invitation=None,
-            pricing=pricing_results(pricing),
+            pricing=pricing_results(pricing, dict_types['pricing:registration']),
             total_owed=money(pricing.get('total', 0)),
             total_paid=Decimal('0.00'),
             balance=money(pricing.get('total', 0)),
@@ -314,8 +324,9 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             id=row.id,
             index=len(registration['campers']),
             registration=registration,
-            attributes=freeze(row.attributes or {}),
-            admin_attributes=freeze(row.admin_attributes or {}),
+            attributes=freeze_described(row.attributes or {}, dict_types['attributes:camper']),
+            admin_attributes=freeze_described(row.admin_attributes or {},
+                                              dict_types['admin_attributes:camper']),
             lodging=lodgings.get(row.lodging_id),
             lodging_requested=lodgings.get(row.lodging_requested_id),
             lodging_reserved=row.lodging_reserved,
@@ -325,7 +336,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             stay=stay,
             first_day=min(dates) if dates else None,
             last_day=max(dates) if dates else None,
-            pricing=pricing_results(row.server_pricing_results),
+            pricing=pricing_results(row.server_pricing_results, dict_types['pricing:camper']),
             custom_charges=ReadOnlyList(),
             created_at=local_datetime(row.created_at),
         ))
@@ -348,16 +359,17 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             registrant_email=row.registrant_email,
             payment_type=None,
             paypal_response=None,
-            attributes=freeze({k: v for k, v in row.form_data.items()
-                               if k not in ('campers', 'registrant_email')}),
-            admin_attributes=freeze({}),
+            attributes=freeze_described({k: v for k, v in row.form_data.items()
+                                         if k not in ('campers', 'registrant_email')},
+                                        dict_types['attributes:registration']),
+            admin_attributes=freeze_described({}, dict_types['admin_attributes:registration']),
             registration_type=registration_types.get(row.registration_type_id),
             campers=ReadOnlyList(),
             payments=ReadOnlyList(),
             invoices=ReadOnlyList(),
             invoice=None,
             invitation=None,
-            pricing=pricing_results(pricing),
+            pricing=pricing_results(pricing, dict_types['pricing:registration']),
             total_owed=money(pricing.get('total', 0)),
             total_paid=Decimal('0.00'),
             balance=money(pricing.get('total', 0)),
@@ -374,8 +386,9 @@ def build_event_graph(event, *, registration_ids=None, request=None):
                 id=f'draft-{row.id}-{position}',
                 index=position,
                 registration=registration,
-                attributes=freeze({k: v for k, v in attributes.items() if k != 'lodging'}),
-                admin_attributes=freeze({}),
+                attributes=freeze_described({k: v for k, v in attributes.items()
+                                             if k != 'lodging'}, dict_types['attributes:camper']),
+                admin_attributes=freeze_described({}, dict_types['admin_attributes:camper']),
                 lodging=None,
                 lodging_requested=lodgings.get(requested),
                 lodging_reserved=False,
@@ -385,7 +398,8 @@ def build_event_graph(event, *, registration_ids=None, request=None):
                 stay=ReadOnlyList(),
                 first_day=None,
                 last_day=None,
-                pricing=pricing_results(priced[position] if position < len(priced) else None),
+                pricing=pricing_results(priced[position] if position < len(priced) else None,
+                                        dict_types['pricing:camper']),
                 custom_charges=ReadOnlyList(),
                 created_at=local_datetime(row.submitted_at),
             )))
@@ -438,7 +452,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             paid_on=row.paid_on,
             payment_type=row.payment_type,
             notes=row.notes,
-            attributes=freeze(row.attributes or {}),
+            attributes=freeze_described(row.attributes or {}, dict_types['attributes:payment']),
             registration=registration,
             invoice=invoice,
             is_refund=row.amount < 0,
@@ -537,7 +551,8 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         nights=date_range(event.start, event.end),
         default_stay_length=event.default_stay_length,
         is_open=event.is_open(),
-        pricing=freeze({key: number(value) for key, value in (event.pricing or {}).items()}),
+        pricing=freeze_described({key: number(value) for key, value in
+                                  (event.pricing or {}).items()}, dict_types['pricing:event']),
         template_vars=freeze(event.registration_template_vars or {}),
         register_url=register_url(event.id, None, request),
         confirmation_email_from=event.confirmation_email_from,

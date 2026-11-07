@@ -239,3 +239,167 @@ class FilterTests(TestCase):
         self.assertEqual(filters.csv_cell('a, "b"'), '"a, ""b"""')
         self.assertEqual(filters.csv_row(['x', 1, None, 'y,z']), 'x,1,,"y,z"')
         self.assertEqual(filters.md_cell('a|b\nc'), 'a\\|b c')
+
+
+class EventDataTypoTests(TestCase):
+    '''Keys an event's own data doesn't define (#994): warned, unlike unanswered ones.'''
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.made = create_template_event()
+
+    def render(self, source):
+        return render_template(source, report_context(build_event_graph(self.made.event)))
+
+    def assertTypo(self, source, message, column):
+        result = self.render(source)
+        self.assertEqual(result.output.strip(), '')
+        [warning] = result.diagnostics
+        self.assertEqual((warning.severity, warning.kind), ('warning', 'undefined'))
+        self.assertEqual(warning.message, message)
+        self.assertEqual((warning.line, warning.column), (1, column))
+
+    def assertNoTypo(self, source):
+        self.assertEqual(self.render(source).diagnostics, [], source)
+
+    def test_pricing_lines(self):
+        self.assertTypo('{{ campers[0].pricing.badge }}',
+                        "camper.pricing has no field 'badge'", len('{{ campers[0].pricing.') + 1)
+        self.assertTypo("{{ registrations[0].pricing['donaton'] }}",
+                        "registration.pricing has no field 'donaton'",
+                        len('{{ registrations[0].pricing') + 1)
+        self.assertTypo('{{ incomplete_registrations[0].campers[0].pricing.tution }}',
+                        "camper.pricing has no field 'tution'",
+                        len('{{ incomplete_registrations[0].campers[0].pricing.') + 1)
+
+    def test_pricing_lines_the_server_adds(self):
+        # Not in this event's logic, but the server adds them (a promo code,
+        # the total, a registrar's overrides), so they aren't typos.
+        for source in ('{{ campers[0].pricing.promo }}{{ campers[0].pricing.overridden }}',
+                       '{{ registrations[0].pricing.promo }}{{ registrations[0].pricing.total }}'
+                       '{{ registrations[0].pricing.overridden }}',
+                       # A camper line is summed on the registration.
+                       '{{ registrations[0].pricing.tuition }}'):
+            self.assertNoTypo(source)
+
+    def test_event_pricing_variables(self):
+        self.assertTypo('{{ event.pricing.adult_ful }}',
+                        "event.pricing has no field 'adult_ful'", len('{{ event.pricing.') + 1)
+        self.assertNoTypo('{{ event.pricing.adult }}')
+
+    def test_form_questions(self):
+        self.assertTypo('{{ campers[0].attributes.frist_name }}',
+                        "camper.attributes has no field 'frist_name'",
+                        len('{{ campers[0].attributes.') + 1)
+        self.assertTypo('{{ registrations[0].attributes.coments }}',
+                        "registration.attributes has no field 'coments'",
+                        len('{{ registrations[0].attributes.') + 1)
+        self.assertTypo('{{ campers[0].attributes.emergency_contact.phon }}',
+                        "camper.attributes.emergency_contact has no field 'phon'",
+                        len('{{ campers[0].attributes.emergency_contact.') + 1)
+
+    def test_unanswered_questions_are_not_typos(self):
+        for source in (
+            '{{ campers[1].attributes.linens }}',
+            # Only asked when driving, in a dependency's branch.
+            '{{ campers[0].attributes.license_plate }}',
+            # Only the staff registration type asks it.
+            '{{ registrations[0].attributes.staff_role }}',
+            '{{ registrations[0].attributes.address.city }}{{ campers[0].attributes.email }}',
+            # Kept out of the answers by the registration flow.
+            '{{ registrations[0].attributes.registrant_email }}',
+        ):
+            self.assertNoTypo(source)
+
+    def test_admin_attributes(self):
+        self.assertTypo('{{ campers[0].admin_attributes.meal_assignment }}',
+                        "camper.admin_attributes has no field 'meal_assignment'",
+                        len('{{ campers[0].admin_attributes.') + 1)
+        self.assertNoTypo('{{ campers[1].admin_attributes.checked_in }}')
+
+    def test_a_form_without_listed_questions_is_not_checked(self):
+        # No registration admin schema, a payment schema that allows any key,
+        # and a free-form object: nothing to check them against.
+        self.made.event.payment_schema = {
+            'type': 'object', 'properties': {'check_number': {'type': 'string'}},
+            'additionalProperties': True}
+        camper_schema = {**self.made.event.camper_schema}
+        camper_schema['properties'] = {**camper_schema['properties'], 'extras': {'type': 'object'}}
+        self.made.event.camper_schema = camper_schema
+        self.made.event.save()
+        models.Payment.objects.filter(registration=self.made.r1).update(
+            attributes={'check_number': '101'})
+        models.Camper.objects.filter(id=self.made.c1.id).update(
+            attributes={**self.made.c1.attributes, 'extras': {'tent': 'blue'}})
+        self.assertNoTypo('{{ registrations[0].admin_attributes.anything }}'
+                          '{{ payments[0].attributes.memo }}'
+                          '{{ campers[0].attributes.extras.anything }}')
+
+    def set_camper(self, *, schema=None, **answers):
+        if schema is not None:
+            self.made.event.camper_schema = schema
+            self.made.event.save()
+        models.Camper.objects.filter(id=self.made.c1.id).update(
+            attributes={**self.made.c1.attributes, **answers})
+
+    def test_a_registration_type_may_add_to_an_object(self):
+        # Merged deeply, as registering merges it: emergency_contact gains a question.
+        self.made.staff.camper_schema_overrides = {'properties': {'emergency_contact': {
+            'properties': {'relationship': {'type': 'string'}}}}}
+        self.made.staff.save()
+        self.assertNoTypo('{{ campers[0].attributes.emergency_contact.relationship }}')
+        self.assertTypo('{{ campers[0].attributes.emergency_contact.relationshp }}',
+                        "camper.attributes.emergency_contact has no field 'relationshp'",
+                        len('{{ campers[0].attributes.emergency_contact.') + 1)
+
+    def test_an_object_has_every_branch_s_questions(self):
+        schema = {**self.made.event.camper_schema, 'dependencies': {'driving': {'oneOf': [
+            {'properties': {'driving': {'enum': ['Passenger']},
+                            'ride': {'type': 'object', 'properties': {'pickup': {}}}}},
+            {'properties': {'driving': {'enum': ['Driver']},
+                            'ride': {'type': 'object', 'properties': {'seats': {}}}}},
+        ]}}}
+        self.set_camper(schema=schema, driving='Driver', ride={'seats': 3})
+        self.assertNoTypo('{{ campers[0].attributes.ride.pickup }}')
+        self.assertTypo('{{ campers[0].attributes.ride.seat }}',
+                        "camper.attributes.ride has no field 'seat'",
+                        len('{{ campers[0].attributes.ride.') + 1)
+
+    def test_an_object_has_the_questions_of_many_untyped_branches(self):
+        # Six branches, each giving `details` (with no type or title) a question.
+        roles = ['a', 'b', 'c', 'd', 'e', 'f']
+        schema = {**self.made.event.camper_schema,
+                  'properties': {**self.made.event.camper_schema['properties'],
+                                 'role': {'type': 'string', 'enum': roles}},
+                  'dependencies': {'role': {'oneOf': [
+                      {'properties': {'role': {'enum': [role]},
+                                      'details': {'properties': {f'{role}_info': {}}}}}
+                      for role in roles]}}}
+        self.set_camper(schema=schema, role='f', details={'f_info': 'x'})
+        self.assertNoTypo('{{ campers[0].attributes.details.a_info }}'
+                          '{{ campers[0].attributes.details.e_info }}')
+        self.assertTypo('{{ campers[0].attributes.details.g_info }}',
+                        "camper.attributes.details has no field 'g_info'",
+                        len('{{ campers[0].attributes.details.') + 1)
+
+    def test_a_branch_may_allow_other_keys(self):
+        self.set_camper(schema={**self.made.event.camper_schema,
+                                'allOf': [{'additionalProperties': True}]})
+        self.assertNoTypo('{{ campers[0].attributes.anything }}')
+
+    def test_an_answer_named_like_the_type_tag_is_the_answer(self):
+        self.set_camper(dict_type='hello')
+        result = self.render('{{ campers[0].attributes.dict_type }}')
+        self.assertEqual((result.output, result.diagnostics), ('hello', []))
+
+    def test_each_is_warned_once_per_line(self):
+        result = self.render('{% for c in campers %}{{ c.pricing.badge }}{% endfor %}\n'
+                             '{{ campers[0].pricing.badge }}')
+        self.assertEqual([(d.line, d.message) for d in result.diagnostics],
+                         [(1, "camper.pricing has no field 'badge'"),
+                          (2, "camper.pricing has no field 'badge'")])
+
+    def test_using_one_in_arithmetic_names_it(self):
+        result = self.render('{{ campers[0].pricing.badge + 1 }}')
+        error = next(d for d in result.diagnostics if d.severity == 'error')
+        self.assertEqual(error.message, "camper.pricing has no field 'badge'")
