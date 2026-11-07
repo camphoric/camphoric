@@ -365,6 +365,23 @@ class EventDataTypoTests(TestCase):
                         "camper.attributes.ride has no field 'seat'",
                         len('{{ campers[0].attributes.ride.') + 1)
 
+    def test_an_object_has_the_questions_of_many_untyped_branches(self):
+        # Six branches, each giving `details` (with no type or title) a question.
+        roles = ['a', 'b', 'c', 'd', 'e', 'f']
+        schema = {**self.made.event.camper_schema,
+                  'properties': {**self.made.event.camper_schema['properties'],
+                                 'role': {'type': 'string', 'enum': roles}},
+                  'dependencies': {'role': {'oneOf': [
+                      {'properties': {'role': {'enum': [role]},
+                                      'details': {'properties': {f'{role}_info': {}}}}}
+                      for role in roles]}}}
+        self.set_camper(schema=schema, role='f', details={'f_info': 'x'})
+        self.assertNoTypo('{{ campers[0].attributes.details.a_info }}'
+                          '{{ campers[0].attributes.details.e_info }}')
+        self.assertTypo('{{ campers[0].attributes.details.g_info }}',
+                        "camper.attributes.details has no field 'g_info'",
+                        len('{{ campers[0].attributes.details.') + 1)
+
     def test_a_branch_may_allow_other_keys(self):
         self.set_camper(schema={**self.made.event.camper_schema,
                                 'allOf': [{'additionalProperties': True}]})

@@ -86,21 +86,28 @@ class SchemaWalker:
         found = {}
         for key, child in (schema.get('properties') or {}).items():
             found.setdefault(key, child)
+        # An object several branches give their own questions: every definition
+        # of it, combined in one flat allOf once all the branches are read.
+        objects = {}
         if depth < MAX_DEPTH:
             for branch in self.branches(schema):
                 for key, child in self.properties(branch, depth + 1).items():
-                    current = self.deref(found.get(key, {}))
-                    if key not in found or not (current.get('title') or current.get('type')):
+                    current = found.get(key)
+                    if current is not None and self.is_object(current) \
+                            and self.is_object(child):
+                        objects.setdefault(key, [current]).append(child)
+                        continue
+                    resolved = self.deref(current or {})
+                    if current is None or not (resolved.get('title') or resolved.get('type')):
                         # Prefer a definition that has a title/type over a bare
                         # branch discriminator like {"enum": [true]}.
                         found[key] = child
-                    elif self.is_object(current) and self.is_object(child):
-                        # An object each branch gives its own questions: all of them.
-                        found[key] = {
-                            **{k: current[k] for k in ('title', 'description', 'type')
-                               if k in current},
-                            'allOf': [found[key], child],
-                        }
+        for key, definitions in objects.items():
+            first = self.deref(definitions[0])
+            found[key] = {
+                **{k: first[k] for k in ('title', 'description', 'type') if k in first},
+                'allOf': definitions,
+            }
         return found
 
     def allows_other_keys(self, schema, depth=0):
