@@ -2046,9 +2046,10 @@ import data gives each report's category and description, so its reports arrive 
 - **Report category and description** — the admin sets a report's category by picking one of the
   event's existing categories or entering a new one, or leaves it empty. A changed category that
   matches another report's except for case or surrounding spaces is saved in that report's
-  spelling; an unchanged one is saved as it was, and a change of capitals alone is kept, so a
-  category can be respelt. The description is optional free text, saying what the report shows
-  and who it's for.
+  spelling; an unchanged one is saved as it was, and a change of only its capitals or spaces is
+  kept as typed, even when other reports share the category, so a category can be respelt (its
+  group takes the new spelling once its first report by title has it). The description is
+  optional free text, saying what the report shows and who it's for.
 - **Editing a report** — its title; its category and description; its variables source; output
   format (`csv` Jinja→CSV, `md` Jinja→Markdown, `txt` Jinja→Text, `html` Jinja→HTML, and — for
   the `client` source only — `hbs` Handlebars→Markdown); and the template body. Title must be non-empty — surface that error.
@@ -6581,8 +6582,9 @@ one URL, but its behaviour hinges on a header a link scanner or mail client sets
 surrounding spaces, and sorts both the categories and each group's reports by title, ignoring case,
 with the uncategorised reports last. The category is chosen from the event's existing ones or
 typed new. A changed one that is another report's in other capitals is saved in that report's
-spelling, so near-duplicates aren't started by accident; the report's own category isn't matched,
-so its capitals can still be changed. The reports API orders reports by title, ignoring case, and
+spelling, so near-duplicates aren't started by accident; a change of only the capitals or spaces
+of the report's own category is kept as typed, so a category can still be respelt, one report at a
+time. The reports API orders reports by title, ignoring case, and
 the client groups and sorts them again itself the same way. The event import format carries both
 fields, and the importer matches a report to the event's saved one by title, so importing again
 updates it (resetting what the data leaves out) rather than adding a copy.

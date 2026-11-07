@@ -1,7 +1,7 @@
 import type { ApiReport } from 'api-types';
 import { describe, expect, it } from 'vitest';
 
-import { canonicalCategory, groupReports, reportCategories } from '../reportGroups';
+import { canonicalCategory, categoryToSave, groupReports } from '../reportGroups';
 
 let nextId = 1;
 const report = (title: string, category = ''): ApiReport =>
@@ -41,23 +41,28 @@ describe('groupReports', () => {
   });
 });
 
-describe('reportCategories', () => {
-  it('lists each category once, in order, without the empty one', () => {
-    expect(
-      reportCategories([
-        report('a', 'Rooming'),
-        report('b'),
-        report('c', 'finance'),
-        report('d', 'rooming'),
-      ]),
-    ).toEqual(['finance', 'Rooming']);
-  });
-});
-
 describe('canonicalCategory', () => {
   it('trims, and spells an existing category its own way', () => {
     expect(canonicalCategory('  rooming ', ['Finance', 'Rooming'])).toBe('Rooming');
     expect(canonicalCategory(' Kitchen ', ['Finance'])).toBe('Kitchen');
     expect(canonicalCategory('   ', ['Finance'])).toBe('');
+  });
+});
+
+describe('categoryToSave', () => {
+  const existing = ['Finance', 'Rooming'];
+
+  it('leaves an unchanged category as it was', () => {
+    expect(categoryToSave(' Rooming', ' Rooming ', ['rooming'])).toBe(' Rooming ');
+  });
+
+  it('keeps a change of capitals, even of a category other reports share', () => {
+    expect(categoryToSave(' ROOMING ', 'Rooming', existing)).toBe('ROOMING');
+  });
+
+  it('spells a changed category as an existing one', () => {
+    expect(categoryToSave('finance', 'Rooming', existing)).toBe('Finance');
+    expect(categoryToSave('Kitchen ', 'Rooming', existing)).toBe('Kitchen');
+    expect(categoryToSave('', 'Rooming', existing)).toBe('');
   });
 });
