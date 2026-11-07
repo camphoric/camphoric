@@ -36,7 +36,7 @@ import { useEditLease } from 'hooks/useEditLease';
 import { useEffect, useMemo, useState } from 'react';
 import { reportHooks } from 'store/entities';
 
-import { canonicalCategory } from './reportGroups';
+import { categoryToSave } from './reportGroups';
 
 const SOURCE_OPTIONS: { value: ReportVariablesSource; label: string }[] = [
   { value: 'server', label: 'Camphoric variables (rendered on the server)' },
@@ -76,8 +76,8 @@ interface ReportEditFormProps {
   /** Omitted when creating a new report. */
   report?: ApiReport;
   /**
-   * The categories of the event's other reports: offered as the category's
-   * choices, and the spellings a changed category is matched to.
+   * The event's report categories: offered as the category's choices, and
+   * the spellings a changed category is matched to.
    */
   categories?: string[];
   /** The Template Help page, linked from the editor's help. */
@@ -231,12 +231,7 @@ export function ReportEditForm({
       : (JSON.parse(schemaText) as Hash);
     const fields = {
       title,
-      // Left as it was unless it was changed: a change of capitals alone is
-      // kept, so a category can be respelt.
-      category:
-        category.trim() === initial.category.trim()
-          ? initial.category
-          : canonicalCategory(category, categories),
+      category: categoryToSave(category, initial.category, categories),
       description,
       output,
       template,

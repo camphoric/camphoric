@@ -34,13 +34,6 @@ export function groupReports(reports: readonly ApiReport[]): ReportGroup[] {
   });
 }
 
-/** The categories the event's reports use, each once, in order. */
-export function reportCategories(reports: readonly ApiReport[]): string[] {
-  return groupReports(reports)
-    .map((group) => group.category)
-    .filter(Boolean);
-}
-
 /**
  * The category to save for what was typed: trimmed, and spelled as an
  * existing one when it's that one in other capitals, so a report joins its
@@ -50,4 +43,21 @@ export function canonicalCategory(typed: string, existing: readonly string[]): s
   const trimmed = typed.trim();
   const key = categoryKey(trimmed);
   return existing.find((category) => categoryKey(category) === key) ?? trimmed;
+}
+
+/**
+ * The category to save when `typed` replaces a report's `current` one: left
+ * as it was when unchanged; as typed when only its capitals or spaces changed,
+ * so a category can be respelt (even one other reports share); otherwise as
+ * `canonicalCategory` gives it.
+ */
+export function categoryToSave(
+  typed: string,
+  current: string,
+  existing: readonly string[],
+): string {
+  const trimmed = typed.trim();
+  if (trimmed === current.trim()) return current;
+  if (categoryKey(trimmed) === categoryKey(current)) return trimmed;
+  return canonicalCategory(trimmed, existing);
 }

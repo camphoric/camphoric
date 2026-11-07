@@ -82,7 +82,7 @@ describe('EventAdminReports', () => {
     expect(titlesIn('Uncategorised')).toEqual(['A', 'b']);
   });
 
-  it("shows the selected report's category and description, and offers the other reports' categories to its form", async () => {
+  it("shows the selected report's category and description, and offers the event's categories to its form", async () => {
     const user = userEvent.setup();
     reports.list = [
       report(3, 'Payments', 'Finance', 'For the treasurer'),
@@ -95,8 +95,7 @@ describe('EventAdminReports', () => {
     expect(screen.getByText('Finance — For the treasurer')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     expect(editForm).toHaveBeenCalledWith(
-      // Not its own, so a change of capitals isn't snapped back to it
-      expect.objectContaining({ categories: ['Rooming'] }),
+      expect.objectContaining({ categories: ['Finance', 'Rooming'] }),
     );
   });
 });

@@ -165,7 +165,8 @@ describe('ReportEditForm', () => {
       <ReportEditForm
         eventId="7"
         report={legacyReport}
-        categories={['Finance']}
+        // Its own category, which other reports share
+        categories={['Finance', 'Rooming']}
         onSaved={vi.fn()}
         onCancel={vi.fn()}
       />,
@@ -173,7 +174,7 @@ describe('ReportEditForm', () => {
 
     const category = screen.getByRole('combobox', { name: 'Category' });
     await user.clear(category);
-    await user.type(category, 'ROOMING');
+    await user.type(category, ' ROOMING ');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(update).toHaveBeenCalledWith({ id: 3, version: 4, category: 'ROOMING' });
   });

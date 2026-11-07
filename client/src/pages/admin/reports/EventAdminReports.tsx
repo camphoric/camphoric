@@ -22,7 +22,7 @@ import { reportHooks } from 'store/entities';
 
 import { RenderedReport } from './RenderedReport';
 import { ReportEditForm } from './ReportEditForm';
-import { groupReports, reportCategories } from './reportGroups';
+import { groupReports } from './reportGroups';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -45,12 +45,6 @@ export function EventAdminReports() {
   const found = reports?.find((r) => String(r.id) === reportId);
   const kept = useKeptRecord(mode === 'edit' ? reportId : undefined, found);
   const selected = found ?? kept.record;
-  // An edited report's own category isn't one to snap it to, so its
-  // capitals can be changed (§8.7).
-  const otherCategories = useMemo(
-    () => reportCategories((reports ?? []).filter((r) => r.id !== selected?.id)),
-    [reports, selected?.id],
-  );
   const helpHref = `/admin/organization/${organizationId}/event/${eventId}/template-help?context=report`;
 
   // Stay on the reports route and only update the URL-addressable selection;
@@ -160,7 +154,7 @@ export function EventAdminReports() {
               <ReportEditForm
                 eventId={eventId}
                 report={selected}
-                categories={otherCategories}
+                categories={categories}
                 helpHref={helpHref}
                 onDirtyChange={setFormDirty}
                 onSaved={() => setMode('view')}
