@@ -17,7 +17,8 @@
  */
 
 import { NumberInput, type NumberInputProps } from '@mantine/core';
-import { getSchemaType, type RJSFSchema, type WidgetProps } from '@rjsf/utils';
+import { SchemaExamples } from '@rjsf/core';
+import { examplesId, getSchemaType, type RJSFSchema, type WidgetProps } from '@rjsf/utils';
 
 import { WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
@@ -86,7 +87,7 @@ export function LimitedNumberInput({
   const { id, required, placeholder, disabled, error, value, options } = widgetCommon<
     number | string
   >(widgetProps);
-  const { onChange, onBlur, onFocus, htmlName } = widgetProps;
+  const { onChange, onBlur, onFocus, htmlName, schema } = widgetProps;
   const saved = typeof value === 'number' ? value : undefined;
 
   return (
@@ -94,6 +95,8 @@ export function LimitedNumberInput({
       <NumberInput
         id={id}
         name={htmlName || id}
+        // The schema's `examples`, offered as suggestions, as the theme's input did.
+        list={schema.examples ? examplesId(id) : undefined}
         required={required}
         disabled={disabled}
         placeholder={placeholder}
@@ -112,6 +115,7 @@ export function LimitedNumberInput({
         onBlur={() => onBlur(id, value)}
         onFocus={() => onFocus(id, value)}
       />
+      <SchemaExamples id={id} schema={schema} />
     </WidgetFrame>
   );
 }
