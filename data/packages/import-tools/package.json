@@ -1,7 +1,7 @@
 {
   "name": "@camphoric/camphoric-event-import-tools",
   "version": "2.2.0",
-  "description": "Camphoric REST client, login, the event importer (creator and organization loader), e2e scaffolding for an event's registration form, and the runner that posts generated registrations to an event.",
+  "description": "Camphoric REST client, API tokens, the event importer (creator and organization loader), e2e scaffolding for an event's registration form, and the runner that posts generated registrations to an event.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -82,7 +82,6 @@
   "dependencies": {
     "cli-progress": "^3.12.0",
     "dotenv": "^18.0.9",
-    "inquirer": "^14.2.5",
     "lodash": "^4.17.21",
     "ora": "^10.0.0"
   },

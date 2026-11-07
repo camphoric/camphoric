@@ -1,4 +1,4 @@
-import { getAuthToken } from './getAuthInfo.ts';
+import { assertLocalServer, authorization, getAuthToken, tokenRefusal } from './getAuthInfo.ts';
 
 // The same as the spec's FetchMethod and Saved (a test in the importer keeps
 // them so), kept here so these tools depend on no particular spec version.
@@ -29,8 +29,11 @@ export default class CamphoricFetcher {
   // The event being imported, when there is one (named in logs and errors)
   data?: { event: { name: string } };
 
-  constructor(url?: string) {
+  // `token`: the API token to use (default: CAMPHORIC_API_TOKEN's, see
+  // getAuthInfo.ts)
+  constructor(url?: string, token?: string) {
     this.urlBase = url || process.env.CAMPHORIC_URL || 'http://django:8000';
+    this.token = token;
 
     // remove trailing slash from urlBase
     if (this.urlBase.charAt(this.urlBase.length - 1) === '/') {
@@ -60,7 +63,7 @@ export default class CamphoricFetcher {
         response = await fetch(url, {
           method,
           headers: {
-            'Authorization': `Token ${token}`,
+            ...authorization(token),
             'Content-Type': 'application/json',
             credentials: 'same-origin',
           },
@@ -99,7 +102,7 @@ export default class CamphoricFetcher {
 
     if (response.status >= 400) {
       throw this.error(
-        `server responded ${response.status}`,
+        tokenRefusal(response.status, text) ?? `server responded ${response.status}`,
         {method, url, text, data},
       );
     }
@@ -150,9 +153,10 @@ export default class CamphoricFetcher {
   };
 
   async getAuthToken(): Promise<string> {
-    if (!this.token) {
-      this.token = await getAuthToken(this.urlBase);
-    }
+    // (Checked on every call, so a token given to the constructor can't reach
+    // a server the check refuses either)
+    assertLocalServer(this.urlBase);
+    this.token ??= await getAuthToken(this.urlBase);
 
     return this.token;
   }

@@ -24,6 +24,7 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 
 import Fetcher, { type Saved } from './CamphoricFetcher.ts';
+import { assertTokenAccepted, authorization } from './getAuthInfo.ts';
 
 // npm runs a workspace's script in that workspace, so read the .env from
 // where the command was run (INIT_CWD), such as data/.
@@ -161,10 +162,11 @@ class BulkRegistrar extends Fetcher {
       method: 'POST',
       // Signed in, so the server's throttle on anonymous registration steps (#801)
       // leaves a bulk run alone.
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${await this.getAuthToken()}` },
+      headers: { 'Content-Type': 'application/json', ...authorization(await this.getAuthToken()) },
       body: JSON.stringify(body),
     });
     const text = await res.text();
+    assertTokenAccepted(res.status, text);
     if (!res.ok) {
       throw new Error(`${body.step} step rejected (${res.status}): ${text.slice(0, 2000)}\nsent: ${JSON.stringify(body.formData ?? body)}`);
     }

@@ -1,11 +1,13 @@
 /**
  * What an organizer does in the admin, for an event's e2e tests: invitations
  * to register as a registration type, and the emails the server sent. It
- * uses the admin API (as the admin client does), signed in as the admin the
- * event was imported as, so tests don't drive the admin's own pages.
+ * uses the admin API (as the admin client does), with the API token the
+ * event was imported with, so tests don't drive the admin's own pages.
  */
 
 import { randomBytes } from 'node:crypto';
+
+import { assertTokenAccepted, authorization } from './getAuthInfo.ts';
 
 /** An invitation to register as one of the event's registration types. */
 export interface E2EInvitation {
@@ -162,12 +164,13 @@ export class CamphoricAdmin {
     const response = await fetch(url, {
       method,
       headers: {
-        'Authorization': `Token ${this.token}`,
+        ...authorization(this.token),
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await response.text();
+    assertTokenAccepted(response.status, text);
     if (!response.ok) throw new Error(`${method} ${url.pathname} answered ${response.status}: ${text}`);
     return (text ? JSON.parse(text) : undefined) as T;
   }

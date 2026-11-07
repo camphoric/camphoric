@@ -9,6 +9,7 @@
  */
 
 import lodash from 'lodash';
+import { assertTokenAccepted, authorization } from './getAuthInfo.ts';
 import type { OrganizationImport } from './types.ts';
 
 /** An organization as the server returned it, with its email account. */
@@ -63,34 +64,44 @@ export function organizationLoader(token: string, urlBase: string) {
   };
 }
 
+// A request to the API with the token, answering its JSON; `doing` names it
+// in the error when the server refuses it
+async function requestJson<T>(url: string, token: string, doing: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...authorization(token),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+
+  assertTokenAccepted(res.status, text);
+  if (!res.ok) {
+    throw new Error(`error ${doing}: ${text}`);
+  }
+
+  return JSON.parse(text) as T;
+}
+
 export async function loadOrganization(
   values: OrganizationImport,
   token: string,
   urlBase: string,
 ): Promise<Organization> {
-  const organizations = await fetch(`${urlBase}/api/organizations/`, {
-    headers: { 'Authorization': `Token ${token}` },
-  }).then(r => r.json() as Promise<Organization[]>);
+  const organizations = await requestJson<Organization[]>(
+    `${urlBase}/api/organizations/`, token, 'listing organizations',
+  );
 
   // create organization if not exists
   let org = organizations.find(o => o.name === values.organization.name);
   if (!org) {
     console.log(`Could not find '${values.organization.name}' organization, creating`);
 
-    const res = await fetch(`${urlBase}/api/organizations/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`,
-      },
-      body: JSON.stringify(values.organization),
-    });
-
-    if (!res.ok) {
-      throw new Error(`error creating organization: ${await res.text()}`);
-    }
-
-    org = await res.json() as Organization;
+    org = await requestJson<Organization>(
+      `${urlBase}/api/organizations/`, token, 'creating organization', values.organization,
+    );
 
     const { name } = org;
 
@@ -100,9 +111,9 @@ export async function loadOrganization(
   }
 
   // create email credentials if not exists
-  const emailAccounts = await fetch(`${urlBase}/api/emailaccounts/`, {
-    headers: { 'Authorization': `Token ${token}` },
-  }).then(r => r.json() as Promise<Record<string, unknown>[]>);
+  const emailAccounts = await requestJson<Record<string, unknown>[]>(
+    `${urlBase}/api/emailaccounts/`, token, 'listing email accounts',
+  );
   let acct = emailAccounts.find(a => a.organization === org.id);
   if (!acct) {
     const creds: Record<string, string | undefined> = {};
@@ -118,24 +129,11 @@ export async function loadOrganization(
       }
     });
 
-    const res = await fetch(`${urlBase}/api/emailaccounts/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`,
-      },
-      body: JSON.stringify({
-        organization: org.id,
-        ...values.emailAccount,
-        ...creds,
-      }),
+    acct = await requestJson<Record<string, unknown>>(`${urlBase}/api/emailaccounts/`, token, 'creating email account', {
+      organization: org.id,
+      ...values.emailAccount,
+      ...creds,
     });
-
-    if (!res.ok) {
-      throw new Error(`error creating email account: ${await res.text()}`);
-    }
-
-    acct = await res.json() as Record<string, unknown>;
   }
 
   org.email = acct;
