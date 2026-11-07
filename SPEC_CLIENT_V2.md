@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-156)
+- §15 — Decision Records (DR-1…DR-160)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1405,9 +1405,9 @@ hooks):
     with 401.
   - **Ending an app's access** (§15, DR-149), at once, its tokens and unused codes deleted: the
     person disconnects it (Connected apps, below), an Admin disconnects it for them or removes the
-    app (§8.10), the person is deactivated, or their password changes in any way (theirs, a
-    reset, a superuser's, the Django admin's or `manage.py changepassword`) — after which they
-    approve their apps again. Publishing a version of any organization's terms ends every app's
+    app (§8.10), the person is deactivated or deleted (§15, DR-160), or their password changes
+    in any way (theirs, a reset, a superuser's, the Django admin's or `manage.py
+    changepassword`) — after which they approve their apps again. Publishing a version of any organization's terms ends every app's
     access for everyone (§15, DR-151): the app's next call is refused with 401 and its refresh
     with `invalid_grant`, and connecting again asks for the new terms first.
   - **Connected apps.** Everyone can see the apps they've connected — what each may do, when they
@@ -1415,7 +1415,8 @@ hooks):
     actions.
   - Approving, disconnecting, and registering, changing, giving a new secret to or removing an
     app are in the audit log (§15, DR-53); the secret isn't. The Django admin shows apps and their
-    OAuth tokens and codes, and changes none of them.
+    OAuth tokens and codes, and changes none of them, though deleting a user there deletes
+    theirs (§15, DR-160).
 - A **401** on any admin request (query or mutation) means the session has lapsed. A global
   handler re-checks who is signed in — the same whoami check session monitoring uses (below) —
   and, when the session is gone, the admin asks the user to sign in again without navigating, so
@@ -6476,7 +6477,7 @@ refused, and authorization responses carry `iss` (RFC 9700, RFC 9207). Tokens ar
 stored only as SHA-256 checksums. Each approval is recorded as a connection, with its scopes and
 when it was approved and last used, for the person and Admins to see and end. The Django admin
 shows apps and tokens but can't add, change or delete them, so no app is made another way, and
-a token no person approved is refused. Sessions and `/api-token-auth/` (DR-131) are unchanged
+a token no person approved is refused (deleting a user there deletes theirs, DR-160). Sessions and `/api-token-auth/` (DR-131) are unchanged
 (the latter since replaced by personal access tokens, DR-157).
 **Context:** #964. The first app, lark-camp-admin-tool (a Laravel server app), signed in as one
 shared account with its password in a `.env`, and is to give each of its users their own
@@ -6799,6 +6800,23 @@ which is also how they agree to new terms before a script carries on.
 scope per token, like an app's — more to choose and explain, for scripts that are their user's
 own; read-only covers the case that matters (exports and reports). Refusing tokens everything
 but reads — the importer writes.
+
+### DR-160 — Deleting a user in the Django admin deletes their credentials
+**Decision:** A superuser deleting a user in the Django admin deletes, with them, their personal
+access tokens and their apps' OAuth tokens and codes, and the delete isn't refused for them. The
+Django admin may also delete a personal access token by itself, which revokes it; it still adds,
+changes and deletes no OAuth token, code or app by itself. An app a user's deletion would take
+with it still refuses the delete, and staff who aren't superusers are refused a user with apps as
+before.
+**Context:** Found reviewing #965. Django refuses a delete when an admin page forbids deleting
+any object that would go with it, and the token and code pages forbade every delete (DR-146), so
+a user who had connected an app, or made a token, couldn't be deleted there at all, not even by a
+superuser. A deleted user's credentials can't outlive them, so deleting them is the point, and the
+user's connections, which the audit log records, go with them.
+**Alternatives:** Letting the OAuth token and code pages delete — a token deleted alone would leave
+its connection behind, and ending an app's access belongs to camphoric.oauth (DR-149). Telling
+superusers to deactivate instead — deactivating is the usual answer, but deleting is sometimes
+wanted (a test account, a duplicate), and the refusal names no way round it.
 
 ---
 
