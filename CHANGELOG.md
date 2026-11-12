@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.18.0](https://github.com/camphoric/camphoric/compare/v0.17.0...v0.18.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** replace /api-token-auth/ with personal access tokens
+* **data:** POST /api-token-auth/ answers 410 and `Authorization: Token` is refused with 401; scripts need a personal access token. CAMPHORIC_API_TOKEN_TTL and rest_framework.authtoken are removed, and migration 0096 drops the old token table. The admin's user menu item "Connected apps" for a user is now "Apps and tokens".
+
+### Features
+
+* **admin:** list events newest open date first in the event chooser ([95564b5](https://github.com/camphoric/camphoric/commit/95564b586053e5cde03a44bf819354ac8278f8ab)), closes [#993](https://github.com/camphoric/camphoric/issues/993)
+* **api:** let an event define its own payment types, importable with the event ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc)), closes [#1002](https://github.com/camphoric/camphoric/issues/1002)
+* **api:** replace /api-token-auth/ with personal access tokens ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **client:** give number fields a widget that keeps to the schema's limits ([cf4a3b8](https://github.com/camphoric/camphoric/commit/cf4a3b84fa529d478ec892964b88d4a261962f46)), closes [#987](https://github.com/camphoric/camphoric/issues/987) [#988](https://github.com/camphoric/camphoric/issues/988)
+* **client:** manage personal access tokens from the account menu ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **client:** offer and label an event's own payment types when recording payments and refunds ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc))
+* **client:** put the event name and report category at the front of a downloaded report's file name ([4a18e5e](https://github.com/camphoric/camphoric/commit/4a18e5e91d10fd601081557f01e753168af52771)), closes [#1001](https://github.com/camphoric/camphoric/issues/1001)
+* **data:** import an event's payment types, with examples in Sample Camp ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc))
+* **data:** import with a minted token in CI, Ansible and Docker ([96196f6](https://github.com/camphoric/camphoric/commit/96196f6e42a78e3a9eb0641fe8b9b0552316c416))
+* **data:** match an imported report to the event's by title and update it ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb))
+* **reports:** sort reports by title and group them by category ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb)), closes [#992](https://github.com/camphoric/camphoric/issues/992)
+* **templating:** warn when a template reads a pricing or form field the event doesn't define ([cf4a3b8](https://github.com/camphoric/camphoric/commit/cf4a3b84fa529d478ec892964b88d4a261962f46)), closes [#994](https://github.com/camphoric/camphoric/issues/994)
+
+
+### Bug Fixes
+
+* **ansible:** give up a VM start-up migration that waits on a lock ([5c55122](https://github.com/camphoric/camphoric/commit/5c55122fec7b05a59d74215b7964bfe9e44732b8))
+* **ansible:** let the VM's server start when its migrations hang ([293c87d](https://github.com/camphoric/camphoric/commit/293c87da60e053a86e6971d4500c4f94cc619514))
+* **api:** keep malformed event payment types and moved payments in line ([5cbf37c](https://github.com/camphoric/camphoric/commit/5cbf37cc74bebfe82147535c41698f346a86ab35))
+* **api:** let a superuser delete a user with connected apps in the Django admin ([d2abeaf](https://github.com/camphoric/camphoric/commit/d2abeafb0daaddb4f068dec8836afde770bb671c))
+* **client:** count a phone field holding only its dial code as empty ([cf4a3b8](https://github.com/camphoric/camphoric/commit/cf4a3b84fa529d478ec892964b88d4a261962f46)), closes [#986](https://github.com/camphoric/camphoric/issues/986)
+* **client:** link each custom form widget's description for screen readers ([1ce5009](https://github.com/camphoric/camphoric/commit/1ce500937d94f19c7c3a9b594b072341d3100181))
+* **client:** offer a number field's examples and treat a pasted dial code as empty ([5efaa47](https://github.com/camphoric/camphoric/commit/5efaa474d5715e3e0fd76c99e17e9d0de79ae207))
+* **client:** replace C1 control characters in a downloaded report's file name too ([41c69dd](https://github.com/camphoric/camphoric/commit/41c69dd649c3a01534b1325ae9fc11c45fbe6552)), closes [#1001](https://github.com/camphoric/camphoric/issues/1001)
+* **client:** show payment types even from a malformed or repeating list ([5cbf37c](https://github.com/camphoric/camphoric/commit/5cbf37cc74bebfe82147535c41698f346a86ab35))
+* **dev:** have vagrant-doctor say the server is still starting, not that the VM is healthy ([5c55122](https://github.com/camphoric/camphoric/commit/5c55122fec7b05a59d74215b7964bfe9e44732b8))
+* **docs:** roll back a branch's migrations from that branch ([5c55122](https://github.com/camphoric/camphoric/commit/5c55122fec7b05a59d74215b7964bfe9e44732b8))
+* **docs:** say what migrating back from another branch actually unapplies ([8d3ce01](https://github.com/camphoric/camphoric/commit/8d3ce01c6df4d75695ff5a3278e35416e847ef2b))
+* **reports:** let a category shared by several reports be respelt ([2052d1c](https://github.com/camphoric/camphoric/commit/2052d1c164e6fd8e4bd6d53b7899fa27c13b438c))
+* **templating:** keep every branch's questions for an object several branches define ([5efaa47](https://github.com/camphoric/camphoric/commit/5efaa474d5715e3e0fd76c99e17e9d0de79ae207))
+* **templating:** make every CSV report cell formula-safe, filter or not ([72173d0](https://github.com/camphoric/camphoric/commit/72173d01506b478fefed75ad1e3486d4b959863e)), closes [#1004](https://github.com/camphoric/camphoric/issues/1004)
+* **templating:** stop CSV report cells from running as spreadsheet formulas ([530a4b1](https://github.com/camphoric/camphoric/commit/530a4b13f5cb533373a723a2d745fffad8641a71)), closes [#1004](https://github.com/camphoric/camphoric/issues/1004)
+
 ## [0.17.0](https://github.com/camphoric/camphoric/compare/v0.16.0...v0.17.0) (2026-11-06)
 
 
