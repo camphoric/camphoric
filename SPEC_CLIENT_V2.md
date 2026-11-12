@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-07
+**Last updated:** 2026-11-11
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-162)
+- §15 — Decision Records (DR-1…DR-163)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2573,6 +2573,11 @@ additive widgets are layered on (§15, DR-29):
   admin views then list the choices (e.g. attendance days) in a stable, meaningful order. It
   also shows the field's description (templated markdown) between the label and the
   checkboxes, which the base widget omits.
+
+Each custom widget shows its field's label, then its description, then the control. To
+assistive technology the description is the control's description (`aria-describedby`), along
+with its validation error, and a group of checkboxes is named by the field's label
+(`aria-labelledby`), so a screen reader reads each field's help and name (§15, DR-163).
 
 **Templates.** The base theme's templates render field layout, errors, help and objects (§15,
 DR-29). The custom templates are:
@@ -6886,6 +6891,24 @@ names, which misses names reached any other way.
 not a typo. A strict undefined that fails on a missing key — breaks templates that rely on blank
 output (DR-37). Checking template text against the event's names before rendering — can't follow
 a key reached through a variable, a loop or `[]`.
+
+### DR-163 — Custom widgets link their description through Mantine's input wrapper
+**Decision:** Each custom widget passes its Mantine input an `inputContainer` that renders the
+input inside a copy of Mantine's input-wrapper context with the field's description id added to
+`describedBy` (and, when the wrapper has no label of its own, the field's label id as `labelId`).
+Mantine then puts the description beside its own error in the control's `aria-describedby`, and
+names a checkbox group by the field's label in `aria-labelledby`.
+**Context:** The custom widgets show the field's label and templated-markdown description
+themselves, outside Mantine's input (DR-29, DR-161), because Mantine's own description is a
+plain-text `<p>`. So nothing linked the description to the control, and screen readers never
+read it; a checkbox group had no name either, since a `<label>` can't name a group. Found
+reviewing #1000, where number fields moved from the theme's input, which did link its
+plain-text description. Mantine sets `aria-describedby` on its input from that context, after
+the props passed in, so passing the attribute directly is overwritten.
+**Alternatives:** Passing `aria-describedby` to each input — Mantine overwrites it. Rendering the
+description through Mantine's own `description` slot as a `div` — a larger change to every
+widget's layout, and Mantine's checkbox group still wouldn't be named. Setting the attribute on
+the DOM after render — fragile, and fights Mantine's own updates.
 
 ---
 

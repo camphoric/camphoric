@@ -20,7 +20,7 @@ import { NumberInput, type NumberInputProps } from '@mantine/core';
 import { SchemaExamples } from '@rjsf/core';
 import { examplesId, getSchemaType, type RJSFSchema, type WidgetProps } from '@rjsf/utils';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
 /** The NumberInput settings a schema's limits call for. */
@@ -93,6 +93,7 @@ export function LimitedNumberInput({
   return (
     <WidgetFrame {...widgetProps}>
       <NumberInput
+        inputContainer={linkToFrame(widgetProps)}
         id={id}
         name={htmlName || id}
         // The schema's `examples`, offered as suggestions, as the theme's input did.

@@ -35,7 +35,7 @@ import {
   usePhoneInput,
 } from 'react-international-phone';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
 /**
@@ -108,6 +108,7 @@ export function PhoneInput(props: WidgetProps) {
         id={id}
         ref={inputRef}
         type="tel"
+        inputContainer={linkToFrame(props)}
         autoComplete="tel"
         required={required}
         error={error}

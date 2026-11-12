@@ -17,7 +17,7 @@ import { Widgets } from '@rjsf/mantine';
 import type { EnumOptionsType, WidgetProps } from '@rjsf/utils';
 import { enumOptionsIndexForValue, enumOptionsValueForIndex } from '@rjsf/utils';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 
 const BaseCheckboxes = Widgets.CheckboxesWidget;
 
@@ -34,11 +34,14 @@ export function CheckboxesWidget(props: WidgetProps) {
     <WidgetFrame {...props}>
       {/* The frame renders the label; a `ui:description` string would otherwise
           be forwarded to Mantine's Checkbox.Group as its `description` prop,
-          bypassing the template, so it is dropped here. */}
+          bypassing the template, so it is dropped here. Mantine's checkbox group
+          is named and described through its wrapper, so the frame's label and
+          description are linked there (passed on, as the base widget passes its
+          options). */}
       <BaseCheckboxes
         {...props}
         hideLabel
-        options={{ ...options, description: undefined }}
+        options={{ ...options, description: undefined, inputContainer: linkToFrame(props) }}
         onChange={(value: unknown) => onChange(inOptionOrder(value, options.enumOptions))}
       />
     </WidgetFrame>
