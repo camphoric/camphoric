@@ -227,11 +227,12 @@ class MyTokensApiTests(TokenTestCase):
              ('name', 'read_only', 'expires_at', 'last_used_at', 'created_via')},
             {'name': 'import', 'read_only': True, 'expires_at': '2026-11-08T12:00:00Z',
              'last_used_at': None, 'created_via': 'account'})
-        listed = self.client.get('/api/user/tokens').data
+        # The token lapses on 2026-11-08, so list and use it at the frozen time.
+        with freeze_time(NOW):
+            listed = self.client.get('/api/user/tokens').data
+            self.assertEqual(self.get(key).status_code, 200)
         self.assertEqual([token['id'] for token in listed], [response.data['id']])
         self.assertNotIn('token', listed[0])
-        with freeze_time(NOW):
-            self.assertEqual(self.get(key).status_code, 200)
 
     def test_never_must_be_chosen(self):
         response = self.client.post('/api/user/tokens', {'name': 'import'}, format='json')
