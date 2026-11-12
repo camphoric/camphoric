@@ -14,7 +14,7 @@
 import { Widgets } from '@rjsf/mantine';
 import type { WidgetProps } from '@rjsf/utils';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 
 const BaseSelect = Widgets.SelectWidget;
 
@@ -32,6 +32,8 @@ export function SelectWidget(props: WidgetProps) {
           clearable: !props.required,
           ...props.options,
           description: undefined,
+          // Passed on to Mantine's Select, as the base widget passes its options.
+          inputContainer: linkToFrame(props),
         }}
       />
     </WidgetFrame>

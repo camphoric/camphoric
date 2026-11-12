@@ -12,7 +12,7 @@
 import { DateInput } from '@mantine/dates';
 import type { WidgetProps } from '@rjsf/utils';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
 const DEFAULT_DISPLAY_FORMAT = 'MM/DD/YYYY';
@@ -25,6 +25,7 @@ export function DateWidget(props: WidgetProps) {
   return (
     <WidgetFrame {...props}>
       <DateInput
+        inputContainer={linkToFrame(props)}
         id={id}
         required={required}
         disabled={disabled}

@@ -9,7 +9,7 @@ import { Textarea } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
 import type { ChangeEvent } from 'react';
 
-import { WidgetFrame } from './WidgetFrame';
+import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
 export function TextareaWidget(props: WidgetProps) {
@@ -29,6 +29,7 @@ export function TextareaWidget(props: WidgetProps) {
   return (
     <WidgetFrame {...props}>
       <Textarea
+        inputContainer={linkToFrame(props)}
         id={id}
         required={required}
         disabled={disabled}

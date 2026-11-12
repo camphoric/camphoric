@@ -455,6 +455,24 @@ describe('custom widgets', () => {
     expect(onChange).toHaveBeenLastCalledWith({ days: ['Fri', 'Sat', 'Sun'] }, expect.anything());
   });
 
+  it("checkboxes are a group named by the field's label", () => {
+    const schema: RJSFSchema = {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'array',
+          title: 'Days',
+          uniqueItems: true,
+          items: { type: 'string', enum: ['Fri', 'Sat'] },
+        },
+      },
+    };
+    const uiSchema: UiSchema = { days: { 'ui:widget': 'checkboxes' } };
+    renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} />);
+
+    expect(screen.getByRole('group', { name: 'Days' })).toBeInTheDocument();
+  });
+
   it('checkboxes render the field description', () => {
     const schema: RJSFSchema = {
       type: 'object',
@@ -517,4 +535,50 @@ describe('custom widgets', () => {
       ).toBeTruthy();
     },
   );
+
+  const choices: RJSFSchema = {
+    type: 'array',
+    uniqueItems: true,
+    minItems: 1,
+    items: { type: 'string', enum: ['S', 'M'] },
+  };
+  /** Each widget, and the error it shows when left empty (an empty list isn't missing). */
+  const describedCases: [string, RJSFSchema, UiSchema, string][] = [
+    ...customWidgetCases.map(([name, field, ui]): [string, RJSFSchema, UiSchema, string] => [
+      name,
+      field,
+      ui,
+      'This field is required',
+    ]),
+    ['select', { type: 'string', enum: ['S', 'M'] }, {}, 'This field is required'],
+    ['a multiple select', choices, {}, 'Please choose at least 1'],
+    ['checkboxes', choices, { 'ui:widget': 'checkboxes' }, 'Please choose at least 1'],
+  ];
+  describe.each(describedCases)('%s', (_name, field, ui, errorMessage) => {
+    const schema = (required: string[] = []): RJSFSchema => ({
+      type: 'object',
+      required,
+      properties: { value: { ...field, title: 'Value', description: 'Help for **this** field.' } },
+    });
+
+    /** The control a screen reader announces for the field: its input, or the checkbox group. */
+    const control = () =>
+      screen.queryByRole('group', { name: /Value/ }) ?? screen.getByLabelText(/Value/);
+
+    it('names its description to screen readers', () => {
+      renderForm(<JsonSchemaForm schema={schema()} uiSchema={{ value: ui }} />);
+      expect(control()).toHaveAccessibleDescription('Help for this field.');
+    });
+
+    it('still names its error, after a failed submit', () => {
+      renderForm(<JsonSchemaForm schema={schema(['value'])} uiSchema={{ value: ui }} />);
+      // Submitted as an event: a click would stop at the browser's own check of
+      // the `required` attribute (jsdom runs it), before the form's validation.
+      fireEvent.submit(document.querySelector('form')!);
+      expect(control()).toHaveAccessibleDescription(expect.stringContaining(errorMessage));
+      expect(control()).toHaveAccessibleDescription(
+        expect.stringContaining('Help for this field.'),
+      );
+    });
+  });
 });
