@@ -22,14 +22,13 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import type { ApiInvoice, ApiPayment, PaymentType } from 'api-types';
+import type { ApiEvent, ApiInvoice, ApiPayment } from 'api-types';
 import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRecordPayment, useRefundPayPal } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
 import { formatMoney, roundMoney } from 'utils/money';
-
-const PAYMENT_TYPES: PaymentType[] = ['Check', 'PayPal', 'Card', 'Voucher'];
+import { paymentTypeOptions } from 'utils/paymentTypes';
 
 type Mode = 'paypal' | 'record';
 
@@ -45,12 +44,14 @@ export interface RefundModalProps {
   target: RefundTarget | null;
   /** The invoice's payments, to choose a PayPal one to refund from. */
   payments: ApiPayment[];
+  /** The event's payment types, for how the refund was made (§15, DR-164). */
+  event?: Partial<Pick<ApiEvent, 'payment_types' | 'payment_type_choices'>>;
   onClose: () => void;
 }
 
 const left = (p: ApiPayment) => roundMoney(Number(p.amount) - Number(p.refunded ?? 0));
 
-export function RefundModal({ target, payments, onClose }: RefundModalProps) {
+export function RefundModal({ target, payments, event, onClose }: RefundModalProps) {
   const refundPayPal = useRefundPayPal();
   const record = useRecordPayment();
 
@@ -62,7 +63,7 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | string>(0);
   const [reason, setReason] = useState('');
-  const [type, setType] = useState<PaymentType>('Check');
+  const [type, setType] = useState<string>('Check');
   const [paidOn, setPaidOn] = useState('');
   // One request id per payment while the dialog is open: a retry for the
   // same payment is answered with its first refund (PayPal-Request-Id), and
@@ -162,7 +163,7 @@ export function RefundModal({ target, payments, onClose }: RefundModalProps) {
           <>
             <Select
               label="Refunded by"
-              data={PAYMENT_TYPES}
+              data={paymentTypeOptions(event, target.payment?.payment_type)}
               value={type}
               onChange={(value) => setType(value ?? 'Check')}
               allowDeselect={false}

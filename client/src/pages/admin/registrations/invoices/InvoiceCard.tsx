@@ -13,9 +13,10 @@
 
 import { ActionIcon, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { IconArrowBackUp, IconCopy, IconMail, IconTrash } from '@tabler/icons-react';
-import type { ApiInvoice, ApiPayment, Hash, InvoiceOrigin } from 'api-types';
+import type { ApiEventPaymentType, ApiInvoice, ApiPayment, Hash, InvoiceOrigin } from 'api-types';
 import type { JSONSchema7 } from 'json-schema';
 import { formatMoney } from 'utils/money';
+import { paymentTypeLabel } from 'utils/paymentTypes';
 
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
@@ -43,10 +44,11 @@ const cellText = (attributes: Hash | null, key: string): string => {
 
 const isRefund = (p: ApiPayment) => Number(p.amount) < 0;
 
-export const paymentName = (p: ApiPayment) =>
+/** "Venmo payment of $20.00": its type as the event shows it (§15, DR-164). */
+export const paymentName = (p: ApiPayment, own?: ApiEventPaymentType[]) =>
   isRefund(p)
-    ? `${p.payment_type} refund of ${formatMoney(-Number(p.amount))}`
-    : `${p.payment_type} payment of ${formatMoney(p.amount)}`;
+    ? `${paymentTypeLabel(p.payment_type, own)} refund of ${formatMoney(-Number(p.amount))}`
+    : `${paymentTypeLabel(p.payment_type, own)} payment of ${formatMoney(p.amount)}`;
 
 /** Payments in order, each followed by its refunds; refunds of nothing listed here last. */
 function withRefunds(payments: ApiPayment[]): { payment: ApiPayment; nested: boolean }[] {
@@ -68,6 +70,8 @@ export interface InvoiceCardProps {
   /** Its live payments and refunds. */
   payments: ApiPayment[];
   paymentSchema?: JSONSchema7;
+  /** The event's own payment types, to show theirs by label (§15, DR-164). */
+  paymentTypes?: ApiEventPaymentType[];
   canEdit: boolean;
   canDelete: boolean;
   onEdit?: () => void;
@@ -90,6 +94,7 @@ export function InvoiceCard({
   invoice,
   payments,
   paymentSchema,
+  paymentTypes,
   canEdit,
   canDelete,
   onEdit,
@@ -132,7 +137,9 @@ export function InvoiceCard({
             </Group>
             <Text size="xs" c="dimmed">
               {originLabel(invoice)}
-              {invoice.payment_type ? ` · to be paid by ${invoice.payment_type}` : ''}
+              {invoice.payment_type
+                ? ` · to be paid by ${paymentTypeLabel(invoice.payment_type, paymentTypes)}`
+                : ''}
               {invoice.due_on ? ` · due ${invoice.due_on}` : ''}
             </Text>
           </Stack>
@@ -312,7 +319,9 @@ export function InvoiceCard({
               {withRefunds(payments).map(({ payment: p, nested }) => (
                 <Table.Tr key={p.id}>
                   <Table.Td pl={nested ? 'lg' : undefined}>
-                    {isRefund(p) ? `↳ Refund (${p.payment_type})` : p.payment_type}
+                    {isRefund(p)
+                      ? `↳ Refund (${paymentTypeLabel(p.payment_type, paymentTypes)})`
+                      : paymentTypeLabel(p.payment_type, paymentTypes)}
                   </Table.Td>
                   <Table.Td>{p.paid_on ?? '—'}</Table.Td>
                   <Table.Td>
@@ -335,7 +344,7 @@ export function InvoiceCard({
                           <Tooltip label="Refund">
                             <ActionIcon
                               variant="subtle"
-                              aria-label={`Refund the ${paymentName(p)}`}
+                              aria-label={`Refund the ${paymentName(p, paymentTypes)}`}
                               onClick={() => onRefund?.(p)}
                             >
                               <IconArrowBackUp size={16} />
@@ -347,7 +356,7 @@ export function InvoiceCard({
                             <ActionIcon
                               variant="subtle"
                               color="red"
-                              aria-label={`Delete the ${paymentName(p)}`}
+                              aria-label={`Delete the ${paymentName(p, paymentTypes)}`}
                               onClick={() => onDeletePayment?.(p)}
                             >
                               <IconTrash size={16} />

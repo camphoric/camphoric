@@ -105,7 +105,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       path: 'payments',
       id: p.id,
       title: Number(p.amount) < 0 ? 'Delete refund' : 'Delete payment',
-      message: <>Delete the {paymentName(p)}?</>,
+      message: <>Delete the {paymentName(p, event.payment_types)}?</>,
       onConfirm: () => deletePayment.mutate({ id: p.id, version: p.version }),
     });
 
@@ -178,6 +178,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
             invoice={invoice}
             payments={paymentsOf(invoice)}
             paymentSchema={event.payment_schema}
+            paymentTypes={event.payment_types}
             canEdit={canEdit}
             canDelete={canDeletePayments}
             onEdit={() => setEditing(invoice)}
@@ -214,7 +215,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
           {deleted.map((p) => (
             <Group key={p.id} justify="space-between" wrap="nowrap">
               <Text size="sm">
-                {paymentName(p)}
+                {paymentName(p, event.payment_types)}
                 {p.paid_on ? ` (paid ${p.paid_on})` : ''} — deleted{' '}
                 {new Date(p.deleted_at).toLocaleString()}
                 {p.deleted_by ? ` by ${p.deleted_by.name}` : ''}
@@ -259,6 +260,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       <RefundModal
         target={refunding}
         payments={refunding ? paymentsOf(refunding.invoice) : []}
+        event={event}
         onClose={() => setRefunding(null)}
       />
     </Stack>

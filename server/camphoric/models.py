@@ -62,6 +62,43 @@ class PaymentType(models.TextChoices):
     VOUCHER = 'Voucher', 'Discount or Gifted Credit'
 
 
+# Paid online, through PayPal: only when the event takes payments online.
+ONLINE_PAYMENT_TYPES = (PaymentType.PAYPAL, PaymentType.CARD)
+
+
+def payment_type_label(value, event=None):
+    '''
+    How a payment type reads: a built-in type's label, else the event's label
+    for one of its own types, else the stored value (a type the event no longer
+    defines still shows, SPEC DR-164).
+    '''
+    if value in PaymentType.values:
+        return PaymentType(value).label
+    for entry in own_payment_types(event):
+        if entry['value'] == value:
+            return entry['label']
+    return value
+
+
+def own_payment_types(event):
+    '''
+    An event's own payment types, each {value, label}. The events API keeps
+    them well formed; one saved some other way (the Django admin takes any
+    JSON) is read leniently: an entry with no string value is skipped, and one
+    with no label is labelled by its value.
+    '''
+    types = event.payment_types if event is not None else None
+    if not isinstance(types, list):
+        return []
+    return [
+        {'value': entry['value'],
+         'label': entry['label'] if isinstance(entry.get('label'), str) and entry['label']
+         else entry['value']}
+        for entry in types
+        if isinstance(entry, dict) and isinstance(entry.get('value'), str) and entry['value']
+    ]
+
+
 class ReportOutputType(models.TextChoices):
     HTML = 'html', 'Jinja to HTML'
     MARKDOWN = 'md', 'Jinja to Markdown'
@@ -293,6 +330,11 @@ class Event(TimeStampedModel):
         help_text="JsonLogic Registration-level pricing components")
 
     paypal_enabled = models.BooleanField(default=True)
+    # The event's own offline payment types, beyond the built-in ones (SPEC
+    # §9.7, DR-164): [{"value": stored on the payment, "label": shown}].
+    payment_types = CustomJSONField(
+        default=list, blank=True,
+        help_text='The event\'s own offline payment types: [{"value": …, "label": …}]')
     epayment_handling = models.DecimalField(
             null=True,
             max_digits=4,
@@ -355,6 +397,28 @@ class Event(TimeStampedModel):
         if self.paypal_enabled:
             return [PaymentType.CHECK, PaymentType.PAYPAL, PaymentType.CARD]
         return [PaymentType.CHECK]
+
+    @property
+    def payment_type_choices(self):
+        '''
+        What a payment can be recorded as, in order (SPEC §9.7, DR-164): Check,
+        PayPal and Card while the event takes payments online, Voucher, then
+        the event's own types, each {value, label, online}.
+        '''
+        built_in = [PaymentType.CHECK]
+        if self.paypal_enabled:
+            built_in += ONLINE_PAYMENT_TYPES
+        built_in.append(PaymentType.VOUCHER)
+        return [
+            *({'value': t.value, 'label': t.label, 'online': t in ONLINE_PAYMENT_TYPES}
+              for t in built_in),
+            *({**entry, 'online': False} for entry in own_payment_types(self)),
+        ]
+
+    def accepts_payment_type(self, value):
+        '''Whether a payment of this event can be recorded as `value` (DR-164).'''
+        return value in PaymentType.values or any(
+            entry['value'] == value for entry in own_payment_types(self))
 
 
 class RegistrationType(TimeStampedModel):
@@ -903,8 +967,8 @@ class Invoice(TimeStampedModel):
         max_digits=7, decimal_places=2, default=Decimal('0.00'),
         help_text='E-payment handling: adds to what is owed')
     # How the payer chose to pay it; each payment keeps how it was actually paid.
-    payment_type = models.CharField(
-        max_length=255, null=True, blank=True, choices=PaymentType.choices)
+    # A built-in PaymentType or one of the event's own (DR-164).
+    payment_type = models.CharField(max_length=255, null=True, blank=True)
     token = models.CharField(max_length=64, unique=True, default=invoice_token, editable=False)
     due_on = models.DateField(null=True, blank=True)
     memo = models.TextField(blank=True, default='', help_text='Shown to the payer')
@@ -988,11 +1052,10 @@ class Payment(TimeStampedModel):
     # Every payment belongs to an invoice (SPEC DR-87); an invoice with
     # payments can't be deleted.
     invoice = models.ForeignKey(Invoice, on_delete=models.RESTRICT, related_name='payments')
-    payment_type = models.CharField(
-        max_length=255,
-        default=PaymentType.CHECK,
-        choices=PaymentType.choices,
-    )
+    # A built-in PaymentType or one of the event's own (SPEC DR-164): checked
+    # against the event when it's recorded (PaymentSerializer), not here, so
+    # one whose type the event has since dropped still loads.
+    payment_type = models.CharField(max_length=255, default=PaymentType.CHECK)
     # Deleting a deposit leaves its payments (SPEC DR-54).
     deposit = models.ForeignKey(Deposit, on_delete=models.SET_NULL, null=True)
     paid_on = models.DateField(null=True)
@@ -1016,7 +1079,7 @@ class Payment(TimeStampedModel):
 
     def __str__(self):
         kind = 'refund' if self.is_refund else 'payment'
-        return "{} {} ${}".format(self.get_payment_type_display(), kind, abs(self.amount))
+        return "{} {} ${}".format(payment_type_label(self.payment_type), kind, abs(self.amount))
 
     @property
     def is_refund(self):

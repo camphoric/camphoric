@@ -14,6 +14,10 @@ fixed.
   one invoice; an invoice can hold several payments and refunds.
 - **Payment** — money received (`amount > 0`) or given back (`amount < 0`, a **refund**), on an
   invoice.
+- **Payment type** — how a payment was made. The built-in types are Check, PayPal, Card and
+  Voucher; PayPal and Card are the *online* types (`invoices.ONLINE_TYPES`), offered only while
+  the event's `paypal_enabled` is on. An event may add its own offline types (`Event.payment_types`,
+  e.g. Cash or Venmo), which an admin records by hand (SPEC §9.7, DR-164).
 - **Payment option** — one of the event's deposit choices ("Full Payment", "50% Deposit"),
   worked out by the server into an amount.
 - **Handling fee** — the event's `epayment_handling` percent, charged on an invoice's amount when
@@ -80,7 +84,7 @@ erDiagram
     }
     PAYMENT {
         decimal amount "negative: a refund"
-        string payment_type "Check | PayPal | Card | Voucher"
+        string payment_type "Check | PayPal | Card | Voucher | one of the event's own"
         string paypal_transaction_id "capture or refund id; unique"
         string refund_request_id "a PayPal refund's request id"
         json paypal_response
@@ -527,6 +531,14 @@ flowchart TD
   invoice is cancelled (not "$200 due"); restore it and the invoice reopens.
 - A payment saved any other way (Django admin, a shell) without an invoice gets one the same way
   (`Payment.save`).
+- **Its type is checked against its event** (SPEC §9.7, DR-164; `PaymentSerializer.validate_type`).
+  A payment is a built-in type (Check, PayPal, Card, Voucher) or one of the event's own
+  `payment_types`, matched exactly; anything else is a 400. The database doesn't restrict the
+  column, so a payment whose type the event has since dropped still loads, keeps that type
+  through an edit, and can be refunded as it; the screens show it as the stored value. The
+  admin's choices come from the event's `payment_type_choices`: Check, PayPal and Card while
+  PayPal is enabled, Voucher, then the event's own types. The event's own types never start a
+  PayPal order and aren't offered during registration.
 - **Editing a payment can't contradict what already happened to it** (#767,
   `PaymentSerializer.validate_edit`): its amount can't go below what its refunds gave back, a
   refunded payment can't move to another invoice, and a refund can't be detached from or moved to
@@ -744,15 +756,20 @@ flowchart LR
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
   `refund-paypal`), and `InvoicePayView`, the public pay page's API.
-- `serializers.py` — `InvoiceSerializer`, `PaymentSerializer`, the registration's ledger fields.
+- `serializers.py` — `InvoiceSerializer`, `PaymentSerializer` (`validate_type`: the payment
+  type against its event), `EventSerializer` (`payment_types`, `payment_type_choices`), the
+  registration's ledger fields.
 - `models.py` — `Invoice`, `Payment` (`invoice`, `refund_of`, `paypal_transaction_id`,
-  `refund_request_id`), the registration's `completed_at` and `confirmation_sent_at`.
+  `refund_request_id`), the registration's `completed_at` and `confirmation_sent_at`;
+  `PaymentType`, `ONLINE_PAYMENT_TYPES`, `payment_type_label`, and the event's `payment_types`,
+  `payment_type_choices` and `accepts_payment_type`.
 - `templating/graph.py`, `templating/registry.py` — the template variables;
   `templating/emails.py` `render_invoice_email` and `templating/urls.py` `invoice_pay_url`.
 - `migrations/0075`–`0077` — the schema, the conversion, and the clean-up; `0078` — the invoice
   email template; `0084` — the invoice's `paypal_capture_order_id` and
   `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`; `0086` — the
-  invoice's `paypal_capture_pending_at` and `paypal_order_fee`.
+  invoice's `paypal_capture_pending_at` and `paypal_order_fee`; `0097` — the event's
+  `payment_types`, and payment types no longer restricted to the built-in choices.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
@@ -760,7 +777,8 @@ flowchart LR
 - `pages/register/storage.ts` — the saved payment step.
 - `store/registrationApi.ts` — the register steps, `paymentProblem` and `registrationNotFound`.
 - `pages/admin/registrations/invoices/` — the admin's ledger, invoices, payments and refunds;
-  `store/invoices.ts` — their actions; `NewInvoiceModal.tsx` — making an invoice.
+  `store/invoices.ts` — their actions; `NewInvoiceModal.tsx` — making an invoice;
+  `utils/paymentTypes.ts` — how payment types read and which can be chosen.
 - `pages/invoice/` — the public pay page (`InvoicePayPage`, `InvoiceSummary`);
   `store/invoicePay.ts` — its API.
 - `store/augmented.ts` — the server's ledger under the older report names.

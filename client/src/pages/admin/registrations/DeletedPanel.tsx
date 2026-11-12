@@ -19,9 +19,10 @@ import {
   useDeletedRegistrations,
   useRestore,
 } from 'store/deletes';
-import { registrationHooks } from 'store/entities';
+import { eventHooks, registrationHooks } from 'store/entities';
 import { camperName } from 'utils/camper';
 import { formatMoney } from 'utils/money';
+import { paymentTypeLabel } from 'utils/paymentTypes';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -31,11 +32,14 @@ export function DeletedPanel() {
   const campers = useDeletedCampers(eventId);
   const payments = useDeletedPayments({ event: eventId });
   const { data: live } = registrationHooks.useList({ event: eventId });
+  const { data: event } = eventHooks.useById(eventId);
 
   if (!registrations.data || !campers.data || !payments.data) return <InlineLoading />;
 
   const emailOf = Object.fromEntries((live ?? []).map((r) => [String(r.id), r.registrant_email]));
   const registrationOf = (id: Scalar) => emailOf[String(id)] ?? `#${id}`;
+  // The event's own payment types show by their labels (§15, DR-164).
+  const typeOf = (value: string) => paymentTypeLabel(value, event?.payment_types);
 
   return (
     <Stack gap="lg">
@@ -77,9 +81,9 @@ export function DeletedPanel() {
         headings={['Payment', 'Registration']}
         rows={payments.data.map((p) => ({
           id: p.id,
-          name: `the ${p.payment_type} payment of ${formatMoney(p.amount)}`,
+          name: `the ${typeOf(p.payment_type)} payment of ${formatMoney(p.amount)}`,
           cells: [
-            `${p.payment_type} ${formatMoney(p.amount)}${p.paid_on ? `, paid ${p.paid_on}` : ''}`,
+            `${typeOf(p.payment_type)} ${formatMoney(p.amount)}${p.paid_on ? `, paid ${p.paid_on}` : ''}`,
             registrationOf(p.registration),
           ],
           deleted_at: p.deleted_at,

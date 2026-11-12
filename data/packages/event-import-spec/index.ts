@@ -219,6 +219,23 @@ export const PromoCodeSchema = Type.Object({
   additionalProperties: false,
 });
 
+/**
+ * One of the event's own payment types (SPEC §9.7, DR-164): an offline way of
+ * being paid, such as Cash or Venmo, that an admin records by hand, offered
+ * alongside the built-in Check, Voucher, PayPal and Card. Its value is what a
+ * payment stores; no two of the event's may share one, nor may one be a
+ * built-in type's (whatever its case).
+ */
+export const PaymentTypeSchema = Type.Object({
+  value: line('what a payment of this type stores, e.g. Venmo', { minLength: 1, pattern: '\\S' }),
+  label: line('how the type is shown, e.g. Venmo (@lark-camp)', { minLength: 1, pattern: '\\S' }),
+}, {
+  additionalProperties: false,
+});
+
+/** The built-in payment types: the event's own can't reuse their values. */
+export const BUILT_IN_PAYMENT_TYPES = ['Check', 'PayPal', 'Card', 'Voucher'] as const;
+
 export const EventImportSchema = Type.Object({
   organization: Type.Union([Type.Number(), Type.String()], {
     description: 'the name or ID for the organization that this should be attached to',
@@ -245,6 +262,9 @@ export const EventImportSchema = Type.Object({
     registration_pricing_logic: opt(pricingLogic('JSON logic for registration charges outside of individual campers')),
     camper_pricing_logic: opt(pricingLogic('JSON logic for individual camper')),
     paypal_enabled: opt(bool('whether to enable paypal payments')),
+    payment_types: opt(Type.Array(PaymentTypeSchema, {
+      description: 'the event\'s own offline payment types, offered alongside the built-in ones when an admin records a payment',
+    })),
     paypal_client_id: opt(str('paypal api client id', { maxLength: 200 })),
     epayment_handling: opt(str('a percent added to each electronic payment, on the amount paid', { maxLength: 6 })),
     pre_submit_template: opt(text('Handlebars template, rendered right before registration submit button')),
@@ -312,6 +332,7 @@ export type RegistrationType = EventImport['registration_types'][number];
 export type CustomChargeType = NonNullable<EventImport['custom_charge_types']>[number];
 export type GroupEmail = Static<typeof GroupEmailSchema>;
 export type PromoCode = Static<typeof PromoCodeSchema>;
+export type PaymentType = Static<typeof PaymentTypeSchema>;
 
 export default EventImportSchema;
 

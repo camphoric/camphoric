@@ -43,6 +43,27 @@ vi.mock('store/invoices', () => ({
 
 const event = { payment_schema: {} } as unknown as ApiEvent;
 
+// An event with its own payment types and PayPal turned off (§15, DR-164).
+const venmoEvent = {
+  payment_schema: {},
+  payment_types: [{ value: 'Venmo', label: 'Venmo (@camp)' }],
+  payment_type_choices: [
+    { value: 'Check', label: 'Check', online: false },
+    { value: 'Voucher', label: 'Discount or Gifted Credit', online: false },
+    { value: 'Venmo', label: 'Venmo (@camp)', online: false },
+  ],
+} as unknown as ApiEvent;
+
+const chooseOption = async (
+  user: ReturnType<typeof userEvent.setup>,
+  field: string,
+  label: string,
+) => {
+  await user.click(screen.getByRole('combobox', { name: field }));
+  // The dropdown is still mid-transition in jsdom, so its options count as hidden.
+  await user.click(screen.getByRole('option', { name: label, hidden: true }));
+};
+
 beforeEach(() => {
   update.mockClear();
   record.mockClear();
@@ -187,6 +208,31 @@ describe('RecordPaymentModal', () => {
       expect.anything(),
     );
   });
+
+  it('offers the event’s own payment types, by their labels', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RecordPaymentModal
+        event={venmoEvent}
+        registrationId={5}
+        invoices={[OPEN]}
+        opened
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
+    expect(
+      screen.getAllByRole('option', { hidden: true }).map((option) => option.textContent),
+    ).toEqual(expect.arrayContaining(['Check', 'Voucher', 'Venmo (@camp)']));
+    // PayPal is off: no online types.
+    expect(screen.queryByRole('option', { name: 'PayPal', hidden: true })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Venmo (@camp)', hidden: true }));
+    await user.click(screen.getByRole('button', { name: 'Record payment' }));
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_type: 'Venmo' }),
+      expect.anything(),
+    );
+  });
 });
 
 describe('RefundModal', () => {
@@ -295,6 +341,27 @@ describe('RefundModal', () => {
     await user.click(screen.getByRole('button', { name: 'Record refund' }));
     expect(record).toHaveBeenCalledWith(
       expect.objectContaining({ invoice: 1, refund_of: 12, amount: -100, payment_type: 'Check' }),
+      expect.anything(),
+    );
+  });
+
+  it('can be recorded the way a payment was made, after the event dropped that type', async () => {
+    const user = userEvent.setup();
+    const zelle = payment({ id: 13, invoice: 1, payment_type: 'Zelle', amount: '40.00' });
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: TWO_CHECKS, payment: zelle, amount: 40 }}
+        payments={[...TWO_CHECKS_PAYMENTS, zelle]}
+        event={venmoEvent}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Refunded by' })).toHaveValue('Zelle');
+    await chooseOption(user, 'Refunded by', 'Venmo (@camp)');
+    await chooseOption(user, 'Refunded by', 'Zelle');
+    await user.click(screen.getByRole('button', { name: 'Record refund' }));
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ refund_of: 13, amount: -40, payment_type: 'Zelle' }),
       expect.anything(),
     );
   });
