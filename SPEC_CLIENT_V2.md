@@ -2167,7 +2167,8 @@ import data gives each report's category and description, so its reports arrive 
   `/api/reports/{id}/render` (§5): `server` reports post `{}`, and legacy reports post the
   variable bundle, which is assembled only when a legacy (or Handlebars) report is shown. The
   returned string is shown per format:
-  - **CSV** → parsed (`d3-dsv`) and shown as a table with a row count; downloadable.
+  - **CSV** → parsed (`d3-dsv`) and shown as a table with a row count; downloadable. A cell the
+    server made formula-safe (§9.3) shows its leading `'` here too.
   - **Markdown** → run through the markdown→HTML pipeline; downloadable.
   - **HTML** → shown in a sandboxed frame that runs no scripts; downloadable.
   - **Text** → shown as preformatted text; downloadable.
@@ -2761,6 +2762,14 @@ example and its result.
   render sandboxed, with the report time limit. The time limit is checked at every call, loop turn
   and branch of the template and of the filters it uses, in whichever thread renders it (§15,
   DR-111).
+- **CSV cells can't run as formulas** — a cell whose text starts with `=`, `+`, `-`, `@`, a tab
+  or a carriage return (or with these after a byte-order mark) gets a `'` in front, so a form
+  answer opens as text in a spreadsheet; a signed number a spreadsheet reads as one — plain, a
+  percentage, or with currency signs before or after (`-25`, `-10%`, `-25 €`, the `money`
+  filter's `-$25.00`) — is left alone. The `csv` and `csv_row` filters do this for each value, and every CSV report's output —
+  `server` and legacy, the rendered report and the editor's preview alike — is checked again
+  cell by cell, so a value the template wrote without the filters (`{{ name }}`, or
+  `"{{ name }}"` in its own quotes) is covered too. Only those cells change (§15, DR-165).
 - **Diagnostics** — a render never fails with a traceback: syntax errors, undefined values,
   sandbox refusals, timeouts and the output cap come back as `TemplateDiagnostic`s (§5) with
   their line (and column where known). Using a field that a Camphoric type doesn't have (a typo
@@ -6961,6 +6970,29 @@ endpoint and import step for what is two strings per type, and its rows would ne
 to keep old payments' labels. Keeping DB-level `choices` and adding types to them — choices are
 global, not per event. Showing the built-in types by their long server labels ("Debit or Credit
 Card") — changes every existing invoice screen for no gain.
+
+### DR-165 — CSV reports put a `'` before cells that would run as formulas
+**Decision:** CSV report output is made formula-safe on the server (OWASP CSV Injection): the
+`csv` filter prefixes `'` to text starting with `=`, `+`, `-`, `@`, a tab or a carriage return,
+and after a CSV report renders, its output is scanned as CSV and the same `'` is put inside any
+cell that still starts that way. Every other character of the output is kept. Signed numbers a
+spreadsheet reads as numbers (plain, percentages, currency signs before or after) are left
+alone; a "number" with letters (`-CHF 25.00`) gets the prefix, since a spreadsheet doesn't read
+it as a number and some are cell references (`-US$25` is cell US25). The scan splits cells on
+commas and line breaks, as the reports are written; a reader that splits a report on `;` or tabs
+instead (some locales' spreadsheets) sees cells the scan doesn't. The client shows the cells as
+they come, `'` included.
+**Context:** CSV reports hold text registrants type on the public form, and a value like
+`=HYPERLINK(…)` ran as a live formula in the admin's spreadsheet (#1004). The filter alone
+wasn't enough: report templates, the samples included, write answers raw (`"{{ name }}"`), and
+a `"` in such a value can break out into a cell of its own.
+**Alternatives:** Only the filter — misses every raw `{{ }}`. A Jinja `finalize` that escapes each
+output — it can't tell whether the value sits inside the template's own quotes, so it can't
+quote correctly. Re-serialising the parsed CSV — changes every report's quoting. Quoting values
+that contain `;` — protects only a cell that starts its line, since in a comma-separated report a
+`"` part-way through a `;`-split cell isn't an opening quote. Stripping the
+leading `'` in the client's table — the downloaded file would still need it, and the table
+would then differ from the file.
 
 ---
 

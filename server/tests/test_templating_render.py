@@ -253,25 +253,82 @@ class FilterTests(TestCase):
                 '"\'=HYPERLINK(""https://example.com/?x=""&B2,""Click"")"',
             '-': "'-",
             '-$': "'-$",
+            '-2 + 3': "'-2 + 3",
+            # A symbol with letters isn't read as a number, and may be a reference (cell US25).
             '-CHF 25.00': "'-CHF 25.00",
+            '-US$25.00': "'-US$25.00",
+            '-A$1': "'-A$1",
+            '-$(25)': "'-$(25)",
+            '-10% off': "'-10% off",
+            '-25 x': "'-25 x",
             '+1 (555) 123-4567': "'+1 (555) 123-4567",
         }
         for value, cell in cases.items():
             with self.subTest(value=value):
                 self.assertEqual(filters.csv_cell(value), cell)
         self.assertEqual(filters.csv_row(['Ann', '=1+1']), "Ann,'=1+1")
+        # A byte-order mark, which a spreadsheet drops at the start of a file, doesn't hide it.
+        self.assertEqual(filters.csv_cell('\ufeff=1+1'), "'\ufeff=1+1")
         self.assertEqual(filters.csv_cell('a=b'), 'a=b')
 
     def test_csv_leaves_numbers_alone(self):
         '''Negative numbers and `money` amounts (a refund is "-$25.00") stay numbers.'''
         for value in [-25, '-25', '-25.00', Decimal('-25.00'), -2.5, '+25', '-.5', '-1e5',
-                      '-€25.00', filters.money(-25), filters.money(-25, symbol='£')]:
+                      '-€25.00', filters.money(-25), filters.money(-25, symbol='£'),
+                      '-10%', '-25 €', '-25€', '+1.5%']:
             with self.subTest(value=value):
                 self.assertEqual(filters.csv_cell(value), str(value))
         self.assertEqual(filters.csv_cell(filters.money(-25)), '-$25.00')
         # A thousands comma still needs CSV quoting, but no formula prefix.
         self.assertEqual(filters.csv_cell(filters.money(-1234.5)), '"-$1,234.50"')
         self.assertEqual(filters.csv_row(['Refund', filters.money(-25)]), 'Refund,-$25.00')
+
+    def test_guard_csv_formulas(self):
+        '''A whole CSV report's formula cells made safe, however the template wrote them.'''
+        guard = filters.guard_csv_formulas
+        cases = {
+            # Raw values, with and without the template's own quotes.
+            '=1+1,Ann\n': "'=1+1,Ann\n",
+            'Ann,"=1+1"\n': 'Ann,"\'=1+1"\n',
+            'a,@SUM(A1),+x,-y': "a,'@SUM(A1),'+x,'-y",
+            '\tx,y': "'\tx,y",
+            '"\r=1"': '"\'\r=1"',
+            # CRLF lines, empty cells, and an unclosed quote running to the end.
+            'a\r\n=b\r\n,=c': "a\r\n'=b\r\n,'=c",
+            '"=open': '"\'=open',
+            # A value breaking out of hand-written quotes: its extra cell is still made safe.
+            '"x",=HYPERLINK("http://e/?"&B2),""\n': '"x",\'=HYPERLINK("http://e/?"&B2),""\n',
+            # Text after a closing quote is part of the cell.
+            '"-2"+3,b': '"\'-2"+3,b',
+            '\ufeff=1+1,b': "'\ufeff=1+1,b",
+        }
+        for text, safe in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(guard(text), safe)
+        # Left exactly as written: numbers, money, cells already made safe, ordinary text.
+        unchanged = [
+            '',
+            'Last name,First name\n"Lee","Pat",-25,"-$1,234.50",-$25.00,-10%\n',
+            '\'=1+1,"\'=2"',
+            'a=b,"x ""=y"""\n',
+            'Total: -5',
+            '"a\n=b"',
+        ]
+        for text in unchanged:
+            with self.subTest(text=text):
+                self.assertEqual(guard(text), text)
+        # Idempotent, and agrees with the csv filter.
+        row = filters.csv_row(['=1+1', '-25', 'a,b', '@x'])
+        self.assertEqual(guard(row), row)
+        self.assertEqual(guard(guard('=1,=2')), "'=1,'=2")
+
+    def test_csv_reports_render_guarded(self):
+        source = '{{ v }},"{{ v }}",{{ v | csv }}'
+        context = {'v': '=1+1'}
+        self.assertEqual(render_template(source, context, fmt='csv').output,
+                         '\'=1+1,"\'=1+1",\'=1+1')
+        self.assertEqual(render_template(source, context).output, '=1+1,"=1+1",\'=1+1')
+        self.assertEqual(render_template('{{ v }}', {'v': -25}, fmt='csv').output, '-25')
 
 
 class EventDataTypoTests(TestCase):

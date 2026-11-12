@@ -72,7 +72,8 @@ from camphoric.templating.pages import (
     FALLBACK_PAGE, page_failure_report, render_confirmation_page)
 from camphoric.templating.env import LEGACY_REPORT_ENV
 from camphoric.templating.graph import build_event_graph
-from camphoric.templating.render import REPORT_LIMITS, render_template
+from camphoric.templating.filters import guard_csv_formulas
+from camphoric.templating.render import REPORT_LIMITS, render_template, report_format
 from camphoric.templating.urls import public_base
 from camphoric.throttles import LOGIN_THROTTLES
 
@@ -2947,8 +2948,7 @@ class RenderReportView(APIView):
         if report.variables_source == models.ReportVariablesSource.SERVER:
             graph = build_event_graph(report.event, request=request)
             result = render_template(
-                report.template, report_context(graph),
-                fmt='html' if report.output == models.ReportOutputType.HTML else 'text')
+                report.template, report_context(graph), fmt=report_format(report.output))
             return Response({
                 'report': result.output if result.ok else '',
                 'error': result.error,
@@ -2963,6 +2963,8 @@ class RenderReportView(APIView):
             deadline.watch(template)
             with deadline.time_limit(REPORT_LIMITS.timeout_s):
                 output = template.render(**request.data)
+            if report.output == models.ReportOutputType.CSV:
+                output = guard_csv_formulas(output)
         except deadline.RenderTimeout:
             error = (f'The report took longer than {REPORT_LIMITS.timeout_s} seconds '
                      'and was stopped.')

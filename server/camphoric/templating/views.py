@@ -30,7 +30,7 @@ from .checks import check_event_templates
 from .describe import describe
 from .emails import render_jinja_email
 from .graph import build_event_graph
-from .render import PREVIEW_LIMITS, render_template
+from .render import PREVIEW_LIMITS, render_template, report_format
 
 OUTPUTS = ('csv', 'md', 'txt', 'html', 'email')
 
@@ -172,8 +172,7 @@ class TemplatePreviewView(APIView):
                 'duration_ms': int((time.monotonic() - started) * 1000),
             }
         else:
-            body = render_template(template, context,
-                                   fmt='html' if output == 'html' else 'text',
+            body = render_template(template, context, fmt=report_format(output),
                                    limits=PREVIEW_LIMITS)
             response = body.as_dict()
         kind, obj = sample if sample else (None, None)

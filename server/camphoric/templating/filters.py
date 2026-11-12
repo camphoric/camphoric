@@ -85,15 +85,33 @@ def _text(value):
 # A leading character that makes a spreadsheet read a cell as a formula (OWASP CSV Injection).
 _FORMULA_START = ('=', '+', '-', '@', '\t', '\r')
 
-# A signed plain or currency number: sign, currency symbol(s), digits with optional thousands
-# commas and decimals, optional exponent — e.g. "-25", "-25.00", "+1.5e3" or the `money`
-# filter's "-$25.00".
-_NUMBER = re.compile(r'[+-](?P<symbol>[^\d.,]*)(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
+# A signed number a spreadsheet reads as one: sign, currency signs, digits with optional
+# thousands commas and decimals, optional exponent, then optionally a % or currency signs (after
+# one space at most) — e.g. "-25", "-25.00", "+1.5e3", "-10%", "-25 €" or the `money` filter's
+# "-$25.00". Only currency signs (Unicode Sc) count as a symbol: with letters a spreadsheet
+# doesn't read a number anyway, and some are cell references ("-US$25" is cell US25).
+_NUMBER = re.compile(
+    r'[+-](?P<symbol>[^\d.,]*)(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
+    r'(?: ?(?P<suffix>[^\d\s.,]+))?'
+)
+
+
+def _is_currency(chars):
+    return all(unicodedata.category(ch) == 'Sc' for ch in chars)
 
 
 def _is_number(text):
     match = _NUMBER.fullmatch(text)
-    return bool(match) and all(unicodedata.category(ch) == 'Sc' for ch in match['symbol'])
+    if not match or not _is_currency(match['symbol']):
+        return False
+    suffix = match['suffix'] or ''
+    return suffix == '%' or _is_currency(suffix)
+
+
+def _runs_as_formula(text):
+    # A byte-order mark is dropped by the spreadsheet when the file starts with it, so look past it.
+    text = text.lstrip('﻿')
+    return text.startswith(_FORMULA_START) and not _is_number(text)
 
 
 def csv_cell(value):
@@ -103,7 +121,7 @@ def csv_cell(value):
     first, so it opens as text; a number such as "-25" or "-$25.00" is left alone.
     '''
     text = _text(value)
-    if text.startswith(_FORMULA_START) and not _is_number(text):
+    if _runs_as_formula(text):
         text = "'" + text
     if any(ch in text for ch in ',"\r\n') or text != text.strip():
         return '"' + text.replace('"', '""') + '"'
@@ -113,6 +131,57 @@ def csv_cell(value):
 def csv_row(values):
     '''A CSV line from a list of values, each made safe by `csv_cell`.'''
     return ','.join(csv_cell(value) for value in values)
+
+
+_FIELD_END = re.compile(r'[,\r\n]')
+
+
+def guard_csv_formulas(text):
+    '''
+    Rendered CSV with a `'` put before every cell a spreadsheet would run as a formula — what
+    `csv_cell` does, applied to a whole CSV report, so a value the template wrote without `csv`
+    (`{{ name }}`, or `"{{ name }}"` in its own quotes) is safe too. Only those cells change;
+    every other character is kept. A cell already made safe (it starts with `'`) is left alone.
+    '''
+    inserts = []  # where a `'` goes
+    start = 0  # where the current field begins
+    size = len(text)
+    while True:
+        if text.startswith('"', start):
+            # A quoted field: up to the closing quote ("" is a quote inside it), then whatever
+            # follows before the next comma or line break, which a spreadsheet appends.
+            close = start + 1
+            while True:
+                close = text.find('"', close)
+                if close < 0 or not text.startswith('"', close + 1):
+                    break
+                close += 2
+            if close < 0:
+                close = size
+            found = _FIELD_END.search(text, min(close + 1, size))
+            end = found.start() if found else size
+            value = text[start + 1:close].replace('""', '"') + text[close + 1:end]
+            value_at = start + 1
+        else:
+            found = _FIELD_END.search(text, start)
+            end = found.start() if found else size
+            value = text[start:end]
+            value_at = start
+        if _runs_as_formula(value):
+            inserts.append(value_at)
+        if end >= size:
+            break
+        start = end + (2 if text.startswith('\r\n', end) else 1)
+    if not inserts:
+        return text
+    pieces = []
+    last = 0
+    for at in inserts:
+        pieces.append(text[last:at])
+        pieces.append("'")
+        last = at
+    pieces.append(text[last:])
+    return ''.join(pieces)
 
 
 def md_cell(value):
