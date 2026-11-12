@@ -49,6 +49,7 @@ VM_DIR=${VBOX_FILE%/*}
 LOG="$VM_DIR/Logs/VBox.log"
 
 problems=0
+starting=false
 vboxmanage_hung=false
 orphan=false
 saved=false
@@ -98,8 +99,9 @@ if [ "$state" = "running" ]; then
         if [ "$services" = "active active " ]; then
             ok "camphoric and camphoric-worker services are active"
         elif [ "$services" = "activating active " ]; then
-            # It applies pending migrations before the server starts (up to 4 minutes).
-            warn "camphoric is still starting (applying any pending migrations); check again in a minute"
+            # It applies pending migrations before the server starts: not broken, not ready.
+            warn "camphoric is still starting (applying any pending migrations)"
+            starting=true
         else
             warn "service status (camphoric, camphoric-worker): ${services:-no answer}"
             echo "        check the logs with: vagrant ssh -c 'journalctl -u camphoric -n 50'"
@@ -124,6 +126,11 @@ if [ "$state" = "running" ]; then
 fi
 
 echo
+if [ $problems -eq 0 ] && $starting; then
+    echo "The VM is fine, but its server is still starting. Run ./vagrant-doctor again in a"
+    echo "minute, or follow it with: vagrant ssh -c 'journalctl -f -u camphoric'"
+    exit 1
+fi
 if [ $problems -eq 0 ]; then
     echo "The VM looks healthy."
     exit 0

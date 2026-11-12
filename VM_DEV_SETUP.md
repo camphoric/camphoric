@@ -263,19 +263,22 @@ doesn't migrate. To migrate while the VM is running, restart the service:
 vagrant ssh default -c 'sudo systemctl restart camphoric'
 ```
 
-If a migration fails, or is still running after 4 minutes (waiting on a lock held by an
-open `psql` session, say), the server starts anyway, and `journalctl -u camphoric` shows
-why; run the migrations with `ansible/migrate.yml` (see `vagrant-command-help`) once the
-cause is fixed. A VM provisioned before this was added doesn't migrate on start until you
-run `vagrant provision` once.
+If a migration fails, the server starts anyway, and `journalctl -u camphoric` shows why.
+That includes a migration that waits more than 30 seconds for a table another session
+has locked (an open `psql` transaction, say): it gives up and rolls back. Restart the
+service to try again once the cause is fixed. A slow migration holds the server back
+until it finishes; meanwhile `./vagrant-doctor` reports the server as still starting. A
+VM provisioned before this was added doesn't migrate on start until you run
+`vagrant provision` once.
 
 The VM runs whatever branch your checkout has, so it applies that branch's migrations,
 just as the Docker `django` service does. Roll a feature branch's migrations back as the
 last step before switching away from it: a boot or restart while it's still checked out
-applies them again. Once you've switched, Django can't unapply them, because their files
-are no longer in the checkout (`migrate camphoric <earlier>` says "No migrations to
-apply"); put each file back for the rollback with `git show <branch>:<path> > <path>`,
-then delete it again.
+applies them again. If you've already switched, switch back to the feature branch, roll
+them back there, and switch again. From another branch, Django can't unapply them
+(`migrate camphoric <earlier>` says "No migrations to apply", since their files aren't in
+the checkout), and copying the files back in fails whenever that branch has newer
+migrations of its own ("Conflicting migrations detected").
 
 
 Rebuilding the VM
