@@ -6,7 +6,8 @@
  *   - md   → the markdown pipeline → sanitized HTML (with a download).
  *   - html → a sandboxed frame (with a download).
  *   - txt  → preformatted text (with a download).
- * Each of these can also be printed by itself, without the admin page around
+ * A download is named for the event, the report's category and its title
+ * (./reportFileName). Each of these can also be printed by itself, without the admin page around
  * it, from a standalone document with print styles (./printDocument).
  *
  * The output scrolls on its own, both ways, so a wide or long report doesn't
@@ -27,11 +28,13 @@ import { TemplateDiagnostics } from 'components/TemplateEditor';
 import { markdownToHtml, RenderedMarkdown, Template } from 'components/templating';
 import { useReportTemplateVars } from 'hooks/useReportData';
 import type { ReactNode } from 'react';
+import { eventHooks } from 'store/entities';
 import { useRenderedReport, useServerRenderedReport } from 'store/reportRender';
 import { downloadTextFile } from 'utils/download';
 import { printHtml } from 'utils/print';
 
 import { type PrintableOutput, reportPrintDocument } from './printDocument';
+import { reportFileName } from './reportFileName';
 
 const MIME: Record<string, string> = {
   csv: 'text/csv',
@@ -62,7 +65,14 @@ interface RenderedReportProps {
   eventId: string;
 }
 
-function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedReport }) {
+interface ReportOutputProps {
+  report: ApiReport;
+  data: ApiRenderedReport;
+  /** The event's name, for the download's file name; undefined until it loads. */
+  eventName: string | undefined;
+}
+
+function ReportOutput({ report, data, eventName }: ReportOutputProps) {
   // Only the server-rendered formats reach here; Handlebars renders in the page.
   const format = report.output as PrintableOutput;
   const diagnostics = data.diagnostics ?? [];
@@ -92,7 +102,11 @@ function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedRe
           variant="light"
           leftSection={<IconDownload size={16} />}
           onClick={() =>
-            downloadTextFile(output, MIME[report.output], `${report.title}.${report.output}`)
+            downloadTextFile(
+              output,
+              MIME[report.output],
+              reportFileName(eventName, report.category, report.title, report.output),
+            )
           }
         >
           Download {report.output.toUpperCase()}
@@ -117,17 +131,24 @@ function ReportOutput({ report, data }: { report: ApiReport; data: ApiRenderedRe
   );
 }
 
-function ServerReport({ report }: { report: ApiReport }) {
+/** The event's name; the admin pages already have the event loaded. */
+function useEventName(eventId: string): string | undefined {
+  return eventHooks.useById(eventId).data?.name;
+}
+
+function ServerReport({ report, eventId }: RenderedReportProps) {
+  const eventName = useEventName(eventId);
   const { data, isLoading } = useServerRenderedReport(report);
   if (isLoading || !data) return <InlineLoading message="Rendering report…" />;
-  return <ReportOutput report={report} data={data} />;
+  return <ReportOutput report={report} data={data} eventName={eventName} />;
 }
 
 function LegacyReport({ report, eventId }: RenderedReportProps) {
+  const eventName = useEventName(eventId);
   const templateVars = useReportTemplateVars(eventId);
   const { data, isLoading } = useRenderedReport(report, templateVars);
   if (isLoading || !data) return <InlineLoading message="Rendering report…" />;
-  return <ReportOutput report={report} data={data} />;
+  return <ReportOutput report={report} data={data} eventName={eventName} />;
 }
 
 function HandlebarsReport({ report, eventId }: RenderedReportProps) {
@@ -141,6 +162,7 @@ function HandlebarsReport({ report, eventId }: RenderedReportProps) {
 
 export function RenderedReport({ report, eventId }: RenderedReportProps) {
   if (report.output === 'hbs') return <HandlebarsReport report={report} eventId={eventId} />;
-  if (report.variables_source === 'server') return <ServerReport report={report} />;
+  if (report.variables_source === 'server')
+    return <ServerReport report={report} eventId={eventId} />;
   return <LegacyReport report={report} eventId={eventId} />;
 }
