@@ -84,19 +84,26 @@ def own_payment_types(event):
     '''
     An event's own payment types, each {value, label}. The events API keeps
     them well formed; one saved some other way (the Django admin takes any
-    JSON) is read leniently: an entry with no string value is skipped, and one
-    with no label is labelled by its value.
+    JSON) is read leniently: an entry with no string value is skipped, as is
+    one whose value is a built-in type's or repeats an earlier one's (ignoring
+    case), and one with no label is labelled by its value.
     '''
     types = event.payment_types if event is not None else None
     if not isinstance(types, list):
         return []
-    return [
-        {'value': entry['value'],
-         'label': entry['label'] if isinstance(entry.get('label'), str) and entry['label']
-         else entry['value']}
-        for entry in types
-        if isinstance(entry, dict) and isinstance(entry.get('value'), str) and entry['value']
-    ]
+    seen = {value.casefold() for value in PaymentType.values}
+    own = []
+    for entry in types:
+        if not (isinstance(entry, dict) and isinstance(entry.get('value'), str)
+                and entry['value']):
+            continue
+        value = entry['value']
+        if value.casefold() in seen:
+            continue
+        seen.add(value.casefold())
+        label = entry.get('label')
+        own.append({'value': value, 'label': label if isinstance(label, str) and label else value})
+    return own
 
 
 class ReportOutputType(models.TextChoices):

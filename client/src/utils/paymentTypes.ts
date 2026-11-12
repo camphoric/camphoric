@@ -11,7 +11,7 @@ export const BUILT_IN_PAYMENT_TYPES: PaymentType[] = ['Check', 'PayPal', 'Card',
 
 /** How a stored payment type reads, given the event's own types. */
 export const paymentTypeLabel = (value: string, own?: ApiEventPaymentType[]) =>
-  own?.find((t) => t.value === value)?.label ?? value;
+  (Array.isArray(own) ? own : []).find((t) => t?.value === value)?.label ?? value;
 
 /**
  * The types a payment can be recorded as, for a choice: the event's
@@ -26,6 +26,10 @@ export function paymentTypeOptions(
   const values: string[] = event?.payment_type_choices?.map((c) => c.value) ?? [
     ...BUILT_IN_PAYMENT_TYPES,
   ];
-  if (keep && !values.includes(keep)) values.push(keep);
-  return values.map((value) => ({ value, label: paymentTypeLabel(value, event?.payment_types) }));
+  if (keep) values.push(keep);
+  // Each once: a choice list can't repeat a value.
+  return [...new Set(values)].map((value) => ({
+    value,
+    label: paymentTypeLabel(value, event?.payment_types),
+  }));
 }
