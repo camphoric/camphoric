@@ -250,6 +250,29 @@ vagrant provision --provision-with own-node-modules
 ```
 
 
+Database migrations
+-------------------
+
+The Django server in the VM applies any pending migrations each time it starts: when the
+VM boots (`vagrant up` from halted, or `vagrant reload`), after a `vagrant provision`,
+and on `sudo systemctl restart camphoric`. A VM resumed from a saved state (on an Intel
+Mac, or with `CAMPHORIC_VAGRANT_KEEP_SAVED_STATE` set) doesn't restart the server, so it
+doesn't migrate. To migrate while the VM is running, restart the service:
+
+```
+vagrant ssh default -c 'sudo systemctl restart camphoric'
+```
+
+If a migration fails, the server starts anyway, and `journalctl -u camphoric` shows why.
+A VM provisioned before this was added doesn't migrate on start until you run
+`vagrant provision` once.
+
+The VM runs whatever branch your checkout has, so it applies that branch's migrations,
+just as the Docker `django` service does. Roll a feature branch's migrations back after
+switching away from it, not only before: a boot or restart while it was still checked out
+applies them again.
+
+
 Rebuilding the VM
 -----------------
 
