@@ -654,12 +654,25 @@ test.describe('Lodging timeline', () => {
     const inara = page.getByRole('button', { name: 'Inara Serra' });
     await expect(inara).toHaveCount(1);
 
-    // Drag her onto Off Site's row (where Kaylee Frye's bar is).
+    // Drag her onto Off Site's row (where Kaylee Frye's bar is). dnd-kit scrolls the
+    // timeline while the pointer is held near or past its edge, which moves the target
+    // under the pointer before the drop (#1008): on a phone, Kaylee's bar starts off
+    // screen. So centre her bar in the timeline first, away from the edges; start the
+    // drag (past its 5px activation distance) and wait for it; then jump straight to
+    // the bar in one move, so the pointer never stops near an edge.
+    const kayleeBar = page.getByRole('button', { name: 'Kaylee Frye' });
+    await kayleeBar.evaluate((el: { scrollIntoView(options: object): void }) => {
+      el.scrollIntoView({ block: 'nearest', inline: 'center' });
+    });
     const from = (await inara.boundingBox())!;
-    const to = (await page.getByRole('button', { name: 'Kaylee Frye' }).boundingBox())!;
+    const to = (await kayleeBar.boundingBox())!;
     await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
     await page.mouse.down();
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2);
+    await expect(inara).toHaveCSS('opacity', '0.4'); // dnd-kit has started the drag
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2);
+    // Nothing scrolled the bar away from under the pointer.
+    expect(await kayleeBar.boundingBox()).toEqual(to);
     await page.mouse.up();
 
     await expect(sidebar).toHaveText('Unassigned (3)');
