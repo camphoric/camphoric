@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RenderedReport } from '../RenderedReport';
 
-const { server, legacy, templateVars, printHtml } = vi.hoisted(() => ({
+const { server, legacy, templateVars, printHtml, downloadTextFile, eventById } = vi.hoisted(() => ({
   server: vi.fn(),
   legacy: vi.fn(),
   templateVars: vi.fn(),
   printHtml: vi.fn(),
+  downloadTextFile: vi.fn(),
+  eventById: vi.fn(),
 }));
 
 vi.mock('store/reportRender', () => ({
@@ -18,6 +20,8 @@ vi.mock('store/reportRender', () => ({
 }));
 vi.mock('hooks/useReportData', () => ({ useReportTemplateVars: templateVars }));
 vi.mock('utils/print', () => ({ printHtml }));
+vi.mock('utils/download', () => ({ downloadTextFile }));
+vi.mock('store/entities', () => ({ eventHooks: { useById: eventById } }));
 
 const report = (overrides: Partial<ApiReport>) =>
   ({
@@ -40,6 +44,9 @@ beforeEach(() => {
   legacy.mockReset();
   templateVars.mockReset();
   printHtml.mockReset();
+  downloadTextFile.mockReset();
+  eventById.mockReset();
+  eventById.mockReturnValue({ data: { id: 7, name: 'Lark Camp 2026' } });
 });
 
 describe('RenderedReport', () => {
@@ -74,6 +81,38 @@ describe('RenderedReport', () => {
     expect(title).toBe('Roster');
     expect(html).toMatch(/^<!doctype html>/);
     expect(html).toContain('<td>Pat</td>');
+  });
+
+  it('names the download for the event, the category and the title', async () => {
+    server.mockReturnValue(rendered({ report: 'Name\nPat\n', error: null, diagnostics: [] }));
+    renderWithProviders(
+      <RenderedReport report={report({ category: 'Staff', title: 'Cabins 1/2' })} eventId="7" />,
+    );
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Download CSV' }));
+
+    expect(eventById).toHaveBeenCalledWith('7');
+    expect(downloadTextFile).toHaveBeenCalledWith(
+      'Name\nPat\n',
+      'text/csv',
+      'Lark Camp 2026, Staff, Cabins 1-2.csv',
+    );
+  });
+
+  it('leaves an uncategorised legacy report’s category out of the download’s name', async () => {
+    templateVars.mockReturnValue({ campers: [] });
+    legacy.mockReturnValue(rendered({ report: 'plain text', error: null }));
+    renderWithProviders(
+      <RenderedReport report={report({ variables_source: 'client', output: 'txt' })} eventId="7" />,
+    );
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Download TXT' }));
+
+    expect(downloadTextFile).toHaveBeenCalledWith(
+      'plain text',
+      'text/plain',
+      'Lark Camp 2026, Roster.txt',
+    );
   });
 
   it('shows a server report’s problems with their lines', () => {

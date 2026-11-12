@@ -2165,6 +2165,13 @@ import data gives each report's category and description, so its reports arrive 
   - **Markdown** → run through the markdown→HTML pipeline; downloadable.
   - **HTML** → shown in a sandboxed frame that runs no scripts; downloadable.
   - **Text** → shown as preformatted text; downloadable.
+  - A download is saved as `<event name>, <category>, <report title>.<format>`, the format
+    being the report's `output` (`csv`, `md`, `html`, `txt`) — for example
+    `Lark Camp 2026, Staff, Crew, Office, Camp 1.csv`. A blank part is left out with no empty
+    segment, so an uncategorised report (blank `category`) is saved as
+    `<event name>, <report title>.<format>`. In each part, the characters `/ \ : * ? " < > |`
+    and control characters are replaced with `-` and runs of whitespace become one space, so a
+    report titled `Cabins 1/2` is saved as `…, Cabins 1-2.csv`.
   - **Handlebars** (`hbs`) → rendered **client-side** through the template engine (Handlebars +
     markdown pipeline) using the variable bundle.
   - A `server` report's problems are listed with their template line and column (warnings, such
