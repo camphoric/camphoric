@@ -21,7 +21,8 @@ Run the data reset part of the provisioner
 Run the data reset part of the provisioner without npm
   ANSIBLE_ARGS='--tags camphoric_data_reset --skip-tags npm' vagrant provision
 
-Run pending database migrations (and nothing else)
+Run pending database migrations (the django server also runs them
+whenever it starts, so restarting the camphoric service does it too)
   ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ansible/migrate.yml \\
     -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory \\
     --vault-password-file ansible/.ansible-vault-pw

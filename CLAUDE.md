@@ -76,7 +76,9 @@ When a change adds or alters a Django migration, apply it to both local dev data
 stay in step:
 
 - **Vagrant VM:** `ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ansible/migrate.yml -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory --vault-password-file ansible/.ansible-vault-pw`
-  (see `vagrant-command-help`).
+  (see `vagrant-command-help`). The VM's Django service also migrates whenever it starts (a
+  boot, not a resume from a saved state), so `vagrant ssh default -c 'sudo systemctl restart
+  camphoric'` does it too. It applies the checked-out branch's migrations on every start.
 - **Docker:** `docker compose exec django ./manage.py migrate` (restarting the `django` service
   also migrates, since it runs `migrate` on start).
 
