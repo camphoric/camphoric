@@ -35,6 +35,14 @@ describe('paymentTypeLabel', () => {
     expect(paymentTypeLabel('Zelle', own)).toBe('Zelle');
     expect(paymentTypeLabel('Zelle')).toBe('Zelle');
   });
+
+  it('reads a malformed list of the event’s types as none', () => {
+    const malformed = { not: 'a list' } as unknown as typeof own;
+    expect(paymentTypeLabel('Venmo', malformed)).toBe('Venmo');
+    expect(paymentTypeLabel('Venmo', [null, ...own] as unknown as typeof own)).toBe(
+      'Venmo (@camp)',
+    );
+  });
 });
 
 describe('paymentTypeOptions', () => {
@@ -56,6 +64,11 @@ describe('paymentTypeOptions', () => {
       'PayPal',
     ]);
     expect(paymentTypeOptions(event, 'Cash')).toHaveLength(4);
+  });
+
+  it('offers each type once', () => {
+    const repeated = { ...event, payment_type_choices: [choice('Check'), choice('Check')] };
+    expect(paymentTypeOptions(repeated).map((o) => o.value)).toEqual(['Check']);
   });
 
   it('offers every built-in type without the event’s list', () => {

@@ -148,6 +148,13 @@ class EventSerializer(ModelSerializer):
     def get_payment_type_choices(self, event):
         return event.payment_type_choices
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # As read leniently (DR-164): one saved through the Django admin may
+        # not be what the events API would have taken.
+        data['payment_types'] = models.own_payment_types(instance)
+        return data
+
     def validate_payment_types(self, types):
         '''
         The event's own payment types (DR-164): a list of {value, label}, each
@@ -769,7 +776,12 @@ class PaymentSerializer(ModelSerializer):
                     {'amount': f'You can refund up to ${limit:.2f} of that payment.'})
         if instance is not None:
             self.validate_edit(instance, data, amount)
-        self.validate_type(data.get('payment_type'), registration.event, instance, refund_of)
+        payment_type = data.get('payment_type')
+        if payment_type is None and instance is not None \
+                and instance.registration.event_id != registration.event_id:
+            # Moved to another event's registration: what it has must suit that event too.
+            payment_type = instance.payment_type
+        self.validate_type(payment_type, registration.event, instance, refund_of)
         if amount < 0 and invoice is None:
             raise ValidationError({'invoice': 'A refund must name its invoice.'})
         moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
@@ -800,12 +812,14 @@ class PaymentSerializer(ModelSerializer):
         '''
         A payment is recorded as a built-in type or one of its event's own
         (SPEC §9.7, DR-164). One the event has since dropped stays allowed
-        where it's already in use: unchanged on an edit (the edit form sends
-        every field back), or on a refund of a payment recorded as it.
+        where it's already in use: unchanged on an edit that keeps the payment
+        in its event (the edit form sends every field back), or on a refund of
+        a payment recorded as it.
         '''
         if payment_type is None or event.accepts_payment_type(payment_type):
             return
-        if payment is not None and payment_type == payment.payment_type:
+        if payment is not None and payment_type == payment.payment_type \
+                and payment.registration.event_id == event.id:
             return
         if refund_of is not None and payment_type == refund_of.payment_type:
             return

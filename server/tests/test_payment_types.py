@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from camphoric import models, roles
-from tests.factories import create_template_event, make_user
+from tests.factories import create_template_event, make_user, registration_invoice
 
 VENMO = {'value': 'Venmo', 'label': 'Venmo (@camp)'}
 CASH = {'value': 'Cash', 'label': 'Cash'}
@@ -184,10 +184,35 @@ class RecordingAnEventTypeTests(APITestCase):
         self.client.force_authenticate(User.objects.create_superuser('su', 'su@example.com', 'pw'))
         self.assertEqual(self.client.get('/api/events/').status_code, 200)
         self.record(payment_type='Venmo')
+        listed = self.client.get(f'/api/events/{event.id}/').data
+        self.assertEqual(listed['payment_types'], [{'value': 'Venmo', 'label': 'Venmo'}])
+        # A built-in type's value, or one listed twice, is offered once.
+        event.payment_types = [{'value': 'check', 'label': 'Cheque'}, VENMO,
+                               {'value': 'VENMO', 'label': 'Again'}, None]
+        event.save()
+        listed = self.client.get(f'/api/events/{event.id}/').data
+        self.assertEqual(listed['payment_types'], [VENMO])
+        self.assertEqual([c['value'] for c in listed['payment_type_choices']],
+                         ['Check', 'PayPal', 'Card', 'Voucher', 'Venmo'])
+        self.assertEqual(models.payment_type_label('check', event), 'check')
         event.payment_types = {'not': 'a list'}
         event.save()
         self.assertEqual(self.client.get(f'/api/events/{event.id}/').status_code, 200)
         self.record(400, payment_type='Venmo')
+
+    def test_moving_a_payment_to_another_events_registration(self):
+        data = self.record(payment_type='Venmo')
+        other = models.Event.objects.create(organization=self.made.organization, name='Other')
+        elsewhere = models.Registration.objects.create(
+            event=other, registrant_email='o@example.com')
+        invoice = registration_invoice(elsewhere, 'Check', 100).id
+        # Its type must suit the event it moves to, whether or not it's sent.
+        for body in ({}, {'payment_type': 'Venmo'}):
+            with self.subTest(body=body):
+                refused = self.edit(data['id'], 400, registration=elsewhere.id,
+                                    invoice=invoice, **body)
+                self.assertIn('payment_type', refused)
+        self.edit(data['id'], registration=elsewhere.id, invoice=invoice, payment_type='Check')
 
     def test_labels(self):
         event = self.made.event
