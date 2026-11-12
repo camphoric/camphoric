@@ -28,6 +28,9 @@ describe('reportFileName', () => {
     expect(reportFileName('Lark\tCamp\n2026', '', 'Roster', 'csv')).toBe(
       'Lark-Camp-2026, Roster.csv',
     );
+    expect(reportFileName('Lark\u0085Camp', '', 'Roster\u007f', 'csv')).toBe(
+      'Lark-Camp, Roster-.csv',
+    );
   });
 
   it('leaves out the event name until it is known', () => {

@@ -7,7 +7,7 @@
 
 // `/ \ : * ? " < > |` and control characters.
 // eslint-disable-next-line no-control-regex
-const UNSAFE = /[/\\:*?"<>|\u0000-\u001f\u007f]/g;
+const UNSAFE = /[/\\:*?"<>|\u0000-\u001f\u007f-\u009f]/g;
 
 function safePart(text: string | undefined): string {
   return (text ?? '').replace(UNSAFE, '-').replace(/\s+/g, ' ').trim();
