@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.1.0...camphoric-event-import-spec-v1.2.0) (2026-11-12)
+
+
+### Features
+
+* **api:** let an event define its own payment types, importable with the event ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc)), closes [#1002](https://github.com/camphoric/camphoric/issues/1002)
+* **client:** offer and label an event's own payment types when recording payments and refunds ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc))
+* **data:** import an event's payment types, with examples in Sample Camp ([6b8bfe6](https://github.com/camphoric/camphoric/commit/6b8bfe6bfafbe331f851400ac4dcb81f569fc6fc))
+* **data:** match an imported report to the event's by title and update it ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb))
+* **reports:** sort reports by title and group them by category ([8a17425](https://github.com/camphoric/camphoric/commit/8a174252f97ef57835db994268d3efeb7cef7aeb)), closes [#992](https://github.com/camphoric/camphoric/issues/992)
+
 ## [1.1.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.0.2...camphoric-event-import-spec-v1.1.0) (2026-11-06)
 
 
