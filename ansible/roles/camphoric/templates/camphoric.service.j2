@@ -22,11 +22,14 @@ Environment=WATCHFILES_FORCE_POLLING=true
 {# Apply pending migrations whenever the server starts (each `vagrant up`, a
    restart, a provision), as the Docker django service does. The leading "-"
    starts the server even if they fail; `journalctl -u camphoric` says why.
-   They get 4 minutes (a lock held by an open psql session can make them wait):
-   `timeout` then stops them with an error the "-" forgives, inside the unit's
-   own start limit, which would otherwise fail the whole unit. #}
-ExecStartPre=-/usr/bin/timeout 240 {{ pipenv_bin }} run python manage.py migrate --noinput
-TimeoutStartSec=300
+   A table locked by another session (an open psql transaction, say) fails a
+   migration after 30 seconds (lock_timeout, through libpq's PGOPTIONS), so it
+   rolls back and leaves the lock queue; killing the client wouldn't, since
+   the server keeps a waiting session queued and every later query on that
+   table waits behind it. A slow migration is left to finish: the server
+   starts once it has. #}
+ExecStartPre=-/usr/bin/env "PGOPTIONS=-c lock_timeout=30s" {{ pipenv_bin }} run python manage.py migrate --noinput
+TimeoutStartSec=infinity
 ExecStart={{ pipenv_bin }} run uvicorn \
           camphoric_server.asgi:application \
           --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000
