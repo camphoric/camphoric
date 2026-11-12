@@ -1995,14 +1995,14 @@
   {
    "name": "csv",
    "signature": "csv",
-   "doc": "Quote a value for a CSV cell when it needs it (commas, quotes, line breaks).",
+   "doc": "Quote a value for a CSV cell when it needs it (commas, quotes, line breaks), and prefix `'` to text a spreadsheet would run as a formula (it starts with = + - @, a tab or a carriage return); numbers such as -25 or -$25.00 are left alone.",
    "example": "{{ camper.attributes.last_name | csv }}",
    "builtin": false
   },
   {
    "name": "csv_row",
    "signature": "csv_row",
-   "doc": "A CSV line from a list of values.",
+   "doc": "A CSV line from a list of values, each made safe as `csv` does.",
    "example": "{{ [camper.attributes.first_name, camper.lodging.full_name] | csv_row }}",
    "builtin": false
   },

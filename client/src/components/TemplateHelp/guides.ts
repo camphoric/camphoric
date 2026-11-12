@@ -158,7 +158,10 @@ date with \`to_date\` to compare or format it: \`{{ camper.attributes.birthdate 
 \`today\` and \`now\` are available in reports.
 
 **CSV** — a value containing a comma, quote or line break must be quoted. \`csv\` does that
-only when needed; \`csv_row\` builds a whole line from a list:
+only when needed; \`csv_row\` builds a whole line from a list. Both also put a \`'\` before text
+that starts with \`=\`, \`+\`, \`-\`, \`@\`, a tab or a carriage return, so a form answer can't
+run as a formula when the report is opened in a spreadsheet; numbers such as \`-25\` and
+\`money\` amounts such as \`-$25.00\` are left alone. Pass every form answer through one of them:
 
 ${fence(`{{ camper.attributes.comments | csv }}
 {{ [camper.attributes.first_name, camper.lodging.full_name, camper.pricing.total] | csv_row }}`)}
