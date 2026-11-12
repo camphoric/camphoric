@@ -3,8 +3,9 @@
  * PayPal with its handling fee and a partial refund, overpaid (with "Refund the
  * difference"), cancelled, with a PayPal payment not yet confirmed, with one
  * PayPal is still processing (no Cancel or Delete), with one PayPal has been
- * processing longer than the worker asks about it, and as a Reporter sees one
- * (everything, no actions). Run `npm run storybook`.
+ * processing longer than the worker asks about it, paid by the event's own
+ * payment types (one since dropped), and as a Reporter sees one (everything,
+ * no actions). Run `npm run storybook`.
  */
 
 import { Box } from '@mantine/core';
@@ -13,9 +14,12 @@ import type { Meta, StoryFn } from '@storybook/react-vite';
 import { InvoiceCard } from '../InvoiceCard';
 import {
   CANCELLED,
+  EVENT_PAYMENT_TYPES,
   OPEN,
   OVERPAID,
   OVERPAID_PAYMENTS,
+  PAID_BY_VENMO,
+  PAID_BY_VENMO_PAYMENTS,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
   PENDING_PAYPAL,
@@ -58,6 +62,17 @@ export const PaidByTwoChecks: StoryFn = () => (
 export const PayPalWithRefund: StoryFn = () => (
   <Box p="md" maw={720}>
     <InvoiceCard invoice={PAYPAL_REFUNDED} payments={PAYPAL_REFUNDED_PAYMENTS} {...actions} />
+  </Box>
+);
+
+export const PaidByEventPaymentTypes: StoryFn = () => (
+  <Box p="md" maw={720}>
+    <InvoiceCard
+      invoice={PAID_BY_VENMO}
+      payments={PAID_BY_VENMO_PAYMENTS}
+      paymentTypes={EVENT_PAYMENT_TYPES}
+      {...actions}
+    />
   </Box>
 );
 

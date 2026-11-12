@@ -44,7 +44,7 @@ CENT = Decimal('0.01')
 _AMOUNT = models.Invoice._meta.get_field('amount')
 MAX_AMOUNT = Decimal(10) ** (_AMOUNT.max_digits - _AMOUNT.decimal_places) - CENT
 HANDLING_LABEL = 'Electronic payment handling'
-ONLINE_TYPES = (models.PaymentType.PAYPAL, models.PaymentType.CARD)
+ONLINE_TYPES = models.ONLINE_PAYMENT_TYPES
 FULL_PAYMENT = 'Full payment'
 PAYMENT_RECEIVED_DESCRIPTION = 'Payment received'
 # PayPal's limit on an item's name and an order's description.

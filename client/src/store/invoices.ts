@@ -6,7 +6,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiInvoice, ApiPayment, Hash, PaymentType, Scalar } from 'api-types';
+import type { ApiInvoice, ApiPayment, Hash, Scalar } from 'api-types';
 import { apiFetch, ifMatch } from 'utils/fetch';
 
 // A payment or an invoice change moves the registration's ledger and its history.
@@ -71,7 +71,8 @@ export interface RecordPaymentBody {
   invoice?: Scalar;
   new_invoice?: boolean;
   refund_of?: Scalar;
-  payment_type: PaymentType;
+  /** A built-in `PaymentType` or one of the event's own (§15, DR-164). */
+  payment_type: string;
   paid_on: string | null;
   amount: number;
   notes: string;

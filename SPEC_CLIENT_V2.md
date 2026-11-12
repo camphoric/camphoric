@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-163)
+- §15 — Decision Records (DR-1…DR-164)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1045,7 +1045,12 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   with the event, §8.3), `invoice_template` (read-only: the id of the invoice email's
   `EmailTemplate`, likewise; §8.3, §15, DR-96) and `confirmation_email_from` (the event's
   sending address);
-  `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `organization`. The events
+  `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `payment_types` (the
+  event's own offline payment types, a list of `{ value, label }`; §9.7, §15, DR-164) and
+  read-only `payment_type_choices` (every type a payment can be recorded as, each
+  `{ value, label, online }`; §9.7); `organization`. The event import object
+  (`data/packages/event-import-spec`) carries `payment_types` beside `paypal_enabled`, and the
+  importer sends it to the events API with the rest of the event. The events
   API lists them by `registration_start`, newest first with `null` first, then by name ignoring
   case (then by `id`), so every consumer sees one order (§8.1; §15, DR-156).
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
@@ -1186,8 +1191,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     (§15, DR-105), and not one PayPal may yet record a payment on, as for cancelling (§15,
     DR-133) — a 409 otherwise; a hard delete. Its delete preview says so too.
 - **Payment:** `id`, `registration`, `invoice` (every payment belongs to one; §15, DR-87),
-  `deposit?` (a bank deposit), `payment_type`, `paid_on`, `attributes`, `amount` (negative for a
-  refund; §15, DR-94), `notes`, `refund_of` (for a refund: the payment it gives money back
+  `deposit?` (a bank deposit), `payment_type` (a built-in type or the `value` of one of the
+  event's own; §9.7), `paid_on`, `attributes`, `amount` (negative for a refund; §15, DR-94), `notes`, `refund_of` (for a refund: the payment it gives money back
   from), read-only `paypal_response` (PayPal's reply) and `paypal_transaction_id` (PayPal's
   capture id, or refund id — unique, so one PayPal transaction is recorded once), read-only
   `refund_request_id` (for a refund made through PayPal: the `request_id` it was made with),
@@ -1898,8 +1903,9 @@ they can:
   refunded. An invoice with a PayPal order that wasn't confirmed says so, as does one PayPal is
   still processing a payment on — and, once that has gone on longer than the worker asks about
   it, that it's no longer asked about and needs checking (§9.7; §15, DR-133).
-- **Record a payment** (Registrars and Admins) — `payment_type` ∈ Check/PayPal/Card/Voucher,
-  `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
+- **Record a payment** (Registrars and Admins) — `payment_type`, one of the event's
+  `payment_type_choices` (Check, PayPal and Card while PayPal is enabled, Voucher, and the event's
+  own types, shown by their labels; §9.7, §15, DR-164), `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
   money due to start with (filling in what's due on it), any other open one, or "on its own" (a
   new "Payment received" invoice). An invoice can take more than one payment — a second check
   for the rest, say — but not one PayPal is still processing a payment on, which isn't offered
@@ -2948,6 +2954,25 @@ section is the contract.
 - **Where a payment goes.** Recorded with an invoice, on it (same registration, not cancelled).
   Without one, on the registration's oldest invoice that still has money due; with none, on a
   new `payment_received` invoice for exactly it. A registrar's payment never adds a fee.
+- **Payment types** (§15, DR-13, DR-164). The built-in types are Check, PayPal, Card and Voucher.
+  PayPal and Card are the online types, paid through PayPal and offered only while the event's
+  `paypal_enabled` is on; Check and Voucher are open to every event. An event may add its own
+  offline types in `payment_types`, each a `value` (what a payment stores) and a `label` (how
+  it's shown): values are trimmed, distinct ignoring case, at most 255 characters, and never a
+  built-in type's value in any case — the events API refuses the list (400 on `payment_types`)
+  otherwise. The event's own types are recorded by hand only: they never start a PayPal order
+  and are never offered during registration, whose payment step keeps to Check, PayPal and Card.
+  - `payment_type_choices` (read-only) lists, in order, Check, PayPal and Card (while
+    `paypal_enabled`), Voucher, then the event's own types, each `{ value, label, online }`.
+  - A payment's `payment_type` must be a built-in type or one of its event's own, matched
+    exactly; anything else is refused (400 on `payment_type`). A type the event has since
+    dropped stays where it's already used: a payment keeps it through an edit, and a refund of
+    such a payment may be recorded as it. The client offers the refunded payment's type among
+    the refund's choices for that reason.
+  - An invoice's `payment_type` (how the payer chose to pay it) follows the same values: a
+    "Payment received" invoice takes its payment's type.
+  - The client shows the built-in types by name (Check, PayPal, Card, Voucher), the event's own
+    by their labels, and a type the event no longer defines as the value its payments stored.
 - **Payment options** (#675; §15, DR-89): the event's deposit choices (`registration_deposit_schema`,
   `oneOf` of `{ const, title }` or `enum` + `enumNames`, each const the JSON of `{ name, logic }`)
   are evaluated on the server against the registration's stored pricing results — a result that
@@ -3728,7 +3753,8 @@ Revisit if the product needs an org-admin vs. super-admin UI distinction.
 
 **Decision:** The public flow offers Check / PayPal / Card; the admin Add-Payment modal also
 records **Voucher** (and manual entries). This matches existing behavior (§7.2, §8.4).
-**Context:** Voucher is a back-office reconciliation type, not a self-service option.
+**Context:** Voucher is a back-office reconciliation type, not a self-service option. An event
+may add its own offline types for the admin to record, too (DR-164).
 
 ### DR-14 — Pricing-parity enforcement
 
@@ -6909,6 +6935,25 @@ the props passed in, so passing the attribute directly is overwritten.
 description through Mantine's own `description` slot as a `div` — a larger change to every
 widget's layout, and Mantine's checkbox group still wouldn't be named. Setting the attribute on
 the DOM after render — fragile, and fights Mantine's own updates.
+
+### DR-164 — An event defines its own offline payment types
+**Decision:** An event holds its own payment types as a JSON list on the event,
+`payment_types: [{ value, label }]`, beside the built-in Check, PayPal, Card and Voucher, and the
+events API adds a read-only `payment_type_choices` with every type a payment can be recorded as.
+The database no longer restricts `Payment.payment_type` and `Invoice.payment_type` to the
+built-in choices; the payment serializer checks a payment's type against its event instead,
+still allowing a type the event has since dropped where a payment already uses it (the payment
+itself, or a refund of it). The event's own types are offline only. The client shows them by
+label and the built-in types by name.
+**Context:** Payment types were a fixed server-wide list, so an event couldn't tell Cash, Venmo,
+Zelle or a scholarship from a check, in reports or on invoices (#1002). They differ per event and
+should come with the event's import, like its other settings. PayPal and Card keep their meaning
+(the online types, gated by `paypal_enabled`) so the payment flow is unchanged.
+**Alternatives:** A separate payment-type model per event, like registration types — another
+endpoint and import step for what is two strings per type, and its rows would need soft deletion
+to keep old payments' labels. Keeping DB-level `choices` and adding types to them — choices are
+global, not per event. Showing the built-in types by their long server labels ("Debit or Credit
+Card") — changes every existing invoice screen for no gain.
 
 ---
 

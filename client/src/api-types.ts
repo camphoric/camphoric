@@ -100,6 +100,13 @@ export interface ApiEvent extends TimeStamped {
 
   // Payments.
   paypal_enabled: boolean;
+  /** The event's own offline payment types, beyond the built-in ones (§9.7; §15, DR-164). */
+  payment_types: ApiEventPaymentType[];
+  /**
+   * Every type a payment can be recorded as, in order: Check, PayPal and Card
+   * (while PayPal is enabled), Voucher, then the event's own. Read-only.
+   */
+  payment_type_choices: ApiPaymentTypeChoice[];
   paypal_client_id: string;
   epayment_handling: number;
 }
@@ -243,7 +250,20 @@ export interface ApiDeposit extends TimeStamped {
   amount: number;
 }
 
+/** The built-in payment types; PayPal and Card are paid online (§9.7). */
 export type PaymentType = 'Check' | 'PayPal' | 'Card' | 'Voucher';
+
+/** One of an event's own payment types: its stored value and how it's shown (§15, DR-164). */
+export interface ApiEventPaymentType {
+  value: string;
+  label: string;
+}
+
+/** A type a payment can be recorded as, from the event's `payment_type_choices`. */
+export interface ApiPaymentTypeChoice extends ApiEventPaymentType {
+  /** Paid online, through PayPal (PayPal and Card). */
+  online: boolean;
+}
 
 export interface ApiPayment extends TimeStamped {
   id: number;
@@ -251,7 +271,8 @@ export interface ApiPayment extends TimeStamped {
   /** Every payment belongs to an invoice (§9.7; §15, DR-87). */
   invoice: Scalar;
   deposit?: Scalar | null;
-  payment_type: PaymentType;
+  /** A built-in `PaymentType` or the value of one of the event's own (§15, DR-164). */
+  payment_type: string;
   paid_on?: string | null;
   attributes: Hash | null;
   // DRF `DecimalField` serializes to a string on read (e.g. `"675.00"`); writes
@@ -293,7 +314,7 @@ export interface ApiInvoice extends TimeStamped {
   amount: string;
   handling: string;
   /** How the payer chose to pay it; each payment keeps how it was actually paid. */
-  payment_type: PaymentType | null;
+  payment_type: string | null;
   due_on: string | null;
   /** Shown to the payer. */
   memo: string;

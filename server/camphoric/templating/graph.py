@@ -127,7 +127,7 @@ def invoice_status(invoice):
     return models.InvoiceStatus.OPEN.value
 
 
-ONLINE_TYPES = (models.PaymentType.PAYPAL, models.PaymentType.CARD)
+ONLINE_TYPES = models.ONLINE_PAYMENT_TYPES
 
 
 def derive_old_payment_fields(registration):

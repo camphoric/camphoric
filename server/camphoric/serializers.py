@@ -130,6 +130,8 @@ class AwareDateTimeField(DateTimeField):
 class EventSerializer(ModelSerializer):
     registration_start = AwareDateTimeField(allow_null=True, required=False)
     registration_end = AwareDateTimeField(allow_null=True, required=False)
+    # Every type a payment can be recorded as, labelled (SPEC §9.7, DR-164).
+    payment_type_choices = SerializerMethodField()
 
     class Meta:
         model = models.Event
@@ -142,6 +144,41 @@ class EventSerializer(ModelSerializer):
             raise ValidationError(
                 f'"{name}" isn\'t a time zone (use one like America/Los_Angeles).')
         return name
+
+    def get_payment_type_choices(self, event):
+        return event.payment_type_choices
+
+    def validate_payment_types(self, types):
+        '''
+        The event's own payment types (DR-164): a list of {value, label}, each
+        value distinct and none a built-in type's (whatever its case), so a
+        stored value always means one thing.
+        '''
+        if types is None:
+            return []
+        if not isinstance(types, list):
+            raise ValidationError('A list of {"value": …, "label": …} objects.')
+        built_in = {t.lower() for t in models.PaymentType.values}
+        seen = set(built_in)
+        cleaned = []
+        for index, entry in enumerate(types):
+            where = f'Payment type {index + 1}'
+            if not isinstance(entry, dict) or set(entry) != {'value', 'label'}:
+                raise ValidationError(f'{where}: an object with just "value" and "label".')
+            value, label = entry['value'], entry['label']
+            if not isinstance(value, str) or not value.strip():
+                raise ValidationError(f'{where}: "value" is required.')
+            if not isinstance(label, str) or not label.strip():
+                raise ValidationError(f'{where}: "label" is required.')
+            value, label = value.strip(), label.strip()
+            if len(value) > 255:
+                raise ValidationError(f'{where}: "value" is at most 255 characters.')
+            if value.lower() in seen:
+                kind = 'a built-in payment type' if value.lower() in built_in else 'listed twice'
+                raise ValidationError(f'{where}: "{value}" is {kind}.')
+            seen.add(value.lower())
+            cleaned.append({'value': value, 'label': label})
+        return cleaned
 
     def validate_camper_schema(self, schema):
         return validate_schema(schema, getattr(self.instance, 'camper_schema', None))
@@ -732,6 +769,7 @@ class PaymentSerializer(ModelSerializer):
                     {'amount': f'You can refund up to ${limit:.2f} of that payment.'})
         if instance is not None:
             self.validate_edit(instance, data, amount)
+        self.validate_type(data.get('payment_type'), registration.event, instance, refund_of)
         if amount < 0 and invoice is None:
             raise ValidationError({'invoice': 'A refund must name its invoice.'})
         moving_to = invoice is not None and (instance is None or instance.invoice_id != invoice.id)
@@ -756,6 +794,23 @@ class PaymentSerializer(ModelSerializer):
         if invoice is not None:
             data['invoice'] = invoice
         return data
+
+    @staticmethod
+    def validate_type(payment_type, event, payment, refund_of):
+        '''
+        A payment is recorded as a built-in type or one of its event's own
+        (SPEC §9.7, DR-164). One the event has since dropped stays allowed
+        where it's already in use: unchanged on an edit (the edit form sends
+        every field back), or on a refund of a payment recorded as it.
+        '''
+        if payment_type is None or event.accepts_payment_type(payment_type):
+            return
+        if payment is not None and payment_type == payment.payment_type:
+            return
+        if refund_of is not None and payment_type == refund_of.payment_type:
+            return
+        raise ValidationError(
+            {'payment_type': f'"{payment_type}" isn\'t one of this event\'s payment types.'})
 
     @staticmethod
     def validate_edit(payment, data, amount):

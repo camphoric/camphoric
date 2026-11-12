@@ -5,7 +5,8 @@
  * well-formed, its sample registrations fit the registration form's schema
  * without any field the schema doesn't declare, its group emails' names and
  * promo codes are distinct, its promo codes exclude only its own registration
- * types, and it declares the organization it names.
+ * types, its own payment types are distinct and none is a built-in one, and it
+ * declares the organization it names.
  *
  * An event package runs them from its own tests, inside a describe:
  *
@@ -22,6 +23,7 @@ import { Ajv2019 } from 'ajv/dist/2019.js';
 
 import {
   addFormats,
+  BUILT_IN_PAYMENT_TYPES,
   validateEventImport,
   type EventData,
   type EventModule,
@@ -224,6 +226,15 @@ export function describeEventModule(load: () => Promise<LoadedEventModule>) {
       .filter(name => !names.includes(name))
       .map(name => ({ code: p.code, name })));
     expect(unknown).toEqual([]);
+  });
+
+  // The server refuses a payment type whose value another of the event's has,
+  // or a built-in type's, ignoring case (SPEC DR-164).
+  test('payment types are distinct, and none is a built-in type', () => {
+    const values = (mod.default.data.event.payment_types ?? []).map(t => t.value.trim().toLowerCase());
+    const builtIn = BUILT_IN_PAYMENT_TYPES.map(t => t.toLowerCase());
+    expect(values.filter((value, i) => values.indexOf(value) !== i)).toEqual([]);
+    expect(values.filter(value => builtIn.includes(value))).toEqual([]);
   });
 
   test('overrides and sampleRegGenerator are functions', () => {

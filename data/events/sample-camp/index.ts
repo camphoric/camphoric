@@ -65,6 +65,12 @@ const data: EventImport = {
     payment_schema: {
       properties: { check_number: { type: 'string', title: 'Check number', maxLength: 20 } },
     },
+    // ways of being paid beyond Check, Voucher, PayPal and Card, recorded by an organizer
+    payment_types: [
+      { value: 'Cash', label: 'Cash' },
+      { value: 'Venmo', label: 'Venmo' },
+      { value: 'Scholarship', label: 'Scholarship fund' },
+    ],
     deposit_schema: {
       properties: { bank_reference: { type: 'string', title: 'Bank reference', maxLength: 40 } },
     },

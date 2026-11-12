@@ -1,8 +1,9 @@
 /**
  * Invoices and payments for the invoice stories and tests (SPEC §9.7): a check
  * deposit with two checks on it, a PayPal payment with its handling fee and a
- * partial refund, an overpaid invoice, a cancelled one, and one whose PayPal
- * payment wasn't confirmed.
+ * partial refund, an overpaid invoice, a cancelled one, one whose PayPal
+ * payment wasn't confirmed, and one paid by the event's own payment types —
+ * Venmo, and Zelle, which the event has since dropped (§15, DR-164).
  */
 
 import type { ApiInvoice, ApiPayment } from 'api-types';
@@ -126,6 +127,26 @@ export const OVERPAID = invoice({
   payments: [31],
 });
 export const OVERPAID_PAYMENTS = [payment({ id: 31, invoice: 3, amount: '450.00' })];
+
+/** The event's own payment types: Zelle was one, and has since been dropped. */
+export const EVENT_PAYMENT_TYPES = [{ value: 'Venmo', label: 'Venmo (@camp)' }];
+
+export const PAID_BY_VENMO = invoice({
+  id: 8,
+  origin: 'payment_received',
+  description: 'Payment received',
+  payment_type: 'Venmo',
+  amount: '150.00',
+  total: '150.00',
+  amount_paid: '150.00',
+  amount_due: '0.00',
+  status: 'paid',
+  payments: [81, 82],
+});
+export const PAID_BY_VENMO_PAYMENTS = [
+  payment({ id: 81, invoice: 8, payment_type: 'Venmo', amount: '100.00' }),
+  payment({ id: 82, invoice: 8, payment_type: 'Zelle', amount: '50.00' }),
+];
 
 export const CANCELLED = invoice({
   id: 4,

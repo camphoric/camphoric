@@ -1,6 +1,7 @@
 /**
- * Record a payment against a registration (SPEC §8.4, §9.7): its type
- * (Check/PayPal/Card/Voucher), paid-on date, amount, the event's
+ * Record a payment against a registration (SPEC §8.4, §9.7): its type (the
+ * event's `payment_type_choices`: Check, PayPal and Card while PayPal is
+ * enabled, Voucher, and the event's own types; §15, DR-164), paid-on date, amount, the event's
  * `payment_schema` fields, notes, and which invoice it pays. Every payment
  * belongs to an invoice (§15, DR-87): it defaults to the oldest one with money
  * due (and fills in what's due on it), or goes "on its own" — a new "Payment
@@ -12,15 +13,15 @@
 import { Button, Group, Modal, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import type { ApiEvent, ApiInvoice, Hash, PaymentType, Scalar } from 'api-types';
+import type { ApiEvent, ApiInvoice, Hash, Scalar } from 'api-types';
 import { JsonSchemaForm } from 'components/form';
 import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useState } from 'react';
 import { useRecordPayment } from 'store/invoices';
 import { apiErrorMessage } from 'utils/fetch';
 import { formatMoney } from 'utils/money';
+import { paymentTypeOptions } from 'utils/paymentTypes';
 
-const PAYMENT_TYPES: PaymentType[] = ['Check', 'PayPal', 'Card', 'Voucher'];
 /** The "Apply to" choice for a new invoice of its own. */
 export const ON_ITS_OWN = 'own';
 
@@ -50,7 +51,7 @@ export function RecordPaymentModal({
     (i) => (i.status === 'open' || i.status === 'partially_paid') && !i.paypal_capture_held,
   );
 
-  const [type, setType] = useState<PaymentType>('Check');
+  const [type, setType] = useState<string>('Check');
   const [paidOn, setPaidOn] = useState<string>('');
   const [amount, setAmount] = useState<number | string>(0);
   const [notes, setNotes] = useState('');
@@ -117,7 +118,7 @@ export function RecordPaymentModal({
         />
         <Select
           label="Type"
-          data={PAYMENT_TYPES}
+          data={paymentTypeOptions(event)}
           value={type}
           onChange={(value) => setType(value ?? 'Check')}
           allowDeselect={false}

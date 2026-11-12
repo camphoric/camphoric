@@ -5,8 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { InvoiceCard } from '../InvoiceCard';
 import {
   CONFIRMING_PAYPAL,
+  EVENT_PAYMENT_TYPES,
   OVERPAID,
   OVERPAID_PAYMENTS,
+  PAID_BY_VENMO,
+  PAID_BY_VENMO_PAYMENTS,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
   PENDING_PAYPAL,
@@ -57,6 +60,26 @@ describe('InvoiceCard', () => {
       screen.getByRole('button', { name: 'Refund the Check payment of $100.00' }),
     );
     expect(onRefund).toHaveBeenCalledWith(TWO_CHECKS_PAYMENTS[1]);
+  });
+
+  it('shows the event’s own payment types by their labels, and a dropped one as stored', () => {
+    renderWithProviders(
+      <InvoiceCard
+        invoice={PAID_BY_VENMO}
+        payments={PAID_BY_VENMO_PAYMENTS}
+        paymentTypes={EVENT_PAYMENT_TYPES}
+        canEdit
+        canDelete
+        onDeletePayment={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/to be paid by Venmo \(@camp\)/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete the Venmo (@camp) payment of $100.00' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete the Zelle payment of $50.00' }),
+    ).toBeInTheDocument();
   });
 
   it('lets an Admin delete a payment', async () => {
