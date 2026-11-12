@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 import json
 import pprint as _pprint
 import re
+import unicodedata
 import zoneinfo
 
 from markupsafe import Markup
@@ -81,16 +82,36 @@ def _text(value):
     return str(value)
 
 
+# A leading character that makes a spreadsheet read a cell as a formula (OWASP CSV Injection).
+_FORMULA_START = ('=', '+', '-', '@', '\t', '\r')
+
+# A signed plain or currency number: sign, currency symbol(s), digits with optional thousands
+# commas and decimals, optional exponent — e.g. "-25", "-25.00", "+1.5e3" or the `money`
+# filter's "-$25.00".
+_NUMBER = re.compile(r'[+-](?P<symbol>[^\d.,]*)(?:\d[\d,]*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?')
+
+
+def _is_number(text):
+    match = _NUMBER.fullmatch(text)
+    return bool(match) and all(unicodedata.category(ch) == 'Sc' for ch in match['symbol'])
+
+
 def csv_cell(value):
-    '''A CSV field, quoted when needed (commas, quotes, line breaks).'''
+    '''
+    A CSV field, quoted when needed (commas, quotes, line breaks). Text that a spreadsheet would
+    run as a formula (it starts with = + - @, a tab or a carriage return) is prefixed with `'`
+    first, so it opens as text; a number such as "-25" or "-$25.00" is left alone.
+    '''
     text = _text(value)
+    if text.startswith(_FORMULA_START) and not _is_number(text):
+        text = "'" + text
     if any(ch in text for ch in ',"\r\n') or text != text.strip():
         return '"' + text.replace('"', '""') + '"'
     return text
 
 
 def csv_row(values):
-    '''A CSV line from a list of values.'''
+    '''A CSV line from a list of values, each made safe by `csv_cell`.'''
     return ','.join(csv_cell(value) for value in values)
 
 

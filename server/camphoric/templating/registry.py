@@ -574,8 +574,11 @@ FILTERS = (
     FilterSpec('to_date', 'to_date', 'Turn "YYYY-MM-DD" text (e.g. a form answer) into a date '
                'you can compare.', '{% if camper.attributes.arrival | to_date > event.start %}'),
     FilterSpec('csv', 'csv', 'Quote a value for a CSV cell when it needs it (commas, quotes, '
-               'line breaks).', '{{ camper.attributes.last_name | csv }}'),
-    FilterSpec('csv_row', 'csv_row', 'A CSV line from a list of values.',
+               "line breaks), and prefix `'` to text a spreadsheet would run as a formula (it "
+               'starts with = + - @, a tab or a carriage return); numbers such as -25 or -$25.00 '
+               'are left alone.', '{{ camper.attributes.last_name | csv }}'),
+    FilterSpec('csv_row', 'csv_row',
+               'A CSV line from a list of values, each made safe as `csv` does.',
                '{{ [camper.attributes.first_name, camper.lodging.full_name] | csv_row }}'),
     FilterSpec('md_cell', 'md_cell', 'Escape text for a Markdown table cell.',
                '| {{ camper.attributes.comments | md_cell }} |'),
