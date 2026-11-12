@@ -275,10 +275,12 @@ The VM runs whatever branch your checkout has, so it applies that branch's migra
 just as the Docker `django` service does. Roll a feature branch's migrations back as the
 last step before switching away from it: a boot or restart while it's still checked out
 applies them again. If you've already switched, switch back to the feature branch, roll
-them back there, and switch again. From another branch, Django can't unapply them
-(`migrate camphoric <earlier>` says "No migrations to apply", since their files aren't in
-the checkout), and copying the files back in fails whenever that branch has newer
-migrations of its own ("Conflicting migrations detected").
+them back there, and switch again. From another branch, Django can't unapply them, since
+their files aren't in the checkout: `migrate camphoric <earlier>` there rolls back only
+that branch's own migrations after `<earlier>` (dropping what they added), or says "No
+migrations to apply" if it has none, and leaves the feature branch's applied. Copying the
+feature branch's files back in fails whenever that branch has newer migrations of its own
+("Conflicting migrations detected").
 
 
 Rebuilding the VM
