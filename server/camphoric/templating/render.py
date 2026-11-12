@@ -263,11 +263,17 @@ def syntax_error(source, *, field='template'):
     return None
 
 
+def report_format(output):
+    '''The `render_template` format for a report's output type (csv, md, txt or html).'''
+    return output if output in ('csv', 'html') else 'text'
+
+
 def render_template(source, context, *, fmt='text', limits=REPORT_LIMITS, field='template'):
     '''
-    Render `source` with `context`. `fmt` is 'text' (reports, emails) or 'html'
-    (autoescaped). Returns a RenderResult; the output of a failed render is
-    whatever was produced before the error.
+    Render `source` with `context`. `fmt` is 'text' (reports, emails), 'csv'
+    (text, then every cell a spreadsheet would run as a formula made safe, as the
+    `csv` filter does) or 'html' (autoescaped). Returns a RenderResult; the output
+    of a failed render is whatever was produced before the error.
     '''
     started = time.monotonic()
     env = HTML_ENV if fmt == 'html' else TEXT_ENV
@@ -318,5 +324,7 @@ def render_template(source, context, *, fmt='text', limits=REPORT_LIMITS, field=
             if warning.line else None
     result.diagnostics.extend(warnings)
     result.output = ''.join(chunks)
+    if fmt == 'csv':
+        result.output = filters.guard_csv_formulas(result.output)
     result.duration_ms = int((time.monotonic() - started) * 1000)
     return result

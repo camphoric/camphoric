@@ -105,6 +105,14 @@ class TemplatePreviewTests(APITestCase):
         self.assertEqual(data['diagnostics'], [])
         self.assertIsNone(data['sample'])
 
+    def test_csv_preview_matches_the_report(self):
+        '''The preview makes formula cells safe exactly as the rendered report does.'''
+        template = "{{ '=1+1' }}"
+        self.assertEqual(self.preview(context='report', output='csv',
+                                      template=template).json()['output'], "'=1+1")
+        self.assertEqual(self.preview(context='report', output='md',
+                                      template=template).json()['output'], '=1+1')
+
     def test_template_errors_are_diagnostics(self):
         data = self.preview(context='report', output='md', template='{% if %}').json()
         self.assertEqual(data['diagnostics'][0]['kind'], 'syntax')
@@ -198,6 +206,12 @@ class LegacyReportRenderTests(APITestCase):
         self.assertIsNone(data['error'])
         self.assertEqual(data['report'], 'A1,B1,3.14|ab')
 
+    def test_csv_cells_cannot_run_as_formulas(self):
+        '''Posted answers written raw into a CSV report are made safe (#1004).'''
+        data = self.render('"{{ name }}",{{ name }},{{ refund }}',
+                           {'name': '=1+1', 'refund': '-$25.00'})
+        self.assertEqual(data['report'], '"\'=1+1",\'=1+1,-$25.00')
+
     def test_blocks_python_internals(self):
         data = self.render("{{ ''.__class__.__mro__ }}", {})
         self.assertIn('unsafe', data['error'])
@@ -238,6 +252,15 @@ class ServerReportTests(APITestCase):
                                       "{% endfor %}").json()
         data = self.render(report['id'], {'campers': [{'attributes': {'first_name': 'X'}}]})
         self.assertEqual(data, {'report': 'Lee,Pat,Sam,', 'error': None, 'diagnostics': []})
+
+    def test_csv_cells_cannot_run_as_formulas(self):
+        '''Text a CSV report writes without the csv filter is made safe; other outputs aren't
+        touched (#1004).'''
+        template = "{{ '=1+1' }},\"{{ '@SUM(A1)' }}\",{{ -25 }}"
+        csv = self.create(template=template).json()
+        self.assertEqual(self.render(csv['id'])['report'], '\'=1+1,"\'@SUM(A1)",-25')
+        txt = self.create(template=template, output='txt').json()
+        self.assertEqual(self.render(txt['id'])['report'], '=1+1,"@SUM(A1)",-25')
 
     def test_reports_diagnostics(self):
         report = self.create(template='ok\n{{ campers[0].nope.deeper }}').json()

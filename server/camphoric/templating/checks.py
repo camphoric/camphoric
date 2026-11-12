@@ -25,7 +25,9 @@ from .bulk import Criteria, candidate_context, resolve_recipients
 from .emails import render_jinja_email
 from .env import LEGACY_REPORT_ENV
 from .graph import build_event_graph
-from .render import EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template, syntax_error
+from .render import (
+    EMAIL_LIMITS, REPORT_LIMITS, Diagnostic, render_template, report_format, syntax_error,
+)
 
 
 @dataclass
@@ -66,7 +68,7 @@ def check_event_templates(event, *, request=None):
                 graph = build_event_graph(event, request=request)
             rendered = render_template(
                 report.template, report_context(graph), limits=REPORT_LIMITS,
-                fmt='html' if report.output == models.ReportOutputType.HTML else 'text')
+                fmt=report_format(report.output))
             results.append(CheckResult('report', report.id, label, 'rendered',
                                        rendered.diagnostics))
             continue
