@@ -97,6 +97,9 @@ if [ "$state" = "running" ]; then
             'systemctl is-active camphoric camphoric-worker' 2>/dev/null | tr -d '\r' | tr '\n' ' ')
         if [ "$services" = "active active " ]; then
             ok "camphoric and camphoric-worker services are active"
+        elif [ "$services" = "activating active " ]; then
+            # It applies pending migrations before the server starts (up to 4 minutes).
+            warn "camphoric is still starting (applying any pending migrations); check again in a minute"
         else
             warn "service status (camphoric, camphoric-worker): ${services:-no answer}"
             echo "        check the logs with: vagrant ssh -c 'journalctl -u camphoric -n 50'"
