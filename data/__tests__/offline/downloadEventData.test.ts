@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 
 import {
   PromptCancelled, downloadEventData, downloadOptions, fallbackFileName, fileNameFrom, formatSize,
-  getToken, promptHidden, removePartialDownloads, serverUrl, type PromptInput,
+  getToken, gitWarning, promptHidden, removePartialDownloads, serverUrl, type GitRunner, type PromptInput,
 } from '../../downloadEventData.ts';
 
 const TOKEN = `cmph_${'a'.repeat(43)}`;
@@ -274,6 +274,21 @@ describe('downloadEventData', () => {
     expect(file).toBe(path.join(dir, 'camp.json'));
   });
 
+  test('--output naming a directory saves in it, under the server\'s name', async () => {
+    await fs.mkdir(path.join(dir, 'exports'));
+    const { fetchImpl } = server(exported());
+    const { file } = await download(fetchImpl, { output: 'exports' });
+    expect(file).toBe(path.join(dir, 'exports', 'Lark Camp data 2026-11-17.json'));
+    expect(await fs.readFile(file, 'utf8')).toBe(EXPORT);
+  });
+
+  test('a directory where the server\'s name goes is refused, before any of it is saved', async () => {
+    await fs.mkdir(path.join(dir, 'Lark Camp data 2026-11-17.json'));
+    const { fetchImpl } = server(exported());
+    await expect(download(fetchImpl, { force: true })).rejects.toThrow('is a directory');
+    expect(await fs.readdir(dir)).toEqual(['Lark Camp data 2026-11-17.json']);
+  });
+
   test('never replaces a file without --force', async () => {
     await fs.writeFile(path.join(dir, 'camp.json'), 'mine');
     const { requests, fetchImpl } = server(exported());
@@ -381,5 +396,36 @@ describe('downloadEventData', () => {
       throw Object.assign(new TypeError('fetch failed'), { cause: new Error('getaddrinfo ENOTFOUND') });
     }) as unknown as typeof fetch;
     await expect(download(fetchImpl)).rejects.toThrow(`couldn't reach ${SERVER} (getaddrinfo ENOTFOUND)`);
+  });
+});
+
+describe('gitWarning', () => {
+  // A git that answers `rev-parse` and `check-ignore` with these statuses
+  const git = (insideWorkTree: number | undefined, checkIgnore: number | undefined) => {
+    const calls: string[][] = [];
+    const runner: GitRunner = (args) => {
+      calls.push(args);
+      return args[0] === 'rev-parse' ? insideWorkTree : checkIgnore;
+    };
+    return { calls, runner };
+  };
+
+  test('warns about a file in a working tree that doesn\'t ignore it', () => {
+    const { calls, runner } = git(0, 1);
+    expect(gitWarning('/repo/data/camp.json', runner)).toMatch('doesn\'t ignore it');
+    expect(calls[1]).toEqual(['check-ignore', '-q', '--', '/repo/data/camp.json']);
+  });
+
+  test('says nothing when git ignores it, outside a working tree, or without git', () => {
+    expect(gitWarning('/repo/x.json', git(0, 0).runner)).toBeUndefined();
+    expect(gitWarning('/tmp/x.json', git(128, undefined).runner)).toBeUndefined();
+    expect(gitWarning('/tmp/x.json', git(undefined, undefined).runner)).toBeUndefined();
+  });
+
+  test('this repository ignores the names exports are given', async () => {
+    const repo = path.resolve(import.meta.dirname, '../..');
+    expect(gitWarning(path.join(repo, 'Lark Camp data 2026-11-17.json'))).toBeUndefined();
+    expect(gitWarning(path.join(repo, 'event 12 data 2026-11-17.json'))).toBeUndefined();
+    expect(gitWarning(path.join(repo, 'my-export.json'))).toMatch('doesn\'t ignore it');
   });
 });
