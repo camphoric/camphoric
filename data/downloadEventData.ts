@@ -4,6 +4,7 @@
  * (`GET /api/events/<id>/export/`, camphoric/camphoric#1016).
  */
 
+import { execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { createWriteStream, rmSync } from 'node:fs';
 import fs from 'node:fs/promises';
@@ -27,8 +28,9 @@ export const USAGE = [
   '  The token is CAMPHORIC_API_TOKEN (or the file CAMPHORIC_API_TOKEN_FILE names);',
   '  without either, it\'s asked for, without being shown.',
   '',
-  '  --output <file>, -o <file>  where to save it (default: the name the server gives it,',
-  '                              "<event name> data <YYYY-MM-DD>.json", in this directory)',
+  '  --output <file>, -o <file>  where to save it: a file, or a directory to save it in (default:',
+  '                              the name the server gives it, "<event name> data <YYYY-MM-DD>.json",',
+  '                              in this directory)',
   '  --force                     replace the file if it exists',
   '  --help, -h                  show this',
 ].join('\n');
@@ -309,6 +311,14 @@ async function exists(file: string): Promise<boolean> {
   }
 }
 
+async function isDirectory(file: string): Promise<boolean> {
+  try {
+    return (await fs.stat(file)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function refusedOverwrite(file: string): Error {
   return new Error(`${file} already exists: give another --output, or --force to replace it`);
 }
@@ -353,8 +363,15 @@ function downloadRefusal(status: number, body: string, url: string, eventId: str
 export async function downloadEventData({
   url, token, eventId, output, force, cwd = process.cwd(), now = new Date(), fetchImpl = fetch,
 }: DownloadRequest): Promise<Downloaded> {
-  if (output && !force && await exists(path.resolve(cwd, output))) {
-    throw refusedOverwrite(path.resolve(cwd, output));
+  // --output naming a directory saves in it, under the name the server gives
+  let directory = cwd;
+  let fileName = output;
+  if (output && await isDirectory(path.resolve(cwd, output))) {
+    directory = path.resolve(cwd, output);
+    fileName = undefined;
+  }
+  if (fileName && !force && await exists(path.resolve(directory, fileName))) {
+    throw refusedOverwrite(path.resolve(directory, fileName));
   }
 
   const endpoint = `${url}/api/events/${eventId}/export/`;
@@ -386,9 +403,13 @@ export async function downloadEventData({
   if (!response.body) throw new Error(`${endpoint} answered with no data`);
 
   const file = path.resolve(
-    cwd,
-    output ?? fileNameFrom(response.headers.get('content-disposition')) ?? fallbackFileName(eventId, now),
+    directory,
+    fileName ?? fileNameFrom(response.headers.get('content-disposition')) ?? fallbackFileName(eventId, now),
   );
+  if (await isDirectory(file)) {
+    await response.body.cancel();
+    throw new Error(`${file} is a directory: give another --output`);
+  }
   if (!force && await exists(file)) {
     await response.body.cancel();
     throw refusedOverwrite(file);
@@ -420,6 +441,33 @@ export async function downloadEventData({
 
   const { size } = await fs.stat(file);
   return { file, bytes: size };
+}
+
+/** Runs git in `cwd` with `args`, giving its exit status (or undefined without git). */
+export type GitRunner = (args: string[], cwd: string) => number | undefined;
+
+const runGit: GitRunner = (args, cwd) => {
+  try {
+    execFileSync('git', args, { cwd, stdio: 'ignore' });
+    return 0;
+  } catch (e) {
+    const status = (e as { status?: number | null }).status;
+    return typeof status === 'number' ? status : undefined;
+  }
+};
+
+/**
+ * A warning when `file` is in a git working tree that doesn't ignore it (one
+ * `git add -A` from being committed, with everyone's personal data), or
+ * undefined when it isn't.
+ */
+export function gitWarning(file: string, git: GitRunner = runGit): string | undefined {
+  const dir = path.dirname(file);
+  if (git(['rev-parse', '--is-inside-work-tree'], dir) !== 0) return undefined;
+  // (0: ignored; 1: not ignored)
+  if (git(['check-ignore', '-q', '--', file], dir) !== 1) return undefined;
+
+  return `${file} is in a git working tree that doesn't ignore it: move it out, or take care never to commit it.`;
 }
 
 /** `bytes` for people: 512 B, 3.4 kB, 12.0 MB. */

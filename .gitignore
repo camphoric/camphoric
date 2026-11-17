@@ -142,3 +142,9 @@ node_modules/
 # script, not a dump.
 /*.sql
 !/postgres-initdb.sql
+
+# Event data exports (data/download-event-data.ts, camphoric/camphoric#1016),
+# named "<event name> data <YYYY-MM-DD>.json" by the server or the script,
+# anywhere in the tree: they hold every camper's personal and payment data,
+# and this repository is public.
+* data [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].json

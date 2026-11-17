@@ -26,13 +26,16 @@
  * CAMPHORIC_ALLOW_REMOTE=1 for a live server, since it only reads, but it
  * sends the token only over https to a server that isn't local.
  *
- * The file is saved for you alone to read. --output <file> chooses where;
- * --force replaces a file already there. It exits non-zero, saying why, if the
+ * The file is saved for you alone to read. --output <file> chooses where (a
+ * directory saves in it, under the server's name); --force replaces a file
+ * already there. The repository's .gitignore ignores the names the server
+ * gives, and the script warns if the file is anywhere git would pick it up:
+ * this repository is public, so keep exports out of it. It exits non-zero, saying why, if the
  * download fails, and leaves no partial file behind.
  */
 
 import {
-  PromptCancelled, USAGE, downloadEventData, downloadOptions, formatSize, getToken,
+  PromptCancelled, USAGE, downloadEventData, downloadOptions, formatSize, getToken, gitWarning,
   removePartialDownloads, serverUrl,
 } from './downloadEventData.ts';
 
@@ -69,4 +72,6 @@ async function main() {
     `Saved it to ${file} (${formatSize(bytes)}). It holds personal and payment data: `
     + 'keep it somewhere safe, and delete it when you\'re done.',
   );
+  const warning = gitWarning(file);
+  if (warning) console.error(`warning: ${warning}`);
 }
