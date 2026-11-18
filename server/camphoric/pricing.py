@@ -164,8 +164,11 @@ def _apply_registration_charges(charges, results):
     amount = sum((charge['amount'] for charge in charges), Decimal('0'))
     line = money_fmt(_as_number(amount))
     results[REGISTRATION_CHARGES] = line
-    if _is_amount(results.get('total')):
-        results['total'] = _floored(money_fmt(results['total'] + line))
+    # With no total yet (no campers, and no registration-level `total` line,
+    # as when the last camper is cancelled), the charges are the total.
+    total = results.get('total', 0)
+    if _is_amount(total):
+        results['total'] = _floored(money_fmt(total + line))
 
 
 def priced_as_of(registration):

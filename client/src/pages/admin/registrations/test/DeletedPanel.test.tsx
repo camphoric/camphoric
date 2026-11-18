@@ -22,7 +22,7 @@ vi.mock('store/entities', () => ({
   registrationHooks: {
     useList: () => ({ data: [{ id: 2, registrant_email: 'lee@example.com' }] }),
   },
-  customChargeHooks: { useDelete: () => ({ mutate: deleteCharge }) },
+  customChargeHooks: { useDelete: () => ({ mutateAsync: deleteCharge }) },
 }));
 vi.mock('utils/fetch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('utils/fetch')>()),
@@ -114,7 +114,7 @@ describe('DeletedPanel', () => {
       await screen.findByText(/A cancellation fee was kept for Sam Beta.*\$50\.00/),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Remove fee' }));
-    expect(deleteCharge).toHaveBeenCalledWith({ id: 31, version: 1 }, expect.anything());
+    expect(deleteCharge).toHaveBeenCalledWith({ id: 31, version: 1 });
   });
 
   it('asks nothing more when no fee was kept', async () => {

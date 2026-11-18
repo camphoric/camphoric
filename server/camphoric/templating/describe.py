@@ -215,7 +215,7 @@ def _unique(fields):
 # own fields), and pricing lines the server adds to every event's results.
 REGISTRATION_FORM_EXCLUDED = ('campers', 'registrant_email')
 CAMPER_FORM_EXCLUDED = ('lodging',)
-SERVER_PRICING_LINES = ('promo', 'total', 'overridden')
+SERVER_PRICING_LINES = ('promo', 'registration_charges', 'total', 'overridden')
 
 
 def event_types(event, *, registration_types=None, open_types=None):

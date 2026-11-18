@@ -9,6 +9,14 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def drop_registration_charges(apps, schema_editor):
+    '''
+    Going back: a charge of a registration's own (a cancellation fee) has no
+    camper, which the older schema requires, so it can't be kept.
+    '''
+    apps.get_model('camphoric', 'CustomCharge').objects.filter(camper__isnull=True).delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -30,6 +38,8 @@ class Migration(migrations.Migration):
                 blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
                 to='camphoric.camper'),
         ),
+        # Reversed before `camper` is required again.
+        migrations.RunPython(migrations.RunPython.noop, drop_registration_charges),
         migrations.AddField(
             model_name='customcharge',
             name='cancelled_camper',

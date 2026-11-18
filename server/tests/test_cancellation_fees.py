@@ -151,6 +151,23 @@ class CancellingTests(CancellationTestCase):
         self.cancel(self.made.c2, {'amount': '50'}, status=403)
         self.assertIsNone(models.Camper.all_objects.get(pk=self.made.c2.pk).deleted_at)
 
+    def test_a_body_that_isnt_an_object_is_refused(self):
+        for body in ([], 'x'):
+            response = self.client.post(
+                f'/api/campers/{self.made.c2.id}/cancel/', body, format='json')
+            self.assertEqual(response.status_code, 400, response.data)
+        self.assertIsNone(models.Camper.all_objects.get(pk=self.made.c2.pk).deleted_at)
+
+    def test_with_every_camper_gone_and_no_registration_total_the_fees_are_the_total(self):
+        event = self.made.event
+        event.registration_pricing_logic = [
+            line for line in event.registration_pricing_logic if line['var'] != 'total']
+        event.save()
+        self.cancel(self.made.c1, {'amount': '30'})
+        self.cancel(self.made.c2, {'amount': '50'})
+        results = self.registration().server_pricing_results
+        self.assertEqual((results[pricing.REGISTRATION_CHARGES], results['total']), (80, 80))
+
     def test_a_deleted_camper_cant_be_cancelled(self):
         self.cancel(self.made.c2)
         self.cancel(self.made.c2, {'amount': '50'}, status=404)

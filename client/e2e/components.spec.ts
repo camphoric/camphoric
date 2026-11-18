@@ -590,6 +590,13 @@ test.describe('Deletes and history', () => {
     await expect(page.getByTestId('confirmed')).toHaveText('Kept $50.00: Cancellation: Sam Alpha');
   });
 
+  test('a registration lists its own charges, not its campers’', DESKTOP_ONLY, async ({ page }) => {
+    await page.goto(story('custom-charges--registrations-own'));
+    await expect(page.getByText('Cancellation: Sam Alpha')).toBeVisible();
+    await expect(page.getByText('Sheets')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add custom charge' })).toBeVisible();
+  });
+
   test('a history shows who changed what', async ({ page }) => {
     await page.goto(story('history-list--registration'));
     await expect(page.getByText('Main address › City')).toBeVisible();

@@ -17,18 +17,21 @@ import { notifications } from '@mantine/notifications';
 import type { ApiCustomCharge, ApiDeletePreview, Scalar } from 'api-types';
 import { ConfirmDeleteView } from 'components/ConfirmDelete';
 import { useState } from 'react';
-import { type CancellationFee, useCancelCamper, useDeletePreview } from 'store/deletes';
+import { type CancellationFee, useDeletePreview } from 'store/deletes';
 import { customChargeHooks } from 'store/entities';
 import { apiFetch } from 'utils/fetch';
 import { formatMoney } from 'utils/money';
 
 interface CancelCamperOptions {
   camperId: Scalar;
-  /** The version the user saw, so a camper changed since isn't deleted (§9.8). */
-  version?: number;
   /** The camper's name, e.g. Pat Alpha. */
   name: string;
-  onCancelled: () => void;
+  /**
+   * Cancels them, keeping the fee (null: none). It's called as the modal
+   * closes, so the caller — which outlives the modal — owns the request
+   * (`useCancelCamper`) and what follows it.
+   */
+  onConfirm: (fee: CancellationFee | null) => void;
 }
 
 /** Open the confirmation as a modal. */
@@ -42,13 +45,11 @@ export function confirmCancelCamper(options: CancelCamperOptions) {
 
 function CancelCamper({
   camperId,
-  version,
   name,
-  onCancelled,
+  onConfirm,
   onClose,
 }: CancelCamperOptions & { onClose: () => void }) {
   const preview = useDeletePreview('campers', camperId);
-  const cancel = useCancelCamper();
   return (
     <CancelCamperView
       name={name}
@@ -56,24 +57,18 @@ function CancelCamper({
       error={preview.error}
       onCancel={onClose}
       onConfirm={(fee) => {
-        cancel.mutate(
-          { id: camperId, version, fee },
-          {
-            onSuccess: () => {
-              notifications.show({
-                color: 'green',
-                message: fee
-                  ? `Deleted ${name}, keeping a ${formatMoney(fee.amount)} cancellation fee.`
-                  : `Deleted ${name}.`,
-              });
-              onCancelled();
-            },
-          },
-        );
+        onConfirm(fee);
         onClose();
       }}
     />
   );
+}
+
+/** The notification once a camper is cancelled. */
+export function cancelledMessage(name: string, fee: CancellationFee | null): string {
+  return fee
+    ? `Deleted ${name}, keeping a ${formatMoney(fee.amount)} cancellation fee.`
+    : `Deleted ${name}.`;
 }
 
 export interface CancelCamperViewProps {
@@ -170,18 +165,18 @@ export function useOfferToRemoveCancellationFees() {
       labels: { confirm: fees.length === 1 ? 'Remove fee' : 'Remove fees', cancel: 'Keep it' },
       confirmProps: { color: 'red' },
       onConfirm: () => {
-        for (const fee of fees) {
-          del.mutate(
-            { id: fee.id, version: fee.version },
-            {
-              onSuccess: () =>
-                notifications.show({
-                  color: 'green',
-                  message: `Removed the ${formatMoney(fee.amount)} cancellation fee.`,
-                }),
-            },
-          );
-        }
+        // Each delete awaited, so every one is reported however many there are.
+        void Promise.allSettled(
+          fees.map((fee) => del.mutateAsync({ id: fee.id, version: fee.version })),
+        ).then((results) => {
+          const removed = fees.filter((_, i) => results[i].status === 'fulfilled');
+          if (removed.length > 0) {
+            notifications.show({
+              color: 'green',
+              message: `Removed the cancellation fee: ${feesSummary(removed)}.`,
+            });
+          }
+        });
       },
     });
   };
