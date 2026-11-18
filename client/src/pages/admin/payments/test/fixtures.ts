@@ -5,7 +5,7 @@
  * with a partial refund under it, and an overpaid invoice.
  */
 
-import type { ApiPaymentsAttentionItem } from 'api-types';
+import type { ApiPaymentsAttentionItem, ApiPaymentsTotals } from 'api-types';
 import { invoice, payment } from 'pages/admin/registrations/invoices/test/fixtures';
 
 export function attentionItem(
@@ -175,3 +175,121 @@ export const LEDGER_PAYMENTS = [
     paypal_transaction_id: '1JU08902781691411',
   }),
 ];
+
+/**
+ * An event's totals: a campership the total subtracts, promo discounts, two
+ * cancellation fees among the registrations' own charges, checks and PayPal
+ * with a refund, and handling fees that don't quite cover PayPal's.
+ */
+export const TOTALS: ApiPaymentsTotals = {
+  registrations: 12,
+  summary: {
+    price: '9290.00',
+    handling: '84.00',
+    owed: '9374.00',
+    received: '8125.00',
+    balance: '1249.00',
+    still_owed: '1399.00',
+    refunds_due: '150.00',
+    not_invoiced: '400.00',
+  },
+  charges: {
+    lines: [
+      {
+        var: 'donation',
+        label: 'Campership donation',
+        level: 'registration',
+        credit: false,
+        amount: '175.00',
+      },
+      { var: 'tuition', label: 'Tuition', level: 'camper', credit: false, amount: '8400.00' },
+      { var: 'meals', label: 'Meals', level: 'camper', credit: false, amount: '960.00' },
+      { var: 'campership', label: 'Campership', level: 'camper', credit: true, amount: '-300.00' },
+      {
+        var: 'custom_charges',
+        label: 'Custom charges',
+        level: 'camper',
+        credit: false,
+        amount: '45.00',
+      },
+      { var: 'promo', label: 'Promo code', level: 'built_in', credit: false, amount: '-140.00' },
+      {
+        var: 'registration_charges',
+        label: 'Registration charges',
+        level: 'built_in',
+        credit: false,
+        amount: '200.00',
+      },
+    ],
+    other: '-50.00',
+    total: '9290.00',
+  },
+  charge_types: [
+    { type: 'linens', label: 'Linens', registration_own: false, count: 3, amount: '75.00' },
+    {
+      type: 'new-camper',
+      label: 'New camper discount',
+      registration_own: false,
+      count: 1,
+      amount: '-30.00',
+    },
+    {
+      type: 'cancellation_fee',
+      label: 'Cancellation fee',
+      registration_own: true,
+      count: 2,
+      amount: '200.00',
+    },
+  ],
+  cancellation_fees: { count: 2, amount: '200.00' },
+  payment_types: [
+    {
+      type: 'Check',
+      label: 'Check',
+      payments: 7,
+      refunds: 1,
+      received: '4725.00',
+      refunded: '150.00',
+      net: '4575.00',
+    },
+    {
+      type: 'PayPal',
+      label: 'PayPal',
+      payments: 5,
+      refunds: 1,
+      received: '3700.00',
+      refunded: '200.00',
+      net: '3500.00',
+    },
+    {
+      type: 'Venmo',
+      label: 'Venmo',
+      payments: 1,
+      refunds: 0,
+      received: '50.00',
+      refunded: '0.00',
+      net: '50.00',
+    },
+  ],
+  online_fees: { handling: '84.00', paypal_fees: '97.43', difference: '-13.43' },
+};
+
+/** An event with nothing paid or charged yet. */
+export const EMPTY_TOTALS: ApiPaymentsTotals = {
+  registrations: 0,
+  summary: {
+    price: '0.00',
+    handling: '0.00',
+    owed: '0.00',
+    received: '0.00',
+    balance: '0.00',
+    still_owed: '0.00',
+    refunds_due: '0.00',
+    not_invoiced: '0.00',
+  },
+  charges: { lines: [], other: '0.00', total: '0.00' },
+  charge_types: [],
+  cancellation_fees: { count: 0, amount: '0.00' },
+  payment_types: [],
+  online_fees: { handling: '0.00', paypal_fees: '0.00', difference: '0.00' },
+};

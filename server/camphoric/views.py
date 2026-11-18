@@ -61,6 +61,7 @@ from camphoric import (
     models,
     oauth_views,
     payments_attention,
+    payments_totals,
     pricing,
     roles,
     serializers,
@@ -785,6 +786,15 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
         PayPal orders to check. Any role reads it.
         '''
         return Response(payments_attention.payments_attention(self.get_object()))
+
+    @action(detail=True, methods=['get'], url_path='payments-totals')
+    def payments_totals(self, request, pk=None):
+        '''
+        The event's money in totals (SPEC §8.11; DR-173): the price line by
+        line, custom charges and payments by type, the handling fees beside
+        PayPal's own, and what's owed and received. Any role reads it.
+        '''
+        return Response(payments_totals.payments_totals(self.get_object()))
 
 
 class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):

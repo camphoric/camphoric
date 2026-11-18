@@ -5,7 +5,13 @@ import { renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventAdminPayments } from '../EventAdminPayments';
-import { LEDGER_INVOICES, LEDGER_PAYMENTS, NOT_INVOICED, REFUND_THROUGH_PAYPAL } from './fixtures';
+import {
+  LEDGER_INVOICES,
+  LEDGER_PAYMENTS,
+  NOT_INVOICED,
+  REFUND_THROUGH_PAYPAL,
+  TOTALS,
+} from './fixtures';
 
 const { search, navigate } = vi.hoisted(() => ({
   search: { current: {} },
@@ -21,6 +27,9 @@ vi.mock('hooks/useAdminData', () => ({ useAugmentedRegistrations: () => [] }));
 vi.mock('pages/admin/registrations', () => ({ RegistrationEditorModal: () => null }));
 vi.mock('store/paymentsAttention', () => ({
   usePaymentsAttention: () => ({ data: [REFUND_THROUGH_PAYPAL, NOT_INVOICED] }),
+}));
+vi.mock('store/paymentsTotals', () => ({
+  usePaymentsTotals: () => ({ data: TOTALS }),
 }));
 vi.mock('store/entities', () => ({
   eventHooks: { useById: () => ({ data: { id: 7, payment_types: [] } }) },
@@ -84,5 +93,18 @@ describe('EventAdminPayments', () => {
       payto: undefined,
       paypage: undefined,
     });
+  });
+
+  it('shows the event’s totals after the payments', () => {
+    setup('reporter', 'totals');
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Needs attention (2)',
+      'Invoices',
+      'Payments and refunds',
+      'Totals',
+    ]);
+    expect(screen.getByRole('region', { name: 'Owed and received' })).toHaveTextContent(
+      '$9,374.00',
+    );
   });
 });

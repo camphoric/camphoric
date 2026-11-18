@@ -432,18 +432,24 @@ def paypal_fees(registration):
     on a refund, so refunds don't reduce it. A payment PayPal reported no fee
     for (or recorded by hand) adds nothing.
     '''
+    payments = models.Payment.objects.filter(
+        registration=registration, amount__gt=0, paypal_response__isnull=False)
+    return sum((paypal_fee(payment) for payment in payments), Decimal('0.00')).quantize(CENT)
+
+
+def paypal_fee(payment):
+    '''
+    What PayPal kept as its fee on one payment: its capture's
+    `seller_receivable_breakdown.paypal_fee`, or 0 when PayPal reported none.
+    '''
     from camphoric.invoices import _capture_of  # invoices imports pricing's callers
 
-    total = Decimal('0.00')
-    for payment in models.Payment.objects.filter(
-            registration=registration, amount__gt=0, paypal_response__isnull=False):
-        try:
-            capture = _capture_of(payment.paypal_response) or {}
-            fee = ((capture.get('seller_receivable_breakdown') or {}).get('paypal_fee') or {})
-            total += Decimal(str(fee.get('value') or '0'))
-        except (AttributeError, TypeError, ArithmeticError, ValueError):
-            continue
-    return total.quantize(CENT)
+    try:
+        capture = _capture_of(payment.paypal_response) or {}
+        fee = ((capture.get('seller_receivable_breakdown') or {}).get('paypal_fee') or {})
+        return Decimal(str(fee.get('value') or '0')).quantize(CENT)
+    except (AttributeError, TypeError, ArithmeticError, ValueError):
+        return Decimal('0.00')
 
 
 def datetime_to_dict(d):

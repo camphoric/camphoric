@@ -1,6 +1,6 @@
 /**
  * Payments (SPEC §8.11; §15, DR-171): the event's money work in one place.
- * Three views, the open one URL-addressable via `?paymentsTab`:
+ * Four views, the open one URL-addressable via `?paymentsTab`:
  *
  * - **Needs attention** (the default): refunds due, overpaid invoices,
  *   balances no invoice asks for, invoices past due, and PayPal orders to
@@ -9,6 +9,9 @@
  *   registration's invoices with the action ready.
  * - **Invoices** and **Payments**: every invoice, and every payment and
  *   refund, filtered, with the totals of the rows shown.
+ * - **Totals** (DR-173): the event's money summed by the server — owed and
+ *   received, the price line by line, custom charges (cancellation fees among
+ *   them) and payments by type, and the handling fees beside PayPal's own.
  *
  * Every role reads it; Registrars and Admins take the actions, under the
  * registration screen's rules (Reporters open the registration to look).
@@ -26,6 +29,7 @@ import { RegistrationEditorModal } from 'pages/admin/registrations';
 import { useMemo } from 'react';
 import { eventHooks, invoiceHooks, paymentHooks } from 'store/entities';
 import { usePaymentsAttention } from 'store/paymentsAttention';
+import { usePaymentsTotals } from 'store/paymentsTotals';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
 import { attentionAction } from './attention';
@@ -39,9 +43,10 @@ import {
   registrationNames,
 } from './ledgers';
 import { PaymentsLedger } from './PaymentsLedger';
+import { PaymentsTotals } from './PaymentsTotals';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
-const TABS = ['attention', 'invoices', 'payments'] as const;
+const TABS = ['attention', 'invoices', 'payments', 'totals'] as const;
 
 export function EventAdminPayments() {
   const { organizationId, eventId } = useParams({ from: FROM });
@@ -62,6 +67,7 @@ export function EventAdminPayments() {
     { registration__event: eventId },
     tab === 'payments',
   );
+  const { data: totals } = usePaymentsTotals(eventId, tab === 'totals');
 
   const names = useMemo(() => registrationNames(registrations ?? []), [registrations]);
 
@@ -91,6 +97,7 @@ export function EventAdminPayments() {
           </Tabs.Tab>
           <Tabs.Tab value="invoices">Invoices</Tabs.Tab>
           <Tabs.Tab value="payments">Payments and refunds</Tabs.Tab>
+          <Tabs.Tab value="totals">Totals</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="attention">
           {attention ? (
@@ -132,6 +139,9 @@ export function EventAdminPayments() {
             ) : (
               <InlineLoading />
             ))}
+        </Tabs.Panel>
+        <Tabs.Panel value="totals">
+          {tab === 'totals' && (totals ? <PaymentsTotals totals={totals} /> : <InlineLoading />)}
         </Tabs.Panel>
       </Tabs>
       <RegistrationEditorModal
