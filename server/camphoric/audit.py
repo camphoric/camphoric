@@ -132,6 +132,8 @@ ACTIONS = {
     LogEntry.Action.CREATE: 'create',
     LogEntry.Action.UPDATE: 'update',
     LogEntry.Action.DELETE: 'delete',
+    # The only access recorded: downloading an event's data (camphoric.event_export).
+    LogEntry.Action.ACCESS: 'export',
 }
 
 

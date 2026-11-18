@@ -25,6 +25,8 @@ export interface Permissions {
   canManageApps: boolean;
   /** Create, rename and delete organizations (Admins). */
   canManageOrganizations: boolean;
+  /** Download all of an event's data as JSON (Admins; §8.8, §15 DR-169). */
+  canExportEventData: boolean;
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -42,6 +44,7 @@ export function permissionsFor(role: Role | null): Permissions {
     canManageUsers: role === 'admin',
     canManageApps: role === 'admin',
     canManageOrganizations: role === 'admin',
+    canExportEventData: role === 'admin',
   };
 }
 

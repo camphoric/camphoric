@@ -7,7 +7,8 @@
  *   - Admin attribute schemas: registration, camper.
  * Registration types are also managed here (§8.4, §15 DR-32), as are promo
  * codes (§15 DR-67), the registration form's custom validation messages (§15
- * DR-34) and the event's email account (§15 DR-44). The open tab is URL-addressable via `?settingsTab`.
+ * DR-34) and the event's email account (§15 DR-44). Admins can also download all of the
+ * event's data as JSON (§15 DR-169). The open tab is URL-addressable via `?settingsTab`.
  */
 
 import { Alert, Button, Container, Stack, Tabs, Title } from '@mantine/core';
@@ -18,13 +19,14 @@ import { EditLeaseNotice } from 'components/EditLease';
 import { FormActions } from 'components/FormActions';
 import { JsonEditor } from 'components/JsonEditor';
 import { FullScreenLoading } from 'components/Loading';
-import { CanEdit, ViewOnly } from 'hooks/permissions';
+import { CanEdit, usePermissions, ViewOnly } from 'hooks/permissions';
 import { useConflictAwareSave, useLatestWhileUnchanged } from 'hooks/useEditableRecord';
 import { useEditLease } from 'hooks/useEditLease';
 import { useSearchTab } from 'hooks/useSearchTab';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { eventHooks } from 'store/entities';
 
+import { DataExportSettings } from './DataExportSettings';
 import { EmailSettings } from './EmailSettings';
 import { ErrorMessagesSettings } from './ErrorMessagesSettings';
 import { PromoCodesSettings } from './PromoCodesSettings';
@@ -34,6 +36,7 @@ const REGISTRATION_TYPES = 'registration_types';
 const PROMO_CODES = 'promo_codes';
 const VALIDATION_MESSAGES = 'validation_messages';
 const EMAIL = 'email';
+const DATA_EXPORT = 'data_export';
 
 type EditableField = keyof Pick<
   ApiEvent,
@@ -67,6 +70,8 @@ const TABS = [
   EMAIL,
   ...EDITABLE_FIELDS.map(({ field }) => field),
 ];
+// Admins also have the data export, last: it's rarely used.
+const ADMIN_TABS = [...TABS, DATA_EXPORT];
 
 const stringify = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
@@ -148,7 +153,8 @@ export function EventAdminSettings() {
     from: '/admin/organization/$organizationId/event/$eventId',
   });
   const { data: event } = eventHooks.useById(eventId);
-  const [tab, setTab] = useSearchTab('settingsTab', TABS);
+  const { canExportEventData } = usePermissions();
+  const [tab, setTab] = useSearchTab('settingsTab', canExportEventData ? ADMIN_TABS : TABS);
   // The tabs that edit the event's own fields share its edit lease (§9.8): held
   // while any of them has unsaved changes.
   const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(new Set());
@@ -192,6 +198,7 @@ export function EventAdminSettings() {
                 {title}
               </Tabs.Tab>
             ))}
+            {canExportEventData ? <Tabs.Tab value={DATA_EXPORT}>Data export</Tabs.Tab> : null}
           </Tabs.List>
           <Tabs.Panel value={REGISTRATION_TYPES} pl="md">
             <RegistrationTypesSettings
@@ -222,6 +229,11 @@ export function EventAdminSettings() {
               </ViewOnly>
             </Tabs.Panel>
           ))}
+          {canExportEventData ? (
+            <Tabs.Panel value={DATA_EXPORT} pl="md">
+              <DataExportSettings eventId={eventId} />
+            </Tabs.Panel>
+          ) : null}
         </Tabs>
       </Stack>
     </Container>

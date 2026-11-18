@@ -13,6 +13,7 @@ describe('permissionsFor', () => {
       canManageUsers: true,
       canManageApps: true,
       canManageOrganizations: true,
+      canExportEventData: true,
     });
     expect(permissionsFor('registrar')).toMatchObject({
       canEdit: true,
@@ -21,8 +22,13 @@ describe('permissionsFor', () => {
       canManageUsers: false,
       canManageApps: false,
       canManageOrganizations: false,
+      canExportEventData: false,
     });
-    expect(permissionsFor('reporter')).toMatchObject({ canEdit: false, canManageUsers: false });
+    expect(permissionsFor('reporter')).toMatchObject({
+      canEdit: false,
+      canManageUsers: false,
+      canExportEventData: false,
+    });
     expect(permissionsFor(null)).toMatchObject({ canEdit: false });
   });
 });

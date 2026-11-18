@@ -11,6 +11,7 @@ import traceback
 from urllib.parse import quote
 import uuid
 
+from auditlog.models import LogEntry
 from dateutil.relativedelta import relativedelta
 from deepmerge import always_merger
 from django.conf import settings
@@ -20,11 +21,13 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, F, OuterRef, Q
 from django.db.models.functions import Lower
 from django.core import signing
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.core.handlers.asgi import ASGIRequest
+from django.http import Http404, HttpResponseRedirect, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.decorators import method_decorator
+from django.utils.http import content_disposition_header
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 
@@ -51,6 +54,7 @@ from camphoric import (
     contracts,
     deletes,
     email_address,
+    event_export,
     filters,
     invoices,
     leases,
@@ -753,6 +757,29 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
 
     def delete_checks(self):
         return (deletes.no_registrations,)
+
+    @action(detail=True, methods=['get'], permission_classes=[AdminOnly])
+    def export(self, request, pk=None):
+        '''
+        All of the event's data as one JSON file, for analysis (SPEC §8.8, DR-169;
+        camphoric.event_export), built as it's sent. Its download is recorded
+        in the change history: who, when and the file's name.
+        '''
+        event = self.get_object()
+        now = timezone.now()
+        name = event_export.file_name(event, now)
+        LogEntry.objects.log_create(
+            event, force_log=True, action=LogEntry.Action.ACCESS, actor=request.user,
+            actor_email=request.user.email, changes={'data_export': [None, name]},
+            additional_data={'event': event.id})
+        chunks = event_export.stream(event, request.user, now)
+        if isinstance(request._request, ASGIRequest):
+            chunks = event_export.asynchronous(chunks)
+        response = StreamingHttpResponse(chunks, content_type='application/json')
+        response['Content-Disposition'] = content_disposition_header(True, name)
+        # Everyone's personal and payment details: never kept by a cache.
+        response['Cache-Control'] = 'no-store'
+        return response
 
 
 class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):
