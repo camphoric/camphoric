@@ -65,7 +65,9 @@ describe('ConfirmDeleteView', () => {
   it('explains what blocks it, without a delete', () => {
     view({ preview: BLOCKED });
     expect(screen.getByText('This can’t be deleted')).toBeInTheDocument();
-    expect(screen.getByText('Campers still have this charge.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Campers or registrations still have this charge.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Linens $25.00')).toBeInTheDocument();
     expect(deleteButton()).toBeDisabled();
   });

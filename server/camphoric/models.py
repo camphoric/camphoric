@@ -199,10 +199,12 @@ class LivePromoCodes(models.Manager):
 
 
 class LiveCustomCharges(models.Manager):
+    '''Charges: not deleted, nor is their camper (if they have one) or registration.'''
+
     def get_queryset(self):
         return super().get_queryset().filter(
-            deleted_at__isnull=True, camper__deleted_at__isnull=True,
-            camper__registration__deleted_at__isnull=True)
+            Q(camper__isnull=True) | Q(camper__deleted_at__isnull=True),
+            deleted_at__isnull=True, registration__deleted_at__isnull=True)
 
 
 class Organization(TimeStampedModel):
@@ -878,9 +880,15 @@ class Camper(TimeStampedModel):
 
 class CustomChargeType(TimeStampedModel):
     '''
-    A kind of charge (or credit) a registrar can add to a camper, such as extra
-    bedding. Camper pricing logic sees each camper's charges.
+    A kind of charge (or credit) a registrar can add to a camper or a
+    registration, such as extra bedding. Camper pricing logic sees each
+    camper's charges; a registration's own are added to its total (SPEC §9.2).
     '''
+    # The type a cancellation fee is recorded as (SPEC DR-168), made for the
+    # event the first time one is kept.
+    CANCELLATION_FEE = 'cancellation_fee'
+    CANCELLATION_FEE_LABEL = 'Cancellation fee'
+
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     label = models.CharField(max_length=255, help_text="human friendly name")
     name = models.CharField(max_length=255, help_text="machine name")
@@ -888,14 +896,32 @@ class CustomChargeType(TimeStampedModel):
     def __str__(self):
         return self.label or self.name
 
+    @classmethod
+    def cancellation_fee(cls, event):
+        '''The event's cancellation-fee type, made if it has none.'''
+        found = cls.objects.filter(
+            event=event, name=cls.CANCELLATION_FEE, deleted_at__isnull=True).order_by('id').first()
+        return found or cls.objects.create(
+            event=event, name=cls.CANCELLATION_FEE, label=cls.CANCELLATION_FEE_LABEL)
+
 
 class CustomCharge(TimeStampedModel):
     '''
-    A charge (or, when negative, a credit) a registrar has added to a camper.
+    A charge (or, when negative, a credit) a registrar has added to a camper,
+    or to the registration itself (no camper; SPEC DR-168). A registration's
+    own charge stays when a camper goes: a cancellation fee is one, and names
+    the camper it was kept for in `cancelled_camper`.
     '''
     # A charge type campers still have can't be deleted (SPEC DR-54).
     custom_charge_type = models.ForeignKey(CustomChargeType, on_delete=models.PROTECT)
-    camper = models.ForeignKey(Camper, on_delete=models.CASCADE)
+    registration = models.ForeignKey(
+        Registration, related_name='custom_charges', on_delete=models.CASCADE)
+    # None for the registration's own charge.
+    camper = models.ForeignKey(Camper, on_delete=models.CASCADE, null=True, blank=True)
+    # For a cancellation fee: the camper cancelled, whose restore offers to remove it.
+    cancelled_camper = models.ForeignKey(
+        Camper, related_name='cancellation_fees', on_delete=models.SET_NULL,
+        null=True, blank=True)
     amount = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
     notes = models.TextField(blank=True, default='')
 
@@ -906,15 +932,21 @@ class CustomCharge(TimeStampedModel):
         return "{} ${}".format(self.custom_charge_type.label, self.amount)
 
     def get_additional_data(self):
-        # Tags audit entries for the registration's and camper's histories (camphoric.audit).
-        return {'registration': self.camper.registration_id, 'camper': self.camper_id}
+        # Tags audit entries for the registration's and camper's histories
+        # (camphoric.audit); a cancellation fee is in its cancelled camper's.
+        return {'registration': self.registration_id,
+                'camper': self.camper_id or self.cancelled_camper_id}
 
     def save(self, **kwargs):
+        # A camper's charge is on the camper's registration (the camper may
+        # have been saved only since it was set, so it's read from the object).
+        if self.camper is not None:
+            self.registration_id = self.camper.registration_id
         super().save(**kwargs)
-        self.camper.registration.recalculate_server_pricing()
+        self.registration.recalculate_server_pricing()
 
     def delete(self, **kwargs):
-        reg = self.camper.registration
+        reg = self.registration
         super().delete(**kwargs)
         reg.recalculate_server_pricing()
 

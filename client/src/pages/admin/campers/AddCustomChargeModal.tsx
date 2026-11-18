@@ -1,7 +1,8 @@
 /**
- * Add a custom charge to a camper (SPEC §8.5): choose a custom-charge type,
- * amount (negative for a discount or credit), and notes; persists via POST. Adding a charge changes the camper's
- * (and registration's) derived totals (multi-key invalidation).
+ * Add a custom charge to a camper (SPEC §8.5), or to a registration itself
+ * (§8.4; §15, DR-168): choose a custom-charge type, amount (negative for a
+ * discount or credit), and notes; persists via POST. Adding a charge changes the
+ * camper's (and registration's) derived totals (multi-key invalidation).
  */
 
 import { Button, Group, Modal, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
@@ -12,12 +13,20 @@ import { customChargeHooks, customChargeTypeHooks } from 'store/entities';
 
 interface AddCustomChargeModalProps {
   eventId: Scalar;
-  camper: ApiCamper;
+  registrationId: Scalar;
+  /** The camper charged; leave out for a charge of the registration's own. */
+  camper?: ApiCamper;
   opened: boolean;
   onClose: () => void;
 }
 
-export function AddCustomChargeModal({ eventId, camper, opened, onClose }: AddCustomChargeModalProps) {
+export function AddCustomChargeModal({
+  eventId,
+  registrationId,
+  camper,
+  opened,
+  onClose,
+}: AddCustomChargeModalProps) {
   const create = customChargeHooks.useCreate();
   const { data: types } = customChargeTypeHooks.useList({ event: eventId });
 
@@ -31,7 +40,10 @@ export function AddCustomChargeModal({ eventId, camper, opened, onClose }: AddCu
     if (!effectiveType) return;
     create.mutate(
       {
-        camper: camper.id,
+        registration: registrationId,
+        camper: camper?.id ?? null,
+        // Set only by cancelling a camper (DR-168).
+        cancelled_camper: null,
         custom_charge_type: Number(effectiveType),
         amount: Number(amount) || 0,
         notes,

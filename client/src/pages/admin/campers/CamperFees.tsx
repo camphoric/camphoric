@@ -5,41 +5,17 @@
  * the custom charges (date, type, amount, notes) with add/remove.
  */
 
-import { Button, Group, Stack, Table, Text, Title } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
-import type { ApiCamper, ApiCustomCharge, ApiEvent } from 'api-types';
-import { confirmDelete } from 'components/ConfirmDelete';
-import { CanEdit } from 'hooks/permissions';
+import { Group, Stack, Text, Title } from '@mantine/core';
+import type { ApiCamper, ApiEvent } from 'api-types';
 import { PriceLines } from 'pages/admin/pricing';
-import { useState } from 'react';
-import { customChargeHooks, customChargeTypeHooks, registrationHooks } from 'store/entities';
+import { registrationHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 
-import { AddCustomChargeModal } from './AddCustomChargeModal';
+import { CustomCharges } from './CustomCharges';
 
 export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamper }) {
-  const { data: charges } = customChargeHooks.useList({ camper: camper.id });
-  const { data: types } = customChargeTypeHooks.useList({ event: event.id });
   // Its registration's promo code labels a per-camper discount (DR-67).
   const { data: registration } = registrationHooks.useById(camper.registration);
-  const del = customChargeHooks.useDelete();
-  const [addOpen, setAddOpen] = useState(false);
-
-  const typeLabel = (id: ApiCustomCharge['custom_charge_type']) =>
-    types?.find((t) => String(t.id) === String(id))?.label ?? String(id);
-
-  const confirmDeleteCharge = (cc: ApiCustomCharge) =>
-    confirmDelete({
-      path: 'customcharges',
-      id: cc.id,
-      title: 'Delete custom charge',
-      message: (
-        <>
-          Delete {typeLabel(cc.custom_charge_type)} ({formatMoney(cc.amount)})?
-        </>
-      ),
-      onConfirm: () => del.mutate({ id: cc.id, version: cc.version }),
-    });
 
   return (
     <Stack>
@@ -58,61 +34,7 @@ export function CamperFees({ event, camper }: { event: ApiEvent; camper: ApiCamp
       </Group>
 
       <Text fw={600}>Custom charges</Text>
-      {charges && charges.length > 0 ? (
-        <Table withTableBorder withColumnBorders striped>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Date</Table.Th>
-              <Table.Th>Type</Table.Th>
-              <Table.Th>Amount</Table.Th>
-              <Table.Th>Notes</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {charges.map((cc) => (
-              <Table.Tr key={cc.id}>
-                <Table.Td>{cc.created_at.slice(0, 10)}</Table.Td>
-                <Table.Td>{typeLabel(cc.custom_charge_type)}</Table.Td>
-                <Table.Td>{formatMoney(cc.amount)}</Table.Td>
-                <Table.Td>{cc.notes}</Table.Td>
-                <Table.Td>
-                  <CanEdit>
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      color="red"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={() => confirmDeleteCharge(cc)}
-                    >
-                      Delete
-                    </Button>
-                  </CanEdit>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      ) : (
-        <Text c="dimmed" size="sm">
-          No custom charges.
-        </Text>
-      )}
-
-      <CanEdit>
-        <Group>
-          <Button variant="light" onClick={() => setAddOpen(true)}>
-            Add custom charge
-          </Button>
-        </Group>
-      </CanEdit>
-
-      <AddCustomChargeModal
-        eventId={event.id}
-        camper={camper}
-        opened={addOpen}
-        onClose={() => setAddOpen(false)}
-      />
+      <CustomCharges eventId={event.id} registrationId={camper.registration} camper={camper} />
     </Stack>
   );
 }

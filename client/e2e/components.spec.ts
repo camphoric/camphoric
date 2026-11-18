@@ -559,7 +559,9 @@ test.describe('Deletes and history', () => {
     DESKTOP_ONLY,
     async ({ page }) => {
       await page.goto(story('confirm-delete--blocked'));
-      await expect(page.getByText('Campers still have this charge.')).toBeVisible();
+      await expect(
+        page.getByText('Campers or registrations still have this charge.'),
+      ).toBeVisible();
       await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled();
     },
   );
@@ -577,6 +579,16 @@ test.describe('Deletes and history', () => {
       await expect(page.getByRole('button', { name: 'Delete' })).toBeEnabled();
     },
   );
+
+  test('deleting a camper offers to keep a cancellation fee', DESKTOP_ONLY, async ({ page }) => {
+    await page.goto(story('cancel-camper--offers-a-fee'));
+    await expect(page.getByText('1 custom charge: Linens $25.00')).toBeVisible();
+    await page.getByRole('checkbox', { name: /Keep a cancellation fee/ }).check();
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Fee' }).fill('50');
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByTestId('confirmed')).toHaveText('Kept $50.00: Cancellation: Sam Alpha');
+  });
 
   test('a history shows who changed what', async ({ page }) => {
     await page.goto(story('history-list--registration'));

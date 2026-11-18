@@ -2,11 +2,13 @@
 The data migrations of incomplete registrations (SPEC DR-139, DR-140, DR-141).
 They read `Registration.completed`, since removed, so they run here on the models
 as they were, one migration back, and not on today's. And the migration that
-retires DRF's API tokens (DR-157).
+retires DRF's API tokens (DR-157), and the one that puts custom charges on
+registrations (DR-168).
 '''
 
 import datetime
 from decimal import Decimal
+from functools import partial
 from importlib import import_module
 
 from django.db import connection
@@ -506,3 +508,31 @@ class RetiringDrfTokensTests(TransactionTestCase):
         migrate_to('0095_api_token')
         migrate_to_latest()
         self.assertNotIn('authtoken_token', connection.introspection.table_names())
+
+
+class RegistrationCustomChargesTests(TransactionTestCase):
+    '''0098 gives every custom charge its camper's registration (DR-168).'''
+
+    def tearDown(self):
+        migrate_to_latest()
+
+    def test_each_charge_is_on_its_campers_registration(self):
+        apps = migrate_to('0097_event_payment_types')
+        model = partial(apps.get_model, 'camphoric')
+        event = model('Event').objects.create(
+            organization=model('Organization').objects.create(name='Org'), name='Camp')
+        charge_type = model('CustomChargeType').objects.create(event=event, name='linens')
+        charges = []
+        for email in ('pat@example.com', 'lee@example.com'):
+            registration = model('Registration').objects.create(
+                event=event, registrant_email=email)
+            camper = model('Camper').objects.create(registration=registration, attributes={})
+            charges.append((model('CustomCharge').objects.create(
+                custom_charge_type=charge_type, camper=camper, amount=Decimal('1.00')).pk,
+                registration.pk))
+
+        migrate_to_latest()
+        from camphoric import models
+        for charge, registration in charges:
+            self.assertEqual(models.CustomCharge.all_objects.get(pk=charge).registration_id,
+                             registration)

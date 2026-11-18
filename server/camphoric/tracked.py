@@ -29,7 +29,7 @@ TRACKED = {
         (models.Camper, 'registration.event_id'),
         (models.Lodging, 'event_id'),
         (models.CustomChargeType, 'event_id'),
-        (models.CustomCharge, 'camper.registration.event_id'),
+        (models.CustomCharge, 'registration.event_id'),
         (models.Deposit, 'event_id'),
         (models.Invoice, 'registration.event_id'),
         (models.Payment, 'registration.event_id'),

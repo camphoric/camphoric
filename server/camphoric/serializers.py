@@ -1,12 +1,13 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.fields import empty
+from decimal import Decimal
 import zoneinfo
 
 from rest_framework.serializers import (
     BooleanField, CharField, ChoiceField, DateTimeField, DecimalField, IntegerField,
     ListSerializer, ModelSerializer as BaseModelSerializer, PrimaryKeyRelatedField,
-    SerializerMethodField, ValidationError,
+    Serializer, SerializerMethodField, ValidationError,
 )
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -481,10 +482,45 @@ class CustomChargeTypeSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class CancellationFeeSerializer(Serializer):
+    '''The fee kept on cancelling a camper (SPEC DR-168): more than 0.'''
+    amount = DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'))
+    notes = CharField(required=False, allow_blank=True, default='')
+
+
 class CustomChargeSerializer(ModelSerializer):
+    '''
+    A camper's charge, or the registration's own (no camper; SPEC DR-168). For
+    a camper's, the registration is the camper's. `cancelled_camper` is set only
+    by cancelling a camper (CamperViewSet.cancel).
+    '''
+    registration = PrimaryKeyRelatedField(
+        queryset=models.Registration.objects.all(), required=False)
+
     class Meta:
         model = models.CustomCharge
         fields = '__all__'
+        read_only_fields = ['cancelled_camper']
+
+    def validate(self, data):
+        instance = self.instance
+        camper = data['camper'] if 'camper' in data else getattr(instance, 'camper', None)
+        registration = data.get('registration') or getattr(instance, 'registration', None)
+        if camper is not None:
+            if registration is not None and registration != camper.registration:
+                raise ValidationError({'camper': 'That camper is on another registration.'})
+            registration = camper.registration
+        if registration is None:
+            raise ValidationError({'registration': 'This field is required.'})
+        if instance is not None and registration.pk != instance.registration_id:
+            raise ValidationError(
+                {'registration': 'A charge can’t move to another registration.'})
+        charge_type = data.get('custom_charge_type') or getattr(
+            instance, 'custom_charge_type', None)
+        if charge_type is not None and charge_type.event_id != registration.event_id:
+            raise ValidationError(
+                {'custom_charge_type': 'Choose a charge type of this registration’s event.'})
+        return {**data, 'registration': registration}
 
 
 class PricingOverrideSerializer(ModelSerializer):

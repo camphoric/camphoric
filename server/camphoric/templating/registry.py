@@ -200,6 +200,9 @@ TYPES = (
           'registering — `type`, `total` and `balance`. Prefer `registration.invoice`.',
           nullable=True),
         F('camper_count', 'number', 'Number of campers.'),
+        F('custom_charges', 'list<custom_charge>', "The registration's own custom charges, "
+          "such as a cancellation fee (not its campers'), oldest first.",
+          "{% for charge in registration.custom_charges %}…{% endfor %}"),
     ), values.RegistrationVar, base='dict'),
 
     TypeSpec('camper', 'One camper.', (
@@ -307,14 +310,18 @@ TYPES = (
         F('label', 'string', 'Human-readable name.'),
     ), values.RegistrationTypeVar, base='dict'),
 
-    TypeSpec('custom_charge', 'A charge (or credit) an admin added to a camper.', (
+    TypeSpec('custom_charge', 'A charge (or credit) added to a camper or a registration.', (
         ID,
         F('type', 'custom_charge_type', 'The kind of charge.', nullable=True),
-        F('name', 'string', "The charge type's machine name."),
+        F('name', 'string', "The charge type's machine name: `cancellation_fee` for a fee "
+          'kept when a camper was cancelled.',
+          "{% if charge.name == 'cancellation_fee' %}…{% endif %}"),
         F('label', 'string', "The charge type's label."),
         F('amount', 'money', 'Amount.'),
         F('notes', 'string', 'Admin notes.'),
-        F('camper', 'camper', 'The camper charged.'),
+        F('camper', 'camper', "The camper charged; none for the registration's own charge.",
+          nullable=True),
+        F('registration', 'registration', 'The registration it is on.'),
     ), values.CustomChargeVar, base='dict'),
 
     TypeSpec('custom_charge_type', 'A kind of custom charge.', (

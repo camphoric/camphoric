@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DeletedPanel } from '../DeletedPanel';
 
-const { restore, deletedPayments } = vi.hoisted(() => ({
+const { restore, deletedPayments, apiFetch, deleteCharge } = vi.hoisted(() => ({
   restore: vi.fn(),
   deletedPayments: { data: [] as object[] },
+  apiFetch: vi.fn(),
+  deleteCharge: vi.fn(),
 }));
 const reggie = { id: 4, username: 'reggie', name: 'Reggie Registrar' };
 
@@ -20,6 +22,11 @@ vi.mock('store/entities', () => ({
   registrationHooks: {
     useList: () => ({ data: [{ id: 2, registrant_email: 'lee@example.com' }] }),
   },
+  customChargeHooks: { useDelete: () => ({ mutate: deleteCharge }) },
+}));
+vi.mock('utils/fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('utils/fetch')>()),
+  apiFetch,
 }));
 vi.mock('store/deletes', () => ({
   useDeletedRegistrations: () => ({
@@ -49,7 +56,9 @@ vi.mock('store/deletes', () => ({
 }));
 
 beforeEach(() => {
-  restore.mockClear();
+  restore.mockReset();
+  apiFetch.mockReset();
+  deleteCharge.mockReset();
   deletedPayments.data = [];
 });
 
@@ -88,5 +97,35 @@ describe('DeletedPanel', () => {
     renderWithProviders(<DeletedPanel />);
     await user.click(screen.getByRole('button', { name: 'Restore pat@example.com' }));
     expect(restore).toHaveBeenCalledWith(1, expect.anything());
+  });
+
+  it('offers to remove the cancellation fee kept for a camper it restores', async () => {
+    const fee = { id: 31, version: 1, amount: '50.00', notes: 'Cancellation: Sam Beta' };
+    apiFetch.mockResolvedValue([fee]);
+    restore.mockImplementation((_id: number, { onSuccess }: { onSuccess: () => void }) =>
+      onSuccess(),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DeletedPanel />);
+    await user.click(screen.getByRole('button', { name: 'Restore Sam Beta' }));
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/customcharges/?cancelled_camper=9');
+    expect(
+      await screen.findByText(/A cancellation fee was kept for Sam Beta.*\$50\.00/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove fee' }));
+    expect(deleteCharge).toHaveBeenCalledWith({ id: 31, version: 1 }, expect.anything());
+  });
+
+  it('asks nothing more when no fee was kept', async () => {
+    apiFetch.mockResolvedValue([]);
+    restore.mockImplementation((_id: number, { onSuccess }: { onSuccess: () => void }) =>
+      onSuccess(),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DeletedPanel />);
+    await user.click(screen.getByRole('button', { name: 'Restore Sam Beta' }));
+    expect(apiFetch).toHaveBeenCalled();
+    expect(screen.queryByText('Remove the cancellation fee?')).not.toBeInTheDocument();
   });
 });

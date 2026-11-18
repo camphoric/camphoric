@@ -124,7 +124,16 @@ const FIELD_NAMES: Record<string, string> = {
 };
 
 // Recorded but not worth showing: the action says it, or it never changes by hand.
-const HIDDEN = new Set(['id', 'uuid', 'event', 'registration', 'camper', 'deleted_at']);
+const HIDDEN = new Set([
+  'id',
+  'uuid',
+  'event',
+  'registration',
+  'camper',
+  // A cancellation fee's camper: its entry is in that camper's history (DR-168).
+  'cancelled_camper',
+  'deleted_at',
+]);
 const PRICES = new Set(['server_pricing_results', 'client_reported_pricing']);
 const MONEY = new Set(['amount', 'handling']);
 // JSON fields shown key by key, and what their keys are prefixed with.

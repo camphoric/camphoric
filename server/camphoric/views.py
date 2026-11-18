@@ -244,9 +244,8 @@ def lock_registration_first(instance):
     (#803).
     '''
     registrations = models.Registration.all_objects
-    if isinstance(instance, models.CustomCharge):
-        registrations = registrations.filter(pk=instance.camper.registration_id)
-    elif isinstance(instance, (models.Camper, models.PricingOverride, models.Invoice)):
+    if isinstance(instance, (models.Camper, models.CustomCharge, models.PricingOverride,
+                             models.Invoice)):
         registrations = registrations.filter(pk=instance.registration_id)
     elif isinstance(instance, models.Invitation):
         # Completing takes a draft, then the invitation, and the draft becomes a
@@ -858,6 +857,39 @@ class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mode
     def history(self, request, pk=None):
         '''The camper's audit log, with its charges (DR-53).'''
         return Response(audit.history(camper=self.get_any_object().id))
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        '''
+        Cancel a camper (SPEC §8.5, DR-168): delete them as DELETE does, and,
+        when `cancellation_fee` gives an amount (and notes), keep that as a
+        charge of the registration's own, of the event's cancellation-fee type,
+        naming them as its `cancelled_camper`. One transaction: neither happens
+        without the other. Honours `If-Match` as DELETE does. Answers with the
+        fee kept, or null.
+        '''
+        fee = serializers.CancellationFeeSerializer(
+            data=request.data.get('cancellation_fee'), allow_null=True)
+        fee.is_valid(raise_exception=True)
+        with transaction.atomic():
+            conflict = self.version_conflict()
+            if conflict is not None:
+                return conflict
+            camper = self.get_object()
+            self.delete_plan(camper).carry_out()
+            kept = None
+            if fee.validated_data is not None:
+                registration = camper.registration
+                kept = models.CustomCharge.objects.create(
+                    custom_charge_type=models.CustomChargeType.cancellation_fee(
+                        registration.event),
+                    registration=registration,
+                    cancelled_camper=camper,
+                    amount=fee.validated_data['amount'],
+                    notes=fee.validated_data.get('notes', ''),
+                )
+        return Response({'cancellation_fee': serializers.CustomChargeSerializer(kept).data
+                         if kept is not None else None})
 
 
 class PricingOverrideViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):

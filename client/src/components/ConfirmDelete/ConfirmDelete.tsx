@@ -57,6 +57,10 @@ export function ConfirmDelete({ path, id, onCancel, onConfirm, ...view }: Confir
 export interface ConfirmDeleteViewProps {
   message: ReactNode;
   confirmLabel?: string;
+  /** More to ask before the delete (a cancellation fee, say), under the preview. */
+  children?: ReactNode;
+  /** Holds the delete back while what's asked isn't complete. */
+  confirmDisabled?: boolean;
   /** Undefined while it's being worked out. */
   preview?: ApiDeletePreview;
   error?: unknown;
@@ -67,6 +71,8 @@ export interface ConfirmDeleteViewProps {
 export function ConfirmDeleteView({
   message,
   confirmLabel = 'Delete',
+  children,
+  confirmDisabled = false,
   preview,
   error,
   onConfirm,
@@ -84,12 +90,17 @@ export function ConfirmDeleteView({
       ) : (
         <InlineLoading message="Checking what this would affect…" />
       )}
+      {!error && preview?.can_delete && children}
       <Group justify="flex-end">
         <Button variant="default" onClick={onCancel}>
           Cancel
         </Button>
         {!error && (
-          <Button color="red" disabled={!preview?.can_delete} onClick={onConfirm}>
+          <Button
+            color="red"
+            disabled={!preview?.can_delete || confirmDisabled}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </Button>
         )}

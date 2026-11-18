@@ -103,4 +103,5 @@ class CustomChargeFilter(django_filters.FilterSet):
 
     class Meta:
         model = models.CustomCharge
-        fields = ['camper', 'custom_charge_type', 'custom_charge_type__event']
+        fields = ['registration', 'camper', 'cancelled_camper', 'custom_charge_type',
+                  'custom_charge_type__event']

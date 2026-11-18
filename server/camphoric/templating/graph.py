@@ -309,6 +309,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             balance=money(pricing.get('total', 0)),
             initial_payment=None,
             camper_count=0,
+            custom_charges=ReadOnlyList(),
         ))
 
     camper_rows = list(
@@ -375,6 +376,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             balance=money(pricing.get('total', 0)),
             initial_payment=None,
             camper_count=0,
+            custom_charges=ReadOnlyList(),
         ))
         registrations[registration['id']] = registration
         priced = pricing.get('campers') or []
@@ -481,11 +483,14 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         registration['balance'] = money((registration['total_owed'] or Decimal('0')) - paid)
         derive_old_payment_fields(registration)
 
-    for row in live(models.CustomCharge.objects.filter(camper_id__in=list(campers))) \
-            .order_by('id'):
-        camper = campers[row.camper_id]
+    # A camper's charges, and the registration's own (a cancellation fee, say; DR-168).
+    for row in live(models.CustomCharge.objects.filter(
+            registration_id__in=registration_row_ids)).order_by('id'):
+        camper = campers.get(row.camper_id) if row.camper_id is not None else None
+        if row.camper_id is not None and camper is None:
+            continue
         charge_type = custom_charge_types.get(row.custom_charge_type_id)
-        camper['custom_charges'].append(keep(CustomChargeVar(
+        charge = keep(CustomChargeVar(
             id=row.id,
             type=charge_type,
             name=charge_type['name'] if charge_type else '',
@@ -493,7 +498,9 @@ def build_event_graph(event, *, registration_ids=None, request=None):
             amount=money(row.amount),
             notes=row.notes,
             camper=camper,
-        )))
+            registration=registrations[row.registration_id],
+        ))
+        (camper or registrations[row.registration_id])['custom_charges'].append(charge)
 
     invitations = ReadOnlyList()
     redeemed = Exists(models.Invitation.redeeming_registrations(

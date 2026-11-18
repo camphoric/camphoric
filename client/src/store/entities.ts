@@ -99,7 +99,12 @@ export const invoiceHooks = createEntityHooks<
 });
 export const customChargeHooks = createEntityHooks<
   ApiCustomCharge,
-  'event' | 'camper' | 'custom_charge_type' | 'custom_charge_type__event'
+  | 'event'
+  | 'registration'
+  | 'camper'
+  | 'cancelled_camper'
+  | 'custom_charge_type'
+  | 'custom_charge_type__event'
 >({
   name: 'CustomCharge',
   alsoInvalidate: ['Registration', 'Camper'],

@@ -30,6 +30,43 @@ vi.mock('store/entities', () => ({
     useUpdate: mutation,
     useDelete: () => ({ mutate: vi.fn() }),
   },
+  // The registration's own charge (a cancellation fee), and one of a camper's.
+  customChargeHooks: {
+    useList: () => ({
+      data: [
+        {
+          id: 31,
+          registration: 1,
+          camper: null,
+          cancelled_camper: 9,
+          custom_charge_type: 4,
+          amount: '50.00',
+          notes: 'Cancellation: Sam Beta',
+          created_at: '2026-10-02T12:00:00Z',
+        },
+        {
+          id: 32,
+          registration: 1,
+          camper: 8,
+          cancelled_camper: null,
+          custom_charge_type: 3,
+          amount: '25.00',
+          notes: 'Sheets',
+          created_at: '2026-10-01T12:00:00Z',
+        },
+      ],
+    }),
+    useCreate: mutation,
+    useDelete: () => ({ mutate: vi.fn() }),
+  },
+  customChargeTypeHooks: {
+    useList: () => ({
+      data: [
+        { id: 3, label: 'Linens' },
+        { id: 4, label: 'Cancellation fee' },
+      ],
+    }),
+  },
 }));
 vi.mock('store/invoices', () => ({
   useInvoiceStatusAction: mutation,
@@ -87,6 +124,19 @@ describe('RegistrationInvoices', () => {
     setup('reporter');
     expect(screen.getByText('Total owed')).toBeInTheDocument();
     expect(screen.getByText('Invoice #1: 50% Deposit')).toBeInTheDocument();
+  });
+
+  it('lists the registration’s own charges, not its campers’', () => {
+    setup('reporter');
+    expect(screen.getByText('Cancellation: Sam Beta')).toBeInTheDocument();
+    expect(screen.getByText('Cancellation fee')).toBeInTheDocument();
+    expect(screen.queryByText('Sheets')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add custom charge' })).toBeNull();
+  });
+
+  it('lets a Registrar add one of the registration’s own', () => {
+    setup('registrar');
+    expect(screen.getByRole('button', { name: 'Add custom charge' })).toBeInTheDocument();
   });
 
   it('lets an Admin delete a payment after confirming', async () => {

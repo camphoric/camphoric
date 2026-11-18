@@ -20,13 +20,22 @@ import { formatMoney } from 'utils/money';
 export const PROMO = 'promo';
 export const PROMO_LABEL = 'Promo code';
 
+/** The registration's own custom charges, added after the promo code (§15, DR-168). */
+export const REGISTRATION_CHARGES = 'registration_charges';
+export const REGISTRATION_CHARGES_LABEL = 'Registration charges';
+
+const BUILT_IN_LABELS: Record<string, string> = {
+  [PROMO]: PROMO_LABEL,
+  [REGISTRATION_CHARGES]: REGISTRATION_CHARGES_LABEL,
+};
+
 /** Find a fee's label from the pricing-logic vars, falling back to the key. */
 export function feeLabel(key: string, ...logics: JsonLogicPricing[]): string {
   for (const logic of logics) {
     const found = logic.find((component) => component.var === key);
     if (found?.label) return found.label;
   }
-  return key === PROMO ? PROMO_LABEL : key;
+  return BUILT_IN_LABELS[key] ?? key;
 }
 
 /** A line of the breakdown, as the override actions see it. */
