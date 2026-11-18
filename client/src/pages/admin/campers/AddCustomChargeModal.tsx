@@ -1,6 +1,6 @@
 /**
  * Add a custom charge to a camper (SPEC §8.5), or to a registration itself
- * (§8.4; §15, DR-168): choose a custom-charge type, amount (negative for a
+ * (§8.4; §15, DR-170): choose a custom-charge type, amount (negative for a
  * discount or credit), and notes; persists via POST. Adding a charge changes the
  * camper's (and registration's) derived totals (multi-key invalidation).
  */
@@ -42,7 +42,7 @@ export function AddCustomChargeModal({
       {
         registration: registrationId,
         camper: camper?.id ?? null,
-        // Set only by cancelling a camper (DR-168).
+        // Set only by cancelling a camper (DR-170).
         cancelled_camper: null,
         custom_charge_type: Number(effectiveType),
         amount: Number(amount) || 0,

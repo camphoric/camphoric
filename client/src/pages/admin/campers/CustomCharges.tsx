@@ -1,6 +1,6 @@
 /**
  * A camper's custom charges, or a registration's own (SPEC §8.4, §8.5; §15,
- * DR-168): each with its date, type, amount and notes, and for Registrars and
+ * DR-170): each with its date, type, amount and notes, and for Registrars and
  * Admins, adding one and removing one (after confirming). A registration's own
  * charges — a cancellation fee kept when a camper was deleted, say — are the
  * ones on no camper; they're added to its total.

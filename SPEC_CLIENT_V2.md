@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-168)
+- §15 — Decision Records (DR-1…DR-170)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -504,8 +504,8 @@ Non-CRUD admin endpoints:
   emailed (invalid, or `@dontsend.com`) is a 400 `{ detail }`.
 - `GET /api/customcharges/?camper=` — a camper's custom charges; `?registration=` — a
   registration's, its campers' and its own (`camper: null`); `?cancelled_camper=` — the
-  cancellation fees kept for a camper (§15, DR-168).
-- **Cancel a camper** (Registrars and Admins; §8.5; §15, DR-168): `POST
+  cancellation fees kept for a camper (§15, DR-170).
+- **Cancel a camper** (Registrars and Admins; §8.5; §15, DR-170): `POST
   /api/campers/{id}/cancel/` `{ cancellation_fee: { amount, notes } | null }` deletes the camper
   as `DELETE` does (soft, restorable; the same delete preview applies, and `If-Match` as for a
   delete → 412 when the camper has moved on) and, with a fee, adds it as a custom charge of the
@@ -760,7 +760,7 @@ Non-CRUD admin endpoints:
   - `GET /api/registrations/{id}/history/` — the registration's changes and those of its campers,
     payments and custom charges (its own too), including ones since deleted; `GET
     /api/campers/{id}/history/` — the camper's and its custom charges', and a cancellation fee
-    kept for them (§15, DR-168).
+    kept for them (§15, DR-170).
   - A registration's history starts when it's completed, which is when it's made from its draft:
     a `create` entry for it and for each of its campers (§15, DR-139, DR-141).
   - Each is an array, newest first, of `{ id, timestamp, request_id, actor, action, object,
@@ -1247,7 +1247,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   cancellation fee, the camper it was kept for), `custom_charge_type`, `amount`, `notes`; type has
   `event`, `name`, `label`. Created with a `camper`, a charge is on the camper's registration
   (`registration`, if sent too, must be it); without one, `registration` is required. Its type is
-  of the registration's event, and it can't move to another registration (§15, DR-168).
+  of the registration's event, and it can't move to another registration (§15, DR-170).
 - **PromoCode** (`/api/promocodes/`, filter `event`; soft-deleted; §15, DR-67): `id`, `event`,
   `label` (names the discount's price line), `code` (what the registrant enters; stored trimmed,
   not blank, and unique among the event's live codes regardless of case — a 400 on `code`
@@ -1922,7 +1922,7 @@ they can:
   `server_pricing_results` (labels from the pricing-logic vars; a promo discount labelled with
   the code's label; the registration's own charges as "Registration charges"), the
   registration's own custom charges (date, type, amount, notes — a cancellation fee among them;
-  §15, DR-168), the ledger (the price; the handling fees on its invoices, when there are
+  §15, DR-170), the ledger (the price; the handling fees on its invoices, when there are
   any; total owed; total paid; the balance due, or the refund due; and how much of the balance
   no invoice asks for yet), and each invoice: its description, where it came from (from
   registration, payment received, created by a registrar, converted), how it's to be paid, its
@@ -1972,7 +1972,7 @@ they can:
   payment on it; §15, DR-133). Registrars and Admins see the
   registration's deleted payments, with who deleted each and when, to restore them (§15,
   DR-55).
-- **Add or remove a charge of the registration's own** (Registrars and Admins; §15, DR-168) — as
+- **Add or remove a charge of the registration's own** (Registrars and Admins; §15, DR-170) — as
   for a camper's (§8.5), but on no camper: `registration`, `custom_charge_type`, `amount`,
   `notes`. It's added to the registration's total (§9.2), and stays whatever happens to its
   campers. Removing one asks first.
@@ -2035,7 +2035,7 @@ deleted, and restoring one. A deleted registration's campers and payments come b
 they aren't listed on their own; a camper or payment can't be restored while its registration is
 deleted (the server's 409 says so). Restoring a camper a cancellation fee was kept for offers to
 remove the fee (or fees) from the registration, showing each amount and note; it stays unless the
-registrar says to remove it (§15, DR-168).
+registrar says to remove it (§15, DR-170).
 
 ### 8.5 Campers
 
@@ -2055,7 +2055,7 @@ days in their stay shows that leaf, though the lodging screen lists them as unas
   camper goes; the camper's deletion and the fee are one request (`POST
   /api/campers/{id}/cancel/`, §5), both or neither. The registration is repriced, and the
   registrar then refunds what was paid beyond the new total (lowering the invoice and refunding
-  the difference, §8.4), which leaves a balance of 0 (§15, DR-168).
+  the difference, §8.4), which leaves a balance of 0 (§15, DR-170).
 - **Edit admin-only attributes** — from `camper_admin_schema` (same pattern as registrations).
   Persists via PATCH `admin_attributes`.
 - **See the camper's lodging** — the unit they're placed in (path, or "Unassigned") and their
@@ -2724,7 +2724,7 @@ Algorithm:
    The discount (for `camper` scope, the sum) is stored as `results.promo = -discount` and
    taken off `results.total`. Each discount, and each total it comes off, is rounded as money.
 6. **The registration's own custom charges** (server only: a registration being registered has
-   none, so the client never meets one; §15, DR-168): when a saved registration has any (a
+   none, so the client never meets one; §15, DR-170): when a saved registration has any (a
    cancellation fee, say), their sum, rounded as money, is stored as
    `results.registration_charges` and added to `results.total` after the promo code, so the code
    doesn't discount them; a total below 0 is then 0. The logic sees them as
@@ -2816,7 +2816,7 @@ example and its result.
   `event`; a group email's copy gets its recipient's registration or
   camper and `recipient` (§8.9).
   A registration's `custom_charges` are its own (a cancellation fee, `name` `cancellation_fee`,
-  say; §15, DR-168), each camper's its own; a charge's `camper` is none for the registration's.
+  say; §15, DR-170), each camper's its own; a charge's `camper` is none for the registration's.
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
   `registration.campers`, `lodging.all_campers`, `event.nights`, and so on. Money is a
   two-place decimal; dates and datetimes are real dates (datetimes in the server's configured
@@ -3432,7 +3432,7 @@ that is out of scope for this pass.
 - **Receipts for payments made later.** A registrant gets one confirmation email; a payment a
   registrar records, or one found by "Check PayPal order", sends nothing. Decide whether
   payments (and refunds) after the confirmation should email a receipt.
-- **A default cancellation fee per event** (§15, DR-168). A registrar types the fee each time a
+- **A default cancellation fee per event** (§15, DR-170). A registrar types the fee each time a
   camper is cancelled. An event setting could suggest one — a flat amount, a percentage of the
   camper's fees, or tiers by how long before the event — if organizers want a policy applied
   the same way each time; it would be event configuration (and in the event import spec).
@@ -7142,7 +7142,7 @@ collapsed categories per admin or per browser — no one has asked for it, and a
 admin forgot they collapsed would hide its reports on their next visit. One category open at a
 time (an accordion) — comparing reports across categories would mean reopening them in turn.
 
-### DR-168 — A cancellation fee is a custom charge of the registration's own
+### DR-170 — A cancellation fee is a custom charge of the registration's own
 
 **Decision:** A custom charge belongs to a registration, and to one of its campers or to the
 registration itself (`camper` null). Cancelling a camper is deleting them, as before (soft,
@@ -7255,7 +7255,7 @@ must be coordinated with the backend. Grouped by status.
   DR-34).
 - **Other endpoints:** `POST /api/reports/{id}/render` (§8.7), `POST /api/invitations/{id}/send`
   (§8.4; its Jinja-render 400, §5), `GET /api/eventlist` (§4), `GET /api/customcharges/` and its
-  filters, `POST /api/campers/{id}/cancel/` (§5; §15, DR-168).
+  filters, `POST /api/campers/{id}/cancel/` (§5; §15, DR-170).
 - **Email:** the email templates (`EmailTemplate`; the event's `confirmation_template` and each
   registration type's `invitation_template`) and their save-time checks, the confirmation-failure
   report to `confirmation_email_from`, the unsubscribe link and the page's endpoint and the list

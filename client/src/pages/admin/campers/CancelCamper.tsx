@@ -1,6 +1,6 @@
 /**
  * Deleting (cancelling) a camper, with the offer to keep a cancellation fee
- * (SPEC §8.5; §15, DR-168). The confirmation shows the server's delete preview
+ * (SPEC §8.5; §15, DR-170). The confirmation shows the server's delete preview
  * (§5, DR-54) and, when the delete can go ahead, offers to keep a fee: an
  * amount and a note. Confirming cancels the camper through
  * `POST /api/campers/{id}/cancel/`, which deletes them and keeps the fee as a

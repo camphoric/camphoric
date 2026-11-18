@@ -24,7 +24,7 @@ fixed.
   that invoice is paid online. It is *not* part of the price.
 - **Cancellation fee** — money the camp keeps when a camper is cancelled (deleted): a custom
   charge of the registration's own (on no camper), of the event's `cancellation_fee` charge type,
-  so it stays when the camper goes. It *is* part of the price (SPEC DR-168).
+  so it stays when the camper goes. It *is* part of the price (SPEC DR-170).
 - **Ledger** — a registration's `total_owed`, `total_paid` and `balance`, worked out from its
   price, invoices and payments.
 - **Pending PayPal order** — an order the server created for an invoice that hasn't been captured
@@ -945,7 +945,7 @@ sequenceDiagram
 Cancelling a camper is deleting them (they can be restored; SPEC DR-55). Their own custom charges
 go out of sight with them, so a fee the camp keeps can't be one of those: it's a **custom charge of
 the registration's own** (no camper), of the event's `cancellation_fee` charge type (made the first
-time one is kept), and it names the camper in `cancelled_camper` (SPEC §8.5, DR-168).
+time one is kept), and it names the camper in `cancelled_camper` (SPEC §8.5, DR-170).
 
 ```mermaid
 sequenceDiagram

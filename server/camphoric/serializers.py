@@ -483,14 +483,14 @@ class CustomChargeTypeSerializer(ModelSerializer):
 
 
 class CancellationFeeSerializer(Serializer):
-    '''The fee kept on cancelling a camper (SPEC DR-168): more than 0.'''
+    '''The fee kept on cancelling a camper (SPEC DR-170): more than 0.'''
     amount = DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'))
     notes = CharField(required=False, allow_blank=True, default='')
 
 
 class CustomChargeSerializer(ModelSerializer):
     '''
-    A camper's charge, or the registration's own (no camper; SPEC DR-168). For
+    A camper's charge, or the registration's own (no camper; SPEC DR-170). For
     a camper's, the registration is the camper's. `cancelled_camper` is set only
     by cancelling a camper (CamperViewSet.cancel).
     '''

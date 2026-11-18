@@ -8,7 +8,7 @@
  * `attributes` and `admin_attributes`, and their `stay`, in a single PATCH of
  * what changed and from which version (§9.8, DR-109); the camper can be
  * deleted after confirming what that does, keeping a cancellation fee if the
- * registrar chooses (DR-168), and restored later (DR-54, DR-55).
+ * registrar chooses (DR-170), and restored later (DR-54, DR-55).
  * The open section is URL-addressable via `?camperTab`.
  *
  * The `camper_schema` is rendered in admin mode (§9.5): the registrant UI schema

@@ -1,5 +1,5 @@
 /**
- * Stories for the custom-charges list (SPEC §8.4, §8.5; §15, DR-168): a camper's
+ * Stories for the custom-charges list (SPEC §8.4, §8.5; §15, DR-170): a camper's
  * charges, and a registration's own (a cancellation fee), as a Registrar sees
  * them and as a Reporter does. The data is put in the query cache, so nothing is
  * fetched. Run `npm run storybook`.

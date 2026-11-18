@@ -20,7 +20,7 @@ import { formatMoney } from 'utils/money';
 export const PROMO = 'promo';
 export const PROMO_LABEL = 'Promo code';
 
-/** The registration's own custom charges, added after the promo code (§15, DR-168). */
+/** The registration's own custom charges, added after the promo code (§15, DR-170). */
 export const REGISTRATION_CHARGES = 'registration_charges';
 export const REGISTRATION_CHARGES_LABEL = 'Registration charges';
 

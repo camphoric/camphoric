@@ -483,7 +483,7 @@ def build_event_graph(event, *, registration_ids=None, request=None):
         registration['balance'] = money((registration['total_owed'] or Decimal('0')) - paid)
         derive_old_payment_fields(registration)
 
-    # A camper's charges, and the registration's own (a cancellation fee, say; DR-168).
+    # A camper's charges, and the registration's own (a cancellation fee, say; DR-170).
     for row in live(models.CustomCharge.objects.filter(
             registration_id__in=registration_row_ids)).order_by('id'):
         camper = campers.get(row.camper_id) if row.camper_id is not None else None
