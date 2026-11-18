@@ -179,7 +179,9 @@ registration flow works for anonymous users; the admin flow requires an authenti
 
 Routing uses TanStack Router. Each route declares and validates its own search-param schema, so
 admin selection state in the query string (`?registrationId`, `?camperId`, `?reportId`,
-`?registrationsTab`, the record editors' `?regTab` and `?camperTab`, Lodging's `?lodgingView` and
+`?registrationsTab`, the record editors' `?regTab` and `?camperTab`, an invoice action's
+`?invoiceAction`, `?invoiceId` and `?paymentId`, Payments' `?paymentsTab` and ledger filters,
+Lodging's `?lodgingView` and
 `?lodgingFilter`,
 Settings' `?settingsTab`, Email's `?emailTab`, `?templateId`, `?messageId` and history
 filters, and
@@ -248,7 +250,17 @@ queries derive it from `window.location` rather than props, through the routing 
   params `?registrationsTab` (the Registrations section's tab), `?registrationId` / `?camperId`
   (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
   (`attributes` by default, `admin`, `fees`, `campers` for a registration, `lodging` for a
-  camper, `history`, `raw`).
+  camper, `history`, `raw`). `?invoiceAction` (`refund`, `new-invoice`, `send` or
+  `check-paypal`) on `?invoiceId`, refunding from `?paymentId`, opens that action on the
+  registration's invoices, ready to confirm (§8.4); it leaves the URL once opened.
+- `/admin/organization/:organizationId/event/:eventId/payments` — Payments (§8.11). Search params:
+  `?paymentsTab` — `invoices`, `payments`, or needs attention (the default, left out of the URL);
+  the invoices ledger's `?invstatus`, `?invorigin`, `?invtype`, `?invfrom`, `?invto` (status,
+  origin, how it's to be paid, due from and to) and table state `?invq`, `?invsort`, `?invpage`;
+  the payments ledger's `?paykind` (`payment` or `refund`), `?paytype`, `?payfrom`, `?payto` and
+  table state `?payq`, `?paysort`, `?paypage`; and `?registrationId`, `?regTab`,
+  `?invoiceAction`, `?invoiceId`, `?paymentId` for the registration open over it, as on
+  Registrations.
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
   (default; the view labelled Layout) or `timeline` (labelled Assignments; §15, DR-74); `?camperId` and `?lodgingId` — the camper and the lodging node
   selected on the hierarchy, and `?timelineCamperId` and `?timelineLodgingId` — those selected on
@@ -1250,6 +1262,17 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     takes payments again; the `detail` then says so, and to record the payment by hand if
     PayPal took the money. Any other refusal (PayPal refusing the event's credentials, say)
     settles nothing: the event's PayPal settings are put right, and the order checked again.
+  - `GET /api/events/{id}/payments-attention/` (any role; §8.11; §15, DR-168) → the event's
+    "needs attention" list, built on the server from each live registration's ledger and its
+    invoices: `[{ kind, registration, registrant_email, campers, invoice, amount, due_on,
+    payment, paypal_refund, paypal_processing }]`, in `kind` order (`refund_due`,
+    `overpaid_invoice`, `not_invoiced`, `past_due`, `online_unfinished`), then by registration.
+    `campers` are the campers' names; `invoice` is the invoice it's about (for a refund, the one
+    it goes on; null for `not_invoiced`); `amount` is a decimal string — the refund due, the
+    overpayment, the balance no invoice asks for, or the amount due; `due_on` is a past-due
+    invoice's due date; `paypal_refund` says a refund can go back through PayPal, from `payment`;
+    `paypal_processing` marks a capture PayPal has been processing longer than the worker asks
+    about it (otherwise an `online_unfinished` item is an order that was never confirmed).
   - `DELETE` (Admins only; §15, DR-93): only an invoice nothing was ever paid on (deleted payments
     count), not a registration's own (`origin: 'registration'`), which is cancelled instead
     (§15, DR-105), and not one PayPal may yet record a payment on, as for cancelling (§15,
@@ -1879,7 +1902,7 @@ Then reads the payment-step payload's `serverPricingResults.total`:
 
 The event-admin area provides navigation among the event's admin functions, indicating the
 current one, showing the event's name, and offering a way back to event selection (§8.1). The functions (each addressable at
-`…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `campers`,
+`…/event/:eventId/<section>`, so they're linkable) are `home`, `registrations`, `payments`, `campers`,
 `lodging`, `reports`, `email`, `template-help`, `settings`; an unknown subpath falls back to `home`. (The routes are a
 contract; the navigation's visual form is not.) The container shows who's signed in, with their
 Camphoric permission group and Sign out, and marks the admin as read-only for a Reporter (§6).
@@ -1900,8 +1923,9 @@ details**. Two cross-cutting requirements (the presentation is the implementer's
 
 ### 8.3 Home / Event configuration
 
-An interface to view and edit the event's top-level configuration; saving persists via PATCH to
-the event:
+Home shows, at a glance, how many of the event's payments need attention of each kind (§8.11),
+with the way to Payments when any do. Below that is an interface to view and edit the event's
+top-level configuration; saving persists via PATCH to the event:
 
 - Event basics: `name`, `start`, `end`, `default_stay_length`. A cleared date is saved as
   `null`.
@@ -1990,6 +2014,13 @@ they can:
   refunded. An invoice with a PayPal order that wasn't confirmed says so, as does one PayPal is
   still processing a payment on — and, once that has gone on longer than the worker asks about
   it, that it's no longer asked about and needs checking (§9.7; §15, DR-133).
+- **Open an action from a link** (Registrars and Admins) — a link naming an invoice action
+  (`?invoiceAction` on `?invoiceId`, §4; the Payments area's "needs attention" items, §8.11)
+  opens the registration's fees and payments with it ready to confirm: a refund (of the
+  registration's refund due, or an invoice's overpayment; through PayPal from `?paymentId` when
+  that payment can be), a new invoice for the balance no invoice asks for yet, sending an
+  invoice, or checking its PayPal order. It opens once, and the request leaves the URL; for a
+  Reporter, or an invoice no longer on the registration, nothing opens.
 - **Record a payment** (Registrars and Admins) — `payment_type`, one of the event's
   `payment_type_choices` (Check, PayPal and Card while PayPal is enabled, Voucher, and the event's
   own types, shown by their labels; §9.7, §15, DR-164), `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
@@ -2624,6 +2655,52 @@ within Users (editing a user, …), not Users itself.
     stops working at once, connections are kept, and the new one is shown once); and removing it,
     after confirming, which says how many people lose its access.
   - Refusals from the server are shown, under their fields when they name one.
+
+### 8.11 Payments
+
+The event's money work in one place, for every role: Registrars and Admins act on it under the
+rules of the registration's fees and payments (§8.4: they refund, make, send and check invoices;
+only Admins delete), and Reporters read it. Its three views (`?paymentsTab`, §4):
+
+- **Needs attention** (the default) — what needs doing, from `GET
+  /api/events/{id}/payments-attention/` (§5), which the server builds from the same ledger the
+  registration shows (§9.7), so the two never disagree (§15, DR-168). How many of each kind are
+  shown at a glance (on Home too, §8.3); each item names the registration (its campers, else
+  its email), its email, the amount and what to do:
+  - **Refund due** — the registration's balance is below 0: refund the difference, saying
+    whether it can go back through PayPal (a PayPal or card payment with something left to
+    refund, made within PayPal's 180 days) or must be made another way and recorded by hand. It
+    names the invoice the refund goes on (an overpaid one first), and is the only item for that
+    money: the registration's overpaid invoices aren't listed too.
+  - **Overpaid invoice** — an invoice's payments are more than it asks, on a registration that
+    still owes overall: refund the difference, or edit the invoice.
+  - **Not invoiced** — the registration owes more than its open invoices ask
+    (`uninvoiced_balance`, a price that went up or a charge added): make an invoice for it.
+  - **Past due** — an open invoice with money due whose due date has passed: send it.
+  - **Online payment not finished** — a PayPal order made for an invoice that was never
+    confirmed (nothing paid on the invoice), or a payment PayPal has been processing longer than
+    the worker asks about it: check the PayPal order.
+
+  An invoice PayPal may yet record a payment on (§15, DR-133) is neither past due nor an
+  unconfirmed order: its payment is on its way. Each item opens its registration's fees and
+  payments with the action ready to confirm (§8.4); a Reporter's opens the registration. The
+  list stays current as payments, refunds, invoices and prices change, here or elsewhere (§9.8;
+  §15, DR-112).
+- **Invoices** — every invoice of the event, as a sortable, searchable table: registration,
+  description, origin, how it's to be paid, due date, amount, paid, due or overpaid, and
+  status. It filters by status, origin, how it's to be paid and a due-date range.
+- **Payments and refunds** — every payment and refund, as a sortable, searchable table:
+  registration, payment or refund (and the payment a refund gives back from), type, date (the
+  day it was paid, else recorded), amount, PayPal transaction id, and the invoice it's on.
+  Unsorted, each refund comes right under the payment it gives back from. It filters to payments
+  or refunds, by type, and by a date range.
+
+Both ledgers show the totals of the rows shown — the filters and search applied, on every
+page — for reconciling a date range or a payment type against the bank, PayPal or a deposit:
+invoices' asked (cancelled ones ask nothing), paid, due and overpaid; payments' received,
+refunded and net. Their amounts and statuses are the API's invoice and payment fields, as the
+registration shows them. Filters, sort, search and page live in the URL (§4, §8.2). A row opens
+its registration, over the page (`?registrationId`).
 
 ---
 
@@ -7300,6 +7377,29 @@ the same way every time. A one-step "cancel registration" (refund and
 fee together) — refunds through PayPal can fail or need a retry from their dialog (DR-122), so
 they stay their own step.
 
+### DR-168 — The server builds the Payments area's "needs attention" list
+
+**Decision:** `GET /api/events/{id}/payments-attention/` lists what the event's money needs doing,
+worked out from the ledger (`invoices.ledgers`) and the invoices' own amounts and statuses, as
+the registration screen shows them (§8.11). Five kinds count: a **refund due** (balance below 0),
+an **overpaid invoice** (on a registration that still owes overall), money **not invoiced**
+(`uninvoiced_balance` above 0), an invoice **past due** (open, money due, due date passed), and
+an **online payment not finished** (a PayPal order on an invoice with nothing paid that was never
+confirmed, or a capture PayPal has processed longer than the worker asks). A registration owed a
+refund is listed once, for its whole balance, not again for its overpaid invoices. Nothing PayPal
+may yet record a payment on is past due or unfinished. A refund can go back through PayPal when
+a PayPal or card payment has something left to refund and was made within 180 days, PayPal's
+window. Each item opens the registration's invoices with its action ready (`?invoiceAction`), and
+the list refetches with the registration ledger, so the live change feed keeps it current.
+**Context:** #1024: registrars opened registrations one by one to find refunds to give, invoices
+to make or send, and payments to check; the Registrations list's status column says neither what
+to do nor about uninvoiced money, overdue invoices or stuck PayPal orders.
+**Alternatives:** Build the list in the browser from every registration, invoice and payment —
+loads and rejoins everything, and repeats the ledger's rules on the client, where they could
+drift. List an overpaid invoice of a registration owed a refund too — shows the same money twice.
+Count past due by the event's time zone — the server's date already decides the rest of the
+ledger.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -7374,6 +7474,8 @@ must be coordinated with the backend. Grouped by status.
   shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94). Making invoices (`POST /api/invoices/`,
   `POST /api/registrations/{id}/invoice-balance/`), sending one (`POST /api/invoices/{id}/send/`),
   `pay_url`, the event's `invoice_template` and the `invoice_email` context (§8.3, §8.4; DR-96).
+  The Payments area's `GET /api/events/{id}/payments-attention/` and the
+  `?registration__event=` filters of invoices and payments (§8.11; DR-168).
 - **Registration window:** the event's `registration_start`/`registration_end` as instants
   (written with an offset) and its `time_zone`, on the event and in `GET /api/eventlist` (§5,
   §8.3; DR-97).

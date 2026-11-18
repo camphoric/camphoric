@@ -7,13 +7,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RegistrationInvoices } from '../RegistrationInvoices';
 import { LEDGER, TWO_CHECKS, TWO_CHECKS_PAYMENTS } from './fixtures';
 
-const { delPayment, restore, deletedEnabled, mutation } = vi.hoisted(() => ({
+const { delPayment, restore, deletedEnabled, mutation, search, navigate } = vi.hoisted(() => ({
+  search: { current: {} },
+  navigate: vi.fn(),
   delPayment: vi.fn(),
   restore: vi.fn(),
   deletedEnabled: vi.fn(),
   mutation: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null }),
 }));
 
+vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => search.current,
+  useNavigate: () => navigate,
+}));
 vi.mock('store/entities', () => ({
   invoiceHooks: {
     useList: () => ({ data: [TWO_CHECKS] }),
@@ -115,6 +121,8 @@ function setup(role: Role) {
 }
 
 beforeEach(() => {
+  search.current = {};
+  navigate.mockClear();
   delPayment.mockClear();
   restore.mockClear();
 });
@@ -169,5 +177,40 @@ describe('RegistrationInvoices', () => {
     expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull();
     expect(screen.queryByText('Deleted payments')).toBeNull();
     expect(deletedEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  describe('an action the URL asks for (from Payments)', () => {
+    it('opens a new invoice for the balance', async () => {
+      search.current = { invoiceAction: 'new-invoice' };
+      setup('registrar');
+      expect(await screen.findByRole('dialog', { name: 'New invoice' })).toBeInTheDocument();
+      // Asked once: the request leaves the URL, replacing its entry.
+      const { search: next, replace } = navigate.mock.lastCall![0] as {
+        search: (prev: object) => object;
+        replace: boolean;
+      };
+      expect(replace).toBe(true);
+      expect(next({ registrationId: '5', invoiceAction: 'new-invoice' })).toEqual({
+        registrationId: '5',
+        invoiceAction: undefined,
+        invoiceId: undefined,
+        paymentId: undefined,
+      });
+    });
+
+    it('opens a refund on the invoice named', async () => {
+      search.current = { invoiceAction: 'refund', invoiceId: '1', paymentId: '11' };
+      setup('registrar');
+      expect(
+        await screen.findByRole('dialog', { name: 'Refund — invoice #1' }),
+      ).toBeInTheDocument();
+    });
+
+    it('opens nothing for a Reporter, and drops the request', () => {
+      search.current = { invoiceAction: 'refund', invoiceId: '1' };
+      setup('reporter');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
   });
 });

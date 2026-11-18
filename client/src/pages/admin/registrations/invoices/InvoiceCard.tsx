@@ -20,7 +20,7 @@ import { paymentTypeLabel } from 'utils/paymentTypes';
 
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
-const ORIGIN_LABEL: Record<InvoiceOrigin, string> = {
+export const ORIGIN_LABEL: Record<InvoiceOrigin, string> = {
   registration: 'From registration',
   payment_received: 'Payment received',
   admin: 'Created by a registrar',

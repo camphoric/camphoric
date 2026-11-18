@@ -35,6 +35,10 @@ import { LedgerSummary } from './LedgerSummary';
 import { NewInvoiceModal } from './NewInvoiceModal';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { RefundModal, type RefundTarget } from './RefundModal';
+import {
+  type RequestedInvoiceAction,
+  useRequestedInvoiceAction,
+} from './useRequestedInvoiceAction';
 
 interface RegistrationInvoicesProps {
   event: ApiEvent;
@@ -144,6 +148,39 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
         }),
       onError: failed,
     });
+
+  const confirmCheck = (invoice: ApiInvoice) =>
+    modals.openConfirmModal({
+      title: `Check PayPal order — invoice #${invoice.id}`,
+      children: (
+        <Text size="sm">
+          Ask PayPal where this invoice’s order stands? A payment PayPal took is recorded; an order
+          it never captured is cleared.
+        </Text>
+      ),
+      labels: { confirm: 'Check PayPal order', cancel: 'Cancel' },
+      onConfirm: () => checkOrder(invoice),
+    });
+
+  // A refund due on the registration gives back its whole balance; an overpaid
+  // invoice on one that still owes, what the invoice was overpaid.
+  const refundAmount = (invoice: ApiInvoice) =>
+    registration.balance < 0 ? -registration.balance : Number(invoice.overpaid);
+
+  const openRequested = ({ action, invoice, payment }: RequestedInvoiceAction) => {
+    if (action === 'new-invoice') {
+      setCreating(true);
+      return;
+    }
+    if (!invoice) {
+      notifications.show({ color: 'yellow', message: 'That invoice isn’t on this registration.' });
+      return;
+    }
+    if (action === 'refund') setRefunding({ invoice, payment, amount: refundAmount(invoice) });
+    else if (action === 'send') confirmSend(invoice);
+    else confirmCheck(invoice);
+  };
+  useRequestedInvoiceAction(invoices, payments, openRequested);
 
   return (
     <Stack>

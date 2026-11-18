@@ -29,6 +29,7 @@ import { useDisclosure } from '@mantine/hooks';
 import {
   IconArrowLeft,
   IconBed,
+  IconCash,
   IconEye,
   IconFileText,
   IconHelp,
@@ -54,6 +55,7 @@ const READ_ONLY_HINT = 'Your permission group can view but not change';
 const SECTIONS = [
   { path: 'home', label: 'Home', icon: IconHome },
   { path: 'registrations', label: 'Registrations', icon: IconFileText },
+  { path: 'payments', label: 'Payments', icon: IconCash },
   { path: 'campers', label: 'Campers', icon: IconUsers },
   { path: 'lodging', label: 'Lodging', icon: IconBed },
   { path: 'reports', label: 'Reports', icon: IconReportAnalytics },

@@ -10,21 +10,19 @@
  * money back shows "Refund due".
  */
 
-import { Badge, Group, Modal, Stack, Tooltip } from '@mantine/core';
+import { Badge, Group, Stack, Tooltip } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiCamper, ApiInvoice, AugmentedRegistration } from 'api-types';
 import { DataTable, type DataTableColumnDef } from 'components/DataTable';
-import { RecordDeleted, WithBeingEdited } from 'components/EditLease';
+import { WithBeingEdited } from 'components/EditLease';
 import { FullScreenLoading } from 'components/Loading';
 import { useAugmentedRegistrations, useRegistrationTypeLookup } from 'hooks/useAdminData';
-import { useKeptRecord } from 'hooks/useKeptRecord';
-import { EDITOR_MODAL_SIZE, editorModalStyles } from 'pages/admin/editorModalStyles';
 import { useMemo } from 'react';
 import { eventHooks, invoiceHooks } from 'store/entities';
 import { formatMoney } from 'utils/money';
 import { tableStateFromSearch, tableStateToSearch } from 'utils/tableUrlState';
 
-import { RegistrationEdit } from './RegistrationEdit';
+import { RegistrationEditorModal } from './RegistrationEditorModal';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -163,12 +161,6 @@ export function RegistrationsList() {
     [notFinished, processing],
   );
 
-  // Kept open if someone else deletes it meanwhile, so no unsaved edit vanishes (§9.8).
-  const { record: selected, deleted } = useKeptRecord(
-    registrationId,
-    registrations?.find((r) => String(r.id) === registrationId),
-  );
-
   if (!registrations || !registrationTypes || !event) return <FullScreenLoading />;
 
   return (
@@ -188,24 +180,12 @@ export function RegistrationsList() {
         state={tableState}
         onStateChange={(next) => goToRegistrations(tableStateToSearch(next, 'reg'))}
       />
-      <Modal
-        opened={!!selected}
+      <RegistrationEditorModal
+        eventId={eventId}
+        registrationId={registrationId}
+        registrations={registrations}
         onClose={() => select(undefined)}
-        title={selected?.registrant_email || 'Registration'}
-        size={EDITOR_MODAL_SIZE}
-        styles={editorModalStyles}
-      >
-        {deleted && <RecordDeleted label="registration" />}
-        {selected && (
-          <RegistrationEdit
-            key={selected.id}
-            event={event}
-            registration={selected}
-            registrationTypes={registrationTypes}
-            onDeleted={() => select(undefined)}
-          />
-        )}
-      </Modal>
+      />
     </Stack>
   );
 }

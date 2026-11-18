@@ -55,6 +55,10 @@ const EventAdminRegistrations = lazyRouteComponent(
   () => import('pages/admin/registrations'),
   'EventAdminRegistrations',
 );
+const EventAdminPayments = lazyRouteComponent(
+  () => import('pages/admin/payments'),
+  'EventAdminPayments',
+);
 const EventAdminCampers = lazyRouteComponent(
   () => import('pages/admin/campers'),
   'EventAdminCampers',
@@ -115,6 +119,13 @@ export interface AdminSearch {
   mq?: string;
   mpage?: string;
   mbatch?: string;
+  // Payments (SPEC §8.11): the open view, the ledgers' filters (`inv…`,
+  // `pay…`), and an invoice action a registration's invoices open ready
+  // (`invoiceAction` on `invoiceId`, refunding from `paymentId`; §8.4).
+  paymentsTab?: string;
+  invoiceAction?: string;
+  invoiceId?: string;
+  paymentId?: string;
   // Template Help (SPEC §4, §9.3).
   context?: string;
   helpTab?: string;
@@ -322,6 +333,11 @@ const registrationsRoute = createRoute({
   path: 'registrations',
   component: EventAdminRegistrations,
 });
+const paymentsRoute = createRoute({
+  getParentRoute: () => eventAdminRoute,
+  path: 'payments',
+  component: EventAdminPayments,
+});
 const campersRoute = createRoute({
   getParentRoute: () => eventAdminRoute,
   path: 'campers',
@@ -391,6 +407,7 @@ const routeTree = rootRoute.addChildren([
       eventAdminIndexRoute,
       homeRoute,
       registrationsRoute,
+      paymentsRoute,
       campersRoute,
       lodgingRoute,
       reportsRoute,

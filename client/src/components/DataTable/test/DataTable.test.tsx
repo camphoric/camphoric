@@ -56,7 +56,7 @@ describe('DataTable', () => {
     renderWithProviders(<UrlTable data={people(25)} initialPage="2" />);
     expect(screen.getByRole('cell', { name: 'Person 11' })).toBeInTheDocument();
 
-    await userEvent.type(screen.getByPlaceholderText('Search…'), 'Person 2');
+    await userEvent.type(screen.getByPlaceholderText('Search…'), 'Person 25');
     expect(screen.getByRole('cell', { name: 'Person 2' })).toBeInTheDocument();
   });
 
@@ -95,5 +95,21 @@ describe('DataTable', () => {
   it('shows the last page when the URL names a page past the end', () => {
     renderWithProviders(<UrlTable data={people(25)} initialPage="9" />);
     expect(screen.getByRole('cell', { name: 'Person 21' })).toBeInTheDocument();
+  });
+
+  it('gives its footer every row the search leaves, on every page', async () => {
+    renderWithProviders(
+      <DataTable
+        data={people(25)}
+        columns={columns}
+        pageSize={10}
+        searchKeys={['name']}
+        footer={(rows) => <p>{rows.length} in all</p>}
+      />,
+    );
+    expect(screen.getByText('25 in all')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByPlaceholderText('Search…'), 'Person 25');
+    expect(screen.getByText('1 in all')).toBeInTheDocument();
   });
 });

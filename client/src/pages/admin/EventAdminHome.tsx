@@ -1,6 +1,7 @@
 /**
- * Home / event configuration (SPEC §8.3). View and edit the event's top-level
- * configuration; saving persists via PATCH to the event. (The schema-driven JSON
+ * Home / event configuration (SPEC §8.3). How many payments need attention, at
+ * a glance, with the way to the Payments area (§8.11); then view and edit the
+ * event's top-level configuration; saving persists via PATCH to the event. (The schema-driven JSON
  * config — schemas, pricing logic, admin attributes — is edited in Settings, §8.8.)
  * The confirmation email is the event's email template (§15 DR-45), edited in
  * Jinja with a preview for any completed registration, and saved with the rest;
@@ -43,6 +44,7 @@ import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
 import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
+import { PaymentsAttentionSummary } from 'pages/admin/payments';
 import { useMemo, useState } from 'react';
 import { eventHooks, invoiceHooks, registrationHooks } from 'store/entities';
 import { keepClockTimeInZone } from 'utils/dates';
@@ -174,6 +176,7 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
       <ViewOnly when={lease.viewOnly}>
         <Stack>
           <Title order={2}>Event configuration</Title>
+          <PaymentsAttentionSummary organizationId={organizationId} eventId={eventId} />
           {isStale && <StaleRecordNotice label="event" onLoadLatest={loadLatest} />}
 
           <ReadOnlyFieldset>
