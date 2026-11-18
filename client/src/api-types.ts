@@ -375,6 +375,34 @@ export interface ApiInvoice extends TimeStamped {
   pay_url: string;
 }
 
+/** What one item of an event's "needs attention" list is about (§8.11; §15, DR-168). */
+export type PaymentsAttentionKind =
+  'refund_due' | 'overpaid_invoice' | 'not_invoiced' | 'past_due' | 'online_unfinished';
+
+/**
+ * One thing an event's money needs doing (`GET /api/events/{id}/payments-attention/`;
+ * §5, §8.11; §15, DR-168), built on the server from the registration's ledger.
+ */
+export interface ApiPaymentsAttentionItem {
+  kind: PaymentsAttentionKind;
+  registration: number;
+  registrant_email: string;
+  /** Its campers' names, in order. */
+  campers: string[];
+  /** The invoice it's about, or for a refund the one it goes on; none for `not_invoiced`. */
+  invoice: number | null;
+  /** A decimal string: the refund, overpayment, balance or amount due. */
+  amount: string;
+  /** For `past_due`: when the invoice was due. */
+  due_on: string | null;
+  /** For `refund_due` that can go back through PayPal: the payment to refund from. */
+  payment: number | null;
+  /** For `refund_due`: whether it can go back through PayPal (within 180 days). */
+  paypal_refund: boolean;
+  /** For `online_unfinished`: PayPal is still processing a capture, past the worker's watch. */
+  paypal_processing: boolean;
+}
+
 /**
  * An invoice's public pay page (`GET /api/invoices/pay/{token}`; §9.7, DR-95):
  * what anyone with the link sees — never its notes or the registrant's details

@@ -27,7 +27,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import { matchSorter } from 'match-sorter';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
 /**
  * The table features DataTable uses. The global filter runs through match-sorter
@@ -72,6 +72,8 @@ interface DataTableProps<T extends RowData> {
   /** Controlled table state; omit for component-local state. */
   state?: DataTableState;
   onStateChange?: (next: DataTableState) => void;
+  /** Shown under the table, given every row the search leaves (all pages). */
+  footer?: (rows: T[]) => ReactNode;
 }
 
 export function DataTable<T extends RowData>({
@@ -85,6 +87,7 @@ export function DataTable<T extends RowData>({
   searchPlaceholder = 'Search…',
   state,
   onStateChange,
+  footer,
 }: DataTableProps<T>) {
   const [internal, setInternal] = useState<DataTableState>(EMPTY_STATE);
   const controlled = state !== undefined;
@@ -210,6 +213,7 @@ export function DataTable<T extends RowData>({
           />
         </Group>
       )}
+      {footer?.(filtered)}
     </Box>
   );
 }

@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   dateStringToParts,
   eventDays,
+  formatDay,
+  isoToDay,
   isoToLocalDateTime,
   keepClockTimeInZone,
   localDateTimeToIso,
@@ -82,5 +84,22 @@ describe('date-times in a time zone', () => {
   it('names a zone the everyday way', () => {
     expect(timeZoneName('America/Los_Angeles')).toBe('Pacific Time');
     expect(timeZoneName('Not/AZone')).toBe('Not/AZone');
+  });
+});
+
+describe('days', () => {
+  afterEach(() => {
+    Settings.defaultZone = 'system';
+  });
+
+  it('reads a day as written, in any zone', () => {
+    Settings.defaultZone = 'Pacific/Honolulu';
+    expect(formatDay('2026-11-03')).toBe('Nov 3, 2026');
+    expect(formatDay('soon')).toBe('soon');
+  });
+
+  it('takes an instant’s day in the browser’s zone', () => {
+    Settings.defaultZone = 'America/Los_Angeles';
+    expect(isoToDay('2026-11-03T05:00:00Z')).toBe('2026-11-02');
   });
 });

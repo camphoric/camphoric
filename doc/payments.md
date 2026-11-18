@@ -3,7 +3,7 @@
 This guide is for developers. It follows a registrant's money from the registration form to the
 admin's ledger: what the person sees, what the browser (`client`) does, and what the server
 (and PayPal) do. The binding rules are in [`SPEC_CLIENT_V2.md`](../SPEC_CLIENT_V2.md): §5 (the API
-contracts), §7.2 (the payment step), §8.4 (the admin), §9.7 (invoices, payments and balance) and
+contracts), §7.2 (the payment step), §8.4 (the admin), §8.11 (the Payments area), §9.7 (invoices, payments and balance) and
 decision records DR-87 to DR-96. When the two disagree, the spec wins — and this guide should be
 fixed.
 
@@ -786,6 +786,8 @@ flowchart LR
 - `management/commands/camphoric_price_check.py` — a dry run listing the registrations whose
   price, and so balance, would change on their next save.
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
+- `payments_attention.py` — the Payments area's "needs attention" list (§17), served by
+  `EventViewSet.payments_attention` (`GET /api/events/{id}/payments-attention/`).
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
   `refund-paypal`), `CamperViewSet.cancel` (deleting a camper and keeping a cancellation fee) and
@@ -826,6 +828,9 @@ flowchart LR
   camper's charges, or the registration's own (on its Fees & payments); `store/deletes.ts`
   `useCancelCamper` and `useCancellationFeeOffer`; `pages/admin/CancellationFeeInput.tsx` —
   setting the event's fee on its Home.
+- `pages/admin/payments/` — the Payments area (§17): `AttentionList`, the ledgers and their
+  filters (`ledgers.ts`); `store/paymentsAttention.ts` — its list;
+  `registrations/invoices/useRequestedInvoiceAction.ts` — an action a link opens ready.
 
 ## 15. Invoicing later, and the public pay page (#670, #623)
 
@@ -1036,3 +1041,46 @@ fixed `50`; Sample Camp's would have started at $200, half of Sam's $400 within 
   brings them back.
 - Who and when are in the registration's history and the cancelled camper's (the charge's audit
   entry is tagged with both).
+
+## 17. Finding the work: the Payments area (#1024)
+
+The event's **Payments** area (SPEC §8.11, DR-168) lists what the money needs doing, so a
+registrar doesn't open registrations one by one. The server builds the list —
+`GET /api/events/{id}/payments-attention/`, `payments_attention.py` — from the same ledger the
+registration screen shows (§3), so the two never disagree. Each item comes from one ledger state:
+
+| Item | Ledger state it comes from | What it opens |
+| --- | --- | --- |
+| **Refund due** | the registration's `balance` < 0 | a refund for the whole difference, on an overpaid invoice if there is one; through PayPal from the newest PayPal or card payment with something left to refund (`paypal_transaction_id` or a capture in `paypal_response`), made within 180 days; else a refund recorded by hand |
+| **Overpaid invoice** | an invoice's `overpaid` > 0, on a registration whose balance isn't below 0 | "Refund the difference" on it |
+| **Not invoiced** | `uninvoiced_balance` > 0 | a new invoice for it ("Use the balance") |
+| **Past due** | an invoice not cancelled, `amount_due` > 0, `due_on` before today | sending it |
+| **Online payment not finished** | `pending_paypal_order_id` on an invoice with nothing paid and money due; or `capture_watch_lapsed` (PayPal processing longer than the worker asks, #767) | "Check PayPal order" |
+
+```mermaid
+flowchart LR
+  L[ledgers + invoices] --> A{payments_attention}
+  A -->|balance < 0| R[Refund due]
+  A -->|overpaid, balance ≥ 0| O[Overpaid invoice]
+  A -->|uninvoiced_balance > 0| N[Not invoiced]
+  A -->|due_on passed, money due, not held| P[Past due]
+  A -->|order never confirmed, or capture watch lapsed| U[Online payment not finished]
+  R & O & N & P & U --> E["registration's invoices<br/>?invoiceAction=…"]
+```
+
+- **What doesn't show.** A balance of 0 with everything invoiced; a refund already given (it
+  brings the balance back to 0); a registration owed a refund isn't listed again for its
+  overpaid invoices; and an invoice PayPal may yet record a payment on (`capture_unsettled`) is
+  neither past due nor an unfinished order: its payment is on its way.
+- **The action, ready.** An item opens the registration over the Payments page, on its fees and
+  payments, with `?invoiceAction` (`refund`, `new-invoice`, `send`, `check-paypal`),
+  `?invoiceId` and `?paymentId`; `useRequestedInvoiceAction` opens the refund, new-invoice,
+  send or check dialog once and drops the params. The dialogs are the registration screen's, so
+  the rules (§9, §11, §15) are the same. Reporters see the list and open the registration only.
+- **Staying current.** The list's query key is in the `Registration` namespace, which every
+  payment, invoice, charge and price change already refetches — locally and from the live
+  change feed.
+- **The ledgers.** The area's Invoices and Payments views list the event's invoices and payments
+  (`?registration__event=`), filtered by status, origin, type and dates, with totals of the rows
+  shown (asked, paid, due, overpaid; received, refunded, net). They show the API's fields as they
+  are: nothing is worked out again in the browser but the sums.

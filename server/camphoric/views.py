@@ -60,6 +60,7 @@ from camphoric import (
     live,
     models,
     oauth_views,
+    payments_attention,
     pricing,
     roles,
     serializers,
@@ -775,6 +776,15 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
         # Everyone's personal and payment details: never kept by a cache.
         response['Cache-Control'] = 'no-store'
         return response
+
+    @action(detail=True, methods=['get'], url_path='payments-attention')
+    def payments_attention(self, request, pk=None):
+        '''
+        What the event's money needs doing (SPEC §8.11; DR-168): refunds due,
+        overpaid invoices, balances no invoice asks for, invoices past due and
+        PayPal orders to check. Any role reads it.
+        '''
+        return Response(payments_attention.payments_attention(self.get_object()))
 
 
 class RegistrationViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, ModelViewSet):

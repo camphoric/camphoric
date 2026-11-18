@@ -79,3 +79,18 @@ export function timeZoneName(zone: string): string {
     return zone;
   }
 }
+
+/**
+ * A `YYYY-MM-DD` day as it reads, e.g. "Nov 3, 2026" (English, DR-18); the
+ * day as written, whatever the browser's zone. An unreadable value is shown
+ * as it is.
+ */
+export function formatDay(value: string): string {
+  const day = DateTime.fromISO(value, { zone: 'utc' });
+  return day.isValid ? day.setLocale('en-US').toLocaleString(DateTime.DATE_MED) : value;
+}
+
+/** An ISO instant's day in the browser's zone, as `YYYY-MM-DD`. */
+export function isoToDay(iso: string): string {
+  return DateTime.fromISO(iso).toISODate() ?? iso.slice(0, 10);
+}
