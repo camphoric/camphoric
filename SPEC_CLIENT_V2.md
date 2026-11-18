@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-173)
+- §15 — Decision Records (DR-1…DR-175)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -101,9 +101,10 @@ behaviors specified throughout this document.
   typed, validated search params (see §4).
 - **Forms:** React JSON Schema Form (**rjsf v6**, the latest major) with the official
   **`@rjsf/mantine`** theme, plus the custom fields/widgets/templates (see §9.1).
-- **Phone input:** `react-international-phone` (its `usePhoneInput` hook composed with Mantine
-  inputs) for the international phone widget — lighter than `react-phone-number-input` and
-  Mantine-native (see §15, DR-30).
+- **Phone input:** `react-phone-number-input` (on `libphonenumber-js`, Google's phone-number
+  metadata) for the international phone widget, with a Mantine `TextInput` as its input and a
+  Mantine country picker; `libphonenumber-js` also checks a phone number's length (see §15,
+  DR-174, DR-175).
 - **Pricing logic:** `json-logic-js` to evaluate server-provided pricing expressions.
 - **Templating:** `handlebars` for variable substitution + a `unified`/`remark`/`rehype`
   markdown→HTML pipeline with sanitization.
@@ -1690,6 +1691,17 @@ Before any step renders, the app loads the registration config (`GET …/registe
   characters, all ASCII. Quoted local parts, `[IP]` literals, bare hosts such as `localhost`
   and non-ASCII characters are refused. The register endpoint checks the same rule, so an
   address the form takes is never refused on submit (§5; §15, DR-166).
+- **Phone numbers:** every field the phone widget answers (`ui:widget: PhoneInput`, §9.1) takes
+  a number of a possible length for its country, by Google's phone metadata: `+17073975275` is
+  taken, `+1707` (an area code alone) is refused with "Please enter the whole phone number", one
+  too long or with no such country code with "Please check this phone number", and a saved value
+  not in E.164 form (`(707) 397-5275`, from an import) with "Please enter this phone number
+  again" (`params.reason` `NOT_E164`), since it's saved in E.164 form once entered again. Only the
+  length is checked, not whether the number is in service. The failure is a `format` error with
+  `params.format` of `phone` (and `params.reason`, such as `TOO_SHORT`), so the event's own
+  `format` message for the field, or its `*` default for `format`, replaces the built-in one. A
+  phone field the form isn't showing (an unmet condition) isn't checked. The register endpoint
+  doesn't check phone numbers' length (§15, DR-174).
 - **Live updating:** on every change it (a) marks `updating`, (b) saves form data to the
   store, (c) recomputes totals via `calculatePrice` (§9) and stores them, (d) persists form
   data to localStorage (debounced). The running price total is shown and updates live as the
@@ -2781,6 +2793,9 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   endpoint applies, in every form and when resolving conditional fields for the review (§15,
   DR-166). In the admin forms it flags a stored address the rule refuses, without blocking the
   save.
+- Check every field the phone widget answers by the phone-number rule (§7.1), in every form,
+  reporting a failure as a `format` error at the field's path; like the email rule, the admin
+  forms flag a stored number the rule refuses without blocking the save (§15, DR-174).
 - On a failed submit, focus the first field (in page order) with a visible error, mapping each
   error to its field by rjsf's id scheme and walking up the path when the exact field has no
   control of its own (§7.1).
@@ -2821,14 +2836,25 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
 including **Select** (enum with disabled options + value coercion), **Checkboxes** (inline +
 disabled options), and text inputs with datalist-examples support — so only the genuinely
 additive widgets are layered on (§15, DR-29):
-- **PhoneInput** — international phone entry (default country US), Mantine-native (§15, DR-30),
-  saved in E.164 form (`+12025551234`). It asks the browser for a whole number to autofill
-  (`autocomplete="tel"`). A value filled in all at once — by autofill or paste — without a
-  leading `+` is a number in the selected country, so `(202) 555-1234` saves as
-  `+12025551234`; a North American one that starts with `1` is read as giving its country
-  code. A value with `+` and another country code switches the country. The field always shows
-  the selected country's dial code; a value of only that dial code is no answer (the field's
-  `emptyValue`), so a required phone number left blank is rejected as missing.
+- **PhoneInput** — international phone entry, Mantine-native (§15, DR-175), saved in E.164 form
+  (`+12025551234`), or as the field's `emptyValue` when there's no number. A country picker
+  (flag and dial code, searchable by country name, two-letter code or dial code) sits beside the
+  number, which is formatted as it's typed. The selected country starts as the field's
+  `ui:options.defaultCountry` (a two-letter code such as `GB`), else the US. A number without a
+  leading `+` is a number in the selected country, read by that country's own rules — so
+  `(202) 555-1234` in the US and `020 7946 0958` in the UK (dropping the national `0`) save as
+  `+12025551234` and `+442079460958` — and that's also how a value filled in all at once, by
+  browser autofill or paste, is read; a North American one that starts with `1` is read as giving
+  its country code. A number dialled with the selected country's exit code (`011 44 20 7946 0958`
+  in the US, `00 1 707 397 5275` in the UK) is saved as the number it dials (`+442079460958`). A
+  number with `+` and a country code switches the country to match. A saved number shows in its
+  own country's format and flag; a saved value not in E.164 form (`(707) 397-5275`, from an
+  import) shows as a number in the field's starting country, is flagged to be entered again
+  (§7.1), and is saved in E.164 form once edited. A dial code alone (`+44`) is no answer (the
+  field's `emptyValue`), so a required phone number with nothing more is rejected as missing. It
+  asks the browser for a whole number to autofill (`autocomplete="tel"`). Flags are the app's own
+  static files, each loaded when shown. A number that isn't a possible length for its country is
+  rejected by the phone-number rule (§7.1; §15, DR-174).
 - **Number** — every `number` and `integer` field without a `ui:widget` of its own (rjsf's
   default `text` widget, for a number schema) (§15, DR-161). It never changes a registrant's
   answer under them: with a `minimum` of 0 or more the minus sign can't be typed, and for an
@@ -4290,6 +4316,8 @@ more code to maintain, and diverges from the supported theme's accessibility/beh
 per-widget only if a base widget proves insufficient for a specific event configuration.
 
 ### DR-30 — Phone input: react-international-phone (replacing react-phone-number-input)
+
+*Superseded by DR-175: the widget is built on `react-phone-number-input`, with Mantine controls.*
 
 **Decision:** Implement the phone widget with **`react-international-phone`** — its
 `usePhoneInput` hook composed with a Mantine `TextInput` and the library's flag `CountrySelector`
@@ -7516,6 +7544,63 @@ ledger on the client, where it could drift (as DR-171). Show only the handling f
 PayPal's — the point is to set them side by side.
 
 ---
+
+### DR-174 — A phone number must be a possible length for its country
+
+**Decision:** The forms check every field the phone widget answers (found by `ui:widget:
+PhoneInput`, since its schema is only `type: string`) with `libphonenumber-js`'s
+`validatePhoneNumberLength`, which knows each country's possible lengths from Google's phone
+metadata. The check runs in the forms' validator after ajv's, walking the form data with rjsf's
+`retrieveSchema` so only the phone fields the form is showing are checked, and reports a failure
+as a `format` error (`params.format: phone`, `params.reason` such as `TOO_SHORT`), so events'
+messages work as for any other error. The admin's message editor offers `format` for a phone
+field. Only the length is checked, not whether the number is in service (`isValidPhoneNumber`),
+so made-up numbers such as `+1 555 555 0101` in sample data stay possible. The register endpoint
+doesn't check it.
+**Context:** #1034: the widget reports every answer in E.164 form, so an event's `pattern`
+(Lark Camp's `^\+[0-9]+$`) can never fail, and a length pattern can't fit every country. An
+area code alone (`+1707`) was taken and saved. The widget's value carries its country code, so
+the check needs nothing but the value.
+**Alternatives:** A `format: phone` the event adds to its schema — every event would need
+editing, and the server's `jsonschema` would ignore an unknown format anyway. rjsf's
+`customValidate` — its errors skip the message rules. Checking in the widget — a widget can't
+block submission. Checking on the server too — it would have to read the uiSchema to find phone
+fields and add a phone library; the form refusing more than the server does is safe, since
+the form is what registrants submit through.
+
+### DR-175 — Phone widget on react-phone-number-input, with Mantine controls
+
+**Decision:** The phone widget is `react-phone-number-input`'s full component with a Mantine
+`TextInput` as its number input, a Mantine `Combobox` country picker (flag and dial code;
+searchable by name, code or dial code) as its country select, and the two side by side. It shows
+numbers in the selected country's national format until a `+` is typed, reads a number without
+`+` by the selected country's rules, follows a typed country code, and reports E.164. A field's
+country starts as `ui:options.defaultCountry`, else the US. The widget keeps the library's last
+report while the form holds the answer it maps to (none, for a dial code alone), since the library
+takes any other `value` as set from outside and starts over. The library reads a number dialled
+with the country's exit code (`011 44 …` in the US) as a national one and would save
+`+12079460958`, a possible US number the phone-number rule can't catch. So a number typed without
+a `+` is also read with `libphonenumber-js` by the rules of its dial code's main country (`US` for
+`+1`, not the first alphabetically, Antigua, whose rules turn a 7-digit `555-1234` into
+`+1 268 …`), and that reading is saved only when it dials another country; otherwise the
+library's stands. Within a country the parser keeps a trunk 0 the library drops, which would make
+a number cut short look whole (`0207946` in the UK as `+440207946`). Flags are `country-flag-icons`
+SVGs served as the app's own static files, each loaded when shown.
+**Context:** #748: `react-international-phone` (DR-30) needed two workarounds that depended on
+its hook's internals to handle autofill (#746): a national number was read as starting with a
+country code (`(202) 555-1234` as Egypt's `+20`), and a whole number inserted at once was
+dropped. Its maintenance had slowed, with autofill and country-data fixes left open upstream.
+Reading national numbers per country (a UK `020` number) needs real phone metadata, which the
+phone-number rule (DR-174) already brings in through `libphonenumber-js`, the library this one is
+built on. Showing the national format rather than a fixed `+1` prefix is what lets autofill and
+paste work without workarounds. The library's own select and stylesheet are replaced, so the
+controls are Mantine's.
+**Alternatives:** Keep `react-international-phone` with its workarounds and a "drop a leading 0"
+rule for other countries — still fragile, and a hand-written trunk-prefix rule is wrong for
+countries such as Italy. Build the widget on `libphonenumber-js` directly — the same metadata, but
+formatting as you type with the cursor kept in place would be ours to write. Bundle the flags as
+React components — every flag in the registration bundle. Load them from a CDN, as DR-30's
+library did — another site in every registration.
 
 ## Appendix A — Backend / API Dependencies
 

@@ -1,6 +1,7 @@
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import userEvent from '@testing-library/user-event';
 import { JsonSchemaForm } from 'components/form';
+import { phoneNumberProblem } from 'components/form/phoneNumber';
 import { fireEvent, renderWithProviders as renderForm, screen } from 'test/utils';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -50,100 +51,248 @@ describe('custom widgets', () => {
     expect(longest).toBe('abc');
   });
 
-  it('phone widget formats typed digits into an E.164 value', async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
+  describe('phone widget', () => {
     const schema: RJSFSchema = {
       type: 'object',
       properties: { phone: { type: 'string', title: 'Phone' } },
     };
-    const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
-    renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-
-    await user.type(screen.getByLabelText('Phone'), '2025551234');
-
-    // Default country US: the reported value is E.164 (+1…).
-    const reported = onChange.mock.calls.map(([data]) => (data as { phone?: string }).phone ?? '');
-    expect(reported.some((phone) => phone.startsWith('+1'))).toBe(true);
-  });
-
-  describe('phone widget filled all at once, as autofill and paste do', () => {
-    const schema: RJSFSchema = {
-      type: 'object',
-      properties: { phone: { type: 'string', title: 'Phone' } },
-    };
-    const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
+    const phoneUi = (options?: Record<string, unknown>): UiSchema => ({
+      phone: { 'ui:widget': 'PhoneInput', ...(options && { 'ui:options': options }) },
+    });
 
     /** The phone the form last reported. */
     const reportedPhone = (onChange: ReturnType<typeof vi.fn>) =>
       (onChange.mock.lastCall?.[0] as { phone?: string } | undefined)?.phone;
 
-    function fill(value: string) {
+    /** The country the picker shows (`ZZ` for International). */
+    const country = () =>
+      screen.getByRole('button', { name: /country/i }).getAttribute('data-country');
+
+    function renderPhone(uiSchema = phoneUi(), formData?: unknown) {
       const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      fireEvent.change(screen.getByLabelText('Phone'), { target: { value } });
-      return reportedPhone(onChange);
+      renderForm(
+        <JsonSchemaForm schema={schema} uiSchema={uiSchema} formData={formData} onChange={onChange} />,
+      );
+      return { onChange, input: screen.getByLabelText<HTMLInputElement>('Phone') };
     }
 
-    /** The country the flag selector shows. */
-    const flag = () =>
-      document
-        .querySelector('.react-international-phone-country-selector-button')
-        ?.querySelector('img')
-        ?.getAttribute('data-country');
-
-    it.each([
-      '2025551234',
-      '(202) 555-1234',
-      '202-555-1234',
-      '1 (202) 555-1234',
-      '+1 202-555-1234',
-      '+1 202 555 1234',
-    ])('reads %s as a US number', (value) => {
-      expect(fill(value)).toBe('+12025551234');
-      expect(flag()).toBe('us');
-    });
-
-    it('reads a number inserted in one go, as some autofill does, as a US number', () => {
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      const value = '+1 (202) 555-1234';
-      fireEvent.input(screen.getByLabelText('Phone'), {
-        target: { value },
-        inputType: 'insertText',
-        data: value,
-      });
-      expect(reportedPhone(onChange)).toBe('+12025551234');
-      expect(flag()).toBe('us');
-      expect(screen.getByLabelText('Phone')).toHaveValue('+1 (202) 555-1234');
-    });
-
-    it('still keeps letters out when typing', async () => {
+    it('formats typed digits as a US number and reports it in E.164 form', async () => {
       const user = userEvent.setup();
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      await user.type(screen.getByLabelText('Phone'), '202x555');
+      const { onChange, input } = renderPhone();
+      expect(input).toHaveValue('');
+      expect(country()).toBe('US');
+
+      await user.type(input, '2025551234');
+
+      expect(reportedPhone(onChange)).toBe('+12025551234');
+      expect(input).toHaveValue('(202) 555-1234');
+    });
+
+    it('keeps letters out when typing', async () => {
+      const user = userEvent.setup();
+      const { onChange, input } = renderPhone();
+      await user.type(input, '202x555');
       expect(reportedPhone(onChange)).toBe('+1202555');
     });
 
-    it('switches the country for a number with another country code', () => {
-      expect(fill('+44 20 7946 0958')).toBe('+442079460958');
-      expect(flag()).toBe('gb');
+    describe('filled all at once, as autofill and paste do', () => {
+      function fill(value: string, uiSchema = phoneUi()) {
+        const { onChange, input } = renderPhone(uiSchema);
+        fireEvent.change(input, { target: { value } });
+        return reportedPhone(onChange);
+      }
+
+      it.each([
+        '2025551234',
+        '(202) 555-1234',
+        '202-555-1234',
+        '1 (202) 555-1234',
+        '+1 202-555-1234',
+        '+1 202 555 1234',
+        '+1 (202) 555-1234',
+      ])('reads %s as a US number', (value) => {
+        expect(fill(value)).toBe('+12025551234');
+        expect(country()).toBe('US');
+      });
+
+      it('switches the country for a number with another country code', () => {
+        expect(fill('+44 20 7946 0958')).toBe('+442079460958');
+        expect(country()).toBe('GB');
+      });
+
+      it('reads a pasted national number as a US number', async () => {
+        const user = userEvent.setup();
+        const { onChange, input } = renderPhone();
+        await user.click(input);
+        await user.paste('(202) 555-1234');
+        expect(reportedPhone(onChange)).toBe('+12025551234');
+        expect(country()).toBe('US');
+      });
+
+      it.each([
+        ['020 7946 0958', '+442079460958'],
+        ['07700 900123', '+447700900123'],
+      ])("reads %s by the field's own country's rules (ui:options)", (value, phone) => {
+        expect(fill(value, phoneUi({ defaultCountry: 'GB' }))).toBe(phone);
+        expect(country()).toBe('GB');
+      });
+
+      it('starts in the US when the uiSchema names no country it knows', () => {
+        expect(fill('(202) 555-1234', phoneUi({ defaultCountry: 'Narnia' }))).toBe('+12025551234');
+        expect(country()).toBe('US');
+      });
     });
 
-    it('reads a pasted national number as a US number', async () => {
+    it('reads a national number in the country picked from the list', async () => {
       const user = userEvent.setup();
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      const input = screen.getByLabelText('Phone');
-      await user.tripleClick(input);
-      await user.paste('(202) 555-1234');
-      expect(reportedPhone(onChange)).toBe('+12025551234');
-      expect(flag()).toBe('us');
+      const { onChange, input } = renderPhone();
+
+      await user.click(screen.getByRole('button', { name: /country/i }));
+      await user.type(screen.getByRole('textbox', { name: 'Search countries' }), 'kingdom');
+      await user.click(screen.getByRole('option', { name: /United Kingdom/ }));
+      expect(country()).toBe('GB');
+      expect(input).toHaveFocus();
+      await user.type(input, '02079460958');
+
+      expect(reportedPhone(onChange)).toBe('+442079460958');
+      expect(input).toHaveValue('020 7946 0958');
+    });
+
+    it('finds a country in the list by its dial code', async () => {
+      const user = userEvent.setup();
+      renderPhone();
+      await user.click(screen.getByRole('button', { name: /country/i }));
+      await user.type(screen.getByRole('textbox', { name: 'Search countries' }), '+353');
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'Ireland+353',
+      ]);
+    });
+
+    describe("a number dialled with the country's exit code", () => {
+      it.each([
+        ['US', '011 44 20 7946 0958', '+442079460958'],
+        ['GB', '00 1 707 397 5275', '+17073975275'],
+        ['GB', '0044 20 7946 0958', '+442079460958'],
+      ])('in %s reads %s as the number it dials', (defaultCountry, value, phone) => {
+        const { onChange, input } = renderPhone(phoneUi({ defaultCountry }));
+        fireEvent.change(input, { target: { value } });
+        expect(reportedPhone(onChange)).toBe(phone);
+      });
+
+      it('reads one typed digit by digit as the number it dials', async () => {
+        const user = userEvent.setup();
+        const { onChange, input } = renderPhone();
+        await user.type(input, '011442079460958');
+        expect(reportedPhone(onChange)).toBe('+442079460958');
+        // Typing never jumps the cursor: the field keeps what was typed.
+        await user.type(input, '{Backspace}8');
+        expect(reportedPhone(onChange)).toBe('+442079460958');
+      });
+
+      it.each([
+        ['555-1234', '+15551234'], // a US local number, not Antigua's +1 268 555 1234
+        ['455-1234', '+14551234'],
+        ['011 1 707 397 5275', '+17073975275'],
+      ])('in the US leaves %s as the number it is (%s)', (value, phone) => {
+        const { onChange, input } = renderPhone();
+        fireEvent.change(input, { target: { value } });
+        expect(reportedPhone(onChange)).toBe(phone);
+      });
+
+      it.each(['0207946', '020794609'])(
+        'in the UK never makes %s, a number cut short, look whole',
+        (value) => {
+          const { onChange, input } = renderPhone(phoneUi({ defaultCountry: 'GB' }));
+          fireEvent.change(input, { target: { value } });
+          const phone = reportedPhone(onChange);
+          expect(phone).toMatch(/^\+44/);
+          expect(phoneNumberProblem(phone ?? '')).toBeDefined();
+        },
+      );
+
+      it("leaves a national number as the library reads it", () => {
+        const { onChange, input } = renderPhone(phoneUi({ defaultCountry: 'GB' }));
+        fireEvent.change(input, { target: { value: '020 7946 0958' } });
+        expect(reportedPhone(onChange)).toBe('+442079460958');
+      });
+    });
+
+    it('shows a saved value not in E.164 form as a number in the field’s country', () => {
+      const { onChange, input } = renderPhone(phoneUi(), { phone: '(707) 397-5275' });
+      expect(input).toHaveValue('(707) 397-5275');
+      expect(country()).toBe('US');
+      // Saved in E.164 form once edited.
+      fireEvent.change(input, { target: { value: '(707) 397-5276' } });
+      expect(reportedPhone(onChange)).toBe('+17073975276');
+    });
+
+    it('shows a saved number in its own country', () => {
+      const { input } = renderPhone(phoneUi(), { phone: '+442079460958' });
+      expect(input).toHaveValue('020 7946 0958');
+      expect(country()).toBe('GB');
+    });
+
+    describe('with no number past the dial code', () => {
+      const required: RJSFSchema = { ...schema, required: ['phone'] };
+
+      it('is required when nothing is entered, like any required text field', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        renderForm(<JsonSchemaForm schema={required} uiSchema={phoneUi()} onSubmit={onSubmit} />);
+
+        // The browser's own check comes first, as for every required input.
+        expect(screen.getByRole('textbox', { name: /Phone/ })).toBeRequired();
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+        expect(onSubmit).not.toHaveBeenCalled();
+      });
+
+      it('is required with a dial code alone (#986)', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        renderForm(<JsonSchemaForm schema={required} uiSchema={phoneUi()} onSubmit={onSubmit} />);
+
+        await user.type(screen.getByRole('textbox', { name: /Phone/ }), '+44');
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
+      });
+
+      it.each(['+1', '+44'])('reports no answer for a dial code filled in alone (%s)', (value) => {
+        const { onChange, input } = renderPhone();
+        fireEvent.change(input, { target: { value } });
+        expect(reportedPhone(onChange)).toBeUndefined();
+        expect(input).toHaveValue(value);
+      });
+
+      it('reports no answer once a number is erased back to its dial code, and keeps it', async () => {
+        const user = userEvent.setup();
+        const { onChange, input } = renderPhone();
+        await user.type(input, '+4420');
+        expect(reportedPhone(onChange)).toBe('+4420');
+
+        await user.type(input, '{Backspace}{Backspace}');
+
+        expect(reportedPhone(onChange)).toBeUndefined();
+        expect(input).toHaveValue('+44');
+        await user.type(input, '2079460958');
+        expect(reportedPhone(onChange)).toBe('+442079460958');
+      });
+
+      it('reports no answer once a number is cleared', async () => {
+        const user = userEvent.setup();
+        const { onChange, input } = renderPhone();
+        await user.type(input, '2025551234');
+        await user.clear(input);
+        expect(reportedPhone(onChange)).toBeUndefined();
+        expect(input).toHaveValue('');
+      });
     });
   });
 
-  describe('phone widget left at its dial code', () => {
+  describe('phone widget given a number cut short (#1034)', () => {
+    // Lark Camp's phone: a pattern any E.164 value matches.
     const schema: RJSFSchema = {
       type: 'object',
       required: ['phone'],
@@ -151,57 +300,41 @@ describe('custom widgets', () => {
     };
     const uiSchema: UiSchema = { phone: { 'ui:widget': 'PhoneInput' } };
 
-    it('reports no answer, so a required phone is required (#986)', async () => {
+    it('rejects an area code alone, and takes the whole number', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
       renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onSubmit={onSubmit} />);
+      const input = screen.getByRole('textbox', { name: /Phone/ });
 
-      // The field shows the default country's dial code, which isn't an answer.
-      expect(screen.getByRole('textbox', { name: /Phone/ })).toHaveValue('+1 ');
+      await user.type(input, '707');
       await user.click(screen.getByRole('button', { name: 'Submit' }));
 
       expect(onSubmit).not.toHaveBeenCalled();
-      expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Please enter the whole phone number/).length).toBeGreaterThan(0);
+
+      await user.type(input, '3975275');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+      expect(onSubmit).toHaveBeenLastCalledWith({ phone: '+17073975275' });
+      expect(screen.queryByText(/Please enter the whole phone number/)).not.toBeInTheDocument();
     });
 
-    it('reports no answer once a number is erased back to the dial code', async () => {
+    it('rejects a saved number cut short', async () => {
       const user = userEvent.setup();
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      const input = screen.getByRole('textbox', { name: /Phone/ });
+      const onSubmit = vi.fn();
+      renderForm(
+        <JsonSchemaForm
+          schema={schema}
+          uiSchema={uiSchema}
+          formData={{ phone: '+1707' }}
+          onSubmit={onSubmit}
+        />,
+      );
 
-      await user.type(input, '20');
-      expect(onChange).toHaveBeenLastCalledWith({ phone: '+120' }, expect.anything());
-      await user.type(input, '{Backspace}{Backspace}');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
 
-      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
-      expect(input).toHaveValue('+1 ');
-    });
-
-    it.each(['+1', '+44'])('reports no answer for a dial code filled in alone (%s)', (value) => {
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      fireEvent.change(screen.getByRole('textbox', { name: /Phone/ }), { target: { value } });
-      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
-    });
-
-    it("keeps the chosen country's dial code when its number is erased", async () => {
-      const user = userEvent.setup();
-      const onChange = vi.fn();
-      renderForm(<JsonSchemaForm schema={schema} uiSchema={uiSchema} onChange={onChange} />);
-      const input = screen.getByRole('textbox', { name: /Phone/ });
-      fireEvent.change(input, { target: { value: '+44 20' } });
-      expect(onChange).toHaveBeenLastCalledWith({ phone: '+4420' }, expect.anything());
-
-      await user.type(input, '{Backspace}{Backspace}');
-
-      expect(onChange).toHaveBeenLastCalledWith({ phone: undefined }, expect.anything());
-      expect(input).toHaveValue('+44 ');
-      expect(
-        document
-          .querySelector('.react-international-phone-country-selector-button img')
-          ?.getAttribute('data-country'),
-      ).toBe('gb');
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getAllByText(/Please enter the whole phone number/).length).toBeGreaterThan(0);
     });
   });
 

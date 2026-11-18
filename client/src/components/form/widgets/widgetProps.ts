@@ -11,6 +11,8 @@ export interface WidgetOptions {
   emptyValue?: unknown;
   rows?: number;
   displayFormat?: string;
+  /** The phone widget's starting country, a two-letter code (`GB`). */
+  defaultCountry?: string;
 }
 
 /** rjsf passes errors as a string array; join them for a single error message. */

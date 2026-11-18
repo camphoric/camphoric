@@ -1,132 +1,178 @@
 /**
- * International phone-number widget (SPEC §9.1, DR-30). The @rjsf/mantine base
- * theme has no phone input, so this builds a Mantine-native one with
- * `react-international-phone`'s `usePhoneInput` hook: a Mantine `TextInput`
- * whose `leftSection` is the library's flag country selector. The hook formats
- * as the user types and reports the value in E.164 form; default country is US.
+ * International phone-number widget (SPEC §9.1, DR-175). The @rjsf/mantine base
+ * theme has no phone input, so this builds a Mantine-native one on
+ * `react-phone-number-input` (on Google's phone metadata, via
+ * `libphonenumber-js`): a country picker (PhoneCountryPicker) beside a Mantine
+ * `TextInput`, which the library formats as the user types, keeping the cursor
+ * in place. The value is reported in E.164 form (`+12025551234`), or as the
+ * field's `emptyValue` when there's no number.
+ *
+ * A number without a leading `+` is a number in the selected country, read by
+ * that country's own rules: `(202) 555-1234` in the US and `020 7946 0958` in
+ * the UK (dropping its leading 0) alike. That's also how browser autofill and
+ * paste are read, which often give a national number. A number with `+` and a
+ * country code switches the country to match. The selected country starts as
+ * the field's `ui:options.defaultCountry` (a two-letter code, `GB`), else the US.
+ *
+ * A number dialled with the selected country's exit code (`011 44 20 7946 0958`
+ * in the US) is the number it dials, `+442079460958`: the library alone would
+ * read it as a national number. A saved value that isn't in E.164 form (from an
+ * import, say) is shown as a number in the field's starting country, and saved
+ * in E.164 form once it's edited.
+ *
+ * A dial code alone (`+44`) isn't an answer: it's reported as the field's
+ * `emptyValue`, so a required phone number with nothing more is rejected as
+ * missing (#986), while the field keeps showing what was typed.
+ *
  * WidgetFrame supplies the label and description.
- *
- * The hook reads every value as international (`+` and a country code). Browser
- * autofill and paste replace the whole value at once, often with a national
- * number (`(202) 555-1234`), dropping the `+1` the field starts with; the hook
- * would then read `20…` as Egypt. So a value without a leading `+` is read as a
- * number in the selected country (`nationalToInternational`). One with a `+` and
- * another country code still switches the country.
- *
- * The hook also drops any typed-in text that isn't all digits, to keep letters
- * out — including a whole number inserted in one go (`+1 (202) 555-1234`), as
- * some autofill does. So a value that arrives all at once doesn't go through
- * the hook's handler: the widget reports it in E.164 form, and the hook, which
- * follows its `value`, formats it and picks its country.
- *
- * The field always shows a dial code (`+1`), which isn't an answer: a value of
- * only a dial code is reported as empty (`options.emptyValue`), so a required
- * phone number left blank is rejected as missing (#986).
  */
 
-import 'react-international-phone/style.css';
-
-import { TextInput } from '@mantine/core';
+import { Group, TextInput } from '@mantine/core';
 import type { WidgetProps } from '@rjsf/utils';
-import type { ChangeEvent } from 'react';
 import {
-  CountrySelector,
-  guessCountryByPartialPhoneNumber,
-  usePhoneInput,
-} from 'react-international-phone';
+  type CountryCode as Country,
+  isSupportedCountry,
+  parsePhoneNumberFromString,
+} from 'libphonenumber-js';
+import metadata from 'libphonenumber-js/min/metadata';
+import {
+  type ComponentPropsWithRef,
+  type CSSProperties,
+  type ReactNode,
+  useRef,
+  useState,
+} from 'react';
+import PhoneNumberInput from 'react-phone-number-input';
 
+import { PhoneCountryPicker } from './PhoneCountryPicker';
 import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
 
-/**
- * A phone value as the hook expects it: international, with a leading `+`. One
- * without is a national number in the country with `dialCode`, except that a
- * North American number starting with 1 already gives its country code (no
- * area code there starts with 1). Empty stays empty.
- */
-export function nationalToInternational(value: string, dialCode: string): string {
-  const trimmed = value.trim();
-  if (trimmed === '' || trimmed.startsWith('+')) return value;
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits === '') return value;
-  if (dialCode === '1' && digits.startsWith('1')) return `+${digits}`;
-  return `+${dialCode}${digits}`;
+/** The country a phone field starts in when its uiSchema names none. */
+export const DEFAULT_PHONE_COUNTRY: Country = 'US';
+
+/** A field's starting country: `ui:options.defaultCountry` when it's one we know. */
+export function phoneDefaultCountry(option: unknown): Country {
+  const code = typeof option === 'string' ? option.trim().toUpperCase() : '';
+  return isSupportedCountry(code) ? code : DEFAULT_PHONE_COUNTRY;
 }
 
 /**
- * A phone value in E.164 form (`+` and its digits), or '' when it has no digits
- * but the dial code of the selected country (`dialCode`): the field shows that
- * dial code even when nothing has been entered.
+ * The value the library takes for a saved answer: the answer itself in E.164
+ * form; one in another form read as a number in `country`; else nothing.
  */
-export function toE164(international: string, dialCode: string): string {
-  const digits = international.replace(/\D/g, '');
-  return digits && digits !== dialCode ? `+${digits}` : '';
+export function savedNumber(value: unknown, country: Country): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  if (/^\+\d+$/.test(value)) return value;
+  return parsePhoneNumberFromString(value, country)?.number;
+}
+
+/** Each dial code's main country (`1` → `US`, `44` → `GB`), by Google's metadata. */
+const MAIN_COUNTRY = new Map(
+  Object.entries(metadata.country_calling_codes).map(([code, countries]) => [
+    code,
+    countries[0],
+  ]),
+);
+
+/** The dial code an E.164 value starts with (dial codes are prefix-free). */
+function dialCodeOf(e164: string): string | undefined {
+  for (let length = 1; length <= 3; length += 1) {
+    const code = e164.slice(1, 1 + length);
+    if (MAIN_COUNTRY.has(code)) return code;
+  }
+  return undefined;
 }
 
 /**
- * Whether a change set the value all at once (autofill, paste, a password
- * manager), not one typed character, a deletion or an undo, which the hook
- * handles itself.
+ * The answer the library's report gives, with what's typed in the field
+ * (`typed`): none for a dial code alone. The library reads a number dialled
+ * with the country's exit code as a national one, so a number typed without a
+ * `+` is also read by Google's rules for the country it was typed in (the
+ * report's dial code's main country), and that reading is the answer when it
+ * dials another country (`011 44 20 7946 0958` typed in the US is
+ * `+442079460958`, not `+12079460958`). Otherwise the library's reading stands.
  */
-function isWholeValueChange(event: Event): boolean {
-  const { inputType = '', data = null } = event as Partial<InputEvent>;
-  if (inputType.startsWith('delete') || inputType.startsWith('history')) return false;
-  return !(inputType === 'insertText' && (data ?? '').length <= 1);
+export function phoneAnswer(reported: string | undefined, typed?: string): string | undefined {
+  if (!reported || MAIN_COUNTRY.has(reported.slice(1))) return undefined;
+  const code = dialCodeOf(reported);
+  if (!typed || typed.trim().startsWith('+') || !code) return reported;
+  const dialled = parsePhoneNumberFromString(typed, MAIN_COUNTRY.get(code))?.number;
+  // Only another country's number: within the country, Google's parser keeps a
+  // trunk 0 the library drops (`0207946` in the UK as `+440207946`), which can
+  // make a number cut short look whole.
+  return dialled && dialCodeOf(dialled) !== code ? dialled : reported;
+}
+
+/** The two controls side by side, the number taking the width. */
+function PhoneContainer({
+  children,
+  className,
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <Group className={className} style={style} gap="xs" wrap="nowrap" align="flex-start">
+      {children}
+    </Group>
+  );
+}
+
+type NumberTextInputProps = Omit<ComponentPropsWithRef<'input'>, 'size'> & {
+  error?: string;
+  inputContainer?: (control: ReactNode) => ReactNode;
+};
+
+/** The number's Mantine input, which the library formats. */
+function NumberTextInput({ className: _library, error, inputContainer, ...rest }: NumberTextInputProps) {
+  return (
+    <TextInput {...rest} error={error} inputContainer={inputContainer} style={{ flex: 1, minWidth: 0 }} />
+  );
 }
 
 export function PhoneInput(props: WidgetProps) {
   const { id, required, disabled, error, value, options } = widgetCommon<string>(props);
   const { onChange, onBlur, onFocus } = props;
-
-  const { inputValue, country, setCountry, handlePhoneValueChange, inputRef } = usePhoneInput({
-    defaultCountry: 'us',
-    value: value ?? '',
-    onChange: ({ phone, country: selected }) =>
-      onChange(toE164(phone, selected.dialCode) || options.emptyValue),
-  });
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const international = nationalToInternational(event.target.value, country.dialCode);
-    if (isWholeValueChange(event.nativeEvent)) {
-      // The country the value's own code gives, as the hook will switch to:
-      // a pasted `+44` alone is the UK's dial code, not an answer.
-      const { country: given } = guessCountryByPartialPhoneNumber({
-        phone: international,
-        currentCountryIso2: country.iso2,
-      });
-      onChange(toE164(international, given?.dialCode ?? country.dialCode) || options.emptyValue);
-      return;
-    }
-    // Only rewrite a value that needs it, so typing keeps the cursor where it is.
-    if (international !== event.target.value) event.target.value = international;
-    handlePhoneValueChange(event);
-  };
+  const defaultCountry = phoneDefaultCountry(options.defaultCountry);
+  const input = useRef<HTMLInputElement>(null);
+  // The library takes a `value` it didn't report itself as set from outside,
+  // and starts over from it. So while the form holds the answer the library's
+  // last report gave (none, for `+44`; another number, for an exit code), hand
+  // the library that report back.
+  const [last, setLast] = useState<{ reported?: string; answer?: string }>({});
+  const saved = savedNumber(value, defaultCountry);
+  const shown = last.answer === saved ? last.reported : saved;
 
   return (
     <WidgetFrame {...props}>
-      <TextInput
-        id={id}
-        ref={inputRef}
-        type="tel"
-        inputContainer={linkToFrame(props)}
+      <PhoneNumberInput
+        // The library forwards `ref` to the <input> (its types say the component).
+        ref={input as never}
+        value={shown}
+        onChange={(next) => {
+          // The library has already written its formatted text to the input.
+          const answer = phoneAnswer(next, input.current?.value);
+          setLast({ reported: next, answer });
+          onChange(answer ?? options.emptyValue);
+        }}
+        defaultCountry={defaultCountry}
+        initialValueFormat="national"
+        countrySelectComponent={PhoneCountryPicker}
+        containerComponent={PhoneContainer}
+        inputComponent={NumberTextInput}
+        numberInputProps={{
+          id,
+          error,
+          required,
+          inputContainer: linkToFrame(props),
+        }}
         autoComplete="tel"
-        required={required}
-        error={error}
         disabled={disabled}
-        value={inputValue}
-        onChange={handleChange}
-        onBlur={() => onBlur(id, value)}
         onFocus={() => onFocus(id, value)}
-        leftSectionWidth={68}
-        leftSectionPointerEvents="all"
-        leftSection={
-          <CountrySelector
-            selectedCountry={country.iso2}
-            onSelect={(selected) => setCountry(selected.iso2)}
-            disabled={disabled}
-            buttonStyle={{ border: 'none', background: 'transparent', height: '100%' }}
-          />
-        }
+        onBlur={() => onBlur(id, value)}
       />
     </WidgetFrame>
   );

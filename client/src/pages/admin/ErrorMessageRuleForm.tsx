@@ -181,7 +181,7 @@ export function ErrorMessageRuleForm({
         <Textarea
           label="Message"
           description="Placeholders: {{camper}} (e.g. “2nd camper (Alex Sample)”), {{camperNumber}}, {{field}} (the field's name), and {{params.limit}} / {{params.pattern}} where the error has them."
-          placeholder={builtInTemplate(keyword) ?? ''}
+          placeholder={builtInTemplate(keyword, field?.params[keyword as ErrorKeyword]) ?? ''}
           autosize
           minRows={2}
           value={message}
