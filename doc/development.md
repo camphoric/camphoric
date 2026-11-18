@@ -143,14 +143,14 @@ out to run them one at a time. Add `--keepdb` to reuse the test database between
 ### Validating the event data
 
 `data/` is an npm workspace root. The root package is the importer (`loadAllData.ts`); the spec,
-import-tools and Sample Camp are workspaces beside it, and the camps' events are installed from
-their own repositories' packages (#780):
+import-tools and Sample Camp are workspaces beside it. The camps' events are packages published
+from repositories of their own (#780), which `data/` doesn't install:
 
 | Folder | Package | What it is |
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, its API token, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
-| (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from npm by the range `"*"` (the lockfile pins the version) |
+| (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests. Not installed here: install one by hand to import it into a development server |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports, the confirmation, invoice and invitation emails, group emails and promo codes). A test fails when the contract's schema gains an event, report, registration type, custom charge type, group email, promo code or lodging field, a report output, a group email recipient source or a promo code scope, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
@@ -170,7 +170,9 @@ every workspace imports only its own files and the packages it declares.
     npm run import -- --if-empty                # only into a server with no events
     npm run import -- --wait                    # wait for the server to start first
     npm run import -- --revoke-token            # revoke the token when the run ends, however it ends
-    CAMPHORIC_EVENTS=harmony,lark npm run import    # just these events, in this order
+    CAMPHORIC_EVENTS=sample-camp npm run import     # just these events, in this order
+    npm install --no-save @camphoric/camphoric-event-lark   # a camp's event too, until the next
+                                                # npm ci or npm install (see below)
     CAMPHORIC_E2E_IMAGE=camphoric:local npm run e2e -w events/sample-camp
                                                 # Sample Camp's registration-form e2e tests, against a
                                                 # throwaway server from a locally built image
@@ -209,16 +211,19 @@ to use one deliberately. A request whose connection is reset is sent again only 
 (GET, PUT and DELETE): a POST or PATCH the server may already have applied fails instead.
 
 A camp's event lives in a repository of its own: see "Event repositories" in
-[RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. In this repository, an
-event is added by its package name: installed from npm by the range `"*"` (`npm pkg set
-'dependencies.@camphoric/camphoric-event-<name>=*'`, then `npm install`, in `data/`) and listed in
-`EVENTS` in `data/eventModules.ts`. The lockfile pins the version every install uses, `npm ci`
-included; "In Camphoric" under "Event repositories" in RELEASE.md says how to move it to the newest
-release. Each event takes the spec as a peer dependency, so the importer and every event share one
-copy (see "What a spec version means" in RELEASE.md). This repository doesn't test the installed
-events: each event's repository tests its own newest code against each new Camphoric release (see
-[event-repo-ci.md](./event-repo-ci.md)), and nothing tests the version the lockfile pins against
-`main`. To work on a camp's event against your development server, clone its repository; each has its own
+[RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. This repository
+doesn't depend on them: the importer loads the events under `data/events/` and, after them, any
+other `@camphoric/camphoric-event-*` package installed in `data/node_modules`
+(`data/eventModules.ts`), so `npm install --no-save @camphoric/camphoric-event-<name>` in `data/`
+adds a camp's event to the next import from the host, until the next `npm ci` or `npm install`
+removes it. The Docker `data` service has a `node_modules` of its own, so there the install and the
+import run together: `docker compose run --rm data sh -c 'npm install --no-save
+@camphoric/camphoric-event-<name> && import'`. The Vagrant VM's provisioning runs `npm ci` before
+it imports, so it imports Sample Camp alone. Each event takes the
+spec as a peer dependency, so the importer and every event share one copy (see "What a spec
+version means" in RELEASE.md). This repository doesn't test the camps' events: each event's
+repository tests its own code against each new Camphoric release (see
+[event-repo-ci.md](./event-repo-ci.md)). To work on a camp's event against your development server, clone its repository; each has its own
 tests, e2e tests and (where the camp has one) bulk-registration script.
 
 The packages are TypeScript. The spec and import-tools are published to npm compiled
@@ -234,9 +239,8 @@ templates from its package root (`packagePath.ts`), which works from either; a p
 package drops the `camphoric-source` export, since its source isn't packed. Each event's `index.ts` default export
 `satisfies EventModule`, and the import object's type (`EventImport`) and its JSON Schema both come
 from the TypeBox schema in the spec package, so a mistake shows up in the editor; the importer
-still checks the schema with Ajv at runtime. After pulling a change to the workspaces or to the
-events `data/` installs (such as an event moving to a new registry), rebuild the `data` Docker
-image (`docker compose build data`) before `docker compose run --rm data import`, and start the
+still checks the schema with Ajv at runtime. After pulling a change to the workspaces or to
+`data/`'s dependencies, rebuild the `data` Docker image (`docker compose build data`) before `docker compose run --rm data import`, and start the
 stack with `docker compose up -d -V`: `-V` gives the `data` service a fresh `node_modules` volume,
 where an old one would still hold the previous install.
 
@@ -248,10 +252,9 @@ rejected sample registration fails that import. The same workflow runs Sample Ca
 registration-form e2e tests against a throwaway server from that image, so a client change that
 breaks the import-tools page object fails there. The server's legacy report tests
 (`server/tests/test_templating_legacy.py`, in `django.yml`) render the reports under
-`data/events/`. CI checks only the events developed here (`data/events/`). The events `data/`
-installs from npm are left to their own repositories, whose "Camphoric releases" check tests each
-one's newest code against every new Camphoric release ([event-repo-ci.md](./event-repo-ci.md));
-nothing tests the versions the lockfile pins against `main`.
+`data/events/`. CI checks only the events developed here (`data/events/`). The camps' events are
+left to their own repositories, whose "Camphoric releases" check tests each one against every new
+Camphoric release ([event-repo-ci.md](./event-repo-ci.md)).
 
 ### Create the Django superuser
 
@@ -272,8 +275,8 @@ http://localhost:3000`.
 ### Load the sample data
 
 On a fresh database, `docker compose up` creates the admin (`DJANGO_SUPERUSER_*` in
-`env/local/shared.env`) and imports every event the importer loads (the camps and Sample Camp, from
-`data/eventModules.ts`): the `data` service runs `import --if-empty`, which waits for the server,
+`env/local/shared.env`) and imports every event the importer loads (Sample Camp, from `data/eventModules.ts`; a camp's
+event is imported as described in "Validating the event data"): the `data` service runs `import --if-empty`, which waits for the server,
 imports, and exits. It imports as that admin, with an API token the `django` service mints each
 time it starts (named `docker-import`, replacing the last start's, and never expiring) into the
 `import-token` volume, which the `data` service reads through `CAMPHORIC_API_TOKEN_FILE`; the volume

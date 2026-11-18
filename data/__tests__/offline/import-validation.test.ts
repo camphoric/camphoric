@@ -1,7 +1,8 @@
 /**
  * Offline validation of the events developed here, under events/ (Sample
- * Camp) — no server needed. The events installed from npm are left to their
- * own repositories (doc/event-repo-ci.md).
+ * Camp) — no server needed. A camp's event, published from a repository of
+ * its own, is tested there (doc/event-repo-ci.md), even when installed here by
+ * hand.
  *
  * Each event must pass the conformance checks every event package runs
  * (@camphoric/camphoric-event-import-spec/conformance). The event, as its
@@ -23,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from '@jest/globals';
 import { describeEventModule, importedEvent } from '@camphoric/camphoric-event-import-spec/conformance';
 
-import { EVENTS, type EventName } from '../../eventModules.ts';
+import { EVENTS } from '../../eventModules.ts';
 
 // The server's own checks, run on an event's fields (DR-106). They need the
 // repository's server/ and python3. Outside CI they're skipped (saying why)
@@ -42,7 +43,7 @@ const schemaTest = canRunSchemaChecks ? test : test.skip;
 const EVENTS_DIR = new URL('../../events/', import.meta.url);
 const LOCAL_EVENTS = readdirSync(EVENTS_DIR, { withFileTypes: true })
   .filter(entry => entry.isDirectory() && existsSync(new URL(`${entry.name}/package.json`, EVENTS_DIR)))
-  .map(entry => entry.name as EventName);
+  .map(entry => entry.name);
 
 describe.each(LOCAL_EVENTS)('data/%s', (name) => {
   const load = EVENTS[name];

@@ -399,8 +399,9 @@ camphoric_email_host_user: my.throwaway.account@gmail.com
 camphoric_email_host_password: aaaaaaaaaaaaaaaa 
 ```
 
-Provisioning onto an empty database imports every event (the camps and Sample Camp); a database
-that already has events is left as it is.
+Provisioning onto an empty database imports Sample Camp (it runs `npm ci` in `data/` first, so a
+camp's event installed there by hand isn't among them); a database that already has events is
+left as it is.
 
 **ansible/.ansible-vault-pw**
 

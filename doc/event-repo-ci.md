@@ -31,9 +31,8 @@ maintainer's own `gh` login.
 
 So a release that broke an event's registration form could go unnoticed for up to a week, and a
 new package version within an event's caret range (`^1.0.0`) wasn't tested in that repository at
-all until somebody changed it. This repository doesn't test the published *events*: it installs
-each by `"*"`, and an event's compatibility with Camphoric is its own repository's job, through
-the check below.
+all until somebody changed it. This repository doesn't install or test the published *events*:
+an event's compatibility with Camphoric is its own repository's job, through the check below.
 
 The four event repositories (lark, harmony, familyweek, ltacampout) have identical `ci.yml`,
 `e2e.yml` and `release-please.yml`, so one design fits all of them.

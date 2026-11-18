@@ -243,8 +243,9 @@ module, so its versions follow what an event module has to do:
 
 Every event package takes the spec as a **peer dependency** (`"^1.0.0"`), so the importer loads
 one copy of the spec. An event installed from an event repository (#780) whose range the spec in
-this repository doesn't satisfy is refused by `npm install`, never a second, nested copy. In this repository the events also take the
-workspace copy as a devDependency (`"*"`); an event repository's devDependency is its peer range.
+this repository doesn't satisfy is refused by `npm install`, never a second, nested copy. In this
+repository the events also take the workspace copy as a devDependency (`"*"`); an event
+repository's devDependency is its peer range.
 
 A breaking change to the spec keeps `main` holding a spec, an importer and events that work
 together:
@@ -254,11 +255,9 @@ together:
    minor, add what replaces the old form (a new field, optional); then, in the major, remove or
    require it.
 2. **One PR here** changes the spec, the importer and the events in `data/events/` (widening their
-   peer range the same way), and moves the lockfile to the event repositories' releases (as in "In Camphoric", under
-   "Event repositories"). This repository's tests then check Sample Camp against the new spec.
+   peer range the same way). This repository's tests then check Sample Camp against the new spec.
 3. **Merge the spec's release PR**, which publishes the new major. Until it bumps the spec's
-   version, the tests check peer ranges against the old major, so an event that skipped step 1
-   first fails this PR's checks.
+   version, the tests check Sample Camp's peer range against the old major.
 4. Each event repository then takes the new major as its devDependency and may narrow its peer
    range to it.
 
@@ -277,8 +276,9 @@ authoritative record. A new row is added with each spec major:
 ## Event repositories
 
 Each camp's event is a package of its own, developed and released in its own public repository and
-published to npm, which Camphoric's importer (`data/`) installs (#780). Sample Camp, a
-made-up event for this repository's tests, is the only event still in `data/events/`.
+published to npm (#780). Camphoric's importer (`data/`) doesn't install them: Sample Camp, a
+made-up event for this repository's tests and development databases, is the only event in
+`data/events/`, and the only one it imports unless a camp's event is installed by hand.
 
 | Event | Repository | Package |
 | --- | --- | --- |
@@ -308,19 +308,14 @@ made-up event for this repository's tests, is the only event still in `data/even
   re-enable it in that repository's Actions tab when it's needed.
 - **Publishing access.** As for the packages above, each package lists its repository's release
   workflow as a trusted publisher on npmjs.com.
-- **In Camphoric.** The importer installs each event by `"*"`, so any release, a new major too,
-  satisfies it, but the lockfile still pins the version every install uses (`npm ci`, in CI and in
-  the `data` image). A new release reaches Camphoric with a lockfile update, in `data/`:
-  `npm install --package-lock-only <package>@latest`, then `npm pkg set 'dependencies.<package>=*'`
-  and `npm install --package-lock-only` (not `npm update <package>`, which can drop the importer's
-  link to the workspace spec and leave a lockfile `npm ci` refuses). Dependabot's monthly `data/`
-  update opens these bumps too: a minor or patch in its grouped pull request, a new major in one of
-  its own. Camphoric's CI doesn't test the installed events, so its checks passing on such a pull
-  request say nothing about them. Each event's repository tests its own newest code against each
-  new Camphoric release (above), but nothing tests the version the lockfile pins against
-  Camphoric's `main`: a change here that breaks one shows up in the development import, or in that
-  event's check after the next release. A new spec major is rolled out as described in "What a spec
-  version means" above.
+- **In Camphoric.** Camphoric doesn't depend on the camps' events, and its CI doesn't test them:
+  each event's repository tests its own code against each new Camphoric release (above), so a
+  change here that breaks one shows up in that event's check after the next release. To import a
+  camp's event into a development server, install it in `data/` by hand (`npm install --no-save
+  @camphoric/camphoric-event-<name>`), which the importer then finds (`data/eventModules.ts`) until
+  the next `npm ci` or `npm install`; [doc/development.md](./doc/development.md) has the Docker
+  stack's command. A new spec major is rolled out as described in "What a spec version means"
+  above.
 
 ### Adding a camp's event
 
@@ -353,10 +348,8 @@ made-up event for this repository's tests, is the only event still in `data/even
    to an account in the npm `camphoric` organization), then add the repository's release workflow
    as the package's trusted publisher on npmjs.com, and set the package to require 2FA and
    disallow tokens.
-5. **Add it to Camphoric:** in `data/`, run `npm pkg set
-   'dependencies.@camphoric/camphoric-event-<name>=*'` and `npm install` (`npm install
-   <package>@*` would save a caret range), add it to `EVENTS` in `data/eventModules.ts`, and add a
-   row to the table above. The offline tests then check that `EVENTS` names it.
+5. **Add a row to the table above.** Camphoric doesn't install it: install it by hand in `data/` to
+   import it into a development server (see "In Camphoric" above).
 
 ---
 
