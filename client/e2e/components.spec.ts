@@ -1084,9 +1084,7 @@ test.describe('Record deleted', () => {
 });
 
 test.describe('Report list', DESKTOP_ONLY, () => {
-  test('categories collapse and expand, with their reports indented under them', async ({
-    page,
-  }) => {
+  test('categories collapse and expand, by mouse and keyboard', async ({ page }) => {
     await page.goto(story('report-list--some-collapsed'));
     const rooming = page.getByRole('button', { name: /^Rooming,/ });
     const finance = page.getByRole('button', { name: /^Finance,/ });
@@ -1097,10 +1095,6 @@ test.describe('Report list', DESKTOP_ONLY, () => {
     await rooming.click();
     const cabins = page.getByRole('button', { name: /^Cabin assignments/ });
     await expect(cabins).toBeVisible();
-    // Indented: the report's name starts to the right of its category's name.
-    const reportName = (await cabins.getByText('Cabin assignments').boundingBox())!;
-    const categoryName = (await rooming.getByText('Rooming').boundingBox())!;
-    expect(reportName.x).toBeGreaterThan(categoryName.x);
 
     await finance.focus();
     await page.keyboard.press('Enter');

@@ -136,6 +136,25 @@ describe('ReportList', () => {
     expect(titlesIn('Finance')).toEqual([]);
   });
 
+  it('forgets a collapsed category once it is gone, so it comes back expanded', async () => {
+    const user = userEvent.setup();
+    const { rerender } = setup(REPORTS, 1);
+
+    await user.click(heading('Rooming'));
+    await user.click(heading('Uncategorised'));
+    // Rooms moves to Finance (Rooming is gone); then the categories go entirely.
+    const moved = REPORTS.map((r) => (r.id === 3 ? report(3, 'Rooms', 'Finance') : r));
+    rerender(moved, 1);
+    rerender(
+      REPORTS.map((r) => report(r.id, r.title)),
+      1,
+    );
+    rerender(REPORTS, 1);
+
+    expect(titlesIn('Rooming')).toEqual(['Rooms']);
+    expect(titlesIn('Uncategorised')).toEqual(['Summary']);
+  });
+
   it('shows no headings to collapse, and no indent, when no report has a category', () => {
     setup([report(1, 'b'), report(2, 'A')]);
 

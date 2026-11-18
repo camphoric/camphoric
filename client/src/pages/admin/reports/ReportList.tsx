@@ -32,6 +32,13 @@ export function ReportList({ groups, selectedId, onSelect, renderMarker }: Repor
   const hasHeadings = groups.some((group) => group.category);
   const [collapsedKeys, setCollapsedKeys] = useState<ReadonlySet<string>>(new Set());
 
+  // A category that's gone (its last report moved or deleted, or every heading
+  // gone) is forgotten, so it comes back expanded rather than hiding new reports.
+  const shownKeys = new Set(hasHeadings ? groups.map((group) => categoryKey(group.category)) : []);
+  if ([...collapsedKeys].some((key) => !shownKeys.has(key))) {
+    setCollapsedKeys(new Set([...collapsedKeys].filter((key) => shownKeys.has(key))));
+  }
+
   // Where the selection is: the selected report and the category it's in now,
   // so choosing another report, or moving this one, opens its category again.
   const selectedGroup = groups.find((group) => group.reports.some((r) => r.id === selectedId));
