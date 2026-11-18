@@ -40,7 +40,7 @@ test('lodging offers only the choices registrants see', async ({ registration })
   // (in alphabetical order; the Staff Cabin is hidden from registrants)
   expect(offered).toEqual([
     ['Day Visitor', 'Meadow Cabins', 'Tent Field'],
-    ['Cabin 1', 'Cabin 2', 'Cabin 3'],
+    [...'ABCDEFGH'.split('').map(letter => `Bunkhouse ${letter}`), 'Cabin 1', 'Cabin 2', 'Cabin 3'],
   ]);
 });
 

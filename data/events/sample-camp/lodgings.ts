@@ -16,17 +16,21 @@ export default {
   cabin_2: { parentKey: 'cabins', name: 'Cabin 2', capacity: 4, visible: true, notes: 'Two bunk beds' },
   cabin_3: { parentKey: 'cabins', name: 'Cabin 3', capacity: 6, reserved: 2, visible: true, notes: 'Two spots held for staff' },
   cabin_staff: { parentKey: 'cabins', name: 'Staff Cabin', capacity: 4, visible: false, notes: 'Assigned by the registrar' },
+  // Bunkhouses for the larger households among the sample registrations
+  ...Object.fromEntries('ABCDEFGH'.split('').map(letter => [`bunkhouse_${letter.toLowerCase()}`, {
+    parentKey: 'cabins', name: `Bunkhouse ${letter}`, capacity: 14, visible: true, notes: 'Seven bunk beds',
+  }])),
 
   tents: { parentKey: 'root', name: 'Tent Field', children_title: 'Choose a tent site', visible: true },
   tent_small: {
     parentKey: 'tents',
     name: 'Small Tent Site',
-    capacity: 10,
+    capacity: 90,
     sharing_multiplier: 0.5,
     visible: true,
     notes: 'Campers sharing a tent count as half a spot',
   },
-  tent_large: { parentKey: 'tents', name: 'Large Tent Site', capacity: 6, visible: true },
+  tent_large: { parentKey: 'tents', name: 'Large Tent Site', capacity: 80, visible: true, notes: 'Room for RVs' },
 
   // Day visitors are never turned away, whatever the count (availability)
   day: { parentKey: 'root', name: 'Day Visitor', capacity: 50, visible: true, notes: 'No overnight stay', availability: 'open' },
