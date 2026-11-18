@@ -365,9 +365,9 @@ made-up event for this repository's tests, is the only event still in `data/even
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
 | `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to npm |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks, lints and tests the importer and the event packages, and smoke-tests the packed packages |
-| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it |
+| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it, in browsers from Playwright's image (`.github/actions/playwright-browsers`) |
 | `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from npm to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
-| `.github/workflows/client.yml`        | push/PR to `main` touching `client/` | type-checks, lints and unit-tests the client, and runs its Playwright e2e suite |
+| `.github/workflows/client.yml`        | push/PR to `main` touching `client/` | type-checks, lints and unit-tests the client, and runs its Playwright e2e suite, in browsers from Playwright's image (`.github/actions/playwright-browsers`) |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`
 > trigger) because a release created with the default `GITHUB_TOKEN` does not start other

@@ -22,6 +22,7 @@ on:
       - 'docker/**'
       - 'docker-compose.image.yml'
       - '.github/workflows/docker.yml'
+      - '.github/actions/playwright-browsers/**'
   pull_request:
     branches: [main]
     paths:
@@ -33,6 +34,7 @@ on:
       - 'docker/**'
       - 'docker-compose.image.yml'
       - '.github/workflows/docker.yml'
+      - '.github/actions/playwright-browsers/**'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
 # main are left to finish so every merged commit keeps its own result.
@@ -168,6 +170,9 @@ jobs:
   # throwaway Camphoric from this image, on a free port.
   registration-e2e:
     runs-on: ubuntu-latest
+    # A run takes 3-7 minutes (the longer when the image builds from scratch):
+    # fail a stalled one instead of waiting out the 6-hour default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -195,33 +200,12 @@ jobs:
         working-directory: data
         run: npm ci
 
-      # The browsers are cached by Playwright's version and the runner's OS release
-      # (they're built for it); their system packages aren't, so a cached run still
-      # installs those.
-      - name: Playwright version and runner OS
-        id: playwright
-        working-directory: data
-        run: |
-          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v6
+      # Chromium for the config's Desktop and Mobile Chrome projects, from
+      # Playwright's image, beside the throwaway Camphoric on the runner's
+      # network (a job container would have no Docker to start that with).
+      - uses: ./.github/actions/playwright-browsers
         with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ steps.playwright.outputs.os }}-playwright-${{ steps.playwright.outputs.version }}-chromium
-
-      # Chromium for the config's Desktop and Mobile Chrome projects
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: data
-        run: npx playwright install --with-deps chromium
-
-      - name: Install the browsers' system packages
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        working-directory: data
-        run: npx playwright install-deps chromium
+          working-directory: data
 
       - name: Sample Camp's registration-form e2e tests
         working-directory: data
