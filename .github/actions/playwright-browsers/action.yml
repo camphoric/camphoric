@@ -1,0 +1,50 @@
+# Playwright's browsers for an e2e job, from Playwright's own image rather than
+# installed on the runner. Installing them there also installs their system
+# packages from Ubuntu's apt mirror, which no cache covers, so a slow mirror
+# stretched a two-minute job to over twenty. The image has the browsers and
+# their packages built in.
+#
+# The image runs Playwright's browser server on the runner's network, and the
+# step sets PW_TEST_CONNECT_WS_ENDPOINT for the rest of the job, so
+# `playwright test` drives that server's browsers instead of launching its own.
+# On the runner's network the browsers reach the servers the tests start on its
+# 127.0.0.1 (a job container couldn't: it has no Docker for docker.yml's
+# throwaway Camphoric, and its localhost isn't the runner's). The image, and the
+# server it runs, are the @playwright/test version the lockfile installs: a
+# client and server of different versions refuse to connect.
+name: Playwright browsers
+description: Run Playwright's browser server from its image, for playwright test to connect to
+inputs:
+  working-directory:
+    description: The directory whose installed @playwright/test sets the version (after npm ci)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Start Playwright's browser server
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        version=$(node -p "require('@playwright/test/package.json').version")
+        port=3000
+        # --init and --ipc=host as Playwright's Docker guide runs Chromium.
+        docker run --detach --name playwright-browsers --network host --init --ipc=host \
+          --user pwuser --workdir /home/pwuser \
+          "mcr.microsoft.com/playwright:v$version-noble" \
+          npx -y "playwright@$version" run-server --host 127.0.0.1 --port "$port"
+        # Any HTTP answer means it's listening (curl fails only on no connection).
+        for _ in $(seq 1 90); do
+          if curl -s -o /dev/null "http://127.0.0.1:$port/"; then
+            echo "Playwright $version's browser server is listening on port $port"
+            echo "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:$port/" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$(docker inspect -f '{{.State.Running}}' playwright-browsers)" != true ]; then
+            break
+          fi
+          sleep 1
+        done
+        echo "::error::Playwright's browser server didn't start"
+        docker logs playwright-browsers
+        exit 1

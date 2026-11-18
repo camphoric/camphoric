@@ -14,6 +14,7 @@ on:
       - 'server/camphoric/pricing.py'
       - 'server/tests/data/pricing_parity.json'
       - '.github/workflows/client.yml'
+      - '.github/actions/playwright-browsers/**'
   pull_request:
     branches: [main]
     paths:
@@ -21,6 +22,7 @@ on:
       - 'server/camphoric/pricing.py'
       - 'server/tests/data/pricing_parity.json'
       - '.github/workflows/client.yml'
+      - '.github/actions/playwright-browsers/**'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
 # main are left to finish so every merged commit keeps its own result.
@@ -62,6 +64,9 @@ jobs:
   # backend; playwright.config.ts).
   e2e:
     runs-on: ubuntu-latest
+    # A run takes 2-3 minutes: fail a stalled one instead of waiting out the
+    # 6-hour default.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: client
@@ -76,30 +81,11 @@ jobs:
 
       - run: npm ci
 
-      # The browsers are cached by Playwright's version and the runner's OS release
-      # (they're built for it); their system packages aren't, so a cached run still
-      # installs those.
-      - name: Playwright version and runner OS
-        id: playwright
-        run: |
-          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v6
+      # Chromium for Desktop/Mobile Chrome, WebKit for Mobile Safari, from
+      # Playwright's image, with nothing installed on the runner.
+      - uses: ./.github/actions/playwright-browsers
         with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ steps.playwright.outputs.os }}-playwright-${{ steps.playwright.outputs.version }}-chromium-webkit
-
-      # Chromium for Desktop/Mobile Chrome, WebKit for Mobile Safari.
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
-
-      - name: Install the browsers' system packages
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium webkit
+          working-directory: client
 
       # The tests serve this build (playwright.config.ts).
       - name: Build Storybook
