@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 import os
 import environ
 import mimetypes
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -437,9 +438,11 @@ PAYPAL_SECRET = env('PAYPAL_SECRET')
 DBBACKUP_CONNECTORS = {'default': {'EXCLUDE': ['camphoric_registrationdraft']}}
 
 # Hosts and origins are comma-separated environment variables. The defaults cover local
-# development: the Vite dev servers and the docker-compose "django" host.
+# development: the Vite dev servers and the docker-compose "django" host, and the public
+# site's own origin (CAMPHORIC_PUBLIC_URL's), such as a compose stack's frontend published
+# on a port of its own (doc/development.md).
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'django'])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+_DEV_ORIGINS = [
     'https://localhost',
     'http://localhost:8000',
     'http://localhost:3000',
@@ -447,7 +450,29 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:3002',
     'http://localhost:3003',
     'http://django:8000',
-])
+]
+
+
+def _origin(url):
+    '''The origin a browser sends for this URL (lowercase, no default port), or '' if none.'''
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:  # a malformed URL: its links are broken, but Django still starts
+        return ''
+    scheme, host = parts.scheme.lower(), parts.hostname
+    if not scheme or not host:
+        return ''
+    if ':' in host:
+        host = f'[{host}]'
+    if port and port != {'http': 80, 'https': 443}.get(scheme):
+        host = f'{host}:{port}'
+    return f'{scheme}://{host}'
+
+
+_PUBLIC_ORIGIN = _origin(CAMPHORIC_PUBLIC_URL)
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=_DEV_ORIGINS + (
+    [_PUBLIC_ORIGIN] if _PUBLIC_ORIGIN and _PUBLIC_ORIGIN not in _DEV_ORIGINS else []))
 # Unused: django-cors-headers is not installed, so this setting has no effect. It is kept
 # (env-driven) only because existing settings_override.py files assign it.
 CORS_ORIGIN_WHITELIST = env.list('CORS_ORIGIN_WHITELIST', default=CSRF_TRUSTED_ORIGINS)

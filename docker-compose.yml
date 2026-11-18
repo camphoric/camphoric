@@ -15,6 +15,15 @@ volumes:
 # else on the network can reach the stack: Postgres has a known password and
 # Django an admin/admin login. To reach it from another device, see
 # "Reaching the stack from another device" in doc/development.md.
+#
+# Each host port can be moved with a variable (in your shell or the root .env),
+# so a second stack can run beside this one under its own project name (see
+# "Running a second, isolated stack" in doc/development.md):
+#   CAMPHORIC_POSTGRES_PORT        Postgres                 (default 5434)
+#   CAMPHORIC_DJANGO_PORT          Django                   (default 8000)
+#   CAMPHORIC_REACT_PORT           Vite's dev server        (default 3000)
+#   CAMPHORIC_REACT_PREVIEW_PORT   Vite's preview server    (default 3001)
+# Inside the stack the services keep their usual ports (django:8000 and so on).
 services:
   postgres:
     image: postgres:16-alpine
@@ -22,7 +31,7 @@ services:
       - ./env/local/shared.env
       - ./env/local/postgres.env
     ports:
-      - "127.0.0.1:5434:5432"
+      - "127.0.0.1:${CAMPHORIC_POSTGRES_PORT:-5434}:5432"
     volumes:
       - db:/var/lib/postgresql/data/pgdata
       - ./postgres-initdb.sql:/docker-entrypoint-initdb.d/max_conns.sql
@@ -40,7 +49,9 @@ services:
       # Set-password and other admin links are made only from this (never the
       # request's host): the react service's Vite server. To change it, set it
       # in your shell or the root .env (this overrides env/local/django.env).
-      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:3000}
+      # Django also trusts its origin for CSRF (settings_default.py), so the
+      # frontend can sign in on whatever port it's published on.
+      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:${CAMPHORIC_REACT_PORT:-3000}}
     build: server/
     volumes:
       - ./server:/app
@@ -61,7 +72,7 @@ services:
                  echo 'Could not mint the data service API token: the import will fail' >&2; } &&
                uvicorn camphoric_server.asgi:application --reload --timeout-graceful-shutdown 2 --host 0.0.0.0 --port 8000"
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${CAMPHORIC_DJANGO_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,7 +91,7 @@ services:
     volumes:
       - ./server:/app
     environment:
-      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:3000}
+      CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:${CAMPHORIC_REACT_PORT:-3000}}
     command: ./manage.py camphoric_worker --queue-name '*' --reload
     # Retries while the django service is still migrating.
     restart: unless-stopped
@@ -88,7 +99,8 @@ services:
       django:
         condition: service_started
 
-  # The frontend (client/): Vite's dev server on :3000, proxying /api to django.
+  # The frontend (client/): Vite's dev server on :3000 (published on
+  # CAMPHORIC_REACT_PORT), proxying /api to django.
   react:
     env_file:
       - ./env/local/shared.env
@@ -101,8 +113,8 @@ services:
       - ./client:/app
       - /app/node_modules
     ports:
-      - "127.0.0.1:3000:3000"
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:${CAMPHORIC_REACT_PORT:-3000}:3000"
+      - "127.0.0.1:${CAMPHORIC_REACT_PREVIEW_PORT:-3001}:3001"
     command: sh -c "npm ci && npm run dev"
 #   depends_on:
 #     django:

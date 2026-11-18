@@ -60,6 +60,46 @@ class SecuritySettingsTests(SimpleTestCase):
         self.assertTrue(settings.SECURE_SSL_REDIRECT)
 
 
+class TrustedOriginsTests(SimpleTestCase):
+    def test_the_public_sites_origin_is_trusted_with_the_dev_servers(self):
+        # A compose stack whose frontend is published on another port.
+        settings = settings_with(CAMPHORIC_PUBLIC_URL='http://localhost:13000/')
+        self.assertIn('http://localhost:13000', settings.CSRF_TRUSTED_ORIGINS)
+        self.assertIn('http://localhost:3000', settings.CSRF_TRUSTED_ORIGINS)
+
+    def test_a_public_url_with_a_path_is_trusted_by_its_origin(self):
+        settings = settings_with(CAMPHORIC_PUBLIC_URL='https://register.example.org/camp/')
+        self.assertIn('https://register.example.org', settings.CSRF_TRUSTED_ORIGINS)
+
+    def test_the_origin_is_the_one_a_browser_sends(self):
+        for url, origin in (('HTTPS://Register.Example.org', 'https://register.example.org'),
+                            ('https://register.example.org:443/', 'https://register.example.org'),
+                            ('http://user@127.0.0.1:13000', 'http://127.0.0.1:13000'),
+                            ('http://[::1]:13000/', 'http://[::1]:13000')):
+            with self.subTest(url=url):
+                settings = settings_with(CAMPHORIC_PUBLIC_URL=url)
+                self.assertEqual(settings.CSRF_TRUSTED_ORIGINS[-1], origin)
+
+    def test_a_malformed_public_url_adds_nothing(self):
+        for url in ('http://[::1', 'localhost:13000', 'register.example.org'):
+            with self.subTest(url=url):
+                settings = settings_with(CAMPHORIC_PUBLIC_URL=url)
+                self.assertEqual(settings.CSRF_TRUSTED_ORIGINS, settings._DEV_ORIGINS)
+
+    def test_a_dev_servers_origin_is_listed_once(self):
+        settings = settings_with(CAMPHORIC_PUBLIC_URL='http://localhost:3000')
+        self.assertEqual(settings.CSRF_TRUSTED_ORIGINS.count('http://localhost:3000'), 1)
+
+    def test_without_a_public_url_only_the_dev_servers_are_trusted(self):
+        settings = settings_with()
+        self.assertEqual(settings.CSRF_TRUSTED_ORIGINS, settings._DEV_ORIGINS)
+
+    def test_the_environment_replaces_the_list(self):
+        settings = settings_with(CAMPHORIC_PUBLIC_URL='http://localhost:13000',
+                                 CSRF_TRUSTED_ORIGINS='https://register.example.org')
+        self.assertEqual(settings.CSRF_TRUSTED_ORIGINS, ['https://register.example.org'])
+
+
 class RetentionSettingTests(SimpleTestCase):
     def test_incomplete_registrations_are_kept_thirty_days_by_default(self):
         self.assertEqual(settings_with().CAMPHORIC_INCOMPLETE_RETENTION_DAYS, 30)

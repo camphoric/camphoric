@@ -76,7 +76,7 @@ is unused). Values marked *required* have no default; the container will not boo
 | ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | `DEBUG`                 | `false`                              | Django debug mode. Never `true` in production.                                                                           |
 | `ALLOWED_HOSTS`         | `localhost,127.0.0.1,django`         | Comma-separated hostnames Django will serve. **Keep `127.0.0.1`** — the image's healthcheck uses it.                     |
-| `CSRF_TRUSTED_ORIGINS`  | local dev origins                    | Comma-separated full origins (`scheme://host[:port]`) allowed to POST, e.g. `https://register.example.org`.              |
+| `CSRF_TRUSTED_ORIGINS`  | local dev origins, and `CAMPHORIC_PUBLIC_URL`'s | Comma-separated full origins (`scheme://host[:port]`) allowed to POST, e.g. `https://register.example.org`. Setting it replaces the whole default. |
 | `SESSION_COOKIE_SECURE` | `true`                               | Session cookie only over https. Set `false` for plain http on a non-localhost host (browsers exempt `localhost`).        |
 | `CSRF_COOKIE_SECURE`    | `true` (`false` with `DEBUG` on or `SESSION_COOKIE_SECURE=false`) | CSRF cookie only over https.                                                                    |
 | `USE_X_FORWARDED_PROTO` | `false`                              | Set `true` behind a proxy that terminates TLS (nginx, an ingress) so Django treats requests as https.                    |
