@@ -87,7 +87,7 @@ describe("the form's phone-number rule", () => {
       expect.objectContaining({
         name: 'format',
         property: '.phone',
-        params: { format: 'phone', reason: 'TOO_SHORT' },
+        params: { format: 'phone', reason: 'TOO_SHORT', value: '+1707' },
         message: 'Please enter the whole phone number',
         stack: 'Phone number: Please enter the whole phone number',
       }),
@@ -108,7 +108,10 @@ describe("the form's phone-number rule", () => {
   it('asks for a saved number not in E.164 form to be entered again', () => {
     // (Beside the schema's own pattern, which refuses it too.)
     expect(errors({ phone: '(707) 397-5275' })).toContainEqual(
-      expect.objectContaining({ property: '.phone', message: 'Please enter this phone number again' }),
+      expect.objectContaining({
+        property: '.phone',
+        message: 'Please enter this phone number again (it was saved as “(707) 397-5275”)',
+      }),
     );
   });
 
@@ -121,6 +124,34 @@ describe("the form's phone-number rule", () => {
         stack: '2nd camper (Ada) – Phone number: Please enter the whole phone number',
       }),
     ]);
+  });
+
+  it("checks a phone in an object's oneOf option, the one the data matches", () => {
+    const contactSchema: RJSFSchema = {
+      type: 'object',
+      properties: {
+        contact: {
+          type: 'object',
+          oneOf: [
+            { properties: { kind: { const: 'phone' }, phone: { type: 'string' } } },
+            { properties: { kind: { const: 'email' }, email: { type: 'string' } } },
+          ],
+        },
+      },
+    };
+    const contactUi: UiSchema = { contact: { phone: { 'ui:widget': 'PhoneInput' } } };
+    const contactValidator = createMessagingValidator(() => ({
+      schema: contactSchema,
+      uiSchema: contactUi,
+    }));
+    const contactErrors = (contact: Record<string, unknown>) =>
+      contactValidator
+        .validateFormData({ contact }, contactSchema, undefined, undefined, contactUi)
+        .errors.filter((error) => error.property === '.contact.phone');
+    expect(contactErrors({ kind: 'phone', phone: '+1707' })).toEqual([
+      expect.objectContaining({ property: '.contact.phone' }),
+    ]);
+    expect(contactErrors({ kind: 'phone', phone: '+17073975275' })).toEqual([]);
   });
 
   it('checks only fields the phone widget answers', () => {

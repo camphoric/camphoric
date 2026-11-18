@@ -1696,11 +1696,14 @@ Before any step renders, the app loads the registration config (`GET …/registe
   taken, `+1707` (an area code alone) is refused with "Please enter the whole phone number", one
   too long or with no such country code with "Please check this phone number", and a saved value
   not in E.164 form (`(707) 397-5275`, from an import) with "Please enter this phone number
-  again" (`params.reason` `NOT_E164`), since it's saved in E.164 form once entered again. Only the
+  again (it was saved as “(707) 397-5275”)" (`params.reason` `NOT_E164`; `params.value` holds the
+  value, since the field can't show one it can't read), as it's saved in E.164 form once entered
+  again. Only the
   length is checked, not whether the number is in service. The failure is a `format` error with
   `params.format` of `phone` (and `params.reason`, such as `TOO_SHORT`), so the event's own
   `format` message for the field, or its `*` default for `format`, replaces the built-in one. A
-  phone field the form isn't showing (an unmet condition) isn't checked. The register endpoint
+  phone field the form isn't showing (an unmet condition, or an object's `oneOf`/`anyOf` option
+  the data doesn't match) isn't checked. The register endpoint
   doesn't check phone numbers' length (§15, DR-174).
 - **Live updating:** on every change it (a) marks `updating`, (b) saves form data to the
   store, (c) recomputes totals via `calculatePrice` (§9) and stores them, (d) persists form
@@ -7551,7 +7554,8 @@ PayPal's — the point is to set them side by side.
 PhoneInput`, since its schema is only `type: string`) with `libphonenumber-js`'s
 `validatePhoneNumberLength`, which knows each country's possible lengths from Google's phone
 metadata. The check runs in the forms' validator after ajv's, walking the form data with rjsf's
-`retrieveSchema` so only the phone fields the form is showing are checked, and reports a failure
+`retrieveSchema`, and an object's `oneOf`/`anyOf` option by rjsf's `getClosestMatchingOption`, so
+only the phone fields the form is showing are checked, and reports a failure
 as a `format` error (`params.format: phone`, `params.reason` such as `TOO_SHORT`), so events'
 messages work as for any other error. The admin's message editor offers `format` for a phone
 field. Only the length is checked, not whether the number is in service (`isValidPhoneNumber`),

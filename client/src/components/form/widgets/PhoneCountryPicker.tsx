@@ -45,7 +45,8 @@ function Flag({ country }: { country: string | undefined }) {
   const src = flagUrl(country);
   // International has no flag: a globe stands in.
   if (!src) return <Text span aria-hidden>🌐</Text>;
-  return <Image src={src} alt="" w={20} h={14} radius={2} fit="cover" />;
+  // Lazy: an open list has some 250 flags, most scrolled out of view.
+  return <Image src={src} alt="" w={20} h={14} radius={2} fit="cover" loading="lazy" />;
 }
 
 /** Whether an option matches the search text: its name, code or dial code. */
