@@ -138,9 +138,10 @@ built client. Match the patterns already in the codebase rather than introducing
   there, not with a bare `pip install`.
 - **Settings are split:** `camphoric_server/settings_default.py` (environment-agnostic
   defaults) → `settings.py` (base overrides) → optional `settings_override.py` for local dev.
-  The Docker Compose stack runs on `settings_default` and skips `settings_override.py` (the
-  Vagrant VM writes its own there); set `CAMPHORIC_DJANGO_SETTINGS_MODULE=camphoric_server.settings`
-  to use yours with it (see `doc/development.md`).
+  The development stack (`docker-compose.yml`) runs on `settings_default` and skips
+  `settings_override.py` (the Vagrant VM writes its own there); set
+  `CAMPHORIC_DJANGO_SETTINGS_MODULE=camphoric_server.settings` to use yours with it (see
+  `doc/development.md`). The released image still loads a mounted one (see `CONTAINER.md`).
   Configuration comes from the environment via **`django-environ`** (`env = environ.Env()`,
   e.g. `DATABASE_URL`, `SECRET_KEY`, `PAYPAL_*`, email settings). Never hard-code secrets or
   environment-specific values; read them through `env`.
