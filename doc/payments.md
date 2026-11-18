@@ -644,8 +644,6 @@ sequenceDiagram
     S->>S: check: a PayPal/card payment with a capture id
     alt a refund of it already recorded with this request id (a retry)
         S-->>B: 201 that refund (409 if the retry asks for another amount)
-    else past its paypal_refund_until (PayPal's 180 days, a day early)
-        S-->>B: 409 refused: give it back another way and record the refund
     else amount > what's left
         S-->>B: 409 refused
     else within what's left
@@ -662,8 +660,8 @@ sequenceDiagram
                 S->>S: roll back, email the event the details
                 S-->>B: 502 unknown: press Refund again in this dialog
             end
-        else refused (fully refunded, …)
-            S-->>B: 409 refused, with PayPal's message
+        else refused (fully refunded, past 180 days …)
+            S-->>B: 409 refused, with PayPal's message (past paypal_refund_until:<br/>give it back another way and record the refund)
         else no clear answer
             S->>S: email the event the details
             S-->>B: 502 unknown: press Refund again in this dialog
@@ -693,10 +691,12 @@ flowchart LR
 - **PayPal refunds for 180 days** (DR-171). `invoices.paypal_refund_until` is the last day:
   179 days after the capture (its `create_time` in `paypal_response`, else `paid_on`, else the
   day it was recorded), a day short so an edge case fails safe. `invoices.paypal_refundable`
-  is the one rule the serializer (`paypal_refundable`, `paypal_refund_until`), the Payments
-  area (§16) and `_refund` use; past the day, `_refund` refuses (409 `refused`) before asking
-  PayPal. The money then goes back another way — a check, or sent from the event's PayPal
-  account — and the refund is recorded by hand, which the refund dialog says.
+  is the one rule the serializer (`paypal_refundable`, `paypal_refund_until`) and the Payments
+  area (§16) use, so past the day PayPal isn't offered. A refund through PayPal asked for anyway
+  still goes to PayPal — it may be the retry of a lost answer, which PayPal answers with the
+  refund it made (recorded once) — and `_refund` explains PayPal's refusal (409 `refused`).
+  The money then goes back another way — a check, or sent from the event's PayPal account —
+  and the refund is recorded by hand, which the refund dialog says.
 - **The amount recorded is PayPal's** (#767). While it's open, the dialog keeps one request id
   for each payment it refunds from, even if the amount is changed, so a retry can't refund a
   second time; switching to another payment of the invoice uses another id, since PayPal would

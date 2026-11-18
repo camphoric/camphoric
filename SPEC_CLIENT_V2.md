@@ -1313,8 +1313,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     payment — so a retry refunds once (§15, DR-122): a retry of a refund already recorded gets
     that refund back (201), even when nothing is left to refund. 409
     `{ detail, code: 'refused' }` when it can't (not a PayPal payment, more than is left, a retry
-    asking for another amount than that refund, past its `paypal_refund_until` — said without
-    asking PayPal, §15, DR-171 — or PayPal refused); 502 `{ code: 'unknown' }` when
+    asking for another amount than that refund, or PayPal refused — past its
+    `paypal_refund_until`, saying PayPal refunds for 180 days and to give the money back another
+    way; §15, DR-171); 502 `{ code: 'unknown' }` when
     PayPal's answer was lost, PayPal refunded but recording it failed, or PayPal's reply can't be
     this payment's refund — its `up` link names another capture, or its amount is more than is
     left of the payment (nothing is recorded, and the event is emailed the details). After a lost
@@ -3323,8 +3324,8 @@ section is the contract.
   it hasn't been confirmed, it asks the payer not to pay again.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
-  through PayPal's refund API on its capture until its `paypal_refund_until` (§15, DR-171;
-  after that, money goes back another way and the refund is recorded by hand), with a request
+  through PayPal's refund API on its capture, offered until its `paypal_refund_until` (§15,
+  DR-171; after that, money goes back another way and the refund is recorded by hand), with a request
   id made once for each payment refunded from while the refund dialog is open, so a retry
   refunds once, even for a changed amount; the refund's id is its `paypal_transaction_id`, and
   it keeps the request id as `refund_request_id`. A retry of a refund already recorded gets that refund back, or is
@@ -7419,16 +7420,21 @@ ledger.
 **Decision:** A PayPal or card payment can be refunded through PayPal until its
 `paypal_refund_until`: 179 days after PayPal captured it, counted from the capture's time in
 PayPal's reply (else the day it was paid). One rule on the server (`invoices.paypal_refundable`)
-decides it for the payment's `paypal_refundable`, the Payments area's refund items, and the
-refund itself, which is refused (409 `refused`) without asking PayPal once the day has passed.
-The admin sees until when on each such payment; past it, the refund dialog opens to record a
-refund made another way — a check, or money sent from the event's PayPal account — and says why.
+decides it for the payment's `paypal_refundable` and the Payments area's refund items. The admin
+sees until when on each such payment; past it, PayPal isn't offered, and the refund dialog opens
+to record a refund made another way — a check, or money sent from the event's PayPal account —
+and says why. A refund through PayPal asked for anyway (a dialog opened before the day ended, or
+another API user) still goes to PayPal, and its refusal is explained the same way: it may be the
+retry of a refund whose answer was lost, which PayPal answers with the refund it made, so the
+refund is recorded once rather than refused and made a second way.
 **Context:** PayPal refuses to refund a capture more than 180 days old. Only the "needs
 attention" list knew (DR-170): the refund dialog still offered PayPal, which failed after the
 registrar tried.
 **Alternatives:** Leave it to PayPal's refusal — no money moves, but the registrar learns only
 after trying. Work the age out in the browser — a second copy of the rule, which other API users
-wouldn't get. Count to 180 days exactly — a refund on the last day could still fail on PayPal's
+wouldn't get. Refuse a refund past the day without asking PayPal — it would also refuse the
+retry of a lost answer, telling the registrar to pay back money PayPal may already have
+refunded. Count to 180 days exactly — a refund on the last day could still fail on PayPal's
 clock or time zone; a day early always fails safe, since a refund by hand remains. Send the money
 back through PayPal's Payouts API once the window has ended — needs Payouts enabled for the
 account, costs a fee a refund doesn't, sends to an email address rather than back to the

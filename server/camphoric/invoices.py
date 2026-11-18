@@ -64,10 +64,11 @@ PENDING_CAPTURE_ASK_EVERY = timedelta(minutes=30)
 PENDING_CAPTURE_WATCHED_FOR = timedelta(days=30)
 CAPTURE_PENDING = ('PayPal is still processing a payment on this invoice. Please don\'t pay '
                    'again: it\'s recorded here once PayPal completes it.')
-# PayPal refunds a capture for 180 days after it was made. One is refused here
-# from a day before that, so a refund at the edge (PayPal's clock, time zones)
-# is never sent to fail; after it, money goes back another way and the refund
-# is recorded by hand (SPEC DR-171).
+# PayPal refunds a capture for 180 days after it was made. A refund through
+# PayPal isn't offered from a day before that, so one at the edge (PayPal's
+# clock, time zones) isn't started to fail; after it, money goes back another
+# way and the refund is recorded by hand (SPEC DR-171). A refund asked for
+# anyway still goes to PayPal: it may be the retry of one whose answer was lost.
 PAYPAL_REFUND_DAYS = 180
 PAYPAL_REFUND_LAST_DAY = timedelta(days=PAYPAL_REFUND_DAYS - 1)
 # Capture statuses whose money reached the event (it may have been refunded since).
@@ -535,12 +536,14 @@ def paypal_refundable(payment, left=None, on=None):
     return (refundable(payment) if left is None else left) > 0
 
 
-def _paypal_window_closed(payment):
+def _paypal_window_closed(payment, error):
+    '''PayPal's refusal of a refund past the payment's window, said plainly.'''
     until = paypal_refund_until(payment)
     return PaymentProblem(
         'refused', f'PayPal refunds a payment for {PAYPAL_REFUND_DAYS} days; this one could be '
-        f'refunded through PayPal until {until:%b} {until.day}, {until.year}. Give the money '
-        'back another way, then record the refund here.')
+        f'refunded through PayPal until {until:%b} {until.day}, {until.year}, and PayPal '
+        f'refused the refund ({error}). Give the money back another way, then record the '
+        'refund here.')
 
 
 def _order_payment_type(order):
@@ -1244,9 +1247,6 @@ def _refund(payment, amount, reason, request_id):
                 'refused', f'This refund was already made, for ${money(-retried.amount):.2f}. '
                 'To refund a different amount, start a new refund.')
         return retried
-    if today() > paypal_refund_until(payment):
-        # PayPal would refuse it (SPEC DR-171): said here, before asking.
-        raise _paypal_window_closed(payment)
     if amount <= 0 or amount > refundable(payment):
         raise PaymentProblem(
             'refused', f'You can refund up to ${refundable(payment):.2f} of this payment.')
@@ -1257,6 +1257,11 @@ def _refund(payment, amount, reason, request_id):
         if e.unknown:
             raise PaymentProblem('unknown', f'{e}. PayPal may have made the refund. '
                                  f'{REFUND_RETRY}', detail=str(e))
+        if today() > paypal_refund_until(payment):
+            # Its window has closed (SPEC DR-171). PayPal is still asked: this
+            # may be the retry of a refund whose answer was lost, which PayPal
+            # answers with the refund it made, so it's recorded, not made twice.
+            raise _paypal_window_closed(payment, e)
         raise PaymentProblem('refused', f'PayPal refused the refund: {e}')
     refund_id = (reply or {}).get('id')
     if not refund_id:
