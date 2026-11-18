@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.2.0...camphoric-event-import-spec-v1.3.0) (2026-11-18)
+
+
+### Features
+
+* **data:** add an event's cancellation fee to the import spec ([d5423a8](https://github.com/camphoric/camphoric/commit/d5423a82f05367c3bb52f247f1584d948132e559))
+
+
+### Bug Fixes
+
+* **data:** cap sample registrations at 20 campers, as the server does ([a9353e6](https://github.com/camphoric/camphoric/commit/a9353e60743e324c6592961cdb9d285b5c81925f)), closes [#1013](https://github.com/camphoric/camphoric/issues/1013)
+* **data:** hold sample registrations to the server's email rule ([03b58c6](https://github.com/camphoric/camphoric/commit/03b58c679b81b3482168f9c8a5e0feb83a313639)), closes [#1013](https://github.com/camphoric/camphoric/issues/1013)
+
 ## [1.2.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.1.0...camphoric-event-import-spec-v1.2.0) (2026-11-12)
 
 
