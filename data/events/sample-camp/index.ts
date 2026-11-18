@@ -84,6 +84,15 @@ const data: EventImport = {
     registration_pricing_logic,
     camper_pricing_logic,
     epayment_handling: '2.5',
+    // offered when a camper is cancelled: 10% of what that camper cost, or
+    // half of it within 30 days of camp
+    cancellation_fee: {
+      if: [
+        { '>=': [{ var: 'days_before_start' }, 30] },
+        { '*': [{ var: 'total' }, 0.1] },
+        { '*': [{ var: 'total' }, 0.5] },
+      ],
+    },
     pre_submit_template,
     confirmation_page_template,
     confirmation_email_subject,

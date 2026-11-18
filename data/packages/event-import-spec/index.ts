@@ -233,6 +233,20 @@ export const PaymentTypeSchema = Type.Object({
   additionalProperties: false,
 });
 
+/**
+ * The fee a registrar is offered to keep when a camper is cancelled (SPEC
+ * DR-170): JsonLogic the server works out for the camper on the day they're
+ * cancelled (an object, or a plain number), or null for none.
+ */
+export const CancellationFeeSchema = Type.Union([
+  Type.Object({}, { additionalProperties: true }),
+  Type.Number(),
+  Type.Null(),
+], {
+  description: 'JsonLogic for the fee offered when a camper is cancelled; it sees the camper, '
+    + 'their price lines (e.g. total), registration, pricing, date and days_before_start (default: none)',
+});
+
 /** The built-in payment types: the event's own can't reuse their values. */
 export const BUILT_IN_PAYMENT_TYPES = ['Check', 'PayPal', 'Card', 'Voucher'] as const;
 
@@ -267,6 +281,7 @@ export const EventImportSchema = Type.Object({
     })),
     paypal_client_id: opt(str('paypal api client id', { maxLength: 200 })),
     epayment_handling: opt(str('a percent added to each electronic payment, on the amount paid', { maxLength: 6 })),
+    cancellation_fee: opt(CancellationFeeSchema),
     pre_submit_template: opt(text('Handlebars template, rendered right before registration submit button')),
     confirmation_page_template: opt(text('Jinja markdown template, rendered on the server when registration completes')),
     confirmation_email_subject: opt(str('')),

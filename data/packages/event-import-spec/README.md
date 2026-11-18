@@ -9,7 +9,8 @@ The contract a [Camphoric](https://github.com/camphoric/camphoric) event module 
   report list, and `description`), custom charge types, registration types (with their
   invitation emails and schema overrides), group emails (`email_templates`) and promo codes (`promo_codes`, excluding
   registration types by name). The event may define its own offline payment types (`payment_types`, each a `value`
-  and a `label`), offered alongside the built-in Check, Voucher, PayPal and Card. Every part but the organization, the event, its reports and its
+  and a `label`), offered alongside the built-in Check, Voucher, PayPal and Card, and a `cancellation_fee` offered when a
+  camper is cancelled: JsonLogic worked out for the camper (e.g. `{ "*": [{ "var": "total" }, 0.1] }`), or null. Every part but the organization, the event, its reports and its
   registration types is optional. It holds no runtime data (registrations, invitations, invoices,
   payments) and no email accounts, which belong to the organization.
 - `validateEventImport(data)`: the importer's Ajv check. It returns the errors, or `[]`.
