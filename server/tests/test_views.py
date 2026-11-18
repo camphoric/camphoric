@@ -343,7 +343,6 @@ class RegisterGetTests(APITestCase):
                 'registrant_email': {
                     'type': 'string',
                     'format': 'email',
-                    'pattern': r'^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$',
                     'maxLength': 254,
                     'title': 'Registrant email',
                 },
@@ -963,6 +962,52 @@ Due now: $300.00""".lstrip())
 
         response = post({**first, 'is_really_cool': True, 'coolness': 11})
         self.assertEqual(response.status_code, 200)
+
+    def test_post_checks_email_addresses(self):
+        # The registrant's email and the event's own `format: email` fields
+        # follow the browser's rule (SPEC DR-166), not just "has an @".
+        self.event.camper_schema = {
+            **self.event.camper_schema,
+            'properties': {
+                **self.event.camper_schema['properties'],
+                'email': {'type': 'string', 'format': 'email'},
+            },
+        }
+        self.event.save()
+        first, *rest = self.valid_form_data['campers']
+
+        def post(registrant_email, camper_email='camper@example.com'):
+            cache.clear()  # the register throttle's counts
+            return self.client.post(
+                f'/api/events/{self.event.id}/register',
+                {
+                    'formData': {
+                        **self.valid_form_data,
+                        'registrant_email': registrant_email,
+                        'campers': [{**first, 'email': camper_email}, *rest],
+                    },
+                    'pricingResults': {},
+                },
+                format='json',
+            )
+
+        for email in ['jane-doe@my-camp.org', 'jane+camp@example.com',
+                      "o'brien@example.com", 'jane@example.photography']:
+            with self.subTest(email=email):
+                self.assertEqual(post(email).status_code, 200)
+
+        for email in ['jane', 'jane@', '@example.com', 'jane doe@example.com',
+                      'jane@gmail.c']:
+            with self.subTest(email=email):
+                response = post(email)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn('registrant_email', response.data)
+
+        response = post('jane@example.com', camper_email="o'brien@example.museum")
+        self.assertEqual(response.status_code, 200)
+        response = post('jane@example.com', camper_email='jane@')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('campers.0.email', response.data)
 
     def test_post_invitation(self):
         registration_type = models.RegistrationType.objects.create(

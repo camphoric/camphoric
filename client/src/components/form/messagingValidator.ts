@@ -1,6 +1,7 @@
 /**
- * The form's validator (SPEC §9.1, DR-34): @rjsf/validator-ajv8 with every
- * validation pass's errors run through `resolveErrorMessages`.
+ * The form's validator (SPEC §9.1, DR-34): @rjsf/validator-ajv8 (with the
+ * form's email rule, DR-166) with every validation pass's errors run through
+ * `resolveErrorMessages`.
  *
  * Messages are applied here rather than via rjsf's `transformErrors` prop
  * because rjsf validates *before* the parent receives `onChange`: a
@@ -14,13 +15,13 @@
  */
 
 import type { RJSFSchema, ValidatorType } from '@rjsf/utils';
-import baseValidator from '@rjsf/validator-ajv8';
 
 import { type ErrorMessageContext, resolveErrorMessages } from './errorMessages';
+import { formValidator } from './formValidator';
 
 export function createMessagingValidator(
   getContext: () => Omit<ErrorMessageContext, 'formData'>,
-  base: ValidatorType<unknown, RJSFSchema> = baseValidator,
+  base: ValidatorType<unknown, RJSFSchema> = formValidator,
 ): ValidatorType<unknown, RJSFSchema> {
   // Share the base instance's Ajv (and its compiled-schema cache).
   const validator = Object.create(base) as ValidatorType<unknown, RJSFSchema>;
