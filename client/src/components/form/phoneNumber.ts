@@ -9,13 +9,16 @@
  *
  * Phone fields are found by their widget (`ui:widget: 'PhoneInput'`), since
  * their schema says only `type: 'string'`. The data is walked with rjsf's own
- * `retrieveSchema`, as the review is, so a conditional phone field the form
- * isn't showing isn't checked. A failure is reported like ajv's `format` errors
+ * `retrieveSchema`, as the review is, and an object's `oneOf`/`anyOf` option is
+ * the one rjsf picks for the data, so a conditional phone field the form isn't
+ * showing isn't checked. A failure is reported like ajv's `format` errors
  * (`params.format` is `phone`), so the event's own `format` message for the
  * field applies.
  */
 
 import {
+  getClosestMatchingOption,
+  getDiscriminatorFieldFromSchema,
   getUiOptions,
   retrieveSchema,
   type RJSFSchema,
@@ -68,13 +71,18 @@ function hasPhoneField(uiSchema: Record<string, unknown>): boolean {
   return found;
 }
 
-function phoneError(property: string, problem: PhoneNumberProblem): RJSFValidationError {
+function phoneError(
+  property: string,
+  value: string,
+  problem: PhoneNumberProblem,
+): RJSFValidationError {
   const message = 'must match format "phone"';
   return {
     name: 'format',
     property,
     message,
-    params: { format: 'phone', reason: problem },
+    // The value, for a message that quotes it: one the widget can't show.
+    params: { format: 'phone', reason: problem, value },
     stack: `${property} ${message}`,
   };
 }
@@ -102,7 +110,7 @@ export function phoneNumberErrors(
     if (!isRecord(ui) || !isRecord(definition)) return;
     if (isPhoneField(ui)) {
       const problem = typeof data === 'string' && data !== '' ? phoneNumberProblem(data) : undefined;
-      if (problem) errors.push(phoneError(property, problem));
+      if (problem) errors.push(phoneError(property, data as string, problem));
       return;
     }
     if (!hasPhoneField(ui)) return;
@@ -112,7 +120,22 @@ export function phoneNumberErrors(
       if (!isRecord(resolved.items)) return;
       data.forEach((item, index) => visit(resolved.items as RJSFSchema, ui.items, item, `${property}.${index}`));
     } else if (isRecord(data)) {
-      for (const [key, child] of Object.entries(resolved.properties ?? {})) {
+      const properties = { ...resolved.properties };
+      // The option of an object's `oneOf`/`anyOf` the form shows for the data.
+      const options = (resolved.oneOf ?? resolved.anyOf ?? []).filter(isRecord) as RJSFSchema[];
+      if (options.length > 0) {
+        const retrieved = options.map((option) => retrieveSchema(validator, option, schema, data));
+        const chosen = getClosestMatchingOption(
+          validator,
+          schema,
+          data,
+          retrieved,
+          0,
+          getDiscriminatorFieldFromSchema(resolved),
+        );
+        Object.assign(properties, retrieved[chosen]?.properties);
+      }
+      for (const [key, child] of Object.entries(properties)) {
         if (key in data) visit(child, ui[key], data[key], `${property}.${key}`);
       }
     }

@@ -61,7 +61,7 @@ export const BUILT_IN_MESSAGES: BuiltInMessage[] = [
   {
     keyword: 'format',
     when: (params) => params.format === 'phone' && params.reason === 'NOT_E164',
-    template: 'Please enter this phone number again',
+    template: 'Please enter this phone number again (it was saved as “{{params.value}}”)',
   },
   {
     keyword: 'format',
