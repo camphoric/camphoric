@@ -1,7 +1,8 @@
 /**
  * The form's validator (SPEC §9.1, DR-34): @rjsf/validator-ajv8 (with the
- * form's email rule, DR-166) with every validation pass's errors run through
- * `resolveErrorMessages`.
+ * form's email rule, DR-166), plus the phone-number rule for the fields the
+ * phone widget answers (DR-174), with every validation pass's errors run
+ * through `resolveErrorMessages`.
  *
  * Messages are applied here rather than via rjsf's `transformErrors` prop
  * because rjsf validates *before* the parent receives `onChange`: a
@@ -18,6 +19,7 @@ import type { RJSFSchema, ValidatorType } from '@rjsf/utils';
 
 import { type ErrorMessageContext, resolveErrorMessages } from './errorMessages';
 import { formValidator } from './formValidator';
+import { phoneNumberErrors } from './phoneNumber';
 
 export function createMessagingValidator(
   getContext: () => Omit<ErrorMessageContext, 'formData'>,
@@ -32,9 +34,11 @@ export function createMessagingValidator(
       customValidate,
       (errors, errorsUiSchema) => {
         const context = getContext();
-        const resolved = resolveErrorMessages(errors, {
+        const formUiSchema = context.uiSchema ?? errorsUiSchema ?? uiSchema;
+        const phoneErrors = phoneNumberErrors(base, schema, formUiSchema, formData);
+        const resolved = resolveErrorMessages([...errors, ...phoneErrors], {
           ...context,
-          uiSchema: context.uiSchema ?? errorsUiSchema ?? uiSchema,
+          uiSchema: formUiSchema,
           formData,
         });
         return transformErrors ? transformErrors(resolved, errorsUiSchema) : resolved;

@@ -18,6 +18,13 @@ const DESKTOP_ONLY = { tag: '@desktop-only' };
 /** Open a story on its own (Storybook's iframe, without the Storybook UI). */
 const story = (id: string) => `${STORYBOOK_URL}/iframe.html?id=${id}&viewMode=story`;
 
+/**
+ * Type into the phone widget a key at a time, as a person does. On Android the
+ * widget's formatter moves the cursor in a timeout (an Android caret fix in
+ * input-format), which keys sent with no delay at all can outrun.
+ */
+const PHONE_TYPING = { delay: 50 };
+
 /** The story's table rows (Storybook's page also holds a hidden placeholder table). */
 const tableRows = (page: Page) => page.locator('#storybook-root tbody tr');
 
@@ -44,23 +51,66 @@ test.describe('Form engine', () => {
 
   test('phone keeps the country when filled all at once, as autofill does', async ({ page }) => {
     await page.goto(story('phone-input--empty'));
-    const phone = page.getByLabel('Phone');
+    const phone = page.getByRole('textbox', { name: 'Phone' });
+    const country = page.getByRole('button', { name: /country/i });
     const saved = async () =>
       JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}') as unknown;
 
-    // fill() sets the whole value at once, replacing the +1 the field starts with.
+    // fill() sets the whole value at once, as autofill does.
     await phone.fill('(202) 555-1234');
     await expect.poll(saved).toEqual({ phone: '+12025551234' });
+    await expect(country).toHaveAttribute('data-country', 'US');
 
     await phone.fill('+44 20 7946 0958');
     await expect.poll(saved).toEqual({ phone: '+442079460958' });
+    await expect(country).toHaveAttribute('data-country', 'GB');
   });
 
-  test('a required phone left at its dial code is required', async ({ page }) => {
+  test("phone reads a national number by its country's rules", async ({ page }) => {
+    const saved = async () =>
+      JSON.parse((await page.getByTestId('form-data').textContent()) ?? '{}') as unknown;
+
+    // A field that starts in the UK drops the national 0.
+    await page.goto(story('phone-input--united-kingdom'));
+    await page.getByRole('textbox', { name: 'Phone' }).fill('020 7946 0958');
+    await expect.poll(saved).toEqual({ phone: '+442079460958' });
+
+    // A country picked from the list, found by its name.
+    await page.goto(story('phone-input--empty'));
+    const country = page.getByRole('button', { name: /country/i });
+    await country.click();
+    await page.getByRole('textbox', { name: 'Search countries' }).fill('ireland');
+    await page.getByRole('option', { name: /Ireland/ }).click();
+    await expect(country).toHaveAttribute('data-country', 'IE');
+    // Its flag is served by the app itself.
+    const flag = country.locator('xpath=..').locator('img');
+    await expect
+      .poll(() => flag.evaluate((image: { naturalWidth: number }) => image.naturalWidth))
+      .toBeGreaterThan(0);
+    const phone = page.getByRole('textbox', { name: 'Phone' });
+    await expect(phone).toBeFocused();
+    await phone.pressSequentially('085 123 4567', PHONE_TYPING);
+    await expect.poll(saved).toEqual({ phone: '+353851234567' });
+  });
+
+  test('a required phone with a dial code alone is required', async ({ page }) => {
     await page.goto(story('phone-input--required'));
-    await expect(page.getByRole('textbox', { name: /Phone/ })).toHaveValue('+1 ');
+    await page.getByRole('textbox', { name: /Phone/ }).pressSequentially('+44', PHONE_TYPING);
     await page.getByRole('button', { name: 'Submit' }).click();
     await expect(page.getByText('This field is required').first()).toBeVisible();
+  });
+
+  test('a phone number cut short asks for the whole number', async ({ page }) => {
+    await page.goto(story('phone-input--cut-short'));
+    const phone = page.getByRole('textbox', { name: /Phone/ });
+    await expect(phone).toHaveValue('+1 707');
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await expect(page.getByText('Please enter the whole phone number').first()).toBeVisible();
+
+    await phone.press('End');
+    await phone.pressSequentially('3975275', PHONE_TYPING);
+    await expect(page.getByText('Please enter the whole phone number')).toHaveCount(0);
+    await expect(phone).toHaveValue('+1 707 397 5275');
   });
 
   test('a number field keeps to its schema without changing the answer', async ({ page }) => {

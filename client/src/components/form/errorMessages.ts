@@ -54,6 +54,21 @@ export const BUILT_IN_MESSAGES: BuiltInMessage[] = [
     template: 'Please enter a valid email address',
   },
   {
+    keyword: 'format',
+    when: (params) => params.format === 'phone' && params.reason === 'TOO_SHORT',
+    template: 'Please enter the whole phone number',
+  },
+  {
+    keyword: 'format',
+    when: (params) => params.format === 'phone' && params.reason === 'NOT_E164',
+    template: 'Please enter this phone number again',
+  },
+  {
+    keyword: 'format',
+    when: (params) => params.format === 'phone',
+    template: 'Please check this phone number',
+  },
+  {
     keyword: 'type',
     when: (params) => params.type === 'number' || params.type === 'integer',
     template: 'Please enter a number',
@@ -72,7 +87,7 @@ export const BUILT_IN_MESSAGES: BuiltInMessage[] = [
 export const KEYWORD_LABELS: Record<ErrorKeyword, string> = {
   required: 'Missing (required)',
   pattern: "Doesn't match the expected pattern",
-  format: 'Wrong format (e.g. email address)',
+  format: 'Wrong format (e.g. email address, phone number)',
   enum: 'Not one of the allowed choices',
   const: 'Not the required value',
   type: 'Not a number',
@@ -173,9 +188,18 @@ function builtInMatch(keyword: string, params: Record<string, unknown>): Match |
     : undefined;
 }
 
-/** The first built-in message for a keyword (e.g. as a placeholder in the editor). */
-export function builtInTemplate(keyword: string): string | undefined {
-  return BUILT_IN_MESSAGES.find((entry) => entry.keyword === keyword)?.template;
+/**
+ * The built-in message for a keyword, given a field's params where it has them
+ * (e.g. as a placeholder in the editor).
+ */
+export function builtInTemplate(
+  keyword: string,
+  params: Record<string, unknown> = {},
+): string | undefined {
+  return (
+    builtInMatch(keyword, params)?.template ??
+    BUILT_IN_MESSAGES.find((entry) => entry.keyword === keyword)?.template
+  );
 }
 
 /** Summary errors a failed `oneOf`/`anyOf`/`if` produces alongside the real one. */

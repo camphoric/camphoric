@@ -15,6 +15,8 @@
 import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import type { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 
+import { isPhoneField } from './phoneNumber';
+
 /** Validation keywords an admin can write a message for. */
 export const ERROR_KEYWORDS = [
   'required',
@@ -106,8 +108,12 @@ function uiTitle(uiSchema: UiSchema | undefined): string | undefined {
   return typeof fromOptions === 'string' && fromOptions ? fromOptions : undefined;
 }
 
-/** The keywords (and representative params) a schema can fail with. */
-function keywordsOf(schema: Schema) {
+/**
+ * The keywords (and representative params) a schema can fail with. A field the
+ * phone widget answers can also fail the phone-number rule, as a `format`
+ * error (DR-174).
+ */
+function keywordsOf(schema: Schema, uiSchema: UiSchema | undefined) {
   const keywords: ErrorKeyword[] = [];
   const params: FieldPathInfo['params'] = {};
   const add = (keyword: ErrorKeyword, p?: Record<string, unknown>) => {
@@ -116,6 +122,7 @@ function keywordsOf(schema: Schema) {
   };
   if (typeof schema.pattern === 'string') add('pattern', { pattern: schema.pattern });
   if (typeof schema.format === 'string') add('format', { format: schema.format });
+  else if (isPhoneField(uiSchema)) add('format', { format: 'phone' });
   const alternatives = [...(schema.oneOf ?? []), ...(schema.anyOf ?? [])];
   if (Array.isArray(schema.enum)) {
     add('enum', { allowedValues: schema.enum });
@@ -177,10 +184,13 @@ class FieldCollector {
     schema: Schema | undefined,
     required: boolean,
     parentLabel: string | undefined,
+    uiSchema?: UiSchema,
   ) {
     const key = path.join('.');
     const existing = this.fields.get(key);
-    const { keywords, params } = schema ? keywordsOf(schema) : { keywords: [], params: {} };
+    const { keywords, params } = schema
+      ? keywordsOf(schema, uiSchema)
+      : { keywords: [], params: {} };
     const merged = new Set<ErrorKeyword>([...(existing?.keywords ?? []), ...keywords]);
     if (required) merged.add('required');
 
@@ -217,13 +227,13 @@ class FieldCollector {
     const parentLabel = breadcrumb[breadcrumb.length - 1];
     if (key === '*') {
       // Array items share their array's label and crumbs.
-      this.record(path, breadcrumb, undefined, schema, required, parentLabel);
+      this.record(path, breadcrumb, undefined, schema, required, parentLabel, uiSchema);
       if (schema) this.walk(schema, path, breadcrumb, uiSchema);
       return;
     }
     const title = uiTitle(uiSchema) ?? (schema?.title || undefined);
     const trail = [...breadcrumb, title ?? humanizeKey(key)];
-    this.record(path, trail, title, schema, required, parentLabel);
+    this.record(path, trail, title, schema, required, parentLabel, uiSchema);
     if (schema) this.walk(schema, path, trail, uiSchema);
   }
 
