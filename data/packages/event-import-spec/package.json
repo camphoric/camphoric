@@ -13,6 +13,7 @@
     "dist",
     "index.ts",
     "conformance.ts",
+    "formSchema.ts",
     "tsconfig.base.json",
     "CHANGELOG.md"
   ],
