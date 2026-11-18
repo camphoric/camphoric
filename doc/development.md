@@ -150,7 +150,7 @@ their own repositories' packages (#780):
 | --- | --- | --- |
 | `data/packages/event-import-spec` | `@camphoric/camphoric-event-import-spec` | the contract: the event import object's TypeBox schema and types, `validateEventImport()`, and the conformance tests every event runs (`@camphoric/camphoric-event-import-spec/conformance`) |
 | `data/packages/import-tools` | `@camphoric/camphoric-event-import-tools` | the REST client, its API token, the event importer (`CamphoricEventCreator` and the organization loader, used by `loadAllData.ts`), the Playwright e2e scaffolding each event repository's registration-form tests are built on (`/e2e`), and the bulk-registration runner. It keeps its own copies of the spec types it uses (a test keeps them compatible), so it depends on no spec version |
-| (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from npm by a caret range |
+| (npm) | `@camphoric/camphoric-event-<name>` | a camp's event (listed in "Event repositories" in [RELEASE.md](../RELEASE.md)), developed in a repository of its own, `camphoric/camphoric-event-<name>`, with its organization, reports, sample and bulk registrations and e2e tests, and installed from npm by the range `"*"` (the lockfile pins the version) |
 | `data/events/sample-camp` | `@camphoric/camphoric-event-sample-camp` | Sample Camp: a made-up, anonymous event that uses as much of the import contract as it can, as an example of an event module and a test of importing every feature (lodging options, pricing overrides, payment options, admin fields, validation messages, legacy and server reports, the confirmation, invoice and invitation emails, group emails and promo codes). A test fails when the contract's schema gains an event, report, registration type, custom charge type, group email, promo code or lodging field, a report output, a group email recipient source or a promo code scope, that Sample Camp doesn't use. Its registration-form e2e tests (`e2e/`) run the import-tools page object against the real form, in CI against an image built from the change (`docker.yml`). It stays in this repository and is never published |
 
 An event depends only on the spec package (and import-tools, for its bulk script and its e2e tests), imports only its
@@ -160,9 +160,9 @@ every workspace imports only its own files and the packages it declares.
     cd data
     npm ci                                      # installs every workspace
     npm run typecheck                           # tsc --noEmit: the importer and every workspace
-    npm test                                    # offline, no server needed: every event passes the
-                                                # conformance checks and the server's schema checks,
-                                                # then each workspace's own tests
+    npm test                                    # offline, no server needed: every event under events/
+                                                # passes the conformance checks and the server's schema
+                                                # checks, then each workspace's own tests
     npm test -w events/sample-camp              # one package's tests
     npm run import                              # import every event into a running server (CAMPHORIC_URL,
                                                 # default http://django:8000; a local one only, see below),
@@ -210,13 +210,15 @@ to use one deliberately. A request whose connection is reset is sent again only 
 
 A camp's event lives in a repository of its own: see "Event repositories" in
 [RELEASE.md](../RELEASE.md) for the camps' repositories and for adding one. In this repository, an
-event is added by its package name: installed from npm by a caret range (`npm install
-@camphoric/camphoric-event-<name>` in `data/`) and listed in `EVENTS` in `data/eventModules.ts`.
-Each event takes the spec as a peer dependency, so the importer and every event share one copy (see
-"What a spec version means" in RELEASE.md). The offline tests check that each installed event is
-the published build, from `dist/`, and taking a spec range this
-repository's spec satisfies, and that events naming the same organization declare it identically.
-To work on a camp's event against your development server, clone its repository; each has its own
+event is added by its package name: installed from npm by the range `"*"` (`npm pkg set
+'dependencies.@camphoric/camphoric-event-<name>=*'`, then `npm install`, in `data/`) and listed in
+`EVENTS` in `data/eventModules.ts`. The lockfile pins the version every install uses, `npm ci`
+included; "In Camphoric" under "Event repositories" in RELEASE.md says how to move it to the newest
+release. Each event takes the spec as a peer dependency, so the importer and every event share one
+copy (see "What a spec version means" in RELEASE.md). This repository doesn't test the installed
+events: each event's repository tests its own newest code against each new Camphoric release (see
+[event-repo-ci.md](./event-repo-ci.md)), and nothing tests the version the lockfile pins against
+`main`. To work on a camp's event against your development server, clone its repository; each has its own
 tests, e2e tests and (where the camp has one) bulk-registration script.
 
 The packages are TypeScript. The spec and import-tools are published to npm compiled
@@ -241,19 +243,15 @@ where an old one would still hold the previous install.
 A syntax error or a bad schema in any single event fails only that event's block. CI type-checks
 and runs the offline suite, then smoke-tests the packed packages, on every pull request that
 touches `data/` (`.github/workflows/data.yml`) and
-imports every event into the freshly built release image (`.github/workflows/docker.yml`); a
+imports Sample Camp into the freshly built release image (`.github/workflows/docker.yml`); a
 rejected sample registration fails that import. The same workflow runs Sample Camp's
 registration-form e2e tests against a throwaway server from that image, so a client change that
 breaks the import-tools page object fails there. The server's legacy report tests
-(`server/tests/test_templating_legacy.py`, in `django.yml`) render the reports of the events
-`data/` installs from npm as well as those under `data/events/`. Those other workflows
-test the event versions the lockfile pins; every week, `.github/workflows/events-latest.yml` moves
-each to the newest version its range allows and tests and imports them again, opening an
-`event-compat` issue when they fail, when an event has a newer major than its range, or when the
-camphoric org has an event repository (`camphoric-event-<name>`) whose package `data/` doesn't
-install or whose "Camphoric releases" check (`upstream.yml`) is missing or disabled. `node scripts/registry-events.mjs`
-lists the events `data/` installs from npm, and `scripts/latest-events-notes.sh` gives
-those notes.
+(`server/tests/test_templating_legacy.py`, in `django.yml`) render the reports under
+`data/events/`. CI checks only the events developed here (`data/events/`). The events `data/`
+installs from npm are left to their own repositories, whose "Camphoric releases" check tests each
+one's newest code against every new Camphoric release ([event-repo-ci.md](./event-repo-ci.md));
+nothing tests the versions the lockfile pins against `main`.
 
 ### Create the Django superuser
 

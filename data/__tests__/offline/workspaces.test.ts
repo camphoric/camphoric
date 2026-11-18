@@ -84,8 +84,6 @@ function packageName(specifier: string): string {
 const isBuiltin = (specifier: string) => specifier.startsWith('node:')
   || builtinModules.includes(packageName(specifier));
 
-// Every event package is one the importer loads, so none escapes the import,
-// the conformance checks and the server's schema checks.
 // import-tools keeps its own copies of the spec types it uses, so that it
 // depends on no spec version; the type-check fails when they drift apart.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -114,7 +112,6 @@ const IMPORTER = readJson('package.json');
 const WORKSPACE_NAMES = new Set(WORKSPACES.map(w => readJson(path.join(w, 'package.json')).name));
 const REGISTRY_EVENTS = Object.keys(IMPORTER.dependencies).filter(name => name.startsWith(EVENT_PREFIX)
   && !SHARED_PACKAGES.includes(name) && !WORKSPACE_NAMES.has(name));
-const LOCKFILE = readJson('package-lock.json');
 const SPEC_VERSION: string = readJson('packages/event-import-spec/package.json').version;
 
 test('the importer is private, and uses the workspace copies by "*"', () => {
@@ -123,6 +120,10 @@ test('the importer is private, and uses the workspace copies by "*"', () => {
     .filter(([name, range]) => WORKSPACE_NAMES.has(name) && range !== '*')).toEqual([]);
 });
 
+// Every event under events/ is one the importer loads, so none escapes the
+// import, the conformance checks and the server's schema checks
+// (import-validation.test.ts); and EVENTS (eventModules.ts) names exactly the
+// events data/package.json installs.
 test('the importer loads every event under events/ and every registry event, by its package name', () => {
   const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
     .map(workspace => path.basename(workspace));
@@ -133,15 +134,6 @@ test('the importer loads every event under events/ and every registry event, by 
   expect(Object.keys(EVENTS).sort()).toEqual([...folders, ...registry].sort());
 });
 
-// The importer and every event share one spec, so each event is checked
-// against the contract the importer follows; a second copy would be an
-// event written for a spec major the importer doesn't follow.
-test('one copy of the spec is installed', () => {
-  const copies = Object.keys(LOCKFILE.packages)
-    .filter(key => key.endsWith(`node_modules/${SPEC}`));
-  expect(copies).toEqual([`node_modules/${SPEC}`]);
-});
-
 type Manifest = Record<string, unknown> & {
   dependencies?: Record<string, string>,
   peerDependencies?: Record<string, string>,
@@ -149,8 +141,7 @@ type Manifest = Record<string, unknown> & {
 
 // What's wrong with how an event takes the spec: it must be a peer, by a
 // range the spec in this repository satisfies, so the event shares the
-// importer's copy (and a spec major it doesn't follow fails npm ci, rather
-// than nesting a second copy)
+// importer's copy
 function specPeerProblems(pkg: Manifest): string[] {
   const range = pkg.peerDependencies?.[SPEC];
   const problems = [];
@@ -161,63 +152,6 @@ function specPeerProblems(pkg: Manifest): string[] {
   }
   return problems;
 }
-
-// What's wrong with an event as installed from npm: it must be
-// the published build, loading from dist/, never its TypeScript source
-function installedEventProblems(pkg: Manifest): string[] {
-  const exports = pkg.exports as Record<string, Record<string, string> | string> | undefined;
-  const main = exports?.['.'];
-  const problems = [];
-  if (pkg.private) problems.push('is private');
-  if (JSON.stringify(exports ?? {}).includes(`"${SOURCE_CONDITION}"`)) {
-    problems.push(`names the ${SOURCE_CONDITION} export`);
-  }
-  if (typeof main !== 'object' || !/^\.\/dist\/.+\.js$/.test(main.default ?? '')) {
-    problems.push('does not load from dist/');
-  }
-  return [...problems, ...specPeerProblems(pkg)];
-}
-
-describe('an event installed from npm', () => {
-  const published = {
-    name: `${EVENT_PREFIX}example`,
-    version: '1.2.0',
-    exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
-    dependencies: { luxon: '^3.7.2' },
-    peerDependencies: { [SPEC]: `^${semver.major(SPEC_VERSION)}.0.0` },
-  };
-
-  test('passes as published', () => {
-    expect(installedEventProblems(published)).toEqual([]);
-  });
-
-  test.each([
-    ['private', { ...published, private: true }, 'is private'],
-    ['with its source export',
-      { ...published, exports: { '.': { [SOURCE_CONDITION]: './index.ts', ...published.exports['.'] } } },
-      `names the ${SOURCE_CONDITION} export`],
-    ['loading its source', { ...published, exports: { '.': { default: './index.ts' } } },
-      'does not load from dist/'],
-    ['depending on the spec', { ...published, dependencies: { [SPEC]: `^${SPEC_VERSION}` } },
-      'depends on the spec rather than taking it as a peer'],
-    ['without the spec as a peer', { ...published, peerDependencies: {} }, 'takes no spec as a peer'],
-    ['on another spec major',
-      { ...published, peerDependencies: { [SPEC]: `^${semver.major(SPEC_VERSION) + 1}.0.0` } },
-      expect.stringMatching(/^takes the spec by .+, which .+ doesn't satisfy$/)],
-  ])('fails %s', (_, pkg, problem) => {
-    expect(installedEventProblems(pkg as Manifest)).toEqual([problem]);
-  });
-
-  // Each one the importer installs
-  for (const name of REGISTRY_EVENTS) {
-    test(`${name} is its published build`, () => {
-      const root = path.join(DATA, 'node_modules', name);
-      const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-      expect(installedEventProblems(pkg)).toEqual([]);
-      expect(existsSync(path.join(root, pkg.exports['.'].default))).toBe(true);
-    });
-  }
-});
 
 // Every package script: the importer's and each workspace's
 function packageScripts(): { where: string, command: string }[] {

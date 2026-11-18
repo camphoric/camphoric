@@ -31,8 +31,9 @@ maintainer's own `gh` login.
 
 So a release that broke an event's registration form could go unnoticed for up to a week, and a
 new package version within an event's caret range (`^1.0.0`) wasn't tested in that repository at
-all until somebody changed it. In this repository, `events-latest.yml` covers the other direction
-weekly: the newest published *events* against Camphoric's `main`.
+all until somebody changed it. This repository doesn't test the published *events*: it installs
+each by `"*"`, and an event's compatibility with Camphoric is its own repository's job, through
+the check below.
 
 The four event repositories (lark, harmony, familyweek, ltacampout) have identical `ci.yml`,
 `e2e.yml` and `release-please.yml`, so one design fits all of them.
@@ -148,8 +149,8 @@ exact versions and passes them to `ci.yml` and `e2e.yml` as inputs.
   instead.
 - **A newer version outside the event's range** (a new major, or 1.1.0 against `~1.0.0`) isn't
   tested by the scheduled check. It appears as a note in the `camphoric-compat` issue ("`<package>`
-  X is published, outside this event's range (`<range>`): this event needs migrating to it."), as
-  `latest-events-notes.sh` reports events here. The marker's key includes each package's newest
+  X is published, outside this event's range (`<range>`): this event needs migrating to it.").
+  The marker's key includes each package's newest
   version, so such a release starts a run, and its note, within 6 hours (section 5).
 
 ## 5. "Already tested": a marker in the Actions cache
@@ -206,9 +207,8 @@ camp's event"), so it has `upstream.yml` from its first commit. The four copies 
 `ci.yml` and `e2e.yml` are today; if the shell in `upstream.yml` grows, it can move into
 import-tools, which already ships the shared e2e harness.
 
-camphoric/camphoric already discovers the org's `camphoric-event-*` repositories in
-`latest-events-notes.sh` (for `events-latest.yml`'s notes). That script also notes an event
-repository whose `upstream.yml` is missing or not `active` (see "Caveats").
+camphoric/camphoric keeps no list either: `data/scripts/test-event-repos.sh` (section 7) finds the
+org's `camphoric-event-*` repositories when it runs.
 
 ## 7. Pre-releases: on demand
 
@@ -231,8 +231,7 @@ pre-release flow.
 
 - **The event repository's Actions tab** has the "Camphoric releases" run, with the called CI and
   E2E jobs, the tested versions in the step summary, and the Playwright report artifact.
-- **A `camphoric-compat` issue in the event repository**, kept the way `events-latest.yml` keeps its
-  `event-compat` issue here: a failure or a note opens the issue or comments on it (naming the
+- **A `camphoric-compat` issue in the event repository**: a failure or a note opens the issue or comments on it (naming the
   versions tested), a report the issue already has isn't repeated (a fingerprint in a hidden
   comment), and a clean run closes it. Watching the event repositories delivers these
   notifications.
@@ -245,8 +244,8 @@ rules out.
 ## 9. The reverse direction: before a release ships
 
 The pre-release dispatch above already runs every event's e2e tests against an image before it
-ships, whenever a maintainer cuts a pre-release. `docker.yml` also imports every event into an
-image built from `main` on each push, but it doesn't run the event repositories' own Playwright
+ships, whenever a maintainer cuts a pre-release. `docker.yml` imports only Sample Camp into an
+image built from `main` on each push, and doesn't run the event repositories' own Playwright
 specs, which aren't in their published packages. If cutting a pre-release turns out to be too much
 friction, the next step is for `docker.yml` to push a `main` image tag on pushes to `main` and for
 `upstream.yml` to test that tag too, reporting it separately from stable releases. That waits until
@@ -256,9 +255,9 @@ the scheduled check has run for a while.
 
 - **Scheduled workflows stop after 60 days without activity.** In a public repository, GitHub
   disables them after 60 days with no repository activity, and an event repository can go quiet
-  between camp seasons (the weekly e2e schedule it replaced had the same problem). `latest-events-notes.sh`
-  notes a disabled `upstream.yml` (`gh api repos/camphoric/<repo>/actions/workflows/upstream.yml
-  --jq .state` is `disabled_inactivity`), and re-enabling it is one click in that repository's
+  between camp seasons (the weekly e2e schedule it replaced had the same problem). Nothing in this
+  repository watches for that: `gh api repos/camphoric/<repo>/actions/workflows/upstream.yml --jq
+  .state` shows `disabled_inactivity`, and re-enabling it is one click in that repository's
   Actions tab.
 - **Scheduled runs can be delayed or dropped** under load, most at the top of the hour, so the cron
   uses an odd minute (`23 */6 * * *`).
@@ -301,7 +300,7 @@ copied from lark.
     `image_tag`, `spec_version` and `tools_version`.
   - `record` (`issues: write`, unless cancelled) opens, comments on or closes the
     `camphoric-compat` issue from the CI and E2E results and the notes, with the fingerprint
-    pattern from this repository's `events-latest.yml`, then saves the marker.
+    in section 8, then saves the marker.
 - **`ci.yml` and `e2e.yml`** gain a `workflow_call` trigger with `spec_version` and `tools_version`
   string inputs (`e2e.yml` also `image_tag`), the same inputs under `workflow_dispatch` (new for
   `ci.yml`), the "Use the requested Camphoric package versions" step after `npm ci` (section 4),
@@ -313,11 +312,12 @@ copied from lark.
 
 ## 12. Changes in this repository
 
-Camphoric's release workflows don't change. Two small additions:
+Camphoric's release workflows don't change. Two small additions (the first since removed):
 
-- **`data/scripts/latest-events-notes.sh`** notes an event repository whose `upstream.yml` is missing
-  (a 404) or not `active` (`disabled_inactivity`, say), and one it couldn't look up. The workflow's
-  state is public, so the default token can read it.
+- **`data/scripts/latest-events-notes.sh`** noted an event repository whose `upstream.yml` is missing
+  (a 404) or not `active` (`disabled_inactivity`, say), and one it couldn't look up. It went
+  later, with `events-latest.yml`, when testing the events became their own repositories' job
+  alone.
 - **`data/scripts/test-event-repos.sh <image-tag>`** runs every event repository's `e2e.yml`
   against a pre-release tag and prints each run's link, exiting non-zero when it couldn't start
   one.
@@ -336,4 +336,5 @@ repository's `upstream.yml` then ran with `force` (testing and saving the marker
    `workflow_dispatch` needs the workflow on the default branch, so this follows the merge.
 2. **The other three:** copy the same workflow files, and make the same change to each
    repository's own `scripts/smoke-test-package.sh`.
-3. **This repository:** the `latest-events-notes.sh` note, `test-event-repos.sh`, and RELEASE.md.
+3. **This repository:** the `latest-events-notes.sh` note (since removed), `test-event-repos.sh`,
+   and RELEASE.md.

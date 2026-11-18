@@ -5,18 +5,14 @@ on:
     branches: [main]
     paths:
       - 'server/**'
-      # the legacy report tests render the events' report templates: those
-      # under data/events/ and those of the events data/ installs (the lockfile
-      # pins their versions)
+      # the legacy report tests render the report templates under data/events/
       - 'data/events/*/reports/**'
-      - 'data/package-lock.json'
       - '.github/workflows/django.yml'
   pull_request:
     branches: [main]
     paths:
       - 'server/**'
       - 'data/events/*/reports/**'
-      - 'data/package-lock.json'
       - '.github/workflows/django.yml'
 
 # One run per branch/PR: a newer push cancels the PR run it supersedes. Runs on
@@ -68,16 +64,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      # The legacy report tests also render the reports of the events data/
-      # installs from npm (data/node_modules)
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-          cache-dependency-path: data/package-lock.json
-      - name: Install data/ (the events' report templates)
-        working-directory: ./data
-        run: npm ci --ignore-scripts
       - name: Set up Python ${{ matrix.python-version }}
         id: setup-python
         uses: actions/setup-python@v7
