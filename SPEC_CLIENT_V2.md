@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-166)
+- §15 — Decision Records (DR-1…DR-167)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2628,6 +2628,18 @@ form data. **It must produce results identical to the server's `calculate_price`
 server remains authoritative; this is for live UX only). The server also applies registrars'
 price overrides (DR-56); those only exist on registrations already submitted, so the form never
 meets one and the client engine ignores them.
+
+The server prices a registration **as of one moment** (§15, DR-167): its `date`, and the
+`event.is_open` it sees, are those of that moment, not of the save. A draft (a registration
+being filled in or waiting to be paid for) is priced as of now, at the `registration` step, on
+the payment page and at completion. A completed registration is priced as of its `completed_at`
+(else its `created_at`) on every recalculation after (an organizer's edit, a camper, charge or
+override saved), so its price doesn't move with the calendar. One an organizer adds is completed
+as it's added, and priced as of then. `event.is_open` is that moment against the event's
+registration dates as they are now: changing them can change a completed registration's price
+on its next recalculation. `registration.created_at` stays when the form was submitted, so a rule
+reading it holds from submission, while one reading `date` goes by completion. The client prices
+the form as of now.
 
 Inputs: `config.event` (`{ is_open, epayment_handling?, start?, end?, registration_start?,
 registration_end? }`, each date as `{ epoch, year, month, day }`; the registration window's
@@ -6008,8 +6020,8 @@ deliberate Sign out like a lapsed session — whoever signed out would leave the
 ### DR-128 — Pricing reads the date in UTC
 
 **Decision:** The pricing context's `date` (and a new registration's `created_at`) gives the day,
-month and year in UTC, on both sides: the server takes them from `timezone.now()`, which is UTC,
-and the client from the `getUTC…` parts of now (§9.2).
+month and year in UTC, on both sides: the server takes them from the moment the registration
+is priced as of (DR-167), in UTC, and the client from the `getUTC…` parts of now (§9.2).
 **Context:** #810: the client read the browser's local date while the server read UTC, so a rule
 written with `date.day`/`date.month` (an early-bird deadline, say) changed price at a different
 moment on each side. Registrants in the Americas saw the early price until midnight local time,
@@ -7032,6 +7044,25 @@ sending, so a registration's address can always be emailed.
 the addresses above. A single shared regex in the schema's `pattern` — another hand-written
 subset, and its message would be the generic pattern one. Accepting internationalized domains —
 ajv's format refuses them, so the form would need a check of its own; their punycode form works.
+
+### DR-167 — A completed registration is priced as of its completion
+
+**Decision:** Pricing reads `date` and `event.is_open` as of one moment (§9.2). A completed
+registration's is its `completed_at` (else its `created_at`), on every recalculation, however
+late. Only a draft, which is what changes until it's completed, is priced as of now: the
+`registration` step, the payment page and completion, which sets `completed_at` to the moment it
+prices it at. A registrant who submits before a deadline and pays after it is shown the price as
+of then, and the quote (DR-140) makes sure they see it before they're charged. The
+`paypal-order` step chooses the payment option again under the lock it writes the invoice under,
+so the invoice asks the price as it stands then.
+**Context:** #805: every save repriced with today's date and today's registration window, so an
+organizer fixing a typo months after the early-bird deadline moved the total, with no one asking.
+**Alternatives:** Price as of when the form was submitted, kept in a new field — a draft could
+then hold an early-bird rate for as long as it waits to be paid for; the completed registration
+is what's settled. Keep the registration window as it was at completion — needs the dates'
+history for a case (an organizer moving the dates after registrations are in) nothing has
+needed yet. Only document that logic must read `registration.created_at` —
+`event.is_open` has no such counterpart, and logic written with `date` would keep drifting.
 
 ---
 

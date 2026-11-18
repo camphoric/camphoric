@@ -390,9 +390,12 @@ class Event(TimeStampedModel):
         '''The event's time zone as a tzinfo.'''
         return zoneinfo.ZoneInfo(self.time_zone)
 
-    def is_open(self):
-        '''Whether registration is open now: from its start (inclusive) until its end.'''
-        now = timezone.now()
+    def is_open(self, at=None):
+        '''
+        Whether registration is open at `at` (now, by default): from its start
+        (inclusive) until its end.
+        '''
+        now = at or timezone.now()
         if self.registration_start and now < self.registration_start:
             return False
         if self.registration_end and now >= self.registration_end:
