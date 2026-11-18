@@ -16,7 +16,8 @@ export interface ReportGroup {
 // Ignoring case, as the reports API orders them (no numeric collation, which it lacks).
 const byText = new Intl.Collator(undefined, { sensitivity: 'base' }).compare;
 
-const categoryKey = (category: string) => category.trim().toLocaleLowerCase();
+/** What a category is matched by: ignoring case and surrounding spaces. */
+export const categoryKey = (category: string) => category.trim().toLocaleLowerCase();
 
 /** The event's reports by category, then title. */
 export function groupReports(reports: readonly ApiReport[]): ReportGroup[] {

@@ -46,9 +46,11 @@ function setup() {
   );
 }
 
+/** The titles of the reports listed under a category (not its collapsing heading). */
 const titlesIn = (group: string) =>
   within(screen.getByRole('group', { name: group }))
     .getAllByRole('button')
+    .filter((button) => !button.hasAttribute('aria-expanded'))
     .map((button) => button.textContent);
 
 beforeEach(() => {

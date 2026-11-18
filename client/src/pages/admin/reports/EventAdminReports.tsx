@@ -1,14 +1,14 @@
 /**
- * Reports (SPEC §8.7). Browse the event's reports, grouped by category and
- * listed by title with their descriptions (selection is URL-addressable via
- * `?reportId`), view a report's rendered output, and create / edit / delete
- * report definitions. Legacy reports assemble the browser's variable bundle when
+ * Reports (SPEC §8.7). Browse the event's reports, grouped by collapsible
+ * categories and listed by title with their descriptions (`ReportList`;
+ * selection is URL-addressable via `?reportId`), view a report's rendered
+ * output, and create / edit / delete report definitions. Legacy reports assemble the browser's variable bundle when
  * one is shown; reports with Camphoric variables don't need it. Leaving a
  * report form with unsaved changes — choosing another report, starting a new
  * one, Cancel, or leaving the page — asks first.
  */
 
-import { Button, Card, Grid, Group, NavLink, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Grid, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiReport } from 'api-types';
@@ -23,6 +23,7 @@ import { reportHooks } from 'store/entities';
 import { RenderedReport } from './RenderedReport';
 import { ReportEditForm } from './ReportEditForm';
 import { groupReports } from './reportGroups';
+import { ReportList } from './ReportList';
 
 const FROM = '/admin/organization/$organizationId/event/$eventId';
 
@@ -93,42 +94,12 @@ export function EventAdminReports() {
 
       <Grid>
         <Grid.Col span={{ base: 12, sm: 4, md: 3 }}>
-          <Stack gap="md">
-            {groups.length ? (
-              groups.map((group) => (
-                <Stack
-                  key={group.category}
-                  gap={2}
-                  role="group"
-                  aria-label={group.category || 'Uncategorised'}
-                >
-                  {/* Headings only once some report has a category */}
-                  {categories.length > 0 && (
-                    <Text size="xs" fw={700} c="dimmed" tt="uppercase" px="sm">
-                      {group.category || 'Uncategorised'}
-                    </Text>
-                  )}
-                  {group.reports.map((report) => (
-                    <NavLink
-                      key={report.id}
-                      component="button"
-                      type="button"
-                      label={report.title}
-                      description={report.description || undefined}
-                      active={selected?.id === report.id && mode !== 'create'}
-                      variant="light"
-                      onClick={() => confirmDiscard(() => select(report.id))}
-                      rightSection={<BeingEdited model="report" id={report.id} />}
-                    />
-                  ))}
-                </Stack>
-              ))
-            ) : (
-              <Text c="dimmed" size="sm">
-                No reports yet.
-              </Text>
-            )}
-          </Stack>
+          <ReportList
+            groups={groups}
+            selectedId={mode !== 'create' ? selected?.id : undefined}
+            onSelect={(report) => confirmDiscard(() => select(report.id))}
+            renderMarker={(report) => <BeingEdited model="report" id={report.id} />}
+          />
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, sm: 8, md: 9 }}>

@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-167)
+- §15 — Decision Records (DR-1…DR-168)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2137,9 +2137,18 @@ report's rendered output**, and **create/edit/delete a report's definition**.
 its name, the categories in alphabetical order, and the reports with no category together after
 them. Within each group, reports are sorted by title. Both orders ignore case, and categories that
 differ only in case or surrounding spaces are one category, named as the first of its reports by
-title spells it. While no report has a category, the list is a single group, ordered by title. Each
-report's **description**, when it has one, is shown with it in the list and with the selected
-report. The order holds after a report is added, renamed or recategorised.
+title spells it. While no report has a category, the list is a single group, ordered by title, with
+no heading. Each report's **description**, when it has one, is shown with it in the list and with
+the selected report. The order holds after a report is added, renamed or recategorised.
+
+Each category, and the uncategorised group, can be **collapsed and expanded** by mouse or
+keyboard, and the control exposes whether it is expanded to assistive technology (e.g.
+`aria-expanded`). A collapsed category hides its reports; its name and its report count stay
+shown. The category holding the selected report is expanded whenever the selection lands in it:
+when the report is opened from the URL, chosen, added, or recategorised (§15, DR-168). The admin
+can still collapse it afterwards. Categories start expanded each time the Reports page opens. The
+reports under a category's heading are indented from it, so it's clear which category each belongs
+to; while the list has no headings, its reports aren't indented and there is nothing to collapse.
 
 A report's **`variables_source`** says where its template's variables come from:
 
@@ -7067,6 +7076,24 @@ is what's settled. Keep the registration window as it was at completion — need
 history for a case (an organizer moving the dates after registrations are in) nothing has
 needed yet. Only document that logic must read `registration.created_at` —
 `event.is_open` has no such counterpart, and logic written with `date` would keep drifting.
+
+### DR-168 — Report categories collapse, and the selection opens its own
+
+**Decision:** Each category in the report list (§8.7), the uncategorised group included, collapses
+and expands, keeping its name and report count shown. Whenever the selection lands in a category
+(the report is opened from the URL, chosen, added, or moved to it), that category expands; the
+admin may collapse it again afterwards. Which categories are collapsed is kept only while the
+Reports page is open; they all start expanded. The reports are indented under their category's
+heading.
+**Context:** #1014: in an event with many reports the list was long to scroll, every category was
+always open, and the reports lined up flush with their headings, so it was hard to see where one
+category ended and the next began.
+**Alternatives:** Keep the selected report's category open at all times (its collapse control
+does nothing, or is disabled, while it holds the selection) — a control that sometimes doesn't
+work is confusing, and the admin may want to hide the category they've just opened. Remember the
+collapsed categories per admin or per browser — no one has asked for it, and a category the
+admin forgot they collapsed would hide its reports on their next visit. One category open at a
+time (an accordion) — comparing reports across categories would mean reopening them in turn.
 
 ---
 

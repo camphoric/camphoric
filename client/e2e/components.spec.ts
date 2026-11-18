@@ -1083,6 +1083,32 @@ test.describe('Record deleted', () => {
   });
 });
 
+test.describe('Report list', DESKTOP_ONLY, () => {
+  test('categories collapse and expand, with their reports indented under them', async ({
+    page,
+  }) => {
+    await page.goto(story('report-list--some-collapsed'));
+    const rooming = page.getByRole('button', { name: /^Rooming,/ });
+    const finance = page.getByRole('button', { name: /^Finance,/ });
+    await expect(rooming).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('button', { name: /^Cabin assignments/ })).toBeHidden();
+    await expect(finance).toHaveAttribute('aria-expanded', 'true');
+
+    await rooming.click();
+    const cabins = page.getByRole('button', { name: /^Cabin assignments/ });
+    await expect(cabins).toBeVisible();
+    // Indented: the report's name starts to the right of its category's name.
+    const reportName = (await cabins.getByText('Cabin assignments').boundingBox())!;
+    const categoryName = (await rooming.getByText('Rooming').boundingBox())!;
+    expect(reportName.x).toBeGreaterThan(categoryName.x);
+
+    await finance.focus();
+    await page.keyboard.press('Enter');
+    await expect(finance).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('button', { name: /^Payments/ })).toBeHidden();
+  });
+});
+
 test.describe('Live updates', DESKTOP_ONLY, () => {
   test('the header says when live updates are off', async ({ page }) => {
     await page.goto(story('live-updates-status--off'));
