@@ -46,7 +46,7 @@ PROMO = 'promo'
 PROMO_LABEL = 'Promo code'
 
 # The registration's own custom charges (a cancellation fee, say), added to its
-# total after the promo code (SPEC §9.2, DR-168). Only there when it has some.
+# total after the promo code (SPEC §9.2, DR-170). Only there when it has some.
 REGISTRATION_CHARGES = 'registration_charges'
 REGISTRATION_CHARGES_LABEL = 'Registration charges'
 
@@ -159,7 +159,7 @@ def _apply_registration_charges(charges, results):
     '''
     Add the registration's own charges to its total, as their own line, after
     the promo code, so it doesn't discount them; the total stays at 0 or more
-    (SPEC §9.2, DR-68, DR-168).
+    (SPEC §9.2, DR-68, DR-170).
     '''
     amount = sum((charge['amount'] for charge in charges), Decimal('0'))
     line = money_fmt(_as_number(amount))
@@ -228,7 +228,7 @@ def calculate_price(registration, campers):
     per-camper code) (SPEC DR-67). Last, the registration's own custom
     charges (a cancellation fee, say), if it has any, are added to the total
     as a `registration_charges` line, the total again floored at zero (SPEC
-    DR-168). The logic sees them as `registration.custom_charges`, as camper
+    DR-170). The logic sees them as `registration.custom_charges`, as camper
     logic sees `camper.custom_charges`. The e-payment handling fee isn't part
     of the price: it's charged on each invoice paid online (SPEC DR-88).
 

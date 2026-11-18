@@ -1,6 +1,6 @@
 '''
 A custom charge belongs to a registration, and to one of its campers or to the
-registration itself (SPEC DR-168). Every existing charge is a camper's, so its
+registration itself (SPEC DR-170). Every existing charge is a camper's, so its
 registration is its camper's.
 '''
 

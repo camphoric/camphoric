@@ -3,7 +3,7 @@
  * - what a delete would do, asked before confirming it (`useDeletePreview`);
  * - the deleted registrations, campers, payments and promo codes, and restoring one;
  * - a registration's or camper's change history;
- * - cancelling a camper, keeping a cancellation fee (§8.5; §15, DR-168).
+ * - cancelling a camper, keeping a cancellation fee (§8.5; §15, DR-170).
  *
  * Every entity mutation invalidates the `History` and `Deleted` namespaces
  * (store/createEntityHooks), so these stay current.
@@ -103,7 +103,7 @@ export function useHistory(path: HistoryPath, id: Scalar) {
   });
 }
 
-/** What cancelling a camper keeps (§8.5; §15, DR-168): a fee, or nothing. */
+/** What cancelling a camper keeps (§8.5; §15, DR-170): a fee, or nothing. */
 export interface CancellationFee {
   amount: number;
   notes: string;

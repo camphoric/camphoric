@@ -1,6 +1,6 @@
 '''
 A custom charge's registration is required, and its camper optional: a
-registration's own charge has none (SPEC DR-168). A cancellation fee names the
+registration's own charge has none (SPEC DR-170). A cancellation fee names the
 camper it was kept for. (After 0098 has filled every charge's registration, in
 its own transaction.)
 '''

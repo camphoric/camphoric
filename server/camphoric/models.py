@@ -884,7 +884,7 @@ class CustomChargeType(TimeStampedModel):
     registration, such as extra bedding. Camper pricing logic sees each
     camper's charges; a registration's own are added to its total (SPEC §9.2).
     '''
-    # The type a cancellation fee is recorded as (SPEC DR-168), made for the
+    # The type a cancellation fee is recorded as (SPEC DR-170), made for the
     # event the first time one is kept.
     CANCELLATION_FEE = 'cancellation_fee'
     CANCELLATION_FEE_LABEL = 'Cancellation fee'
@@ -908,7 +908,7 @@ class CustomChargeType(TimeStampedModel):
 class CustomCharge(TimeStampedModel):
     '''
     A charge (or, when negative, a credit) a registrar has added to a camper,
-    or to the registration itself (no camper; SPEC DR-168). A registration's
+    or to the registration itself (no camper; SPEC DR-170). A registration's
     own charge stays when a camper goes: a cancellation fee is one, and names
     the camper it was kept for in `cancelled_camper`.
     '''

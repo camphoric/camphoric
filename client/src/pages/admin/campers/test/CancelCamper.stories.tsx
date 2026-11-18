@@ -1,6 +1,6 @@
 /**
  * Stories for deleting a camper with the offer to keep a cancellation fee
- * (SPEC §8.5; §15, DR-168). Run `npm run storybook`.
+ * (SPEC §8.5; §15, DR-170). Run `npm run storybook`.
  */
 
 import { Paper } from '@mantine/core';

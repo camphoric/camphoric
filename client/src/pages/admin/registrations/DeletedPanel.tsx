@@ -4,7 +4,7 @@
  * and Restore. A deleted registration takes its campers and payments with it and
  * brings them back when it's restored, so those aren't listed on their own.
  * Restoring a camper a cancellation fee was kept for offers to remove the fee
- * (DR-168). Rendered as the "Deleted" tab of the Registrations section.
+ * (DR-170). Rendered as the "Deleted" tab of the Registrations section.
  */
 
 import { Button, Stack, Table, Text, Title } from '@mantine/core';

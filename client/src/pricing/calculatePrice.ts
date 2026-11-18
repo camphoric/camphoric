@@ -89,7 +89,7 @@ export function calculatePrice(
       ...formData,
       registration_type: config.registrationType?.name,
       created_at: dateContext,
-      // A registration being registered has no charges of its own (§15, DR-168).
+      // A registration being registered has no charges of its own (§15, DR-170).
       custom_charges: [],
     },
     pricing,

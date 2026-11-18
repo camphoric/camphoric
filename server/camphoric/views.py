@@ -861,7 +861,7 @@ class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mode
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         '''
-        Cancel a camper (SPEC §8.5, DR-168): delete them as DELETE does, and,
+        Cancel a camper (SPEC §8.5, DR-170): delete them as DELETE does, and,
         when `cancellation_fee` gives an amount (and notes), keep that as a
         charge of the registration's own, of the event's cancellation-fee type,
         naming them as its `cancelled_camper`. One transaction: neither happens

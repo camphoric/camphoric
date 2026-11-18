@@ -130,7 +130,7 @@ const HIDDEN = new Set([
   'event',
   'registration',
   'camper',
-  // A cancellation fee's camper: its entry is in that camper's history (DR-168).
+  // A cancellation fee's camper: its entry is in that camper's history (DR-170).
   'cancelled_camper',
   'deleted_at',
 ]);

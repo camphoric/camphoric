@@ -1,6 +1,6 @@
 '''
 Registration-level custom charges and cancellation fees (SPEC §8.5, §9.2, §9.7;
-DR-168): a registration's own charges are added to its total, and cancelling a
+DR-170): a registration's own charges are added to its total, and cancelling a
 camper can keep a fee that stays when they go.
 '''
 

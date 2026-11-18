@@ -2,7 +2,7 @@
  * A registration's fees, invoices and payments (SPEC §8.4, §9.7). The fee
  * breakdown from `server_pricing_results` (Registrars and Admins can override
  * the registration's own price lines; DR-56), the registration's own custom
- * charges, such as a cancellation fee (DR-168), the ledger, and each invoice
+ * charges, such as a cancellation fee (DR-170), the ledger, and each invoice
  * with its payments and refunds. Registrars and Admins make invoices (DR-96),
  * send them, record payments, edit, cancel and reopen invoices, check a pending
  * PayPal order and refund; only Admins delete a payment or an invoice (§15,

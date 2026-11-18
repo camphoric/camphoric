@@ -174,7 +174,7 @@ def _hide(instance, result):
             (models.CustomCharge, models.CustomCharge.objects.filter(registration=instance)),
         ]
     elif isinstance(instance, models.Camper):
-        # A cancellation fee kept for them is the registration's own, and stays (DR-168).
+        # A cancellation fee kept for them is the registration's own, and stays (DR-170).
         hidden = [(models.CustomCharge, models.CustomCharge.objects.filter(camper=instance))]
     elif isinstance(instance, models.PromoCode):
         # Registrations that have the code keep it, and its discount (DR-67).

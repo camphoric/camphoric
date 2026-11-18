@@ -3,7 +3,7 @@ The data migrations of incomplete registrations (SPEC DR-139, DR-140, DR-141).
 They read `Registration.completed`, since removed, so they run here on the models
 as they were, one migration back, and not on today's. And the migration that
 retires DRF's API tokens (DR-157), and the one that puts custom charges on
-registrations (DR-168).
+registrations (DR-170).
 '''
 
 import datetime
@@ -511,7 +511,7 @@ class RetiringDrfTokensTests(TransactionTestCase):
 
 
 class RegistrationCustomChargesTests(TransactionTestCase):
-    '''0098 gives every custom charge its camper's registration (DR-168).'''
+    '''0098 gives every custom charge its camper's registration (DR-170).'''
 
     def tearDown(self):
         migrate_to_latest()
