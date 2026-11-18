@@ -45,11 +45,12 @@ npm run e2e        # Playwright: the component suite on Storybook, the registrat
 ```
 
 The run builds and serves its own Storybook (port 61000) and dev server (3003, proxying `/api`
-to `VITE_API_PROXY`), and stops them when it ends. To run two at once, from two worktrees say,
-give one other ports with `CAMPHORIC_E2E_STORYBOOK_PORT` and `CAMPHORIC_E2E_APP_PORT`. A run
-waits for its own servers to say they're listening, so if a port is taken (even by a run that
-took it during this one's Storybook build) the run fails, rather than testing what answers
-there, which could be another worktree's code. To use a server you started yourself on one of
+to `VITE_API_PROXY`) on 127.0.0.1, and stops them when it ends. To run two at once, from two
+worktrees say, give one other ports with `CAMPHORIC_E2E_STORYBOOK_PORT` and
+`CAMPHORIC_E2E_APP_PORT`. A run waits for its own servers to say they're listening, so if a port
+is taken on 127.0.0.1 (by another run, even one that took it during this one's Storybook build,
+or by a Docker or Vagrant port) the run fails, rather than testing what answers there, which
+could be another worktree's code. To use a server you started yourself on one of
 those ports instead, set `CAMPHORIC_E2E_REUSE_SERVERS=1`. The registration smoke skips when no
 backend answers.
 
