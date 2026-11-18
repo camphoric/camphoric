@@ -5,9 +5,9 @@ unsandboxed environment against the same (small) set of posted variables.
 Sample Camp (data/events/sample-camp) keeps legacy reports here that use the
 legacy environment's extensions and filters ({% do %}, {% continue %},
 regex_replace, money_fmt; {% break %} is only parsed), whichever camps'
-reports are in the repository. The events data/ installs from npm (each
-camp's own repository) aren't checked here: that's left to their own
-repositories (doc/event-repo-ci.md).
+reports are in the repository. The camps' events, each published from a
+repository of its own, aren't checked here: each repository tests its own
+(doc/event-repo-ci.md).
 '''
 
 from pathlib import Path

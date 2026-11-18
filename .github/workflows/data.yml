@@ -1,8 +1,7 @@
 # Fast, server-free validation of the event data under data/ on every push/PR
 # that touches it. data/ is an npm workspace root (the importer) with the
 # @camphoric/camphoric-event-* packages under packages/ and Sample Camp under
-# events/, and it installs the camps' events, published from repositories of
-# their own, from npm; its scripts run every workspace's too:
+# events/; its scripts run every workspace's too:
 # the TypeScript must type-check (tsc --noEmit), every event under events/ must
 # load, satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
@@ -11,8 +10,9 @@
 # and the packages it declares. All of that runs from the packages' TypeScript
 # source; then the published packages are built, packed and used with plain
 # Node (scripts/smoke-test-packages.sh). The live import against the built
-# image runs in docker.yml. The events installed from npm aren't tested here:
-# that's left to their own repositories (doc/event-repo-ci.md).
+# image runs in docker.yml. The camps' events, published from repositories of
+# their own, aren't installed or tested here: each repository tests its own
+# (doc/event-repo-ci.md).
 name: Data import validation
 
 on:

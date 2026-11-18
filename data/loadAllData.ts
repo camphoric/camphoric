@@ -18,7 +18,7 @@ const RETRY = 'If an import into a fresh database failed partway, start again wi
 
 // Every event in eventModules.ts, in import order, with the API token in
 // CAMPHORIC_API_TOKEN (or the file CAMPHORIC_API_TOKEN_FILE names). Restrict
-// the run with CAMPHORIC_EVENTS=harmony,lark (comma-separated event names).
+// the run with CAMPHORIC_EVENTS=sample-camp,lark (comma-separated event names).
 // Options: --if-empty imports only into a server with no events, --wait waits
 // for the server to start first, and --revoke-token revokes the token when
 // the run ends. Only a local server is imported into, unless

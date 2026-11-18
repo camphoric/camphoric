@@ -2,8 +2,8 @@
 # inputs (server/, client/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
-# the events developed here (data/events: Sample Camp) are imported into it
-# (the live import test); the events installed from npm are left to their own
+# Sample Camp (data/events), the only event data/ installs, is imported into it
+# (the live import test); the camps' events are tested by their own
 # repositories (doc/event-repo-ci.md). Alongside, Sample Camp's
 # registration-form e2e tests run against a throwaway server from the same
 # image, through the import-tools page object every event repository's tests

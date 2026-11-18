@@ -16,9 +16,8 @@ ghcr.io/camphoric/camphoric:latest      # newest *stable* release (pre-releases 
   pull-rate limits), which `camphoric/camphoric` is.
 
 The image is a blank slate: it boots with no events and never imports any (CI checks both), unlike
-the development environments, which import every camp into a fresh database. It doesn't include
-the event importer (`data/`), whose own `data` image (docker-compose.yml) installs the events
-from npm.
+the development environments, which import Sample Camp into a fresh database. It doesn't include
+the event importer (`data/`), which has its own `data` image (docker-compose.yml).
 
 The database is **not** in the image: point `DATABASE_URL` at a PostgreSQL 16 (or newer) server.
 That's the version Camphoric is tested against; Django 6.1 itself needs 15 or newer.

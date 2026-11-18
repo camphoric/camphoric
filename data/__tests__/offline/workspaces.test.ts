@@ -106,12 +106,8 @@ test('import-tools\' copies of the spec\'s types match the spec', () => {
   expect(toolsTypesMatchTheSpec.every(Boolean)).toBe(true);
 });
 
-// The importer's events that aren't workspaces: those installed from npm, each
-// from a repository of its own
 const IMPORTER = readJson('package.json');
 const WORKSPACE_NAMES = new Set(WORKSPACES.map(w => readJson(path.join(w, 'package.json')).name));
-const REGISTRY_EVENTS = Object.keys(IMPORTER.dependencies).filter(name => name.startsWith(EVENT_PREFIX)
-  && !SHARED_PACKAGES.includes(name) && !WORKSPACE_NAMES.has(name));
 const SPEC_VERSION: string = readJson('packages/event-import-spec/package.json').version;
 
 test('the importer is private, and uses the workspace copies by "*"', () => {
@@ -120,18 +116,29 @@ test('the importer is private, and uses the workspace copies by "*"', () => {
     .filter(([name, range]) => WORKSPACE_NAMES.has(name) && range !== '*')).toEqual([]);
 });
 
-// Every event under events/ is one the importer loads, so none escapes the
-// import, the conformance checks and the server's schema checks
-// (import-validation.test.ts); and EVENTS (eventModules.ts) names exactly the
-// events data/package.json installs.
-test('the importer loads every event under events/ and every registry event, by its package name', () => {
+// Every event under events/ is one the importer loads, first, so none escapes
+// the import, the conformance checks and the server's schema checks
+// (import-validation.test.ts). A camp's event, published from a repository of
+// its own, is installed only by hand (eventModules.ts), never by
+// data/package.json.
+test('the importer loads every event under events/, by its package name, and depends on no other event', () => {
   const folders = WORKSPACES.filter(workspace => workspace.startsWith('events/'))
     .map(workspace => path.basename(workspace));
   for (const folder of folders) {
     expect(readJson(path.join('events', folder, 'package.json')).name).toBe(`${EVENT_PREFIX}${folder}`);
   }
-  const registry = REGISTRY_EVENTS.map(name => name.slice(EVENT_PREFIX.length));
-  expect(Object.keys(EVENTS).sort()).toEqual([...folders, ...registry].sort());
+  expect(Object.keys(EVENTS).slice(0, folders.length).sort()).toEqual([...folders].sort());
+  // The shared packages under packages/, though installed in node_modules too,
+  // aren't events; any other event is an event package installed there
+  const shared = WORKSPACES.filter(workspace => workspace.startsWith('packages/'))
+    .map(workspace => readJson(path.join(workspace, 'package.json')).name.slice(EVENT_PREFIX.length));
+  expect(shared.length).toBeGreaterThan(0);
+  expect(Object.keys(EVENTS).filter(name => shared.includes(name))).toEqual([]);
+  for (const name of Object.keys(EVENTS).slice(folders.length)) {
+    expect(existsSync(path.join(DATA, 'node_modules', `${EVENT_PREFIX}${name}`, 'package.json'))).toBe(true);
+  }
+  expect(Object.keys(IMPORTER.dependencies).filter(name => name.startsWith(EVENT_PREFIX)
+    && !SHARED_PACKAGES.includes(name) && !WORKSPACE_NAMES.has(name))).toEqual([]);
 });
 
 type Manifest = Record<string, unknown> & {
