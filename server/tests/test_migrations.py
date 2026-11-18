@@ -536,3 +536,14 @@ class RegistrationCustomChargesTests(TransactionTestCase):
         for charge, registration in charges:
             self.assertEqual(models.CustomCharge.all_objects.get(pk=charge).registration_id,
                              registration)
+
+    def test_going_back_drops_the_registrations_own_charges(self):
+        from camphoric import models
+        from tests.factories import create_template_event
+        made = create_template_event()
+        models.CustomCharge.objects.create(
+            registration=made.r1, custom_charge_type=made.linens, amount=Decimal('5.00'))
+
+        apps = migrate_to('0097_event_payment_types')
+        charges = apps.get_model('camphoric', 'CustomCharge').objects.all()
+        self.assertEqual([charge.camper_id for charge in charges], [made.c1.id])

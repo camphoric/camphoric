@@ -868,6 +868,8 @@ class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mode
         without the other. Honours `If-Match` as DELETE does. Answers with the
         fee kept, or null.
         '''
+        if not isinstance(request.data, dict):
+            raise ValidationError({'detail': 'Send an object: {"cancellation_fee": …}.'})
         fee = serializers.CancellationFeeSerializer(
             data=request.data.get('cancellation_fee'), allow_null=True)
         fee.is_valid(raise_exception=True)

@@ -32,6 +32,7 @@ import { useSearchTab } from 'hooks/useSearchTab';
 import { AdminAttributesForm } from 'pages/admin/AdminAttributesForm';
 import { stayWithinStayableDays } from 'pages/admin/lodging/timelineUtils';
 import { useMemo } from 'react';
+import { useCancelCamper } from 'store/deletes';
 import { camperHooks } from 'store/entities';
 import { eventDays } from 'utils/dates';
 
@@ -39,7 +40,7 @@ import { CamperFees } from './CamperFees';
 import { useCamperForm } from './camperForm';
 import { CamperLodging } from './CamperLodging';
 import { camperLodgingSummary } from './camperLodgingSummary';
-import { confirmCancelCamper } from './CancelCamper';
+import { cancelledMessage, confirmCancelCamper } from './CancelCamper';
 
 interface CamperEditProps {
   event: ApiEvent;
@@ -63,6 +64,8 @@ export function CamperEdit({
   onOpenLodging,
 }: CamperEditProps) {
   const update = camperHooks.useUpdate({ handlesVersionConflict: true });
+  // Owned here, not by the modal: its callbacks run after the modal has gone.
+  const cancel = useCancelCamper();
   const { canEdit } = usePermissions();
 
   const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
@@ -100,9 +103,17 @@ export function CamperEdit({
   const confirmDeleteCamper = () =>
     confirmCancelCamper({
       camperId: camper.id,
-      version: camper.version,
       name,
-      onCancelled: onDeleted,
+      onConfirm: (fee) =>
+        cancel.mutate(
+          { id: camper.id, version: camper.version, fee },
+          {
+            onSuccess: () => {
+              notifications.show({ color: 'green', message: cancelledMessage(name, fee) });
+              onDeleted();
+            },
+          },
+        ),
     });
 
   return (
@@ -192,7 +203,12 @@ export function CamperEdit({
             <Button onClick={() => void saveCamper()} loading={update.isPending}>
               Save
             </Button>
-            <Button variant="light" color="red" onClick={confirmDeleteCamper}>
+            <Button
+              variant="light"
+              color="red"
+              onClick={confirmDeleteCamper}
+              loading={cancel.isPending}
+            >
               Delete
             </Button>
           </FormActions>
