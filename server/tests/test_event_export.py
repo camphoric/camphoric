@@ -11,7 +11,8 @@ from urllib.parse import quote
 
 from auditlog.models import LogEntry
 from django.db import connection
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework.test import APIClient, APITestCase
@@ -90,6 +91,13 @@ class ExportTests(APITestCase):
                       f'?email=kim@example.com&code={made.pending.invitation_code})'),
                 html=('<a href="https://reg.example.org/events/1/register?email=kim@example.com'
                       f'&amp;code={made.pending.invitation_code}">Register</a>')),
+            # A template may print the code and the registration's uuid on their own.
+            models.EmailMessage.objects.create(
+                event=event, kind='invitation', invitation=made.pending,
+                from_email='camp@example.com', to='kim@example.com', subject='Your code',
+                text=f'Your code is {made.pending.invitation_code.upper()}.',
+                html=(f'<p>Code: <strong>{made.pending.invitation_code}</strong></p>'
+                      f'<p>Reference {made.r1.uuid}</p>')),
             models.EmailMessage.objects.create(
                 event=event, kind='bulk', from_email='camp@example.com', to='pat@example.com',
                 subject='News', text=f'Hi\n\nUnsubscribe: {cls.unsubscribe_url}',
@@ -102,6 +110,9 @@ class ExportTests(APITestCase):
             event=event, email='quiet@example.com', source='admin')
 
         cls.contract = publish_contract(made.organization, 'Our terms')
+        # A draft of the next version isn't in it: it's still being written.
+        cls.draft_contract = models.Contract.objects.create(
+            organization=made.organization, body='Draft terms')
         cls.agreement = agree(
             made.organization, cls.contract, cls.admin, ip_address='192.0.2.1',
             user_agent='Firefox')
@@ -283,6 +294,10 @@ class ExportTests(APITestCase):
             'invoice link code': made.i1.token,
             'another invoice link code': made.i2.token,
             'invitation code': made.pending.invitation_code,
+            'invitation code in capitals': made.pending.invitation_code.upper(),
+            'registration uuid': str(made.r1.uuid),
+            'another registration uuid': str(made.r2.uuid),
+            'draft contract': 'Draft terms',
             'redeemed invitation code': made.invited.invitation_code,
             'unsubscribe link': self.unsubscribe_url,
             'unsubscribe link code': self.unsubscribe_url.rsplit('/', 2)[-2],
@@ -297,6 +312,7 @@ class ExportTests(APITestCase):
         self.assertNotIn('paypal_client_id', data['event'])
         self.assertNotIn('token', data['invoices'][0])
         self.assertNotIn('invitation_code', data['invitations'][0])
+        self.assertNotIn('uuid', data['registrations'][0])
         self.assertNotIn('unsubscribe_url', data['email_messages'][0])
         for key in ('email_accounts', 'users', 'api_tokens', 'connected_apps', 'edit_leases',
                     'registration_drafts', 'sessions'):
@@ -304,12 +320,15 @@ class ExportTests(APITestCase):
 
     def test_the_email_that_carried_a_link_code_says_where_it_was(self):
         messages = {row['id']: row for row in self.export()['email_messages']}
-        invoice, invitation, bulk = (messages[message.id] for message in self.messages)
+        invoice, invitation, code, bulk = (messages[message.id] for message in self.messages)
         self.assertEqual(
             invoice['text'], 'Pay here: https://reg.example.org/invoices/[redacted] today')
         self.assertIn('href="https://reg.example.org/invoices/[redacted]"', invoice['html'])
         self.assertIn('?email=kim@example.com&code=[redacted])', invitation['text'])
         self.assertIn('&amp;code=[redacted]"', invitation['html'])
+        self.assertEqual(code['text'], 'Your code is [redacted].')
+        self.assertEqual(
+            code['html'], '<p>Code: <strong>[redacted]</strong></p><p>Reference [redacted]</p>')
         self.assertEqual(
             bulk['text'], 'Hi\n\nUnsubscribe: https://reg.example.org/api/unsubscribe/[redacted]/')
         self.assertEqual(bulk['to'], 'pat@example.com')
@@ -339,9 +358,10 @@ class ExportTests(APITestCase):
 
     def test_one_query_per_kind_of_record(self):
         # The event, its organization, and each section (two for promo codes and
-        # the types they exclude), not one per record; and the savepoint the
+        # the types they exclude, two for email messages and the invitation codes
+        # to take out of them), not one per record; and the savepoint the
         # export's transaction is, within the test's, and its release.
-        with self.assertNumQueries(2 + len(SECTIONS) + 1 + 2):
+        with self.assertNumQueries(2 + len(SECTIONS) + 2 + 2):
             ''.join(event_export.stream(self.event, self.admin, NOW))
 
 
@@ -398,6 +418,16 @@ class FileNameTests(SimpleTestCase):
         self.assertEqual(event_export.file_name(self.event('Lark\tCamp\n 2026 '), NOW),
                          'Lark-Camp- 2026 data 2026-11-17.json')
 
+    def test_a_long_name_is_cut_short(self):
+        name = event_export.file_name(self.event('Camp ' * 60), NOW)
+        self.assertEqual(len(name.encode()), 255)
+        self.assertTrue(name.endswith('Camp data 2026-11-17.json'))
+        # Never in the middle of a character.
+        name = event_export.file_name(self.event('Été ' * 100), NOW)
+        self.assertLessEqual(len(name.encode()), 255)
+        self.assertTrue(name.endswith(' data 2026-11-17.json'))
+        name.encode().decode()
+
     def test_a_blank_name(self):
         self.assertEqual(event_export.file_name(self.event('  '), NOW),
                          'event 7 data 2026-11-17.json')
@@ -413,9 +443,16 @@ class RedactTests(SimpleTestCase):
         self.assertEqual(event_export.redact('<https://x.org/api/unsubscribe/.eJy:1a:Zz/>'),
                          '<https://x.org/api/unsubscribe/[redacted]/>')
 
+    def test_codes_on_their_own(self):
+        self.assertEqual(
+            event_export.redact('Code ABCD2345, or abcd2345; not abcd2346.', {'abcd2345'}),
+            'Code [redacted], or [redacted]; not abcd2346.')
+        self.assertEqual(
+            event_export.redact('Ref 0B5E9D4C-1f2a-4b3c-8d9e-0123456789ab.'), 'Ref [redacted].')
+
     def test_other_text_is_left_alone(self):
-        text = 'Your zip code: 94110. Invoices are due Friday.'
-        self.assertEqual(event_export.redact(text), text)
+        text = 'Your zip code: 94110. Invoices are due Friday, 2026-11-17.'
+        self.assertEqual(event_export.redact(text, {'abcd2345'}), text)
 
 
 class AsynchronousTests(SimpleTestCase):
@@ -461,6 +498,26 @@ class AsgiTests(TestCase):
         data = json.loads(body)
         self.assertEqual(data['export']['event']['id'], self.event.id)
         self.assertEqual(len(data['registrations']), 2)
+
+
+class RealTransactionTests(TransactionTestCase):
+    '''Outside a test's transaction, as when serving: its own REPEATABLE READ one.'''
+
+    def test_read_from_one_snapshot_which_ends_before_anything_is_sent(self):
+        event = create_template_event().event
+        admin = make_user(roles.ADMIN)
+        chunks = event_export.stream(event, admin, timezone.now())
+        with CaptureQueriesContext(connection) as queries:
+            first = next(chunks)
+        # Set before anything is read (after psycopg's BEGIN).
+        reads = [query['sql'] for query in queries.captured_queries if query['sql'] != 'BEGIN']
+        self.assertEqual(reads[0], 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
+        self.assertFalse(connection.in_atomic_block)
+        # Changes made while it's sent aren't in it.
+        models.Registration.objects.update(registrant_email='changed@example.com')
+        data = json.loads(first + ''.join(chunks))
+        self.assertEqual({row['registrant_email'] for row in data['registrations']},
+                         {'pat@example.com', 'lee@example.com'})
 
 
 class SnapshotTests(APITestCase):

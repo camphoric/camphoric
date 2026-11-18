@@ -28,8 +28,9 @@ export function DataExportSettings({ eventId }: { eventId: number | string }) {
       <Text>
         Download all of this event&apos;s data as one JSON file, to analyse with your own scripts:
         its settings, registrations, campers, invoices, payments and email, each record with its id
-        and the ids of the records it&apos;s linked to. Passwords and the codes in pay, invitation
-        and unsubscribe links are left out. It can&apos;t be imported back.
+        and the ids of the records it&apos;s linked to. Passwords, and the codes that open
+        someone&apos;s invoice, invitation or registration or unsubscribe them, are left out. It
+        can&apos;t be imported back.
       </Text>
       <Alert color="yellow" variant="light" title="Personal data">
         The file holds everyone&apos;s personal and payment details. Keep it somewhere safe, and

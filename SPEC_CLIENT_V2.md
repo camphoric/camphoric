@@ -804,9 +804,9 @@ Non-CRUD admin endpoints:
   application/json`, `Cache-Control: no-store` and `Content-Disposition: attachment` naming the
   file `<event name> data <YYYY-MM-DD>.json`: the date in the event's time zone, `/ \ : * ? " < >
   |` and control characters in the name replaced with `-` (as a downloaded report's are, §8.7),
-  `event <id>` for a blank name, and the RFC 5987 `filename*` form for a name that isn't plain
-  ASCII. The server builds the document as it sends it, from one consistent read of the
-  database:
+  `event <id>` for a blank name, the event's name cut short to keep the whole within 255 bytes,
+  and the RFC 5987 `filename*` form for a name that isn't plain ASCII. The server writes the
+  whole document from one consistent read of the database, then sends it:
   ```
   { export: { format: 'camphoric-event-data', format_version: 1,
               camphoric_version: string | null, exported_at,
@@ -818,16 +818,17 @@ Non-CRUD admin endpoints:
     invoices, payments, contract_agreements, email_messages, email_batches,
     email_unsubscribes: [{ …the record's fields }] }
   ```
-  in that order. Each array holds the event's records of that model, by `id`; `contracts` and
-  `contract_agreements` are the event's organization's (§6). A record has every field of its
+  in that order. Each array holds the event's records of that model, by `id`; `contracts` (the
+  published versions) and `contract_agreements` are the event's organization's (§6). A record has every field of its
   model by field name, timestamps and `deleted_at` included (soft-deleted records are in it); a
   relation is the related record's id (`null` for none) and a many-to-many relation a list of ids
   (a promo code's `excluded_registration_types`); money is a decimal string and times ISO
   instants, as elsewhere in the API. Left out are the secrets: the event's `paypal_client_id`, an
-  invoice's `token`, an invitation's `invitation_code`, an email message's `unsubscribe_url`, and
-  any encrypted field; an email message's `subject`, `text` and `html` have the link codes they
-  carried (`/invoices/<token>`, `code=<code>`, `/api/unsubscribe/<token>/`) replaced with
-  `[redacted]`. Each download records a change-history entry for the event (`action: 'export'`,
+  invoice's `token`, an invitation's `invitation_code`, a registration's `uuid` (it opens the
+  registration's payment step), an email message's `unsubscribe_url`, and any encrypted field;
+  an email message's `subject`, `text` and `html` have the codes they carried replaced with
+  `[redacted]`: those in links (`/invoices/<token>`, `code=<code>`, `/api/unsubscribe/<token>/`),
+  any uuid, and any of the event's invitation codes standing on its own, in any case. Each download records a change-history entry for the event (`action: 'export'`,
   `changes: { data_export: [null, <file name>] }`), credited to whoever downloaded it.
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
@@ -2388,14 +2389,15 @@ refuses, and the reason is shown).
 **Data export** (Admins only; §15, DR-169) — an Admin can download all of the event's data as
 one JSON file, to analyse with their own scripts: its configuration (the event's own fields,
 registration types, promo codes, custom charge types, lodging, reports, email templates and the
-organization's contract versions), its people and money (registrations, invitations, campers,
+organization's published contract versions), its people and money (registrations, invitations, campers,
 custom charges, pricing overrides, deposits, invoices, payments and agreements to the contract)
 and its email (messages, group sends and unsubscribes), each record with its id and the ids of
 the records it's linked to, under a header saying which Camphoric version made it, when, by whom,
 and for which event (§5). The file is downloaded straight from the server
 (`GET /api/events/{id}/export/`) under the name it gives, so the data never passes through the
 page. The control says the file holds everyone's personal and payment details, that secrets
-(passwords, the codes in pay, invitation and unsubscribe links) are left out, that it can't be
+(passwords, and the codes that open someone's invoice, invitation or registration or unsubscribe
+them) are left out, that it can't be
 imported back, and that each download is recorded in the Admin's change history (§8.10).
 Registrars and Reporters aren't offered it, and the server refuses them.
 
@@ -7223,15 +7225,17 @@ time (an accordion) — comparing reports across categories would mean reopening
 event's id and name), the organization by id and name, the event's own record, and one array per
 model of everything that belongs to the event: configuration, people and money, and email.
 Records keep every field of their model, soft-deleted ones included, with relations as ids, so
-scripts can join them. The organization's contract versions and the agreements to them are in it
-too: they're the terms everyone reaching the event agreed to. Left out are secrets — encrypted
-fields, the PayPal client id, and the link codes that let whoever holds them pay an invoice,
-register with an invitation or unsubscribe an address (taken out of the sent emails as well) —
-and what isn't the event's: email accounts, users, drafts, edit leases, sessions, API tokens and
-connected apps. The server writes the document as it sends it, a record at a time from one
-REPEATABLE READ transaction (in batches from the request's thread under the ASGI server), so a
-large event isn't held in memory and every array is from the same moment; the page links
-straight to it rather than fetching it.
+scripts can join them. The organization's published contract versions and the agreements to them
+are in it too: they're the terms everyone reaching the event agreed to. Left out are secrets —
+encrypted fields, the PayPal client id, and the codes that let whoever holds them pay an
+invoice, register with an invitation, take a registration's payment step (its uuid) or
+unsubscribe an address, taken out of the sent emails as well — and what isn't the event's: email
+accounts, users, drafts, edit leases, sessions, API tokens and connected apps. The server writes
+the document a record at a time from one REPEATABLE READ transaction into a temporary file
+(memory while it's small), then sends that file in batches (from the request's thread under the
+ASGI server): every array is from the same moment, a large event isn't held in memory, and a
+slow or paused download never holds the transaction, and the locks it takes, open. The page
+links straight to it rather than fetching it.
 **Context:** #1016: people analysing an event (pandas, jq, a notebook) had to ask someone with
 database access. The file holds everyone's personal and payment details, hence Admins only and
 the audit entry. `data/download-event-data.ts` downloads the same file with a personal access
@@ -7241,7 +7245,8 @@ happened in it, and leaves out the people. Fetching each model through the exist
 browser and assembling the file there — the whole event in the page's memory, many requests,
 and each serializer's own shape. The DRF serializers per model — they add computed fields and
 hide some of the model's, so the shapes would follow the admin screens rather than the data.
-Excluding soft-deleted records — the arrays would then disagree with the payments and history
+Sending each record as it's read — a paused download would hold the transaction open, and with
+it the locks a migration waits on. Excluding soft-deleted records — the arrays would then disagree with the payments and history
 that mention them; `deleted_at` lets a script leave them out. Leaving incomplete registrations
 (drafts) in — they're never audited, are deleted after a while (DR-139), and aren't the event's
 record.
