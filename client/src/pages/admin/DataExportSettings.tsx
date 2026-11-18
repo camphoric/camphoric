@@ -5,7 +5,7 @@
  * users (who created what) and no change history. The server builds the file and
  * streams it straight to a download, with its name
  * (`<event name> data <YYYY-MM-DD>.json`), so none of it passes through the
- * page, and it records the download in the change history.
+ * page.
  */
 
 import { Alert, Button, Stack, Text } from '@mantine/core';
@@ -35,7 +35,7 @@ export function DataExportSettings({ eventId }: { eventId: number | string }) {
       </Text>
       <Alert color="yellow" variant="light" title="Personal data">
         The file holds everyone&apos;s personal and payment details. Keep it somewhere safe, and
-        delete it when you&apos;re done. Each download is recorded in your change history.
+        delete it when you&apos;re done.
       </Alert>
       <Button
         component="a"

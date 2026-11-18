@@ -952,8 +952,7 @@ export type ApiDeletedPayment = ApiDeleted<ApiPayment>;
 export type ApiDeletedInvoice = ApiDeleted<ApiInvoice>;
 export type ApiDeletedPromoCode = ApiDeleted<ApiPromoCode>;
 
-/** `export`: someone downloaded an event's data (SPEC §8.8; §15, DR-169). */
-export type HistoryAction = 'create' | 'update' | 'delete' | 'restore' | 'export';
+export type HistoryAction = 'create' | 'update' | 'delete' | 'restore';
 
 /** A many-to-many change (a user's groups). */
 export interface HistoryM2mChange {

@@ -783,9 +783,7 @@ Non-CRUD admin endpoints:
     - `actor` is `{ id, username, name }`, or `null` when no one was signed in (an online
       registration, a PayPal notification, the email worker); a user since deleted is
       `{ id: null, username: null, name }` with their email as `name`.
-    - `action` is `'create' | 'update' | 'delete' | 'restore' | 'export'`: `export` is someone
-      downloading an event's data (an entry for the `event`, in the user's history only; §8.8;
-      §15, DR-169).
+    - `action` is `'create' | 'update' | 'delete' | 'restore'`.
     - `object` is `{ type, id, label }`: `type` is the model (`registration`, `camper`,
       `payment`, `customcharge`), `label` what it was called at the time (a camper's name,
       "Check payment $100.00").
@@ -829,9 +827,8 @@ Non-CRUD admin endpoints:
   `unsubscribe_url`, and any encrypted field; an email message's `subject`, `text` and `html`
   have the codes they carried replaced with `[redacted]`: those in links (`/invoices/<token>`,
   `code=<code>`, `/api/unsubscribe/<token>/`), any uuid, and any of the event's invitation codes
-  standing on its own, in any case. Each download records a change-history entry for the event
-  (`action: 'export'`, `changes: { data_export: [null, <file name>] }`), credited to whoever
-  downloaded it.
+  standing on its own, in any case. A download is a read, so like any other it isn't recorded
+  in the change history.
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
   and the event's time zone to show them in. Events whose registration closed more than 3
@@ -2401,9 +2398,8 @@ the agreements to them, its email accounts), and no change history. The file is 
 straight from the server (`GET /api/events/{id}/export/`) under the name it gives, so the data
 never passes through the page. The control says the file holds everyone's personal and payment
 details, that secrets (passwords, and the codes that open someone's invoice, invitation or
-registration or unsubscribe them) are left out, that it can't be imported back, and that each
-download is recorded in the change history (§8.10). Reporters aren't offered it, and the server
-refuses them.
+registration or unsubscribe them) are left out, and that it can't be imported back. Reporters
+aren't offered it, and the server refuses them.
 
 ### 8.9 Email
 
@@ -2574,8 +2570,7 @@ within Users (editing a user, …), not Users itself.
   by the server, and the refusal is shown (§15, DR-116). They still see those users in the list,
   with their change history.
 - **A user's change history** — choosing a user (their row, or *Change history* in their menu)
-  shows, beside the list, what they changed (§15, DR-80) and each event whose data they
-  downloaded (§8.8; DR-169): in every event, newest first, the
+  shows, beside the list, what they changed (§15, DR-80): in every event, newest first, the
   changes one save made together, each named in full (which registration, event, report, …)
   with each field's old and new value as in a registration's history (§8.4: colored, long values
   cut short, long JSON and text diffed), and how many there are in all. Older changes load a page
@@ -7224,8 +7219,8 @@ time (an accordion) — comparing reports across categories would mean reopening
 ### DR-169 — An event's data downloads as one JSON file, for Registrars and Admins
 
 **Decision:** A Registrar or Admin downloads all of an event's data from its Settings as one JSON
-document (§8.8), served by `GET /api/events/{id}/export/` (§5) and recorded in the change
-history as an `export` entry for the event (§8.10). It holds a header (Camphoric version, when,
+document (§8.8), served by `GET /api/events/{id}/export/` (§5). A download, a read like any
+other, isn't recorded in the change history. It holds a header (Camphoric version, when,
 the event's id and name), the organization by id and name, the event's own record, and one array
 per model of the event's own data: configuration, people and money, and email. Records keep
 every field of their model, soft-deleted ones included, with relations as ids, so scripts can
@@ -7243,7 +7238,7 @@ transaction, and the locks it takes, open. The page links straight to it rather 
 **Context:** #1016: people analysing an event (pandas, jq, a notebook) had to ask someone with
 database access. Registrars already see and edit every registration, camper and payment the file
 holds, so it's theirs too; Reporters, who only read, don't get it. The file holds everyone's
-personal and payment details, hence the audit entry. What's left out isn't the event's data:
+personal and payment details. What's left out isn't the event's data:
 users are the organizers, contracts are the organization's terms with them, and the change
 history is about who changed what. `data/download-event-data.ts` downloads the same file with a
 personal access token (DR-157), relying on the path, the 403/404 answers and the
@@ -7257,7 +7252,8 @@ file there — the whole event in the page's memory, many requests, and each ser
 shape. The DRF serializers per model — they add computed fields and hide some of the model's, so
 the shapes would follow the admin screens rather than the data. Sending each record as it's read
 — a paused download would hold the transaction open, and with it the locks a migration waits on.
-Excluding soft-deleted records — the arrays would then disagree with the payments that mention
+Recording each download in the change history — nothing else that only reads is recorded, and
+the history is for changes. Excluding soft-deleted records — the arrays would then disagree with the payments that mention
 them; `deleted_at` lets a script leave them out. Leaving incomplete registrations (drafts) in —
 they're never audited, are deleted after a while (DR-139), and aren't the event's record.
 
@@ -7354,7 +7350,7 @@ must be coordinated with the backend. Grouped by status.
   and the invitation on `checkpromo` (DR-107).
 - **Change history:** `GET /api/registrations/{id}/history/` and `GET /api/campers/{id}/history/`
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
-  (DR-80), with the `export` action (DR-169).
+  (DR-80).
 - **Event data export:** `GET /api/events/{id}/export/` — all of an event's data as one JSON
   file, for Registrars and Admins, with the shape, headers and exclusions in §5 (DR-169).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`

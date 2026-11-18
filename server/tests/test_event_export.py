@@ -1,7 +1,6 @@
 '''
 Downloading all of an event's data as JSON (camphoric.event_export, SPEC
-§8.8, DR-169): what's in it, what's kept out of it, who may download it, and
-the record of each download.
+§8.8, DR-169): what's in it, what's kept out of it, and who may download it.
 '''
 
 import datetime
@@ -342,20 +341,11 @@ class ExportTests(APITestCase):
             bulk['text'], 'Hi\n\nUnsubscribe: https://reg.example.org/api/unsubscribe/[redacted]/')
         self.assertEqual(bulk['to'], 'pat@example.com')
 
-    def test_the_download_is_recorded(self):
+    def test_a_download_is_not_recorded_in_the_change_history(self):
+        # A read, like any other: nothing is written.
+        entries = LogEntry.objects.count()
         self.download()
-        entry = LogEntry.objects.get(action=LogEntry.Action.ACCESS)
-        self.assertEqual(entry.actor, self.admin)
-        self.assertEqual(entry.object_id, self.event.id)
-        self.assertEqual(entry.content_type.model, 'event')
-        self.assertEqual(entry.timestamp, NOW)
-        self.assertEqual(entry.changes, {'data_export': [None, 'Test Camp data 2026-11-17.json']})
-        self.assertEqual(entry.additional_data, {'event': self.event.id})
-
-        history = self.client.get(f'/api/users/{self.admin.id}/history/').json()['results']
-        self.assertEqual(history[0]['action'], 'export')
-        self.assertEqual(history[0]['object'], {
-            'type': 'event', 'id': self.event.id, 'label': 'Test Camp'})
+        self.assertEqual(LogEntry.objects.count(), entries)
 
     def test_with_a_personal_access_token(self):
         self.client.force_authenticate(user=None)
@@ -389,7 +379,6 @@ class PermissionTests(APITestCase):
                     None if role == 'no role' else role, f'user-{role}')
                 self.client.force_authenticate(user=user)
                 self.assertEqual(self.client.get(self.url).status_code, status)
-        self.assertEqual(LogEntry.objects.filter(action=LogEntry.Action.ACCESS).count(), 2)
 
     def test_no_such_event(self):
         self.client.force_authenticate(user=make_user(roles.ADMIN))

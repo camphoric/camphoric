@@ -151,13 +151,9 @@ export function objectName(entry: ApiHistoryEntry, options: DescribeOptions = {}
 }
 
 export function actionName(entry: ApiHistoryEntry): string {
-  return {
-    create: 'Created',
-    update: 'Changed',
-    delete: 'Deleted',
-    restore: 'Restored',
-    export: 'Data downloaded',
-  }[entry.action];
+  return { create: 'Created', update: 'Changed', delete: 'Deleted', restore: 'Restored' }[
+    entry.action
+  ];
 }
 
 /** The changed fields of an update (none for a create, delete or restore). */
