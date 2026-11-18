@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.19.0](https://github.com/camphoric/camphoric/compare/v0.18.0...v0.19.0) (2026-11-18)
+
+
+### Features
+
+* **api:** add a dry run listing registrations a save would reprice ([17fdfb8](https://github.com/camphoric/camphoric/commit/17fdfb8d39a83258a8246091cf052e352ebaa3e0)), closes [#805](https://github.com/camphoric/camphoric/issues/805)
+* **api:** download all of an event's data as JSON from the event's settings ([3c695d9](https://github.com/camphoric/camphoric/commit/3c695d91fc0ca5d4aaa5c0034a0e51c55d7df9b3)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **api:** keep a cancellation fee when a camper is cancelled ([a528926](https://github.com/camphoric/camphoric/commit/a52892664c7fe5a3a5fe2f115a7f12989d1f67b2)), closes [#1023](https://github.com/camphoric/camphoric/issues/1023)
+* **api:** let Registrars download an event's data, and leave users and contracts out of it ([1f6f5e2](https://github.com/camphoric/camphoric/commit/1f6f5e2b50a7ef07a34b3202dbc4ac5f8ff95236)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **api:** stop recording event data downloads in the change history ([d86d0e7](https://github.com/camphoric/camphoric/commit/d86d0e7d8745a9bf86c762917ce73f3264a6f62c)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **api:** work out an event's cancellation fee from JsonLogic ([19fab77](https://github.com/camphoric/camphoric/commit/19fab77cbe9fd6ae37ac273e4c81d11490afa610))
+* **client:** collapse report categories and indent their reports ([2fa676b](https://github.com/camphoric/camphoric/commit/2fa676bb7c745dcc5836522b19d1b7b0ba709eaa)), closes [#1014](https://github.com/camphoric/camphoric/issues/1014)
+* **data:** add a script that downloads an event's data as JSON ([c3f0289](https://github.com/camphoric/camphoric/commit/c3f02895e8621801719807833b1370ed67080580)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **data:** add an event's cancellation fee to the import spec ([d5423a8](https://github.com/camphoric/camphoric/commit/d5423a82f05367c3bb52f247f1584d948132e559))
+* **docker:** let the dev stack's host ports be moved, so stacks can run side by side ([9b2a85a](https://github.com/camphoric/camphoric/commit/9b2a85acc38f0cf44d5c51f47a6f25ac4a1dde3b))
+* **payments:** add a Payments area listing what an event's money needs doing ([746ac43](https://github.com/camphoric/camphoric/commit/746ac43e5654d97b0f90b63698671a2b7b12f915)), closes [#1024](https://github.com/camphoric/camphoric/issues/1024)
+* **payments:** add a Totals view to the Payments area ([a265d9b](https://github.com/camphoric/camphoric/commit/a265d9b82f7363ea6fe7c57720e2f1ed84fb4357)), closes [#1024](https://github.com/camphoric/camphoric/issues/1024)
+* **payments:** stop PayPal refunds at PayPal's refund window, and say until when ([c854b88](https://github.com/camphoric/camphoric/commit/c854b8898d81aceb37270406a97311594606d88e))
+
+
+### Bug Fixes
+
+* **api:** accept every valid email address on registration, not just a hand-written subset ([54a49d7](https://github.com/camphoric/camphoric/commit/54a49d7f88fcf9034b737920ed2589dbaca1166d))
+* **api:** address review findings on cancellation fees ([7af7fe5](https://github.com/camphoric/camphoric/commit/7af7fe5acc3df08ad5c1277d9fc079ae62a128d0))
+* **api:** keep registration uuids and bare invitation codes out of the event data export ([0125608](https://github.com/camphoric/camphoric/commit/0125608285b91337be3043d07515678c081702a6)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **api:** reprice a completed registration as of its completion ([39aedd2](https://github.com/camphoric/camphoric/commit/39aedd20674b5e21c8cd725337ca0a6294301fe2)), closes [#805](https://github.com/camphoric/camphoric/issues/805)
+* **client:** check the email format by the same rule as the server ([54a49d7](https://github.com/camphoric/camphoric/commit/54a49d7f88fcf9034b737920ed2589dbaca1166d)), closes [#1013](https://github.com/camphoric/camphoric/issues/1013)
+* **client:** forget a report category's collapse once it leaves the list ([1924a09](https://github.com/camphoric/camphoric/commit/1924a0968b8a51ac9944fa6f30435fc3be16deff))
+* **client:** read the dev server's VITE_API_PROXY from client/.env too ([9b2a85a](https://github.com/camphoric/camphoric/commit/9b2a85acc38f0cf44d5c51f47a6f25ac4a1dde3b))
+* **data:** keep event data exports out of git, and let --output name a directory ([017e8d7](https://github.com/camphoric/camphoric/commit/017e8d765e6e4647faa3b1d61fb3553d13a53fcc)), closes [#1016](https://github.com/camphoric/camphoric/issues/1016)
+* **docker:** give gunicorn's control socket a directory the app user can write ([11ee99d](https://github.com/camphoric/camphoric/commit/11ee99d1463d91c0517c2eff2ff72d08a42f2361))
+* **docs:** say a gunicornc worker change ends at the next reload too ([9f30fdb](https://github.com/camphoric/camphoric/commit/9f30fdb83341c9e9634b050cd2bd41f2e3e1f1c6))
+* **payments:** let a late retry of a lost PayPal refund reach PayPal ([a6a6bbc](https://github.com/camphoric/camphoric/commit/a6a6bbcf67e89fe759dfebeec4b7a1818554b022))
+* **payments:** pair a refund's invoice with its PayPal payment, and list past due only when owed ([2d89ebd](https://github.com/camphoric/camphoric/commit/2d89ebd90f9eafe935405093f7584c26a1cb4645))
+* **payments:** show a cancelled invoice as asking nothing in the invoices ledger ([f6853bc](https://github.com/camphoric/camphoric/commit/f6853bc4547818ea3acbefc5abac146fcdc81f2e))
+
 ## [0.18.0](https://github.com/camphoric/camphoric/compare/v0.17.0...v0.18.0) (2026-11-12)
 
 
