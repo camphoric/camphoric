@@ -140,6 +140,20 @@ def _apply_promo(promo_code, data, results, camper_contexts):
     results['total'] = money_fmt((results['total'] or 0) - discount)
 
 
+def priced_as_of(registration):
+    '''
+    The moment a registration is priced as of (SPEC §9.2, DR-167): a completed
+    one, its `completed_at`, however late it's repriced, so an organizer's edit
+    months on doesn't move it; a saved one that isn't, its `created_at`. One not
+    saved yet, a draft on its way to completion, is priced as of now.
+    '''
+    if registration.completed_at is not None:
+        return registration.completed_at
+    if registration.pk is not None and registration.created_at is not None:
+        return registration.created_at
+    return timezone.now()
+
+
 def calculate_price(registration, campers):
     '''
     Parameters
@@ -149,6 +163,9 @@ def calculate_price(registration, campers):
 
     In order to calculate the price without writing to the database,
     campers are passed as a separate array.
+
+    It's priced as of `priced_as_of(registration)` (SPEC §9.2, DR-167): that's
+    the `date` the logic sees, and the moment `event.is_open` is read at.
 
     The registration_pricing_logic and camper_pricing_logic of corresponding
     Event are expected to have the following structure:
@@ -197,16 +214,17 @@ def calculate_price(registration, campers):
     event = registration.event
     registration_type = registration.registration_type
 
+    as_of = priced_as_of(registration)
     data = {
         "registration": {
             **(registration.attributes or {}),
             "registration_type": registration_type.name if registration_type else None,
             # during registration process, created_at may be None
-            "created_at": datetime_to_dict(registration.created_at or timezone.now()),
+            "created_at": datetime_to_dict(registration.created_at or as_of),
         },
         "pricing": event.pricing,
-        "event": get_event_attributes(event),
-        "date": datetime_to_dict(timezone.now()),
+        "event": get_event_attributes(event, as_of),
+        "date": datetime_to_dict(as_of),
     }
 
     date_props = get_date_props(event.camper_schema)
@@ -332,8 +350,9 @@ def get_date_props(camper_schema):
     return date_props
 
 
-def get_event_attributes(event):
-    attributes = {'is_open': event.is_open()}
+def get_event_attributes(event, at=None):
+    '''The event as pricing logic sees it, with `is_open` at `at` (now, by default).'''
+    attributes = {'is_open': event.is_open(at)}
     if (event.epayment_handling):
         attributes['epayment_handling'] = event.epayment_handling
 

@@ -2354,6 +2354,11 @@ class RegisterView(APIView):
             # Again, under the lock that writes the invoice: a capture may have paid it since.
             self.refuse_if_paid(registration)
             try:
+                # Chosen again too, from the price as it stands under this lock: an
+                # organizer's edit since would otherwise leave the invoice on the old one.
+                option = self.chosen_option(request, registration)
+                if option.amount <= 0:
+                    raise ValidationError({'paymentOption': 'Nothing is due for this option.'})
                 invoice = invoices.prepare_registration_invoice(
                     registration, option, payment_type)
                 due, fee = invoices.order_amounts(invoice)
