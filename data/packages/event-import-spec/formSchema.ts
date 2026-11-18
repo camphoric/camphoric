@@ -40,7 +40,7 @@ export function formSchema(event: EventData) {
     properties: {
       registrant_email: { type: 'string', format: 'email', maxLength: 254 },
       ...(registration_schema.properties ?? {}),
-      campers: { type: 'array', minItems: 1, items: { $ref: '#/definitions/camper' } },
+      campers: { type: 'array', minItems: 1, maxItems: 20, items: { $ref: '#/definitions/camper' } },
     },
   };
 }

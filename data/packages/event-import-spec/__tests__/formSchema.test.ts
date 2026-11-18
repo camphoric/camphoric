@@ -102,6 +102,14 @@ describe('the form schema, with the form formats', () => {
     expect(valid({ registrant_email: `a${at254}` })).toBe(false);
   });
 
+  test('takes from 1 to 20 campers, as the server does', () => {
+    const campers = (count: number) => Array.from({ length: count }, () => ({}));
+    const email = 'alex@example.com';
+    expect(valid({ registrant_email: email, campers: campers(0) })).toBe(false);
+    expect(valid({ registrant_email: email, campers: campers(20) })).toBe(true);
+    expect(valid({ registrant_email: email, campers: campers(21) })).toBe(false);
+  });
+
   test("checks the event's own email fields by the same rule", () => {
     expect(valid({ registrant_email: 'alex@example.com', contact: 'sam@example.org' })).toBe(true);
     expect(valid({ registrant_email: 'alex@example.com', contact: 'sam@example.o' })).toBe(false);
