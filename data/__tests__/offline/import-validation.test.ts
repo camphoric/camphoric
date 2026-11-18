@@ -1,10 +1,10 @@
 /**
- * Offline validation of every event the importer loads (eventModules.ts) — no
- * server needed.
+ * Offline validation of the events developed here, under events/ (Sample
+ * Camp) — no server needed. The events installed from npm are left to their
+ * own repositories (doc/event-repo-ci.md).
  *
  * Each event must pass the conformance checks every event package runs
- * (@camphoric/camphoric-event-import-spec/conformance), so an event that is installed
- * here, rather than developed here, is held to them too. The event, as its
+ * (@camphoric/camphoric-event-import-spec/conformance). The event, as its
  * overrides leave it, must also pass the server's form and pricing checks
  * (server/camphoric/schema_checks.py, run with python3): no default outside
  * its choices, and no text or choice answer the pricing reads that a
@@ -17,7 +17,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
@@ -37,7 +37,14 @@ const canRunSchemaChecks = process.env.CI === 'true' || (existsSync(SCHEMA_CHECK
   && spawnSync('python3', ['--version']).status === 0);
 const schemaTest = canRunSchemaChecks ? test : test.skip;
 
-describe.each(Object.keys(EVENTS) as EventName[])('data/%s', (name) => {
+// The events under events/, each a folder named for its event (EVENTS loads
+// every one: workspaces.test.ts)
+const EVENTS_DIR = new URL('../../events/', import.meta.url);
+const LOCAL_EVENTS = readdirSync(EVENTS_DIR, { withFileTypes: true })
+  .filter(entry => entry.isDirectory() && existsSync(new URL(`${entry.name}/package.json`, EVENTS_DIR)))
+  .map(entry => entry.name as EventName);
+
+describe.each(LOCAL_EVENTS)('data/%s', (name) => {
   const load = EVENTS[name];
 
   describeEventModule(load);

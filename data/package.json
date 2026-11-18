@@ -17,12 +17,12 @@
     "build": "npm run build -w packages/event-import-spec && npm run build -w packages/import-tools"
   },
   "dependencies": {
-    "@camphoric/camphoric-event-familyweek": "^1.0.1",
-    "@camphoric/camphoric-event-harmony": "^1.0.1",
+    "@camphoric/camphoric-event-familyweek": "*",
+    "@camphoric/camphoric-event-harmony": "*",
     "@camphoric/camphoric-event-import-spec": "*",
     "@camphoric/camphoric-event-import-tools": "*",
-    "@camphoric/camphoric-event-lark": "^1.0.1",
-    "@camphoric/camphoric-event-ltacampout": "^1.0.1",
+    "@camphoric/camphoric-event-lark": "*",
+    "@camphoric/camphoric-event-ltacampout": "*",
     "@camphoric/camphoric-event-sample-camp": "*",
     "dotenv": "^18.0.9",
     "tsx": "^4.23.15"

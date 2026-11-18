@@ -3,15 +3,16 @@
 # @camphoric/camphoric-event-* packages under packages/ and Sample Camp under
 # events/, and it installs the camps' events, published from repositories of
 # their own, from npm; its scripts run every workspace's too:
-# the TypeScript must type-check (tsc --noEmit), every event module must load,
-# satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
+# the TypeScript must type-check (tsc --noEmit), every event under events/ must
+# load, satisfy the event import schema (@camphoric/camphoric-event-import-spec), carry
 # well-formed JSON Schemas and pass the server's form and pricing checks
 # (server/camphoric/schema_checks.py, run with the runner's python3)
 # (data/__tests__/offline), and each workspace must import only its own files
 # and the packages it declares. All of that runs from the packages' TypeScript
 # source; then the published packages are built, packed and used with plain
 # Node (scripts/smoke-test-packages.sh). The live import against the built
-# image runs in docker.yml.
+# image runs in docker.yml. The events installed from npm aren't tested here:
+# that's left to their own repositories (doc/event-repo-ci.md).
 name: Data import validation
 
 on:
@@ -59,12 +60,6 @@ jobs:
       # node_modules of its own has drifted from the others' versions.
       - name: The workspaces share one node_modules
         run: test -z "$(find packages events -mindepth 2 -maxdepth 2 -name node_modules)"
-
-      # Events installed from npm take the spec as a peer, so they
-      # share the importer's copy; one nested under an event was written for a
-      # spec major the importer doesn't follow.
-      - name: One copy of the spec is installed
-        run: test -z "$(find node_modules -path 'node_modules/*/node_modules/@camphoric/camphoric-event-import-spec')"
 
       - name: Type-check
         run: npm run typecheck

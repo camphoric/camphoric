@@ -242,9 +242,8 @@ module, so its versions follow what an event module has to do:
   required, a type narrowed).
 
 Every event package takes the spec as a **peer dependency** (`"^1.0.0"`), so the importer loads
-one copy of the spec and checks each event against it. An event installed from an event
-repository (#780) whose range the spec in this repository doesn't satisfy is refused by `npm
-install` and fails the tests, never a second, nested copy. In this repository the events also take the
+one copy of the spec. An event installed from an event repository (#780) whose range the spec in
+this repository doesn't satisfy is refused by `npm install`, never a second, nested copy. In this repository the events also take the
 workspace copy as a devDependency (`"*"`); an event repository's devDependency is its peer range.
 
 A breaking change to the spec keeps `main` holding a spec, an importer and events that work
@@ -255,8 +254,8 @@ together:
    minor, add what replaces the old form (a new field, optional); then, in the major, remove or
    require it.
 2. **One PR here** changes the spec, the importer and the events in `data/events/` (widening their
-   peer range the same way), and raises the importer's ranges for the event repositories' packages
-   to those releases. This repository's tests then check every event against the new spec.
+   peer range the same way), and moves the lockfile to the event repositories' releases (as in "In Camphoric", under
+   "Event repositories"). This repository's tests then check Sample Camp against the new spec.
 3. **Merge the spec's release PR**, which publishes the new major. Until it bumps the spec's
    version, the tests check peer ranges against the old major, so an event that skipped step 1
    first fails this PR's checks.
@@ -304,18 +303,22 @@ made-up event for this repository's tests, is the only event still in `data/even
   lists them all. After fixing one, run that repository's `upstream.yml` with `force` to check it
   before the next new release or Monday. A pre-release isn't tested by itself: once
   `prerelease.yml` has pushed its image, `data/scripts/test-event-repos.sh <tag>` runs every event
-  repository's e2e tests against it (with your own `gh` login). `events-latest.yml`'s weekly
-  notes flag an event repository whose check is missing or disabled (GitHub disables it after 60
-  days without activity in the repository).
+  repository's e2e tests against it (with your own `gh` login). GitHub disables an event
+  repository's check after 60 days without activity in it; nothing here watches for that, so
+  re-enable it in that repository's Actions tab when it's needed.
 - **Publishing access.** As for the packages above, each package lists its repository's release
   workflow as a trusted publisher on npmjs.com.
-- **In Camphoric.** The importer installs each event by a caret range, and the lockfile pins the
-  version every workflow tests; a new minor or patch reaches it with a lockfile update. Every week,
-  `events-latest.yml` tests the newest versions the ranges allow, and opens an `event-compat` issue
-  when one fails, when an event publishes a major beyond its range, or when the org has an event
-  repository whose package `data/` doesn't install or whose "Camphoric releases" check is missing
-  or disabled. A new event major needs the importer's range
-  raised; a new spec major is rolled out as described in "What a spec version means" above.
+- **In Camphoric.** The importer installs each event by `"*"`, so any release, a new major too,
+  satisfies it, but the lockfile still pins the version every install uses (`npm ci`, in CI and in
+  the `data` image). A new release reaches Camphoric with a lockfile update, in `data/`:
+  `npm install --package-lock-only <package>@latest`, then `npm pkg set 'dependencies.<package>=*'`
+  and `npm install --package-lock-only` (not `npm update <package>`, which can drop the importer's
+  link to the workspace spec and leave a lockfile `npm ci` refuses). Camphoric's CI doesn't test
+  the installed events. Each event's repository tests its own newest code against each new
+  Camphoric release (above), but nothing tests the version the lockfile pins against Camphoric's
+  `main`: a change here that breaks one shows up in the development import, or in that event's
+  check after the next release. A new spec major is rolled out as described in "What a spec version
+  means" above.
 
 ### Adding a camp's event
 
@@ -348,10 +351,10 @@ made-up event for this repository's tests, is the only event still in `data/even
    to an account in the npm `camphoric` organization), then add the repository's release workflow
    as the package's trusted publisher on npmjs.com, and set the package to require 2FA and
    disallow tokens.
-5. **Add it to Camphoric:** in `data/`, `npm install @camphoric/camphoric-event-<name>` (a caret
-   range from npm), add it to `EVENTS` in `data/eventModules.ts`, and add a row to the
-   table above. The offline tests then check that it's the published build, and `docker.yml`
-   imports it.
+5. **Add it to Camphoric:** in `data/`, run `npm pkg set
+   'dependencies.@camphoric/camphoric-event-<name>=*'` and `npm install` (`npm install
+   <package>@*` would save a caret range), add it to `EVENTS` in `data/eventModules.ts`, and add a
+   row to the table above. The offline tests then check that `EVENTS` names it.
 
 ---
 
@@ -365,8 +368,7 @@ made-up event for this repository's tests, is the only event still in `data/even
 | `.github/workflows/release-image.yml` | called by the two above        | builds the image at the tag and pushes `ghcr.io/camphoric/camphoric:<tag>` (+ `latest` for stable releases) |
 | `.github/workflows/release-packages.yml` | called by `release-please.yml` when a package release PR merges, or run by hand with a tag | builds the event-import package at its tag and publishes it to npm |
 | `.github/workflows/data.yml`          | push/PR to `main` touching `data/` | type-checks, lints and tests the importer and the event packages, and smoke-tests the packed packages |
-| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports every event into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it, in browsers from Playwright's image (`.github/actions/playwright-browsers`) |
-| `.github/workflows/events-latest.yml` | weekly, on demand, and PRs to `main` that change it or its scripts | moves the events `data/` installs from npm to their newest versions, then tests and imports them; a failure (or an event with a newer major, or an org event repository whose package isn't installed) goes in an `event-compat` issue, which a clean run closes |
+| `.github/workflows/docker.yml`        | push/PR to `main` touching `server/`, `client/`, `data/` or the Docker files | builds the image (never pushed), smoke-tests it against Postgres and imports Sample Camp into it, and runs Sample Camp's registration-form e2e tests against a throwaway server from it, in browsers from Playwright's image (`.github/actions/playwright-browsers`) |
 | `.github/workflows/client.yml`        | push/PR to `main` touching `client/` | type-checks, lints and unit-tests the client, and runs its Playwright e2e suite, in browsers from Playwright's image (`.github/actions/playwright-browsers`) |
 
 > The asset build is invoked directly by the two release workflows (not by a `release: published`

@@ -2,8 +2,9 @@
 # inputs (server/, client/, data/, the Docker files) and prove it works:
 # the release image + Postgres come up via docker-compose.image.yml, the SPA, a
 # static asset (the DEBUG=off code path) and the API are smoke-tested, and then
-# every event the importer loads (data/events and those from npm) is
-# imported into it (the live import test). Alongside, Sample Camp's
+# the events developed here (data/events: Sample Camp) are imported into it
+# (the live import test); the events installed from npm are left to their own
+# repositories (doc/event-repo-ci.md). Alongside, Sample Camp's
 # registration-form e2e tests run against a throwaway server from the same
 # image, through the import-tools page object every event repository's tests
 # use.
@@ -110,12 +111,13 @@ jobs:
 
       # The importer is a REST client, so it runs on the runner against the
       # published port, with an API token minted for the run (as the image's
-      # admin) and revoked when it ends. A non-zero exit (any event failing to
+      # admin) and revoked when it ends. A non-zero exit (the event failing to
       # import, including a rejected sample registration) fails the job.
-      - name: Live import of every event
+      - name: Live import of Sample Camp
         working-directory: data
         env:
           CAMPHORIC_URL: http://localhost:8000
+          CAMPHORIC_EVENTS: sample-camp
         run: |
           token=$(docker compose -f ../docker-compose.image.yml exec -T app \
             python manage.py camphoric_api_token create admin --name ci-import --expires 2h)
