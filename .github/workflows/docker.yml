@@ -74,6 +74,16 @@ jobs:
           curl -fsSI "http://localhost:8000$asset" | grep -qi 'content-type: .*javascript'
           curl -fsS http://localhost:8000/api/set-csrf-cookie > /dev/null
 
+      # gunicorn's master opens a control socket in its user's home (/app, which
+      # backend can't write to but for the directory the image gives it), and
+      # logs an error on every start when it can't.
+      - name: gunicorn's control socket answers
+        run: |
+          set -eux
+          docker compose -f docker-compose.image.yml exec -T app gunicornc -c "show workers"
+          docker compose -f docker-compose.image.yml logs app > app.log
+          if grep -i 'control server error' app.log; then exit 1; fi
+
       # The release image is a blank slate, whatever the development
       # environments import: it boots with no events, and holds no event
       # importer (data/ never goes into it).
