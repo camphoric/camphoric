@@ -24,6 +24,10 @@ volumes:
 #   CAMPHORIC_REACT_PORT           Vite's dev server        (default 3000)
 #   CAMPHORIC_REACT_PREVIEW_PORT   Vite's preview server    (default 3001)
 # Inside the stack the services keep their usual ports (django:8000 and so on).
+#
+# django and worker run on camphoric_server.settings_default, skipping any
+# settings_override.py (see the django service); CAMPHORIC_DJANGO_SETTINGS_MODULE
+# changes that.
 services:
   postgres:
     image: postgres:16-alpine
@@ -52,6 +56,14 @@ services:
       # Django also trusts its origin for CSRF (settings_default.py), so the
       # frontend can sign in on whatever port it's published on.
       CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:${CAMPHORIC_REACT_PORT:-3000}}
+      # The base settings, without server/camphoric_server/settings_override.py:
+      # the Vagrant VM's provisioning writes that file into the same checkout,
+      # and its ALLOWED_HOSTS (no `django`) would otherwise refuse every request
+      # made as django:8000: the data service's import and everything the react
+      # service's Vite proxy forwards. Its CSRF_TRUSTED_ORIGINS would also refuse
+      # sign-in from a frontend on a moved port. To use an override of your own,
+      # set CAMPHORIC_DJANGO_SETTINGS_MODULE=camphoric_server.settings.
+      DJANGO_SETTINGS_MODULE: ${CAMPHORIC_DJANGO_SETTINGS_MODULE:-camphoric_server.settings_default}
     build: server/
     volumes:
       - ./server:/app
@@ -92,6 +104,8 @@ services:
       - ./server:/app
     environment:
       CAMPHORIC_PUBLIC_URL: ${CAMPHORIC_PUBLIC_URL:-http://localhost:${CAMPHORIC_REACT_PORT:-3000}}
+      # The same settings as the django service (see there).
+      DJANGO_SETTINGS_MODULE: ${CAMPHORIC_DJANGO_SETTINGS_MODULE:-camphoric_server.settings_default}
     command: ./manage.py camphoric_worker --queue-name '*' --reload
     # Retries while the django service is still migrating.
     restart: unless-stopped
