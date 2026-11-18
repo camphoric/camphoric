@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/camphoric/camphoric/compare/v0.19.0...v0.20.0) (2026-11-18)
+
+
+### Features
+
+* **client:** build the phone widget on react-phone-number-input with Mantine controls ([0d14e43](https://github.com/camphoric/camphoric/commit/0d14e4374502fcf88174cd704467fe7cbdc45200)), closes [#748](https://github.com/camphoric/camphoric/issues/748)
+
+
+### Bug Fixes
+
+* **client:** check a phone in a oneOf option, and quote a saved number the field can't show ([a676a92](https://github.com/camphoric/camphoric/commit/a676a92c57e8ccbbb80f0340c2f0c78fbc6273db))
+* **client:** refuse a phone number its country's numbers can't be ([dae330c](https://github.com/camphoric/camphoric/commit/dae330cb0c50aa2d4573b435eb9507c23e10b6bb))
+* **client:** refuse a phone number that is cut short for its country ([0d14e43](https://github.com/camphoric/camphoric/commit/0d14e4374502fcf88174cd704467fe7cbdc45200)), closes [#1034](https://github.com/camphoric/camphoric/issues/1034)
+* **docker:** run the dev stack's Django on the base settings, not the VM's override ([ee0818c](https://github.com/camphoric/camphoric/commit/ee0818c03926c2bd9baaa8af04c6f21eb5811811))
+
 ## [0.19.0](https://github.com/camphoric/camphoric/compare/v0.18.0...v0.19.0) (2026-11-18)
 
 
