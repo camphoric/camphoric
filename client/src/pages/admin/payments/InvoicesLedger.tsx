@@ -6,7 +6,7 @@
  * table's sort, search and page live in the URL. A row opens its registration.
  */
 
-import { Group, Select, Text } from '@mantine/core';
+import { Box, Group, Select, Text } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import type { ApiEventPaymentType, ApiInvoice } from 'api-types';
 import { DataTable, type DataTableColumnDef, type DataTableState } from 'components/DataTable';
@@ -84,7 +84,7 @@ export function InvoicesLedger({
       { id: 'type', header: 'To be paid by', accessorFn: typeLabel },
       {
         id: 'due_on',
-        header: 'Due',
+        header: 'Due on',
         accessorFn: (i) => i.due_on ?? '',
         cell: (c) => (c.getValue<string>() ? formatDay(c.getValue<string>()) : '—'),
       },
@@ -101,24 +101,33 @@ export function InvoicesLedger({
         cell: (c) => formatMoney(c.getValue<number>()),
       },
       {
-        // What's still due, or (negative) what was overpaid.
+        // What's still due, or (negative) what was overpaid; a cancelled invoice asks nothing.
         id: 'due',
         header: 'Due / overpaid',
-        accessorFn: (i) => Number(i.amount_due) - Number(i.overpaid),
-        cell: ({ row }) =>
-          Number(row.original.overpaid) > 0 ? (
+        accessorFn: (i) =>
+          i.status === 'cancelled' ? 0 : Number(i.amount_due) - Number(i.overpaid),
+        cell: ({ row }) => {
+          const invoice = row.original;
+          if (invoice.status === 'cancelled') return '—';
+          return Number(invoice.overpaid) > 0 ? (
             <Text size="sm" c="orange">
-              {formatMoney(row.original.overpaid)} over
+              {formatMoney(invoice.overpaid)} over
             </Text>
           ) : (
-            formatMoney(row.original.amount_due)
-          ),
+            formatMoney(invoice.amount_due)
+          );
+        },
       },
       {
         id: 'status',
         header: 'Status',
         accessorFn: (i) => STATUS_LABEL[i.status],
-        cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
+        // Wide enough for "Partially paid" whole, however the other columns press.
+        cell: ({ row }) => (
+          <Box miw={130}>
+            <InvoiceStatusBadge status={row.original.status} />
+          </Box>
+        ),
       },
     ],
     [nameOf, typeLabel],
