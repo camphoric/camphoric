@@ -481,13 +481,33 @@ class RefundThroughPayPalTests(PayPalTestCase):
         self.assertEqual(request['json']['amount'], {'value': '30.00', 'currency_code': 'USD'})
         self.assertTrue(request['headers']['PayPal-Request-Id'].startswith('refund-'))
 
-    def test_refused_past_paypals_window_without_asking_paypal(self):
+    def test_past_paypals_window_its_refusal_is_explained(self):
         self.paid.paid_on = invoices.today() - invoices.PAYPAL_REFUND_LAST_DAY - timedelta(days=1)
         self.paid.save()
+        self.assertFalse(self.client.get(f'/api/payments/{self.paid.id}/').data[
+            'paypal_refundable'])
+        self.reply({'name': 'UNPROCESSABLE_ENTITY', 'message': 'Refund time limit exceeded.',
+                    'details': [{'issue': 'REFUND_TIME_LIMIT_EXCEEDED'}]}, status=422)
         data = self.refund('30.00', status=409)
         self.assertIn('PayPal refunds a payment for 180 days', data['detail'])
         self.assertIn('record the refund here', data['detail'])
-        self.assertEqual(self.paypal.requests, [])
+        self.assertFalse(models.Payment.objects.filter(refund_of=self.paid).exists())
+
+    def test_a_lost_answers_retry_is_recorded_after_the_window_closes(self):
+        # Asked on its last day, PayPal's answer is lost; the retry comes the
+        # next day, and PayPal answers the same request with the refund it made.
+        self.paid.paid_on = invoices.today() - invoices.PAYPAL_REFUND_LAST_DAY
+        self.paid.save()
+        request_id = uuid.uuid4().hex
+        self.reply({'name': 'INTERNAL_SERVER_ERROR'}, status=503)
+        self.refund('10.00', request_id, status=502)
+        self.reply(paypal_mocks.refund(value='10.00'), status=201)
+        with mock.patch.object(invoices, 'today',
+                               return_value=invoices.today() + timedelta(days=1)):
+            data = self.refund('10.00', request_id)
+        self.assertEqual(data['amount'], '-10.00')
+        self.assertEqual(len(self.paypal.requests), 2)
+        self.assertEqual(models.Payment.objects.filter(refund_of=self.paid).count(), 1)
 
     def test_refunded_on_the_windows_last_day(self):
         self.paid.paid_on = invoices.today() - invoices.PAYPAL_REFUND_LAST_DAY
