@@ -758,7 +758,7 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     def delete_checks(self):
         return (deletes.no_registrations,)
 
-    @action(detail=True, methods=['get'], permission_classes=[AdminOnly])
+    @action(detail=True, methods=['get'], permission_classes=[WritersOnly])
     def export(self, request, pk=None):
         '''
         All of the event's data as one JSON file, for analysis (SPEC §8.8, DR-169;
@@ -772,7 +772,7 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
             event, force_log=True, action=LogEntry.Action.ACCESS, actor=request.user,
             actor_email=request.user.email, changes={'data_export': [None, name]},
             additional_data={'event': event.id})
-        chunks = event_export.stream(event, request.user, now)
+        chunks = event_export.stream(event, now)
         if isinstance(request._request, ASGIRequest):
             chunks = event_export.asynchronous(chunks)
         response = StreamingHttpResponse(chunks, content_type='application/json')

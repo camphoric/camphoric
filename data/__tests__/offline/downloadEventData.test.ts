@@ -306,7 +306,7 @@ describe('downloadEventData', () => {
 
   test.each([
     [401, { detail: 'Invalid token.' }, 'refused the API token'],
-    [403, { detail: 'You do not have permission to perform this action.' }, 'only an Admin'],
+    [403, { detail: 'You do not have permission to perform this action.' }, 'only a Registrar or an Admin'],
     [404, { detail: 'Not found.' }, 'has no data export for event 12'],
     [500, { detail: 'Server Error' }, 'couldn\'t export event 12 (500: Server Error)'],
   ])('a %i says why, and saves nothing', async (status, body, message) => {

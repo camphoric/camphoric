@@ -1,10 +1,11 @@
 /**
  * Downloading all of the event's data as one JSON file, for analysis with
- * one's own scripts (SPEC §8.8; §15, DR-169). Admins only: the file holds
- * everyone's personal and payment details. The server builds the file and
+ * one's own scripts (SPEC §8.8; §15, DR-169). Registrars and Admins only: the
+ * file holds everyone's personal and payment details. It holds nothing about
+ * users (who created what) and no change history. The server builds the file and
  * streams it straight to a download, with its name
  * (`<event name> data <YYYY-MM-DD>.json`), so none of it passes through the
- * page, and it records the download in the Admin's change history.
+ * page, and it records the download in the change history.
  */
 
 import { Alert, Button, Stack, Text } from '@mantine/core';
@@ -20,7 +21,7 @@ export function DataExportSettings({ eventId }: { eventId: number | string }) {
   const { canExportEventData } = usePermissions();
 
   if (!canExportEventData) {
-    return <Text c="dimmed">Only an Admin can download the event&apos;s data.</Text>;
+    return <Text c="dimmed">Only a Registrar or an Admin can download the event&apos;s data.</Text>;
   }
 
   return (

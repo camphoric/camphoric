@@ -25,9 +25,9 @@ NOW = datetime.datetime(2026, 11, 18, 5, 30, tzinfo=datetime.UTC)  # the 17th in
 
 SECTIONS = [
     'registration_types', 'promo_codes', 'custom_charge_types', 'lodgings', 'reports',
-    'email_templates', 'contracts', 'registrations', 'invitations', 'campers',
+    'email_templates', 'registrations', 'invitations', 'campers',
     'custom_charges', 'pricing_overrides', 'deposits', 'invoices', 'payments',
-    'contract_agreements', 'email_messages', 'email_batches', 'email_unsubscribes',
+    'email_messages', 'email_batches', 'email_unsubscribes',
 ]
 
 
@@ -67,7 +67,7 @@ class ExportTests(APITestCase):
         cls.payment.save()
         cls.override = models.PricingOverride.objects.create(
             registration=made.r1, camper=made.c1, var='tuition', amount=Decimal('300.00'),
-            reason='Scholarship')
+            reason='Scholarship', created_by=cls.admin)
         cls.report = models.Report.objects.create(event=event, title='Roster', template='x')
         # Soft-deleted records are in it, with when they were deleted.
         cls.deleted_camper = made.r1.campers.create(
@@ -100,10 +100,15 @@ class ExportTests(APITestCase):
                       f'<p>Reference {made.r1.uuid}</p>')),
             models.EmailMessage.objects.create(
                 event=event, kind='bulk', from_email='camp@example.com', to='pat@example.com',
+                created_by=cls.admin,
                 subject='News', text=f'Hi\n\nUnsubscribe: {cls.unsubscribe_url}',
                 html=f'<p>Hi</p><a href="{cls.unsubscribe_url}">Unsubscribe</a>',
                 unsubscribe_url=cls.unsubscribe_url),
         ]
+        # A group email's test, sent to the organizer who asked for it.
+        cls.test_message = models.EmailMessage.objects.create(
+            event=event, kind='test', from_email='camp@example.com', to='ada@example.com',
+            subject='[Test] News', text='Hi', created_by=cls.admin)
         cls.batch = models.EmailBatch.objects.create(
             event=event, name='News', recipient_source='campers')
         cls.unsubscribed = models.EmailUnsubscribe.objects.create(
@@ -140,8 +145,6 @@ class ExportTests(APITestCase):
                 subject='Other', text='Other').id],
             'email_templates': list(models.EmailTemplate.objects.filter(event=other)
                                     .values_list('id', flat=True)),
-            'contracts': [publish_contract(
-                models.Organization.objects.create(name='Other Org'), 'Their terms').id],
         }
 
     def setUp(self):
@@ -186,7 +189,6 @@ class ExportTests(APITestCase):
             'format_version': 1,
             'camphoric_version': '1.4.0',
             'exported_at': '2026-11-18T05:30:00Z',
-            'exported_by': {'id': self.admin.id, 'username': 'ada', 'name': 'Ada Admin'},
             'event': {'id': self.event.id, 'name': 'Test Camp'},
         })
         self.assertEqual(data['organization'], {
@@ -220,7 +222,6 @@ class ExportTests(APITestCase):
             'reports': [self.report.id],
             'email_templates': sorted(models.EmailTemplate.objects.filter(event=self.event)
                                       .values_list('id', flat=True)),
-            'contracts': [self.contract.id],
             'registrations': [made.r1.id, made.r2.id],
             'invitations': [made.invited.id, made.pending.id],
             'campers': [made.c1.id, made.c2.id, made.c3.id, self.deleted_camper.id],
@@ -232,7 +233,6 @@ class ExportTests(APITestCase):
             'invoices': [made.i1.id, made.i2.id],
             'payments': sorted(models.Payment.objects.filter(registration__event=self.event)
                                .values_list('id', flat=True)),
-            'contract_agreements': [self.agreement.id],
             'email_messages': [message.id for message in self.messages],
             'email_batches': [self.batch.id],
             'email_unsubscribes': [self.unsubscribed.id],
@@ -264,8 +264,6 @@ class ExportTests(APITestCase):
         self.assertEqual(by_id['promo_codes'][self.promo.id]['excluded_registration_types'],
                          [made.staff.id])
         self.assertEqual(by_id['pricing_overrides'][self.override.id]['camper'], made.c1.id)
-        self.assertEqual(by_id['contract_agreements'][self.agreement.id]['contract'],
-                         self.contract.id)
         self.assertEqual(by_id['email_messages'][self.messages[1].id]['invitation'],
                          made.pending.id)
 
@@ -297,7 +295,14 @@ class ExportTests(APITestCase):
             'invitation code in capitals': made.pending.invitation_code.upper(),
             'registration uuid': str(made.r1.uuid),
             'another registration uuid': str(made.r2.uuid),
+            # The organization's contract and the agreements to it aren't in it.
+            'contract': 'Our terms',
             'draft contract': 'Draft terms',
+            "agreement's address": '192.0.2.1',
+            # Nor anything about a user.
+            "a user's username": '"ada"',
+            "a user's name": 'Ada Admin',
+            "a user's email": 'ada@example.com',
             'redeemed invitation code': made.invited.invitation_code,
             'unsubscribe link': self.unsubscribe_url,
             'unsubscribe link code': self.unsubscribe_url.rsplit('/', 2)[-2],
@@ -314,8 +319,12 @@ class ExportTests(APITestCase):
         self.assertNotIn('invitation_code', data['invitations'][0])
         self.assertNotIn('uuid', data['registrations'][0])
         self.assertNotIn('unsubscribe_url', data['email_messages'][0])
+        self.assertNotIn('created_by', data['pricing_overrides'][0])
+        self.assertNotIn('created_by', data['email_messages'][0])
+        self.assertNotIn('exported_by', data['export'])
         for key in ('email_accounts', 'users', 'api_tokens', 'connected_apps', 'edit_leases',
-                    'registration_drafts', 'sessions'):
+                    'registration_drafts', 'sessions', 'contracts', 'contract_agreements',
+                    'history', 'log_entries'):
             self.assertNotIn(key, data)
 
     def test_the_email_that_carried_a_link_code_says_where_it_was(self):
@@ -354,7 +363,7 @@ class ExportTests(APITestCase):
             f'/api/events/{self.event.id}/export/', HTTP_AUTHORIZATION=f'Bearer {self.token_key}')
         self.assertEqual(response.status_code, 200)
         data = json.loads(b''.join(response.streaming_content))
-        self.assertEqual(data['export']['exported_by']['username'], 'ada')
+        self.assertEqual(data['export']['event']['id'], self.event.id)
 
     def test_one_query_per_kind_of_record(self):
         # The event, its organization, and each section (two for promo codes and
@@ -362,7 +371,7 @@ class ExportTests(APITestCase):
         # to take out of them), not one per record; and the savepoint the
         # export's transaction is, within the test's, and its release.
         with self.assertNumQueries(2 + len(SECTIONS) + 2 + 2):
-            ''.join(event_export.stream(self.event, self.admin, NOW))
+            ''.join(event_export.stream(self.event, NOW))
 
 
 class PermissionTests(APITestCase):
@@ -371,8 +380,8 @@ class PermissionTests(APITestCase):
         cls.event = create_template_event().event
         cls.url = f'/api/events/{cls.event.id}/export/'
 
-    def test_only_an_admin(self):
-        expected = {None: 401, 'no role': 403, roles.REPORTER: 403, roles.REGISTRAR: 403,
+    def test_only_registrars_and_admins(self):
+        expected = {None: 401, 'no role': 403, roles.REPORTER: 403, roles.REGISTRAR: 200,
                     roles.ADMIN: 200}
         for role, status in expected.items():
             with self.subTest(role=role):
@@ -380,7 +389,7 @@ class PermissionTests(APITestCase):
                     None if role == 'no role' else role, f'user-{role}')
                 self.client.force_authenticate(user=user)
                 self.assertEqual(self.client.get(self.url).status_code, status)
-        self.assertEqual(LogEntry.objects.filter(action=LogEntry.Action.ACCESS).count(), 1)
+        self.assertEqual(LogEntry.objects.filter(action=LogEntry.Action.ACCESS).count(), 2)
 
     def test_no_such_event(self):
         self.client.force_authenticate(user=make_user(roles.ADMIN))
@@ -395,8 +404,8 @@ class PermissionTests(APITestCase):
         response = APIClient().get(self.url, HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(response.status_code, 200)
 
-    def test_a_registrars_token_may_not(self):
-        _, key = api_tokens.issue(make_user(roles.REGISTRAR), 'Read', None)
+    def test_a_reporters_token_may_not(self):
+        _, key = api_tokens.issue(make_user(roles.REPORTER), 'Read', None)
         response = APIClient().get(self.url, HTTP_AUTHORIZATION=f'Bearer {key}')
         self.assertEqual(response.status_code, 403)
 
@@ -505,8 +514,7 @@ class RealTransactionTests(TransactionTestCase):
 
     def test_read_from_one_snapshot_which_ends_before_anything_is_sent(self):
         event = create_template_event().event
-        admin = make_user(roles.ADMIN)
-        chunks = event_export.stream(event, admin, timezone.now())
+        chunks = event_export.stream(event, timezone.now())
         with CaptureQueriesContext(connection) as queries:
             first = next(chunks)
         # Set before anything is read (after psycopg's BEGIN).
@@ -525,5 +533,5 @@ class SnapshotTests(APITestCase):
         # (A test runs in a transaction already, which the export uses.)
         event = create_template_event().event
         self.assertTrue(connection.in_atomic_block)
-        chunks = event_export.stream(event, make_user(roles.ADMIN), timezone.now())
+        chunks = event_export.stream(event, timezone.now())
         self.assertTrue(json.loads(''.join(chunks))['registrations'])

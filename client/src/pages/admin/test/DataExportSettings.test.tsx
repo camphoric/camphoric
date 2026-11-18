@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { DataExportSettings, eventDataExportUrl } from '../DataExportSettings';
 
 describe('DataExportSettings', () => {
-  it("lets an Admin download the event's data from the server", () => {
+  it.each(['admin', 'registrar'] as const)("lets a %s download the event's data", (role) => {
     renderWithProviders(
-      <PermissionsProvider userRole="admin">
+      <PermissionsProvider userRole={role}>
         <DataExportSettings eventId={7} />
       </PermissionsProvider>,
     );
@@ -18,14 +18,16 @@ describe('DataExportSettings', () => {
     expect(screen.getByText(/personal and payment details/)).toBeInTheDocument();
   });
 
-  it.each(['registrar', 'reporter'] as const)('offers a %s no download', (role) => {
+  it('offers a Reporter no download', () => {
     renderWithProviders(
-      <PermissionsProvider userRole={role}>
+      <PermissionsProvider userRole="reporter">
         <DataExportSettings eventId={7} />
       </PermissionsProvider>,
     );
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.getByText("Only an Admin can download the event's data.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Only a Registrar or an Admin can download the event's data."),
+    ).toBeInTheDocument();
   });
 
   it('asks for the path with its trailing slash', () => {
