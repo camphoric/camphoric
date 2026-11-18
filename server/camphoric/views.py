@@ -11,7 +11,6 @@ import traceback
 from urllib.parse import quote
 import uuid
 
-from auditlog.models import LogEntry
 from dateutil.relativedelta import relativedelta
 from deepmerge import always_merger
 from django.conf import settings
@@ -762,16 +761,12 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     def export(self, request, pk=None):
         '''
         All of the event's data as one JSON file, for analysis (SPEC §8.8, DR-169;
-        camphoric.event_export), built as it's sent. Its download is recorded
-        in the change history: who, when and the file's name.
+        camphoric.event_export). A read, so like any other it isn't recorded in
+        the change history.
         '''
         event = self.get_object()
         now = timezone.now()
         name = event_export.file_name(event, now)
-        LogEntry.objects.log_create(
-            event, force_log=True, action=LogEntry.Action.ACCESS, actor=request.user,
-            actor_email=request.user.email, changes={'data_export': [None, name]},
-            additional_data={'event': event.id})
         chunks = event_export.stream(event, now)
         if isinstance(request._request, ASGIRequest):
             chunks = event_export.asynchronous(chunks)

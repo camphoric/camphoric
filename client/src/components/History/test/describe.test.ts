@@ -24,20 +24,6 @@ describe('describing entries', () => {
     expect(actionName(created)).toBe('Created');
   });
 
-  it("names a download of an event's data, with no changes to list", () => {
-    const exported = {
-      ...edit,
-      action: 'export' as const,
-      object: { type: 'event', id: 3, label: 'Lark Camp' },
-      changes: { data_export: [null, 'Lark Camp data 2026-11-17.json'] as [null, string] },
-    };
-    expect([objectName(exported), actionName(exported)]).toEqual([
-      'Event “Lark Camp”',
-      'Data downloaded',
-    ]);
-    expect(changeLines(exported)).toEqual([]);
-  });
-
   it('lists only the attributes that changed, by their titles', () => {
     expect(changeLines(edit, { titles: TITLES, lookups: LOOKUPS })).toEqual([
       { field: 'Campership donation', from: '25', to: '50' },
