@@ -28,6 +28,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from json_logic import jsonLogic
 
 from camphoric import models, pricing
@@ -63,6 +64,12 @@ PENDING_CAPTURE_ASK_EVERY = timedelta(minutes=30)
 PENDING_CAPTURE_WATCHED_FOR = timedelta(days=30)
 CAPTURE_PENDING = ('PayPal is still processing a payment on this invoice. Please don\'t pay '
                    'again: it\'s recorded here once PayPal completes it.')
+# PayPal refunds a capture for 180 days after it was made. One is refused here
+# from a day before that, so a refund at the edge (PayPal's clock, time zones)
+# is never sent to fail; after it, money goes back another way and the refund
+# is recorded by hand (SPEC DR-171).
+PAYPAL_REFUND_DAYS = 180
+PAYPAL_REFUND_LAST_DAY = timedelta(days=PAYPAL_REFUND_DAYS - 1)
 # Capture statuses whose money reached the event (it may have been refunded since).
 CAPTURED = ('COMPLETED', 'PARTIALLY_REFUNDED', 'REFUNDED')
 DECLINED = 'PayPal declined this payment. Please try another way to pay.'
@@ -488,6 +495,52 @@ def capture_id_of(payment):
         return payment.paypal_transaction_id
     capture = _capture_of(payment.paypal_response)
     return capture.get('id') if capture else None
+
+
+def paypal_captured_on(payment):
+    '''
+    The day PayPal captured a payment, which its refund window counts from:
+    the capture's own time in PayPal's reply, else the day it was paid (a
+    payment recorded by hand with its capture id), else the day it was recorded.
+    '''
+    capture = _capture_of(payment.paypal_response) or {}
+    captured_at = parse_datetime(capture.get('create_time') or '') \
+        if isinstance(capture.get('create_time'), str) else None
+    if captured_at is not None:
+        return timezone.localdate(captured_at)
+    return payment.paid_on or timezone.localdate(payment.created_at)
+
+
+def paypal_refund_until(payment):
+    '''
+    The last day a PayPal or card payment can be refunded through PayPal
+    (SPEC DR-171), or None for one PayPal can't refund at all (another type,
+    a refund, or no capture to refund).
+    '''
+    if money(payment.amount) <= 0 or payment.payment_type not in ONLINE_TYPES \
+            or not capture_id_of(payment):
+        return None
+    return paypal_captured_on(payment) + PAYPAL_REFUND_LAST_DAY
+
+
+def paypal_refundable(payment, left=None, on=None):
+    '''
+    Whether some of the payment can still go back through PayPal: a PayPal or
+    card payment with a capture, something `left` to refund (worked out when
+    not given), and its refund window not over `on` (today).
+    '''
+    until = paypal_refund_until(payment)
+    if until is None or (on or today()) > until:
+        return False
+    return (refundable(payment) if left is None else left) > 0
+
+
+def _paypal_window_closed(payment):
+    until = paypal_refund_until(payment)
+    return PaymentProblem(
+        'refused', f'PayPal refunds a payment for {PAYPAL_REFUND_DAYS} days; this one could be '
+        f'refunded through PayPal until {until:%b} {until.day}, {until.year}. Give the money '
+        'back another way, then record the refund here.')
 
 
 def _order_payment_type(order):
@@ -1191,6 +1244,9 @@ def _refund(payment, amount, reason, request_id):
                 'refused', f'This refund was already made, for ${money(-retried.amount):.2f}. '
                 'To refund a different amount, start a new refund.')
         return retried
+    if today() > paypal_refund_until(payment):
+        # PayPal would refuse it (SPEC DR-171): said here, before asking.
+        raise _paypal_window_closed(payment)
     if amount <= 0 or amount > refundable(payment):
         raise PaymentProblem(
             'refused', f'You can refund up to ${refundable(payment):.2f} of this payment.')

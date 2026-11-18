@@ -305,8 +305,16 @@ export interface ApiPayment extends TimeStamped {
   paypal_response?: Hash | null;
   /** How much of it has been refunded (read-only, a decimal string). */
   refunded?: string;
-  /** Whether it can be refunded through PayPal (read-only). */
+  /**
+   * Whether some of it can be refunded through PayPal (read-only): a PayPal or card payment
+   * with a capture, something left, and its refund window open (§15, DR-171).
+   */
   paypal_refundable?: boolean;
+  /**
+   * The last day PayPal can refund it (`YYYY-MM-DD`, read-only): 179 days after PayPal captured
+   * it (§15, DR-171). Null for a payment PayPal can't refund at all.
+   */
+  paypal_refund_until?: string | null;
   /** Write-only: put it on a new "Payment received" invoice of its own. */
   new_invoice?: boolean;
 }
@@ -375,13 +383,13 @@ export interface ApiInvoice extends TimeStamped {
   pay_url: string;
 }
 
-/** What one item of an event's "needs attention" list is about (§8.11; §15, DR-168). */
+/** What one item of an event's "needs attention" list is about (§8.11; §15, DR-170). */
 export type PaymentsAttentionKind =
   'refund_due' | 'overpaid_invoice' | 'not_invoiced' | 'past_due' | 'online_unfinished';
 
 /**
  * One thing an event's money needs doing (`GET /api/events/{id}/payments-attention/`;
- * §5, §8.11; §15, DR-168), built on the server from the registration's ledger.
+ * §5, §8.11; §15, DR-170), built on the server from the registration's ledger.
  */
 export interface ApiPaymentsAttentionItem {
   kind: PaymentsAttentionKind;

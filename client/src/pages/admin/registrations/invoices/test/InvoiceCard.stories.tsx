@@ -22,6 +22,8 @@ import {
   PAID_BY_VENMO_PAYMENTS,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
+  PAYPAL_WINDOW_ENDED,
+  PAYPAL_WINDOW_ENDED_PAYMENTS,
   PENDING_PAYPAL,
   PROCESSING_PAYPAL,
   PROCESSING_PAYPAL_LAPSED,
@@ -114,6 +116,17 @@ export const AsAReporter: StoryFn = () => (
       canEdit={false}
       canDelete={false}
       onCopyLink={noop}
+    />
+  </Box>
+);
+
+/** Paid by PayPal over 180 days ago: it says PayPal's refund window has ended (§15, DR-171). */
+export const PayPalRefundWindowEnded: StoryFn = () => (
+  <Box p="md" maw={720}>
+    <InvoiceCard
+      invoice={PAYPAL_WINDOW_ENDED}
+      payments={PAYPAL_WINDOW_ENDED_PAYMENTS}
+      {...actions}
     />
   </Box>
 );

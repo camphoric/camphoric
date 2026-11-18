@@ -99,6 +99,7 @@ export const PAYPAL_REFUNDED_PAYMENTS = [
     amount: '1025.00',
     refunded: '100.00',
     paypal_refundable: true,
+    paypal_refund_until: '2027-03-30',
     paypal_transaction_id: '3C679366HH908993F',
     notes: 'Initial payment',
   }),
@@ -214,3 +215,30 @@ export const LEDGER = {
   handling_charges: 25,
   uninvoiced_balance: 0,
 };
+
+/** Paid by PayPal over 180 days ago: PayPal can no longer refund it (§15, DR-171). */
+export const PAYPAL_WINDOW_ENDED = invoice({
+  id: 12,
+  description: 'Full Payment',
+  amount: '400.00',
+  handling: '10.00',
+  payment_type: 'PayPal',
+  total: '410.00',
+  amount_paid: '460.00',
+  amount_due: '0.00',
+  overpaid: '50.00',
+  status: 'overpaid',
+  payments: [41],
+});
+export const PAYPAL_WINDOW_ENDED_PAYMENTS = [
+  payment({
+    id: 41,
+    invoice: 12,
+    payment_type: 'PayPal',
+    amount: '460.00',
+    paid_on: '2026-03-02',
+    paypal_refundable: false,
+    paypal_refund_until: '2026-08-28',
+    paypal_transaction_id: '8MC585209K746392H',
+  }),
+];

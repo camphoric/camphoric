@@ -1,5 +1,5 @@
 /**
- * Payments (SPEC §8.11; §15, DR-168): the event's money work in one place.
+ * Payments (SPEC §8.11; §15, DR-170): the event's money work in one place.
  * Three views, the open one URL-addressable via `?paymentsTab`:
  *
  * - **Needs attention** (the default): refunds due, overpaid invoices,

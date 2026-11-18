@@ -6,7 +6,8 @@
  * unpaid invoice's pay link (DR-95); the other actions are for those who may
  * take them: Registrars and Admins send it, edit, cancel and reopen it, check a
  * pending PayPal order and refund; only Admins delete (§15, DR-93). A PayPal
- * payment PayPal is still processing shows as such: it isn't a payment until
+ * PayPal or card payment says until when PayPal can refund it, or that its
+ * window has ended (§15, DR-171). A payment PayPal is still processing shows as such: it isn't a payment until
  * PayPal completes it, and the invoice can't be cancelled or deleted meanwhile
  * (DR-133).
  */
@@ -19,6 +20,7 @@ import { formatMoney } from 'utils/money';
 import { paymentTypeLabel } from 'utils/paymentTypes';
 
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
+import { paypalRefundNote } from './paypalRefundWindow';
 
 export const ORIGIN_LABEL: Record<InvoiceOrigin, string> = {
   registration: 'From registration',
@@ -330,6 +332,11 @@ export function InvoiceCard({
                       <Text span size="xs" c="dimmed">
                         {' '}
                         (refunded {formatMoney(p.refunded ?? 0)})
+                      </Text>
+                    )}
+                    {!isRefund(p) && paypalRefundNote(p) && (
+                      <Text size="xs" c="dimmed">
+                        {paypalRefundNote(p)}
                       </Text>
                     )}
                   </Table.Td>

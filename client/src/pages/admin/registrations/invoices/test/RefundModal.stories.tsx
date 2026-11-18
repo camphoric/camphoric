@@ -2,7 +2,8 @@
  * Stories for giving money back (SPEC §8.4, §9.7; §15, DR-94): refunding a
  * PayPal payment through PayPal, recording a check mailed back, and "Refund
  * the difference" on an overpaid invoice, and refunding a payment by a type
- * its event has since dropped (§15, DR-164). Run `npm run storybook`.
+ * its event has since dropped (§15, DR-164), and a PayPal payment past PayPal's
+ * refund window, recorded by hand (§15, DR-171). Run `npm run storybook`.
  */
 
 import type { Meta, StoryFn } from '@storybook/react-vite';
@@ -15,6 +16,8 @@ import {
   PAID_BY_VENMO_PAYMENTS,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
+  PAYPAL_WINDOW_ENDED,
+  PAYPAL_WINDOW_ENDED_PAYMENTS,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
 } from './fixtures';
@@ -67,6 +70,16 @@ export const ByATypeTheEventDropped: StoryFn = () => (
           { value: 'Venmo', label: 'Venmo (@camp)', online: false },
         ],
       }}
+      onClose={noop}
+    />
+  </StoryProviders>
+);
+
+export const PastPayPalsWindow: StoryFn = () => (
+  <StoryProviders>
+    <RefundModal
+      target={{ invoice: PAYPAL_WINDOW_ENDED, amount: 50 }}
+      payments={PAYPAL_WINDOW_ENDED_PAYMENTS}
       onClose={noop}
     />
   </StoryProviders>
