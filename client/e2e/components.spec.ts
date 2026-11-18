@@ -64,6 +64,17 @@ test.describe('Form engine', () => {
     await phone.fill('+44 20 7946 0958');
     await expect.poll(saved).toEqual({ phone: '+442079460958' });
     await expect(country).toHaveAttribute('data-country', 'GB');
+
+    // A French number saved without its +33, filled into a field in the US,
+    // can't be a US one.
+    await page.goto(story('phone-input--empty'));
+    await expect(country).toHaveAttribute('data-country', 'US');
+    await phone.fill('06 12 34 56 78');
+    await expect.poll(saved).toEqual({ phone: '+10612345678' });
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await expect(
+      page.getByText('Please check this phone number, or choose its country from the list').first(),
+    ).toBeVisible();
   });
 
   test("phone reads a national number by its country's rules", async ({ page }) => {

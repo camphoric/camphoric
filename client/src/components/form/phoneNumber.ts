@@ -2,10 +2,13 @@
  * The phone-number rule the forms apply (SPEC §9.1, DR-174): a field the
  * PhoneInput widget answers must hold a number of a possible length for its
  * country, so `+1707` (an area code alone) is rejected and `+17073975275` is
- * taken. The widget reports every answer in E.164 form, whose country code
- * gives the country, so `libphonenumber-js` checks the length from the value
- * alone. It checks the length only, not whether the number is assigned: a
- * `555` number is still a possible one.
+ * taken, and one its country's numbers can be: `+10612345678` (a French
+ * `06 12 34 56 78` autofilled into a US field) is rejected, since no US number
+ * starts with 0. The widget reports every answer in E.164 form, whose country
+ * code gives the country, so `libphonenumber-js` checks it from the value
+ * alone, by Google's metadata: the possible lengths, and the general pattern
+ * of the country's numbers (any country sharing the dial code). Neither asks
+ * whether the number is assigned: a `555` number is still a possible one.
  *
  * Phone fields are found by their widget (`ui:widget: 'PhoneInput'`), since
  * their schema says only `type: 'string'`. The data is walked with rjsf's own
@@ -28,24 +31,82 @@ import {
 } from '@rjsf/utils';
 import type { JSONSchema7Definition } from 'json-schema';
 import { validatePhoneNumberLength } from 'libphonenumber-js';
+import { type CountryCode, Metadata } from 'libphonenumber-js/core';
+import metadata from 'libphonenumber-js/min/metadata';
 
 /** The registry name events give the phone widget (`ui:widget`). */
 export const PHONE_WIDGET = 'PhoneInput';
 
+/** Each dial code's countries, main one first (`1` → `US`, `CA`, …), by Google's metadata. */
+const COUNTRIES_BY_DIAL_CODE = new Map<string, CountryCode[]>(
+  Object.entries(metadata.country_calling_codes),
+);
+
+/** A dial code's main country (`1` → `US`, `44` → `GB`). */
+export function mainCountry(dialCode: string): CountryCode | undefined {
+  return COUNTRIES_BY_DIAL_CODE.get(dialCode)?.[0];
+}
+
+/** The dial code an E.164 value starts with (dial codes are prefix-free). */
+export function dialCodeOf(e164: string): string | undefined {
+  for (let length = 1; length <= 3; length += 1) {
+    const code = e164.slice(1, 1 + length);
+    if (COUNTRIES_BY_DIAL_CODE.has(code)) return code;
+  }
+  return undefined;
+}
+
+const numberingPlans = new Metadata(metadata);
+const patterns = new Map<CountryCode, RegExp | undefined>();
+
+/** The general pattern of a country's national numbers (cached). */
+function nationalPattern(country: CountryCode): RegExp | undefined {
+  if (!patterns.has(country)) {
+    numberingPlans.selectNumberingPlan(country);
+    // A method of the library's numbering plan its typings leave out.
+    const plan = numberingPlans.numberingPlan as
+      | { nationalNumberPattern?: () => string | undefined }
+      | undefined;
+    const source = plan?.nationalNumberPattern?.();
+    patterns.set(country, source ? new RegExp(`^(?:${source})$`) : undefined);
+  }
+  return patterns.get(country);
+}
+
 /**
- * Why a value can't be a phone number: `libphonenumber-js`'s reasons, or
- * `NOT_E164` for one not in the E.164 form the widget saves (`+` and digits),
- * such as an imported `(707) 397-5275`, which the widget shows read in its
- * country but saves in E.164 form only once it's entered again.
+ * Whether an E.164 number has the shape of some country's with its dial code.
+ * A dial code of no country (`+800` freephone, `+870` Inmarsat) has no pattern
+ * here: its length was checked, which refuses a dial code that doesn't exist.
+ */
+function fitsItsCountry(e164: string): boolean {
+  const code = dialCodeOf(e164);
+  if (!code) return true;
+  const national = e164.slice(1 + code.length);
+  return (COUNTRIES_BY_DIAL_CODE.get(code) ?? []).some((country) => {
+    const pattern = nationalPattern(country);
+    return !pattern || pattern.test(national);
+  });
+}
+
+/**
+ * Why a value can't be a phone number: `libphonenumber-js`'s length reasons;
+ * `NOT_IN_COUNTRY` for one of a possible length no number of its country can
+ * be (`+10612345678`: no US number starts with 0); or `NOT_E164` for one not
+ * in the E.164 form the widget saves (`+` and digits), such as an imported
+ * `(707) 397-5275`, which the widget shows read in its country but saves in
+ * E.164 form only once it's entered again.
  */
 export type PhoneNumberProblem =
   | NonNullable<ReturnType<typeof validatePhoneNumberLength>>
+  | 'NOT_IN_COUNTRY'
   | 'NOT_E164';
 
 /** Why `value` can't be a phone number, or undefined when it can. */
 export function phoneNumberProblem(value: string): PhoneNumberProblem | undefined {
   if (!/^\+\d+$/.test(value)) return 'NOT_E164';
-  return validatePhoneNumberLength(value);
+  const length = validatePhoneNumberLength(value);
+  if (length) return length;
+  return fitsItsCountry(value) ? undefined : 'NOT_IN_COUNTRY';
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

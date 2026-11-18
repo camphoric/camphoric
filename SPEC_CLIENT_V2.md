@@ -1692,14 +1692,19 @@ Before any step renders, the app loads the registration config (`GET …/registe
   and non-ASCII characters are refused. The register endpoint checks the same rule, so an
   address the form takes is never refused on submit (§5; §15, DR-166).
 - **Phone numbers:** every field the phone widget answers (`ui:widget: PhoneInput`, §9.1) takes
-  a number of a possible length for its country, by Google's phone metadata: `+17073975275` is
+  a number of a possible length for its country that fits the general pattern of that country's
+  numbers (or of any country sharing its dial code; a dial code of no country, such as `+800`
+  freephone, has only its length checked), by Google's phone metadata: `+17073975275` is
   taken, `+1707` (an area code alone) is refused with "Please enter the whole phone number", one
-  too long or with no such country code with "Please check this phone number", and a saved value
+  too long or with no such country code with "Please check this phone number", one its country's
+  numbers can't be — `+10612345678`, a French `06 12 34 56 78` autofilled into a US field, since
+  no US number starts with 0 — with "Please check this phone number, or choose its country from
+  the list" (`params.reason` `NOT_IN_COUNTRY`), and a saved value
   not in E.164 form (`(707) 397-5275`, from an import) with "Please enter this phone number
   again (it was saved as “(707) 397-5275”)" (`params.reason` `NOT_E164`; `params.value` holds the
   value, since the field can't show one it can't read), as it's saved in E.164 form once entered
-  again. Only the
-  length is checked, not whether the number is in service. The failure is a `format` error with
+  again. Neither check asks whether the number is in service or assigned: a made-up `555` number
+  is taken. The failure is a `format` error with
   `params.format` of `phone` (and `params.reason`, such as `TOO_SHORT`), so the event's own
   `format` message for the field, or its `*` default for `format`, replaces the built-in one. A
   phone field the form isn't showing (an unmet condition, or an object's `oneOf`/`anyOf` option
@@ -7548,7 +7553,7 @@ PayPal's — the point is to set them side by side.
 
 ---
 
-### DR-174 — A phone number must be a possible length for its country
+### DR-174 — A phone number must be a possible one for its country
 
 **Decision:** The forms check every field the phone widget answers (found by `ui:widget:
 PhoneInput`, since its schema is only `type: string`) with `libphonenumber-js`'s
@@ -7558,8 +7563,13 @@ metadata. The check runs in the forms' validator after ajv's, walking the form d
 only the phone fields the form is showing are checked, and reports a failure
 as a `format` error (`params.format: phone`, `params.reason` such as `TOO_SHORT`), so events'
 messages work as for any other error. The admin's message editor offers `format` for a phone
-field. Only the length is checked, not whether the number is in service (`isValidPhoneNumber`),
-so made-up numbers such as `+1 555 555 0101` in sample data stay possible. The register endpoint
+field. A number of a possible length must also fit the general pattern of its country's numbers
+(Google's national number pattern, for any country sharing the dial code; a dial code of no
+country, such as `+800`, has none), which refuses one that
+starts as none of them can: a French `06 12 34 56 78` saved in a browser without its `+33` and
+autofilled into a US field reads as `+10612345678`, ten digits, but no US number starts with 0.
+Neither check asks whether the number is in service (`isValidPhoneNumber`), so made-up numbers
+such as `+1 555 555 0101` in sample data and events' tests stay possible. The register endpoint
 doesn't check it.
 **Context:** #1034: the widget reports every answer in E.164 form, so an event's `pattern`
 (Lark Camp's `^\+[0-9]+$`) can never fail, and a length pattern can't fit every country. An
@@ -7570,7 +7580,9 @@ editing, and the server's `jsonschema` would ignore an unknown format anyway. rj
 `customValidate` — its errors skip the message rules. Checking in the widget — a widget can't
 block submission. Checking on the server too — it would have to read the uiSchema to find phone
 fields and add a phone library; the form refusing more than the server does is safe, since
-the form is what registrants submit through.
+the form is what registrants submit through. `isValidPhoneNumber` — it refuses numbers that
+aren't assigned, such as the `555` numbers sample data and events' own e2e tests use, and a
+number assigned since the client's metadata was built.
 
 ### DR-175 — Phone widget on react-phone-number-input, with Mantine controls
 
