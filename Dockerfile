@@ -59,11 +59,15 @@ COPY --from=frontend /frontend/build ./frontend_bootstrap/build
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/camphoric-entrypoint
 # collectstatic at build time. Settings must import to do so, hence the placeholder
 # values; they are passed inline to this one command and are not persisted in the image.
+# gunicorn's control socket (for `gunicornc`) goes in $HOME/.gunicorn, and backend's home
+# is /app, which backend can't write to: so backend gets that directory, mode 700 as
+# gunicorn would make it.
 RUN SECRET_KEY=build-only DATABASE_URL=sqlite:////tmp/build.sqlite3 \
     PAYPAL_BASE_URL=unused PAYPAL_SECRET=unused \
     python manage.py collectstatic --no-input \
  && mkdir -p /app/backup \
- && chown -R backend:backend /app/backup /app/static
+ && chown -R backend:backend /app/backup /app/static \
+ && install -d -o backend -g backend -m 700 /app/.gunicorn
 # The release version (e.g. 0.12.0), passed by release-image.yml; empty for any other build,
 # which the admin shows as "unknown version". Declared last so a new version only rebuilds
 # this layer.
