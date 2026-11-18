@@ -34,7 +34,6 @@ import {
   isSupportedCountry,
   parsePhoneNumberFromString,
 } from 'libphonenumber-js';
-import metadata from 'libphonenumber-js/min/metadata';
 import {
   type ComponentPropsWithRef,
   type CSSProperties,
@@ -44,6 +43,7 @@ import {
 } from 'react';
 import PhoneNumberInput from 'react-phone-number-input';
 
+import { dialCodeOf, mainCountry } from '../phoneNumber';
 import { PhoneCountryPicker } from './PhoneCountryPicker';
 import { linkToFrame, WidgetFrame } from './WidgetFrame';
 import { widgetCommon } from './widgetProps';
@@ -67,23 +67,6 @@ export function savedNumber(value: unknown, country: Country): string | undefine
   return parsePhoneNumberFromString(value, country)?.number;
 }
 
-/** Each dial code's main country (`1` → `US`, `44` → `GB`), by Google's metadata. */
-const MAIN_COUNTRY = new Map(
-  Object.entries(metadata.country_calling_codes).map(([code, countries]) => [
-    code,
-    countries[0],
-  ]),
-);
-
-/** The dial code an E.164 value starts with (dial codes are prefix-free). */
-function dialCodeOf(e164: string): string | undefined {
-  for (let length = 1; length <= 3; length += 1) {
-    const code = e164.slice(1, 1 + length);
-    if (MAIN_COUNTRY.has(code)) return code;
-  }
-  return undefined;
-}
-
 /**
  * The answer the library's report gives, with what's typed in the field
  * (`typed`): none for a dial code alone. The library reads a number dialled
@@ -94,10 +77,10 @@ function dialCodeOf(e164: string): string | undefined {
  * `+442079460958`, not `+12079460958`). Otherwise the library's reading stands.
  */
 export function phoneAnswer(reported: string | undefined, typed?: string): string | undefined {
-  if (!reported || MAIN_COUNTRY.has(reported.slice(1))) return undefined;
+  if (!reported || mainCountry(reported.slice(1))) return undefined;
   const code = dialCodeOf(reported);
   if (!typed || typed.trim().startsWith('+') || !code) return reported;
-  const dialled = parsePhoneNumberFromString(typed, MAIN_COUNTRY.get(code))?.number;
+  const dialled = parsePhoneNumberFromString(typed, mainCountry(code))?.number;
   // Only another country's number: within the country, Google's parser keeps a
   // trunk 0 the library drops (`0207946` in the UK as `+440207946`), which can
   // make a number cut short look whole.

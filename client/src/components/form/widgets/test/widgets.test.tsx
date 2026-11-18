@@ -137,6 +137,21 @@ describe('custom widgets', () => {
         expect(country()).toBe('GB');
       });
 
+      it("refuses a national number from abroad its country's numbers can't be", async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        renderForm(<JsonSchemaForm schema={schema} uiSchema={phoneUi()} onSubmit={onSubmit} />);
+        // A French number, saved in the browser without its +33.
+        fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '06 12 34 56 78' } });
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(
+          screen.getAllByText(/Please check this phone number, or choose its country from the list/)
+            .length,
+        ).toBeGreaterThan(0);
+      });
+
       it('starts in the US when the uiSchema names no country it knows', () => {
         expect(fill('(202) 555-1234', phoneUi({ defaultCountry: 'Narnia' }))).toBe('+12025551234');
         expect(country()).toBe('US');

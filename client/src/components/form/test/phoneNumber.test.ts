@@ -14,6 +14,11 @@ describe('phoneNumberProblem', () => {
     '+4930123456', // Germany, whose numbers vary in length
     '+49301234',
     '+611234567890', // Australia
+    '+14165550123', // Canada, on the US's dial code
+    '+390612345678', // Italy, whose numbers can start with 0
+    '+441534123456', // Jersey, on the UK's dial code
+    '+80012345678', // international freephone, a dial code of no country
+    '+870773111632', // Inmarsat
   ])('takes %j', (phone) => {
     expect(phoneNumberProblem(phone)).toBeUndefined();
   });
@@ -24,6 +29,10 @@ describe('phoneNumberProblem', () => {
     ['+4420718', 'TOO_SHORT'],
     ['+170739752751', 'TOO_LONG'],
     ['+999123456789', 'INVALID_COUNTRY'], // no such country code
+    // National numbers from abroad, autofilled into a US field: no US number starts with 0
+    ['+10612345678', 'NOT_IN_COUNTRY'], // France's 06 12 34 56 78
+    ['+10301234567', 'NOT_IN_COUNTRY'], // Germany's 030 1234567
+    ['+10412345678', 'NOT_IN_COUNTRY'], // Australia's 0412 345 678
     ['707-397-5275', 'NOT_E164'], // not as the widget saves it
     ['+1 707 397 5275', 'NOT_E164'],
     ['+', 'NOT_E164'],
@@ -113,6 +122,16 @@ describe("the form's phone-number rule", () => {
         message: 'Please enter this phone number again (it was saved as “(707) 397-5275”)',
       }),
     );
+  });
+
+  it("refuses a number its country's numbers can't be, and suggests choosing the country", () => {
+    expect(errors({ phone: '+10612345678' })).toEqual([
+      expect.objectContaining({
+        property: '.phone',
+        params: expect.objectContaining({ reason: 'NOT_IN_COUNTRY' }) as unknown,
+        message: 'Please check this phone number, or choose its country from the list',
+      }),
+    ]);
   });
 
   it("checks each camper's phone, and names the camper", () => {
