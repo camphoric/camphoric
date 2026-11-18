@@ -1,6 +1,6 @@
 /**
  * The event's "needs attention" counts, on its Home (SPEC §8.3, §8.11; §15,
- * DR-170), with the way to the Payments area that lists them.
+ * DR-171), with the way to the Payments area that lists them.
  */
 
 import { Anchor, Group, Text } from '@mantine/core';

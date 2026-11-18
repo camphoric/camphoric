@@ -120,7 +120,7 @@ export const AsAReporter: StoryFn = () => (
   </Box>
 );
 
-/** Paid by PayPal over 180 days ago: it says PayPal's refund window has ended (§15, DR-171). */
+/** Paid by PayPal over 180 days ago: it says PayPal's refund window has ended (§15, DR-172). */
 export const PayPalRefundWindowEnded: StoryFn = () => (
   <Box p="md" maw={720}>
     <InvoiceCard

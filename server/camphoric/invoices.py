@@ -67,7 +67,7 @@ CAPTURE_PENDING = ('PayPal is still processing a payment on this invoice. Please
 # PayPal refunds a capture for 180 days after it was made. A refund through
 # PayPal isn't offered from a day before that, so one at the edge (PayPal's
 # clock, time zones) isn't started to fail; after it, money goes back another
-# way and the refund is recorded by hand (SPEC DR-171). A refund asked for
+# way and the refund is recorded by hand (SPEC DR-172). A refund asked for
 # anyway still goes to PayPal: it may be the retry of one whose answer was lost.
 PAYPAL_REFUND_DAYS = 180
 PAYPAL_REFUND_LAST_DAY = timedelta(days=PAYPAL_REFUND_DAYS - 1)
@@ -515,7 +515,7 @@ def paypal_captured_on(payment):
 def paypal_refund_until(payment):
     '''
     The last day a PayPal or card payment can be refunded through PayPal
-    (SPEC DR-171), or None for one PayPal can't refund at all (another type,
+    (SPEC DR-172), or None for one PayPal can't refund at all (another type,
     a refund, or no capture to refund).
     '''
     if money(payment.amount) <= 0 or payment.payment_type not in ONLINE_TYPES \
@@ -1258,7 +1258,7 @@ def _refund(payment, amount, reason, request_id):
             raise PaymentProblem('unknown', f'{e}. PayPal may have made the refund. '
                                  f'{REFUND_RETRY}', detail=str(e))
         if today() > paypal_refund_until(payment):
-            # Its window has closed (SPEC DR-171). PayPal is still asked: this
+            # Its window has closed (SPEC DR-172). PayPal is still asked: this
             # may be the retry of a refund whose answer was lost, which PayPal
             # answers with the refund it made, so it's recorded, not made twice.
             raise _paypal_window_closed(payment, e)

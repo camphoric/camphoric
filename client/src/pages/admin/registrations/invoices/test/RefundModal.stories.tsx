@@ -3,7 +3,7 @@
  * PayPal payment through PayPal, recording a check mailed back, and "Refund
  * the difference" on an overpaid invoice, and refunding a payment by a type
  * its event has since dropped (§15, DR-164), and a PayPal payment past PayPal's
- * refund window, recorded by hand (§15, DR-171). Run `npm run storybook`.
+ * refund window, recorded by hand (§15, DR-172). Run `npm run storybook`.
  */
 
 import type { Meta, StoryFn } from '@storybook/react-vite';

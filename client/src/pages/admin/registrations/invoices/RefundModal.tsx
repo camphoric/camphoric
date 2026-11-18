@@ -6,7 +6,7 @@
  * while the dialog is open, whatever the amount; §15, DR-122).
  * Anything else — a check mailed back — is recorded here by hand, as is the
  * refund of a PayPal payment past PayPal's refund window, which says so (§15,
- * DR-171). "Refund the difference" on an overpaid invoice opens this pre-filled
+ * DR-172). "Refund the difference" on an overpaid invoice opens this pre-filled
  * with the overpayment.
  */
 

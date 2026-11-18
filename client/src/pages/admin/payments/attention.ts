@@ -1,5 +1,5 @@
 /**
- * The kinds of "needs attention" item (SPEC §8.11; §15, DR-170): how each
+ * The kinds of "needs attention" item (SPEC §8.11; §15, DR-171): how each
  * reads, what to do about it, and the invoice action that does it — opened on
  * the registration's invoices, ready to confirm (§8.4).
  */

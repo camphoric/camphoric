@@ -688,7 +688,7 @@ flowchart LR
   return its first refund) only if its amount still fits in what's left, so retrying such a
   full refund is still refused.
 - A check mailed back is recorded by hand: a negative payment with `refund_of`.
-- **PayPal refunds for 180 days** (DR-171). `invoices.paypal_refund_until` is the last day:
+- **PayPal refunds for 180 days** (DR-172). `invoices.paypal_refund_until` is the last day:
   179 days after the capture (its `create_time` in `paypal_response`, else `paid_on`, else the
   day it was recorded), a day short so an edge case fails safe. `invoices.paypal_refundable`
   is the one rule the serializer (`paypal_refundable`, `paypal_refund_until`) and the Payments
@@ -1053,14 +1053,14 @@ fixed `50`; Sample Camp's would have started at $200, half of Sam's $400 within 
 
 ## 17. Finding the work: the Payments area (#1024)
 
-The event's **Payments** area (SPEC §8.11, DR-170) lists what the money needs doing, so a
+The event's **Payments** area (SPEC §8.11, DR-171) lists what the money needs doing, so a
 registrar doesn't open registrations one by one. The server builds the list —
 `GET /api/events/{id}/payments-attention/`, `payments_attention.py` — from the same ledger the
 registration screen shows (§3), so the two never disagree. Each item comes from one ledger state:
 
 | Item | Ledger state it comes from | What it opens |
 | --- | --- | --- |
-| **Refund due** | the registration's `balance` < 0 | a refund for the whole difference, on an overpaid invoice if there is one; through PayPal from a PayPal or card payment *on that same invoice* (a refund is recorded on its payment's invoice) with something left to refund (`paypal_transaction_id` or a capture in `paypal_response`), made within its refund window (`invoices.paypal_refundable`, DR-171) — the one with the most left; else a refund recorded by hand (`?refundBy=hand`) |
+| **Refund due** | the registration's `balance` < 0 | a refund for the whole difference, on an overpaid invoice if there is one; through PayPal from a PayPal or card payment *on that same invoice* (a refund is recorded on its payment's invoice) with something left to refund (`paypal_transaction_id` or a capture in `paypal_response`), made within its refund window (`invoices.paypal_refundable`, DR-172) — the one with the most left; else a refund recorded by hand (`?refundBy=hand`) |
 | **Overpaid invoice** | an invoice's `overpaid` > 0, on a registration whose balance isn't below 0 | "Refund the difference" on it |
 | **Not invoiced** | `uninvoiced_balance` > 0 | a new invoice for it ("Use the balance") |
 | **Past due** | an invoice not cancelled, `amount_due` > 0, `due_on` before today, on a registration whose `balance` > 0 | sending it |

@@ -1,5 +1,5 @@
 '''
-What an event's money needs doing (SPEC §8.11, §9.7; DR-170): the "needs
+What an event's money needs doing (SPEC §8.11, §9.7; DR-171): the "needs
 attention" list of the Payments area — refunds to give, invoices to make or
 send, and PayPal orders to check. It's built from the same ledger the
 registration screen shows (`invoices.ledgers`) and the same invoice statuses,
@@ -127,7 +127,7 @@ def _paypal_refundable_payment(registration_invoices, today):
     '''
     The payment on these invoices a refund can go back through PayPal from: a
     PayPal or card payment with a capture, something left to refund, and made
-    within PayPal's refund window (`invoices.paypal_refundable`, DR-171). The
+    within PayPal's refund window (`invoices.paypal_refundable`, DR-172). The
     one with the most left (the newest of those), or None.
     '''
     payments = [payment for invoice in registration_invoices for payment in invoice.payments.all()]

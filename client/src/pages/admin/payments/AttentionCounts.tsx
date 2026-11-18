@@ -1,6 +1,6 @@
 /**
  * How many "needs attention" items there are of each kind, at a glance (SPEC
- * §8.11; §15, DR-170): on the Payments area, and on the event's Home. Kinds
+ * §8.11; §15, DR-171): on the Payments area, and on the event's Home. Kinds
  * with none are left out; with nothing at all it says so.
  */
 

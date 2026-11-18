@@ -216,7 +216,7 @@ export const LEDGER = {
   uninvoiced_balance: 0,
 };
 
-/** Paid by PayPal over 180 days ago: PayPal can no longer refund it (§15, DR-171). */
+/** Paid by PayPal over 180 days ago: PayPal can no longer refund it (§15, DR-172). */
 export const PAYPAL_WINDOW_ENDED = invoice({
   id: 12,
   description: 'Full Payment',
