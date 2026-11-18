@@ -311,8 +311,9 @@ simpler and matches the existing convention.
 - **Control socket** — gunicorn's master listens on `/app/.gunicorn/gunicorn.ctl` (its default
   for a user whose home is `/app`; the image makes that directory `backend`'s), so `gunicornc`
   can show or change the running workers from inside the container, e.g.
-  `docker exec <container> gunicornc -c "show workers"`. A worker added this way lasts until
-  the container restarts; set the count for good with `GUNICORN_CMD_ARGS`.
+  `docker exec <container> gunicornc -c "show workers"`. A worker count changed this way lasts
+  until gunicorn reloads (`gunicornc -c reload`, or a `HUP`) or the container restarts; set it
+  for good with `GUNICORN_CMD_ARGS`.
 
 ## Behind a reverse proxy (TLS termination)
 
