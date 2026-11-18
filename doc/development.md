@@ -453,9 +453,10 @@ instead, with `CAMPHORIC_PUBLIC_URL=http://127.0.0.1:13000` in the exports above
 trusts that origin and its links point there), or use another browser profile.
 
 The client's Playwright e2e suite (`npm run e2e` in `client/`) starts servers of its own on the
-host, outside any stack: Storybook on 61000 and the app on 3003. A second run at the same time
-(from another worktree, say) needs other ports, or it fails when it finds them taken (it never
-tests the other run's servers); point its app at the second stack's API too:
+host's 127.0.0.1, outside any stack: Storybook on 61000 and the app on 3003. A second run at the
+same time (from another worktree, say) needs other ports, none of them a stack's, or it fails
+when it finds them taken (it never tests the other run's servers, or a stack's); point its app
+at the second stack's API too:
 
 ```bash
 CAMPHORIC_E2E_STORYBOOK_PORT=61001 CAMPHORIC_E2E_APP_PORT=13003 VITE_API_PROXY=http://localhost:18000/ npm run e2e
