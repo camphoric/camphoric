@@ -2,7 +2,8 @@
  * An invoice action asked for by the URL (SPEC §4, §8.4, §8.11): the Payments
  * area's "needs attention" items open a registration's invoices with the
  * action ready — `?invoiceAction` (`refund`, `new-invoice`, `send` or
- * `check-paypal`), on `?invoiceId`, refunding from `?paymentId`. Once the
+ * `check-paypal`), on `?invoiceId`, refunding from `?paymentId`, or by hand
+ * rather than through PayPal with `?refundBy=hand`. Once the
  * registration's invoices and payments have loaded it's handed over once, and
  * the request leaves the URL (replacing the entry, so going back doesn't ask
  * again). It's dropped, unhandled, for someone who can't change payments.
@@ -21,6 +22,8 @@ export interface InvoiceActionSearch {
   invoiceAction?: InvoiceAction;
   invoiceId?: string;
   paymentId?: string;
+  /** For `refund`: `hand` when it can't go back through PayPal. */
+  refundBy?: 'hand';
 }
 
 export interface RequestedInvoiceAction {
@@ -29,6 +32,8 @@ export interface RequestedInvoiceAction {
   invoice?: ApiInvoice;
   /** For `refund`: the payment to refund from, when one was named. */
   payment?: ApiPayment;
+  /** For `refund`: made another way and recorded, not through PayPal. */
+  byHand: boolean;
 }
 
 const asString = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -51,7 +56,10 @@ export function useRequestedInvoiceAction(
   const invoiceAction = asString(search.invoiceAction);
   const invoiceId = asString(search.invoiceId);
   const paymentId = asString(search.paymentId);
-  const request = invoiceAction ? `${invoiceAction}:${invoiceId}:${paymentId}` : undefined;
+  const refundBy = asString(search.refundBy);
+  const request = invoiceAction
+    ? `${invoiceAction}:${invoiceId}:${paymentId}:${refundBy}`
+    : undefined;
 
   useEffect(() => {
     if (!request) {
@@ -67,6 +75,7 @@ export function useRequestedInvoiceAction(
         invoiceAction: undefined,
         invoiceId: undefined,
         paymentId: undefined,
+        refundBy: undefined,
       }),
       replace: true,
     });
@@ -75,6 +84,7 @@ export function useRequestedInvoiceAction(
       action: invoiceAction,
       invoice: invoices.find((i) => String(i.id) === invoiceId),
       payment: payments.find((p) => String(p.id) === paymentId),
+      byHand: refundBy === 'hand',
     });
     // Handed over once per request; `onRequest` is a fresh closure each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps

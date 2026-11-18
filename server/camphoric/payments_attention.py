@@ -7,14 +7,15 @@ so the two never disagree.
 
 - `refund_due`: the registration's balance is below 0. Listed once, for the
   whole difference, naming the invoice to refund on (an overpaid one first)
-  and whether it can go back through PayPal: a PayPal or card payment with
-  something left to refund, made within PayPal's 180 days.
+  and whether it can go back through PayPal: a PayPal or card payment on that
+  invoice with something left to refund, made within PayPal's 180 days.
 - `overpaid_invoice`: an invoice's payments are more than it asks, on a
   registration that isn't owed a refund overall (one that is lists only the
   refund, so the same money isn't listed twice).
 - `not_invoiced`: money owed that no open invoice asks for yet
   (`uninvoiced_balance`).
-- `past_due`: an open invoice with money due whose due date has passed.
+- `past_due`: an open invoice with money due whose due date has passed, on a
+  registration that still owes.
 - `online_unfinished`: a PayPal order made for an invoice that was never
   confirmed (nothing paid on the invoice yet), or a capture PayPal has been
   processing for longer than the worker asks about it.
@@ -84,10 +85,9 @@ def _registration_items(registration, ledger, registration_invoices, now, today)
     items = []
 
     if ledger.balance < 0:
-        payment = _paypal_refundable_payment(registration_invoices, today)
+        invoice, payment = _refund_source(overpaid, registration_invoices, today)
         items.append(item(
-            REFUND_DUE, -ledger.balance,
-            _refund_invoice(overpaid, payment, registration_invoices),
+            REFUND_DUE, -ledger.balance, invoice,
             payment=payment.id if payment is not None else None,
             paypal_refund=payment is not None))
     else:
@@ -98,8 +98,10 @@ def _registration_items(registration, ledger, registration_invoices, now, today)
 
     for invoice in live:
         held = invoices.capture_unsettled(invoice, now)
-        if invoice.amount_due > 0 and invoice.due_on is not None and invoice.due_on < today \
-                and not held:
+        # Only while the registration still owes: an invoice left asking after
+        # the price fell, or a refund, isn't money anyone owes.
+        if ledger.balance > 0 and invoice.amount_due > 0 and invoice.due_on is not None \
+                and invoice.due_on < today and not held:
             items.append(item(PAST_DUE, invoice.amount_due, invoice, due_on=invoice.due_on))
         if invoices.capture_watch_lapsed(invoice, now):
             items.append(item(ONLINE_UNFINISHED, invoice.amount_due, invoice,
@@ -110,24 +112,29 @@ def _registration_items(registration, ledger, registration_invoices, now, today)
     return items
 
 
-def _refund_invoice(overpaid, payment, registration_invoices):
+def _refund_source(overpaid, registration_invoices, today):
     '''
-    The invoice a registration's refund goes on: an overpaid one, else the
-    PayPal payment's, else the one holding the most money.
+    The invoice a registration's refund goes on, and the PayPal payment on
+    that same invoice it can go back from (a refund is recorded on its
+    payment's invoice): an overpaid invoice first; else the invoice of the
+    payment PayPal can refund the most from; else the one holding the most
+    money, refunded by hand.
     '''
     if overpaid:
-        return overpaid[0]
+        return overpaid[0], _paypal_refundable_payment([overpaid[0]], today)
+    payment = _paypal_refundable_payment(registration_invoices, today)
     if payment is not None:
-        return next(i for i in registration_invoices if i.id == payment.invoice_id)
+        return next(i for i in registration_invoices if i.id == payment.invoice_id), payment
     holding = [invoice for invoice in registration_invoices if invoice.amount_paid > 0]
-    return max(holding, key=lambda invoice: invoice.amount_paid, default=None)
+    return max(holding, key=lambda invoice: invoice.amount_paid, default=None), None
 
 
 def _paypal_refundable_payment(registration_invoices, today):
     '''
-    The registration's payment a refund can go back through PayPal from: a
+    The payment on these invoices a refund can go back through PayPal from: a
     PayPal or card payment with a capture, something left to refund, and made
-    within PayPal's 180 days. The newest such one, or None.
+    within PayPal's 180 days. The one with the most left (the newest of
+    those), or None.
     '''
     payments = [payment for invoice in registration_invoices for payment in invoice.payments.all()]
     refunded = {}
@@ -135,14 +142,19 @@ def _paypal_refundable_payment(registration_invoices, today):
         if payment.refund_of_id is not None:
             refunded[payment.refund_of_id] = \
                 refunded.get(payment.refund_of_id, invoices.ZERO) - invoices.money(payment.amount)
+
+    def left(payment):
+        return invoices.money(payment.amount) - refunded.get(payment.id, invoices.ZERO)
+
     candidates = [
         payment for payment in payments
         if payment.amount > 0 and payment.payment_type in invoices.ONLINE_TYPES
         and invoices.capture_id_of(payment)
-        and invoices.money(payment.amount) - refunded.get(payment.id, invoices.ZERO) > 0
+        and left(payment) > 0
         and today - _paid_on(payment) <= PAYPAL_REFUND_WINDOW
     ]
-    return max(candidates, key=lambda payment: (_paid_on(payment), payment.id), default=None)
+    return max(candidates, key=lambda payment: (left(payment), _paid_on(payment), payment.id),
+               default=None)
 
 
 def _paid_on(payment):

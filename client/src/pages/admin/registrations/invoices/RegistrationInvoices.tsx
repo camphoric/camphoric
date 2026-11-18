@@ -167,7 +167,7 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
   const refundAmount = (invoice: ApiInvoice) =>
     registration.balance < 0 ? -registration.balance : Number(invoice.overpaid);
 
-  const openRequested = ({ action, invoice, payment }: RequestedInvoiceAction) => {
+  const openRequested = ({ action, invoice, payment, byHand }: RequestedInvoiceAction) => {
     if (action === 'new-invoice') {
       setCreating(true);
       return;
@@ -176,7 +176,8 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
       notifications.show({ color: 'yellow', message: 'That invoice isn’t on this registration.' });
       return;
     }
-    if (action === 'refund') setRefunding({ invoice, payment, amount: refundAmount(invoice) });
+    if (action === 'refund')
+      setRefunding({ invoice, payment, amount: refundAmount(invoice), byHand });
     else if (action === 'send') confirmSend(invoice);
     else confirmCheck(invoice);
   };

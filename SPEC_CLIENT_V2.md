@@ -251,15 +251,16 @@ queries derive it from `window.location` rather than props, through the routing 
   (the selected record), and `?regTab` / `?camperTab` — the open section of the record's editor
   (`attributes` by default, `admin`, `fees`, `campers` for a registration, `lodging` for a
   camper, `history`, `raw`). `?invoiceAction` (`refund`, `new-invoice`, `send` or
-  `check-paypal`) on `?invoiceId`, refunding from `?paymentId`, opens that action on the
-  registration's invoices, ready to confirm (§8.4); it leaves the URL once opened.
+  `check-paypal`) on `?invoiceId`, refunding from `?paymentId` (or, with `?refundBy=hand`, a
+  refund made another way and recorded), opens that action on the registration's invoices,
+  ready to confirm (§8.4); it leaves the URL once opened.
 - `/admin/organization/:organizationId/event/:eventId/payments` — Payments (§8.11). Search params:
   `?paymentsTab` — `invoices`, `payments`, or needs attention (the default, left out of the URL);
   the invoices ledger's `?invstatus`, `?invorigin`, `?invtype`, `?invfrom`, `?invto` (status,
   origin, how it's to be paid, due from and to) and table state `?invq`, `?invsort`, `?invpage`;
   the payments ledger's `?paykind` (`payment` or `refund`), `?paytype`, `?payfrom`, `?payto` and
   table state `?payq`, `?paysort`, `?paypage`; and `?registrationId`, `?regTab`,
-  `?invoiceAction`, `?invoiceId`, `?paymentId` for the registration open over it, as on
+  `?invoiceAction`, `?invoiceId`, `?paymentId`, `?refundBy` for the registration open over it, as on
   Registrations.
 - `/admin/organization/:organizationId/event/:eventId/lodging` — `?lodgingView`: `hierarchy`
   (default; the view labelled Layout) or `timeline` (labelled Assignments; §15, DR-74); `?camperId` and `?lodgingId` — the camper and the lodging node
@@ -2018,7 +2019,7 @@ they can:
   (`?invoiceAction` on `?invoiceId`, §4; the Payments area's "needs attention" items, §8.11)
   opens the registration's fees and payments with it ready to confirm: a refund (of the
   registration's refund due, or an invoice's overpayment; through PayPal from `?paymentId` when
-  that payment can be), a new invoice for the balance no invoice asks for yet, sending an
+  that payment can be, and set to record one made another way with `?refundBy=hand`), a new invoice for the balance no invoice asks for yet, sending an
   invoice, or checking its PayPal order. It opens once, and the request leaves the URL; for a
   Reporter, or an invoice no longer on the registration, nothing opens.
 - **Record a payment** (Registrars and Admins) — `payment_type`, one of the event's
@@ -2668,15 +2669,18 @@ only Admins delete), and Reporters read it. Its three views (`?paymentsTab`, §4
   shown at a glance (on Home too, §8.3); each item names the registration (its campers, else
   its email), its email, the amount and what to do:
   - **Refund due** — the registration's balance is below 0: refund the difference, saying
-    whether it can go back through PayPal (a PayPal or card payment with something left to
-    refund, made within PayPal's 180 days) or must be made another way and recorded by hand. It
-    names the invoice the refund goes on (an overpaid one first), and is the only item for that
-    money: the registration's overpaid invoices aren't listed too.
+    whether it can go back through PayPal (a PayPal or card payment on the invoice it goes on,
+    with something left to refund, made within PayPal's 180 days — the one with the most left)
+    or must be made another way and recorded by hand. It names the invoice the refund goes on (an
+    overpaid one first; else that PayPal payment's), and is the only item for that money: the
+    registration's overpaid invoices aren't listed too.
   - **Overpaid invoice** — an invoice's payments are more than it asks, on a registration that
     still owes overall: refund the difference, or edit the invoice.
   - **Not invoiced** — the registration owes more than its open invoices ask
     (`uninvoiced_balance`, a price that went up or a charge added): make an invoice for it.
-  - **Past due** — an open invoice with money due whose due date has passed: send it.
+  - **Past due** — an open invoice with money due whose due date has passed, on a registration
+    that still owes (an invoice left asking after the price fell isn't money anyone owes): send
+    it.
   - **Online payment not finished** — a PayPal order made for an invoice that was never
     confirmed (nothing paid on the invoice), or a payment PayPal has been processing longer than
     the worker asks about it: check the PayPal order.
@@ -7383,13 +7387,15 @@ they stay their own step.
 worked out from the ledger (`invoices.ledgers`) and the invoices' own amounts and statuses, as
 the registration screen shows them (§8.11). Five kinds count: a **refund due** (balance below 0),
 an **overpaid invoice** (on a registration that still owes overall), money **not invoiced**
-(`uninvoiced_balance` above 0), an invoice **past due** (open, money due, due date passed), and
+(`uninvoiced_balance` above 0), an invoice **past due** (open, money due, due date passed, on a
+registration whose balance is above 0), and
 an **online payment not finished** (a PayPal order on an invoice with nothing paid that was never
 confirmed, or a capture PayPal has processed longer than the worker asks). A registration owed a
 refund is listed once, for its whole balance, not again for its overpaid invoices. Nothing PayPal
 may yet record a payment on is past due or unfinished. A refund can go back through PayPal when
-a PayPal or card payment has something left to refund and was made within 180 days, PayPal's
-window. Each item opens the registration's invoices with its action ready (`?invoiceAction`), and
+a PayPal or card payment on the invoice the refund goes on has something left to refund and was
+made within 180 days, PayPal's window: a refund is recorded on its payment's invoice, so the two
+are chosen together. One that can't opens to record a refund made another way. Each item opens the registration's invoices with its action ready (`?invoiceAction`), and
 the list refetches with the registration ledger, so the live change feed keeps it current.
 **Context:** #1024: registrars opened registrations one by one to find refunds to give, invoices
 to make or send, and payments to check; the Registrations list's status column says neither what

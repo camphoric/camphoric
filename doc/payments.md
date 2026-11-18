@@ -1051,10 +1051,10 @@ registration screen shows (§3), so the two never disagree. Each item comes from
 
 | Item | Ledger state it comes from | What it opens |
 | --- | --- | --- |
-| **Refund due** | the registration's `balance` < 0 | a refund for the whole difference, on an overpaid invoice if there is one; through PayPal from the newest PayPal or card payment with something left to refund (`paypal_transaction_id` or a capture in `paypal_response`), made within 180 days; else a refund recorded by hand |
+| **Refund due** | the registration's `balance` < 0 | a refund for the whole difference, on an overpaid invoice if there is one; through PayPal from a PayPal or card payment *on that same invoice* (a refund is recorded on its payment's invoice) with something left to refund (`paypal_transaction_id` or a capture in `paypal_response`), made within 180 days — the one with the most left; else a refund recorded by hand (`?refundBy=hand`) |
 | **Overpaid invoice** | an invoice's `overpaid` > 0, on a registration whose balance isn't below 0 | "Refund the difference" on it |
 | **Not invoiced** | `uninvoiced_balance` > 0 | a new invoice for it ("Use the balance") |
-| **Past due** | an invoice not cancelled, `amount_due` > 0, `due_on` before today | sending it |
+| **Past due** | an invoice not cancelled, `amount_due` > 0, `due_on` before today, on a registration whose `balance` > 0 | sending it |
 | **Online payment not finished** | `pending_paypal_order_id` on an invoice with nothing paid and money due; or `capture_watch_lapsed` (PayPal processing longer than the worker asks, #767) | "Check PayPal order" |
 
 ```mermaid
@@ -1074,7 +1074,7 @@ flowchart LR
   neither past due nor an unfinished order: its payment is on its way.
 - **The action, ready.** An item opens the registration over the Payments page, on its fees and
   payments, with `?invoiceAction` (`refund`, `new-invoice`, `send`, `check-paypal`),
-  `?invoiceId` and `?paymentId`; `useRequestedInvoiceAction` opens the refund, new-invoice,
+  `?invoiceId`, `?paymentId` and `?refundBy`; `useRequestedInvoiceAction` opens the refund, new-invoice,
   send or check dialog once and drops the params. The dialogs are the registration screen's, so
   the rules (§9, §11, §15) are the same. Reporters see the list and open the registration only.
 - **Staying current.** The list's query key is in the `Registration` namespace, which every

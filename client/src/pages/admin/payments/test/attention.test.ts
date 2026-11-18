@@ -16,11 +16,11 @@ describe('needs attention', () => {
   it('opens each kind’s invoice action', () => {
     expect(attentionAction(REFUND_THROUGH_PAYPAL)).toEqual({
       label: 'Refund through PayPal',
-      search: { invoiceAction: 'refund', invoiceId: '2', paymentId: '21' },
+      search: { invoiceAction: 'refund', invoiceId: '2', paymentId: '21', refundBy: undefined },
     });
     expect(attentionAction(REFUND_BY_HAND)).toEqual({
       label: 'Record a refund',
-      search: { invoiceAction: 'refund', invoiceId: '3', paymentId: undefined },
+      search: { invoiceAction: 'refund', invoiceId: '3', paymentId: undefined, refundBy: 'hand' },
     });
     expect(attentionAction(OVERPAID_ITEM).search).toEqual({
       invoiceAction: 'refund',

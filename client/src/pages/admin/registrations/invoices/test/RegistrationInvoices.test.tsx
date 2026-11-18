@@ -195,6 +195,7 @@ describe('RegistrationInvoices', () => {
         invoiceAction: undefined,
         invoiceId: undefined,
         paymentId: undefined,
+        refundBy: undefined,
       });
     });
 

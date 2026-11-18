@@ -38,6 +38,11 @@ export interface RefundTarget {
   payment?: ApiPayment;
   /** What to refund, to start with. */
   amount: number;
+  /**
+   * Opened to record a refund made another way: PayPal can't give it back (a
+   * payment past PayPal's 180 days, say; §8.11). Through PayPal stays a choice.
+   */
+  byHand?: boolean;
 }
 
 export interface RefundModalProps {
@@ -74,9 +79,10 @@ export function RefundModal({ target, payments, event, onClose }: RefundModalPro
   const opening = useHasChanged(target);
   if (opening && target) {
     const fromPayPal =
-      target.payment?.paypal_refundable ?? (!target.payment && paypalPayments.length > 0);
+      !target.byHand &&
+      (target.payment?.paypal_refundable ?? (!target.payment && paypalPayments.length > 0));
     setMode(fromPayPal ? 'paypal' : 'record');
-    const source = target.payment ?? paypalPayments[0];
+    const source = target.payment ?? (target.byHand ? undefined : paypalPayments[0]);
     setPaymentId(source ? String(source.id) : null);
     setAmount(source ? Math.min(target.amount, left(source)) : target.amount);
     setType(target.payment?.payment_type ?? 'Check');

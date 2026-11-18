@@ -381,4 +381,23 @@ describe('RefundModal', () => {
       expect.anything(),
     );
   });
+
+  it('opens to record a refund made another way when PayPal can’t give it back', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: PAYPAL_REFUNDED, amount: 50, byHand: true }}
+        payments={PAYPAL_REFUNDED_PAYMENTS}
+        onClose={vi.fn()}
+      />,
+    );
+    // PayPal is still a choice, but not where it starts, and no payment is chosen.
+    expect(screen.getByRole('radio', { name: 'Record a refund' })).toBeChecked();
+    expect(screen.queryByText(/^Up to/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Record refund' }));
+    const [[body]] = record.mock.calls as [[Record<string, unknown>]];
+    expect(body).toMatchObject({ invoice: 2, amount: -50 });
+    expect(body).not.toHaveProperty('refund_of');
+    expect(refundPayPal).not.toHaveBeenCalled();
+  });
 });
