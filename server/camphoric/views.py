@@ -780,7 +780,7 @@ class EventViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     @action(detail=True, methods=['get'], url_path='payments-attention')
     def payments_attention(self, request, pk=None):
         '''
-        What the event's money needs doing (SPEC §8.11; DR-168): refunds due,
+        What the event's money needs doing (SPEC §8.11; DR-170): refunds due,
         overpaid invoices, balances no invoice asks for, invoices past due and
         PayPal orders to check. Any role reads it.
         '''

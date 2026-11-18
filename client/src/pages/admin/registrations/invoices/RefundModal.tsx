@@ -4,8 +4,10 @@
  * part of what's left of it — and the refund is recorded with PayPal's id; a
  * retried click refunds once (each payment refunded from keeps one request id
  * while the dialog is open, whatever the amount; §15, DR-122).
- * Anything else — a check mailed back — is recorded here by hand. "Refund the
- * difference" on an overpaid invoice opens this pre-filled with the overpayment.
+ * Anything else — a check mailed back — is recorded here by hand, as is the
+ * refund of a PayPal payment past PayPal's refund window, which says so (§15,
+ * DR-171). "Refund the difference" on an overpaid invoice opens this pre-filled
+ * with the overpayment.
  */
 
 import {
@@ -26,9 +28,12 @@ import type { ApiEvent, ApiInvoice, ApiPayment } from 'api-types';
 import { useHasChanged } from 'hooks/useHasChanged';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRecordPayment, useRefundPayPal } from 'store/invoices';
+import { formatDay } from 'utils/dates';
 import { apiErrorMessage } from 'utils/fetch';
 import { formatMoney, roundMoney } from 'utils/money';
 import { paymentTypeOptions } from 'utils/paymentTypes';
+
+import { paypalRefundEnded, paypalRefundNote } from './paypalRefundWindow';
 
 type Mode = 'paypal' | 'record';
 
@@ -135,6 +140,8 @@ export function RefundModal({ target, payments, event, onClose }: RefundModalPro
   };
 
   const canPayPal = target.payment ? !!target.payment.paypal_refundable : paypalPayments.length > 0;
+  // PayPal payments it could have gone back to, had their window not ended.
+  const ended = (target.payment ? [target.payment] : payments).filter(paypalRefundEnded);
 
   return (
     <Modal opened onClose={onClose} title={`Refund — invoice #${target.invoice.id}`}>
@@ -161,9 +168,18 @@ export function RefundModal({ target, payments, event, onClose }: RefundModalPro
             allowDeselect={false}
           />
         )}
+        {!canPayPal && ended.length > 0 && (
+          <Alert color="yellow" variant="light">
+            PayPal refunds a payment for 180 days, so this can’t go back through PayPal: its window
+            ended {formatDay(ended[0].paypal_refund_until ?? '')}. Give the money back another way —
+            a check, say, or a payment from the event’s PayPal account — then record the refund
+            here.
+          </Alert>
+        )}
         {mode === 'paypal' ? (
           <Text size="sm">
             PayPal returns the money to the payer, and the refund is recorded here.
+            {payment && paypalRefundNote(payment) ? ` ${paypalRefundNote(payment)}.` : ''}
           </Text>
         ) : (
           <>

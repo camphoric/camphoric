@@ -15,6 +15,8 @@ import {
   payment,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
+  PAYPAL_WINDOW_ENDED,
+  PAYPAL_WINDOW_ENDED_PAYMENTS,
   PROCESSING_PAYPAL,
   TWO_CHECKS,
   TWO_CHECKS_PAYMENTS,
@@ -399,5 +401,29 @@ describe('RefundModal', () => {
     expect(body).toMatchObject({ invoice: 2, amount: -50 });
     expect(body).not.toHaveProperty('refund_of');
     expect(refundPayPal).not.toHaveBeenCalled();
+  });
+
+  it('says when PayPal can refund it until', () => {
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: PAYPAL_REFUNDED, payment: PAYPAL_REFUNDED_PAYMENTS[0], amount: 925 }}
+        payments={PAYPAL_REFUNDED_PAYMENTS}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/PayPal can refund it until Mar 30, 2027\./)).toBeInTheDocument();
+  });
+
+  it('records the refund of a payment past PayPal’s window, and says why', () => {
+    renderWithProviders(
+      <RefundModal
+        target={{ invoice: PAYPAL_WINDOW_ENDED, amount: 50 }}
+        payments={PAYPAL_WINDOW_ENDED_PAYMENTS}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('radio', { name: 'Refund through PayPal' })).toBeNull();
+    expect(screen.getByText(/its window\s+ended Aug 28, 2026/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Record refund' })).toBeInTheDocument();
   });
 });

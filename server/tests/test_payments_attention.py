@@ -1,5 +1,5 @@
 '''
-The Payments area's "needs attention" list (SPEC §8.11; DR-168): each kind,
+The Payments area's "needs attention" list (SPEC §8.11; DR-170): each kind,
 and the cases that must not appear — a balance of 0, a refund already given,
 an invoice PayPal may yet record a payment on.
 '''
@@ -10,8 +10,7 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from camphoric import models, roles
-from camphoric.payments_attention import PAYPAL_REFUND_WINDOW
+from camphoric import invoices, models, roles
 from tests.factories import create_template_event, make_user
 
 D = Decimal
@@ -82,10 +81,18 @@ class PaymentsAttentionTests(APITestCase):
         [item] = self.of(self.made.r2, 'refund_due')
         self.assertEqual((item['paypal_refund'], item['payment']), (True, payment.id))
 
-    def test_not_through_paypal_after_180_days(self):
+    def test_through_paypal_on_its_windows_last_day(self):
         payment = self.made.i2.payments.order_by('-amount').first()
         payment.paypal_transaction_id = 'CAPTURE-1'
-        payment.paid_on = self.today - PAYPAL_REFUND_WINDOW - timedelta(days=1)
+        payment.paid_on = self.today - invoices.PAYPAL_REFUND_LAST_DAY
+        payment.save()
+        [item] = self.of(self.made.r2, 'refund_due')
+        self.assertEqual((item['paypal_refund'], item['payment']), (True, payment.id))
+
+    def test_not_through_paypal_after_its_window(self):
+        payment = self.made.i2.payments.order_by('-amount').first()
+        payment.paypal_transaction_id = 'CAPTURE-1'
+        payment.paid_on = self.today - invoices.PAYPAL_REFUND_LAST_DAY - timedelta(days=1)
         payment.save()
         [item] = self.of(self.made.r2, 'refund_due')
         self.assertEqual((item['paypal_refund'], item['payment']), (False, None))

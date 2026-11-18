@@ -778,6 +778,8 @@ class PaymentSerializer(ModelSerializer):
     new_invoice = BooleanField(write_only=True, required=False, default=False)
     refunded = SerializerMethodField()
     paypal_refundable = SerializerMethodField()
+    # The last day PayPal can refund it (SPEC DR-171); none for a payment it can't.
+    paypal_refund_until = SerializerMethodField()
 
     class Meta:
         model = models.Payment
@@ -790,9 +792,11 @@ class PaymentSerializer(ModelSerializer):
         return f'{invoices.money(payment.amount) - invoices.refundable(payment):.2f}'
 
     def get_paypal_refundable(self, payment):
-        return (payment.amount > 0 and payment.payment_type in invoices.ONLINE_TYPES
-                and bool(invoices.capture_id_of(payment))
-                and invoices.refundable(payment) > 0)
+        return invoices.paypal_refundable(payment)
+
+    def get_paypal_refund_until(self, payment):
+        until = invoices.paypal_refund_until(payment)
+        return until.isoformat() if until is not None else None
 
     def validate(self, data):
         instance = self.instance

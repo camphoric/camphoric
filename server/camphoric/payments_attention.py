@@ -1,5 +1,5 @@
 '''
-What an event's money needs doing (SPEC §8.11, §9.7; DR-168): the "needs
+What an event's money needs doing (SPEC §8.11, §9.7; DR-170): the "needs
 attention" list of the Payments area — refunds to give, invoices to make or
 send, and PayPal orders to check. It's built from the same ledger the
 registration screen shows (`invoices.ledgers`) and the same invoice statuses,
@@ -24,8 +24,6 @@ An invoice PayPal may yet record a payment on (`capture_unsettled`) is left
 out of `past_due` and of the unconfirmed orders: its payment is on its way.
 '''
 
-from datetime import timedelta
-
 from django.utils import timezone
 
 from camphoric import invoices, models
@@ -36,10 +34,6 @@ NOT_INVOICED = 'not_invoiced'
 PAST_DUE = 'past_due'
 ONLINE_UNFINISHED = 'online_unfinished'
 KINDS = (REFUND_DUE, OVERPAID_INVOICE, NOT_INVOICED, PAST_DUE, ONLINE_UNFINISHED)
-
-# PayPal refunds a capture for 180 days after it was made; after that, money
-# goes back some other way and the refund is recorded by hand.
-PAYPAL_REFUND_WINDOW = timedelta(days=180)
 
 
 def payments_attention(event, now=None):
@@ -133,8 +127,8 @@ def _paypal_refundable_payment(registration_invoices, today):
     '''
     The payment on these invoices a refund can go back through PayPal from: a
     PayPal or card payment with a capture, something left to refund, and made
-    within PayPal's 180 days. The one with the most left (the newest of
-    those), or None.
+    within PayPal's refund window (`invoices.paypal_refundable`, DR-171). The
+    one with the most left (the newest of those), or None.
     '''
     payments = [payment for invoice in registration_invoices for payment in invoice.payments.all()]
     refunded = {}
@@ -148,14 +142,7 @@ def _paypal_refundable_payment(registration_invoices, today):
 
     candidates = [
         payment for payment in payments
-        if payment.amount > 0 and payment.payment_type in invoices.ONLINE_TYPES
-        and invoices.capture_id_of(payment)
-        and left(payment) > 0
-        and today - _paid_on(payment) <= PAYPAL_REFUND_WINDOW
+        if invoices.paypal_refundable(payment, left=left(payment), on=today)
     ]
-    return max(candidates, key=lambda payment: (left(payment), _paid_on(payment), payment.id),
-               default=None)
-
-
-def _paid_on(payment):
-    return payment.paid_on or timezone.localdate(payment.created_at)
+    return max(candidates, key=lambda payment: (
+        left(payment), invoices.paypal_captured_on(payment), payment.id), default=None)

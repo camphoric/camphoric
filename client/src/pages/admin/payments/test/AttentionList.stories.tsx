@@ -1,6 +1,6 @@
 /**
  * Stories for the Payments area's "needs attention" list (SPEC §8.11; §15,
- * DR-168): one item of each kind under its counts, as a Registrar sees it (each
+ * DR-170): one item of each kind under its counts, as a Registrar sees it (each
  * with its action) and as a Reporter does (each opens the registration), and
  * with nothing to do. Run `npm run storybook`.
  */

@@ -12,6 +12,8 @@ import {
   PAID_BY_VENMO_PAYMENTS,
   PAYPAL_REFUNDED,
   PAYPAL_REFUNDED_PAYMENTS,
+  PAYPAL_WINDOW_ENDED,
+  PAYPAL_WINDOW_ENDED_PAYMENTS,
   PENDING_PAYPAL,
   PROCESSING_PAYPAL,
   PROCESSING_PAYPAL_LAPSED,
@@ -203,5 +205,28 @@ describe('InvoiceCard', () => {
     );
     expect(screen.getByText(/no longer asked about it/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check PayPal order' })).toBeInTheDocument();
+  });
+
+  it('says until when PayPal can refund a payment, or that its window ended', () => {
+    const { unmount } = renderWithProviders(
+      <InvoiceCard
+        invoice={PAYPAL_REFUNDED}
+        payments={PAYPAL_REFUNDED_PAYMENTS}
+        canEdit
+        canDelete
+      />,
+    );
+    expect(screen.getByText('PayPal can refund it until Mar 30, 2027')).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(
+      <InvoiceCard
+        invoice={PAYPAL_WINDOW_ENDED}
+        payments={PAYPAL_WINDOW_ENDED_PAYMENTS}
+        canEdit
+        canDelete
+      />,
+    );
+    expect(screen.getByText('PayPal’s refund window ended Aug 28, 2026')).toBeInTheDocument();
   });
 });

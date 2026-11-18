@@ -1,5 +1,5 @@
 /**
- * The event's "needs attention" list (SPEC §5, §8.11; §15, DR-168): refunds
+ * The event's "needs attention" list (SPEC §5, §8.11; §15, DR-170): refunds
  * due, overpaid invoices, balances no invoice asks for, invoices past due and
  * PayPal orders to check — built on the server from each registration's ledger.
  *

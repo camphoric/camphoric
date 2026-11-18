@@ -4,6 +4,7 @@ ledger, where a payment goes, the "Payment received" invoice, payment options,
 who may cancel and delete, and refunds — by hand and through PayPal.
 '''
 
+from datetime import timedelta
 from decimal import Decimal
 import threading
 from unittest import mock
@@ -479,6 +480,44 @@ class RefundThroughPayPalTests(PayPalTestCase):
                          f'/v2/payments/captures/{paypal_mocks.CAPTURE_ID}/refund')
         self.assertEqual(request['json']['amount'], {'value': '30.00', 'currency_code': 'USD'})
         self.assertTrue(request['headers']['PayPal-Request-Id'].startswith('refund-'))
+
+    def test_refused_past_paypals_window_without_asking_paypal(self):
+        self.paid.paid_on = invoices.today() - invoices.PAYPAL_REFUND_LAST_DAY - timedelta(days=1)
+        self.paid.save()
+        data = self.refund('30.00', status=409)
+        self.assertIn('PayPal refunds a payment for 180 days', data['detail'])
+        self.assertIn('record the refund here', data['detail'])
+        self.assertEqual(self.paypal.requests, [])
+
+    def test_refunded_on_the_windows_last_day(self):
+        self.paid.paid_on = invoices.today() - invoices.PAYPAL_REFUND_LAST_DAY
+        self.paid.save()
+        self.reply(paypal_mocks.refund(value='30.00'), status=201)
+        self.refund('30.00')
+
+    def test_the_window_counts_from_paypals_capture(self):
+        # Recorded today, but PayPal captured it 200 days ago.
+        captured_on = invoices.today() - timedelta(days=200)
+        order = paypal_mocks.captured(self.made.r1, self.invoice, D('102.50'))
+        order['purchase_units'][0]['payments']['captures'][0]['create_time'] = \
+            f'{captured_on.isoformat()}T18:00:00Z'
+        self.paid.paypal_response = order
+        self.paid.paid_on = invoices.today()
+        self.paid.save()
+        data = self.client.get(f'/api/payments/{self.paid.id}/').data
+        self.assertFalse(data['paypal_refundable'])
+        self.assertEqual(data['paypal_refund_until'],
+                         (invoices.paypal_captured_on(self.paid)
+                          + invoices.PAYPAL_REFUND_LAST_DAY).isoformat())
+        self.assertLess(data['paypal_refund_until'], invoices.today().isoformat())
+
+    def test_the_serializer_says_until_when(self):
+        data = self.client.get(f'/api/payments/{self.paid.id}/').data
+        self.assertTrue(data['paypal_refundable'])
+        self.assertEqual(data['paypal_refund_until'],
+                         (invoices.today() + invoices.PAYPAL_REFUND_LAST_DAY).isoformat())
+        check = models.Payment.objects.filter(payment_type='Check').first()
+        self.assertIsNone(self.client.get(f'/api/payments/{check.id}/').data['paypal_refund_until'])
 
     def test_a_retried_request_records_one_refund(self):
         request_id = uuid.uuid4().hex

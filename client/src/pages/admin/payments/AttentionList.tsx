@@ -1,5 +1,5 @@
 /**
- * The event's "needs attention" list (SPEC §8.11; §15, DR-168): how many of
+ * The event's "needs attention" list (SPEC §8.11; §15, DR-170): how many of
  * each kind, then each item under its kind — who it's about, the amount, what
  * to do — with the button that opens the registration's invoices with that
  * action ready. Someone who can't change payments (a Reporter) opens the
