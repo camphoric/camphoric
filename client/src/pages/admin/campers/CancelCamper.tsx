@@ -2,25 +2,38 @@
  * Deleting (cancelling) a camper, with the offer to keep a cancellation fee
  * (SPEC §8.5; §15, DR-170). The confirmation shows the server's delete preview
  * (§5, DR-54) and, when the delete can go ahead, offers to keep a fee: an
- * amount and a note. Confirming cancels the camper through
- * `POST /api/campers/{id}/cancel/`, which deletes them and keeps the fee as a
- * charge of the registration's own, so it stays when they go; the registrar
- * then refunds what's left over from the registration's Fees & payments.
+ * amount and a note. When the event has a cancellation fee — JsonLogic the
+ * server works out for the camper, as of today
+ * (`GET /api/campers/{id}/cancellation-fee/`) — it starts ticked, with that
+ * amount, which the registrar may change or untick. Confirming cancels the
+ * camper through `POST /api/campers/{id}/cancel/`, which deletes them and keeps
+ * the fee as a charge of the registration's own, so it stays when they go; the
+ * registrar then refunds what's left over from the registration's Fees &
+ * payments.
  *
  * Restoring a camper offers to remove the fee kept for them
  * (`useOfferToRemoveCancellationFees`).
  */
 
-import { Checkbox, NumberInput, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Checkbox, NumberInput, Stack, Text, TextInput } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import type { ApiCustomCharge, ApiDeletePreview, Scalar } from 'api-types';
 import { ConfirmDeleteView } from 'components/ConfirmDelete';
+import { InlineLoading } from 'components/Loading';
 import { useState } from 'react';
-import { type CancellationFee, useDeletePreview } from 'store/deletes';
+import { type CancellationFee, useCancellationFeeOffer, useDeletePreview } from 'store/deletes';
 import { customChargeHooks } from 'store/entities';
-import { apiFetch } from 'utils/fetch';
+import { apiErrorMessage, apiFetch } from 'utils/fetch';
 import { formatMoney } from 'utils/money';
+
+/** The event's fee for the camper, to start with (§15, DR-170). */
+export interface FeeOffer {
+  /** Null when the event has none, or it couldn't be worked out. */
+  amount: number | null;
+  /** Why it couldn't be worked out. */
+  error?: string;
+}
 
 interface CancelCamperOptions {
   camperId: Scalar;
@@ -50,9 +63,20 @@ function CancelCamper({
   onClose,
 }: CancelCamperOptions & { onClose: () => void }) {
   const preview = useDeletePreview('campers', camperId);
+  const offer = useCancellationFeeOffer(camperId);
+  // The view starts from the offer, so it waits for it.
+  if (offer.isPending) return <InlineLoading message="Working out the cancellation fee…" />;
   return (
     <CancelCamperView
       name={name}
+      offer={
+        offer.data
+          ? {
+              amount: offer.data.amount === null ? null : Number(offer.data.amount),
+              error: offer.data.error,
+            }
+          : { amount: null, error: apiErrorMessage(offer.error) }
+      }
       preview={preview.data}
       error={preview.error}
       onCancel={onClose}
@@ -73,6 +97,8 @@ export function cancelledMessage(name: string, fee: CancellationFee | null): str
 
 export interface CancelCamperViewProps {
   name: string;
+  /** The event's fee for them, to start with (§15, DR-170). */
+  offer?: FeeOffer;
   /** Undefined while it's being worked out. */
   preview?: ApiDeletePreview;
   error?: unknown;
@@ -83,13 +109,16 @@ export interface CancelCamperViewProps {
 
 export function CancelCamperView({
   name,
+  offer,
   preview,
   error,
   onConfirm,
   onCancel,
 }: CancelCamperViewProps) {
-  const [keepFee, setKeepFee] = useState(false);
-  const [amount, setAmount] = useState<number | string>('');
+  // An event fee that comes to nothing isn't offered ticked.
+  const offered = offer?.amount != null && offer.amount > 0 ? offer.amount : null;
+  const [keepFee, setKeepFee] = useState(offered !== null);
+  const [amount, setAmount] = useState<number | string>(offered ?? '');
   const [notes, setNotes] = useState(`Cancellation: ${name}`);
 
   const fee = Number(amount);
@@ -105,6 +134,11 @@ export function CancelCamperView({
       onConfirm={() => onConfirm(keepFee ? { amount: fee, notes: notes.trim() } : null)}
     >
       <Stack gap="xs">
+        {offer?.error && (
+          <Alert color="orange" variant="light" title="The event’s cancellation fee">
+            {offer.error}
+          </Alert>
+        )}
         <Checkbox
           label="Keep a cancellation fee"
           description="It stays on the registration after the camper goes. Refund the rest from the registration’s Fees & payments."
@@ -121,6 +155,11 @@ export function CancelCamperView({
               allowNegative={false}
               value={amount}
               onChange={setAmount}
+              description={
+                offered !== null
+                  ? `The event’s cancellation fee for ${name} today is ${formatMoney(offered)}.`
+                  : undefined
+              }
               error={amount !== '' && !feeComplete ? 'Enter an amount above $0.' : undefined}
               data-autofocus
             />

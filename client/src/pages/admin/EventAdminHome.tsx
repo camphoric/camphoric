@@ -5,7 +5,8 @@
  * The confirmation email is the event's email template (§15 DR-45), edited in
  * Jinja with a preview for any completed registration, and saved with the rest;
  * so is the invoice email registrars send with an invoice's pay link (§9.7,
- * DR-95), previewed for any of the event's invoices.
+ * DR-95), previewed for any of the event's invoices. Its cancellation fee — none,
+ * an amount, or a percent of a camper's total — is set here too (DR-170).
  * Save stays in view as the page scrolls, and says when anything is unsaved;
  * leaving with anything changed and unsaved asks first. Saving sends what
  * changed, from the version it was changed from, so a change someone else saved
@@ -42,9 +43,11 @@ import { CanEdit, ReadOnlyFieldset, ViewOnly } from 'hooks/permissions';
 import { useEditableRecord } from 'hooks/useEditableRecord';
 import { useTemplateDraft } from 'hooks/useTemplateDraft';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { eventHooks, invoiceHooks, registrationHooks } from 'store/entities';
 import { keepClockTimeInZone } from 'utils/dates';
+
+import { CancellationFeeInput } from './CancellationFeeInput';
 
 /** What Home edits and saves; leaving with any of them changed asks first. */
 const EDITABLE = [
@@ -60,6 +63,7 @@ const EDITABLE = [
   'paypal_enabled',
   'paypal_client_id',
   'epayment_handling',
+  'cancellation_fee',
   'pricing',
   'registration_template_vars',
 ] as const satisfies readonly (keyof ApiEvent)[];
@@ -105,6 +109,8 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
     [invoices],
   );
   const update = eventHooks.useUpdate({ handlesVersionConflict: true });
+  // The cancellation fee's text isn't a fee the server takes: Save waits (§8.3).
+  const [feeError, setFeeError] = useState<string | null>(null);
   const confirmation = useTemplateDraft(event.confirmation_template);
   const invoiceEmail = useTemplateDraft(event.invoice_template);
   const {
@@ -299,6 +305,11 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
                   onChange={(value) => set('epayment_handling', Number(value) || 0)}
                 />
               </Group>
+              <CancellationFeeInput
+                value={form.cancellation_fee}
+                onChange={(value) => set('cancellation_fee', value)}
+                onErrorChange={setFeeError}
+              />
 
               <Divider label="Pricing" />
               <KeyValueEdit
@@ -318,7 +329,11 @@ function EventHomeEditor({ event }: { event: ApiEvent }) {
 
           <CanEdit>
             <FormActions dirty={dirty} justify="flex-start">
-              <Button onClick={() => void save()} loading={update.isPending || confirmation.saving}>
+              <Button
+                onClick={() => void save()}
+                loading={update.isPending || confirmation.saving}
+                disabled={feeError !== null}
+              >
                 Save
               </Button>
             </FormActions>

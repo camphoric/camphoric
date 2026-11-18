@@ -10,15 +10,16 @@ import { useState } from 'react';
 import type { CancellationFee } from 'store/deletes';
 import { formatMoney } from 'utils/money';
 
-import { CancelCamperView } from '../CancelCamper';
+import { CancelCamperView, type FeeOffer } from '../CancelCamper';
 import { CAMPER } from './previews';
 
-function Frame({ preview }: { preview?: ApiDeletePreview }) {
+function Frame({ preview, offer }: { preview?: ApiDeletePreview; offer?: FeeOffer }) {
   const [confirmed, setConfirmed] = useState<CancellationFee | null | undefined>(undefined);
   return (
     <Paper withBorder p="md" m="md" maw={480}>
       <CancelCamperView
         name="Sam Alpha"
+        offer={offer}
         preview={preview}
         onConfirm={setConfirmed}
         onCancel={() => setConfirmed(undefined)}
@@ -38,3 +39,5 @@ export default { title: 'Cancel Camper' } satisfies Meta;
 
 export const OffersAFee: StoryFn = () => <Frame preview={CAMPER} />;
 export const Checking: StoryFn = () => <Frame />;
+/** The event's fee comes to $40 for this camper today. */
+export const WithTheEventsFee: StoryFn = () => <Frame preview={CAMPER} offer={{ amount: 40 }} />;

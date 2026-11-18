@@ -11,6 +11,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ApiCancellationFeeOffer,
   ApiCustomCharge,
   ApiDeletedCamper,
   ApiDeletedPayment,
@@ -100,6 +101,18 @@ export function useHistory(path: HistoryPath, id: Scalar) {
   return useQuery({
     queryKey: ['History', path, id],
     queryFn: ({ signal }) => apiFetch<ApiHistoryEntry[]>(`/api/${path}/${id}/history/`, { signal }),
+  });
+}
+
+/** The event's cancellation fee for a camper, today (§8.5; §15, DR-170). Always fresh. */
+export function useCancellationFeeOffer(camperId: Scalar) {
+  return useQuery({
+    queryKey: ['CancellationFee', camperId],
+    queryFn: ({ signal }) =>
+      apiFetch<ApiCancellationFeeOffer>(`/api/campers/${camperId}/cancellation-fee/`, { signal }),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
   });
 }
 

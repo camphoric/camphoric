@@ -64,6 +64,44 @@ describe('CancelCamperView', () => {
   });
 });
 
+describe('CancelCamperView with the event’s fee', () => {
+  const render = (offer: { amount: number | null; error?: string }) => {
+    const onConfirm = vi.fn();
+    renderWithProviders(
+      <CancelCamperView
+        name="Sam Alpha"
+        offer={offer}
+        preview={CAMPER}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />,
+    );
+    return { onConfirm, user: userEvent.setup() };
+  };
+
+  it('starts ticked, with what the event’s fee comes to', async () => {
+    const { onConfirm, user } = render({ amount: 40 });
+    expect(screen.getByRole('checkbox', { name: /Keep a cancellation fee/ })).toBeChecked();
+    expect(screen.getByRole('textbox', { name: 'Fee' })).toHaveValue('$40');
+    expect(
+      screen.getByText('The event’s cancellation fee for Sam Alpha today is $40.00.'),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(onConfirm).toHaveBeenCalledWith({ amount: 40, notes: 'Cancellation: Sam Alpha' });
+  });
+
+  it('starts unticked when it comes to nothing', () => {
+    render({ amount: 0 });
+    expect(screen.getByRole('checkbox', { name: /Keep a cancellation fee/ })).not.toBeChecked();
+  });
+
+  it('says when it couldn’t be worked out, and starts unticked', () => {
+    render({ amount: null, error: 'The event’s cancellation fee couldn’t be worked out: x' });
+    expect(screen.getByText(/couldn’t be worked out: x/)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Keep a cancellation fee/ })).not.toBeChecked();
+  });
+});
+
 describe('feesSummary', () => {
   it('lists each fee with its note', () => {
     const fees = [
