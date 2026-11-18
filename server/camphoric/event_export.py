@@ -11,23 +11,25 @@ script can count them or leave them out), and every relation is the related
 record's id, so the arrays can be joined back together.
 
 What's left out (`EXCLUDED`, and every `EncryptedTextField`) are secrets: the
-link codes that let whoever holds them pay an invoice, register with an
-invitation or unsubscribe an address, and the event's PayPal client id. They're
-also taken out of the email messages that carried them (`redact`). Records that
-aren't the event's — email accounts, users, drafts, edit leases, API tokens,
-connected apps — aren't in it at all; only the organization's contract versions
-and the agreements to them are, as the terms everyone reaching the event agreed
-to.
+codes that let whoever holds them pay an invoice, register with an invitation,
+finish a registration's payment step or unsubscribe an address, and the event's
+PayPal client id. They're also taken out of the email messages that carried
+them (`redact`). Records that aren't the event's — email accounts, users,
+drafts, edit leases, API tokens, connected apps — aren't in it at all; only the
+organization's published contract versions and the agreements to them are, as
+the terms everyone reaching the event agreed to.
 
 It isn't the event import format, and isn't meant to be imported back.
 
-It's built as it's sent (`stream`), a record at a time, in one REPEATABLE READ
-transaction, so a large event isn't held in memory and every array is from the
-same moment.
+It's written a record at a time from one REPEATABLE READ transaction, so every
+array is from the same moment, to a temporary file (in memory while it's
+small), and then sent from that file (`stream`): a large event isn't held in
+memory, and a client reading slowly never holds the transaction open.
 '''
 
 import json
 import re
+import tempfile
 from contextlib import contextmanager
 
 from asgiref.sync import sync_to_async
@@ -50,6 +52,9 @@ EXCLUDED = {
     models.Invoice: {'token'},
     # Anyone with it can register as the invitation's type.
     models.Invitation: {'invitation_code'},
+    # Anyone with it can take the registration's payment step, which shows its
+    # invoice's pay link (`registrationUUID`, camphoric.views.RegisterView).
+    models.Registration: {'uuid'},
     # Anyone with it can unsubscribe the address (DR-48).
     models.EmailMessage: {'unsubscribe_url'},
 }
@@ -64,19 +69,33 @@ LINK_CODES = (
     re.compile(r'([?&;]code=)[^&\s"\'<>)\]]+'),
     re.compile(r'(/api/unsubscribe/)[^/\s"\'<>)\]]+'),
 )
+# A uuid anywhere: a registration's, which a template may print (`registration.uuid`).
+UUID = re.compile(r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b', re.I)
+# A word that may be an invitation code, which a template may print on its own
+# (`invitation.code`): redacted when it's one of the event's.
+WORD = re.compile(r'\b[A-Za-z0-9]{8}\b')
 
 
-def redact(text):
-    '''`text` (an email's subject or body) without the link codes it carries.'''
+def redact(text, invitation_codes=frozenset()):
+    '''
+    `text` (an email's subject or body) without the codes it carries: in links,
+    any uuid, and any of `invitation_codes` (lowercase) standing on its own.
+    '''
     for pattern in LINK_CODES:
         text = pattern.sub(lambda match: match.group(1) + REDACTED, text)
-    return text
+    text = UUID.sub(REDACTED, text)
+    return WORD.sub(
+        lambda match: REDACTED if match.group().lower() in invitation_codes else match.group(),
+        text)
 
 
 def _email_messages(event):
+    invitation_codes = frozenset(
+        code.lower() for code in models.Invitation.objects
+        .filter(registration_type__event=event).values_list('invitation_code', flat=True))
     for message in models.EmailMessage.objects.filter(event=event).order_by('id').iterator():
         for field in ('subject', 'text', 'html'):
-            setattr(message, field, redact(getattr(message, field)))
+            setattr(message, field, redact(getattr(message, field), invitation_codes))
         yield message
 
 
@@ -90,8 +109,9 @@ SECTIONS = (
     ('lodgings', lambda event: models.Lodging.objects.filter(event=event)),
     ('reports', lambda event: models.Report.objects.filter(event=event)),
     ('email_templates', lambda event: models.EmailTemplate.objects.filter(event=event)),
+    # Published versions only: a draft is still being written.
     ('contracts', lambda event: models.Contract.objects.filter(
-        organization_id=event.organization_id)),
+        organization_id=event.organization_id, published_at__isnull=False)),
     # People and money
     ('registrations', lambda event: models.Registration.all_objects.filter(event=event)),
     ('invitations', lambda event: models.Invitation.objects.filter(
@@ -138,15 +158,23 @@ def _records(records):
     return records
 
 
+# The longest file name common systems allow, in UTF-8 bytes.
+MAX_FILE_NAME_BYTES = 255
+
+
 def file_name(event, at):
     '''
     `<event name> data <YYYY-MM-DD>.json`, the date in the event's time zone,
     with characters common systems don't allow in file names replaced (as a
-    downloaded report's are, SPEC §8.7).
+    downloaded report's are, SPEC §8.7), and the event's name cut short to keep
+    the whole within MAX_FILE_NAME_BYTES.
     '''
+    suffix = f' data {timezone.localtime(at, event.zone):%Y-%m-%d}.json'
     name = re.sub(r'[/\\:*?"<>|\x00-\x1f\x7f-\x9f]', '-', event.name)
-    name = re.sub(r'\s+', ' ', name).strip() or f'event {event.id}'
-    return f'{name} data {timezone.localtime(at, event.zone):%Y-%m-%d}.json'
+    name = re.sub(r'\s+', ' ', name).strip()
+    room = MAX_FILE_NAME_BYTES - len(suffix.encode())
+    name = name.encode()[:room].decode(errors='ignore').rstrip()
+    return f'{name or f"event {event.id}"}{suffix}'
 
 
 def _person(user):
@@ -174,32 +202,51 @@ def _snapshot():
         yield
 
 
+def _document(event, user, at):
+    '''The document, as chunks of text, read from the database as it goes.'''
+    event = models.Event.objects.get(pk=event.pk)
+    organization = event.organization
+    header = {
+        'export': {
+            'format': FORMAT,
+            'format_version': FORMAT_VERSION,
+            'camphoric_version': settings.CAMPHORIC_VERSION or None,
+            'exported_at': at,
+            'exported_by': _person(user),
+            'event': {'id': event.id, 'name': event.name},
+        },
+        'organization': {'id': organization.id, 'name': organization.name},
+        'event': record(event),
+    }
+    yield _json(header)[:-1]
+    for key, records_of in SECTIONS:
+        yield f',\n{_json(key)}: ['
+        separator = '\n'
+        for instance in _records(records_of(event)):
+            yield separator + _json(record(instance))
+            separator = ',\n'
+        yield '\n]'
+    yield '\n}\n'
+
+
+# The most of the document kept in memory; more goes to a temporary file.
+IN_MEMORY = 1024 * 1024
+CHUNK = 64 * 1024
+
+
 def stream(event, user, at):
-    '''The document, as chunks of text, built from the database as it goes.'''
-    with _snapshot():
-        event = models.Event.objects.get(pk=event.pk)
-        organization = event.organization
-        header = {
-            'export': {
-                'format': FORMAT,
-                'format_version': FORMAT_VERSION,
-                'camphoric_version': settings.CAMPHORIC_VERSION or None,
-                'exported_at': at,
-                'exported_by': _person(user),
-                'event': {'id': event.id, 'name': event.name},
-            },
-            'organization': {'id': organization.id, 'name': organization.name},
-            'event': record(event),
-        }
-        yield _json(header)[:-1]
-        for key, records_of in SECTIONS:
-            yield f',\n{_json(key)}: ['
-            separator = '\n'
-            for instance in _records(records_of(event)):
-                yield separator + _json(record(instance))
-                separator = ',\n'
-            yield '\n]'
-        yield '\n}\n'
+    '''
+    The document, as chunks of text: written whole from one snapshot of the
+    database (the transaction ends before the first chunk is sent), then read
+    back a chunk at a time.
+    '''
+    with tempfile.SpooledTemporaryFile(max_size=IN_MEMORY, mode='w+', encoding='utf-8') as file:
+        with _snapshot():
+            for part in _document(event, user, at):
+                file.write(part)
+        file.seek(0)
+        while chunk := file.read(CHUNK):
+            yield chunk
 
 
 def _next_batch(chunks, size=64 * 1024):
@@ -218,7 +265,7 @@ async def asynchronous(chunks):
     `chunks` (from `stream`) as an async iterator, for the ASGI server, which
     would otherwise read a sync one whole before sending any of it. Each batch
     is made in the request's own thread (thread-sensitive), where its database
-    connection and transaction are; stopping early closes `chunks` there too.
+    connection is; stopping early closes `chunks` there too.
     '''
     chunks = iter(chunks)
     try:
