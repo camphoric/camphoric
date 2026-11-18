@@ -2,7 +2,7 @@ from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 import numbers
 import math
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timezone as datetime_timezone
 from django.utils import timezone
 from json_logic import jsonLogic
 from camphoric import models
@@ -356,6 +356,94 @@ def calculate_price(registration, campers):
     if overridden:
         results['overridden'] = overridden
     return dict(results)
+
+
+def cancellation_fee(camper, at=None):
+    '''
+    The fee the event offers to keep when `camper` is cancelled, at `at` (now,
+    by default): its `cancellation_fee` JsonLogic worked out for them, to the
+    cent, never below 0 (SPEC §8.5, DR-170). None when the event has none.
+    Raises ValueError when the logic can't be worked out.
+
+    The logic sees `event`, `pricing`, `date` (the day of the cancellation, in
+    UTC as pricing's `date` is), `days_before_start` (from that day to the
+    event's start; null without one), `registration` (its answers and
+    `registration_type`), `camper` (its answers, dates as {year, month, day},
+    and `admin_attributes`), the camper's price lines (`tuition`, `total` …),
+    `paypal_fees` (what PayPal kept as its fees on the registration's
+    payments: see `paypal_fees`) and `first_cancellation` (true until a
+    cancellation fee has been kept on the registration, so a fee for the
+    whole registration, such as PayPal's, can be added once).
+    '''
+    event = camper.registration.event
+    logic = event.cancellation_fee
+    if logic is None:
+        return None
+    at = at or timezone.now()
+    try:
+        value = jsonLogic(logic, _cancellation_data(event, camper, at))
+        if not _is_amount(value) or (isinstance(value, float) and not math.isfinite(value)):
+            return Decimal('0.00')
+        amount = value if isinstance(value, Decimal) else Decimal(repr(value))
+        return max(Decimal('0.00'), amount.quantize(CENT, ROUND_HALF_UP))
+    except Exception as error:  # the logic and schema are an organizer's: any failure is theirs
+        raise ValueError(f'The event\'s cancellation fee couldn\'t be worked out: {error}')
+
+
+def _cancellation_data(event, camper, at):
+    '''What the event's cancellation-fee logic sees, for `cancellation_fee`.'''
+    registration = camper.registration
+    camper_data = dict(camper.attributes or {})
+    for prop in get_date_props(event.camper_schema):
+        if isinstance(camper_data.get(prop), str):
+            try:
+                camper_data[prop] = datestring_to_dict(camper_data[prop])
+            except ValueError:
+                pass
+    camper_data['admin_attributes'] = dict(camper.admin_attributes or {})
+    lines = {var: value for var, value in (camper.server_pricing_results or {}).items()
+             if var != 'overridden'}
+    today = at.astimezone(datetime_timezone.utc).date()
+    kept = models.CustomCharge.objects.filter(
+        registration=registration, camper__isnull=True,
+        custom_charge_type__name=models.CustomChargeType.CANCELLATION_FEE)
+    return {
+        **lines,
+        'event': get_event_attributes(event, at),
+        'pricing': event.pricing,
+        'date': datetime_to_dict(at),
+        'days_before_start': (event.start - today).days if event.start else None,
+        'registration': {
+            **(registration.attributes or {}),
+            'registration_type': registration.registration_type.name
+            if registration.registration_type else None,
+        },
+        'camper': camper_data,
+        'paypal_fees': _as_number(paypal_fees(registration)),
+        'first_cancellation': not kept.exists(),
+    }
+
+
+def paypal_fees(registration):
+    '''
+    What PayPal kept as its fees on the registration's live PayPal and card
+    payments: each capture's `seller_receivable_breakdown.paypal_fee`, as
+    PayPal reported it when it was captured. PayPal doesn't give its fee back
+    on a refund, so refunds don't reduce it. A payment PayPal reported no fee
+    for (or recorded by hand) adds nothing.
+    '''
+    from camphoric.invoices import _capture_of  # invoices imports pricing's callers
+
+    total = Decimal('0.00')
+    for payment in models.Payment.objects.filter(
+            registration=registration, amount__gt=0, paypal_response__isnull=False):
+        try:
+            capture = _capture_of(payment.paypal_response) or {}
+            fee = ((capture.get('seller_receivable_breakdown') or {}).get('paypal_fee') or {})
+            total += Decimal(str(fee.get('value') or '0'))
+        except (AttributeError, TypeError, ArithmeticError, ValueError):
+            continue
+    return total.quantize(CENT)
 
 
 def datetime_to_dict(d):

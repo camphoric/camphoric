@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.fields import empty
 from decimal import Decimal
+import math
 import zoneinfo
 
 from rest_framework.serializers import (
@@ -187,6 +188,24 @@ class EventSerializer(ModelSerializer):
             seen.add(value.lower())
             cleaned.append({'value': value, 'label': label})
         return cleaned
+
+    def validate_cancellation_fee(self, logic):
+        '''
+        The cancellation fee offered when a camper is cancelled (DR-170):
+        JsonLogic — an object, or a plain number — or null for none. What it
+        works out to is checked when it's worked out, for a camper.
+        '''
+        if logic is None:
+            return None
+        if isinstance(logic, bool) or not isinstance(logic, (dict, int, float)):
+            raise ValidationError('JsonLogic (an object, or a number), or null for none.')
+        if isinstance(logic, (int, float)) and not math.isfinite(logic):
+            raise ValidationError('A number, if it\'s one.')
+        # One operator: a merge of two edits could otherwise leave two, and only
+        # one would be worked out.
+        if isinstance(logic, dict) and len(logic) != 1:
+            raise ValidationError('JsonLogic has one operator at the top, e.g. {"*": […]}.')
+        return logic
 
     def validate_camper_schema(self, schema):
         return validate_schema(schema, getattr(self.instance, 'camper_schema', None))

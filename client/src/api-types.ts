@@ -109,6 +109,21 @@ export interface ApiEvent extends TimeStamped {
   payment_type_choices: ApiPaymentTypeChoice[];
   paypal_client_id: string;
   epayment_handling: number;
+  /**
+   * JsonLogic for the fee offered when a camper is cancelled (§8.5; §15,
+   * DR-170): an object or a number; null for none.
+   */
+  cancellation_fee: unknown;
+}
+
+/**
+ * What the event's cancellation fee comes to for a camper, today:
+ * `GET /api/campers/{id}/cancellation-fee/` (§8.5; §15, DR-170). `amount` is
+ * null when the event has none, or (with `error`) when it can't be worked out.
+ */
+export interface ApiCancellationFeeOffer {
+  amount: string | null;
+  error?: string;
 }
 
 export interface ApiRegistration extends TimeStamped {

@@ -24,7 +24,9 @@ fixed.
   that invoice is paid online. It is *not* part of the price.
 - **Cancellation fee** — money the camp keeps when a camper is cancelled (deleted): a custom
   charge of the registration's own (on no camper), of the event's `cancellation_fee` charge type,
-  so it stays when the camper goes. It *is* part of the price (SPEC DR-170).
+  so it stays when the camper goes. It *is* part of the price (SPEC DR-170). The event's
+  `cancellation_fee` setting — JsonLogic worked out for the camper, like a promo code's discount
+  — is what's offered, to start with.
 - **Ledger** — a registration's `total_owed`, `total_paid` and `balance`, worked out from its
   price, invoices and payments.
 - **Pending PayPal order** — an order the server created for an invoice that hasn't been captured
@@ -786,10 +788,11 @@ flowchart LR
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
-  `refund-paypal`), `CamperViewSet.cancel` (deleting a camper and keeping a cancellation fee), and
+  `refund-paypal`), `CamperViewSet.cancel` (deleting a camper and keeping a cancellation fee) and
+  `cancellation_fee` (what the event's fee comes to for a camper), and
   `InvoicePayView`, the public pay page's API.
 - `pricing.py` — the price, and `_apply_registration_charges`, the registration's own charges
-  added to it.
+  added to it; `cancellation_fee`, the event's fee worked out for a camper.
 - `serializers.py` — `InvoiceSerializer`, `PaymentSerializer` (`validate_type`: the payment
   type against its event), `EventSerializer` (`payment_types`, `payment_type_choices`), the
   registration's ledger fields.
@@ -804,7 +807,8 @@ flowchart LR
   `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`; `0086` — the
   invoice's `paypal_capture_pending_at` and `paypal_order_fee`; `0097` — the event's
   `payment_types`, and payment types no longer restricted to the built-in choices; `0098`,
-  `0099` — a custom charge's `registration` (its camper optional) and `cancelled_camper`.
+  `0099` — a custom charge's `registration` (its camper optional) and `cancelled_camper`;
+  `0100` — the event's `cancellation_fee`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
@@ -820,7 +824,8 @@ flowchart LR
 - `pages/admin/campers/CancelCamper.tsx` — deleting a camper with the offer to keep a
   cancellation fee, and the offer to remove it on restoring them; `CustomCharges.tsx` — a
   camper's charges, or the registration's own (on its Fees & payments); `store/deletes.ts`
-  `useCancelCamper`.
+  `useCancelCamper` and `useCancellationFeeOffer`; `pages/admin/CancellationFeeInput.tsx` —
+  setting the event's fee on its Home.
 
 ## 15. Invoicing later, and the public pay page (#670, #623)
 
@@ -952,7 +957,11 @@ sequenceDiagram
     actor A as Registrar
     participant B as Browser
     participant S as Server
-    A->>B: Delete camper (Sam), tick "Keep a cancellation fee": $50
+    A->>B: Delete camper (Sam): "Keep a cancellation fee" starts ticked with the event's fee
+    B->>S: GET /api/campers/{id}/cancellation-fee/
+    S->>S: the event's cancellation_fee JsonLogic for Sam, as of today<br/>e.g. {"*": [{"var": "total"}, 0.1]} → 10% of $400
+    S-->>B: {amount: "40.00"}
+    A->>B: keep it, or change it: $50
     B->>S: GET /api/campers/{id}/delete-preview/
     S-->>B: what goes with them (their own charges), restorable
     A->>B: Delete
@@ -971,8 +980,42 @@ spec). An event's pricing logic needs no change for a fee to count; it can read 
 `registration.custom_charges` (as camper logic reads `camper.custom_charges`), but mustn't add
 them to its own total too. A registration without any prices as it always did, with no such line.
 
+**The event's fee.** An event's `cancellation_fee` is null (none) or JsonLogic, as a promo code's
+discount is. `pricing.cancellation_fee(camper)` works it out for the camper as of today, to the
+cent, never below $0: it sees the camper's price lines (`total`, `tuition` …), `camper`,
+`registration`, `event`, `pricing`, `date`, `days_before_start`, `paypal_fees` and
+`first_cancellation`.
+
+- `paypal_fees` (`pricing.paypal_fees`) is what PayPal kept as its own fees on the registration's
+  live PayPal and card payments: each capture's `seller_receivable_breakdown.paypal_fee`, from the
+  `paypal_response` stored with the payment. PayPal doesn't return its fee on a refund, so a camp
+  may pass it on. It isn't the handling fee: that's on the invoice, and refunding the difference
+  already keeps it (the invoice's amount comes down, its handling doesn't).
+- `first_cancellation` is true until a cancellation fee has been kept on the registration, so a
+  fee for the whole registration is added once even when its campers are cancelled one by one.
+  Lark Camp's policy, $150 a camper plus PayPal's fees, is
+  `{"+": [150, {"if": [{"var": "first_cancellation"}, {"var": "paypal_fees"}, 0]}]}`.
+ So `50` is a fixed $50,
+`{"*": [{"var": "total"}, 0.1]}` is 10% of the camper's total, and Sample Camp's is 10%, or 50%
+within 30 days of camp:
+
+```json
+{"if": [
+  {">=": [{"var": "days_before_start"}, 30]}, {"*": [{"var": "total"}, 0.1]},
+  {"*": [{"var": "total"}, 0.5]}
+]}
+```
+
+Registrars set it on the event's Home, by Payments, in a JSON editor with those as examples, and
+the event import spec carries it. Deleting a camper asks `GET /api/campers/{id}/cancellation-fee/`
+and starts with "Keep a cancellation fee" ticked and that amount filled in; the registrar may
+change it or untick it. One that comes to $0 starts unticked; one whose logic fails starts
+unticked, showing why. The server records whatever amount the cancel sends: the setting only
+fills in the dialog, so a fee can still be waived or adjusted for one camper.
+
 A worked example: two campers at $400 each and a $25 donation, $825, paid in full by check on its
-$825 invoice. Sam cancels two weeks before camp, and the camp keeps $50.
+$825 invoice. Sam cancels two weeks before camp, and the camp keeps $50 (the event's fee is a
+fixed `50`; Sample Camp's would have started at $200, half of Sam's $400 within 30 days).
 
 | Step | Price | total_paid | balance | Invoice |
 |---|---|---|---|---|

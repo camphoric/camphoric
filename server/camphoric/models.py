@@ -344,6 +344,12 @@ class Event(TimeStampedModel):
     payment_types = CustomJSONField(
         default=list, blank=True,
         help_text='The event\'s own offline payment types: [{"value": …, "label": …}]')
+    # The fee a registrar is offered to keep when a camper is cancelled (SPEC
+    # §8.5, DR-170): JsonLogic worked out for the camper (pricing.cancellation_fee);
+    # null for none.
+    cancellation_fee = CustomJSONField(
+        null=True, blank=True, default=None,
+        help_text='JsonLogic for the fee offered when a camper is cancelled (null: none)')
     epayment_handling = models.DecimalField(
             null=True,
             max_digits=4,

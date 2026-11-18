@@ -4,6 +4,7 @@ DR-170): a registration's own charges are added to its total, and cancelling a
 camper can keep a fee that stays when they go.
 '''
 
+import datetime
 from decimal import Decimal
 
 from rest_framework.test import APITestCase
@@ -297,3 +298,159 @@ class TemplateTests(CancellationTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['report'].strip(),
                          'cancellation_fee 50.00 Sam True pat@example.com')
+
+
+TIERED = {'if': [
+    {'>=': [{'var': 'days_before_start'}, 30]}, {'*': [{'var': 'total'}, 0.1]},
+    {'*': [{'var': 'total'}, 0.5]},
+]}
+
+
+class EventSettingTests(CancellationTestCase):
+    '''The event's cancellation fee: JsonLogic, or none (DR-170).'''
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.admin = make_user(roles.ADMIN, 'boss')
+
+    def patch(self, fee, status=200):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f'/api/events/{self.made.event.id}/', {'cancellation_fee': fee}, format='json')
+        self.assertEqual(response.status_code, status, response.data)
+        return response.data
+
+    def test_none_by_default(self):
+        response = self.client.get(f'/api/events/{self.made.event.id}/')
+        self.assertIsNone(response.data['cancellation_fee'])
+
+    def test_jsonlogic_or_a_number(self):
+        for fee in (TIERED, {'*': [{'var': 'total'}, 0.1]}, 50, 12.5):
+            self.assertEqual(self.patch(fee)['cancellation_fee'], fee)
+        self.assertIsNone(self.patch(None)['cancellation_fee'])
+
+    def test_what_isnt_jsonlogic_is_refused(self):
+        for fee in ('ten', True, [1, 2], {}, {'*': [1, 2], 'min': [1, 2]}):
+            self.assertIn('cancellation_fee', self.patch(fee, status=400), fee)
+        self.assertIsNone(models.Event.objects.get(pk=self.made.event.pk).cancellation_fee)
+
+
+class WorkingOutTheFeeTests(CancellationTestCase):
+    '''What the event's logic offers for a camper (DR-170).'''
+
+    def set_fee(self, logic):
+        event = models.Event.objects.get(pk=self.made.event.pk)
+        event.cancellation_fee = logic
+        event.save()
+
+    def fee(self, camper=None, at=None):
+        camper = models.Camper.objects.get(pk=(camper or self.made.c2).pk)
+        return pricing.cancellation_fee(camper, at)
+
+    def at(self, day):
+        return datetime.datetime(2026, *day, 12, tzinfo=datetime.timezone.utc)
+
+    def test_none_without_logic(self):
+        self.assertIsNone(self.fee())
+
+    def test_a_percent_of_the_campers_total(self):
+        self.set_fee({'*': [{'var': 'total'}, 0.1]})
+        self.assertEqual(self.fee(), D('40.00'))
+
+    def test_tiers_by_how_long_before_camp(self):
+        # Camp starts 2026-12-30.
+        self.set_fee(TIERED)
+        self.assertEqual(self.fee(at=self.at((11, 30))), D('40.00'))   # 30 days before
+        self.assertEqual(self.fee(at=self.at((12, 1))), D('200.00'))   # 29 days before
+
+    def test_it_sees_the_camper_and_the_registration(self):
+        self.set_fee({'if': [
+            {'and': [{'==': [{'var': 'camper.first_name'}, 'Sam']},
+                     {'==': [{'var': 'registration.comments'}, 'Hi']}]}, 25, 5]})
+        self.assertEqual(self.fee(), D('25.00'))
+        self.assertEqual(self.fee(self.made.c1), D('5.00'))
+
+    def test_to_the_cent_and_never_below_nothing(self):
+        self.set_fee({'*': [{'var': 'total'}, 0.0333]})
+        self.assertEqual(self.fee(), D('13.32'))
+        self.set_fee(-5)
+        self.assertEqual(self.fee(), D('0.00'))
+        self.set_fee({'var': 'no_such_line'})
+        self.assertEqual(self.fee(), D('0.00'))
+
+    def test_the_api_offers_it(self):
+        self.set_fee({'*': [{'var': 'total'}, 0.1]})
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertEqual(response.data, {'amount': '40.00'})
+
+    def test_the_api_says_when_theres_none(self):
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertEqual(response.data, {'amount': None})
+
+    def test_the_api_says_when_it_cant_be_worked_out(self):
+        self.set_fee({'no_such_operation': [1]})
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertIsNone(response.data['amount'])
+        self.assertIn('couldn\'t be worked out', response.data['error'])
+
+    def test_a_decimal_result_is_worked_out(self):
+        event = models.Event.objects.get(pk=self.made.event.pk)
+        event.epayment_handling = D('2.5')
+        event.save()
+        self.set_fee({'var': 'event.epayment_handling'})
+        self.assertEqual(self.fee(), D('2.50'))
+
+    def test_what_cant_be_money_says_so_rather_than_failing(self):
+        self.set_fee(1e30)
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['amount'])
+        self.assertIn('couldn\'t be worked out', response.data['error'])
+
+    def test_a_camper_schema_without_properties_says_so_rather_than_failing(self):
+        event = models.Event.objects.get(pk=self.made.event.pk)
+        event.camper_schema = {'type': 'object'}
+        event.cancellation_fee = 5
+        event.save()
+        with self.assertRaises(ValueError):
+            self.fee()
+
+    def paid_by_paypal(self, fee, amount='725.00'):
+        order = {'purchase_units': [{'payments': {'captures': [{
+            'id': f'CAP{amount}', 'status': 'COMPLETED',
+            'amount': {'currency_code': 'USD', 'value': amount},
+            'seller_receivable_breakdown': {
+                'gross_amount': {'currency_code': 'USD', 'value': amount},
+                'paypal_fee': {'currency_code': 'USD', 'value': fee},
+            },
+        }]}}]}
+        return models.Payment.objects.create(
+            registration=self.made.r1, invoice=self.made.i1, amount=D(amount),
+            payment_type='PayPal', paypal_response=order, paypal_transaction_id=f'CAP{amount}')
+
+    def test_paypals_fees_on_the_registration(self):
+        self.paid_by_paypal('24.25')
+        self.paid_by_paypal('1.10', amount='10.00')
+        self.set_fee({'var': 'paypal_fees'})
+        self.assertEqual(self.fee(), D('25.35'))
+
+    def test_no_paypal_fees_without_paypal_payments(self):
+        self.set_fee({'var': 'paypal_fees'})
+        self.assertEqual(self.fee(), D('0.00'))
+
+    def test_a_flat_fee_and_paypals_fees_once_per_registration(self):
+        # Lark Camp's policy: $150 for each camper, and PayPal's fees once.
+        self.paid_by_paypal('24.25')
+        self.set_fee({'+': [150, {'if': [
+            {'var': 'first_cancellation'}, {'var': 'paypal_fees'}, 0]}]})
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertEqual(response.data, {'amount': '174.25'})
+        self.cancel(self.made.c2, {'amount': response.data['amount']})
+        response = self.client.get(f'/api/campers/{self.made.c1.id}/cancellation-fee/')
+        self.assertEqual(response.data, {'amount': '150.00'})
+
+    def test_a_reporter_isnt_offered_one(self):
+        self.client.force_authenticate(self.reporter)
+        response = self.client.get(f'/api/campers/{self.made.c2.id}/cancellation-fee/')
+        self.assertEqual(response.status_code, 403)

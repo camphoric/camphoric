@@ -505,6 +505,21 @@ Non-CRUD admin endpoints:
 - `GET /api/customcharges/?camper=` — a camper's custom charges; `?registration=` — a
   registration's, its campers' and its own (`camper: null`); `?cancelled_camper=` — the
   cancellation fees kept for a camper (§15, DR-170).
+- **A camper's cancellation fee** (Registrars and Admins; §8.5; §15, DR-170): `GET
+  /api/campers/{id}/cancellation-fee/` → `{ amount }`: the event's `cancellation_fee` JsonLogic
+  worked out for the camper as of today, to the cent (a half cent up), a result below 0 or that
+  isn't a number being 0; `amount` is null when the event has none, and `{ amount: null, error }`
+  when the logic can't be worked out. The logic sees `event`, `pricing`, `date` (today),
+  `days_before_start` (from today to the event's `start`; null without one), `registration` (its
+  answers and `registration_type`), `camper` (its answers, date answers as `{ year, month, day }`,
+  and `admin_attributes`), the camper's price lines from its `server_pricing_results`
+  (`tuition`, `total` …), `paypal_fees` (what PayPal kept as its fees on the registration's live
+  PayPal and card payments, from each capture's `seller_receivable_breakdown.paypal_fee`; a
+  refund doesn't reduce it, since PayPal keeps its fee) and `first_cancellation` (true until a
+  cancellation fee has been kept on the registration, so a fee for the whole registration, such
+  as PayPal's, can be added once). `date` and `days_before_start` go by today in UTC, as
+  pricing's `date` does (§9.2). It's only what the offer starts with: the cancel records the amount
+  it's sent.
 - **Cancel a camper** (Registrars and Admins; §8.5; §15, DR-170): `POST
   /api/campers/{id}/cancel/` `{ cancellation_fee: { amount, notes } | null }` deletes the camper
   as `DELETE` does (soft, restorable; the same delete preview applies, and `If-Match` as for a
@@ -1061,9 +1076,12 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `payment_types` (the
   event's own offline payment types, a list of `{ value, label }`; §9.7, §15, DR-164) and
   read-only `payment_type_choices` (every type a payment can be recorded as, each
-  `{ value, label, online }`; §9.7); `organization`. The event import object
-  (`data/packages/event-import-spec`) carries `payment_types` beside `paypal_enabled`, and the
-  importer sends it to the events API with the rest of the event. The events
+  `{ value, label, online }`; §9.7); `cancellation_fee` (the fee offered when a camper is
+  cancelled: JsonLogic — an object with one operator, or a plain number — or null for none;
+  anything else is a 400;
+  §8.5, §15, DR-170); `organization`. The event import object
+  (`data/packages/event-import-spec`) carries `payment_types` beside `paypal_enabled`, and
+  `cancellation_fee`, and the importer sends them to the events API with the rest of the event. The events
   API lists them by `registration_start`, newest first with `null` first, then by name ignoring
   case (then by `id`), so every consumer sees one order (§8.1; §15, DR-156).
 - **Registration:** `id`, `attributes` (registrant form data), `admin_attributes`,
@@ -1868,6 +1886,12 @@ the event:
   the invoice's memo, description, amount due and due date, and a link to its pay page.
 - PayPal: `paypal_enabled`, `paypal_client_id`, `epayment_handling` (the percent added to each
   payment made online, on the amount paid; §9.7).
+- The cancellation fee (§15, DR-170): none, or JsonLogic for it, in a JSON editor with
+  ready-made examples to start from (a fixed $50; 10% of the camper's total; 10%, or 50% within
+  30 days of the event; $150, and PayPal's fees on the first camper cancelled). Save waits while
+  the text isn't JsonLogic the server takes (an object with one operator, or a number), and a
+  fee changed from elsewhere replaces the text (§9.8). What it comes to is what deleting a camper offers to keep, to start
+  with (§8.5).
 - `pricing` (a freely editable set of named integer values) and `registration_template_vars`
   (named string values).
 
@@ -2051,7 +2075,12 @@ days in their stay shows that leaf, though the lodging screen lists them as unas
   camper can be deleted after confirming (the preview lists its charges, and it can be restored;
   §15, DR-54, DR-55). Deleting a camper is how one is cancelled, and it offers to **keep a
   cancellation fee**: an amount (more than 0) and a note, starting as "Cancellation: <the
-  camper's name>". The fee is kept as a charge of the registration's own, so it stays when the
+  camper's name>". When the event has a cancellation fee (§8.3), the server works it out for
+  the camper as of today (`GET /api/campers/{id}/cancellation-fee/`, §5) and the offer starts
+  taken, with that amount, saying what it is; the registrar may change the amount or not keep a
+  fee. One that comes to $0 starts not taken, and one that can't be worked out starts not taken,
+  showing why. The fee
+  is kept as a charge of the registration's own, so it stays when the
   camper goes; the camper's deletion and the fee are one request (`POST
   /api/campers/{id}/cancel/`, §5), both or neither. The registration is repriced, and the
   registrar then refunds what was paid beyond the new total (lowering the invoice and refunding
@@ -3432,10 +3461,6 @@ that is out of scope for this pass.
 - **Receipts for payments made later.** A registrant gets one confirmation email; a payment a
   registrar records, or one found by "Check PayPal order", sends nothing. Decide whether
   payments (and refunds) after the confirmation should email a receipt.
-- **A default cancellation fee per event** (§15, DR-170). A registrar types the fee each time a
-  camper is cancelled. An event setting could suggest one — a flat amount, a percentage of the
-  camper's fees, or tiers by how long before the event — if organizers want a policy applied
-  the same way each time; it would be event configuration (and in the event import spec).
 - **The parties to an organization's contract** (§15, DR-145). A waiver needs a legal entity on
   each side. With a contract per organization that's probably the organization, but the people
   who run Camphoric may need covering too. The wording itself should come from a lawyer before a
@@ -7149,8 +7174,15 @@ registration itself (`camper` null). Cancelling a camper is deleting them, as be
 restorable, out of every roster, count and report), and offers to keep a fee: `POST
 /api/campers/{id}/cancel/` deletes them and adds the fee as a charge of the registration's own, of
 the event's `cancellation_fee` charge type (made the first time one is kept), naming them as its
-`cancelled_camper` — in one transaction (§5, §8.5). The fee is typed each time; there's no
-default. The server adds a registration's own charges to its total after the promo code, as a
+`cancelled_camper` — in one transaction (§5, §8.5). The event's `cancellation_fee` is JsonLogic, as
+a promo code's discount is (DR-67): the server works it out for the camper as of the day
+they're cancelled, seeing their price lines, `days_before_start`, the PayPal fees on the registration and whether
+it's the registration's first cancellation, so a fixed amount, a percent of their total, tiers
+by how long before the event, or a flat fee plus PayPal's fees once (Lark Camp's policy) are all
+one setting. The handling fee a registrant paid on an invoice isn't part of it: refunding the
+difference already keeps it. What it
+comes to is what the offer starts with, and the registrar may change it each time; the server
+records the amount it's sent. The server adds a registration's own charges to its total after the promo code, as a
 `registration_charges` line, with the total floored at 0; pricing logic sees them as
 `registration.custom_charges` but needn't mention them (§9.2). The registrar then refunds the
 difference as for any lowered price (§8.4, §9.7), leaving a balance of 0. Restoring the camper
@@ -7168,8 +7200,13 @@ would go out of sight with them. Have each event's pricing logic add the registr
 — an event whose logic doesn't would silently drop the fee, so every existing event would need
 editing before a fee could count. Apply the promo code to them too — a discount would shrink the
 fee the camp chose to keep. Two requests (add the fee, then delete) — one could succeed without
-the other. A per-event default fee (flat, a percentage, tiers by date) — left for when organizers
-ask (§13.A); the registrar types the fee each time. A one-step "cancel registration" (refund and
+the other. A fixed amount or a percent of the camper's total, as a setting of its own — every
+other rule (tiers by date, a different fee for staff) would need another kind of setting, where
+JsonLogic already says them all. Working the fee out on the client — the logic would need the
+same evaluation on both sides (DR-14) for a number the server can work out once. Charging the
+event's fee whatever the registrar sends — they couldn't waive or adjust it for one camper.
+Typing the fee each time with no event setting — camps with a policy (10%, say) want it applied
+the same way every time. A one-step "cancel registration" (refund and
 fee together) — refunds through PayPal can fail or need a retry from their dialog (DR-122), so
 they stay their own step.
 

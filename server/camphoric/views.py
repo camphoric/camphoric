@@ -858,6 +858,20 @@ class CamperViewSet(VersionCheckMixin, SoftDeleteMixin, PlannedDeleteMixin, Mode
         '''The camper's audit log, with its charges (DR-53).'''
         return Response(audit.history(camper=self.get_any_object().id))
 
+    @action(detail=True, methods=['get'], url_path='cancellation-fee',
+            permission_classes=[WritersOnly])
+    def cancellation_fee(self, request, pk=None):
+        '''
+        The fee the event offers to keep if the camper is cancelled today (SPEC
+        §8.5, DR-170): `{amount}`, null when the event has none, or `{amount:
+        null, error}` when its logic can't be worked out.
+        '''
+        try:
+            amount = pricing.cancellation_fee(self.get_object())
+        except ValueError as error:
+            return Response({'amount': None, 'error': str(error)})
+        return Response({'amount': None if amount is None else str(amount)})
+
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         '''
