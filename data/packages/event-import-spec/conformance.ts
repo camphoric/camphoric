@@ -21,8 +21,8 @@ import { beforeAll, expect, test } from '@jest/globals';
 import { Ajv } from 'ajv';
 import { Ajv2019 } from 'ajv/dist/2019.js';
 
+import { addFormFormats, formSchema, type ObjectSchema } from './formSchema.ts';
 import {
-  addFormats,
   BUILT_IN_PAYMENT_TYPES,
   validateEventImport,
   type EventData,
@@ -44,14 +44,6 @@ const JSON_SCHEMA_FIELDS: (keyof EventData)[] = [
 
 // Event fields that hold a map of { key: { data: <JSON Schema>, ui: <uiSchema> } }.
 const ADMIN_SCHEMA_FIELDS: (keyof EventData)[] = ['camper_admin_schema', 'registration_admin_schema'];
-
-// The parts of an object's JSON Schema that the form schema builds on
-interface ObjectSchema {
-  definitions?: Record<string, unknown>;
-  properties?: Record<string, unknown>;
-  required?: string[];
-  [keyword: string]: unknown;
-}
 
 // strict: false mirrors Django's Draft7Validator.check_schema (rjsf keywords such
 // as enumNames are allowed); only the schema's structure is checked, not formats.
@@ -86,34 +78,6 @@ function disallowUndeclared(schema: unknown, isBranch = false): unknown {
   }
   if (out.properties && !isBranch) out.unevaluatedProperties = false;
   return out;
-}
-
-/**
- * The registration form's schema as the server builds it (get_form_schema in
- * server/camphoric/views.py): the camper schema as a definition, the campers
- * list and registrant_email added. The server supplies the lodging field, so
- * any value passes here.
- */
-function formSchema(event: EventData) {
-  const registration_schema: ObjectSchema = event.registration_schema ?? {};
-  const camper_schema: ObjectSchema = event.camper_schema ?? {};
-
-  return {
-    ...registration_schema,
-    definitions: {
-      ...(registration_schema.definitions ?? {}),
-      camper: {
-        ...camper_schema,
-        properties: { ...(camper_schema.properties ?? {}), lodging: {} },
-      },
-    },
-    required: [...(registration_schema.required ?? []), 'registrant_email'],
-    properties: {
-      registrant_email: { type: 'string', format: 'email' },
-      ...(registration_schema.properties ?? {}),
-      campers: { type: 'array', minItems: 1, items: { $ref: '#/definitions/camper' } },
-    },
-  };
 }
 
 // Stands in for the importer's lodging lookup (key → saved lodging).
@@ -200,8 +164,7 @@ export function describeEventModule(load: () => Promise<LoadedEventModule>) {
       throw new Error('sample registrations are made without the server');
     };
     const regs = await sampleRegGenerator(noFetch, fakeResults(), () => undefined);
-    const ajv = new Ajv2019({ strict: false, allowUnionTypes: true, allErrors: true });
-    addFormats(ajv);
+    const ajv = addFormFormats(new Ajv2019({ strict: false, allowUnionTypes: true, allErrors: true }));
     const validate = ajv.compile(disallowUndeclared(formSchema(data.event)) as object);
     regs.forEach(({ formData }, index) => {
       validate(formData);
