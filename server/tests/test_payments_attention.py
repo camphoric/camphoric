@@ -100,6 +100,35 @@ class PaymentsAttentionTests(APITestCase):
         [item] = self.of(self.made.r2, 'refund_due')
         self.assertEqual((item['amount'], item['paypal_refund']), ('100.00', False))
 
+    def test_a_paypal_refund_comes_from_a_payment_on_the_invoice_it_goes_on(self):
+        # r1: its $825 invoice paid by $100 check and $725 PayPal, then lowered
+        # to $725 (overpaid by $100); a $50 extra invoice paid by PayPal, newer.
+        r1, i1 = self.made.r1, self.made.i1
+        own = self.pay(r1, '725.00', invoice=i1, payment_type='PayPal',
+                       paypal_transaction_id='CAPTURE-A')
+        own.paid_on = self.today - timedelta(days=20)
+        own.save()
+        extra = models.Invoice.objects.create(
+            registration=r1, origin='admin', amount=D('50.00'))
+        self.pay(r1, '50.00', invoice=extra, payment_type='PayPal',
+                 paypal_transaction_id='CAPTURE-B')
+        i1.amount = D('725.00')
+        i1.save()
+        r1.server_pricing_results = {**r1.server_pricing_results, 'total': 825}
+        r1.save_without_recalc()
+        [item] = self.of(r1, 'refund_due')
+        self.assertEqual((item['invoice'], item['payment'], item['amount']),
+                         (i1.id, own.id, '50.00'))
+
+    def test_a_paypal_refund_comes_from_the_payment_with_the_most_left(self):
+        big, small = self.made.i2.payments.order_by('-amount')  # $250.50, $200
+        big.paypal_transaction_id, big.paid_on = 'CAPTURE-1', self.today - timedelta(days=9)
+        big.save()
+        small.paypal_transaction_id, small.paid_on = 'CAPTURE-2', self.today
+        small.save()
+        [item] = self.of(self.made.r2, 'refund_due')
+        self.assertEqual(item['payment'], big.id)
+
     def test_an_overpaid_invoice_on_a_registration_that_still_owes(self):
         extra = models.Invoice.objects.create(
             registration=self.made.r1, origin='admin', description='Linens', amount=D('50.00'))
@@ -137,6 +166,15 @@ class PaymentsAttentionTests(APITestCase):
         kinds = [(item['kind'], item['invoice']) for item in self.of(self.made.r1)]
         self.assertNotIn(('past_due', paid.id), kinds)
         self.assertNotIn(('past_due', cancelled.id), kinds)
+
+    def test_not_past_due_once_the_registration_owes_nothing(self):
+        # The price fell to what's been paid: the invoice still asks, but no one owes it.
+        self.made.i1.due_on = self.today - timedelta(days=1)
+        self.made.i1.save()
+        r1 = self.made.r1
+        r1.server_pricing_results = {**r1.server_pricing_results, 'total': 100}
+        r1.save_without_recalc()
+        self.assertEqual(self.of(r1), [])
 
     def test_an_online_payment_not_finished(self):
         self.made.i1.payments.all().delete()

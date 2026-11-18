@@ -70,6 +70,8 @@ export function attentionAction(item: ApiPaymentsAttentionItem): {
           invoiceAction: 'refund',
           invoiceId,
           paymentId: item.payment != null ? String(item.payment) : undefined,
+          // PayPal can't give it back (past its 180 days, say): record one made another way.
+          refundBy: item.paypal_refund ? undefined : 'hand',
         },
       };
     case 'overpaid_invoice':

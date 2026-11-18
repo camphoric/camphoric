@@ -126,6 +126,7 @@ export interface AdminSearch {
   invoiceAction?: string;
   invoiceId?: string;
   paymentId?: string;
+  refundBy?: string;
   // Template Help (SPEC §4, §9.3).
   context?: string;
   helpTab?: string;
