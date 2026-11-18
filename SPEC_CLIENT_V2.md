@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-11
+**Last updated:** 2026-11-17
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-164)
+- §15 — Decision Records (DR-1…DR-166)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -827,7 +827,8 @@ Non-CRUD admin endpoints:
   is a form whose total, or any payment option with its handling fee, is more than an invoice holds
   (99,999.99), as from a priced number field with no maximum.
   The form is
-  checked and priced and its draft (`draftUUID`, or a new one, under that `draftUUID` if no draft
+  checked against the served schema (Draft 7, its `email` format by the form's rule, §7.1; §15,
+  DR-166) and priced and its draft (`draftUUID`, or a new one, under that `draftUUID` if no draft
   or registration has it, §15, DR-143) becomes *submitted*; no
   registration or campers exist until it's completed (§9.7; §15, DR-140), and `registrationUUID`
   is the draft's `uuid`, which the registration keeps. `paymentOptions` is
@@ -1554,6 +1555,16 @@ Before any step renders, the app loads the registration config (`GET …/registe
   `registration` as form data. A field whose uiSchema gives it the class
   `camphoric-hide-during-registration` (`"ui:classNames"`) is hidden here but shown in the admin's
   forms — e.g. a parking pass's type, which the organizers assign.
+- **Email addresses:** the served schema adds `registrant_email` (required, `format: email`, at
+  most 254 characters) with no `pattern` of its own. Every `email`-format field — that one and any
+  the event's schemas declare — takes an address that both ajv's `email` format and Django's
+  `validate_email` accept: a dot-atom local part (letters, digits and
+  ``!#$%&'*+/=?^_`{|}~-``, as in `o'brien@example.com` or `jane+camp@example.com`) at a host
+  name whose labels are at most 63 characters and whose top-level domain is 2–63 letters, with
+  inner hyphens allowed (`jane@example.photography`), or a punycode label; the whole at most 320
+  characters, all ASCII. Quoted local parts, `[IP]` literals, bare hosts such as `localhost`
+  and non-ASCII characters are refused. The register endpoint checks the same rule, so an
+  address the form takes is never refused on submit (§5; §15, DR-166).
 - **Live updating:** on every change it (a) marks `updating`, (b) saves form data to the
   store, (c) recomputes totals via `calculatePrice` (§9) and stores them, (d) persists form
   data to localStorage (debounced). The running price total is shown and updates live as the
@@ -2513,6 +2524,10 @@ the rjsf v4→v6 upgrade notes: §15, DR-4.) The wrapper must:
   being edited), and `liveValidate` (validate on every change from the start).
 - Apply validation messages (§7.1) to every validation pass, against the form's current data,
   rewriting both the inline message and the error-list text (§15, DR-34).
+- Check the `email` format by the registration's email rule (§7.1), the one the register
+  endpoint applies, in every form and when resolving conditional fields for the review (§15,
+  DR-166). In the admin forms it flags a stored address the rule refuses, without blocking the
+  save.
 - On a failed submit, focus the first field (in page order) with a visible error, mapping each
   error to its field by rjsf's id scheme and walking up the path when the exact field has no
   control of its own (§7.1).
@@ -6993,6 +7008,30 @@ that contain `;` — protects only a cell that starts its line, since in a comma
 `"` part-way through a `;`-split cell isn't an opening quote. Stripping the
 leading `'` in the client's table — the downloaded file would still need it, and the table
 would then differ from the file.
+
+### DR-166 — One email-address rule on the client and the server
+**Decision:** An `email`-format field (the registrant's email the server adds to the form, and
+any of an event's) takes an address that both ajv's `email` format (ajv-formats' "full" mode)
+and Django's `validate_email` accept. The client registers that rule as rjsf's `email` format
+(ajv's regex plus Django's limits: labels of at most 63 characters, a top-level domain of two or
+more letters or a punycode label, at most 320 characters). The server validates the form with a
+`jsonschema` format checker whose `email` is `validate_email` minus the forms ajv refuses
+(non-ASCII, a quoted local part, `localhost`, an `[IP]` literal). The event import spec's
+conformance check holds an event's sample registrations to the same rule (and the served
+`maxLength` of 254), so one the server would refuse fails before it's imported. The client's,
+the server's and the import spec's tests run the same list of addresses.
+**Context:** `registrant_email` carried a hand-written `pattern`
+(`^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$`) on both sides, which refused valid addresses
+such as `o'brien@example.com` and any top-level domain over four letters
+(`jane@example.photography`) (#1013). `jsonschema`'s own `email` check only looks for an `@`.
+Neither spec check alone matches the other: ajv takes `jane@gmail.c` (a likely typo), which
+Django refuses, so the form would pass it and the submit fail; Django takes `jane@localhost`
+and non-ASCII domains, which ajv refuses. Django's check is also what the outbox applies before
+sending, so a registration's address can always be emailed.
+**Alternatives:** Django's check on the server and ajv's alone on the client — they disagree on
+the addresses above. A single shared regex in the schema's `pattern` — another hand-written
+subset, and its message would be the generic pattern one. Accepting internationalized domains —
+ajv's format refuses them, so the form would need a check of its own; their punycode form works.
 
 ---
 

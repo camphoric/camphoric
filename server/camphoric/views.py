@@ -50,6 +50,7 @@ from camphoric import (
     confirmations,
     contracts,
     deletes,
+    email_address,
     filters,
     invoices,
     leases,
@@ -2501,10 +2502,9 @@ class RegisterView(APIView):
             'properties': {
                 'registrant_email': {
                     'type': 'string',
+                    # Checked by email_address.FORMAT_CHECKER here and by
+                    # the same rule in the browser (SPEC DR-166).
                     'format': 'email',
-                    # https://pythex.org/
-                    # Found a regex that will work with both JS and python
-                    'pattern': r'^[a-zA-Z0-9_+\.-]+@([\w-]+\.)+[\w-]{2,4}$',
                     'maxLength': 254,  # the field's
                     'title': 'Registrant email',
                 },
@@ -2558,7 +2558,7 @@ class RegisterView(APIView):
         # otherwise assume drop `dependencies`, which the schemas use for their
         # conditional fields.
         validator = jsonschema.Draft7Validator(
-            schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER)
+            schema, format_checker=email_address.FORMAT_CHECKER)
         try:
             validator.validate(form_data)
         except jsonschema.exceptions.ValidationError as e:

@@ -36,6 +36,7 @@
     "@tanstack/react-query": "^5.105.1",
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-table": "^9.3.1",
+    "ajv-formats": "^2.1.1",
     "d3-dsv": "^3.0.1",
     "handlebars": "^4.7.10",
     "json-logic-js": "^2.0.5",

@@ -11,9 +11,10 @@
  */
 
 import { getUiOptions, retrieveSchema, type UiSchema } from '@rjsf/utils';
-import validator from '@rjsf/validator-ajv8';
 import type { Hash } from 'api-types';
 import type { JSONSchema7, JSONSchema7Definition } from 'json-schema';
+
+import { formValidator } from './formValidator';
 
 /** One row of the review: a scalar (`text`) or a nested group (`children`). */
 export interface ReviewItem {
@@ -39,7 +40,7 @@ function resolve(
   data: unknown,
 ): JSONSchema7 {
   if (!schema || typeof schema === 'boolean') return {};
-  return retrieveSchema(validator, schema, root, data);
+  return retrieveSchema(formValidator, schema, root, data);
 }
 
 /**
