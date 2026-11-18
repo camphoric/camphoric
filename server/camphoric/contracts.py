@@ -101,6 +101,7 @@ NAMED_RECORDS = {
     'registration': models.Registration,
     'registration_type': models.RegistrationType,
     'camper': models.Camper,
+    'cancelled_camper': models.Camper,
     'custom_charge_type': models.CustomChargeType,
     'invoice': models.Invoice,
     'lodging': models.Lodging,

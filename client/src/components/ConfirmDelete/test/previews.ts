@@ -56,5 +56,11 @@ export const SENT_TEMPLATE: ApiDeletePreview = {
 export const BLOCKED: ApiDeletePreview = {
   ...empty,
   can_delete: false,
-  blocked_by: [{ detail: 'Campers still have this charge.', count: 1, items: ['Linens $25.00'] }],
+  blocked_by: [
+    {
+      detail: 'Campers or registrations still have this charge.',
+      count: 1,
+      items: ['Linens $25.00'],
+    },
+  ],
 };

@@ -3,7 +3,8 @@
  * DR-55), for Registrars and Admins: each with when and by whom it was deleted,
  * and Restore. A deleted registration takes its campers and payments with it and
  * brings them back when it's restored, so those aren't listed on their own.
- * Rendered as the "Deleted" tab of the Registrations section.
+ * Restoring a camper a cancellation fee was kept for offers to remove the fee
+ * (DR-168). Rendered as the "Deleted" tab of the Registrations section.
  */
 
 import { Button, Stack, Table, Text, Title } from '@mantine/core';
@@ -11,6 +12,7 @@ import { notifications } from '@mantine/notifications';
 import { useParams } from '@tanstack/react-router';
 import type { ApiActor, Scalar } from 'api-types';
 import { InlineLoading } from 'components/Loading';
+import { useOfferToRemoveCancellationFees } from 'pages/admin/campers/CancelCamper';
 import type { ReactNode } from 'react';
 import {
   type RestorablePath,
@@ -21,6 +23,7 @@ import {
 } from 'store/deletes';
 import { eventHooks, registrationHooks } from 'store/entities';
 import { camperName } from 'utils/camper';
+import { apiErrorMessage } from 'utils/fetch';
 import { formatMoney } from 'utils/money';
 import { paymentTypeLabel } from 'utils/paymentTypes';
 
@@ -33,6 +36,7 @@ export function DeletedPanel() {
   const payments = useDeletedPayments({ event: eventId });
   const { data: live } = registrationHooks.useList({ event: eventId });
   const { data: event } = eventHooks.useById(eventId);
+  const offerToRemoveFees = useOfferToRemoveCancellationFees();
 
   if (!registrations.data || !campers.data || !payments.data) return <InlineLoading />;
 
@@ -73,6 +77,14 @@ export function DeletedPanel() {
           deleted_at: c.deleted_at,
           deleted_by: c.deleted_by,
         }))}
+        onRestored={(row) => {
+          offerToRemoveFees(row.id, row.name).catch((error: unknown) =>
+            notifications.show({
+              color: 'red',
+              message: `Couldn’t check for a cancellation fee: ${apiErrorMessage(error)}`,
+            }),
+          );
+        }}
       />
       <Section
         title="Payments"
@@ -109,12 +121,15 @@ function Section({
   empty,
   headings,
   rows,
+  onRestored,
 }: {
   title: string;
   path: RestorablePath;
   empty: string;
   headings: string[];
   rows: Row[];
+  /** After one is restored. */
+  onRestored?: (row: Row) => void;
 }) {
   const restore = useRestore(path);
   return (
@@ -152,8 +167,10 @@ function Section({
                     loading={restore.isPending && restore.variables === row.id}
                     onClick={() =>
                       restore.mutate(row.id, {
-                        onSuccess: () =>
-                          notifications.show({ color: 'green', message: `Restored ${row.name}.` }),
+                        onSuccess: () => {
+                          notifications.show({ color: 'green', message: `Restored ${row.name}.` });
+                          onRestored?.(row);
+                        },
                       })
                     }
                   >

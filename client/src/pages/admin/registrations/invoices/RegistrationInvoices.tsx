@@ -1,7 +1,8 @@
 /**
  * A registration's fees, invoices and payments (SPEC §8.4, §9.7). The fee
  * breakdown from `server_pricing_results` (Registrars and Admins can override
- * the registration's own price lines; DR-56), the ledger, and each invoice
+ * the registration's own price lines; DR-56), the registration's own custom
+ * charges, such as a cancellation fee (DR-168), the ledger, and each invoice
  * with its payments and refunds. Registrars and Admins make invoices (DR-96),
  * send them, record payments, edit, cancel and reopen invoices, check a pending
  * PayPal order and refund; only Admins delete a payment or an invoice (§15,
@@ -15,6 +16,7 @@ import { notifications } from '@mantine/notifications';
 import type { ApiEvent, ApiInvoice, ApiPayment, AugmentedRegistration } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { CanEdit, usePermissions } from 'hooks/permissions';
+import { CustomCharges } from 'pages/admin/campers/CustomCharges';
 import { PriceLines } from 'pages/admin/pricing';
 import { useState } from 'react';
 import { useDeletedPayments, useRestore } from 'store/deletes';
@@ -154,6 +156,13 @@ export function RegistrationInvoices({ event, registration }: RegistrationInvoic
         registrationId={registration.id}
         promoLabel={registration.promo?.label}
       />
+
+      <Text fw={600}>Registration charges</Text>
+      <Text size="xs" c="dimmed">
+        Charges of the registration’s own, not any camper’s — such as a cancellation fee kept when a
+        camper was deleted. They’re added to its total.
+      </Text>
+      <CustomCharges eventId={event.id} registrationId={registration.id} />
 
       <LedgerSummary ledger={registration} />
 

@@ -401,7 +401,11 @@ export interface ApiInvoicePayProblem extends ApiInvoicePay {
 
 export interface ApiCustomCharge extends TimeStamped {
   id: number;
-  camper: Scalar;
+  registration: Scalar;
+  /** Null for the registration's own charge, e.g. a cancellation fee (SPEC DR-168). */
+  camper: Scalar | null;
+  /** For a cancellation fee: the camper cancelled. Set only by cancelling them. */
+  cancelled_camper: Scalar | null;
   custom_charge_type: Scalar;
   // See `ApiPayment.amount` — a string on read, number on write.
   amount: number | string;

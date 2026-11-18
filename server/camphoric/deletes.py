@@ -40,7 +40,7 @@ BLOCKED_BECAUSE = {
     ('emailbatch', 'account'): 'Group email has been sent with this account.',
     ('payment', 'invoice'): 'It has payments. Only an invoice with none can be deleted.',
     ('payment', 'refund_of'): 'It has been refunded. Delete its refunds first.',
-    ('customcharge', 'custom_charge_type'): 'Campers still have this charge.',
+    ('customcharge', 'custom_charge_type'): 'Campers or registrations still have this charge.',
     # Kept as the record of who agreed to what (DR-145).
     ('contractagreement', 'organization'): 'People have agreed to its terms.',
     ('contractagreement', 'contract'): 'People have agreed to its terms.',
@@ -171,10 +171,10 @@ def _hide(instance, result):
             (models.Camper, instance.campers.all()),
             (models.Invoice, models.Invoice.objects.filter(registration=instance)),
             (models.Payment, models.Payment.objects.filter(registration=instance)),
-            (models.CustomCharge,
-             models.CustomCharge.objects.filter(camper__registration=instance)),
+            (models.CustomCharge, models.CustomCharge.objects.filter(registration=instance)),
         ]
     elif isinstance(instance, models.Camper):
+        # A cancellation fee kept for them is the registration's own, and stays (DR-168).
         hidden = [(models.CustomCharge, models.CustomCharge.objects.filter(camper=instance))]
     elif isinstance(instance, models.PromoCode):
         # Registrations that have the code keep it, and its discount (DR-67).

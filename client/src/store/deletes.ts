@@ -2,7 +2,8 @@
  * Deletes, restores and change history (SPEC §5; §15 DR-53, DR-54, DR-55):
  * - what a delete would do, asked before confirming it (`useDeletePreview`);
  * - the deleted registrations, campers, payments and promo codes, and restoring one;
- * - a registration's or camper's change history.
+ * - a registration's or camper's change history;
+ * - cancelling a camper, keeping a cancellation fee (§8.5; §15, DR-168).
  *
  * Every entity mutation invalidates the `History` and `Deleted` namespaces
  * (store/createEntityHooks), so these stay current.
@@ -10,6 +11,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ApiCustomCharge,
   ApiDeletedCamper,
   ApiDeletedPayment,
   ApiDeletedPromoCode,
@@ -18,7 +20,7 @@ import type {
   ApiHistoryEntry,
   Scalar,
 } from 'api-types';
-import { apiFetch } from 'utils/fetch';
+import { apiFetch, ifMatch } from 'utils/fetch';
 
 import { type ListParams, toQuery } from './createEntityHooks';
 
@@ -98,5 +100,50 @@ export function useHistory(path: HistoryPath, id: Scalar) {
   return useQuery({
     queryKey: ['History', path, id],
     queryFn: ({ signal }) => apiFetch<ApiHistoryEntry[]>(`/api/${path}/${id}/history/`, { signal }),
+  });
+}
+
+/** What cancelling a camper keeps (§8.5; §15, DR-168): a fee, or nothing. */
+export interface CancellationFee {
+  amount: number;
+  notes: string;
+}
+
+// A cancel deletes the camper and may add a charge (and the event's
+// cancellation-fee type): the registration's totals and lists all move.
+const CANCEL_INVALIDATES = [
+  'Registration',
+  'Camper',
+  'CustomCharge',
+  'CustomChargeType',
+  'Deleted',
+  'History',
+];
+
+/**
+ * Cancel a camper: `POST /api/campers/{id}/cancel/` `{ cancellation_fee }` deletes
+ * them (as a delete does, restorably) and keeps the fee, if any, as a charge of
+ * the registration's own — both or neither. Refused (412) when the camper has
+ * changed since the `version` the user saw (§9.8, DR-109).
+ */
+export function useCancelCamper() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      version,
+      fee,
+    }: {
+      id: Scalar;
+      version?: number;
+      fee: CancellationFee | null;
+    }) =>
+      apiFetch<{ cancellation_fee: ApiCustomCharge | null }>(`/api/campers/${id}/cancel/`, {
+        method: 'POST',
+        body: { cancellation_fee: fee },
+        headers: ifMatch(version),
+      }),
+    onSettled: () =>
+      CANCEL_INVALIDATES.forEach((name) => void client.invalidateQueries({ queryKey: [name] })),
   });
 }

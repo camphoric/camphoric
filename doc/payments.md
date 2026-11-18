@@ -22,6 +22,9 @@ fixed.
   worked out by the server into an amount.
 - **Handling fee** — the event's `epayment_handling` percent, charged on an invoice's amount when
   that invoice is paid online. It is *not* part of the price.
+- **Cancellation fee** — money the camp keeps when a camper is cancelled (deleted): a custom
+  charge of the registration's own (on no camper), of the event's `cancellation_fee` charge type,
+  so it stays when the camper goes. It *is* part of the price (SPEC DR-168).
 - **Ledger** — a registration's `total_owed`, `total_paid` and `balance`, worked out from its
   price, invoices and payments.
 - **Pending PayPal order** — an order the server created for an invoice that hasn't been captured
@@ -52,6 +55,8 @@ erDiagram
     EVENT ||--o{ REGISTRATION : has
     EVENT ||--o{ DEPOSIT : "bank deposits"
     REGISTRATION ||--o{ CAMPER : has
+    REGISTRATION ||--o{ CUSTOM_CHARGE : "its campers' and its own"
+    CAMPER |o--o{ CUSTOM_CHARGE : "charged (none: the registration's own)"
     REGISTRATION ||--o{ INVOICE : "is billed by"
     INVOICE ||--o{ PAYMENT : "is paid by"
     PAYMENT |o--o{ PAYMENT : "refund_of"
@@ -66,6 +71,11 @@ erDiagram
         json server_pricing_results "the price; no handling"
         datetime completed_at
         datetime confirmation_sent_at
+    }
+    CUSTOM_CHARGE {
+        decimal amount "negative: a credit"
+        string notes
+        int cancelled_camper "a cancellation fee: the camper it was kept for"
     }
     INVOICE {
         string origin "registration | payment_received | admin | migrated"
@@ -99,6 +109,9 @@ total_paid = Σ live payments (refunds are negative)
 balance    = total_owed − total_paid            (negative: a refund is due)
 uninvoiced = balance − Σ amount_due of open invoices   (never below 0)
 ```
+
+The price total includes the registration's own custom charges, such as a cancellation fee: the
+server adds them as a `registration_charges` line after the promo code (§16).
 
 `invoices.ledgers()` works these out for many registrations in two queries; the registration
 serializer adds them to `/api/registrations/`, and `templating/graph.py` gives templates the same
@@ -702,6 +715,8 @@ flowchart LR
   the registrar edits the invoice's handling too.
 - A converted PayPal payment whose verification had failed back then has no capture id, so it
   can only be refunded in PayPal's dashboard and then recorded here.
+- **Cancelling a camper and keeping a fee** lowers the price, then refunds the rest the same way:
+  see §16.
 
 ## 12. The handling fee, and who can do what
 
@@ -724,6 +739,8 @@ flowchart LR
 | Make an invoice, or invoice the balance | ✓ | ✓ | |
 | Send an invoice (the invoice email) | ✓ | ✓ | |
 | Copy an invoice's pay link | ✓ | ✓ | ✓ |
+| Cancel a camper, keeping a cancellation fee (§16) | ✓ | ✓ | |
+| Add, change or remove a custom charge (a camper's or the registration's own) | ✓ | ✓ | |
 | Delete a payment | ✓ | | |
 | Delete an invoice (nothing ever paid on it) | ✓ | | |
 
@@ -738,6 +755,9 @@ flowchart LR
   `registration.payment_type` (its payment type), `initial_payment` (`type` = its description,
   `total` = its total, `balance` = `total_owed − total`) and `registration.paypal_response` (its
   PayPal payment's record). `pricing.handling` is gone.
+- `registration.custom_charges` are the registration's own charges (not its campers'); a
+  cancellation fee's `name` is `cancellation_fee`, so a report can total the fees an event kept
+  (§16). `registration.pricing.registration_charges` is their sum, when there are any.
 - `invoice.pay_url` is the invoice's public pay page (§15). The `invoice_email` context — the
   event's invoice email — has `event`, `invoice`, `registration` and `campers`. A confirmation
   email can link to `registration.invoice.pay_url` when something is still due.
@@ -766,7 +786,10 @@ flowchart LR
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
-  `refund-paypal`), and `InvoicePayView`, the public pay page's API.
+  `refund-paypal`), `CamperViewSet.cancel` (deleting a camper and keeping a cancellation fee), and
+  `InvoicePayView`, the public pay page's API.
+- `pricing.py` — the price, and `_apply_registration_charges`, the registration's own charges
+  added to it.
 - `serializers.py` — `InvoiceSerializer`, `PaymentSerializer` (`validate_type`: the payment
   type against its event), `EventSerializer` (`payment_types`, `payment_type_choices`), the
   registration's ledger fields.
@@ -780,7 +803,8 @@ flowchart LR
   email template; `0084` — the invoice's `paypal_capture_order_id` and
   `paypal_capture_started_at`; `0085` — the payment's `refund_request_id`; `0086` — the
   invoice's `paypal_capture_pending_at` and `paypal_order_fee`; `0097` — the event's
-  `payment_types`, and payment types no longer restricted to the built-in choices.
+  `payment_types`, and payment types no longer restricted to the built-in choices; `0098`,
+  `0099` — a custom charge's `registration` (its camper optional) and `cancelled_camper`.
 
 **Client** (`client/src/`)
 - `pages/register/payment/PaymentNeeded.tsx` — the payment step;
@@ -793,6 +817,10 @@ flowchart LR
 - `pages/invoice/` — the public pay page (`InvoicePayPage`, `InvoiceSummary`);
   `store/invoicePay.ts` — its API.
 - `store/augmented.ts` — the server's ledger under the older report names.
+- `pages/admin/campers/CancelCamper.tsx` — deleting a camper with the offer to keep a
+  cancellation fee, and the offer to remove it on restoring them; `CustomCharges.tsx` — a
+  camper's charges, or the registration's own (on its Fees & payments); `store/deletes.ts`
+  `useCancelCamper`.
 
 ## 15. Invoicing later, and the public pay page (#670, #623)
 
@@ -911,3 +939,57 @@ sequenceDiagram
 - **A payment PayPal is still processing** (`processing`, #767). The page says so, and `online`
   is null, so it offers no buttons until the worker, or a registrar's "Check PayPal order", finds
   PayPal has completed (or declined) it.
+
+## 16. Cancelling a camper, and keeping a fee (#1023)
+
+Cancelling a camper is deleting them (they can be restored; SPEC DR-55). Their own custom charges
+go out of sight with them, so a fee the camp keeps can't be one of those: it's a **custom charge of
+the registration's own** (no camper), of the event's `cancellation_fee` charge type (made the first
+time one is kept), and it names the camper in `cancelled_camper` (SPEC §8.5, DR-168).
+
+```mermaid
+sequenceDiagram
+    actor A as Registrar
+    participant B as Browser
+    participant S as Server
+    A->>B: Delete camper (Sam), tick "Keep a cancellation fee": $50
+    B->>S: GET /api/campers/{id}/delete-preview/
+    S-->>B: what goes with them (their own charges), restorable
+    A->>B: Delete
+    B->>S: POST /api/campers/{id}/cancel/ {cancellation_fee: {amount: 50, notes}} (If-Match)
+    S->>S: one transaction: delete Sam (soft), reprice;<br/>add the $50 charge (registration's own, cancelled_camper = Sam), reprice
+    S-->>B: 200 {cancellation_fee}
+    A->>B: Fees & payments: edit the invoice down to the new price
+    A->>B: Refund the difference (through PayPal, or a check recorded)
+    B->>S: the refund (§11)
+    S-->>B: balance 0, invoice Paid
+```
+
+The server adds the registration's own charges to its total after the promo code — so the code
+doesn't discount them — as a `registration_charges` line, with the total floored at 0 (§9.2 of the
+spec). An event's pricing logic needs no change for a fee to count; it can read them as
+`registration.custom_charges` (as camper logic reads `camper.custom_charges`), but mustn't add
+them to its own total too. A registration without any prices as it always did, with no such line.
+
+A worked example: two campers at $400 each and a $25 donation, $825, paid in full by check on its
+$825 invoice. Sam cancels two weeks before camp, and the camp keeps $50.
+
+| Step | Price | total_paid | balance | Invoice |
+|---|---|---|---|---|
+| Paid in full | $825 | $825 | $0 | $825, Paid |
+| Delete Sam, keeping a $50 fee | $475 ($25 + $400 + $50) | $825 | −$350 (refund due) | $825, Paid |
+| Edit the invoice to $475 | $475 | $825 | −$350 | $475, Overpaid $350 |
+| Refund the difference, $350 | $475 | $475 | $0 | $475, Paid |
+
+- **Restoring the camper offers to remove the fee.** It isn't removed unasked (the camp may keep
+  it anyway); the client lists `GET /api/customcharges/?cancelled_camper={id}` and, on a yes,
+  deletes each. The price goes back up by the camper's fees, so what was refunded is owed again.
+- **A whole registration** is cancelled the same way, a camper at a time, keeping the fee on the
+  last one (or adding one of the registration's own by hand); the registration stays, with its
+  invoices and payments, as the record of what was kept and what was refunded. Deleting the
+  registration itself would hide its payments.
+- A registration's own charges can also be added by hand, on its Fees & payments, of any of the
+  event's charge types, like a camper's. Deleting the registration hides them with it; restoring
+  brings them back.
+- Who and when are in the registration's history and the cancelled camper's (the charge's audit
+  entry is tagged with both).

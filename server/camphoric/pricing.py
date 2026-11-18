@@ -40,16 +40,23 @@ def handling_fee(amount, percent):
     return (cents / 100).quantize(CENT)
 
 
-# A promo code's discount line, worked out after every other line (SPEC
+# A promo code's discount line, worked out after the event's lines (SPEC
 # DR-67), labelled with the code's own label.
 PROMO = 'promo'
 PROMO_LABEL = 'Promo code'
+
+# The registration's own custom charges (a cancellation fee, say), added to its
+# total after the promo code (SPEC §9.2, DR-168). Only there when it has some.
+REGISTRATION_CHARGES = 'registration_charges'
+REGISTRATION_CHARGES_LABEL = 'Registration charges'
 
 
 def line_label(event, var, camper=False):
     '''A pricing line's label, from the event's logic (or the var itself).'''
     if var == PROMO:
         return PROMO_LABEL
+    if var == REGISTRATION_CHARGES:
+        return REGISTRATION_CHARGES_LABEL
     logic = event.camper_pricing_logic if camper else event.registration_pricing_logic
     for component in logic or []:
         if component.get('var') == var:
@@ -140,6 +147,27 @@ def _apply_promo(promo_code, data, results, camper_contexts):
     results['total'] = money_fmt((results['total'] or 0) - discount)
 
 
+def _registration_charges(registration):
+    '''A saved registration's own charges (not its campers'), as pricing logic sees them.'''
+    if registration.pk is None:
+        return []
+    return list(models.CustomCharge.objects.filter(
+        registration_id=registration.pk, camper__isnull=True).order_by('id').values())
+
+
+def _apply_registration_charges(charges, results):
+    '''
+    Add the registration's own charges to its total, as their own line, after
+    the promo code, so it doesn't discount them; the total stays at 0 or more
+    (SPEC §9.2, DR-68, DR-168).
+    '''
+    amount = sum((charge['amount'] for charge in charges), Decimal('0'))
+    line = money_fmt(_as_number(amount))
+    results[REGISTRATION_CHARGES] = line
+    if _is_amount(results.get('total')):
+        results['total'] = _floored(money_fmt(results['total'] + line))
+
+
 def priced_as_of(registration):
     '''
     The moment a registration is priced as of (SPEC §9.2, DR-167): a completed
@@ -194,8 +222,12 @@ def calculate_price(registration, campers):
 
     The registration's promo code, if any, then takes its discount off the
     total as a negative `promo` line (and on each camper's breakdown, for a
-    per-camper code) (SPEC DR-67). The e-payment handling fee isn't part of
-    the price: it's charged on each invoice paid online (SPEC DR-88).
+    per-camper code) (SPEC DR-67). Last, the registration's own custom
+    charges (a cancellation fee, say), if it has any, are added to the total
+    as a `registration_charges` line, the total again floored at zero (SPEC
+    DR-168). The logic sees them as `registration.custom_charges`, as camper
+    logic sees `camper.custom_charges`. The e-payment handling fee isn't part
+    of the price: it's charged on each invoice paid online (SPEC DR-88).
 
     See server/tests/test_pricing.py for examples.
 
@@ -215,12 +247,15 @@ def calculate_price(registration, campers):
     registration_type = registration.registration_type
 
     as_of = priced_as_of(registration)
+    registration_charges = _registration_charges(registration)
     data = {
         "registration": {
             **(registration.attributes or {}),
             "registration_type": registration_type.name if registration_type else None,
             # during registration process, created_at may be None
             "created_at": datetime_to_dict(registration.created_at or as_of),
+            # The registration's own charges; a registration being registered has none.
+            "custom_charges": registration_charges,
         },
         "pricing": event.pricing,
         "event": get_event_attributes(event, as_of),
@@ -312,6 +347,8 @@ def calculate_price(registration, campers):
         results['total'] = _floored(results['total'])
     if registration.promo_code is not None:
         _apply_promo(registration.promo_code, data, results, camper_contexts)
+    if registration_charges:
+        _apply_registration_charges(registration_charges, results)
 
     if overridden:
         results['overridden'] = overridden

@@ -7,7 +7,8 @@
  * Delete) always visible below the scrolling section. Save persists the camper's
  * `attributes` and `admin_attributes`, and their `stay`, in a single PATCH of
  * what changed and from which version (§9.8, DR-109); the camper can be
- * deleted after confirming what that does, and restored later (DR-54, DR-55).
+ * deleted after confirming what that does, keeping a cancellation fee if the
+ * registrar chooses (DR-168), and restored later (DR-54, DR-55).
  * The open section is URL-addressable via `?camperTab`.
  *
  * The `camper_schema` is rendered in admin mode (§9.5): the registrant UI schema
@@ -19,7 +20,6 @@
 import { Box, Button, ScrollArea, Tabs } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { ApiCamper, ApiEvent, Hash, LodgingLookup } from 'api-types';
-import { confirmDelete } from 'components/ConfirmDelete';
 import { StaleRecordNotice } from 'components/EditConflict';
 import { EditLeaseNotice } from 'components/EditLease';
 import { JsonSchemaForm } from 'components/form';
@@ -39,6 +39,7 @@ import { CamperFees } from './CamperFees';
 import { useCamperForm } from './camperForm';
 import { CamperLodging } from './CamperLodging';
 import { camperLodgingSummary } from './camperLodgingSummary';
+import { confirmCancelCamper } from './CancelCamper';
 
 interface CamperEditProps {
   event: ApiEvent;
@@ -62,7 +63,6 @@ export function CamperEdit({
   onOpenLodging,
 }: CamperEditProps) {
   const update = camperHooks.useUpdate({ handlesVersionConflict: true });
-  const del = camperHooks.useDelete();
   const { canEdit } = usePermissions();
 
   const days = useMemo(() => eventDays(event.start, event.end), [event.start, event.end]);
@@ -98,13 +98,11 @@ export function CamperEdit({
   };
 
   const confirmDeleteCamper = () =>
-    confirmDelete({
-      path: 'campers',
-      id: camper.id,
-      title: 'Delete camper',
-      message: <>Delete the camper “{name}”?</>,
-      onConfirm: () =>
-        del.mutate({ id: camper.id, version: camper.version }, { onSuccess: onDeleted }),
+    confirmCancelCamper({
+      camperId: camper.id,
+      version: camper.version,
+      name,
+      onCancelled: onDeleted,
     });
 
   return (
@@ -194,12 +192,7 @@ export function CamperEdit({
             <Button onClick={() => void saveCamper()} loading={update.isPending}>
               Save
             </Button>
-            <Button
-              variant="light"
-              color="red"
-              onClick={confirmDeleteCamper}
-              loading={del.isPending}
-            >
+            <Button variant="light" color="red" onClick={confirmDeleteCamper}>
               Delete
             </Button>
           </FormActions>

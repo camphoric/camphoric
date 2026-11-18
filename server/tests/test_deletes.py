@@ -115,11 +115,13 @@ class CustomChargeTypeTests(DeleteTestCase):
         preview = self.preview(path)
         self.assertFalse(preview['can_delete'])
         self.assertEqual(preview['blocked_by'], [{
-            'detail': 'Campers still have this charge.', 'count': 1, 'items': ['Linens $25.00']}])
+            'detail': 'Campers or registrations still have this charge.', 'count': 1,
+            'items': ['Linens $25.00']}])
 
         response = self.client.delete(path)
         self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.data['detail'], 'Campers still have this charge.')
+        self.assertEqual(response.data['detail'],
+                         'Campers or registrations still have this charge.')
 
     def test_an_unused_one_can(self):
         unused = models.CustomChargeType.objects.create(
