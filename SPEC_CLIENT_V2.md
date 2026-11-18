@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-171)
+- §15 — Decision Records (DR-1…DR-172)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -1263,7 +1263,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     takes payments again; the `detail` then says so, and to record the payment by hand if
     PayPal took the money. Any other refusal (PayPal refusing the event's credentials, say)
     settles nothing: the event's PayPal settings are put right, and the order checked again.
-  - `GET /api/events/{id}/payments-attention/` (any role; §8.11; §15, DR-170) → the event's
+  - `GET /api/events/{id}/payments-attention/` (any role; §8.11; §15, DR-171) → the event's
     "needs attention" list, built on the server from each live registration's ledger and its
     invoices: `[{ kind, registration, registrant_email, campers, invoice, amount, due_on,
     payment, paypal_refund, paypal_processing }]`, in `kind` order (`refund_due`,
@@ -1288,7 +1288,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   back through PayPal: a PayPal or card payment with a capture, something left, and its refund
   window open) and `paypal_refund_until` (`YYYY-MM-DD`, the last day PayPal can refund it: 179
   days after PayPal captured it, by the capture's time in `paypal_response`, else `paid_on`;
-  null for a payment PayPal can't refund at all; §15, DR-171); write-only `new_invoice`.
+  null for a payment PayPal can't refund at all; §15, DR-172); write-only `new_invoice`.
   Recording one (Registrars and Admins) without `invoice` puts it on the registration's oldest
   invoice with money due, or — with none, or `new_invoice` — on a new `payment_received` invoice
   for exactly it (§9.7). An invoice PayPal may yet record a payment on (§15, DR-133) takes no
@@ -1315,7 +1315,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     `{ detail, code: 'refused' }` when it can't (not a PayPal payment, more than is left, a retry
     asking for another amount than that refund, or PayPal refused — past its
     `paypal_refund_until`, saying PayPal refunds for 180 days and to give the money back another
-    way; §15, DR-171); 502 `{ code: 'unknown' }` when
+    way; §15, DR-172); 502 `{ code: 'unknown' }` when
     PayPal's answer was lost, PayPal refunded but recording it failed, or PayPal's reply can't be
     this payment's refund — its `up` link names another capture, or its amount is more than is
     left of the payment (nothing is recorded, and the event is emailed the details). After a lost
@@ -2062,7 +2062,7 @@ they can:
   changed amount is refused; when the refund couldn't be recorded, trying again from the same
   dialog records it — §15, DR-122), or record one made outside Camphoric (a check mailed back). An overpaid invoice
   offers to **refund the difference**, starting with the overpayment. A PayPal or card payment
-  says until when PayPal can refund it; past that day (§15, DR-171) it's refunded only by
+  says until when PayPal can refund it; past that day (§15, DR-172) it's refunded only by
   recording one made another way, and the refund dialog says why.
 - **Delete** (Admins only; §15, DR-93) — a payment (after confirming; not one that has been
   refunded), or an invoice nothing was ever paid on (but not while PayPal may yet record a
@@ -2672,12 +2672,12 @@ only Admins delete), and Reporters read it. Its three views (`?paymentsTab`, §4
 
 - **Needs attention** (the default) — what needs doing, from `GET
   /api/events/{id}/payments-attention/` (§5), which the server builds from the same ledger the
-  registration shows (§9.7), so the two never disagree (§15, DR-170). How many of each kind are
+  registration shows (§9.7), so the two never disagree (§15, DR-171). How many of each kind are
   shown at a glance (on Home too, §8.3); each item names the registration (its campers, else
   its email), its email, the amount and what to do:
   - **Refund due** — the registration's balance is below 0: refund the difference, saying
     whether it can go back through PayPal (a PayPal or card payment on the invoice it goes on,
-    with something left to refund, within PayPal's refund window, §15, DR-171 — the one with the
+    with something left to refund, within PayPal's refund window, §15, DR-172 — the one with the
     most left)
     or must be made another way and recorded by hand. It names the invoice the refund goes on (an
     overpaid one first; else that PayPal payment's), and is the only item for that money: the
@@ -3325,7 +3325,7 @@ section is the contract.
 - **Refunds** (§15, DR-94) are payments with a negative `amount` on the refunded payment's
   invoice (`refund_of`), never more than is left of it. A PayPal or card payment is refunded
   through PayPal's refund API on its capture, offered until its `paypal_refund_until` (§15,
-  DR-171; after that, money goes back another way and the refund is recorded by hand), with a request
+  DR-172; after that, money goes back another way and the refund is recorded by hand), with a request
   id made once for each payment refunded from while the refund dialog is open, so a retry
   refunds once, even for a changed amount; the refund's id is its `paypal_transaction_id`, and
   it keeps the request id as `refund_request_id`. A retry of a refund already recorded gets that refund back, or is
@@ -7390,7 +7390,7 @@ the same way every time. A one-step "cancel registration" (refund and
 fee together) — refunds through PayPal can fail or need a retry from their dialog (DR-122), so
 they stay their own step.
 
-### DR-170 — The server builds the Payments area's "needs attention" list
+### DR-171 — The server builds the Payments area's "needs attention" list
 
 **Decision:** `GET /api/events/{id}/payments-attention/` lists what the event's money needs doing,
 worked out from the ledger (`invoices.ledgers`) and the invoices' own amounts and statuses, as
@@ -7403,7 +7403,7 @@ confirmed, or a capture PayPal has processed longer than the worker asks). A reg
 refund is listed once, for its whole balance, not again for its overpaid invoices. Nothing PayPal
 may yet record a payment on is past due or unfinished. A refund can go back through PayPal when
 a PayPal or card payment on the invoice the refund goes on has something left to refund and was
-within PayPal's refund window (DR-171): a refund is recorded on its payment's invoice, so the
+within PayPal's refund window (DR-172): a refund is recorded on its payment's invoice, so the
 two are chosen together. One that can't opens to record a refund made another way. Each item opens the registration's invoices with its action ready (`?invoiceAction`), and
 the list refetches with the registration ledger, so the live change feed keeps it current.
 **Context:** #1024: registrars opened registrations one by one to find refunds to give, invoices
@@ -7415,7 +7415,7 @@ drift. List an overpaid invoice of a registration owed a refund too — shows th
 Count past due by the event's time zone — the server's date already decides the rest of the
 ledger.
 
-### DR-171 — PayPal refunds end a day before PayPal's 180 days
+### DR-172 — PayPal refunds end a day before PayPal's 180 days
 
 **Decision:** A PayPal or card payment can be refunded through PayPal until its
 `paypal_refund_until`: 179 days after PayPal captured it, counted from the capture's time in
@@ -7428,7 +7428,7 @@ another API user) still goes to PayPal, and its refusal is explained the same wa
 retry of a refund whose answer was lost, which PayPal answers with the refund it made, so the
 refund is recorded once rather than refused and made a second way.
 **Context:** PayPal refuses to refund a capture more than 180 days old. Only the "needs
-attention" list knew (DR-170): the refund dialog still offered PayPal, which failed after the
+attention" list knew (DR-171): the refund dialog still offered PayPal, which failed after the
 registrar tried.
 **Alternatives:** Leave it to PayPal's refusal — no money moves, but the registrar learns only
 after trying. Work the age out in the browser — a second copy of the rule, which other API users
@@ -7515,7 +7515,7 @@ must be coordinated with the backend. Grouped by status.
   `POST /api/registrations/{id}/invoice-balance/`), sending one (`POST /api/invoices/{id}/send/`),
   `pay_url`, the event's `invoice_template` and the `invoice_email` context (§8.3, §8.4; DR-96).
   The Payments area's `GET /api/events/{id}/payments-attention/` and the
-  `?registration__event=` filters of invoices and payments (§8.11; DR-170).
+  `?registration__event=` filters of invoices and payments (§8.11; DR-171).
 - **Registration window:** the event's `registration_start`/`registration_end` as instants
   (written with an offset) and its `time_zone`, on the event and in `GET /api/eventlist` (§5,
   §8.3; DR-97).

@@ -1,5 +1,5 @@
 '''
-The Payments area's "needs attention" list (SPEC §8.11; DR-170): each kind,
+The Payments area's "needs attention" list (SPEC §8.11; DR-171): each kind,
 and the cases that must not appear — a balance of 0, a refund already given,
 an invoice PayPal may yet record a payment on.
 '''

@@ -1,5 +1,5 @@
 /**
- * How long PayPal can refund a payment (SPEC §9.7; §15, DR-171): it refunds a
+ * How long PayPal can refund a payment (SPEC §9.7; §15, DR-172): it refunds a
  * capture for 180 days, and the server stops a day sooner. After that the
  * money goes back another way and the refund is recorded by hand.
  */

@@ -778,7 +778,7 @@ class PaymentSerializer(ModelSerializer):
     new_invoice = BooleanField(write_only=True, required=False, default=False)
     refunded = SerializerMethodField()
     paypal_refundable = SerializerMethodField()
-    # The last day PayPal can refund it (SPEC DR-171); none for a payment it can't.
+    # The last day PayPal can refund it (SPEC DR-172); none for a payment it can't.
     paypal_refund_until = SerializerMethodField()
 
     class Meta:

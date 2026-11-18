@@ -7,7 +7,7 @@
  * take them: Registrars and Admins send it, edit, cancel and reopen it, check a
  * pending PayPal order and refund; only Admins delete (§15, DR-93). A PayPal
  * PayPal or card payment says until when PayPal can refund it, or that its
- * window has ended (§15, DR-171). A payment PayPal is still processing shows as such: it isn't a payment until
+ * window has ended (§15, DR-172). A payment PayPal is still processing shows as such: it isn't a payment until
  * PayPal completes it, and the invoice can't be cancelled or deleted meanwhile
  * (DR-133).
  */
