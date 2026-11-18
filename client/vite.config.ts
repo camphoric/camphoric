@@ -1,105 +1,112 @@
 import { fileURLToPath, URL } from 'node:url';
 
 import react from '@vitejs/plugin-react';
+import { loadEnv } from 'vite';
 import checker from 'vite-plugin-checker';
 import { defineConfig } from 'vitest/config';
 
 // The client talks to the Django backend at /api. In dev we proxy /api to the
 // backend (default http://localhost:8000/); in production both are served from
 // the same origin so no proxy is needed.
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_PROXY || 'http://localhost:8000/',
-        changeOrigin: true,
-        secure: false,
-      },
-      // The OAuth token endpoints (SPEC §6, DR-146). The authorization endpoint,
-      // /o/authorize, is a page of the client (DR-152), so it isn't sent on.
-      '^/o/(token|revoke_token)/': {
-        target: process.env.VITE_API_PROXY || 'http://localhost:8000/',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
-  build: {
-    // Output matches the existing client so the deploy/Dockerfile can swap in.
-    outDir: 'build',
-    // The browsers Vite 6's default ('modules') supported. Vite 8's default
-    // (Chrome 111, Firefox 114, Safari 16.4) would leave newer syntax in
-    // Monaco's chunks that older browsers can't parse.
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
-    rolldownOptions: {
-      output: {
-        assetFileNames: 'static/[name]-[hash][extname]',
-        chunkFileNames: 'static/[name]-[hash].js',
-        entryFileNames: 'static/[name]-[hash].js',
-      },
-    },
-  },
-  // Web workers (Monaco's) go to static/ too: the server serves only that.
-  worker: {
-    format: 'es',
-    rolldownOptions: {
-      output: {
-        assetFileNames: 'static/[name]-[hash][extname]',
-        chunkFileNames: 'static/[name]-[hash].js',
-        entryFileNames: 'static/[name]-[hash].js',
-      },
-    },
-  },
-  resolve: {
-    alias: {
-      'api-types': fileURLToPath(new URL('./src/api-types.ts', import.meta.url)),
-      components: fileURLToPath(new URL('./src/components', import.meta.url)),
-      hooks: fileURLToPath(new URL('./src/hooks', import.meta.url)),
-      navigation: fileURLToPath(new URL('./src/navigation', import.meta.url)),
-      pages: fileURLToPath(new URL('./src/pages', import.meta.url)),
-      pricing: fileURLToPath(new URL('./src/pricing', import.meta.url)),
-      store: fileURLToPath(new URL('./src/store', import.meta.url)),
-      test: fileURLToPath(new URL('./src/test', import.meta.url)),
-      utils: fileURLToPath(new URL('./src/utils', import.meta.url)),
-    },
-  },
-  plugins: [
-    react(),
-    // Storybook reuses this config and leaves the checker out (.storybook/main.ts),
-    // and so do the unit tests: CI type-checks and lints in steps of their own.
-    ...(process.env.VITEST
-      ? []
-      : [
-          checker({
-            typescript: true,
-            eslint: {
-              lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-              useFlatConfig: true,
-            },
-          }),
-        ]),
-  ],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-    // The slowest tests, typing into forms a key at a time, take about 2 s on an idle
-    // machine and four times that on a busy one, such as a shared CI runner (#959).
-    // A test that hangs still fails, only later.
-    testTimeout: 15_000,
-    css: true,
-    // Each test file still runs in a context of its own, but a worker builds
-    // jsdom once rather than for every file: about a third of the time otherwise.
-    pool: 'vmThreads',
-    // Unit tests live in src; the Playwright e2e suite (e2e/*.spec.ts) is run by
-    // Playwright, not Vitest.
-    include: ['src/**/*.test.{ts,tsx}'],
-    // @rjsf/mantine (via @mantine/dates) imports dayjs plugins without a file
-    // extension; inline these so Vite's resolver handles them in tests.
+export default defineConfig(({ mode }) => {
+  // VITE_API_PROXY from the shell, else from this folder's .env files (Vite
+  // loads those for the app, but not into process.env while it reads this file).
+  const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_API_PROXY');
+  const apiProxy = env.VITE_API_PROXY || 'http://localhost:8000/';
+  return {
     server: {
-      deps: {
-        inline: [/@rjsf\/mantine/, /@mantine\/dates/],
+      proxy: {
+        '/api': {
+          target: apiProxy,
+          changeOrigin: true,
+          secure: false,
+        },
+        // The OAuth token endpoints (SPEC §6, DR-146). The authorization endpoint,
+        // /o/authorize, is a page of the client (DR-152), so it isn't sent on.
+        '^/o/(token|revoke_token)/': {
+          target: apiProxy,
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-  },
+    build: {
+      // Output matches the existing client so the deploy/Dockerfile can swap in.
+      outDir: 'build',
+      // The browsers Vite 6's default ('modules') supported. Vite 8's default
+      // (Chrome 111, Firefox 114, Safari 16.4) would leave newer syntax in
+      // Monaco's chunks that older browsers can't parse.
+      target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+      rolldownOptions: {
+        output: {
+          assetFileNames: 'static/[name]-[hash][extname]',
+          chunkFileNames: 'static/[name]-[hash].js',
+          entryFileNames: 'static/[name]-[hash].js',
+        },
+      },
+    },
+    // Web workers (Monaco's) go to static/ too: the server serves only that.
+    worker: {
+      format: 'es',
+      rolldownOptions: {
+        output: {
+          assetFileNames: 'static/[name]-[hash][extname]',
+          chunkFileNames: 'static/[name]-[hash].js',
+          entryFileNames: 'static/[name]-[hash].js',
+        },
+      },
+    },
+    resolve: {
+      alias: {
+        'api-types': fileURLToPath(new URL('./src/api-types.ts', import.meta.url)),
+        components: fileURLToPath(new URL('./src/components', import.meta.url)),
+        hooks: fileURLToPath(new URL('./src/hooks', import.meta.url)),
+        navigation: fileURLToPath(new URL('./src/navigation', import.meta.url)),
+        pages: fileURLToPath(new URL('./src/pages', import.meta.url)),
+        pricing: fileURLToPath(new URL('./src/pricing', import.meta.url)),
+        store: fileURLToPath(new URL('./src/store', import.meta.url)),
+        test: fileURLToPath(new URL('./src/test', import.meta.url)),
+        utils: fileURLToPath(new URL('./src/utils', import.meta.url)),
+      },
+    },
+    plugins: [
+      react(),
+      // Storybook reuses this config and leaves the checker out (.storybook/main.ts),
+      // and so do the unit tests: CI type-checks and lints in steps of their own.
+      ...(process.env.VITEST
+        ? []
+        : [
+            checker({
+              typescript: true,
+              eslint: {
+                lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
+                useFlatConfig: true,
+              },
+            }),
+          ]),
+    ],
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/test/setup.ts',
+      // The slowest tests, typing into forms a key at a time, take about 2 s on an idle
+      // machine and four times that on a busy one, such as a shared CI runner (#959).
+      // A test that hangs still fails, only later.
+      testTimeout: 15_000,
+      css: true,
+      // Each test file still runs in a context of its own, but a worker builds
+      // jsdom once rather than for every file: about a third of the time otherwise.
+      pool: 'vmThreads',
+      // Unit tests live in src; the Playwright e2e suite (e2e/*.spec.ts) is run by
+      // Playwright, not Vitest.
+      include: ['src/**/*.test.{ts,tsx}'],
+      // @rjsf/mantine (via @mantine/dates) imports dayjs plugins without a file
+      // extension; inline these so Vite's resolver handles them in tests.
+      server: {
+        deps: {
+          inline: [/@rjsf\/mantine/, /@mantine\/dates/],
+        },
+      },
+    },
+  };
 });

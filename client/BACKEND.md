@@ -25,7 +25,9 @@ cd client
 npm run dev          # Vite on :3000, proxies /api -> http://localhost:8000
 ```
 
-`django` publishes `8000` and `postgres` `5434`, on the host's loopback (127.0.0.1) only. The
+`django` publishes `8000` and `postgres` `5434`, on the host's loopback (127.0.0.1) only (each
+can be moved: see "Running a second, isolated stack" in
+[doc/development.md](../doc/development.md); then point `VITE_API_PROXY` at the moved one). The
 `django` service runs `migrate` + `collectstatic`, then the ASGI server (`uvicorn --reload`) on
 start.
 

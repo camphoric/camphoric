@@ -3,8 +3,8 @@
  * to the Django backend) to confirm the public registration form loads, shows
  * the live price ticker, and is interactive — across desktop and mobile.
  *
- * It needs the backend on :8000; when the registration config can't load (no
- * backend), the test skips rather than failing. CI, which has no backend, leaves
+ * It needs the backend (VITE_API_PROXY's, or :8000); when the registration
+ * config can't load (no backend), the test skips rather than failing. CI, which has no backend, leaves
  * it out (playwright.config.ts). It never submits, so it creates no data.
  */
 

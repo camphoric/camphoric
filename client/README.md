@@ -23,8 +23,9 @@ npm run dev        # Vite dev server on :3000, proxies /api to the backend
 ```
 
 The dev server proxies `/api` to the Django backend. Set the target with `VITE_API_PROXY`
-(defaults to `http://localhost:8000/`). Copy `.env.example` to `.env` to configure it and the
-optional Google Maps key. Run the backend separately (see the repo's VM/dev setup docs).
+(defaults to `http://localhost:8000/`), in your shell or in `.env`; the shell's wins. Copy
+`.env.example` to `.env` to configure it and the optional Google Maps key. Run the backend
+separately (see the repo's VM/dev setup docs).
 
 ## Quality gates
 
@@ -36,6 +37,21 @@ npm run format     # Prettier
 ```
 
 `vite-plugin-checker` surfaces type and lint errors in the dev server.
+
+## End-to-end tests
+
+```sh
+npm run e2e        # Playwright: the component suite on Storybook, the registration smoke on the app
+```
+
+The run builds and serves its own Storybook (port 61000) and dev server (3003, proxying `/api`
+to `VITE_API_PROXY`), and stops them when it ends. To run two at once, from two worktrees say,
+give one other ports with `CAMPHORIC_E2E_STORYBOOK_PORT` and `CAMPHORIC_E2E_APP_PORT`. A run
+waits for its own servers to say they're listening, so if a port is taken (even by a run that
+took it during this one's Storybook build) the run fails, rather than testing what answers
+there, which could be another worktree's code. To use a server you started yourself on one of
+those ports instead, set `CAMPHORIC_E2E_REUSE_SERVERS=1`. The registration smoke skips when no
+backend answers.
 
 ## Path aliases
 

@@ -375,7 +375,7 @@ If you like using a database GUI tool like [Beekeeper Studio](https://www.beekee
 or [pgAdmin](https://www.pgadmin.org/), you can use the following to connect:
 
 - The username, password, and database name is in 'env/local/postgres'
-- The server is exposed on port 5434, on the host's loopback only
+- The server is exposed on port 5434 (`CAMPHORIC_POSTGRES_PORT`), on the host's loopback only
 
 If using the env defaults, this should be [postgres://camphoric:camphoric@localhost:5434/camphoric](postgres://camphoric:camphoric@localhost:5434/camphoric)
 
@@ -402,14 +402,75 @@ the device is a POST that Django's CSRF check refuses (403) until the device's
 origin is trusted: set `CSRF_TRUSTED_ORIGINS` in `env/local/django.env` and run
 `docker compose up -d django` (a plain restart doesn't reread the file). The
 variable replaces the default list in
-`server/camphoric_server/settings_default.py`, so repeat those defaults and add
-`http://<your-LAN-IP>:3000`. If you republish `django`'s 8000 as well, also set
+`server/camphoric_server/settings_default.py` (the dev servers' origins and
+`CAMPHORIC_PUBLIC_URL`'s), so repeat those defaults and add
+`http://<your-LAN-IP>:3000`. Any second stack that reads the same `env/local`
+(see below) then trusts only that list, so add its origin too. If you republish `django`'s 8000 as well, also set
 `ALLOWED_HOSTS` (again, the defaults plus your LAN IP); otherwise Django answers
 requests on that port with a 400 (DisallowedHost).
 
 Remove the override and those settings, and run `docker compose up -d` again,
 when you're done. The Vagrant VM's forwarded ports are bound the same way; see
 [VM_DEV_SETUP.md](../VM_DEV_SETUP.md).
+
+### Running a second, isolated stack
+
+Each host port the stack publishes comes from a variable, defaulting to the usual one:
+
+| Variable                       | Service                   | Default |
+| ------------------------------ | ------------------------- | ------- |
+| `CAMPHORIC_POSTGRES_PORT`      | `postgres`                | 5434    |
+| `CAMPHORIC_DJANGO_PORT`        | `django`                  | 8000    |
+| `CAMPHORIC_REACT_PORT`         | `react` (Vite dev server) | 3000    |
+| `CAMPHORIC_REACT_PREVIEW_PORT` | `react` (`vite preview`)  | 3001    |
+
+So a second copy of the stack (for another branch, say, or a worktree) can run beside your
+usual one: give it a project name of its own, which keeps its containers, network and volumes
+(its database too) apart, and ports no other stack uses. Export them, so that every later
+`docker compose` command in that shell (and scripts such as `./data/reset-data-and-test`)
+reaches the same stack with the same ports:
+
+```bash
+export COMPOSE_PROJECT_NAME=will-1234 CAMPHORIC_POSTGRES_PORT=15434 CAMPHORIC_DJANGO_PORT=18000 CAMPHORIC_REACT_PORT=13000 CAMPHORIC_REACT_PREVIEW_PORT=13001
+```
+
+```bash
+docker compose up -d --build
+```
+
+It starts fresh: it migrates, creates the admin and imports the sample data, as a first start
+does. The frontend is then on http://localhost:13000 and the API on http://localhost:18000.
+`CAMPHORIC_PUBLIC_URL` follows `CAMPHORIC_REACT_PORT` (unless you set it), and Django trusts
+that origin for CSRF, so you can sign in there. It trusts no other moved port, so signing in
+on `vite preview` (`CAMPHORIC_REACT_PREVIEW_PORT`) is refused (403) unless you add that
+origin to `CSRF_TRUSTED_ORIGINS`. Inside the stack nothing moves: the services still reach
+each other on their usual ports (`django:8000`, `postgres:5432`). To run the frontend on the
+host against it, set `VITE_API_PROXY=http://localhost:18000/`.
+
+A browser keeps cookies by host, not port, so signing in to one stack at `localhost` signs
+you out of the other there. To stay signed in to both, open the second one at `127.0.0.1`
+instead, with `CAMPHORIC_PUBLIC_URL=http://127.0.0.1:13000` in the exports above (so Django
+trusts that origin and its links point there), or use another browser profile.
+
+The client's Playwright e2e suite (`npm run e2e` in `client/`) starts servers of its own on the
+host, outside any stack: Storybook on 61000 and the app on 3003. A second run at the same time
+(from another worktree, say) needs other ports, or it fails when it finds them taken (it never
+tests the other run's servers); point its app at the second stack's API too:
+
+```bash
+CAMPHORIC_E2E_STORYBOOK_PORT=61001 CAMPHORIC_E2E_APP_PORT=13003 VITE_API_PROXY=http://localhost:18000/ npm run e2e
+```
+
+A git worktree has no `env/` (it's ignored), so link the main checkout's env files into it
+first, as a directory holding a link (`.gitignore` matches `env/` only as a directory):
+`mkdir env && ln -s <main checkout>/env/local env/local`.
+
+When you're done, remove its containers, network and volumes (its database included), from
+the same shell or with the same project name; your usual stack is left alone:
+
+```bash
+docker compose -p will-1234 down -v
+```
 
 Tips for working with docker
 ============================
