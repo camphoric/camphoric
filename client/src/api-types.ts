@@ -412,6 +412,72 @@ export interface ApiPaymentsAttentionItem {
 }
 
 /**
+ * The event's money in totals (`GET /api/events/{id}/payments-totals/`; SPEC
+ * §5, §8.11; §15, DR-173), over its live registrations. Amounts are decimal
+ * strings.
+ */
+export interface ApiPaymentsTotals {
+  registrations: number;
+  summary: {
+    /** What the registrations are priced at now. */
+    price: string;
+    /** The handling fees on invoices not cancelled. */
+    handling: string;
+    /** Price and handling. */
+    owed: string;
+    /** Payments less refunds. */
+    received: string;
+    /** Owed less received. */
+    balance: string;
+    /** What registrations with a balance above 0 still owe. */
+    still_owed: string;
+    /** What registrations with a balance below 0 are owed back. */
+    refunds_due: string;
+    /** Money owed that no open invoice asks for yet. */
+    not_invoiced: string;
+  };
+  charges: {
+    /**
+     * Each price line the event's totals add up, in its logic's order, summed
+     * with the sign the total adds it with (a `credit` the total subtracts is
+     * negative); then the promo codes' discounts and the registrations' own
+     * charges, when any registration has them.
+     */
+    lines: {
+      var: string;
+      label: string;
+      level: 'registration' | 'camper' | 'built_in';
+      credit: boolean;
+      amount: string;
+    }[];
+    /** What the lines don't account for, so they add up to `total`. */
+    other: string;
+    total: string;
+  };
+  /** Custom charges by type: the campers' first, then the registrations' own. */
+  charge_types: {
+    type: string;
+    label: string;
+    registration_own: boolean;
+    count: number;
+    amount: string;
+  }[];
+  cancellation_fees: { count: number; amount: string };
+  /** By payment type, in the event's order of them. */
+  payment_types: {
+    type: string;
+    label: string;
+    payments: number;
+    refunds: number;
+    received: string;
+    refunded: string;
+    net: string;
+  }[];
+  /** The handling fees charged beside what PayPal kept as its own fees. */
+  online_fees: { handling: string; paypal_fees: string; difference: string };
+}
+
+/**
  * An invoice's public pay page (`GET /api/invoices/pay/{token}`; §9.7, DR-95):
  * what anyone with the link sees — never its notes or the registrant's details
  * beyond the campers' first names and initials.

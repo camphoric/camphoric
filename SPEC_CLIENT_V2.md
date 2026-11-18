@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-172)
+- §15 — Decision Records (DR-1…DR-173)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -255,7 +255,8 @@ queries derive it from `window.location` rather than props, through the routing 
   refund made another way and recorded), opens that action on the registration's invoices,
   ready to confirm (§8.4); it leaves the URL once opened.
 - `/admin/organization/:organizationId/event/:eventId/payments` — Payments (§8.11). Search params:
-  `?paymentsTab` — `invoices`, `payments`, or needs attention (the default, left out of the URL);
+  `?paymentsTab` — `invoices`, `payments`, `totals`, or needs attention (the default, left out of
+  the URL);
   the invoices ledger's `?invstatus`, `?invorigin`, `?invtype`, `?invfrom`, `?invto` (status,
   origin, how it's to be paid, due from and to) and table state `?invq`, `?invsort`, `?invpage`;
   the payments ledger's `?paykind` (`payment` or `refund`), `?paytype`, `?payfrom`, `?payto` and
@@ -1274,6 +1275,33 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
     invoice's due date; `paypal_refund` says a refund can go back through PayPal, from `payment`;
     `paypal_processing` marks a capture PayPal has been processing longer than the worker asks
     about it (otherwise an `online_unfinished` item is an order that was never confirmed).
+  - `GET /api/events/{id}/payments-totals/` (any role; §8.11; §15, DR-173) → the event's money in
+    totals, over its live registrations, every amount a decimal string: `{ registrations,
+    summary: { price, handling, owed, received, balance, still_owed, refunds_due, not_invoiced },
+    charges: { lines: [{ var, label, level, credit, amount }], other, total }, charge_types:
+    [{ type, label, registration_own, count, amount }], cancellation_fees: { count, amount },
+    payment_types: [{ type, label, payments, refunds, received, refunded, net }], online_fees:
+    { handling, paypal_fees, difference } }`. `summary` sums the registrations' ledgers (§9.7):
+    `price` their prices, `handling` the handling fees on invoices not cancelled, `owed` the two,
+    `received` payments less refunds, `balance` owed less received — split into `still_owed`
+    (registrations with a balance above 0), `refunds_due` (below 0) and `not_invoiced` (the
+    `uninvoiced_balance`s, part of `still_owed`). `charges.lines` are the price lines each
+    pricing logic's `total` adds up as they are (through `+`, `-`, times 1 or −1, and an `if`'s
+    branches), in the logic's order (`level` `registration` or `camper`, a camper line summed
+    from every camper's own results), each with the sign its total adds it with (`credit` when
+    it subtracts it, the amount then negative), then the `promo` and `registration_charges`
+    lines (`level: 'built_in'`) when any registration has them. A line the total multiplies by
+    another or by any other number, divides, caps with `min` or `max`, or never reads (a count,
+    a rate) is left out, as is a registration line named like a camper line (pricing sums the
+    two together). `other` is what the lines don't account
+    for, so the lines and `other` add up to `total`, the price. `charge_types` are the live
+    custom charges by type, the campers' then the registrations' own (`registration_own`);
+    `cancellation_fees` sums the registrations' own of the event's cancellation-fee type
+    (DR-170). `payment_types` are the live payments by type, in the event's
+    `payment_type_choices` order: how many payments and refunds, received, refunded and net.
+    `online_fees.paypal_fees` is what PayPal kept as its fees on the payments it took (each
+    capture's `seller_receivable_breakdown.paypal_fee`; refunds don't give it back), beside the
+    handling fees; `difference` is handling less PayPal's fees.
   - `DELETE` (Admins only; §15, DR-93): only an invoice nothing was ever paid on (deleted payments
     count), not a registration's own (`origin: 'registration'`), which is cancelled instead
     (§15, DR-105), and not one PayPal may yet record a payment on, as for cancelling (§15,
@@ -2668,7 +2696,7 @@ within Users (editing a user, …), not Users itself.
 
 The event's money work in one place, for every role: Registrars and Admins act on it under the
 rules of the registration's fees and payments (§8.4: they refund, make, send and check invoices;
-only Admins delete), and Reporters read it. Its three views (`?paymentsTab`, §4):
+only Admins delete), and Reporters read it. Its four views (`?paymentsTab`, §4):
 
 - **Needs attention** (the default) — what needs doing, from `GET
   /api/events/{id}/payments-attention/` (§5), which the server builds from the same ledger the
@@ -2706,6 +2734,24 @@ only Admins delete), and Reporters read it. Its three views (`?paymentsTab`, §4
   day it was paid, else recorded), amount, PayPal transaction id, and the invoice it's on.
   Unsorted, each refund comes right under the payment it gives back from. It filters to payments
   or refunds, by type, and by a date range.
+- **Totals** — the event's money summed, from `GET /api/events/{id}/payments-totals/` (§5;
+  §15, DR-173), over every live registration and as current as the list above:
+  - **Owed and received** — what the registrations are priced at, the handling fees charged,
+    what that comes to, what's been received (payments less refunds), and the balance, split
+    into what's still owed (and of that, what no invoice asks for yet) and the refunds due.
+  - **Charges** — the price line by line: each line the event's pricing totals add up (a camper
+    line over every camper), a credit the total subtracts shown as one, then promo discounts
+    and the registrations' own charges; what no line accounts for is shown as its own line, so
+    the lines add up to the price. Lines the totals don't add as they are — counts, rates, a
+    count times a rate, a cap — aren't listed; what they come to is in that line.
+  - **Payments by type** — for each payment type, how many payments and refunds, received,
+    refunded and net, with the totals of every type.
+  - **Custom charges by type** — the campers' charges and the registrations' own, by type, with
+    how many and how much; the cancellation fees kept (§8.5; §15, DR-170) are counted on their
+    own.
+  - **Online payment fees** — the handling fees charged on invoices beside what PayPal kept as
+    its own fees on the payments it took, and the difference, so it shows whether the one covers
+    the other.
 
 Both ledgers show the totals of the rows shown — the filters and search applied, on every
 page — for reconciling a date range or a payment type against the bank, PayPal or a deposit:
@@ -7440,6 +7486,35 @@ back through PayPal's Payouts API once the window has ended — needs Payouts en
 account, costs a fee a refund doesn't, sends to an email address rather than back to the
 payment, and isn't tied to the original transaction in PayPal's records.
 
+### DR-173 — The server sums the Payments area's totals, line by line as the totals add them
+
+**Decision:** `GET /api/events/{id}/payments-totals/` sums the event's money over its live
+registrations (§5, §8.11): their ledgers (`invoices.ledgers`) for what's owed, received, still
+owed, owed back and not invoiced; their stored prices for the price line by line; the live custom
+charges and payments by type; and the handling fees beside PayPal's own fees (the capture's
+`paypal_fee`, as a cancellation fee reads them, DR-170). A pricing logic's lines are listed as its
+`total` adds them up: the server reads the `total` expression for the vars it adds as they are
+(through `+`, `-`, times 1 or −1, and an `if`'s branches) and the sign it adds each with, so a
+line it subtracts (a campership) is a credit. A line it never reads (a count, a rate per day, an
+age), or doesn't add as it is (a count times a rate, half of something, a `min` or `max` cap),
+isn't listed: its amount isn't the line's. Camper lines are summed from each camper's own results;
+a registration line named like a camper line isn't listed, since pricing sums the two into one
+value. What the lines don't account for — those, the total floored at 0, an amount the total
+reads from the answers — is its own `other` line, so the breakdown always adds up to the
+price. The totals' query sits with the registration ledger's,
+so the live change feed keeps them current (DR-112).
+**Context:** #1024 follow-up: the Payments area listed what to do and every invoice and payment,
+but not the event's money as a whole — what each fee, charge and payment type comes to, the
+cancellation fees kept, and whether the handling fee covers what PayPal takes.
+**Alternatives:** Sum every numeric price line — counts and rates (Lark Camp's parking passes,
+Camp Harmony's rate per day) would be added as dollars, and a campership the total subtracts
+would read as a charge. Mark money lines in the pricing logic — every event's logic would need
+editing for a view that can read what the total already says. Total only what's been invoiced —
+an invoice holds one amount, not lines, so no per-fee breakdown could come of it. Sum in the
+browser from every registration and payment — loads and rejoins everything, and repeats the
+ledger on the client, where it could drift (as DR-171). Show only the handling fee, or only
+PayPal's — the point is to set them side by side.
+
 ---
 
 ## Appendix A — Backend / API Dependencies
@@ -7514,8 +7589,9 @@ must be coordinated with the backend. Grouped by status.
   shapes in §5 (§9.7; DR-87, DR-88, DR-93, DR-94). Making invoices (`POST /api/invoices/`,
   `POST /api/registrations/{id}/invoice-balance/`), sending one (`POST /api/invoices/{id}/send/`),
   `pay_url`, the event's `invoice_template` and the `invoice_email` context (§8.3, §8.4; DR-96).
-  The Payments area's `GET /api/events/{id}/payments-attention/` and the
-  `?registration__event=` filters of invoices and payments (§8.11; DR-171).
+  The Payments area's `GET /api/events/{id}/payments-attention/`, `GET
+  /api/events/{id}/payments-totals/` and the `?registration__event=` filters of invoices and
+  payments (§8.11; DR-171, DR-173).
 - **Registration window:** the event's `registration_start`/`registration_end` as instants
   (written with an offset) and its `time_zone`, on the event and in `GET /api/eventlist` (§5,
   §8.3; DR-97).

@@ -797,6 +797,10 @@ flowchart LR
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `payments_attention.py` — the Payments area's "needs attention" list (§17), served by
   `EventViewSet.payments_attention` (`GET /api/events/{id}/payments-attention/`).
+- `payments_totals.py` — the Payments area's totals (§17), served by
+  `EventViewSet.payments_totals` (`GET /api/events/{id}/payments-totals/`); `total_signs` reads
+  a pricing `total` for the lines it adds and their signs. `pricing.paypal_fee` — PayPal's fee
+  on one payment.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
   `refund-paypal`), `CamperViewSet.cancel` (deleting a camper and keeping a cancellation fee) and
@@ -838,7 +842,8 @@ flowchart LR
   `useCancelCamper` and `useCancellationFeeOffer`; `pages/admin/CancellationFeeInput.tsx` —
   setting the event's fee on its Home.
 - `pages/admin/payments/` — the Payments area (§17): `AttentionList`, the ledgers and their
-  filters (`ledgers.ts`); `store/paymentsAttention.ts` — its list;
+  filters (`ledgers.ts`), `PaymentsTotals`; `store/paymentsAttention.ts` — its list;
+  `store/paymentsTotals.ts` — its totals;
   `registrations/invoices/useRequestedInvoiceAction.ts` — an action a link opens ready.
 
 ## 15. Invoicing later, and the public pay page (#670, #623)
@@ -1093,3 +1098,25 @@ flowchart LR
   (`?registration__event=`), filtered by status, origin, type and dates, with totals of the rows
   shown (asked, paid, due, overpaid; received, refunded, net). They show the API's fields as they
   are: nothing is worked out again in the browser but the sums.
+- **The totals.** The Totals view (`GET /api/events/{id}/payments-totals/`, `payments_totals.py`;
+  SPEC DR-173) sums the event over its live registrations, in the same `Registration` query
+  namespace so it stays current. From the ledgers (§3): price + handling = owed; owed − received
+  = balance, split into still owed (registrations above 0, and of that what no invoice asks
+  for), and refunds due (below 0). The price line by line comes from the stored
+  `server_pricing_results`: only the lines a pricing logic's `total` adds up as they are (`+`,
+  `-`, times ±1, an `if`'s branches), each with the sign it adds it with — a camper line from
+  each camper's own results — then `promo` and `registration_charges`; a count times a rate, or a
+  `min`/`max` cap, isn't a line, and whatever the lines don't account for is `other`, so they add
+  up to the price. Custom charges are summed by type (the registrations'
+  own apart, cancellation fees among them, §16), payments by type (received, refunded, net), and
+  the handling fees are set beside PayPal's own fees (`pricing.paypal_fee`, the capture's
+  `seller_receivable_breakdown.paypal_fee`; PayPal keeps it on a refund).
+
+```mermaid
+flowchart LR
+  R[live registrations] --> L[invoices.ledgers] --> S[summary: owed, received,<br/>still owed, refunds due, not invoiced]
+  R --> P[server_pricing_results] -->|"lines the total adds, signed"| C[charges + other = price]
+  CC[live custom charges] --> T[charges by type<br/>cancellation fees]
+  PM[live payments] --> Y[payments by type]
+  PM -->|paypal_fee of each capture| F[PayPal's fees vs handling]
+```
