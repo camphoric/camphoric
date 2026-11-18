@@ -2146,7 +2146,8 @@ keyboard, and the control exposes whether it is expanded to assistive technology
 `aria-expanded`). A collapsed category hides its reports; its name and its report count stay
 shown. The category holding the selected report is expanded whenever the selection lands in it:
 when the report is opened from the URL, chosen, added, or recategorised (§15, DR-168). The admin
-can still collapse it afterwards. Categories start expanded each time the Reports page opens. The
+can still collapse it afterwards. Categories start expanded each time the Reports page opens, and a
+category that leaves the list (its last report moved or deleted) comes back expanded. The
 reports under a category's heading are indented from it, so it's clear which category each belongs
 to; while the list has no headings, its reports aren't indented and there is nothing to collapse.
 
@@ -7083,8 +7084,9 @@ needed yet. Only document that logic must read `registration.created_at` —
 and expands, keeping its name and report count shown. Whenever the selection lands in a category
 (the report is opened from the URL, chosen, added, or moved to it), that category expands; the
 admin may collapse it again afterwards. Which categories are collapsed is kept only while the
-Reports page is open; they all start expanded. The reports are indented under their category's
-heading.
+Reports page is open; they all start expanded, and a category that leaves the list and comes back
+returns expanded, so it never hides reports nobody chose to hide. The reports are indented under
+their category's heading.
 **Context:** #1014: in an event with many reports the list was long to scroll, every category was
 always open, and the reports lined up flush with their headings, so it was hard to see where one
 category ended and the next began.
