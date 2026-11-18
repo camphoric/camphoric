@@ -313,12 +313,14 @@ made-up event for this repository's tests, is the only event still in `data/even
   the `data` image). A new release reaches Camphoric with a lockfile update, in `data/`:
   `npm install --package-lock-only <package>@latest`, then `npm pkg set 'dependencies.<package>=*'`
   and `npm install --package-lock-only` (not `npm update <package>`, which can drop the importer's
-  link to the workspace spec and leave a lockfile `npm ci` refuses). Camphoric's CI doesn't test
-  the installed events. Each event's repository tests its own newest code against each new
-  Camphoric release (above), but nothing tests the version the lockfile pins against Camphoric's
-  `main`: a change here that breaks one shows up in the development import, or in that event's
-  check after the next release. A new spec major is rolled out as described in "What a spec version
-  means" above.
+  link to the workspace spec and leave a lockfile `npm ci` refuses). Dependabot's monthly `data/`
+  update opens these bumps too: a minor or patch in its grouped pull request, a new major in one of
+  its own. Camphoric's CI doesn't test the installed events, so its checks passing on such a pull
+  request say nothing about them. Each event's repository tests its own newest code against each
+  new Camphoric release (above), but nothing tests the version the lockfile pins against
+  Camphoric's `main`: a change here that breaks one shows up in the development import, or in that
+  event's check after the next release. A new spec major is rolled out as described in "What a spec
+  version means" above.
 
 ### Adding a camp's event
 
