@@ -58,6 +58,15 @@ The only one you'll need to edit is 'env/local/django' file where it says
 You can edit most of the other values in these files if you know what you're
 doing, but it's probably best to just keep them the same for development.
 
+The `django` and `worker` services run on `camphoric_server.settings_default`, so they skip
+`server/camphoric_server/settings_override.py`. The Vagrant VM's provisioning writes that file into
+the same checkout, and its `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` are the VM's. Under them the
+stack's `django` would refuse every request made to it as `django:8000`: the `data` service's
+import, and every API call the `react` service's Vite server proxies to it. It would also refuse
+sign-in from a frontend on a moved port (see "Running a second, isolated stack"). To use a
+`settings_override.py` of your own with the stack, set
+`CAMPHORIC_DJANGO_SETTINGS_MODULE=camphoric_server.settings` in your shell or the root `.env`.
+
 ### Creating a secret key for your Django server
 
 First you'll need to build the web and db docker containers for the server:
