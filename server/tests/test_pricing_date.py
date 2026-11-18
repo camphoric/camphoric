@@ -8,12 +8,15 @@ closed-registration fee.
 
 import datetime
 from decimal import Decimal
+from io import StringIO
 from unittest import mock
+
+from django.core.management import call_command
 
 from freezegun import freeze_time
 from rest_framework.test import APITestCase
 
-from camphoric import models, roles, views
+from camphoric import models, pricing, roles, views
 from tests import paypal_mocks
 from tests.factories import make_user
 
@@ -192,3 +195,61 @@ class PayingTests(paypal_mocks.PayPalServerMixin, APITestCase):
         self.assertEqual(
             response.data['paymentStep']['serverPricingResults']['total'], EARLY + 100)
         self.assertFalse(models.Invoice.objects.exists())
+
+
+class PriceCheckCommandTests(APITestCase):
+    '''`camphoric_price_check` lists what the next save would reprice, and changes nothing.'''
+
+    def setUp(self):
+        self.event = make_event()
+        with freeze_time(SUBMITTED):
+            self.registration = models.Registration.objects.create(
+                event=self.event, registrant_email='pat@example.com', attributes={},
+                completed_at=datetime.datetime(2026, 2, 1, 10, tzinfo=UTC))
+            models.Camper.objects.create(registration=self.registration, attributes={})
+
+    def run_command(self, **options):
+        out = StringIO()
+        call_command('camphoric_price_check', stdout=out, **options)
+        return out.getvalue()
+
+    def test_one_priced_as_of_its_completion_isnt_listed(self):
+        self.assertIn('0 registration(s) would be repriced', self.run_command())
+
+    def test_one_repriced_late_by_the_old_code_is_listed_with_its_refund(self):
+        # As a September edit under the old code left it, and the $450 collected.
+        late = {'campers': [{}], 'fee': LATE, 'closed_fee': CLOSED_FEE,
+                'total': LATE + CLOSED_FEE}
+        models.Registration.objects.filter(pk=self.registration.pk).update(
+            server_pricing_results=late)
+        models.Payment.objects.create(registration=self.registration, amount=Decimal(450))
+
+        output = self.run_command()
+
+        self.assertIn(
+            f'Early Bird Camp (#{self.event.id}): registration #{self.registration.id} '
+            'pat@example.com: total 450.00 -> 300.00, paid 450.00, balance 0.00 -> -150.00'
+            '  (refund due)', output)
+        self.assertIn('1 registration(s) would be repriced on their next save.', output)
+        self.assertEqual(models.Registration.objects.get().server_pricing_results, late)
+
+    def test_it_can_check_only_some_events(self):
+        models.Registration.objects.filter(pk=self.registration.pk).update(
+            server_pricing_results={'total': 1})
+        other = make_event()
+        self.assertIn('0 registration(s)', self.run_command(event=[other.id]))
+        self.assertIn('1 registration(s)', self.run_command(event=[self.event.id]))
+
+    def test_one_that_cant_be_priced_is_reported_not_raised(self):
+        with mock.patch.object(pricing, 'calculate_price', side_effect=ValueError('bad logic')):
+            output = self.run_command()
+        self.assertIn(f'registration #{self.registration.id} couldn\'t be priced', output)
+        self.assertIn("1 couldn't be priced", output)
+
+    def test_a_total_that_isnt_a_number_is_reported_not_raised(self):
+        models.Registration.objects.filter(pk=self.registration.pk).update(
+            server_pricing_results={'total': 1})
+        with mock.patch.object(pricing, 'calculate_price',
+                               return_value={'campers': [{}], 'total': float('nan')}):
+            output = self.run_command()
+        self.assertIn(f'registration #{self.registration.id} couldn\'t be priced', output)

@@ -7054,7 +7054,11 @@ late. Only a draft, which is what changes until it's completed, is priced as of 
 prices it at. A registrant who submits before a deadline and pays after it is shown the price as
 of then, and the quote (DR-140) makes sure they see it before they're charged. The
 `paypal-order` step chooses the payment option again under the lock it writes the invoice under,
-so the invoice asks the price as it stands then.
+so the invoice asks the price as it stands then. `manage.py camphoric_price_check` lists, without
+changing anything, the registrations whose price would change on their next save (with their
+balance before and after). It prices with the code it's run from, so a release that changes
+pricing is checked by running it from that release against the live data, before anyone edits a
+registration.
 **Context:** #805: every save repriced with today's date and today's registration window, so an
 organizer fixing a typo months after the early-bird deadline moved the total, with no one asking.
 **Alternatives:** Price as of when the form was submitted, kept in a new field — a draft could

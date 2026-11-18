@@ -203,7 +203,11 @@ flowchart TD
   as of now, so its payment page and its completion read pricing's `date` and `event.is_open`
   then, and logic that reads `date` goes by completion; once completed, every reprice (an
   organizer's edit months on) reads them as of `completed_at`, so the price doesn't move with the
-  calendar (SPEC §9.2, DR-167). `paypal-order` commits the completion before asking PayPal for the order, so that
+  calendar (SPEC §9.2, DR-167). A registration the old code repriced after a deadline goes back to
+  its price as of `completed_at` on its next save, which can leave a refund due:
+  `manage.py camphoric_price_check` lists those, with their balance before and after, and
+  changes nothing. It prices with the code it's run from, so run it from the new release against
+  the live database (after its migrations, before anyone edits a registration). `paypal-order` commits the completion before asking PayPal for the order, so that
   lock is never held across a call to PayPal, then, under the lock that writes its invoice,
   refuses a registration already paid and chooses the payment option again from the price as it
   stands, so the invoice asks what will be charged.
@@ -757,6 +761,8 @@ flowchart LR
 - `paypal.py` — `PayPalClient`: fetch, create, capture, refund; `PayPalError(unknown=…)`;
   `checked_order_id`.
 - `confirmations.py` — sending the confirmation, problem reports, the overdue sweep.
+- `management/commands/camphoric_price_check.py` — a dry run listing the registrations whose
+  price, and so balance, would change on their next save.
 - `worker.py` — `reconcile`, the every-minute task that runs both sweeps.
 - `views.py` — `RegisterView` (the `registration`, `paypal-order`, `payment` and `finish` steps),
   `InvoiceViewSet` (with `send`), `RegistrationViewSet.invoice_balance`, `PaymentViewSet` (with
