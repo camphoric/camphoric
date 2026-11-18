@@ -7,8 +7,8 @@
  *   - Admin attribute schemas: registration, camper.
  * Registration types are also managed here (§8.4, §15 DR-32), as are promo
  * codes (§15 DR-67), the registration form's custom validation messages (§15
- * DR-34) and the event's email account (§15 DR-44). Admins can also download all of the
- * event's data as JSON (§15 DR-169). The open tab is URL-addressable via `?settingsTab`.
+ * DR-34) and the event's email account (§15 DR-44). Registrars and Admins can also
+ * download all of the event's data as JSON (§15 DR-169). The open tab is URL-addressable via `?settingsTab`.
  */
 
 import { Alert, Button, Container, Stack, Tabs, Title } from '@mantine/core';
@@ -70,8 +70,8 @@ const TABS = [
   EMAIL,
   ...EDITABLE_FIELDS.map(({ field }) => field),
 ];
-// Admins also have the data export, last: it's rarely used.
-const ADMIN_TABS = [...TABS, DATA_EXPORT];
+// Registrars and Admins also have the data export, last: it's rarely used.
+const EXPORT_TABS = [...TABS, DATA_EXPORT];
 
 const stringify = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
@@ -154,7 +154,7 @@ export function EventAdminSettings() {
   });
   const { data: event } = eventHooks.useById(eventId);
   const { canExportEventData } = usePermissions();
-  const [tab, setTab] = useSearchTab('settingsTab', canExportEventData ? ADMIN_TABS : TABS);
+  const [tab, setTab] = useSearchTab('settingsTab', canExportEventData ? EXPORT_TABS : TABS);
   // The tabs that edit the event's own fields share its edit lease (§9.8): held
   // while any of them has unsaved changes.
   const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(new Set());

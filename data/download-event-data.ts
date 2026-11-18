@@ -15,10 +15,10 @@
  *
  *     CAMPHORIC_URL=https://<server> CAMPHORIC_API_TOKEN=<token> ./download-event-data.ts 12 -o camp.json
  *
- * The token must be an Admin's: the file holds personal and payment data for
- * everyone in the event. A read-only token is enough; make one from your
- * account menu in Camphoric (Personal access tokens), or on the server with
- * `./manage.py camphoric_api_token create <you> --read-only`.
+ * The token must be a Registrar's or an Admin's: the file holds personal and
+ * payment data for everyone in the event. A read-only token is enough; make
+ * one from your account menu in Camphoric (Personal access tokens), or on the
+ * server with `./manage.py camphoric_api_token create <you> --read-only`.
  *
  * It downloads from the event data export, `GET /api/events/<id>/export/`
  * (camphoric/camphoric#1016); from a server without it, it says the server is

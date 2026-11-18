@@ -256,7 +256,7 @@ queries derive it from `window.location` rather than props, through the routing 
   the lodging nodes the timeline is narrowed to, as comma-separated ids (none: everything).
 - `/admin/organization/:organizationId/event/:eventId/settings` — `?settingsTab`: the open
   settings section (`registration_types` by default, `validation_messages`, `email`, the event
-  field being edited, e.g. `camper_schema`, or, for Admins only, `data_export`).
+  field being edited, e.g. `camper_schema`, or, for Registrars and Admins, `data_export`).
 - `/admin/organization/:organizationId/event/:eventId/email` — email (§8.9). Search params:
   `?emailTab` — `history`, `unsubscribed`, or templates (the default, left out of the URL);
   `?templateId` —
@@ -798,38 +798,40 @@ Non-CRUD admin endpoints:
     the user changed, in every event and organization, newest first: entries of the same shape,
     `object.type` any audited model (`event`, `report`, `lodging`, `user`, …), paginated 50 a
     page as `{ count, next, previous, results }`.
-- **Event data export** (Admins only; 403 for other roles, 401 signed out, 404 for no such event;
-  §8.8; §15, DR-169): `GET /api/events/{id}/export/` — the path with its trailing slash, which
-  the `data/download-event-data.ts` script also requires — → 200 with `Content-Type:
-  application/json`, `Cache-Control: no-store` and `Content-Disposition: attachment` naming the
-  file `<event name> data <YYYY-MM-DD>.json`: the date in the event's time zone, `/ \ : * ? " < >
-  |` and control characters in the name replaced with `-` (as a downloaded report's are, §8.7),
-  `event <id>` for a blank name, the event's name cut short to keep the whole within 255 bytes,
-  and the RFC 5987 `filename*` form for a name that isn't plain ASCII. The server writes the
-  whole document from one consistent read of the database, then sends it:
+- **Event data export** (Registrars and Admins; 403 for Reporters and users without a role, 401
+  signed out, 404 for no such event; §8.8; §15, DR-169): `GET /api/events/{id}/export/` — the
+  path with its trailing slash, which the `data/download-event-data.ts` script also requires — →
+  200 with `Content-Type: application/json`, `Cache-Control: no-store` and `Content-Disposition:
+  attachment` naming the file `<event name> data <YYYY-MM-DD>.json`: the date in the event's time
+  zone, `/ \ : * ? " < > |` and control characters in the name replaced with `-` (as a downloaded
+  report's are, §8.7), `event <id>` for a blank name, the event's name cut short to keep the whole
+  within 255 bytes, and the RFC 5987 `filename*` form for a name that isn't plain ASCII. The
+  server writes the whole document from one consistent read of the database, then sends it:
   ```
   { export: { format: 'camphoric-event-data', format_version: 1,
-              camphoric_version: string | null, exported_at,
-              exported_by: { id, username, name }, event: { id, name } },
+              camphoric_version: string | null, exported_at, event: { id, name } },
     organization: { id, name },
     event: { …the event's fields },
     registration_types, promo_codes, custom_charge_types, lodgings, reports, email_templates,
-    contracts, registrations, invitations, campers, custom_charges, pricing_overrides, deposits,
-    invoices, payments, contract_agreements, email_messages, email_batches,
-    email_unsubscribes: [{ …the record's fields }] }
+    registrations, invitations, campers, custom_charges, pricing_overrides, deposits, invoices,
+    payments, email_messages, email_batches, email_unsubscribes: [{ …the record's fields }] }
   ```
-  in that order. Each array holds the event's records of that model, by `id`; `contracts` (the
-  published versions) and `contract_agreements` are the event's organization's (§6). A record has every field of its
-  model by field name, timestamps and `deleted_at` included (soft-deleted records are in it); a
-  relation is the related record's id (`null` for none) and a many-to-many relation a list of ids
-  (a promo code's `excluded_registration_types`); money is a decimal string and times ISO
-  instants, as elsewhere in the API. Left out are the secrets: the event's `paypal_client_id`, an
-  invoice's `token`, an invitation's `invitation_code`, a registration's `uuid` (it opens the
-  registration's payment step), an email message's `unsubscribe_url`, and any encrypted field;
-  an email message's `subject`, `text` and `html` have the codes they carried replaced with
-  `[redacted]`: those in links (`/invoices/<token>`, `code=<code>`, `/api/unsubscribe/<token>/`),
-  any uuid, and any of the event's invitation codes standing on its own, in any case. Each download records a change-history entry for the event (`action: 'export'`,
-  `changes: { data_export: [null, <file name>] }`), credited to whoever downloaded it.
+  in that order. Each array holds the event's records of that model, by `id`. A record has every
+  field of its model by field name, timestamps and `deleted_at` included (soft-deleted records
+  are in it); a relation is the related record's id (`null` for none) and a many-to-many relation
+  a list of ids (a promo code's `excluded_registration_types`); money is a decimal string and
+  times ISO instants, as elsewhere in the API. Nothing about users is in it: not who made the
+  file, no record's `created_by`, and no test email (`kind: 'test'`, sent to the organizer who
+  asked for it). Nor are the organization's own records (its email accounts,
+  contracts and the agreements to them) or the change history. Left out too are the secrets: the
+  event's `paypal_client_id`, an invoice's `token`, an invitation's `invitation_code`, a
+  registration's `uuid` (it opens the registration's payment step), an email message's
+  `unsubscribe_url`, and any encrypted field; an email message's `subject`, `text` and `html`
+  have the codes they carried replaced with `[redacted]`: those in links (`/invoices/<token>`,
+  `code=<code>`, `/api/unsubscribe/<token>/`), any uuid, and any of the event's invitation codes
+  standing on its own, in any case. Each download records a change-history entry for the event
+  (`action: 'export'`, `changes: { data_export: [null, <file name>] }`), credited to whoever
+  downloaded it.
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
   and the event's time zone to show them in. Events whose registration closed more than 3
@@ -1511,12 +1513,13 @@ hooks):
 - **Roles.** Every admin user has one site-wide **Camphoric permission group** (§15, DR-50):
   - **Admin** — everything, including users and organizations. A superuser is always an Admin,
     and only a superuser changes the account of a user with Django access (§15, DR-116).
-  - **Registrar** — everything except users and organizations, deleting payments, invoices
-    and promo codes, and downloading an event's data (§8.8; §15, DR-93, DR-108, DR-169).
+  - **Registrar** — everything except users and organizations, and deleting payments, invoices
+    and promo codes (§15, DR-93, DR-108).
   - **Reporter** — read-only: they can open every section, render and download reports, and use
     previews, Template Help and recipient previews, but can't create, edit, delete or send
-    anything (test emails, invitations, retries and cancels included), and don't see change
-    histories or deleted items (§15, DR-53, DR-55).
+    anything (test emails, invitations, retries and cancels included), don't see change
+    histories or deleted items, and can't download an event's data (§8.8; §15, DR-53, DR-55,
+    DR-169).
 
   The server enforces the roles (§5). A signed-in user without a group sees a **no-access**
   screen (who they're signed in as, that an administrator must give them a group, and Sign out)
@@ -2386,20 +2389,21 @@ entered again; the form says so before saving, and the server refuses the change
 the Email history, §8.9) and delete an account no event or sent email uses (otherwise the server
 refuses, and the reason is shown).
 
-**Data export** (Admins only; §15, DR-169) — an Admin can download all of the event's data as
-one JSON file, to analyse with their own scripts: its configuration (the event's own fields,
-registration types, promo codes, custom charge types, lodging, reports, email templates and the
-organization's published contract versions), its people and money (registrations, invitations, campers,
-custom charges, pricing overrides, deposits, invoices, payments and agreements to the contract)
-and its email (messages, group sends and unsubscribes), each record with its id and the ids of
-the records it's linked to, under a header saying which Camphoric version made it, when, by whom,
-and for which event (§5). The file is downloaded straight from the server
-(`GET /api/events/{id}/export/`) under the name it gives, so the data never passes through the
-page. The control says the file holds everyone's personal and payment details, that secrets
-(passwords, and the codes that open someone's invoice, invitation or registration or unsubscribe
-them) are left out, that it can't be
-imported back, and that each download is recorded in the Admin's change history (§8.10).
-Registrars and Reporters aren't offered it, and the server refuses them.
+**Data export** (Registrars and Admins; §15, DR-169) — a Registrar or Admin can download all of
+the event's data as one JSON file, to analyse with their own scripts: its configuration (the
+event's own fields, registration types, promo codes, custom charge types, lodging, reports and
+email templates), its people and money (registrations, invitations, campers, custom charges,
+pricing overrides, deposits, invoices and payments) and its email (messages, group sends and
+unsubscribes), each record with its id and the ids of the records it's linked to, under a header
+saying which Camphoric version made it, when, and for which event (§5). It holds nothing about
+users (who made the file, who created a record, the test emails they sent themselves), nothing of the organization's (its contracts and
+the agreements to them, its email accounts), and no change history. The file is downloaded
+straight from the server (`GET /api/events/{id}/export/`) under the name it gives, so the data
+never passes through the page. The control says the file holds everyone's personal and payment
+details, that secrets (passwords, and the codes that open someone's invoice, invitation or
+registration or unsubscribe them) are left out, that it can't be imported back, and that each
+download is recorded in the change history (§8.10). Reporters aren't offered it, and the server
+refuses them.
 
 ### 8.9 Email
 
@@ -7217,39 +7221,45 @@ collapsed categories per admin or per browser — no one has asked for it, and a
 admin forgot they collapsed would hide its reports on their next visit. One category open at a
 time (an accordion) — comparing reports across categories would mean reopening them in turn.
 
-### DR-169 — An event's data downloads as one JSON file, for Admins
+### DR-169 — An event's data downloads as one JSON file, for Registrars and Admins
 
-**Decision:** An Admin downloads all of an event's data from its Settings as one JSON document
-(§8.8), served by `GET /api/events/{id}/export/` (§5) and recorded in the change history as an
-`export` entry for the event (§8.10). It holds a header (Camphoric version, when, who, the
-event's id and name), the organization by id and name, the event's own record, and one array per
-model of everything that belongs to the event: configuration, people and money, and email.
-Records keep every field of their model, soft-deleted ones included, with relations as ids, so
-scripts can join them. The organization's published contract versions and the agreements to them
-are in it too: they're the terms everyone reaching the event agreed to. Left out are secrets —
-encrypted fields, the PayPal client id, and the codes that let whoever holds them pay an
-invoice, register with an invitation, take a registration's payment step (its uuid) or
-unsubscribe an address, taken out of the sent emails as well — and what isn't the event's: email
-accounts, users, drafts, edit leases, sessions, API tokens and connected apps. The server writes
-the document a record at a time from one REPEATABLE READ transaction into a temporary file
-(memory while it's small), then sends that file in batches (from the request's thread under the
-ASGI server): every array is from the same moment, a large event isn't held in memory, and a
-slow or paused download never holds the transaction, and the locks it takes, open. The page
-links straight to it rather than fetching it.
+**Decision:** A Registrar or Admin downloads all of an event's data from its Settings as one JSON
+document (§8.8), served by `GET /api/events/{id}/export/` (§5) and recorded in the change
+history as an `export` entry for the event (§8.10). It holds a header (Camphoric version, when,
+the event's id and name), the organization by id and name, the event's own record, and one array
+per model of the event's own data: configuration, people and money, and email. Records keep
+every field of their model, soft-deleted ones included, with relations as ids, so scripts can
+join them. Left out are users — who made the file, every record's `created_by`, and the test
+emails organizers send themselves — the
+organization's records (email accounts, contracts and the agreements to them), the change
+history, drafts, edit leases, sessions, API tokens and connected apps; and secrets: encrypted
+fields, the PayPal client id, and the codes that let whoever holds them pay an invoice, register
+with an invitation, take a registration's payment step (its uuid) or unsubscribe an address,
+taken out of the sent emails as well. The server writes the document a record at a time from one
+REPEATABLE READ transaction into a temporary file (memory while it's small), then sends that file
+in batches (from the request's thread under the ASGI server): every array is from the same
+moment, a large event isn't held in memory, and a slow or paused download never holds the
+transaction, and the locks it takes, open. The page links straight to it rather than fetching it.
 **Context:** #1016: people analysing an event (pandas, jq, a notebook) had to ask someone with
-database access. The file holds everyone's personal and payment details, hence Admins only and
-the audit entry. `data/download-event-data.ts` downloads the same file with a personal access
-token (DR-157), relying on the path, the 403/404 answers and the `Content-Disposition` name.
-**Alternatives:** The event import format — it describes how to set an event up, not what
-happened in it, and leaves out the people. Fetching each model through the existing APIs in the
-browser and assembling the file there — the whole event in the page's memory, many requests,
-and each serializer's own shape. The DRF serializers per model — they add computed fields and
-hide some of the model's, so the shapes would follow the admin screens rather than the data.
-Sending each record as it's read — a paused download would hold the transaction open, and with
-it the locks a migration waits on. Excluding soft-deleted records — the arrays would then disagree with the payments and history
-that mention them; `deleted_at` lets a script leave them out. Leaving incomplete registrations
-(drafts) in — they're never audited, are deleted after a while (DR-139), and aren't the event's
-record.
+database access. Registrars already see and edit every registration, camper and payment the file
+holds, so it's theirs too; Reporters, who only read, don't get it. The file holds everyone's
+personal and payment details, hence the audit entry. What's left out isn't the event's data:
+users are the organizers, contracts are the organization's terms with them, and the change
+history is about who changed what. `data/download-event-data.ts` downloads the same file with a
+personal access token (DR-157), relying on the path, the 403/404 answers and the
+`Content-Disposition` name.
+**Alternatives:** Admins only — Registrars handle the same people and money every day. The
+organization's contract versions and agreements — they're between the organization and its
+organizers, not the event's, and the agreements carry organizers' addresses and browsers. The
+event import format — it describes how to set an event up, not what happened in it, and leaves
+out the people. Fetching each model through the existing APIs in the browser and assembling the
+file there — the whole event in the page's memory, many requests, and each serializer's own
+shape. The DRF serializers per model — they add computed fields and hide some of the model's, so
+the shapes would follow the admin screens rather than the data. Sending each record as it's read
+— a paused download would hold the transaction open, and with it the locks a migration waits on.
+Excluding soft-deleted records — the arrays would then disagree with the payments that mention
+them; `deleted_at` lets a script leave them out. Leaving incomplete registrations (drafts) in —
+they're never audited, are deleted after a while (DR-139), and aren't the event's record.
 
 ### DR-170 — A cancellation fee is a custom charge of the registration's own
 
@@ -7346,7 +7356,7 @@ must be coordinated with the backend. Grouped by status.
   with the shape in §5 (DR-53); `GET /api/users/{id}/history/` — what a user changed, paginated
   (DR-80), with the `export` action (DR-169).
 - **Event data export:** `GET /api/events/{id}/export/` — all of an event's data as one JSON
-  file, Admins only, with the shape, headers and exclusions in §5 (DR-169).
+  file, for Registrars and Admins, with the shape, headers and exclusions in §5 (DR-169).
 - **Auth & bootstrap:** `GET /api/set-csrf-cookie`, `GET /api/user` (whoami), `POST /api/login`
   (throttled; DR-124), `POST /api/logout` (§3, §6; DR-9, DR-26). Scripts' personal access
   tokens: `/api/user/tokens`, `/api/users/{id}/tokens/`, `manage.py camphoric_api_token`

@@ -1,9 +1,10 @@
 '''
 All of an event's data as one JSON document, for analysis with your own
-scripts (SPEC §8.8, DR-169): `GET /api/events/<id>/export/`, Admins only.
+scripts (SPEC §8.8, DR-169): `GET /api/events/<id>/export/`, for Registrars
+and Admins.
 
 The document starts with what describes it (`export`: the Camphoric version,
-when and by whom it was made, and the event's id and name), then the
+when it was made, and the event's id and name), then the
 organization by id and name, then the event's own record, then one array of
 records per model, in `SECTIONS` order. Every record has all its fields
 (timestamps and `deleted_at` included: soft-deleted records are in it, so a
@@ -14,10 +15,11 @@ What's left out (`EXCLUDED`, and every `EncryptedTextField`) are secrets: the
 codes that let whoever holds them pay an invoice, register with an invitation,
 finish a registration's payment step or unsubscribe an address, and the event's
 PayPal client id. They're also taken out of the email messages that carried
-them (`redact`). Records that aren't the event's — email accounts, users,
-drafts, edit leases, API tokens, connected apps — aren't in it at all; only the
-organization's published contract versions and the agreements to them are, as
-the terms everyone reaching the event agreed to.
+them (`redact`). Nothing about users is in it: not who made the file, nor a
+record's `created_by`, nor the test emails organizers send themselves. Nor is
+anything that isn't the event's own data — the organization's records (email
+accounts, contracts and the agreements to them), drafts, edit leases, API
+tokens, connected apps — nor the change history.
 
 It isn't the event import format, and isn't meant to be imported back.
 
@@ -35,6 +37,7 @@ from contextlib import contextmanager
 from asgiref.sync import sync_to_async
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import connection, transaction
 from django.utils import timezone
@@ -93,7 +96,10 @@ def _email_messages(event):
     invitation_codes = frozenset(
         code.lower() for code in models.Invitation.objects
         .filter(registration_type__event=event).values_list('invitation_code', flat=True))
-    for message in models.EmailMessage.objects.filter(event=event).order_by('id').iterator():
+    # A test email goes to the organizer who sent it, not to anyone at the event.
+    messages = models.EmailMessage.objects.filter(event=event).exclude(
+        kind=models.EmailMessageKind.TEST)
+    for message in messages.order_by('id').iterator():
         for field in ('subject', 'text', 'html'):
             setattr(message, field, redact(getattr(message, field), invitation_codes))
         yield message
@@ -109,9 +115,6 @@ SECTIONS = (
     ('lodgings', lambda event: models.Lodging.objects.filter(event=event)),
     ('reports', lambda event: models.Report.objects.filter(event=event)),
     ('email_templates', lambda event: models.EmailTemplate.objects.filter(event=event)),
-    # Published versions only: a draft is still being written.
-    ('contracts', lambda event: models.Contract.objects.filter(
-        organization_id=event.organization_id, published_at__isnull=False)),
     # People and money
     ('registrations', lambda event: models.Registration.all_objects.filter(event=event)),
     ('invitations', lambda event: models.Invitation.objects.filter(
@@ -124,8 +127,6 @@ SECTIONS = (
     ('deposits', lambda event: models.Deposit.objects.filter(event=event)),
     ('invoices', lambda event: models.Invoice.all_objects.filter(registration__event=event)),
     ('payments', lambda event: models.Payment.all_objects.filter(registration__event=event)),
-    ('contract_agreements', lambda event: models.ContractAgreement.objects.filter(
-        organization_id=event.organization_id)),
     # Email
     ('email_messages', _email_messages),
     ('email_batches', lambda event: models.EmailBatch.objects.filter(event=event)),
@@ -136,12 +137,14 @@ SECTIONS = (
 def record(instance):
     '''
     A record's fields, as a dict for JSON: a relation as the related record's
-    id, a many-to-many relation as a list of ids, and no secret.
+    id, a many-to-many relation as a list of ids, and no secret and no user
+    (who made it: `created_by`).
     '''
     excluded = EXCLUDED.get(type(instance), set())
     data = {}
     for field in instance._meta.concrete_fields:
-        if field.name in excluded or isinstance(field, models.EncryptedTextField):
+        if (field.name in excluded or isinstance(field, models.EncryptedTextField)
+                or field.related_model is get_user_model()):
             continue
         # A relation's value is its id (the column, `invoice_id`), under the field's name.
         data[field.name] = field.value_from_object(instance)
@@ -177,11 +180,6 @@ def file_name(event, at):
     return f'{name or f"event {event.id}"}{suffix}'
 
 
-def _person(user):
-    return {'id': user.id, 'username': user.username,
-            'name': user.get_full_name() or user.username}
-
-
 def _json(value):
     return json.dumps(value, cls=DjangoJSONEncoder, ensure_ascii=False)
 
@@ -202,7 +200,7 @@ def _snapshot():
         yield
 
 
-def _document(event, user, at):
+def _document(event, at):
     '''The document, as chunks of text, read from the database as it goes.'''
     event = models.Event.objects.get(pk=event.pk)
     organization = event.organization
@@ -212,7 +210,6 @@ def _document(event, user, at):
             'format_version': FORMAT_VERSION,
             'camphoric_version': settings.CAMPHORIC_VERSION or None,
             'exported_at': at,
-            'exported_by': _person(user),
             'event': {'id': event.id, 'name': event.name},
         },
         'organization': {'id': organization.id, 'name': organization.name},
@@ -234,7 +231,7 @@ IN_MEMORY = 1024 * 1024
 CHUNK = 64 * 1024
 
 
-def stream(event, user, at):
+def stream(event, at):
     '''
     The document, as chunks of text: written whole from one snapshot of the
     database (the transaction ends before the first chunk is sent), then read
@@ -242,7 +239,7 @@ def stream(event, user, at):
     '''
     with tempfile.SpooledTemporaryFile(max_size=IN_MEMORY, mode='w+', encoding='utf-8') as file:
         with _snapshot():
-            for part in _document(event, user, at):
+            for part in _document(event, at):
                 file.write(part)
         file.seek(0)
         while chunk := file.read(CHUNK):

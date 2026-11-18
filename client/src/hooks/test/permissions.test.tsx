@@ -22,7 +22,7 @@ describe('permissionsFor', () => {
       canManageUsers: false,
       canManageApps: false,
       canManageOrganizations: false,
-      canExportEventData: false,
+      canExportEventData: true,
     });
     expect(permissionsFor('reporter')).toMatchObject({
       canEdit: false,

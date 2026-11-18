@@ -342,7 +342,7 @@ function downloadRefusal(status: number, body: string, url: string, eventId: str
   }
 
   if (status === 403) {
-    return new Error(`only an Admin can download an event's data, and the token's user isn't one (403${detail})`);
+    return new Error(`only a Registrar or an Admin can download an event's data, and the token's user isn't one (403${detail})`);
   }
   if (status === 404) {
     return new Error(
