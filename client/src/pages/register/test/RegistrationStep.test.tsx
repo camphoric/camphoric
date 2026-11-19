@@ -7,7 +7,7 @@ import { act, renderWithProviders, screen } from 'test/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RegistrationStep } from '../RegistrationStep';
-import { saveSentRegistration } from '../storage';
+import { saveRegistrationFormData, saveSentRegistration } from '../storage';
 
 const {
   checkMutate,
@@ -183,6 +183,18 @@ describe('RegistrationStep', () => {
       expect(localStorage.getItem('Event 1: Camp, ')).toBeNull();
       expect(localStorage.getItem('Event 1: Camp,  (payment)')).toBeNull();
     });
+  });
+
+  it('keeps a change made just before leaving the step, for coming Back to it (#1038)', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderWithProviders(<RegistrationStep />);
+    // An earlier save, then a change still waiting to be saved as the step closes.
+    saveRegistrationFormData('Event 1: Camp, ', { registrant_email: 'old', campers: [] });
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'pat');
+    unmount();
+
+    renderWithProviders(<RegistrationStep />);
+    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveValue('pat');
   });
 
   it('asks to send again a registration the server no longer has, keeping it (#769)', () => {

@@ -99,9 +99,14 @@ export function RegistrationStep() {
     });
   }, [storageKey, checkSent]);
 
-  const debouncedSave = useDebouncedCallback((data: RegistrationFormData) => {
-    if (storageKey) saveRegistrationFormData(storageKey, data);
-  }, 600);
+  // Flushed, not dropped, on leaving the step: Back from the payment step rehydrates
+  // from what's saved, so a change made just before submitting must be in it (#1038).
+  const debouncedSave = useDebouncedCallback(
+    (data: RegistrationFormData) => {
+      if (storageKey) saveRegistrationFormData(storageKey, data);
+    },
+    { delay: 600, flushOnUnmount: true },
+  );
 
   // Rehydrate saved form data once, then recompute the price from it.
   const rehydrated = useRef(false);
@@ -156,6 +161,8 @@ export function RegistrationStep() {
   const startOver = () => {
     // After any save under way, which would otherwise bring back what's being discarded.
     void drafts.stop().then(() => {
+      // Nor may a local save still waiting (#1038).
+      debouncedSave.cancel();
       const draft = loadDraftUUID(storageKey) ?? sentBefore?.paymentStep.registrationUUID;
       if (draft) deleteDraft(draft);
       clearSentRegistration(storageKey);
