@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-17
+**Last updated:** 2026-11-18
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -1712,8 +1712,10 @@ Before any step renders, the app loads the registration config (`GET …/registe
   doesn't check phone numbers' length (§15, DR-174).
 - **Live updating:** on every change it (a) marks `updating`, (b) saves form data to the
   store, (c) recomputes totals via `calculatePrice` (§9) and stores them, (d) persists form
-  data to localStorage (debounced). The running price total is shown and updates live as the
-  form changes, with a progress indication while it recalculates.
+  data to localStorage (debounced). A write still waiting when the step closes (as it does on
+  submitting) is made then, not dropped: coming Back to the step rehydrates from it, so the
+  last change before leaving must be in it. The running price total is shown and updates live
+  as the form changes, with a progress indication while it recalculates.
 - **Local persistence:** form data is saved to localStorage under a key derived from the
   event id, the schema title and the event start date, so two events don't share data saved
   under it.
