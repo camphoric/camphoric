@@ -197,6 +197,22 @@ describe('RegistrationStep', () => {
     expect(screen.getByRole('textbox', { name: 'Email' })).toHaveValue('pat');
   });
 
+  it('doesn’t save, after starting over, a change still waiting to be saved (#1038)', async () => {
+    const user = userEvent.setup();
+    const key = 'Event 1: Camp, ';
+    saveSentRegistration(key, {
+      paymentStep: paymentStep(80),
+      formData: { campers: [] },
+      promo: null,
+    });
+    const { unmount } = renderWithProviders(<RegistrationStep />);
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'zzz');
+    await user.click(screen.getByRole('button', { name: 'Start a new registration' }));
+    unmount();
+
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
   it('asks to send again a registration the server no longer has, keeping it (#769)', () => {
     useRegistrationStore.getState().setRegistration({
       registrant_email: 'pat@example.com',
