@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/camphoric/camphoric/compare/v0.20.0...v0.20.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **register:** keep the last change when going Back from the payment step ([11777ea](https://github.com/camphoric/camphoric/commit/11777eaa7f6a83c4a22913d144df3f13c47d3b05)), closes [#1038](https://github.com/camphoric/camphoric/issues/1038)
+
 ## [0.20.0](https://github.com/camphoric/camphoric/compare/v0.19.0...v0.20.0) (2026-11-18)
 
 
