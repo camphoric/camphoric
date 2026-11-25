@@ -601,6 +601,11 @@ class CashPaymentTypeTests(TransactionTestCase):
         self.assertEqual(self.stored(event), ['Check', 'Voucher', 'Voucher'])
         from camphoric import models
         loaded = models.Event.objects.get(pk=event)
+        # Changed as an edit is: a form opened before can't save over it (DR-109).
+        self.assertEqual(loaded.version, 2)
+        self.assertEqual(
+            sorted(p.version for p in models.Payment.objects.filter(registration__event=event)),
+            [1, 1, 2])
         self.assertEqual(models.payment_type_label('Voucher', loaded), 'Discount or Gifted Credit')
         self.assertTrue(loaded.accepts_payment_type('Voucher'))
         self.assertIn(VOUCHER['value'], [c['value'] for c in loaded.payment_type_choices])

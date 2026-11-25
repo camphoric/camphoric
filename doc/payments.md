@@ -19,8 +19,8 @@ fixed.
   the event's `paypal_enabled` is on. An event may add its own offline types (`Event.payment_types`,
   e.g. Venmo or Zelle), which an admin records by hand (SPEC §9.7, DR-164). Voucher ("Discount or
   Gifted Credit") was built in until Cash took its place; events that had used it have it as their
-  own type (migration `0101`, SPEC DR-176). An import replaces an event's `payment_types`, so the
-  event module of such an event declares Voucher among its own.
+  own type (migration `0101`, SPEC DR-176). An import that lists an event's `payment_types` replaces
+  them, so the event module of such an event that lists its own types lists Voucher among them.
 - **Payment option** — one of the event's deposit choices ("Full Payment", "50% Deposit"),
   worked out by the server into an amount.
 - **Handling fee** — the event's `epayment_handling` percent, charged on an invoice's amount when
