@@ -1,13 +1,13 @@
 /**
  * How payment types read and which an admin may choose (SPEC §9.7; §15,
  * DR-164). The built-in types show as their names (Check, PayPal, Card,
- * Voucher); the event's own show by their labels; a type the event no longer
+ * Cash); the event's own show by their labels; a type the event no longer
  * defines shows as the value its payments stored.
  */
 
 import type { ApiEvent, ApiEventPaymentType, PaymentType } from 'api-types';
 
-export const BUILT_IN_PAYMENT_TYPES: PaymentType[] = ['Check', 'PayPal', 'Card', 'Voucher'];
+export const BUILT_IN_PAYMENT_TYPES: PaymentType[] = ['Check', 'PayPal', 'Card', 'Cash'];
 
 /** How a stored payment type reads, given the event's own types. */
 export const paymentTypeLabel = (value: string, own?: ApiEventPaymentType[]) =>

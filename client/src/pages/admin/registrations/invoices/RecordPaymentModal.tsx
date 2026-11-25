@@ -1,7 +1,7 @@
 /**
  * Record a payment against a registration (SPEC §8.4, §9.7): its type (the
  * event's `payment_type_choices`: Check, PayPal and Card while PayPal is
- * enabled, Voucher, and the event's own types; §15, DR-164), paid-on date, amount, the event's
+ * enabled, Cash, and the event's own types; §15, DR-164), paid-on date, amount, the event's
  * `payment_schema` fields, notes, and which invoice it pays. Every payment
  * belongs to an invoice (§15, DR-87): it defaults to the oldest one with money
  * due (and fills in what's due on it), or goes "on its own" — a new "Payment

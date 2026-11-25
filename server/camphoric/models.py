@@ -59,7 +59,7 @@ class PaymentType(models.TextChoices):
     CHECK = 'Check', 'Check'
     PAYPAL = 'PayPal', 'PayPal'
     CARD = 'Card', 'Debit or Credit Card'
-    VOUCHER = 'Voucher', 'Discount or Gifted Credit'
+    CASH = 'Cash', 'Cash'
 
 
 # Paid online, through PayPal: only when the event takes payments online.
@@ -420,13 +420,13 @@ class Event(TimeStampedModel):
     def payment_type_choices(self):
         '''
         What a payment can be recorded as, in order (SPEC §9.7, DR-164): Check,
-        PayPal and Card while the event takes payments online, Voucher, then
-        the event's own types, each {value, label, online}.
+        PayPal and Card while the event takes payments online, Cash, then the
+        event's own types, each {value, label, online}.
         '''
         built_in = [PaymentType.CHECK]
         if self.paypal_enabled:
             built_in += ONLINE_PAYMENT_TYPES
-        built_in.append(PaymentType.VOUCHER)
+        built_in.append(PaymentType.CASH)
         return [
             *({'value': t.value, 'label': t.label, 'online': t in ONLINE_PAYMENT_TYPES}
               for t in built_in),

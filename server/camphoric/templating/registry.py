@@ -261,7 +261,7 @@ TYPES = (
         F('amount', 'money', 'Amount paid (negative for a refund).',
           '{{ payment.amount | money }}'),
         F('paid_on', 'date', 'Date paid.', nullable=True),
-        F('payment_type', 'string', 'Check, PayPal, Card, Voucher, or the stored value of one '
+        F('payment_type', 'string', 'Check, PayPal, Card, Cash, or the stored value of one '
           "of the event's own payment types."),
         F('notes', 'string', 'Admin notes.'),
         F('attributes', 'attributes:payment', 'Extra payment details.'),

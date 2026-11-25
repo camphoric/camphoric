@@ -1,6 +1,6 @@
 '''
 An event's own payment types (SPEC §9.7, DR-164): offline ways of being paid
-beyond the built-in Check, PayPal, Card and Voucher — imported with the event,
+beyond the built-in Check, PayPal, Card and Cash — imported with the event,
 listed with labels by the event API, and checked against the payment's event
 when a payment is recorded.
 '''
@@ -12,7 +12,7 @@ from camphoric import models, roles
 from tests.factories import create_template_event, make_user, registration_invoice
 
 VENMO = {'value': 'Venmo', 'label': 'Venmo (@camp)'}
-CASH = {'value': 'Cash', 'label': 'Cash'}
+VOUCHER = {'value': 'Voucher', 'label': 'Discount or Gifted Credit'}
 
 
 class EventPaymentTypesTests(APITestCase):
@@ -39,32 +39,32 @@ class EventPaymentTypesTests(APITestCase):
             'organization': self.made.organization.id,
             'name': 'Imported Camp',
             'paypal_enabled': False,
-            'payment_types': [VENMO, CASH],
+            'payment_types': [VENMO, VOUCHER],
         }, format='json')
         self.assertEqual(response.status_code, 201, response.data)
         event = models.Event.objects.get(pk=response.data['id'])
-        self.assertEqual(event.payment_types, [VENMO, CASH])
+        self.assertEqual(event.payment_types, [VENMO, VOUCHER])
         self.assertEqual(
             [(c['value'], c['label'], c['online']) for c in response.data['payment_type_choices']],
-            [('Check', 'Check', False), ('Voucher', 'Discount or Gifted Credit', False),
-             ('Venmo', 'Venmo (@camp)', False), ('Cash', 'Cash', False)])
+            [('Check', 'Check', False), ('Cash', 'Cash', False),
+             ('Venmo', 'Venmo (@camp)', False), ('Voucher', 'Discount or Gifted Credit', False)])
 
     def test_an_event_without_its_own_types(self):
         event = models.Event.objects.create(organization=self.made.organization, name='Plain')
         self.assertEqual(event.payment_types, [])
         data = self.client.get(f'/api/events/{event.id}/').data
         self.assertEqual([c['value'] for c in data['payment_type_choices']],
-                         ['Check', 'PayPal', 'Card', 'Voucher'])
+                         ['Check', 'PayPal', 'Card', 'Cash'])
 
     def test_online_types_only_while_paypal_is_enabled(self):
         data = self.patch([VENMO])
         self.assertEqual([(c['value'], c['online']) for c in data['payment_type_choices']],
                          [('Check', False), ('PayPal', True), ('Card', True),
-                          ('Voucher', False), ('Venmo', False)])
+                          ('Cash', False), ('Venmo', False)])
         data = self.client.patch(f'/api/events/{self.made.event.id}/',
                                  {'paypal_enabled': False}, format='json').data
         self.assertEqual([c['value'] for c in data['payment_type_choices']],
-                         ['Check', 'Voucher', 'Venmo'])
+                         ['Check', 'Cash', 'Venmo'])
 
     def test_registration_still_offers_only_the_built_in_types(self):
         self.patch([VENMO])
@@ -79,6 +79,7 @@ class EventPaymentTypesTests(APITestCase):
         for payment_types, message in [
             ([{'value': 'check', 'label': 'Cheque'}], 'built-in'),
             ([{'value': 'CARD', 'label': 'Card'}], 'built-in'),
+            ([{'value': 'cash', 'label': 'Cash at the gate'}], 'built-in'),
             ([VENMO, {'value': 'venmo', 'label': 'Venmo again'}], 'listed twice'),
             ([{'value': 'Venmo'}], 'just "value" and "label"'),
             ([{**VENMO, 'online': True}], 'just "value" and "label"'),
@@ -99,7 +100,7 @@ class RecordingAnEventTypeTests(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.made = create_template_event()
-        cls.made.event.payment_types = [VENMO, CASH]
+        cls.made.event.payment_types = [VENMO, VOUCHER]
         cls.made.event.save()
         cls.registrar = make_user(roles.REGISTRAR, 'reggie')
 
@@ -120,7 +121,7 @@ class RecordingAnEventTypeTests(APITestCase):
         return response.data
 
     def drop_types(self):
-        self.made.event.payment_types = [CASH]
+        self.made.event.payment_types = [VOUCHER]
         self.made.event.save()
 
     def test_an_event_type(self):
@@ -151,6 +152,7 @@ class RecordingAnEventTypeTests(APITestCase):
     def test_changing_to_a_type_the_event_doesnt_define(self):
         data = self.record(payment_type='Check')
         self.edit(data['id'], 400, payment_type='Zelle')
+        self.edit(data['id'], payment_type='Voucher')
         self.edit(data['id'], payment_type='Cash')
 
     def test_a_payment_whose_type_was_removed(self):
@@ -173,13 +175,13 @@ class RecordingAnEventTypeTests(APITestCase):
     def test_malformed_types_saved_outside_the_api(self):
         # The Django admin takes any JSON: what can't be read is left out, not a 500.
         event = self.made.event
-        event.payment_types = ['Cash', {'value': 'Venmo'}, {'label': 'No value'},
+        event.payment_types = ['Voucher', {'value': 'Venmo'}, {'label': 'No value'},
                                {'value': 7, 'label': 'Seven'}]
         event.save()
         self.assertEqual([c['value'] for c in event.payment_type_choices][-1:], ['Venmo'])
         self.assertEqual(event.payment_type_choices[-1]['label'], 'Venmo')
         self.assertTrue(event.accepts_payment_type('Venmo'))
-        self.assertFalse(event.accepts_payment_type('Cash'))
+        self.assertFalse(event.accepts_payment_type('Voucher'))
         self.assertEqual(models.payment_type_label('Venmo', event), 'Venmo')
         self.client.force_authenticate(User.objects.create_superuser('su', 'su@example.com', 'pw'))
         self.assertEqual(self.client.get('/api/events/').status_code, 200)
@@ -188,12 +190,13 @@ class RecordingAnEventTypeTests(APITestCase):
         self.assertEqual(listed['payment_types'], [{'value': 'Venmo', 'label': 'Venmo'}])
         # A built-in type's value, or one listed twice, is offered once.
         event.payment_types = [{'value': 'check', 'label': 'Cheque'}, VENMO,
+                               {'value': 'CASH', 'label': 'Cash at the gate'},
                                {'value': 'VENMO', 'label': 'Again'}, None]
         event.save()
         listed = self.client.get(f'/api/events/{event.id}/').data
         self.assertEqual(listed['payment_types'], [VENMO])
         self.assertEqual([c['value'] for c in listed['payment_type_choices']],
-                         ['Check', 'PayPal', 'Card', 'Voucher', 'Venmo'])
+                         ['Check', 'PayPal', 'Card', 'Cash', 'Venmo'])
         self.assertEqual(models.payment_type_label('check', event), 'check')
         event.payment_types = {'not': 'a list'}
         event.save()
@@ -218,5 +221,7 @@ class RecordingAnEventTypeTests(APITestCase):
         event = self.made.event
         self.assertEqual(models.payment_type_label('Venmo', event), 'Venmo (@camp)')
         self.assertEqual(models.payment_type_label('Card', event), 'Debit or Credit Card')
+        self.assertEqual(models.payment_type_label('Cash', event), 'Cash')
+        self.assertEqual(models.payment_type_label('Voucher', event), 'Discount or Gifted Credit')
         self.assertEqual(models.payment_type_label('Venmo'), 'Venmo')
         self.assertEqual(models.payment_type_label('Gone', event), 'Gone')

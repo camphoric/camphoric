@@ -683,7 +683,7 @@
     {
      "name": "payment_type",
      "type": "string",
-     "doc": "Check, PayPal, Card, Voucher, or the stored value of one of the event's own payment types."
+     "doc": "Check, PayPal, Card, Cash, or the stored value of one of the event's own payment types."
     },
     {
      "name": "notes",

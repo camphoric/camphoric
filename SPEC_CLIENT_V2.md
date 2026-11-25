@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-18
+**Last updated:** 2026-11-24
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-175)
+- §15 — Decision Records (DR-1…DR-176)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -2078,8 +2078,8 @@ they can:
   invoice, or checking its PayPal order. It opens once, and the request leaves the URL; for a
   Reporter, or an invoice no longer on the registration, nothing opens.
 - **Record a payment** (Registrars and Admins) — `payment_type`, one of the event's
-  `payment_type_choices` (Check, PayPal and Card while PayPal is enabled, Voucher, and the event's
-  own types, shown by their labels; §9.7, §15, DR-164), `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
+  `payment_type_choices` (Check, PayPal and Card while PayPal is enabled, Cash, and the event's
+  own types, shown by their labels; §9.7, §15, DR-164, DR-176), `paid_on`, `amount`, dynamic attributes, `notes`, and which invoice it pays: the oldest one with
   money due to start with (filling in what's due on it), any other open one, or "on its own" (a
   new "Payment received" invoice). An invoice can take more than one payment — a second check
   for the rest, say — but not one PayPal is still processing a payment on, which isn't offered
@@ -3297,16 +3297,16 @@ section is the contract.
 - **Where a payment goes.** Recorded with an invoice, on it (same registration, not cancelled).
   Without one, on the registration's oldest invoice that still has money due; with none, on a
   new `payment_received` invoice for exactly it. A registrar's payment never adds a fee.
-- **Payment types** (§15, DR-13, DR-164). The built-in types are Check, PayPal, Card and Voucher.
-  PayPal and Card are the online types, paid through PayPal and offered only while the event's
-  `paypal_enabled` is on; Check and Voucher are open to every event. An event may add its own
+- **Payment types** (§15, DR-13, DR-164, DR-176). The built-in types are Check, PayPal, Card and
+  Cash. PayPal and Card are the online types, paid through PayPal and offered only while the
+  event's `paypal_enabled` is on; Check and Cash are open to every event. An event may add its own
   offline types in `payment_types`, each a `value` (what a payment stores) and a `label` (how
   it's shown): values are trimmed, distinct ignoring case, at most 255 characters, and never a
   built-in type's value in any case — the events API refuses the list (400 on `payment_types`)
   otherwise. The event's own types are recorded by hand only: they never start a PayPal order
   and are never offered during registration, whose payment step keeps to Check, PayPal and Card.
   - `payment_type_choices` (read-only) lists, in order, Check, PayPal and Card (while
-    `paypal_enabled`), Voucher, then the event's own types, each `{ value, label, online }`.
+    `paypal_enabled`), Cash, then the event's own types, each `{ value, label, online }`.
   - A payment's `payment_type` must be a built-in type or one of its event's own, matched
     exactly; anything else is refused (400 on `payment_type`). A type the event has since
     dropped stays where it's already used: a payment keeps it through an edit, and a refund of
@@ -3314,8 +3314,15 @@ section is the contract.
     the refund's choices for that reason.
   - An invoice's `payment_type` (how the payer chose to pay it) follows the same values: a
     "Payment received" invoice takes its payment's type.
-  - The client shows the built-in types by name (Check, PayPal, Card, Voucher), the event's own
+  - The client shows the built-in types by name (Check, PayPal, Card, Cash), the event's own
     by their labels, and a type the event no longer defines as the value its payments stored.
+  - Voucher is not built in. An event that recorded Voucher payments or invoices before Cash
+    became built in has it as one of its own types, value `Voucher` and label "Discount or Gifted
+    Credit", so those payments keep their type and are shown by that label; any other event may
+    add it. An import replaces the event's `payment_types`, so an event module for such an event
+    lists the Voucher type among its own.
+    Payments and invoices stored as a type that is now built in (`cash`, in any case) read as
+    that built-in type (§15, DR-176).
 - **Payment options** (#675; §15, DR-89): the event's deposit choices (`registration_deposit_schema`,
   `oneOf` of `{ const, title }` or `enum` + `enumNames`, each const the JSON of `{ name, logic }`)
   are evaluated on the server against the registration's stored pricing results — a result that
@@ -4094,6 +4101,9 @@ are already server-scoped) and surfaces 403s gracefully. Role-based UI gating fr
 Revisit if the product needs an org-admin vs. super-admin UI distinction.
 
 ### DR-13 — Payment types per surface
+
+*Amended by DR-176: Cash is built in in Voucher's place; Voucher is an event's own type where it
+was used.*
 
 **Decision:** The public flow offers Check / PayPal / Card; the admin Add-Payment modal also
 records **Voucher** (and manual entries). This matches existing behavior (§7.2, §8.4).
@@ -7284,9 +7294,9 @@ the DOM after render — fragile, and fights Mantine's own updates.
 
 ### DR-164 — An event defines its own offline payment types
 **Decision:** An event holds its own payment types as a JSON list on the event,
-`payment_types: [{ value, label }]`, beside the built-in Check, PayPal, Card and Voucher, and the
-events API adds a read-only `payment_type_choices` with every type a payment can be recorded as.
-The database no longer restricts `Payment.payment_type` and `Invoice.payment_type` to the
+`payment_types: [{ value, label }]`, beside the built-in Check, PayPal, Card and Voucher (Cash
+in Voucher's place since DR-176), and the events API adds a read-only `payment_type_choices`
+with every type a payment can be recorded as. The database no longer restricts `Payment.payment_type` and `Invoice.payment_type` to the
 built-in choices; the payment serializer checks a payment's type against its event instead,
 still allowing a type the event has since dropped where a payment already uses it (the payment
 itself, or a refund of it). The event's own types are offline only. The client shows them by
@@ -7619,6 +7629,30 @@ countries such as Italy. Build the widget on `libphonenumber-js` directly — th
 formatting as you type with the cursor kept in place would be ours to write. Bundle the flags as
 React components — every flag in the registration bundle. Load them from a CDN, as DR-30's
 library did — another site in every registration.
+
+### DR-176 — Cash is a built-in payment type; Voucher is an event's own
+**Decision:** The built-in payment types are Check, PayPal, Card and Cash; Voucher is no longer
+one. Cash is offline and open to every event, offered after the online types and before the
+event's own. A data migration keeps what events recorded: every event with a payment or an
+invoice stored as `Voucher` (in any case) gets `{ "value": "Voucher", "label": "Discount or Gifted
+Credit" }` in its `payment_types`, unless it already has a Voucher entry (compared ignoring case;
+that entry takes the value `Voucher` and keeps its label), and those payments and invoices are
+stored as `Voucher`. Every `payment_types` entry whose value is `cash` in any case is removed, and
+payments and invoices stored as `cash` in any case are stored as `Cash`. Events with no Voucher
+payments or invoices get no Voucher type. Reversing it removes every Voucher entry and gives each
+event with Cash payments or invoices `{ "value": "Cash", "label": "Cash" }` back. The event import
+spec reserves Cash, not Voucher, for the built-in types; an event module whose event has Voucher
+payments declares the Voucher type, since an import replaces the event's `payment_types`.
+**Context:** Cash is an offline way of being paid that any event may take, which events had to
+add as their own type (Sample Camp did), while Voucher is a back-office reconciliation type
+(DR-13) that not every event uses (#1037). The label stays "Discount or Gifted Credit", the one
+the server gave the built-in type (the client, which showed built-in types by name, now shows it
+by that label); an own Cash type's label gives way to the built-in "Cash", since a built-in value
+always means the built-in type (DR-164).
+**Alternatives:** Keep Voucher built in beside Cash — every event offered a type most never use.
+Give Voucher to every event — events that never used it would get a type they didn't ask for.
+Leave an event's own Cash type and skip the built-in for it — the same value would mean different
+things on different events, which DR-164's rule against reusing a built-in value exists to stop.
 
 ## Appendix A — Backend / API Dependencies
 

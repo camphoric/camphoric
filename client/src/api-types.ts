@@ -104,7 +104,7 @@ export interface ApiEvent extends TimeStamped {
   payment_types: ApiEventPaymentType[];
   /**
    * Every type a payment can be recorded as, in order: Check, PayPal and Card
-   * (while PayPal is enabled), Voucher, then the event's own. Read-only.
+   * (while PayPal is enabled), Cash, then the event's own. Read-only.
    */
   payment_type_choices: ApiPaymentTypeChoice[];
   paypal_client_id: string;
@@ -266,7 +266,7 @@ export interface ApiDeposit extends TimeStamped {
 }
 
 /** The built-in payment types; PayPal and Card are paid online (§9.7). */
-export type PaymentType = 'Check' | 'PayPal' | 'Card' | 'Voucher';
+export type PaymentType = 'Check' | 'PayPal' | 'Card' | 'Cash';
 
 /** One of an event's own payment types: its stored value and how it's shown (§15, DR-164). */
 export interface ApiEventPaymentType {
