@@ -3319,10 +3319,10 @@ section is the contract.
   - Voucher is not built in. An event that recorded Voucher payments or invoices before Cash
     became built in has it as one of its own types, value `Voucher` and label "Discount or Gifted
     Credit", so those payments keep their type and are shown by that label; any other event may
-    add it. An import replaces the event's `payment_types`, so an event module for such an event
-    lists the Voucher type among its own.
-    Payments and invoices stored as a type that is now built in (`cash`, in any case) read as
-    that built-in type (§15, DR-176).
+    add it. An import that lists the event's own `payment_types` replaces them, so an event
+    module for such an event that lists its own types lists the Voucher type among them. When
+    Cash became built in, payments and invoices stored as `cash` in any case were stored as
+    `Cash`, and the event's own Cash types were removed (§15, DR-176).
 - **Payment options** (#675; §15, DR-89): the event's deposit choices (`registration_deposit_schema`,
   `oneOf` of `{ const, title }` or `enum` + `enumNames`, each const the JSON of `{ name, logic }`)
   are evaluated on the server against the registration's stored pricing results — a result that
@@ -7639,10 +7639,13 @@ Credit" }` in its `payment_types`, unless it already has a Voucher entry (compar
 that entry takes the value `Voucher` and keeps its label), and those payments and invoices are
 stored as `Voucher`. Every `payment_types` entry whose value is `cash` in any case is removed, and
 payments and invoices stored as `cash` in any case are stored as `Cash`. Events with no Voucher
-payments or invoices get no Voucher type. Reversing it removes every Voucher entry and gives each
+payments or invoices get no Voucher type added (an entry saved through the Django admin, which the
+built-in type hid, shows from then on). Each row it changes is changed as an edit is, with a new
+`version` (DR-109). Reversing it removes every Voucher entry and gives each
 event with Cash payments or invoices `{ "value": "Cash", "label": "Cash" }` back. The event import
 spec reserves Cash, not Voucher, for the built-in types; an event module whose event has Voucher
-payments declares the Voucher type, since an import replaces the event's `payment_types`.
+payments and that lists its own `payment_types` lists the Voucher type, since an import that lists
+them replaces them.
 **Context:** Cash is an offline way of being paid that any event may take, which events had to
 add as their own type (Sample Camp did), while Voucher is a back-office reconciliation type
 (DR-13) that not every event uses (#1037). The label stays "Discount or Gifted Credit", the one

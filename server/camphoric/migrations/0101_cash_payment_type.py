@@ -6,7 +6,8 @@ type gives way to the built-in one. Both are stored with the built-in's spelling
 '''
 
 from django.db import migrations
-from django.db.models import Q
+from django.db.models import F, Q
+from django.utils import timezone
 
 VOUCHER = {'value': 'Voucher', 'label': 'Discount or Gifted Credit'}
 CASH = {'value': 'Cash', 'label': 'Cash'}
@@ -16,6 +17,14 @@ def _is(entry, value):
     '''Whether an own type's entry is `value`, ignoring case and surrounding spaces.'''
     return (isinstance(entry, dict) and isinstance(entry.get('value'), str)
             and entry['value'].strip().casefold() == value.casefold())
+
+
+def _edit(queryset, **values):
+    '''
+    Update rows as an edit does (SPEC DR-109): a newer `version`, so a save made
+    from what was read before it is refused, and a new `updated_at`.
+    '''
+    queryset.update(**values, version=F('version') + 1, updated_at=timezone.now())
 
 
 def _events_paid_as(apps, value):
@@ -30,8 +39,8 @@ def _events_paid_as(apps, value):
 def _normalize(apps, value):
     '''Store every payment and invoice of `value`, in any case, with that spelling.'''
     for name in ('Payment', 'Invoice'):
-        apps.get_model('camphoric', name).objects.filter(
-            payment_type__iexact=value).exclude(payment_type=value).update(payment_type=value)
+        _edit(apps.get_model('camphoric', name).objects.filter(
+            payment_type__iexact=value).exclude(payment_type=value), payment_type=value)
 
 
 def _own(event):
@@ -54,14 +63,14 @@ def forwards(apps, schema_editor):
                 types[matches[0]]['label'] = VOUCHER['label']
         else:
             types.append(dict(VOUCHER))
-        Event.objects.filter(pk=event.pk).update(payment_types=types)
+        _edit(Event.objects.filter(pk=event.pk), payment_types=types)
     _normalize(apps, 'Voucher')
 
     for event in Event.objects.all():
         types = _own(event)
         kept = [entry for entry in types if not _is(entry, 'Cash')]
         if len(kept) != len(types):
-            Event.objects.filter(pk=event.pk).update(payment_types=kept)
+            _edit(Event.objects.filter(pk=event.pk), payment_types=kept)
     _normalize(apps, 'Cash')
 
 
@@ -72,12 +81,12 @@ def backwards(apps, schema_editor):
         types = _own(event)
         kept = [entry for entry in types if not _is(entry, 'Voucher')]
         if len(kept) != len(types):
-            Event.objects.filter(pk=event.pk).update(payment_types=kept)
+            _edit(Event.objects.filter(pk=event.pk), payment_types=kept)
 
     for event in Event.objects.filter(pk__in=list(_events_paid_as(apps, 'Cash'))):
         types = _own(event)
         if not any(_is(entry, 'Cash') for entry in types):
-            Event.objects.filter(pk=event.pk).update(payment_types=[*types, dict(CASH)])
+            _edit(Event.objects.filter(pk=event.pk), payment_types=[*types, dict(CASH)])
 
 
 class Migration(migrations.Migration):
