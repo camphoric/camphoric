@@ -15,9 +15,12 @@ fixed.
 - **Payment** — money received (`amount > 0`) or given back (`amount < 0`, a **refund**), on an
   invoice.
 - **Payment type** — how a payment was made. The built-in types are Check, PayPal, Card and
-  Voucher; PayPal and Card are the *online* types (`invoices.ONLINE_TYPES`), offered only while
+  Cash; PayPal and Card are the *online* types (`invoices.ONLINE_TYPES`), offered only while
   the event's `paypal_enabled` is on. An event may add its own offline types (`Event.payment_types`,
-  e.g. Cash or Venmo), which an admin records by hand (SPEC §9.7, DR-164).
+  e.g. Venmo or Zelle), which an admin records by hand (SPEC §9.7, DR-164). Voucher ("Discount or
+  Gifted Credit") was built in until Cash took its place; events that had used it have it as their
+  own type (migration `0101`, SPEC DR-176). An import replaces an event's `payment_types`, so the
+  event module of such an event declares Voucher among its own.
 - **Payment option** — one of the event's deposit choices ("Full Payment", "50% Deposit"),
   worked out by the server into an amount.
 - **Handling fee** — the event's `epayment_handling` percent, charged on an invoice's amount when
@@ -96,7 +99,7 @@ erDiagram
     }
     PAYMENT {
         decimal amount "negative: a refund"
-        string payment_type "Check | PayPal | Card | Voucher | one of the event's own"
+        string payment_type "Check | PayPal | Card | Cash | one of the event's own"
         string paypal_transaction_id "capture or refund id; unique"
         string refund_request_id "a PayPal refund's request id"
         json paypal_response
@@ -556,12 +559,12 @@ flowchart TD
 - A payment saved any other way (Django admin, a shell) without an invoice gets one the same way
   (`Payment.save`).
 - **Its type is checked against its event** (SPEC §9.7, DR-164; `PaymentSerializer.validate_type`).
-  A payment is a built-in type (Check, PayPal, Card, Voucher) or one of the event's own
+  A payment is a built-in type (Check, PayPal, Card, Cash) or one of the event's own
   `payment_types`, matched exactly; anything else is a 400. The database doesn't restrict the
   column, so a payment whose type the event has since dropped still loads, keeps that type
   through an edit, and can be refunded as it; the screens show it as the stored value. The
   admin's choices come from the event's `payment_type_choices`: Check, PayPal and Card while
-  PayPal is enabled, Voucher, then the event's own types. The event's own types never start a
+  PayPal is enabled, Cash, then the event's own types. The event's own types never start a
   PayPal order and aren't offered during registration.
 - **Editing a payment can't contradict what already happened to it** (#767,
   `PaymentSerializer.validate_edit`): its amount can't go below what its refunds gave back, a

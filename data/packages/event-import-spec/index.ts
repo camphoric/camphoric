@@ -221,8 +221,8 @@ export const PromoCodeSchema = Type.Object({
 
 /**
  * One of the event's own payment types (SPEC §9.7, DR-164): an offline way of
- * being paid, such as Cash or Venmo, that an admin records by hand, offered
- * alongside the built-in Check, Voucher, PayPal and Card. Its value is what a
+ * being paid, such as Venmo or Zelle, that an admin records by hand, offered
+ * alongside the built-in Check, Cash, PayPal and Card. Its value is what a
  * payment stores; no two of the event's may share one, nor may one be a
  * built-in type's (whatever its case).
  */
@@ -248,7 +248,7 @@ export const CancellationFeeSchema = Type.Union([
 });
 
 /** The built-in payment types: the event's own can't reuse their values. */
-export const BUILT_IN_PAYMENT_TYPES = ['Check', 'PayPal', 'Card', 'Voucher'] as const;
+export const BUILT_IN_PAYMENT_TYPES = ['Check', 'PayPal', 'Card', 'Cash'] as const;
 
 export const EventImportSchema = Type.Object({
   organization: Type.Union([Type.Number(), Type.String()], {

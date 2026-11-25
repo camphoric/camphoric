@@ -51,7 +51,7 @@ const venmoEvent = {
   payment_types: [{ value: 'Venmo', label: 'Venmo (@camp)' }],
   payment_type_choices: [
     { value: 'Check', label: 'Check', online: false },
-    { value: 'Voucher', label: 'Discount or Gifted Credit', online: false },
+    { value: 'Cash', label: 'Cash', online: false },
     { value: 'Venmo', label: 'Venmo (@camp)', online: false },
   ],
 } as unknown as ApiEvent;
@@ -225,7 +225,7 @@ describe('RecordPaymentModal', () => {
     await user.click(screen.getByRole('combobox', { name: 'Type' }));
     expect(
       screen.getAllByRole('option', { hidden: true }).map((option) => option.textContent),
-    ).toEqual(expect.arrayContaining(['Check', 'Voucher', 'Venmo (@camp)']));
+    ).toEqual(expect.arrayContaining(['Check', 'Cash', 'Venmo (@camp)']));
     // PayPal is off: no online types.
     expect(screen.queryByRole('option', { name: 'PayPal', hidden: true })).toBeNull();
     await user.click(screen.getByRole('option', { name: 'Venmo (@camp)', hidden: true }));

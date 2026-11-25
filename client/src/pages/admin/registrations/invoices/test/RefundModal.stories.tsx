@@ -66,7 +66,7 @@ export const ByATypeTheEventDropped: StoryFn = () => (
         payment_types: [{ value: 'Venmo', label: 'Venmo (@camp)' }],
         payment_type_choices: [
           { value: 'Check', label: 'Check', online: false },
-          { value: 'Voucher', label: 'Discount or Gifted Credit', online: false },
+          { value: 'Cash', label: 'Cash', online: false },
           { value: 'Venmo', label: 'Venmo (@camp)', online: false },
         ],
       }}

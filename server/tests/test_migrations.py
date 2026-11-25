@@ -2,8 +2,9 @@
 The data migrations of incomplete registrations (SPEC DR-139, DR-140, DR-141).
 They read `Registration.completed`, since removed, so they run here on the models
 as they were, one migration back, and not on today's. And the migration that
-retires DRF's API tokens (DR-157), and the one that puts custom charges on
-registrations (DR-170).
+retires DRF's API tokens (DR-157), the one that puts custom charges on
+registrations (DR-170), and the one that makes Cash a built-in payment type and
+Voucher an event's own (DR-176).
 '''
 
 import datetime
@@ -19,6 +20,8 @@ from django.utils import timezone
 BEFORE_REMOVING = '0089_registration_draft'
 REMOVING = '0090_remove_registration_completed'
 UPDATE = 1
+VOUCHER = {'value': 'Voucher', 'label': 'Discount or Gifted Credit'}
+CASH = {'value': 'Cash', 'label': 'Cash'}
 
 
 def migrate_to(name):
@@ -547,3 +550,105 @@ class RegistrationCustomChargesTests(TransactionTestCase):
         apps = migrate_to('0097_event_payment_types')
         charges = apps.get_model('camphoric', 'CustomCharge').objects.all()
         self.assertEqual([charge.camper_id for charge in charges], [made.c1.id])
+
+
+class CashPaymentTypeTests(TransactionTestCase):
+    '''
+    0101 makes Cash built in and Voucher one of an event's own types (DR-176):
+    an event with Voucher payments or invoices keeps reading them as before.
+    '''
+
+    def tearDown(self):
+        migrate_to_latest()
+
+    def setUp(self):
+        self.apps = migrate_to('0100_event_cancellation_fee')
+        self.model = partial(self.apps.get_model, 'camphoric')
+        self.organization = self.model('Organization').objects.create(name='Org')
+
+    def event(self, payment_types=None, payments=(), invoices=()):
+        '''An event whose registration has payments and invoices of these types.'''
+        event = self.model('Event').objects.create(
+            organization=self.organization, name='Camp',
+            payment_types=[] if payment_types is None else payment_types)
+        registration = self.model('Registration').objects.create(
+            event=event, registrant_email='pat@example.com')
+        bill = self.model('Invoice').objects.create(registration=registration, amount=100)
+        for payment_type in invoices:
+            self.model('Invoice').objects.create(
+                registration=registration, amount=100, payment_type=payment_type)
+        for payment_type in payments:
+            self.model('Payment').objects.create(
+                registration=registration, invoice=bill, amount=20, payment_type=payment_type)
+        return event.pk
+
+    def types(self, event):
+        from camphoric import models
+        return models.Event.objects.get(pk=event).payment_types
+
+    def stored(self, event):
+        from camphoric import models
+        return sorted(
+            [p.payment_type for p in models.Payment.objects.filter(registration__event=event)]
+            + [i.payment_type for i in models.Invoice.objects.filter(registration__event=event)
+               if i.payment_type])
+
+    def test_voucher_payments_make_it_the_events_own(self):
+        venmo = {'value': 'Venmo', 'label': 'Venmo'}
+        event = self.event([venmo], payments=['Voucher', 'voucher', 'Check'])
+        migrate_to_latest()
+        self.assertEqual(self.types(event), [venmo, VOUCHER])
+        self.assertEqual(self.stored(event), ['Check', 'Voucher', 'Voucher'])
+        from camphoric import models
+        loaded = models.Event.objects.get(pk=event)
+        self.assertEqual(models.payment_type_label('Voucher', loaded), 'Discount or Gifted Credit')
+        self.assertTrue(loaded.accepts_payment_type('Voucher'))
+        self.assertIn(VOUCHER['value'], [c['value'] for c in loaded.payment_type_choices])
+
+    def test_voucher_invoices_alone_make_it_the_events_own(self):
+        event = self.event(invoices=['VOUCHER'])
+        migrate_to_latest()
+        self.assertEqual(self.types(event), [VOUCHER])
+        self.assertEqual(self.stored(event), ['Voucher'])
+
+    def test_an_own_voucher_type_is_not_added_twice(self):
+        # Saved through the Django admin, it was hidden behind the built-in type.
+        event = self.event([{'value': 'voucher', 'label': 'Gift credit'}], payments=['Voucher'])
+        spaced = self.event([{'value': ' Voucher ', 'label': 'Gift'}], payments=['Voucher'])
+        migrate_to_latest()
+        self.assertEqual(self.types(event), [{'value': 'Voucher', 'label': 'Gift credit'}])
+        self.assertEqual(self.types(spaced), [{'value': 'Voucher', 'label': 'Gift'}])
+
+    def test_no_voucher_no_type(self):
+        event = self.event(payments=['Check'], invoices=['PayPal'])
+        malformed = self.event({'not': 'a list'}, payments=['Check'])
+        migrate_to_latest()
+        self.assertEqual(self.types(event), [])
+        self.assertEqual(self.types(malformed), {'not': 'a list'})
+
+    def test_an_own_cash_type_gives_way_to_the_built_in_one(self):
+        venmo = {'value': 'Venmo', 'label': 'Venmo'}
+        event = self.event([{'value': 'cash', 'label': 'Cash at the gate'}, venmo],
+                           payments=['cash', 'Cash'], invoices=['CASH'])
+        migrate_to_latest()
+        self.assertEqual(self.types(event), [venmo])
+        self.assertEqual(self.stored(event), ['Cash', 'Cash', 'Cash'])
+        from camphoric import models
+        self.assertEqual(models.payment_type_label('Cash', models.Event.objects.get(pk=event)),
+                         'Cash')
+
+    def test_going_back(self):
+        venmo = {'value': 'Venmo', 'label': 'Venmo'}
+        voucher = self.event([venmo], payments=['Voucher'])
+        cash = self.event([{'value': 'Cash', 'label': 'Cash at the gate'}], payments=['Cash'])
+        cash_invoice = self.event(invoices=['Cash'])
+        neither = self.event([venmo], payments=['Check'])
+        migrate_to_latest()
+
+        apps = migrate_to('0100_event_cancellation_fee')
+        events = apps.get_model('camphoric', 'Event').objects
+        types = dict(events.values_list('pk', 'payment_types'))
+        self.assertEqual(types[voucher], [venmo])
+        self.assertEqual(types[cash], [CASH])
+        self.assertEqual(types[cash_invoice], [CASH])
+        self.assertEqual(types[neither], [venmo])

@@ -16,7 +16,7 @@ const valid = (paymentTypes: unknown) => validateEventImport({
 
 describe('event.payment_types', () => {
   test('accepts a list of value and label pairs', () => {
-    expect(valid([{ value: 'Venmo', label: 'Venmo' }, { value: 'Cash', label: 'Cash at the gate' }]))
+    expect(valid([{ value: 'Venmo', label: 'Venmo' }, { value: 'Voucher', label: 'Discount or Gifted Credit' }]))
       .toBe(true);
     expect(valid([])).toBe(true);
   });

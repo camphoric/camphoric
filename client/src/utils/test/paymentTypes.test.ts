@@ -5,7 +5,7 @@ import { paymentTypeLabel, paymentTypeOptions } from '../paymentTypes';
 
 const own = [
   { value: 'Venmo', label: 'Venmo (@camp)' },
-  { value: 'Cash', label: 'Cash' },
+  { value: 'Voucher', label: 'Discount or Gifted Credit' },
 ];
 const choice = (value: string, label = value, online = false): ApiPaymentTypeChoice => ({
   value,
@@ -16,9 +16,9 @@ const event = {
   payment_types: own,
   payment_type_choices: [
     choice('Check'),
-    choice('Voucher', 'Discount or Gifted Credit'),
-    choice('Venmo', 'Venmo (@camp)'),
     choice('Cash'),
+    choice('Venmo', 'Venmo (@camp)'),
+    choice('Voucher', 'Discount or Gifted Credit'),
   ],
 };
 
@@ -28,7 +28,7 @@ describe('paymentTypeLabel', () => {
   });
 
   it('shows a built-in type by its name', () => {
-    expect(paymentTypeLabel('Voucher', own)).toBe('Voucher');
+    expect(paymentTypeLabel('Cash', own)).toBe('Cash');
   });
 
   it('shows a type the event no longer defines as what was stored', () => {
@@ -49,21 +49,21 @@ describe('paymentTypeOptions', () => {
   it('offers the event’s choices, in order', () => {
     expect(paymentTypeOptions(event)).toEqual([
       { value: 'Check', label: 'Check' },
-      { value: 'Voucher', label: 'Voucher' },
-      { value: 'Venmo', label: 'Venmo (@camp)' },
       { value: 'Cash', label: 'Cash' },
+      { value: 'Venmo', label: 'Venmo (@camp)' },
+      { value: 'Voucher', label: 'Discount or Gifted Credit' },
     ]);
   });
 
   it('keeps a type a payment already has', () => {
     expect(paymentTypeOptions(event, 'PayPal').map((o) => o.value)).toEqual([
       'Check',
-      'Voucher',
-      'Venmo',
       'Cash',
+      'Venmo',
+      'Voucher',
       'PayPal',
     ]);
-    expect(paymentTypeOptions(event, 'Cash')).toHaveLength(4);
+    expect(paymentTypeOptions(event, 'Voucher')).toHaveLength(4);
   });
 
   it('offers each type once', () => {
@@ -76,7 +76,7 @@ describe('paymentTypeOptions', () => {
       'Check',
       'PayPal',
       'Card',
-      'Voucher',
+      'Cash',
     ]);
   });
 });
