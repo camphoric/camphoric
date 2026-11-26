@@ -183,7 +183,7 @@ export function MultiEventPeople() {
         header: 'Linked',
         accessorFn: (unit) => (unit.person ? unit.records.length : 0),
         cell: (info) =>
-          info.row.original.person ? `${info.row.original.records.length} records` : '',
+          info.row.original.person ? plural(info.row.original.records.length, 'record') : '',
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -346,7 +346,7 @@ export function MultiEventPeople() {
         opened={!!selected}
         onClose={() => select(undefined)}
         title={selected?.name ?? ''}
-        size="xl"
+        size="64rem"
       >
         {selected && (
           <PersonRecord

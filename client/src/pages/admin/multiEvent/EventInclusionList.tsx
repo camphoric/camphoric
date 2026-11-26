@@ -63,7 +63,11 @@ function SeriesInput({
       onOptionSubmit={save}
       onBlur={() => save(draft)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') save(draft);
+        // Enter on a highlighted suggestion submits that option instead (onOptionSubmit),
+        // so saving the half-typed text as well would send two saves.
+        if (e.key === 'Enter' && !e.currentTarget.getAttribute('aria-activedescendant')) {
+          save(draft);
+        }
       }}
       disabled={disabled}
     />
