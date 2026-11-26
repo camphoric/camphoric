@@ -274,6 +274,21 @@ class SendTests(GroupEmailTestCase):
                                      {'email_account': theirs.id}, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertIn('email_account', response.data)
+        # Nor can an account, or an event whose emails use one, move away.
+        ours = models.EmailAccount.objects.create(
+            organization=self.event.organization, name='Ours', host='smtp.example.com', port=587)
+        response = self.client.patch(f'/api/emailaccounts/{ours.id}/',
+                                     {'organization': other.id}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('organization', response.data)
+        self.template.account = ours
+        self.template.save()
+        response = self.client.patch(f'/api/events/{self.event.id}/',
+                                     {'organization': other.id}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Ours', str(response.data['organization']))
+        self.event.refresh_from_db()
+        self.assertNotEqual(self.event.organization, other)
         # One saved before this was checked isn't sent through, nor tested with.
         models.EmailTemplate.objects.filter(id=self.template.id).update(account=theirs)
         self.assertEqual(self.send([key]).status_code, 400)

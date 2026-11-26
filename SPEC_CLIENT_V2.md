@@ -1237,7 +1237,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   with the event, §8.3), `invoice_template` (read-only: the id of the invoice email's
   `EmailTemplate`, likewise; §8.3, §15, DR-96), `confirmation_email_from` (the event's
   sending address) and `email_account` (the account it sends through, null: the server's default
-  mailer; one of its organization's, another's being a 400 on that field);
+  mailer; one of its organization's, another's being a 400 on that field; an event whose email
+  templates use its organization's accounts can't be moved to another organization, a 400 on
+  `organization`);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `payment_types` (the
   event's own offline payment types, a list of `{ value, label }`; §9.7, §15, DR-164) and
   read-only `payment_type_choices` (every type a payment can be recorded as, each
@@ -1335,7 +1337,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   keeps it); read-only `password_status` is `set` | `unset` | `unreadable` (the encryption key
   changed, so it must be entered again). An update that changes `host`, `port`, `security` or
   `username` of an account with a stored password must give the password too, or it is a 400
-  with an error on `password` (§15, DR-126).
+  with an error on `password` (§15, DR-126). An account can't be moved to another organization
+  (a 400 on `organization`).
 - **EmailMessage:** `id`, `event?`, `organization?` (an organization's email to past campers, or
   its test; DR-182), `kind` (`confirmation` | `confirmation_report` | `page_report` |
   `payment_report` | `invitation` | `invoice` | `bulk` | `multi_event` | `test`), `registration?`,

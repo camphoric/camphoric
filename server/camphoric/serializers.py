@@ -95,6 +95,11 @@ class EmailAccountSerializer(ModelSerializer):
 
     def validate(self, data):
         account = self.instance
+        if account is not None and 'organization' in data \
+                and data['organization'] != account.organization:
+            # Its events and templates send through it as their organization's.
+            raise ValidationError(
+                {'organization': ["An email account can't be moved to another organization."]})
         if account is not None and account.password and not data.get('password'):
             if any(name in data and data[name] != getattr(account, name)
                    for name in self.CONNECTION_FIELDS):
@@ -265,6 +270,15 @@ class EventSerializer(ModelSerializer):
                                         getattr(organization, 'pk', None))
             if errors:
                 raise ValidationError(errors)
+            if self.instance is not None and organization is not None \
+                    and organization.pk != self.instance.organization_id:
+                others = sorted({t.account.name for t in self.instance.email_templates
+                                 .select_related('account').exclude(account=None)
+                                 .exclude(account__organization=organization)})
+                if others:
+                    raise ValidationError({'organization': [
+                        'Its emails send through this organization’s accounts ('
+                        + ', '.join(others) + '): choose others for them first.']})
         if any(name in attrs for name in self.PRICING_INPUTS):
             stored = {name: getattr(self.instance, name, None) for name in self.PRICING_INPUTS}
             current = {**stored, **{name: attrs[name] for name in self.PRICING_INPUTS
