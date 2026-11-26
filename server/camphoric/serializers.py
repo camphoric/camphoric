@@ -663,6 +663,8 @@ class CamperSerializer(ModelSerializer):
     class Meta:
         model = models.Camper
         fields = '__all__'
+        # Linked only in multi-event reports (camphoric.multi_event, DR-177).
+        read_only_fields = ['person']
 
     def validate(self, data):
         if self.partial and 'registration' not in data:

@@ -75,6 +75,9 @@ ORGANIZATION_PATHS = {
     models.EditLease: 'event__organization',
     models.Invitation: 'registration_type__event__organization',
     models.Camper: 'registration__event__organization',
+    models.MultiEventInclusion: 'event__organization',
+    models.Person: 'organization',
+    models.PersonMatchDismissal: 'organization',
     models.Invoice: 'registration__event__organization',
     models.Payment: 'registration__event__organization',
     models.PricingOverride: 'registration__event__organization',
@@ -85,6 +88,7 @@ ORGANIZATION_PATHS = {
 
 # Ids a URL names, by its keyword, and what they're ids of.
 URL_KWARGS = {
+    'organization_id': models.Organization,
     'event_id': models.Event,
     'report_id': models.Report,
     'invitation_id': models.Invitation,

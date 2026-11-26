@@ -1,11 +1,13 @@
 /**
  * Event chooser (SPEC §8.1). Lists the organization's events in the API's
  * order (no open date yet first, then newest open date first, then by name);
- * selecting one navigates into the Event Admin container for that event. The way back to
+ * selecting one navigates into the Event Admin container for that event. It
+ * also leads to the organization's multi-event reports (§8.12). The way back to
  * organization selection is in the frame's header (AdminFrame).
  */
 
-import { Card, Container, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import { Link, useParams } from '@tanstack/react-router';
 import { InlineLoading } from 'components/Loading';
 import { eventHooks } from 'store/entities';
@@ -18,9 +20,23 @@ export function EventChooser() {
 
   return (
     <Container size="sm" py="lg">
-      <Title order={3} mb="md">
-        Choose an event
-      </Title>
+      <Group justify="space-between" mb="md" gap="xs">
+        <Title order={3}>Choose an event</Title>
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<IconChartBar size={16} />}
+          renderRoot={(props) => (
+            <Link
+              {...props}
+              to="/admin/organization/$organizationId/multi-event/events"
+              params={{ organizationId }}
+            />
+          )}
+        >
+          Multi-event reports
+        </Button>
+      </Group>
       <Stack>
         {(events ?? []).map((event) => (
           <Link

@@ -810,13 +810,44 @@ class Lodging(TimeStampedModel):
             self.get_parents()))
 
 
+class MultiEventInclusion(TimeStampedModel):
+    '''
+    Whether an event takes part in its organization's multi-event reports, and
+    the series it belongs to (SPEC §8.12, DR-177). An event without a row isn't
+    included. The row is kept when the event is left out again, so its series
+    comes back with it.
+    '''
+    event = models.OneToOneField(Event, related_name='multi_event', on_delete=models.CASCADE)
+    included = models.BooleanField(default=True)
+    series = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Events with the same series name are compared with each other')
+
+    def __str__(self):
+        return f'{self.event} ({"included" if self.included else "left out"})'
+
+
+class Person(TimeStampedModel):
+    '''
+    One person's camper records across an organization's events, linked by an
+    organizer (SPEC §8.12, DR-177). Their name and details stay on their camper
+    records; a person is only what ties those together. A person has at least
+    two camper records: one left with fewer is dissolved (camphoric.multi_event).
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='people', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Person #{self.pk}'
+
+
 class Camper(TimeStampedModel):
     '''
     - Is owned by one Registration
     - Has one Lodgings
     - Has many attributes (probably in JSON form) that are custom added
-    - In the future, it would be nice to tie campers to multiple events,
-        so we can track attendance over the years.
+    - May be linked to a Person, with that person's camper records in the
+      organization's other events, to follow them from year to year (DR-177).
     '''
     registration = models.ForeignKey(
         Registration, related_name="campers", on_delete=models.CASCADE)
@@ -854,6 +885,9 @@ class Camper(TimeStampedModel):
     admin_attributes = CustomJSONField(
         default=dict,
         help_text="custom attributes for administrative use")
+    # Set only by linking in multi-event reports (camphoric.multi_event), never by an edit.
+    person = models.ForeignKey(
+        Person, related_name='campers', null=True, blank=True, on_delete=models.SET_NULL)
 
     objects = LiveUnderRegistration()
     all_objects = models.Manager()
@@ -882,6 +916,27 @@ class Camper(TimeStampedModel):
 
     class Meta:
         ordering = ('sequence', 'id',)
+
+
+class PersonMatchDismissal(TimeStampedModel):
+    '''
+    Two camper records an organizer said are not the same person, so they're
+    never suggested as a match again (SPEC §8.12, DR-178). Kept as a pair,
+    lower id first; it goes with either camper.
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='+', on_delete=models.CASCADE)
+    camper_a = models.ForeignKey(Camper, related_name='+', on_delete=models.CASCADE)
+    camper_b = models.ForeignKey(Camper, related_name='+', on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['camper_a', 'camper_b'], name='person_match_dismissal_pair'),
+            models.CheckConstraint(
+                condition=models.Q(camper_a__lt=models.F('camper_b')),
+                name='person_match_dismissal_ordered'),
+        ]
 
 
 class CustomChargeType(TimeStampedModel):
