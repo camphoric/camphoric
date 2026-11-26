@@ -1,8 +1,9 @@
 /**
  * A stand-in for the group email API, for the Email section's stories: the
  * recipient fields, who an audience reaches (recipients kept by their
- * balance), the accounts, saving, sending and testing a template, and the
- * template describe and preview. Each write is reported to `onWrite`.
+ * balance), the accounts, saving, sending and testing a template (an event's,
+ * or an organization's email to past campers), and the template describe and
+ * preview. Each write is reported to `onWrite`.
  */
 
 import type {
@@ -77,14 +78,23 @@ export function stubEmailApi(onWrite: (url: string, body: unknown) => void) {
         diagnostics: [],
       });
     }
+    if (url.includes('/api/organization-emails/')) {
+      onWrite(url, body);
+      return json({ id: 9, organization: 1, version: 1, ...body });
+    }
     if (url.includes('/api/emailtemplates/')) {
       onWrite(url, body);
       return json({ ...sampleTemplate(), ...body });
     }
     if (url.includes('/templates/describe')) return json(sampleDescription);
     if (url.includes('/templates/preview')) {
-      const request = JSON.parse(init?.body as string) as TemplatePreviewRequest;
-      const who = RECIPIENTS.find((r) => r.camper === request.camper_id)?.name ?? 'Lee Park';
+      const request = JSON.parse(init?.body as string) as TemplatePreviewRequest & {
+        recipient_key?: string;
+      };
+      // An event's preview names a camper; an organization's, a person's key.
+      const who =
+        RECIPIENTS.find((r) => r.camper === request.camper_id || r.key === request.recipient_key)
+          ?.name ?? 'Lee Park';
       const fill = (text = '') => text.replace(/\{\{[^}]*\}\}/g, who);
       const output = fill(request.template);
       const response: TemplatePreviewResponse = {

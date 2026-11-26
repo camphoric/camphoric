@@ -10,6 +10,7 @@ export const KIND_LABEL: Record<EmailMessageKind, string> = {
   invoice: 'Invoice',
   invitation: 'Invitation',
   bulk: 'Group email',
+  multi_event: 'Email to past campers',
   test: 'Test',
   account: 'Account (password link)',
 };

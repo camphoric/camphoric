@@ -23,7 +23,9 @@ import type {
   ApiInvoice,
   ApiLodging,
   ApiOrganization,
+  ApiOrganizationEmail,
   ApiOrganizationReport,
+  ApiOrganizationUnsubscribe,
   ApiPayment,
   ApiPricingOverride,
   ApiPromoCode,
@@ -69,6 +71,19 @@ export const reportHooks = createEntityHooks<ApiReport, 'event'>({ name: 'Report
 export const organizationReportHooks = createEntityHooks<ApiOrganizationReport, 'organization'>({
   name: 'OrganizationReport',
   path: 'organization-reports',
+});
+// An organization's email to past campers and who left it (§8.12; §15, DR-182).
+export const organizationEmailHooks = createEntityHooks<ApiOrganizationEmail, 'organization'>({
+  name: 'OrganizationEmail',
+  path: 'organization-emails',
+});
+export const organizationUnsubscribeHooks = createEntityHooks<
+  ApiOrganizationUnsubscribe,
+  'organization'
+>({
+  name: 'OrganizationUnsubscribe',
+  path: 'organization-unsubscribes',
+  alsoInvalidate: ['EmailAudience'],
 });
 export const invitationHooks = createEntityHooks<
   ApiInvitation,

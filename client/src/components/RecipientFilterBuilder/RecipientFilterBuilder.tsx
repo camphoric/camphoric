@@ -81,6 +81,7 @@ export const OPERATORS: Record<EmailFieldType, OperatorDef[]> = {
   ],
   list: [
     { value: 'contains', label: 'includes' },
+    { value: 'not_contains', label: 'doesn’t include' },
     { value: 'any_of', label: 'includes any of', multi: true },
     ...SET,
   ],

@@ -78,7 +78,12 @@ def expand(batch_id):
                .update(status=BatchStatus.EXPANDING, updated_at=timezone.now()))
     if not claimed:
         return 'skipped'
-    batch = models.EmailBatch.objects.select_related('event', 'account').get(id=batch_id)
+    batch = models.EmailBatch.objects.select_related(
+        'event', 'organization', 'account').get(id=batch_id)
+    if batch.event_id is None:
+        # An organization's email to past campers (SPEC §8.12, DR-182).
+        from camphoric.multi_event import email
+        return email.expand(batch)
     event = batch.event
     graph = build_event_graph(event)
     criteria = Criteria(

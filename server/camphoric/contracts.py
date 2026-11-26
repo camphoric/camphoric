@@ -67,10 +67,11 @@ ORGANIZATION_PATHS = {
     models.CustomChargeType: 'event__organization',
     models.Deposit: 'event__organization',
     models.EmailTemplate: 'event__organization',
-    models.EmailBatch: 'event__organization',
+    # An event's group email, or an organization's email to past campers.
+    models.EmailBatch: ('event__organization', 'organization'),
     # By its event, or the account it's sent with (an account's test message
     # has no event); a password link has neither, and belongs to no organization.
-    models.EmailMessage: ('event__organization', 'account__organization'),
+    models.EmailMessage: ('event__organization', 'account__organization', 'organization'),
     models.EmailUnsubscribe: 'event__organization',
     models.EditLease: 'event__organization',
     models.Invitation: 'registration_type__event__organization',
@@ -79,6 +80,8 @@ ORGANIZATION_PATHS = {
     models.Person: 'organization',
     models.PersonMatchDismissal: 'organization',
     models.OrganizationReport: 'organization',
+    models.OrganizationEmail: 'organization',
+    models.OrganizationUnsubscribe: 'organization',
     models.Invoice: 'registration__event__organization',
     models.Payment: 'registration__event__organization',
     models.PricingOverride: 'registration__event__organization',

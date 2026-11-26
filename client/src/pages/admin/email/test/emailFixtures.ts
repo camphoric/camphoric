@@ -125,6 +125,8 @@ export function sampleBatch(fields: Partial<ApiEmailBatch> = {}): ApiEmailBatch 
     id: 31,
     event: 7,
     template: 5,
+    organization: null,
+    organization_email: null,
     name: 'Balance reminder',
     subject: 'Your balance for {{ event.name }}',
     body: 'Hi {{ recipient.name }}',

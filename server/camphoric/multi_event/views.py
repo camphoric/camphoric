@@ -6,14 +6,18 @@ Rendering a multi-event report (`organization-reports/<id>/render`) and previewi
 a template read, so any role may.
 '''
 
+import time
+
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from camphoric import models
-from camphoric.multi_event import matching, people, reports, stats
+from camphoric.multi_event import email, matching, people, reports, stats
+from camphoric.templating.contexts import recipient
 from camphoric.templating.describe import describe_organization
+from camphoric.templating.emails import render_jinja_email
 from camphoric.templating.render import PREVIEW_LIMITS
 
 
@@ -153,7 +157,10 @@ class TemplateDescribeView(OrganizationMixin, APIView):
 class TemplatePreviewView(OrganizationMixin, APIView):
     '''
     POST `{template, output, series?}`: render an unsaved multi-event report
-    template, as the template preview does for an event's (SPEC §9.3).
+    template, as the template preview does for an event's (SPEC §9.3). With
+    `output: email` (`{template, subject?, filter?, recipient_key?}`), an email
+    to past campers is rendered for one person (DR-182): `recipient_key`, else
+    the first the rules reach.
     '''
     read_only_methods = ('POST',)
 
@@ -165,9 +172,49 @@ class TemplatePreviewView(OrganizationMixin, APIView):
         if not isinstance(template, str):
             return Response({'detail': 'template must be text'},
                             status=status.HTTP_400_BAD_REQUEST)
+        if output == 'email':
+            return self.email(request, organization, data, template)
         if output not in ('csv', 'md', 'txt', 'html'):
             return Response({'detail': 'output must be one of csv, md, txt, html'},
                             status=status.HTTP_400_BAD_REQUEST)
         result = reports.render(organization, template, output, _series(data),
                                 request=request, limits=PREVIEW_LIMITS)
         return Response({**result.as_dict(), 'sample': None})
+
+    def email(self, request, organization, data, template):
+        started = time.monotonic()
+        subject = data.get('subject') if isinstance(data.get('subject'), str) else ''
+        resolution, _ = email.resolve(organization, data.get('filter'))
+        if not resolution.ok:
+            return Response({'detail': 'The recipient rules have problems.',
+                             'diagnostics': [d.as_dict() for d in resolution.diagnostics]},
+                            status=status.HTTP_400_BAD_REQUEST)
+        wanted = data.get('recipient_key')
+        chosen = (next((c for c in resolution.recipients if c.key == wanted), None) if wanted
+                  else (resolution.recipients[0] if resolution.recipients else None))
+        if chosen is None:
+            return Response({'detail': 'No one to preview the email for: the rules reach no '
+                                       'one.' if not wanted else 'No such recipient.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            variables = reports.report_context(
+                organization, request=request, deadline=started + PREVIEW_LIMITS.timeout_s)
+        except reports.ContextTimeout:
+            return Response({'detail': 'Gathering the events’ data took too long to preview.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        person = email.people_by_key(variables).get(chosen.key)
+        if person is None:  # gone since the rules were checked
+            return Response({'detail': 'No such recipient.'}, status=status.HTTP_400_BAD_REQUEST)
+        rendered = render_jinja_email(
+            subject, template, email.email_context(
+                variables, person, recipient(chosen.email, chosen.name)),
+            limits=PREVIEW_LIMITS)
+        return Response({
+            'output': rendered.text,
+            'subject': rendered.subject,
+            'html': rendered.html,
+            'diagnostics': [d.as_dict() for d in rendered.diagnostics],
+            'truncated': any(d.kind == 'output_limit' for d in rendered.diagnostics),
+            'duration_ms': int((time.monotonic() - started) * 1000),
+            'sample': {'kind': 'person', 'id': chosen.key, 'label': chosen.name},
+        })

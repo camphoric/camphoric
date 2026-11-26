@@ -1292,6 +1292,8 @@ class EmailMessageKind(models.TextChoices):
     INVOICE = 'invoice', 'Invoice'
     INVITATION = 'invitation', 'Invitation'
     BULK = 'bulk', 'Group email'
+    # An organization's email to past campers (SPEC §8.12, DR-182).
+    MULTI_EVENT = 'multi_event', 'Multi-event email'
     TEST = 'test', 'Test email'
     # Set-password and password-reset links (SPEC DR-52).
     ACCOUNT = 'account', 'Account email'
@@ -1312,9 +1314,15 @@ class EmailMessage(TimeStampedModel):
     (camphoric.mail, SPEC DR-44). The content is rendered when the message is
     queued, so the record shows exactly what was sent.
     '''
-    # Null for a message that isn't about an event (an email account's test message).
+    # Null for a message that isn't about an event (an email account's test message,
+    # or an organization's email to past campers).
     event = models.ForeignKey(Event, null=True, blank=True, related_name='email_messages',
                               on_delete=models.CASCADE)
+    # An organization's email to past campers (or its test): the organization's
+    # history lists it (SPEC §8.12, DR-182).
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, related_name='email_messages',
+        on_delete=models.CASCADE)
     kind = models.CharField(max_length=30, choices=EmailMessageKind.choices)
     registration = models.ForeignKey(
         Registration, null=True, blank=True, on_delete=models.SET_NULL)
@@ -1483,15 +1491,29 @@ class EmailBatch(TimeStampedModel):
     '''
     One send of a group email (SPEC §8.9, DR-45): the recipients the admin
     reviewed and a snapshot of what was sent to them. Its messages are the
-    outbox rows; whether it's done is worked out from them.
+    outbox rows; whether it's done is worked out from them. An organization's
+    email to past campers (SPEC §8.12, DR-182) is sent as a batch of the
+    organization rather than of an event: `organization` and
+    `organization_email` instead of `event` and `template`.
     '''
-    event = models.ForeignKey(Event, related_name='email_batches', on_delete=models.CASCADE)
+    event = models.ForeignKey(Event, null=True, blank=True, related_name='email_batches',
+                              on_delete=models.CASCADE)
     template = models.ForeignKey(
         EmailTemplate, null=True, blank=True, related_name='batches', on_delete=models.SET_NULL)
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, related_name='email_batches',
+        on_delete=models.CASCADE)
+    organization_email = models.ForeignKey(
+        'OrganizationEmail', null=True, blank=True, related_name='batches',
+        on_delete=models.SET_NULL)
     name = models.CharField(max_length=255, help_text="The template's name when it was sent")
     subject = models.CharField(max_length=255, blank=True, default='')
     body = models.TextField(blank=True, default='')
-    recipient_source = models.CharField(max_length=16, choices=EmailRecipientSource.choices)
+    # Blank for an organization's batch, whose recipients are people (DR-182).
+    recipient_source = models.CharField(
+        max_length=16, choices=EmailRecipientSource.choices, blank=True, default='')
+    # An organization's batch: the recipient rules it was sent with.
+    filter = CustomJSONField(default=dict, blank=True)
     address_expression = models.TextField(blank=True, default='')
     name_expression = models.TextField(blank=True, default='')
     recipient_list = models.TextField(blank=True, default='')
@@ -1539,6 +1561,51 @@ class EmailUnsubscribe(TimeStampedModel):
 
     def __str__(self):
         return f'{self.email} ({self.event})'
+
+
+class OrganizationEmail(TimeStampedModel):
+    '''
+    An organization's email to past campers (SPEC §8.12, DR-182): Jinja
+    subject and markdown body rendered for each person across the included
+    events, and the rules (as group email's, DR-45) that choose who gets it.
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='emails', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255, blank=True, default='')
+    body = models.TextField(blank=True, default='')
+    from_email = models.CharField(max_length=255, blank=True, default='')
+    reply_to = models.CharField(max_length=255, blank=True, default='')
+    account = models.ForeignKey(
+        EmailAccount, null=True, blank=True, on_delete=models.SET_NULL)
+    # {"combinator", "rules"}, over each person's fields (multi_event.email).
+    filter = CustomJSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f'{self.name} ({self.organization})'
+
+
+class OrganizationUnsubscribe(TimeStampedModel):
+    '''
+    An address that asked not to get an organization's email to past campers
+    (SPEC §8.12, DR-182), from events made since as much as before. Event group
+    email is unsubscribed from per event (EmailUnsubscribe).
+    '''
+    organization = models.ForeignKey(
+        Organization, related_name='unsubscribes', on_delete=models.CASCADE)
+    email = models.EmailField(help_text='Lowercased')
+    source = models.CharField(max_length=10, choices=EmailUnsubscribeSource.choices)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'email'],
+                                    name='organization_unsubscribe_address'),
+        ]
+
+    def __str__(self):
+        return f'{self.email} ({self.organization})'
 
 
 class UserAccount(models.Model):

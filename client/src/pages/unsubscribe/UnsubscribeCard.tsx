@@ -1,7 +1,8 @@
 /**
  * What the unsubscribe page shows (SPEC §8.9; §15 DR-48, DR-154): asking to
- * confirm unsubscribing an address from an event's group email, that it's
- * done, or why the link can't be used.
+ * confirm unsubscribing an address from an event's group email — or from an
+ * organization's email to past campers (§8.12; §15 DR-182) — that it's done,
+ * or why the link can't be used.
  */
 
 import { Alert, Button, Group, Stack, Text, Title } from '@mantine/core';
@@ -58,8 +59,7 @@ export function UnsubscribeCard(props: UnsubscribeCardProps) {
         <Stack>
           <Title order={3}>You’re unsubscribed</Title>
           <Text c="dimmed">
-            <Strong>{props.link.address}</Strong> won’t get any more group emails about{' '}
-            <Strong>{props.link.event.name}</Strong>.
+            <Strong>{props.link.address}</Strong> won’t get any more <What link={props.link} />.
           </Text>
           <Text c="dimmed">{STILL_GET}</Text>
         </Stack>
@@ -69,8 +69,7 @@ export function UnsubscribeCard(props: UnsubscribeCardProps) {
         <Stack>
           <Title order={3}>Unsubscribe?</Title>
           <Text c="dimmed">
-            Stop sending group emails about <Strong>{props.link.event.name}</Strong> to{' '}
-            <Strong>{props.link.address}</Strong>?
+            Stop sending <What link={props.link} /> to <Strong>{props.link.address}</Strong>?
           </Text>
           <Text c="dimmed">{STILL_GET}</Text>
           {props.error && (
@@ -86,4 +85,17 @@ export function UnsubscribeCard(props: UnsubscribeCardProps) {
         </Stack>
       );
   }
+}
+
+/** What the link leaves: an event's group email, or an organization's email to past campers. */
+function What({ link }: { link: ApiUnsubscribeLink }) {
+  return link.scope === 'organization' ? (
+    <>
+      emails from <Strong>{link.event.name}</Strong> to people who came to its events
+    </>
+  ) : (
+    <>
+      group emails about <Strong>{link.event.name}</Strong>
+    </>
+  );
 }

@@ -20,7 +20,8 @@ import { apiErrorMessage } from 'utils/fetch';
 
 import { formatTime } from './emailLabels';
 
-export function sourceLabel(row: ApiEmailUnsubscribe) {
+/** How an address came to be unsubscribed (from an event's, or an organization's, email). */
+export function sourceLabel(row: Pick<ApiEmailUnsubscribe, 'source' | 'created_by_name'>) {
   if (row.source === 'link') return 'Unsubscribe link';
   return row.created_by_name ? `Added by ${row.created_by_name}` : 'Added by an organizer';
 }

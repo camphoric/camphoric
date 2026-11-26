@@ -13,6 +13,7 @@ import type { ApiEmailMessage, EmailQueueState } from 'api-types';
 import { InlineLoading } from 'components/Loading';
 import {
   type EmailHistoryFilters,
+  type EmailScope,
   pollInterval,
   useCancelEmail,
   useEmailHistory,
@@ -28,7 +29,9 @@ import { formatTime } from './emailLabels';
 import { MessageDetail } from './MessageDetail';
 
 interface EmailHistoryProps {
-  eventId: string;
+  /** Whose email: an event's, or an organization's to past campers (§8.12). */
+  scope: EmailScope;
+  /** The event's queue, for how often to refresh; none: every few seconds. */
   queue: EmailQueueState | undefined;
   filters: EmailHistoryFilters;
   onFiltersChange: (filters: EmailHistoryFilters) => void;
@@ -37,7 +40,7 @@ interface EmailHistoryProps {
 }
 
 export function EmailHistory({
-  eventId,
+  scope,
   queue,
   filters,
   onFiltersChange,
@@ -45,9 +48,9 @@ export function EmailHistory({
   onOpenMessage,
 }: EmailHistoryProps) {
   const interval = pollInterval(queue);
-  const { data: page } = useEmailHistory(eventId, filters, interval);
+  const { data: page } = useEmailHistory(scope, filters, interval);
   const { data: message } = useEmailMessage(messageId, messageId ? interval : false);
-  const { data: batches } = useEmailBatches(eventId);
+  const { data: batches } = useEmailBatches(scope);
   const batchId = filters.batch ? Number(filters.batch) : undefined;
   const batch = batches?.find((b) => b.id === batchId);
   const showBatch = (id: number | undefined) =>

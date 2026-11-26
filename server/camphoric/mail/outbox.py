@@ -77,13 +77,14 @@ _EVENT_ACCOUNT = object()
 def enqueue(*, event, kind, to, subject, text, html='', from_email,
             account=_EVENT_ACCOUNT, reply_to=None, registration=None, invitation=None,
             dedupe_key=None, created_by=None, batch=None, template=None, recipient_key='',
-            unsubscribe_url=''):
+            unsubscribe_url='', organization=None):
     '''
     Queue one email and wake the worker, in the caller's transaction. Returns
     the new EmailMessage, or the live one already queued under `dedupe_key`.
 
     `account` defaults to the event's account (None: the default mailer); a
-    message without an event (an account's test) names its account. A blank
+    message without an event (an account's test, an organization's email to
+    past campers) names its account. A blank
     `reply_to` gets the default (see default_reply_to).
     A message that can't be sent (a bad address, a @dontsend.com address) is
     recorded as failed or cancelled rather than queued.
@@ -103,7 +104,7 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
         account=account, from_email=from_email, to=to, reply_to=reply_to,
         subject=subject, text=text, html=html, dedupe_key=dedupe_key or None,
         created_by=created_by, batch=batch, template=template, recipient_key=recipient_key,
-        unsubscribe_url=unsubscribe_url,
+        unsubscribe_url=unsubscribe_url, organization=organization,
     )
     problem = _address_problem(to)
     if problem:

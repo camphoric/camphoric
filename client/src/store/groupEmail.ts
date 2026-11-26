@@ -23,7 +23,7 @@ import type {
 } from 'api-types';
 import { apiFetch } from 'utils/fetch';
 
-import { BUSY_POLL_MS, IDLE_POLL_MS } from './email';
+import { BUSY_POLL_MS, type EmailScope, IDLE_POLL_MS, scopeParams } from './email';
 
 /** The fields `source`'s recipients can be chosen by (none for listed addresses). */
 export function useRecipientFields(eventId: string | number, source: EmailRecipientSource) {
@@ -120,12 +120,15 @@ export function batchActive(batch: ApiEmailBatch) {
   return batch.state === 'preparing' || batch.state === 'sending';
 }
 
-/** The event's group email sends, newest first, re-read faster while one is going out. */
-export function useEmailBatches(eventId: string | number) {
+/**
+ * An event's group email sends (or an organization's emails to past campers),
+ * newest first, re-read faster while one is going out.
+ */
+export function useEmailBatches(scope: EmailScope) {
+  const query = new URLSearchParams(scopeParams(scope)).toString();
   return useQuery({
-    queryKey: ['EmailBatch', 'list', String(eventId)],
-    queryFn: ({ signal }) =>
-      apiFetch<ApiEmailBatch[]>(`/api/emailbatches/?event=${eventId}`, { signal }),
+    queryKey: ['EmailBatch', 'list', query],
+    queryFn: ({ signal }) => apiFetch<ApiEmailBatch[]>(`/api/emailbatches/?${query}`, { signal }),
     refetchInterval: (query) => (query.state.data?.some(batchActive) ? BUSY_POLL_MS : IDLE_POLL_MS),
   });
 }
