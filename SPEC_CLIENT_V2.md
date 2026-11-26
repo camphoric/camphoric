@@ -920,8 +920,9 @@ Non-CRUD admin endpoints:
     they're registered for (a list: by a linked record, or by a record of the same name at one of
     their addresses, the camper's own or a registrant's) — and `latest.*`, the
     registrant email and the camper and registration answers of their newest record (the newest
-    included event's questions). Events are named by their name, with the year added (or the id)
-    where two events share one.
+    included event's questions). The event fields hold event ids, so a rule outlasts a renamed
+    event; their options label each by its name, with the year added (or the id) where two
+    events share one.
   - `POST …/email/recipients` `{ filter, email? }` → `{ recipients, skipped, diagnostics }`, as
     group email's (below): who `filter` reaches among the people across the included events,
     each recipient keyed `person:<id>` (or `camper:<id>` for a record linked to no one) with
@@ -1298,7 +1299,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `email` or `Name <email>` per line) and `include_incomplete`; saving one with a malformed rule
   or an expression that doesn't parse is a 400 on that field.
 - **EmailBatch** (§15, DR-45): `id`, `event` (null for an organization's email to past campers,
-  which has `organization` and `organization_email` instead, and its rules as `filter`; DR-182),
+  which has `organization` and `organization_email` instead, its rules as `filter`, and each
+  reviewed person's camper records as `recipient_campers`; DR-182),
   `template` (null once the template is deleted),
   `name`, `subject`, `body` (a snapshot of what was sent), `recipient_source`,
   `recipient_keys` (the reviewed recipients), `account`, `from_email`, `reply_to`,
@@ -2973,8 +2975,8 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
     Jinja, edited with autocomplete, help and a preview of one person's copy (§9.6). Emails can
     be duplicated and deleted; what was sent stays in the history.
   - **Recipients** are people across the included events: each linked person once, and each
-    record linked to no one on its own. A person's address is their newest record's — the
-    camper's own email, else their registrant's. The rules are group email's rule builder
+    record linked to no one on its own. A person's address is their newest record's that has one
+    — the camper's own email, else their registrant's. The rules are group email's rule builder
     (§8.9) over each person's attendance (events and series attended, how many, first and most
     recent year, longest run, linked or not), the events of the organization they're registered
     for — any event, included or not, matched by a linked record or by a record of the same name
@@ -2988,8 +2990,9 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
     the email worker), after confirming what will happen. A test copy can be sent to the
     organizer first. The list is checked again when the send is prepared, so someone who
     unsubscribed or was removed since is skipped, and a repeated send never sends twice — someone
-    already sent it counts by person or by the address it went to, so linking their records
-    since doesn't matter. Sends go
+    already sent it counts by person or by the address it went to, and someone whose records were
+    linked or unlinked since review is found again by their records, so linking doesn't drop or
+    repeat anyone. Sends go
     through the outbox (§15, DR-44) and can be cancelled while waiting, as group email's.
   - **History.** Every one of these emails and tests, and the sends with their progress, as the
     event's Email history (§8.9).
@@ -7996,11 +7999,14 @@ its own (`OrganizationEmail`), sent as group email is (DR-45): reviewed recipien
 the organization (`EmailBatch` with no event) expanded into outbox copies (DR-44), with tests,
 sending later, cancelling and the history. Recipients are people — linked people once, records
 linked to no one on their own — at their newest record's address (the camper's own, else the
-registrant's), chosen with group email's rule builder over each person's fields; a list field's
+registrant's; their newest record's that has one), chosen with group email's rule builder over
+each person's fields, whose event fields hold event ids so a rule outlasts a renamed event; a
+list field's
 "doesn't include" lets "not registered for 2027" be said, and `registered` covers every event of
 the organization, matched by link, or by the same name at any of the person's addresses, so it
 works before the new event is included. A person's key changes as records are linked, so
-"already sent" also goes by the address a copy went to.
+"already sent" also goes by the address a copy went to, and a send keeps each reviewed person's
+camper records to find them again when it's prepared.
 Unsubscribing from one of these emails leaves the organization's email to past campers,
 including events made later, and nothing else; anyone unsubscribed from any included event's
 group email is also left out.

@@ -42,6 +42,8 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
             return email.SAVED
         if not data['account']:
             return None  # the server's default mailer
+        if not isinstance(data['account'], int):
+            raise ValidationError({'account': 'Give an email account’s id.'})
         account = get_object_or_404(models.EmailAccount, id=data['account'])
         contracts.check_record(request, account)
         if account.organization_id != organization_email.organization_id:
@@ -140,7 +142,10 @@ class RecipientsView(OrganizationMixin, APIView):
         data = _body(request)
         resolution, _ = email.resolve(organization, data.get('filter'))
         result = resolution.as_dict()
-        sent = email.sent_to(data['email']) if isinstance(data.get('email'), int) else None
+        # Only the organization's own email's sends count as already sent.
+        own = isinstance(data.get('email'), int) and models.OrganizationEmail.objects.filter(
+            pk=data['email'], organization=organization).exists()
+        sent = email.sent_to(data['email']) if own else None
         for candidate, recipient in zip(resolution.recipients, result['recipients']):
             recipient['already_sent'] = sent is not None and candidate in sent
         return Response(result)
