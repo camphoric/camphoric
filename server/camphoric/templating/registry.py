@@ -633,6 +633,17 @@ ORGANIZATION_CONTEXTS = (
                     F('today', 'date', "Today's date."),
                     F('now', 'datetime', 'The current time.'),
                 )),
+    ContextSpec('multi_event_email', 'Email to past campers', 'An organization\'s email to '
+                'past campers is rendered for each person it goes to, across the '
+                'organization\'s included events (DR-182).', (
+                    F('organization_name', 'string', 'The organization.'),
+                    F('person', 'person', 'Who this copy is for, with their records and '
+                      'attendance.', '{{ person.name }} came {{ person.attended }} times'),
+                    F('recipient', 'recipient', 'The address this copy is going to.'),
+                    F('events', 'list<included_event>', 'The included events, oldest first.'),
+                    F('today', 'date', "Today's date."),
+                    F('now', 'datetime', 'The current time.'),
+                ), sample='person'),
 )
 
 FILTERS = (

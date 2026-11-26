@@ -28,6 +28,14 @@ export const ConfirmFailed: StoryFn = () => (
   <Frame state="ask" link={LINK} onConfirm={() => undefined} error="API 500 Server Error" />
 );
 export const Done: StoryFn = () => <Frame state="done" link={{ ...LINK, unsubscribed: true }} />;
+/** An organization's email to past campers (§8.12). */
+export const OrganizationAsk: StoryFn = () => (
+  <Frame
+    state="ask"
+    link={{ ...LINK, scope: 'organization', event: { name: 'Lark Traditional Arts' } }}
+    onConfirm={() => undefined}
+  />
+);
 /** A long address wraps rather than running off a phone's screen. */
 export const LongAddress: StoryFn = () => (
   <Frame

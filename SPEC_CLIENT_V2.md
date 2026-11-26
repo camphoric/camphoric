@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-181)
+- §15 — Decision Records (DR-1…DR-182)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -238,7 +238,7 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/organization/:organizationId/multi-event/*` — the organization's multi-event reports
-  (§8.12), with the sections `events`, `people`, `stats` and `reports`; a bare or unknown subpath redirects
+  (§8.12), with the sections `events`, `people`, `stats`, `reports` and `email`; a bare or unknown subpath redirects
   to `…/events`. On `people`: `?peopleTab` — `suggestions`, or people (the default, left out of
   the URL); `?personId` — the person whose record is open, or `?camperId` for a camper record
   linked to no one; the people table's `?pplq`, `?pplsort`, `?pplpage`; and the suggested
@@ -246,7 +246,10 @@ queries derive it from `window.location` rather than props, through the routing 
   `stats`: `?series` — the series shown (none for all the included events); `?statsTab` —
   `people` (attendance), or events (the default); the attendance table's `?attq`, `?attsort`,
   `?attpage`. On `reports`: `?reportId` — the report
-  shown; `?series` — the series it renders for (none for every included event).
+  shown; `?series` — the series it renders for (none for every included event). On `email`:
+  `?emailTab` — `history` or `unsubscribed`, or the emails (the default); `?templateId` — the
+  email being edited (`new` for a new one); `?messageId` — the open message; and the history's
+  `?mstatus`, `?mkind`, `?mq`, `?mpage` and `?mbatch`, as the event's Email section (§8.9).
 - **Users** (§8.10), for Admins only, opens over whatever admin page is showing, as search
   params on that page's URL: `?overlay=users` — Users is open; `?userId` — the user being
   edited: an id, or `new` for a new one; `?historyUserId` — the user whose change history is
@@ -622,13 +625,16 @@ Non-CRUD admin endpoints:
     header. `GET` changes nothing and redirects (302) to the client's page,
     `/unsubscribe/{token}` (§4). `POST` is a mail provider's one-click
     `List-Unsubscribe=One-Click` (RFC 8058), made without a browser: it unsubscribes the token's
-    address from the token's event's group email and answers JSON, as below. No HTML is rendered
+    address from the token's event's group email — or, for an organization's email to past
+    campers (DR-182), from the organization's — and answers JSON, as below. No HTML is rendered
     for either.
-  - `GET /api/email/unsubscribe/{token}` → `{ event: { name }, address, unsubscribed }` — what
-    the page shows (`address` lowercased; `unsubscribed` whether it's already on the event's
-    list); it changes nothing. `POST` to the same URL — the page's confirm — records the address
+  - `GET /api/email/unsubscribe/{token}` → `{ event: { name }, scope, address, unsubscribed }` —
+    what the page shows: `scope` `event` (its group email) or `organization` (its email to past
+    campers, `event.name` then being the organization's); `address` lowercased; `unsubscribed`
+    whether it's already on that list. It changes nothing. `POST` to the same URL — the page's confirm — records the address
     (source `link`; again is harmless) → the same, `unsubscribed: true`.
-  - A changed or incomplete token is a 400, an event that no longer exists a 404, each
+  - A changed or incomplete token is a 400, an event (or organization) that no longer exists a
+    404, each
     `{ code: 'invalid' | 'gone', detail }` — from either method of
     `/api/email/unsubscribe/{token}` and from a `POST` to the link (a `GET` of the link always
     redirects; the page then says what's wrong).
@@ -854,7 +860,7 @@ Non-CRUD admin endpoints:
   `code=<code>`, `/api/unsubscribe/<token>/`), any uuid, and any of the event's invitation codes
   standing on its own, in any case. A download is a read, so like any other it isn't recorded
   in the change history.
-- **Multi-event reports** (§8.12; §15, DR-177 to DR-181), under
+- **Multi-event reports** (§8.12; §15, DR-177 to DR-182), under
   `/api/organizations/{id}/multi-event/`; any role reads, Registrars and Admins write (403 for
   Reporters), and the organization's contract gate applies (§6). 404 for no such organization.
   - `GET …/events` → the organization's events in the event chooser's order (§8.1): `{ event,
@@ -902,7 +908,44 @@ Non-CRUD admin endpoints:
   - `POST …/templates/preview` `{ template, output, series? }` → `{ output, diagnostics,
     truncated, duration_ms, sample }` as an event's preview (above), rendering unsaved text for
     every included event or the series named; `sample` is always null. A read: any role may.
-    400 when `template` isn't text or `output` isn't `csv`, `md`, `txt` or `html`.
+    400 when `template` isn't text or `output` isn't `csv`, `md`, `txt`, `html` or `email`.
+    With `output: email` (`{ template, subject?, filter?, recipient_key? }`), an email to past
+    campers is rendered for one person (DR-182) — `recipient_key`, else the first `filter`
+    reaches — → `{ output, subject, html, diagnostics, truncated, duration_ms, sample }`,
+    `sample` `{ kind: 'person', id, label }`; 400 when the rules have problems or reach no one.
+  - `GET …/email/recipient-fields` → the fields people can be chosen by, for the rule builder,
+    as group email's (below): `person.*` — name, included events attended (number), the
+    included events and series attended (lists), first and most recent year, most consecutive
+    years, whether their records are linked, and `registered`, every event of the organization
+    they're registered for (a list: by a linked record, or by a record of the same name at one of
+    their addresses, the camper's own or a registrant's) — and `latest.*`, the
+    registrant email and the camper and registration answers of their newest record (the newest
+    included event's questions). Events are named by their name, with the year added (or the id)
+    where two events share one.
+  - `POST …/email/recipients` `{ filter, email? }` → `{ recipients, skipped, diagnostics }`, as
+    group email's (below): who `filter` reaches among the people across the included events,
+    each recipient keyed `person:<id>` (or `camper:<id>` for a record linked to no one) with
+    `camper` and `registration` its newest record's, and `already_sent` against `email` — by the
+    person, or by the address a copy went to, so linking records since doesn't lose it. A read:
+    any role may.
+- **Organization emails** (`/api/organization-emails/`, filter `organization`; §8.12; §15,
+  DR-182): an organization's emails to past campers, listed by name ignoring case (then by
+  `id`), created, changed (with `If-Match`) and deleted as other entities are; any role reads,
+  Registrars and Admins write. Saving checks the subject's and body's Jinja and the rules (400 on
+  the field); `account` must be one of the organization's, and `organization` can't change.
+  - `POST /api/organization-emails/{id}/send/` `{ recipient_keys, account?, from_email?,
+    reply_to?, skip_already_sent?, send_at? }` → 202 with the send (an `EmailBatch` of the
+    organization), as a group email's send: 400 without recipients, without a From address, or
+    for a later send with no worker. `account` and `reply_to` given (null: the server's default
+    mailer; blank: the account's default Reply-To) win over the email's; left out, the email's
+    are used.
+  - `POST /api/organization-emails/{id}/test/` `{ to?, recipient_key?, subject?, body?, filter? }`
+    → 202 `{ message, rendered_for, diagnostics }`, as a group email's test.
+  - `POST /api/organization-emails/{id}/duplicate/` → 201 with the copy.
+- **Organization unsubscribes** (`/api/organization-unsubscribes/`, filter `organization`; §15,
+  DR-182): list, add (source `admin`) and remove, as an event's (`/api/emailunsubscribes/`).
+- `/api/emailbatches/` and `/api/emailmessages/` also filter by `organization` (an
+  organization's emails to past campers and their tests), and batches by `organization_email`.
 - **Organization reports** (`/api/organization-reports/`, filter `organization`; §8.12; §15,
   DR-181): an organization's multi-event report templates, listed by title ignoring case (then
   by `id`), created, changed (with `If-Match`, DR-109) and deleted (with its delete preview,
@@ -1225,6 +1268,11 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `html` | `hbs`), `template`, `variables_schema`, `variables_source` (`client` | `server`; the
   API defaults to `server` (§15, DR-40), and `hbs` requires `client`), timestamps. The reports
   API lists them by title, ignoring case (then by `id`), so every consumer sees one order.
+- **OrganizationEmail** (§15, DR-182): `id`, `organization`, `name`, `subject` and `body`
+  (Jinja; the body is markdown), `from_email`, `reply_to`, `account` (null: the server's default
+  mailer), `filter` (the rules, `{ combinator, rules }`, over each person's fields), timestamps.
+- **OrganizationUnsubscribe** (§15, DR-182): `id`, `organization`, `email` (lowercased),
+  read-only `source` (`link` | `admin`), `created_by`, `created_by_name` and `created_at`.
 - **OrganizationReport:** `id`, `organization`, `title`, `category`, `description`, `output`
   (`csv` | `md` | `txt` | `html`), `template` (Jinja, with the multi-event variables; §8.12),
   timestamps. Deleted outright, as a Report is.
@@ -1249,7 +1297,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   pass), `address_expression`, `name_expression`, `recipient_list` (for `manual`: one
   `email` or `Name <email>` per line) and `include_incomplete`; saving one with a malformed rule
   or an expression that doesn't parse is a 400 on that field.
-- **EmailBatch** (§15, DR-45): `id`, `event`, `template` (null once the template is deleted),
+- **EmailBatch** (§15, DR-45): `id`, `event` (null for an organization's email to past campers,
+  which has `organization` and `organization_email` instead, and its rules as `filter`; DR-182),
+  `template` (null once the template is deleted),
   `name`, `subject`, `body` (a snapshot of what was sent), `recipient_source`,
   `recipient_keys` (the reviewed recipients), `account`, `from_email`, `reply_to`,
   `skip_already_sent`, `send_at`, `status` (`scheduled` | `expanding` | `sending` |
@@ -1277,8 +1327,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   changed, so it must be entered again). An update that changes `host`, `port`, `security` or
   `username` of an account with a stored password must give the password too, or it is a 400
   with an error on `password` (§15, DR-126).
-- **EmailMessage:** `id`, `event?`, `kind` (`confirmation` | `confirmation_report` |
-  `page_report` | `payment_report` | `invitation` | `invoice` | `bulk` | `test`), `registration?`, `invitation?`, `account?`,
+- **EmailMessage:** `id`, `event?`, `organization?` (an organization's email to past campers, or
+  its test; DR-182), `kind` (`confirmation` | `confirmation_report` | `page_report` |
+  `payment_report` | `invitation` | `invoice` | `bulk` | `multi_event` | `test`), `registration?`,
+  `invitation?`, `account?`,
   `account_name?`, `from_email`, `to`, `reply_to`, `subject`, `text`, `html`, `status`
   (`queued` | `sending` | `sent` | `failed` | `cancelled`), `attempts`, `next_attempt_at`,
   `last_error`, `sent_at?`, `smtp_message_id`, `created_by?`, `created_by_name?`, timestamps.
@@ -2863,7 +2915,8 @@ current one, who's signed in with their permission group and Sign out (§6), and
 read-only for a Reporter. Its sections are addressable at
 `…/organization/:organizationId/multi-event/<section>`, and the selections within them live in
 the URL (§4, §8.2). Any role views everything and renders reports; choosing events, linking,
-unlinking, dismissing suggestions and writing reports are for Registrars and Admins (§15, DR-51). Every change is recorded in the change
+unlinking, dismissing suggestions, writing reports and writing and sending email are for
+Registrars and Admins (§15, DR-51). Every change is recorded in the change
 history (§15, DR-53): a link or unlink in the camper's history, with who made it.
 
 - **Events.** The organization's events in the event chooser's order, each included or not, with
@@ -2913,6 +2966,37 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
   figures from Stats — and the people across them, each with their records and attendance
   (§9.3). Saving a report from an older version than the one stored asks first, as other edits
   do (§9.8); no one is shown as editing it.
+- **Email.** Email to past campers across the included events (§15, DR-182) — to announce next
+  year's registration, say, or invite back everyone who came before but hasn't registered yet.
+  - **Emails.** Each has a name, the rules choosing who it usually goes to, a sender (one of the
+    organization's accounts, a From address and a Reply-To) and a subject and markdown body in
+    Jinja, edited with autocomplete, help and a preview of one person's copy (§9.6). Emails can
+    be duplicated and deleted; what was sent stays in the history.
+  - **Recipients** are people across the included events: each linked person once, and each
+    record linked to no one on its own. A person's address is their newest record's — the
+    camper's own email, else their registrant's. The rules are group email's rule builder
+    (§8.9) over each person's attendance (events and series attended, how many, first and most
+    recent year, longest run, linked or not), the events of the organization they're registered
+    for — any event, included or not, matched by a linked record or by a record of the same name
+    at one of their addresses (a sibling registered at the family's address doesn't count), so
+    "not registered for 2027" works before 2027 is included — and their newest record's answers. As
+    the rules change, the area shows how many they reach and who's left out and why. Every
+    candidate is a recipient or skipped with a reason: no address, an invalid one, a duplicate
+    (the same address goes once), or unsubscribed.
+  - **Sending** reviews exactly who gets it, each with a checkbox, shows who's left out and why,
+    can skip those it already reached, sets the sender, and sends now or at a chosen time (with
+    the email worker), after confirming what will happen. A test copy can be sent to the
+    organizer first. The list is checked again when the send is prepared, so someone who
+    unsubscribed or was removed since is skipped, and a repeated send never sends twice — someone
+    already sent it counts by person or by the address it went to, so linking their records
+    since doesn't matter. Sends go
+    through the outbox (§15, DR-44) and can be cancelled while waiting, as group email's.
+  - **History.** Every one of these emails and tests, and the sends with their progress, as the
+    event's Email history (§8.9).
+  - **Unsubscribed.** The addresses that left the organization's email to past campers — by the
+    link at the foot of each copy, or added by an organizer — which an organizer can add to or
+    remove from. An address that unsubscribed from any included event's group email is left out
+    too. Leaving the organization's email doesn't leave any event's group email.
 
 ---
 
@@ -4909,7 +4993,8 @@ POST to the link, records the address. The page is the client's (DR-154). Group 
 when a send is prepared; confirmations, invitations and tests aren't affected. Organizers see
 the list and can add or remove addresses. Links point at `CAMPHORIC_PUBLIC_URL`, else the host the
 send was made from, recorded on the send because copies are prepared by the worker, outside any
-request.
+request. An organization's email to past campers has a list of its own, the organization's
+(DR-182).
 **Context:** Gmail and Yahoo expect bulk mail to offer one-click unsubscribe and treat mail
 without it as more likely spam; an event's announcements reach hundreds of people, and without a
 way out, people mark them as spam instead, hurting delivery of every email the account sends,
@@ -7811,8 +7896,8 @@ among them. A suggestion an organizer turns down is kept as a pair of records, l
 that goes with either record. Inclusions, people, links and turned-down pairs are in the change
 history (DR-53). The API lives under `/api/organizations/{id}/multi-event/` (§5), behind the
 organization's contract gate (DR-145) by the id in its URL. Multi-event reports start with
-events, people and stats; organization-level report templates and email to past campers follow
-in later releases.
+events, people and stats; organization-level report templates (DR-181) and email to past campers
+(DR-182) are built on them.
 **Context:** Organizers want to follow people across years: who keeps coming back, and who
 stopped (#1041). The camper model always meant to tie campers to multiple events. Keeping names
 and other details on the camper records alone leaves one source of truth for them.
@@ -7859,8 +7944,9 @@ can't be deleted, DR-54, so only by a superuser outside the admin) takes its lin
 person left with one record is dissolved. Only completed registrations' campers take part, never drafts, so the
 retention of incomplete registrations (DR-139, #942) is untouched. An organization whose camps
 follow people across years, or will email past campers about future events, says so in its
-privacy policy (DR-145, DR-153); the wording is the organization's. Email to past campers, when
-it comes, is limited to the organization's own events and always carries a one-click unsubscribe.
+privacy policy (DR-145, DR-153); the wording is the organization's. Email to past campers
+(DR-182) is limited to people from the organization's own events and always carries a one-click
+unsubscribe.
 **Context:** #1041 asks for cross-year tracking, and for its privacy to be recorded alongside it.
 **Alternatives:** A separate permission to see linked people — permission groups are site-wide
 (DR-50), so it would add a role for one screen; it can come with per-organization permissions.
@@ -7904,6 +7990,32 @@ path (leases, the live feed, export, legacy rendering) assumes an event. A flat 
 event's campers, as one big event — templates would lose which event each record is from.
 Revenue as invoiced totals — invoices are cancelled and reissued, and handling fees are added.
 
+### DR-182 — Email to past campers
+**Decision:** An organization emails people across its included events (§8.12) with emails of
+its own (`OrganizationEmail`), sent as group email is (DR-45): reviewed recipients, a batch of
+the organization (`EmailBatch` with no event) expanded into outbox copies (DR-44), with tests,
+sending later, cancelling and the history. Recipients are people — linked people once, records
+linked to no one on their own — at their newest record's address (the camper's own, else the
+registrant's), chosen with group email's rule builder over each person's fields; a list field's
+"doesn't include" lets "not registered for 2027" be said, and `registered` covers every event of
+the organization, matched by link, or by the same name at any of the person's addresses, so it
+works before the new event is included. A person's key changes as records are linked, so
+"already sent" also goes by the address a copy went to.
+Unsubscribing from one of these emails leaves the organization's email to past campers,
+including events made later, and nothing else; anyone unsubscribed from any included event's
+group email is also left out.
+**Context:** #1041 wants organizers to reach past campers about next year. Group email's rules,
+review, outbox and history already do the hard parts; only who the recipients are, and what
+they've left, differ. The unsubscribe scope was chosen with the organizers: someone who leaves
+"come back to camp" email shouldn't get it again next year, but shouldn't lose their own event's
+announcements either; and someone who left an included event's group email didn't want camp
+email.
+**Alternatives:** A fixed set of conditions (events, series, a count, "not at") — simpler, but
+the rule builder was wanted for its flexibility. Making `EmailTemplate` an organization's too —
+it's built around an event (its purposes, sources, leases and the live feed). Including
+registrants as recipients — only campers are linked (DR-177). A special rule for minors'
+addresses — the registrant's address is already the fallback.
+
 ## Appendix A — Backend / API Dependencies
 
 What this (frontend) spec assumes from the Django backend. Per the project's API-editing rule,
@@ -7934,9 +8046,12 @@ must be coordinated with the backend. Grouped by status.
   with `publish` and `agreements`, and `privacyPolicy` in the register config, with the shapes
   in §5 (§4, §6, §7, §8.1; DR-145).
 - **Multi-event reports:** `/api/organizations/{id}/multi-event/` — `events` (list, and PATCH
-  one), `campers`, `suggestions`, `link`, `unlink`, `dismiss`, `stats`, and `templates/describe`
-  and `templates/preview` — `/api/organization-reports/` with its `render`, and the camper's
-  read-only `person`, with the shapes in §5 (§8.12; DR-177 to DR-181).
+  one), `campers`, `suggestions`, `link`, `unlink`, `dismiss`, `stats`, `templates/describe`
+  and `templates/preview`, and `email/recipients` and `email/recipient-fields` —
+  `/api/organization-reports/` with its `render`, `/api/organization-emails/` with `send`,
+  `test` and `duplicate`, `/api/organization-unsubscribes/`, the organization filter on email
+  batches and messages, `scope` on the unsubscribe page's link, and the camper's read-only
+  `person`, with the shapes in §5 (§8.12; DR-177 to DR-182).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Record versions:** `version` on every record, `ETag` on detail responses, and the

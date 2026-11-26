@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from camphoric import api_token_views, live_stream, oauth_views, views
+from camphoric.multi_event import email_views as multi_event_email_views
 from camphoric.multi_event import views as multi_event_views
 from camphoric.templating import views as template_views
 
@@ -17,6 +18,11 @@ router.register('registrationtypes', views.RegistrationTypeViewSet, basename='re
 router.register('reports', views.ReportViewSet, basename='report')
 router.register('organization-reports', views.OrganizationReportViewSet,
                 basename='organizationreport')
+router.register('organization-emails', multi_event_email_views.OrganizationEmailViewSet,
+                basename='organizationemail')
+router.register('organization-unsubscribes',
+                multi_event_email_views.OrganizationUnsubscribeViewSet,
+                basename='organizationunsubscribe')
 router.register('invitations', views.InvitationViewSet, basename='invitation')
 router.register('lodgings', views.LodgingViewSet, basename='lodging')
 router.register('campers', views.CamperViewSet, basename='camper')
@@ -80,6 +86,10 @@ urlpatterns = [
          multi_event_views.DismissView.as_view()),
     path('organizations/<int:organization_id>/multi-event/stats',
          multi_event_views.StatsView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/email/recipients',
+         multi_event_email_views.RecipientsView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/email/recipient-fields',
+         multi_event_email_views.RecipientFieldsView.as_view()),
     path('organizations/<int:organization_id>/multi-event/templates/describe',
          multi_event_views.TemplateDescribeView.as_view()),
     path('organizations/<int:organization_id>/multi-event/templates/preview',

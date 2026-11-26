@@ -58,7 +58,7 @@ class UnsubscribeLinkTests(GroupEmailTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/json')
         self.assertEqual(response.json(), {
-            'event': {'name': self.event.name}, 'address': 'pat@example.com',
+            'event': {'name': self.event.name}, 'scope': 'event', 'address': 'pat@example.com',
             'unsubscribed': True})
         self.assertEqual(self.rows(), [('pat@example.com', 'link')])
 
@@ -100,7 +100,7 @@ class UnsubscribePageTests(GroupEmailTestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {
-            'event': {'name': self.event.name}, 'address': 'pat@example.com',
+            'event': {'name': self.event.name}, 'scope': 'event', 'address': 'pat@example.com',
             'unsubscribed': False})
         self.assertEqual(response['X-Robots-Tag'], 'noindex')
         self.assertEqual(self.rows(), [])

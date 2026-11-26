@@ -421,6 +421,57 @@ class EmailUnsubscribeSerializer(ModelSerializer):
         return data
 
 
+class OrganizationEmailSerializer(ModelSerializer):
+    '''An organization's email to past campers (SPEC §8.12, DR-182).'''
+
+    class Meta:
+        model = models.OrganizationEmail
+        fields = '__all__'
+
+    def validate(self, data):
+        from camphoric.multi_event.email import filter_errors
+
+        errors = {}
+        for name, field in (('subject', 'subject'), ('body', 'template')):
+            if name in data:
+                problem = syntax_error(data[name], field=field)
+                if problem:
+                    errors[name] = [f'Line {problem.line}: {problem.message}']
+        if 'filter' in data:
+            errors.update(filter_errors(data['filter']))
+        instance = self.instance
+        organization = data.get('organization', getattr(instance, 'organization', None))
+        if instance is not None and 'organization' in data \
+                and data['organization'] != instance.organization:
+            errors['organization'] = ["An email can't be moved to another organization."]
+        account = data.get('account')
+        if account is not None and account.organization_id != getattr(organization, 'pk', None):
+            errors['account'] = ['Choose one of the organization’s email accounts.']
+        if errors:
+            raise ValidationError(errors)
+        return data
+
+
+class OrganizationUnsubscribeSerializer(ModelSerializer):
+    '''An address unsubscribed from an organization's email to past campers (DR-182).'''
+    created_by_name = CharField(source='created_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = models.OrganizationUnsubscribe
+        fields = ['id', 'organization', 'email', 'source', 'created_by', 'created_by_name',
+                  'created_at', 'version']
+        read_only_fields = ['source', 'created_by', 'created_at']
+        # The duplicate check is in validate, on the normalized address.
+        validators = []
+
+    def validate(self, data):
+        data['email'] = data['email'].strip().lower()
+        if models.OrganizationUnsubscribe.objects.filter(
+                organization=data['organization'], email=data['email']).exists():
+            raise ValidationError({'email': ['This address is already unsubscribed.']})
+        return data
+
+
 class EmailBatchSerializer(ModelSerializer):
     '''One send of a group email, with its messages' counts.'''
     total = SerializerMethodField()

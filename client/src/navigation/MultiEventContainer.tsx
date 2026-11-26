@@ -28,6 +28,7 @@ import {
   IconCalendarEvent,
   IconChartBar,
   IconEye,
+  IconMail,
   IconReportAnalytics,
   IconUsersGroup,
 } from '@tabler/icons-react';
@@ -44,6 +45,7 @@ export const MULTI_EVENT_SECTIONS = [
   { path: 'people', label: 'People', icon: IconUsersGroup },
   { path: 'stats', label: 'Stats', icon: IconChartBar },
   { path: 'reports', label: 'Reports', icon: IconReportAnalytics },
+  { path: 'email', label: 'Email', icon: IconMail },
 ] as const;
 
 export function MultiEventContainer() {

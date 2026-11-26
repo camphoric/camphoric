@@ -53,7 +53,8 @@ export function EmailBatches({ batches, selectedId, onSelect }: EmailBatchesProp
 
   return (
     <Stack gap="xs">
-      <Text fw={600}>Group email sends</Text>
+      {/* An organization's emails to past campers (§8.12) have no event. */}
+      <Text fw={600}>{batches[0].event === null ? 'Sends' : 'Group email sends'}</Text>
       {shown.map((batch) => (
         <BatchCard
           key={batch.id}

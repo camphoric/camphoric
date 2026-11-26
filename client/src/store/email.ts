@@ -25,8 +25,15 @@ export interface EmailHistoryFilters {
   page?: number;
 }
 
-function historyQuery(eventId: string | number, filters: EmailHistoryFilters) {
-  const params = new URLSearchParams({ event: String(eventId) });
+/** Whose email: an event's, or an organization's email to past campers (§8.12). */
+export type EmailScope = { event: string | number } | { organization: string | number };
+
+/** The scope as list filters, e.g. `{ event: '7' }`. */
+export const scopeParams = (scope: EmailScope): Record<string, string> =>
+  Object.fromEntries(Object.entries(scope).map(([key, value]) => [key, String(value)]));
+
+function historyQuery(scope: EmailScope, filters: EmailHistoryFilters) {
+  const params = new URLSearchParams(scopeParams(scope));
   if (filters.status) params.set('status__in', filters.status);
   if (filters.kind) params.set('kind__in', filters.kind);
   if (filters.q?.trim()) params.set('q', filters.q.trim());
@@ -49,13 +56,13 @@ export function useEmailQueue(eventId: string | number) {
   });
 }
 
-/** A page of the event's email history, newest first. */
+/** A page of an event's (or an organization's) email history, newest first. */
 export function useEmailHistory(
-  eventId: string | number,
+  scope: EmailScope,
   filters: EmailHistoryFilters,
   refetchInterval: number,
 ) {
-  const query = historyQuery(eventId, filters);
+  const query = historyQuery(scope, filters);
   return useQuery({
     queryKey: ['EmailMessage', 'list', query],
     queryFn: ({ signal }) =>

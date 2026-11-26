@@ -605,6 +605,11 @@ class RouteWalkTests(APITestCase):
             models.OrganizationReport: models.OrganizationReport.objects.create(
                 organization=cls.organization, title='Across years', output='txt',
                 template='{{ events | length }}'),
+            models.OrganizationEmail: models.OrganizationEmail.objects.create(
+                organization=cls.organization, name='Come back', subject='Hi',
+                from_email='camp@example.com'),
+            models.OrganizationUnsubscribe: models.OrganizationUnsubscribe.objects.create(
+                organization=cls.organization, email='gone@example.com', source='admin'),
             models.Invitation: made.pending,
             models.Lodging: made.cabin_a,
             models.Camper: made.c1,

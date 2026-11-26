@@ -622,7 +622,9 @@ export type TemplateContextName =
   | 'bulk_email_camper'
   | 'bulk_email_manual'
   /** An organization's multi-event reports (§8.12), in the organization's describe payload only. */
-  | 'multi_event_report';
+  | 'multi_event_report'
+  /** An organization's email to past campers (§8.12), likewise. */
+  | 'multi_event_email';
 
 /**
  * One variable or field. `type` is `string`, `number`, `bool`, `money`,
@@ -660,7 +662,7 @@ export interface TemplateContextDescription {
   doc: string;
   roots: TemplateFieldDescription[];
   /** The kind of record a preview renders for, if any. */
-  sample: 'registration' | 'camper' | 'invitation' | null;
+  sample: 'registration' | 'camper' | 'invitation' | 'person' | null;
 }
 
 export interface TemplateFilterDescription {
@@ -1355,6 +1357,8 @@ export type EmailMessageKind =
   | 'invoice'
   | 'invitation'
   | 'bulk'
+  /** An organization's email to past campers (§8.12; §15, DR-182). */
+  | 'multi_event'
   | 'test'
   | 'account';
 
@@ -1573,7 +1577,10 @@ export interface ApiEmailUnsubscribe {
  * SPEC §5; §15 DR-48, DR-154).
  */
 export interface ApiUnsubscribeLink {
+  /** What the email was about: the event, or (scope `organization`) the organization. */
   event: { name: string };
+  /** `event`: its group email; `organization`: its email to past campers (§15, DR-182). */
+  scope: 'event' | 'organization';
   /** The address the link unsubscribes, lowercased. */
   address: string;
   /** Whether it's already unsubscribed from the event's group email. */
@@ -1597,8 +1604,11 @@ export type EmailBatchState = 'scheduled' | 'preparing' | 'sending' | 'done' | '
 /** One send of a group email (SPEC §5). */
 export interface ApiEmailBatch extends TimeStamped {
   id: number;
-  event: number;
+  /** Null for an organization's email to past campers (§15, DR-182). */
+  event: number | null;
   template: number | null;
+  organization: number | null;
+  organization_email: number | null;
   name: string;
   subject: string;
   body: string;
@@ -1642,6 +1652,40 @@ export interface EmailTemplateTestResponse {
   message: ApiEmailMessage;
   rendered_for: AudienceRecipient;
   diagnostics: TemplateDiagnostic[];
+}
+
+/** An organization's email to past campers (§8.12; §15, DR-182). */
+export interface ApiOrganizationEmail extends TimeStamped {
+  id: number;
+  organization: number;
+  name: string;
+  subject: string;
+  body: string;
+  from_email: string;
+  reply_to: string;
+  account: number | null;
+  /** The rules choosing who it goes to, over each person's fields. */
+  filter: EmailFilter;
+}
+
+/** An address unsubscribed from an organization's email to past campers (§15, DR-182). */
+export interface ApiOrganizationUnsubscribe {
+  id: number;
+  organization: number;
+  email: string;
+  source: 'link' | 'admin';
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
+  version: number;
+}
+
+export interface OrganizationEmailTestRequest {
+  to?: string;
+  recipient_key?: string;
+  subject?: string;
+  body?: string;
+  filter?: EmailFilter;
 }
 
 // --- Multi-event reports (SPEC §8.12; §15 DR-177–DR-180) ------------------------

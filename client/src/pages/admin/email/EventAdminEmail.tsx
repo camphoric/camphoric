@@ -101,7 +101,7 @@ export function EventAdminEmail() {
 
         <Tabs.Panel value="history" pt="md">
           <EmailHistory
-            eventId={eventId}
+            scope={{ event: eventId }}
             queue={queue}
             filters={historyFilters}
             onFiltersChange={setHistoryFilters}

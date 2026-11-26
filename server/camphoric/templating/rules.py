@@ -26,7 +26,7 @@ OPERATORS = {
     'boolean': ('is_true', 'is_false'),
     'enum': ('is', 'is_not', 'any_of', 'is_set', 'is_not_set'),
     'date': ('before', 'after', 'on', 'is_set', 'is_not_set'),
-    'list': ('contains', 'any_of', 'is_set', 'is_not_set'),
+    'list': ('contains', 'not_contains', 'any_of', 'is_set', 'is_not_set'),
 }
 NO_VALUE = {'is_set', 'is_not_set', 'is_true', 'is_false'}
 ALL_OPERATORS = {op for ops in OPERATORS.values() for op in ops}
@@ -117,6 +117,8 @@ def matches(rule, context):
         have = {_text(v) for v in value}
         if op == 'contains':
             return _text(wanted) in have
+        if op == 'not_contains':
+            return _text(wanted) not in have
         if op == 'any_of':
             return bool(have & {_text(w) for w in _as_list(wanted)})
         return False

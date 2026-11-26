@@ -536,34 +536,53 @@ class EmailUnsubscribeViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSe
 
 def unsubscribe_target(token):
     '''
-    `(event, address, None)` for an unsubscribe link's token, or
-    `(None, None, (status, problem))` when the link can't be used: changed or
-    incomplete (400 `invalid`), or its event no longer exists (404 `gone`).
+    `(target, address, None)` for an unsubscribe link's token — the event whose
+    group email it leaves, or the organization whose email to past campers it
+    leaves (DR-182) — or `(None, None, (status, problem))` when the link can't
+    be used: changed or incomplete (400 `invalid`), or what it's for no longer
+    exists (404 `gone`).
     '''
     try:
-        event_id, address = unsubscribe.read_token(token)
+        scope, target_id, address = unsubscribe.read_any_token(token)
     except signing.BadSignature:
         return None, None, (status.HTTP_400_BAD_REQUEST, {
             'code': 'invalid',
             'detail': 'The unsubscribe link is incomplete or has been changed. '
                       'Try the link in the email again.'})
-    event = models.Event.objects.filter(id=event_id).first()
-    if event is None:
+    model = models.Organization if scope == 'organization' else models.Event
+    target = model.objects.filter(id=target_id).first()
+    if target is None:
         return None, None, (status.HTTP_404_NOT_FOUND, {
             'code': 'gone',
-            'detail': 'The event this email was about no longer exists, so it won’t '
-                      'send you anything more.'})
-    return event, address, None
+            'detail': f'The {"organization" if scope == "organization" else "event"} this '
+                      'email was about no longer exists, so it won’t send you anything more.'})
+    return target, address, None
 
 
-def unsubscribe_state(event, address):
-    '''What the unsubscribe page shows: the event, the address, and whether it's done.'''
-    return {
-        'event': {'name': event.name},
-        'address': address,
-        'unsubscribed': models.EmailUnsubscribe.objects.filter(
-            event=event, email=address).exists(),
-    }
+def unsubscribe_state(target, address):
+    '''
+    What the unsubscribe page shows: what the email was about (`event.name`: the
+    event's, or the organization's), `scope` (`event` | `organization`), the
+    address, and whether it's done.
+    '''
+    if isinstance(target, models.Organization):
+        done = models.OrganizationUnsubscribe.objects.filter(
+            organization=target, email=address).exists()
+        scope = 'organization'
+    else:
+        done = models.EmailUnsubscribe.objects.filter(event=target, email=address).exists()
+        scope = 'event'
+    return {'event': {'name': target.name}, 'scope': scope, 'address': address,
+            'unsubscribed': done}
+
+
+def unsubscribe_from(target, address):
+    '''Unsubscribe the address by its link (source `link`).'''
+    source = models.EmailUnsubscribeSource.LINK
+    if isinstance(target, models.Organization):
+        unsubscribe.unsubscribe_organization(target, address, source=source)
+    else:
+        unsubscribe.unsubscribe(target, address, source=source)
 
 
 def no_index(response):
@@ -584,7 +603,8 @@ class UnsubscribeLinkView(View):
       confirm.
     - POST is a mail provider's one-click `List-Unsubscribe=One-Click`
       (RFC 8058), made without a browser: it unsubscribes the token's address
-      from the event's group email and answers JSON, as `UnsubscribeView` does.
+      from the event's group email (or the organization's email to past
+      campers, DR-182) and answers JSON, as `UnsubscribeView` does.
     '''
 
     def dispatch(self, request, *args, **kwargs):
@@ -594,12 +614,12 @@ class UnsubscribeLinkView(View):
         return HttpResponseRedirect(f'/unsubscribe/{quote(token, safe=":.")}')
 
     def post(self, request, token):
-        event, address, problem = unsubscribe_target(token)
+        target, address, problem = unsubscribe_target(token)
         if problem:
             code, body = problem
             return JsonResponse(body, status=code)
-        unsubscribe.unsubscribe(event, address, source=models.EmailUnsubscribeSource.LINK)
-        return JsonResponse(unsubscribe_state(event, address))
+        unsubscribe_from(target, address)
+        return JsonResponse(unsubscribe_state(target, address))
 
 
 class UnsubscribeView(APIView):
@@ -607,10 +627,11 @@ class UnsubscribeView(APIView):
     The client's unsubscribe page (SPEC §5, §8.9; DR-48, DR-154), by the
     token in the emailed link. No login: the signed token is the permission.
 
-    - `GET /api/email/unsubscribe/<token>` → `{event: {name}, address,
+    - `GET /api/email/unsubscribe/<token>` → `{event: {name}, scope, address,
       unsubscribed}`; it changes nothing.
-    - `POST` the same → unsubscribes the address from the event's group email
-      (source `link`) → the same, `unsubscribed` true.
+    - `POST` the same → unsubscribes the address from the event's group email,
+      or the organization's email to past campers (DR-182) (source `link`) →
+      the same, `unsubscribed` true.
 
     A changed or incomplete token is a 400, an event that no longer exists a
     404, each `{code, detail}`. Always JSON: a browser opening it gets no HTML.
@@ -623,19 +644,19 @@ class UnsubscribeView(APIView):
         return no_index(super().finalize_response(request, response, *args, **kwargs))
 
     def get(self, request, token):
-        event, address, problem = unsubscribe_target(token)
+        target, address, problem = unsubscribe_target(token)
         if problem:
             code, body = problem
             return Response(body, status=code)
-        return Response(unsubscribe_state(event, address))
+        return Response(unsubscribe_state(target, address))
 
     def post(self, request, token):
-        event, address, problem = unsubscribe_target(token)
+        target, address, problem = unsubscribe_target(token)
         if problem:
             code, body = problem
             return Response(body, status=code)
-        unsubscribe.unsubscribe(event, address, source=models.EmailUnsubscribeSource.LINK)
-        return Response(unsubscribe_state(event, address))
+        unsubscribe_from(target, address)
+        return Response(unsubscribe_state(target, address))
 
 
 class EmailRecipientFieldsView(APIView):
@@ -648,9 +669,12 @@ class EmailRecipientFieldsView(APIView):
 
 
 class EmailBatchViewSet(ReadOnlyModelViewSet):
-    '''The event's group email sends, newest first, with their counts.'''
+    '''
+    Group email sends, newest first, with their counts: an event's (`?event=`)
+    or an organization's emails to past campers (`?organization=`, DR-182).
+    '''
     serializer_class = serializers.EmailBatchSerializer
-    filterset_fields = ['event', 'template', 'status']
+    filterset_fields = ['event', 'template', 'organization', 'organization_email', 'status']
 
     def get_queryset(self):
         return batches.with_counts(
@@ -685,6 +709,7 @@ class EmailMessageViewSet(ReadOnlyModelViewSet):
     extra_query_params = ('q',)
     filterset_fields = {
         'event': ['exact'],
+        'organization': ['exact'],
         'batch': ['exact'],
         'template': ['exact'],
         'kind': ['exact', 'in'],

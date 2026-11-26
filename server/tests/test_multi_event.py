@@ -598,7 +598,8 @@ class OrganizationReportTests(MultiEventTestCase):
     def test_describes_its_variables(self):
         response = self.client.get(self.url('templates/describe'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.data['contexts']), ['multi_event_report'])
+        self.assertEqual(list(response.data['contexts']),
+                         ['multi_event_report', 'multi_event_email'])
         self.assertIn('person', response.data['types'])
         self.assertIn('camper', response.data['types'])
         # Event-specific types are plain dicts here, so every field's type is described.
