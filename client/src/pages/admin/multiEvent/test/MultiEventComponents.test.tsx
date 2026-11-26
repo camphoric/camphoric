@@ -43,6 +43,16 @@ describe('EventInclusionList', () => {
     expect(onChange).toHaveBeenCalledWith(5, { series: 'Lark Camp' });
   });
 
+  it('saves a suggested series picked with the keyboard once, not the typed part too', async () => {
+    const onChange = vi.fn();
+    renderWithProviders(<EventInclusionList events={EVENTS} onChange={onChange} />);
+    const user = userEvent.setup();
+    const series = screen.getByRole('combobox', { name: 'Series of Lark Camp 2022' });
+    await user.type(series, 'La{ArrowDown}{Enter}');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(5, { series: 'Lark Camp' });
+  });
+
   it('lets a series name whose save failed be saved again', async () => {
     const onChange = vi.fn().mockRejectedValueOnce(new Error('refused'));
     renderWithProviders(<EventInclusionList events={EVENTS} onChange={onChange} />);

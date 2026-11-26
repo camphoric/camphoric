@@ -3,7 +3,7 @@
  * records by event, oldest first, each opening that camper in its event's
  * admin. A user who can change data can unlink a record linked by mistake, or,
  * to undo a mistaken merge, split some records off together as another person.
- * Two records of one event (left by restoring a deleted one) are pointed out.
+ * Two records of one event, which linking shouldn't allow, are pointed out.
  */
 
 import { Alert, Anchor, Button, Checkbox, Group, Stack, Table, Text } from '@mantine/core';
@@ -50,9 +50,11 @@ export function PersonRecord({
   return (
     <Stack gap="sm">
       <Text size="sm" c="dimmed">
-        {linked
-          ? `${unit.records.length} camper records linked as one person.`
-          : 'This camper record isn’t linked to any other.'}
+        {!linked
+          ? 'This camper record isn’t linked to any other.'
+          : unit.records.length === 1
+            ? 'This camper record is linked only to deleted records.'
+            : `${unit.records.length} camper records linked as one person.`}
       </Text>
       {unit.clashes.length > 0 && (
         <Alert color="yellow" title="More than one record in an event">
@@ -82,7 +84,7 @@ export function PersonRecord({
         </Group>
       )}
       <Table.ScrollContainer minWidth={560}>
-        <Table verticalSpacing="xs">
+        <Table verticalSpacing="xs" style={{ whiteSpace: 'nowrap' }}>
           <Table.Thead>
             <Table.Tr>
               {canSplit && <Table.Th />}

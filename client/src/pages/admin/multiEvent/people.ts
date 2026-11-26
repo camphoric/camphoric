@@ -21,7 +21,7 @@ export interface PersonUnit {
   emails: string[];
   /** The age on their newest record that has one. */
   age: string | null;
-  /** Events with more than one of their records (a restored record can do this). */
+  /** Events with more than one of their records, which linking shouldn't allow. */
   clashes: number[];
 }
 

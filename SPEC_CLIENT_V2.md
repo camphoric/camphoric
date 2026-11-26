@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-24
+**Last updated:** 2026-11-25
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -2865,12 +2865,12 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
     (`…/event/:eventId/campers?camperId=`). A record linked by mistake is unlinked; to undo a
     mistaken merge, two or more records are split off together as another person. Records taken
     out aren't suggested with the records left behind again, and a person left with one record
-    is no longer one. Two records of one event in a person (restoring a deleted record can do this)
-    are pointed out.
+    is no longer one. Should a person ever hold two records of one event, that's pointed out.
   - **Suggested matches.** Records from different included events that are likely one person,
     each with how strong the match is (strong, likely or possible) and why, strongest first,
     shown by strength or all together (§15, DR-178). Accepting one links its records as one
-    person; saying they aren't the same person keeps them from being suggested together again.
+    person; saying they aren't the same person keeps any two of them from being suggested together
+    again.
     Nothing is linked until accepted. Suggestions are worked out when they're looked at, not as
     people register.
 - **Stats.** Across the included events, or one series (§15, DR-180):
@@ -7767,8 +7767,10 @@ details of its own: it's what ties its camper records together, through a nullab
 the camper (cleared if the person goes). The link is set only by linking and unlinking in
 multi-event reports: it's read-only on the camper API, and setting it is neither an edit of the
 camper's details (no new `version`, DR-109) nor a reason to reprice. A person has at most one
-live record per event, which linking enforces, and at least two records; one left with fewer is
-dissolved. A person belongs to one organization: a link counts only among that organization's
+live record per event, which linking enforces: it refuses two live records of one event, and
+takes out of the person any deleted record of an event it now has a live record of, so restoring
+that record can't break the rule. A person has at least two records, deleted ones included; one
+left with fewer is dissolved, and a record whose only partners are deleted can still be unlinked. A person belongs to one organization: a link counts only among that organization's
 records, so a record (or its event) moved to another organization is linked to no one there, and
 linking it there takes it from its old person. Unlinking takes one record out, or splits two or
 more off together as a new person, which undoes a mistaken merge without losing the true matches

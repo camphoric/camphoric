@@ -76,13 +76,23 @@ def included_events(organization, series=None):
 
 
 def set_inclusion(event, *, included=None, series=None):
-    '''Include or leave out an event, or change its series.'''
-    inclusion = inclusion_of(event) or models.MultiEventInclusion(event=event, included=False)
+    '''
+    Include or leave out an event, or change its series. Only what's given is
+    written, under a lock, so saving the switch and the series at once keeps both.
+    '''
+    values = {}
     if included is not None:
-        inclusion.included = included
+        values['included'] = included
     if series is not None:
-        inclusion.series = ' '.join(series.split())
-    inclusion.save()
+        values['series'] = ' '.join(series.split())
+    with transaction.atomic():
+        inclusion, created = models.MultiEventInclusion.objects.select_for_update().get_or_create(
+            event=event, defaults={'included': False, **values})
+        if values and not created:
+            for field, value in values.items():
+                setattr(inclusion, field, value)
+            inclusion.save(update_fields=[*values, 'updated_at'])
+            inclusion.refresh_from_db()
     event.multi_event = inclusion
     return event_row(event)
 
@@ -232,6 +242,13 @@ def link(organization, camper_ids):
             _set_person(camper, person)
         for merged in models.Person.objects.filter(pk__in=person_ids[1:]):
             merged.delete()
+        # A deleted record of an event the person now has a live record of is left
+        # out, so restoring it can't give the person two live records of one event.
+        live = {c.id for c in members.values()}
+        events = {c.registration.event_id for c in members.values()}
+        for stale in (_of(organization, models.Camper.all_objects.filter(
+                person=person, registration__event_id__in=events)).exclude(pk__in=live)):
+            _set_person(stale, None)
         for other in elsewhere:
             dissolve_if_alone(other)
         return person
@@ -278,7 +295,8 @@ def unlink(organization, camper_ids):
             raise ValidationError({'campers': 'These are records of different people.'})
         person = chosen[0].person
         ids = {c.id for c in chosen}
-        staying = [c for c in _of(organization, models.Camper.objects.filter(person=person))
+        # Deleted records stay too: they still count toward the person (dissolve_if_alone).
+        staying = [c for c in _of(organization, models.Camper.all_objects.filter(person=person))
                    if c.id not in ids]
         if not staying:
             raise ValidationError(

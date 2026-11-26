@@ -79,6 +79,14 @@ class IncludedEventsTests(MultiEventTestCase):
         inclusion = models.MultiEventInclusion.objects.get(event=self.left_out)
         self.assertTrue(inclusion.included)
 
+    def test_a_save_writes_only_what_it_changes(self):
+        # A request that read the row before another saved the series doesn't write it back.
+        stale = models.Event.objects.select_related('multi_event').get(pk=self.camp23.pk)
+        models.MultiEventInclusion.objects.filter(event=self.camp23).update(series='Lark')
+        people.set_inclusion(stale, included=False)
+        inclusion = models.MultiEventInclusion.objects.get(event=self.camp23)
+        self.assertEqual((inclusion.included, inclusion.series), (False, 'Lark'))
+
     def test_leaving_an_event_out_keeps_its_series(self):
         self.client.patch(self.url(f'events/{self.camp23.id}'), {'included': False},
                           format='json')
@@ -289,6 +297,27 @@ class LinkingTests(MultiEventTestCase):
         self.assertEqual(self.ann24.person_id, person)
         self.assertEqual([r.camper for r in people.records(self.organization)
                           if r.person == person], [self.ann23.id])
+
+    def test_a_restored_record_cant_give_a_person_two_in_one_event(self):
+        person = self.link(self.ann23, self.ann24).data['person']
+        self.ann24.soft_delete()
+        ann24_again = make_camper(self.camp24, 'Ann', 'Lee')
+        self.assertEqual(self.link(self.ann23, ann24_again).data['person'], person)
+        self.ann24.refresh_from_db()
+        self.assertIsNone(self.ann24.person)  # the deleted one is taken out
+        self.ann24.soft_undelete()
+        self.assertEqual(
+            sorted(c.id for c in models.Camper.objects.filter(person_id=person)),
+            [self.ann23.id, ann24_again.id])
+
+    def test_a_record_whose_partner_is_deleted_can_be_unlinked(self):
+        self.link(self.ann23, self.ann24)
+        self.ann24.soft_delete()
+        response = self.unlink(self.ann23)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.ann23.refresh_from_db()
+        self.assertIsNone(self.ann23.person)
+        self.assertFalse(models.Person.objects.exists())
 
 
 class SuggestionTests(MultiEventTestCase):
