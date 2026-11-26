@@ -1,12 +1,15 @@
 '''Multi-event reports: included events, linking people, suggestions and stats (SPEC §8.12).'''
 
 import datetime
+from decimal import Decimal
 
 from auditlog.models import LogEntry
 from rest_framework.test import APITestCase
 
 from camphoric import models, roles
-from camphoric.multi_event import matching, people, stats
+from camphoric.multi_event import matching, people, reports, stats
+from camphoric.templating import registry
+from camphoric.templating.values import TemplateObject
 from tests.factories import make_user
 
 AGES = ['65 years old or older', '26-49 years old', '12-17 years old', '5-11 years old']
@@ -474,3 +477,140 @@ class StatsTests(MultiEventTestCase):
     def test_longest_run(self):
         self.assertEqual(stats.longest_run({2019, 2021, 2022, 2023, 2025}), 3)
         self.assertEqual(stats.longest_run(set()), 0)
+
+
+def objects_in(value, seen=None):
+    '''Every template object reachable from a value, by type and identity.'''
+    seen = {} if seen is None else seen
+    if isinstance(value, TemplateObject):
+        if (value.type_name, id(value)) in seen:
+            return seen
+        seen[(value.type_name, id(value))] = value
+        value = list(value.values())
+    if isinstance(value, dict):
+        value = list(value.values())
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            objects_in(item, seen)
+    return seen
+
+
+class OrganizationReportTests(MultiEventTestCase):
+    TEMPLATE = (
+        '{% for included in events %}{{ included.name }},{{ included.people }},'
+        '{{ included.came_back }},{{ included.received | money }}\n{% endfor %}'
+        '{% for person in people %}{{ person.name }}:'
+        '{% for record in person.records %} {{ record.event.year }}'
+        '{{ record.camper.attributes.first_name[0] }}{% endfor %}\n{% endfor %}')
+
+    def setUp(self):
+        super().setUp()
+        ann = [make_camper(e, 'Ann', 'Lee') for e in (self.camp23, self.camp24, self.camp25)]
+        people.link(self.organization, [c.id for c in ann])
+        make_camper(self.campout24, 'Bo', 'Ng')
+        models.Payment.objects.create(registration=ann[0].registration, amount=Decimal('100.00'),
+                                      payment_type='Check')
+        models.Payment.objects.create(registration=ann[0].registration, amount=Decimal('-25.00'),
+                                      payment_type='Check')
+        self.report = models.OrganizationReport.objects.create(
+            organization=self.organization, title='Attendance', output='csv',
+            template=self.TEMPLATE)
+
+    def render(self, series=None):
+        return self.client.post(f'/api/organization-reports/{self.report.id}/render',
+                                {'series': series} if series else {}, format='json')
+
+    def test_lists_and_changes_an_organizations_reports(self):
+        models.OrganizationReport.objects.create(
+            organization=self.other_organization, title='Theirs', template='')
+        response = self.client.get(
+            f'/api/organization-reports/?organization={self.organization.id}')
+        self.assertEqual([r['title'] for r in response.data], ['Attendance'])
+        created = self.client.post('/api/organization-reports/', {
+            'organization': self.organization.id, 'title': 'Returning', 'category': 'People',
+            'output': 'md', 'template': '{{ people | length }}'}, format='json')
+        self.assertEqual(created.status_code, 201, created.data)
+        changed = self.client.patch(f'/api/organization-reports/{created.data["id"]}/',
+                                    {'title': 'Who came back'}, format='json',
+                                    HTTP_IF_MATCH=str(created.data['version']))
+        self.assertEqual(changed.status_code, 200, changed.data)
+
+    def test_refuses_handlebars_and_moving_a_report(self):
+        hbs = self.client.post('/api/organization-reports/', {
+            'organization': self.organization.id, 'title': 'Old', 'output': 'hbs',
+            'template': ''}, format='json')
+        self.assertEqual(hbs.status_code, 400)
+        moved = self.client.patch(f'/api/organization-reports/{self.report.id}/',
+                                  {'organization': self.other_organization.id}, format='json')
+        self.assertEqual(moved.status_code, 400)
+
+    def test_renders_across_the_included_events(self):
+        response = self.render()
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIsNone(response.data['error'])
+        self.assertEqual(response.data['report'].splitlines(), [
+            'Camp 2023,1,,$75.00',
+            'Camp 2024,1,1,$0.00',
+            'Campout 2024,1,,$0.00',
+            'Camp 2025,1,1,$0.00',
+            'Ann Lee: 2023A 2024A 2025A',
+            'Bo Ng: 2024B',
+        ])
+
+    def test_renders_one_series(self):
+        lines = self.render('Campout').data['report'].splitlines()
+        self.assertEqual(lines, ['Campout 2024,1,,$0.00', 'Bo Ng: 2024B'])
+
+    def test_a_template_error_is_reported(self):
+        self.report.template = '{% for x in %}'
+        self.report.save()
+        response = self.render()
+        self.assertEqual(response.data['report'], '')
+        self.assertTrue(response.data['error'])
+        self.assertEqual(response.data['diagnostics'][0]['kind'], 'syntax')
+
+    def test_reporters_render_and_preview_but_dont_change(self):
+        self.client.force_authenticate(self.reporter)
+        self.assertEqual(self.render().status_code, 200)
+        preview = self.client.post(self.url('templates/preview'),
+                                   {'template': '{{ events | length }}', 'output': 'txt'},
+                                   format='json')
+        self.assertEqual((preview.status_code, preview.data['output']), (200, '4'))
+        refused = self.client.patch(f'/api/organization-reports/{self.report.id}/',
+                                    {'title': 'Mine'}, format='json')
+        self.assertEqual(refused.status_code, 403)
+
+    def test_describes_its_variables(self):
+        response = self.client.get(self.url('templates/describe'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.data['contexts']), ['multi_event_report'])
+        self.assertIn('person', response.data['types'])
+        self.assertIn('camper', response.data['types'])
+        # Event-specific types are plain dicts here, so every field's type is described.
+        self.assertEqual(response.data['types']['attributes:camper']['base'], 'dict')
+
+    def test_a_body_that_isnt_an_object_reads_as_empty(self):
+        rendered = self.client.post(f'/api/organization-reports/{self.report.id}/render', [],
+                                    format='json')
+        self.assertEqual(rendered.status_code, 200)
+        preview = self.client.post(self.url('templates/preview'), [], format='json')
+        self.assertEqual(preview.status_code, 400)
+
+    def test_every_object_has_exactly_its_described_fields(self):
+        context = reports.report_context(self.organization)
+        roots = {f.name for f in registry.ORGANIZATION_CONTEXTS[0].roots}
+        self.assertEqual(set(context), roots)
+        described = {spec.name: spec for spec in registry.ORGANIZATION_TYPES}
+        seen = set()
+        for (type_name, _), obj in objects_in(context).items():
+            if type_name in described:
+                spec = described[type_name]
+                self.assertIs(type(obj), spec.var_class)
+                self.assertEqual(set(obj), {f.name for f in spec.fields}, type_name)
+                seen.add(type_name)
+        self.assertEqual(seen, set(described))
+
+    def test_stats_count_money_received(self):
+        rows = {row['name']: row for row in self.client.get(self.url('stats')).data['events']}
+        self.assertEqual((rows['Camp 2023']['received'], rows['Camp 2024']['received']),
+                         ('75.00', '0.00'))

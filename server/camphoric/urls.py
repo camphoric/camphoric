@@ -15,6 +15,8 @@ router.register(
     'registrationdrafts', views.RegistrationDraftViewSet, basename='registrationdraft')
 router.register('registrationtypes', views.RegistrationTypeViewSet, basename='registrationtype')
 router.register('reports', views.ReportViewSet, basename='report')
+router.register('organization-reports', views.OrganizationReportViewSet,
+                basename='organizationreport')
 router.register('invitations', views.InvitationViewSet, basename='invitation')
 router.register('lodgings', views.LodgingViewSet, basename='lodging')
 router.register('campers', views.CamperViewSet, basename='camper')
@@ -78,6 +80,12 @@ urlpatterns = [
          multi_event_views.DismissView.as_view()),
     path('organizations/<int:organization_id>/multi-event/stats',
          multi_event_views.StatsView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/templates/describe',
+         multi_event_views.TemplateDescribeView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/templates/preview',
+         multi_event_views.TemplatePreviewView.as_view()),
+    path('organization-reports/<int:organization_report_id>/render',
+         multi_event_views.RenderReportView.as_view()),
     path('version', views.VersionView.as_view()),
     path('password-reset', views.PasswordResetRequestView.as_view()),
     path('password-reset/<str:uidb64>/<str:token>', views.PasswordResetView.as_view()),

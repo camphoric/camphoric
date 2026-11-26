@@ -620,7 +620,9 @@ export type TemplateContextName =
   | 'invoice_email'
   | 'bulk_email_registration'
   | 'bulk_email_camper'
-  | 'bulk_email_manual';
+  | 'bulk_email_manual'
+  /** An organization's multi-event reports (§8.12), in the organization's describe payload only. */
+  | 'multi_event_report';
 
 /**
  * One variable or field. `type` is `string`, `number`, `bool`, `money`,
@@ -685,7 +687,8 @@ export interface TemplateTagDescription {
 
 /** GET /api/events/<id>/templates/describe — the variable spec (DR-36). */
 export interface TemplateDescription {
-  contexts: Record<TemplateContextName, TemplateContextDescription>;
+  /** An event's template kinds, or an organization's (multi-event reports only). */
+  contexts: Partial<Record<TemplateContextName, TemplateContextDescription>>;
   types: Record<string, TemplateTypeDescription>;
   filters: TemplateFilterDescription[];
   tests: TemplateTestDescription[];
@@ -1721,6 +1724,8 @@ export interface ApiMultiEventStatsEvent {
   returning: number;
   /** The event before it in its series, and how many of its people came to this one. */
   previous: { event: number; name: string; people: number; returned: number } | null;
+  /** Money received for it: payments less refunds, as a decimal string. */
+  received: string;
 }
 
 /** One person's row in GET …/multi-event/stats. */
@@ -1745,4 +1750,25 @@ export interface ApiMultiEventStats {
   series: string[];
   events: ApiMultiEventStatsEvent[];
   people: ApiMultiEventStatsPerson[];
+}
+
+/** An organization's multi-event report template (§8.12; DR-181). */
+export interface ApiOrganizationReport extends TimeStamped {
+  id: number;
+  organization: Scalar;
+  title: string;
+  /** Groups related reports in the report list; '' when it has none. */
+  category: string;
+  /** What the report shows and who it's for; may be ''. */
+  description: string;
+  /** Jinja output formats only (no Handlebars). */
+  output: Exclude<ReportOutputType, 'hbs'>;
+  template: string;
+}
+
+/** POST …/multi-event/templates/preview: unsaved template text, for every included event or one series. */
+export interface OrganizationTemplatePreviewRequest {
+  template: string;
+  output: Exclude<ReportOutputType, 'hbs'>;
+  series?: string;
 }

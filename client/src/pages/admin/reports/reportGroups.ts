@@ -7,10 +7,13 @@
 
 import type { ApiReport } from 'api-types';
 
-export interface ReportGroup {
+/** What listing a report needs: an event's, or an organization's (§8.12). */
+export type ListedReport = Pick<ApiReport, 'id' | 'title' | 'category' | 'description'>;
+
+export interface ReportGroup<R extends ListedReport = ApiReport> {
   /** The category, as the first of its reports spells it; '' for none. */
   category: string;
-  reports: ApiReport[];
+  reports: R[];
 }
 
 // Ignoring case, as the reports API orders them (no numeric collation, which it lacks).
@@ -20,8 +23,8 @@ const byText = new Intl.Collator(undefined, { sensitivity: 'base' }).compare;
 export const categoryKey = (category: string) => category.trim().toLocaleLowerCase();
 
 /** The event's reports by category, then title. */
-export function groupReports(reports: readonly ApiReport[]): ReportGroup[] {
-  const groups = new Map<string, ReportGroup>();
+export function groupReports<R extends ListedReport>(reports: readonly R[]): ReportGroup<R>[] {
+  const groups = new Map<string, ReportGroup<R>>();
   const sorted = [...reports].sort((a, b) => byText(a.title, b.title) || a.id - b.id);
   for (const report of sorted) {
     const key = categoryKey(report.category);

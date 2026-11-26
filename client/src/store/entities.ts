@@ -23,6 +23,7 @@ import type {
   ApiInvoice,
   ApiLodging,
   ApiOrganization,
+  ApiOrganizationReport,
   ApiPayment,
   ApiPricingOverride,
   ApiPromoCode,
@@ -64,6 +65,11 @@ export const registrationTypeHooks = createEntityHooks<ApiRegistrationType, 'eve
   alsoInvalidate: ['PromoCode'],
 });
 export const reportHooks = createEntityHooks<ApiReport, 'event'>({ name: 'Report' });
+// An organization's multi-event report templates (§8.12; §15, DR-181).
+export const organizationReportHooks = createEntityHooks<ApiOrganizationReport, 'organization'>({
+  name: 'OrganizationReport',
+  path: 'organization-reports',
+});
 export const invitationHooks = createEntityHooks<
   ApiInvitation,
   'event' | 'registration' | 'registration_type' | 'registration_type__event'

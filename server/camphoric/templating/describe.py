@@ -385,6 +385,28 @@ def event_dict_types(event, *, registration_types=None):
     return dict_types
 
 
+def describe_organization():
+    '''The describe payload for an organization's multi-event report templates (DR-181).'''
+    specs = (*registry.TYPES, *registry.ORGANIZATION_TYPES)
+    types = {spec.name: spec.as_dict() for spec in specs}
+    # A camper's answers, pricing … differ by event, so here they're plain dicts.
+    for spec in specs:
+        for field in spec.fields:
+            name = field.type[5:-1] if field.type.startswith('list<') else field.type
+            if name.startswith(('attributes:', 'admin_attributes:', 'pricing:')):
+                types.setdefault(name, {
+                    'doc': 'Answers or figures that differ by event; read them by key.',
+                    'fields': [], 'base': 'dict'})
+    return {
+        'contexts': {spec.name: spec.as_dict() for spec in registry.ORGANIZATION_CONTEXTS},
+        'types': types,
+        'filters': [spec.as_dict() for spec in registry.FILTERS],
+        'tests': [spec.as_dict() for spec in registry.TESTS],
+        'tags': [spec.as_dict() for spec in registry.TAGS],
+        'globals': [spec.as_dict() for spec in registry.GLOBALS],
+    }
+
+
 def describe(event):
     '''The full describe payload for an event (see the module docstring).'''
     types = {spec.name: spec.as_dict() for spec in registry.TYPES}

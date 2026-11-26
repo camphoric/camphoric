@@ -3,18 +3,26 @@
  * included events, the camper records in them, the suggested matches, and
  * attendance and retention stats — and including events, linking and unlinking
  * records, and dismissing suggestions. Every change refetches the whole area,
- * since a link changes the records, the suggestions and the stats alike.
+ * since a link changes the records, the suggestions and the stats alike —
+ * rendered multi-event reports included (DR-181).
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDebouncedValue } from '@mantine/hooks';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ApiLinkResult,
   ApiMultiEventCamper,
   ApiMultiEventEvent,
   ApiMultiEventStats,
+  ApiOrganizationReport,
   ApiPersonSuggestion,
+  ApiRenderedReport,
   MultiEventInclusionRequest,
+  OrganizationTemplatePreviewRequest,
+  TemplateDescription,
+  TemplatePreviewResponse,
 } from 'api-types';
+import { PREVIEW_DEBOUNCE_MS } from 'store/templates';
 import { apiFetch } from 'utils/fetch';
 
 const KEY = 'MultiEvent';
@@ -104,4 +112,54 @@ export function useDismissSuggestion(organizationId: string | number) {
     method: 'POST',
     body: { campers },
   }));
+}
+
+/** What multi-event report templates can use (the same for every organization). */
+export function useOrganizationTemplateDescription(organizationId: string | number) {
+  return useQuery({
+    queryKey: ['TemplateDescription', 'organization', String(organizationId)],
+    queryFn: () => apiFetch<TemplateDescription>(`${base(organizationId)}/templates/describe`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Render unsaved multi-event report text against the organization's data.
+ * Debounced, and the last result stays on screen while the next one renders.
+ */
+export function useOrganizationTemplatePreview(
+  organizationId: string | number,
+  request: OrganizationTemplatePreviewRequest | null,
+) {
+  const [debounced] = useDebouncedValue(request, PREVIEW_DEBOUNCE_MS);
+  return useQuery({
+    queryKey: [KEY, String(organizationId), 'templates/preview', debounced],
+    queryFn: ({ signal }) =>
+      apiFetch<TemplatePreviewResponse>(`${base(organizationId)}/templates/preview`, {
+        method: 'POST',
+        body: debounced,
+        signal,
+      }),
+    enabled: !!debounced,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/**
+ * A multi-event report rendered for every included event, or one series. Keyed
+ * on its last save, and refetched with the rest of the area when a link or an
+ * included event changes.
+ */
+export function useRenderedOrganizationReport(report: ApiOrganizationReport, series?: string) {
+  return useQuery({
+    queryKey: [KEY, String(report.organization), 'report', report.id, report.updated_at, series],
+    queryFn: () =>
+      apiFetch<ApiRenderedReport>(`/api/organization-reports/${report.id}/render`, {
+        method: 'POST',
+        body: series ? { series } : {},
+      }),
+    staleTime: 30_000,
+  });
 }

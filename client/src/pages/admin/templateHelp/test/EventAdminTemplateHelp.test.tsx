@@ -40,7 +40,7 @@ describe('EventAdminTemplateHelp', () => {
     ]);
     renderWithProviders(<EventAdminTemplateHelp />);
     expect(screen.getByRole('combobox', { name: 'Kind of template' })).toHaveValue(
-      sampleDescription.contexts.invitation_email.title,
+      sampleDescription.contexts.invitation_email?.title,
     );
     expect(screen.getByRole('heading', { name: 'From Mustache emails' })).toBeInTheDocument();
   });

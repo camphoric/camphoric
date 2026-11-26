@@ -28,6 +28,7 @@ import {
   IconCalendarEvent,
   IconChartBar,
   IconEye,
+  IconReportAnalytics,
   IconUsersGroup,
 } from '@tabler/icons-react';
 import { Link, Outlet, useParams } from '@tanstack/react-router';
@@ -42,6 +43,7 @@ export const MULTI_EVENT_SECTIONS = [
   { path: 'events', label: 'Events', icon: IconCalendarEvent },
   { path: 'people', label: 'People', icon: IconUsersGroup },
   { path: 'stats', label: 'Stats', icon: IconChartBar },
+  { path: 'reports', label: 'Reports', icon: IconReportAnalytics },
 ] as const;
 
 export function MultiEventContainer() {

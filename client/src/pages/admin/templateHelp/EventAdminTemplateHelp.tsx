@@ -111,7 +111,7 @@ export function EventAdminTemplateHelp() {
         </Button>
       </Group>
       <Text size="sm" c="dimmed">
-        {contextDescription.doc} The sample download shows these variables with this event’s data
+        {contextDescription?.doc} The sample download shows these variables with this event’s data
         (lists cut to their first few items).
       </Text>
       <TemplateHelpPanel

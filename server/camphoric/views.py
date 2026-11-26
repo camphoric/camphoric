@@ -856,6 +856,13 @@ class RegistrationDraftViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
         instance.delete()
 
 
+class OrganizationReportViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
+    '''An organization's multi-event report templates (SPEC §8.12, DR-181).'''
+    queryset = models.OrganizationReport.objects.order_by(Lower('title'), 'id')
+    serializer_class = serializers.OrganizationReportSerializer
+    filterset_fields = ['organization']
+
+
 class ReportViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     # By title, ignoring case, so every consumer lists them in the same order.
     queryset = models.Report.objects.order_by(Lower('title'), 'id')

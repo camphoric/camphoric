@@ -110,6 +110,7 @@ export const STATS_EVENTS: ApiMultiEventStatsEvent[] = [
     new: 2,
     returning: 0,
     previous: null,
+    received: '1250.00',
   },
   {
     event: 2,
@@ -123,5 +124,6 @@ export const STATS_EVENTS: ApiMultiEventStatsEvent[] = [
     new: 2,
     returning: 1,
     previous: { event: 1, name: 'Lark Camp 2023', people: 2, returned: 1 },
+    received: '0.00',
   },
 ];

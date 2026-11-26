@@ -333,7 +333,7 @@ export function TemplateEditorView({
   );
 }
 
-function requestErrorMessage(error: unknown): string {
+export function requestErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.body && typeof error.body === 'object') {
     const body = error.body as Record<string, unknown>;
     if (typeof body.detail === 'string') return body.detail;

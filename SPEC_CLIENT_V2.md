@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-180)
+- §15 — Decision Records (DR-1…DR-181)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -238,14 +238,15 @@ queries derive it from `window.location` rather than props, through the routing 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
 - `/admin/organization/:organizationId/multi-event/*` — the organization's multi-event reports
-  (§8.12), with the sections `events`, `people` and `stats`; a bare or unknown subpath redirects
+  (§8.12), with the sections `events`, `people`, `stats` and `reports`; a bare or unknown subpath redirects
   to `…/events`. On `people`: `?peopleTab` — `suggestions`, or people (the default, left out of
   the URL); `?personId` — the person whose record is open, or `?camperId` for a camper record
   linked to no one; the people table's `?pplq`, `?pplsort`, `?pplpage`; and the suggested
   matches' `?matchLevel` (`strong`, `likely` or `possible`; none for all) and `?matchpage`. On
   `stats`: `?series` — the series shown (none for all the included events); `?statsTab` —
   `people` (attendance), or events (the default); the attendance table's `?attq`, `?attsort`,
-  `?attpage`.
+  `?attpage`. On `reports`: `?reportId` — the report
+  shown; `?series` — the series it renders for (none for every included event).
 - **Users** (§8.10), for Admins only, opens over whatever admin page is showing, as search
   params on that page's URL: `?overlay=users` — Users is open; `?userId` — the user being
   edited: an id, or `new` for a new one; `?historyUserId` — the user whose change history is
@@ -853,7 +854,7 @@ Non-CRUD admin endpoints:
   `code=<code>`, `/api/unsubscribe/<token>/`), any uuid, and any of the event's invitation codes
   standing on its own, in any case. A download is a read, so like any other it isn't recorded
   in the change history.
-- **Multi-event reports** (§8.12; §15, DR-177 to DR-180), under
+- **Multi-event reports** (§8.12; §15, DR-177 to DR-181), under
   `/api/organizations/{id}/multi-event/`; any role reads, Registrars and Admins write (403 for
   Reporters), and the organization's contract gate applies (§6). 404 for no such organization.
   - `GET …/events` → the organization's events in the event chooser's order (§8.1): `{ event,
@@ -888,11 +889,28 @@ Non-CRUD admin endpoints:
     won't be suggested as a match again. 400 as for link.
   - `GET …/stats?series=` → `{ series, events, people }` (DR-180): the included events' series
     names; for each event in scope (one series, or every included event), oldest first, `{
-    event, name, series, date, year, campers, registrations, people, new, returning, previous }`,
-    `previous` being `{ event, name, people, returned }` for the event before it in its series, or
-    null; and for each person, most events first, `{ key, person, campers, name, events, attended,
+    event, name, series, date, year, campers, registrations, people, new, returning, previous,
+    received }`, `previous` being `{ event, name, people, returned }` for the event before it in
+    its series, or null, and `received` the money received for it — its live payments less
+    refunds — as a decimal string; and for each person, most events first, `{ key, person, campers, name, events, attended,
     first_event, last_event, longest_run }` — `key` is `person:<id>`, or `camper:<id>` for a record
     linked to no one, and `longest_run` the most consecutive calendar years attended.
+  - `GET …/templates/describe` → the variable spec for multi-event report templates (DR-181), in
+    the shape of an event's (above): `contexts` holds only `multi_event_report`, and `types` the
+    shared types plus `included_event`, `person` and `person_record`, with no event-specific
+    types (a camper's `attributes` are a plain `dict` here).
+  - `POST …/templates/preview` `{ template, output, series? }` → `{ output, diagnostics,
+    truncated, duration_ms, sample }` as an event's preview (above), rendering unsaved text for
+    every included event or the series named; `sample` is always null. A read: any role may.
+    400 when `template` isn't text or `output` isn't `csv`, `md`, `txt` or `html`.
+- **Organization reports** (`/api/organization-reports/`, filter `organization`; §8.12; §15,
+  DR-181): an organization's multi-event report templates, listed by title ignoring case (then
+  by `id`), created, changed (with `If-Match`, DR-109) and deleted (with its delete preview,
+  DR-54) as other entities are; any role reads, Registrars and Admins write. `output` may not be
+  `hbs` (400), and `organization` can't change (400).
+  - `POST /api/organization-reports/{id}/render` `{ series? }` → `{ report, error, diagnostics }`,
+    as a `server` report's render: for every included event, or the series named. A read: any role
+    may.
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
   and the event's time zone to show them in. Events whose registration closed more than 3
@@ -1207,6 +1225,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   `html` | `hbs`), `template`, `variables_schema`, `variables_source` (`client` | `server`; the
   API defaults to `server` (§15, DR-40), and `hbs` requires `client`), timestamps. The reports
   API lists them by title, ignoring case (then by `id`), so every consumer sees one order.
+- **OrganizationReport:** `id`, `organization`, `title`, `category`, `description`, `output`
+  (`csv` | `md` | `txt` | `html`), `template` (Jinja, with the multi-event variables; §8.12),
+  timestamps. Deleted outright, as a Report is.
 - **RegistrationType:** `id`, `event`, `name` (machine), `label`, `invitation_template`
   (read-only: the id of its invitation email's `EmailTemplate`, created with the type, §8.4).
 - **EmailTemplate** (`/api/emailtemplates/`, filter `event`, `purpose`; §15, DR-45): `id`,
@@ -2841,8 +2862,8 @@ organization's name, a way back to event selection, navigation among its section
 current one, who's signed in with their permission group and Sign out (§6), and marks the area as
 read-only for a Reporter. Its sections are addressable at
 `…/organization/:organizationId/multi-event/<section>`, and the selections within them live in
-the URL (§4, §8.2). Any role views everything; choosing events, linking, unlinking and dismissing
-suggestions are for Registrars and Admins (§15, DR-51). Every change is recorded in the change
+the URL (§4, §8.2). Any role views everything and renders reports; choosing events, linking,
+unlinking, dismissing suggestions and writing reports are for Registrars and Admins (§15, DR-51). Every change is recorded in the change
 history (§15, DR-53): a link or unlink in the camper's history, with who made it.
 
 - **Events.** The organization's events in the event chooser's order, each included or not, with
@@ -2875,13 +2896,23 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
     people register.
 - **Stats.** Across the included events, or one series (§15, DR-180):
   - **Events side by side**, in time order: campers, registrations, people, how many were new
-    (at no earlier event shown) and returning, and how many of the people at the event before
-    it in its series came back to it (the count, out of how many, and the share); nothing for
+    (at no earlier event shown) and returning, the money received for it (payments less
+    refunds), and how many of the people at the event before it in its series came back to it (the count, out of how many, and the share); nothing for
     the first event of a series, or when no one was at the one before.
   - **Attendance:** each person's events attended, the first and most recent, and the most
     consecutive calendar years they came. Selecting one opens their record in People.
   - A record linked to no one counts as a person of its own, so a returning camper whose
     records aren't linked yet counts as new; the area says so.
+- **Reports.** The organization's own report templates across the included events (§15,
+  DR-181), listed, grouped by category and written as an event's reports are (§8.7): a title, a
+  category, a description, an output format (CSV, Markdown, text or HTML; no Handlebars) and a
+  Jinja template, edited with autocomplete, help and a live preview (§9.6). A report renders for
+  every included event, or one series, with the same download and print as an event's. Its
+  variables are the organization's name, the series, the included events in time order —
+  each with all its own report variables (registrations, campers, payments, invoices) and its
+  figures from Stats — and the people across them, each with their records and attendance
+  (§9.3). Saving a report from an older version than the one stored asks first, as other edits
+  do (§9.8); no one is shown as editing it.
 
 ---
 
@@ -3164,7 +3195,9 @@ example and its result.
   (`registration`, its `campers`, `pricing`, `invoice`, and `initial_payment` for older
   templates) and `event`; an invitation email gets `invitation`, `registration_type` and
   `event`; a group email's copy gets its recipient's registration or
-  camper and `recipient` (§8.9).
+  camper and `recipient` (§8.9). An organization's multi-event report gets the included events,
+  each with its own report variables and figures, and the people across them (§8.12; §15,
+  DR-181).
   A registration's `custom_charges` are its own (a cancellation fee, `name` `cancellation_fee`,
   say; §15, DR-170), each camper's its own; a charge's `camper` is none for the registration's.
   Relationships are resolved: `camper.registration`, `camper.lodging.full_name`,
@@ -7849,6 +7882,26 @@ organization's report templates later, from one place. Comparing each event with
 it of any kind — a camp's returning rate would be its campout's. Counting only linked people —
 every event would look empty until linking was done.
 
+### DR-181 — Multi-event report templates
+**Decision:** An organization has report templates of its own (§8.12): server-rendered Jinja,
+stored as `OrganizationReport` beside the event's `Report`, with `/api/organization-reports/` and
+its own render, describe and preview endpoints (§5). A template sees every included event, or one
+series, in time order: each event brings all of its own report variables (built as its event
+reports' are, §9.3) with its Stats figures, among them the money received (payments less
+refunds); and the people come from Stats, each with their records and the events they were at.
+The Reports page, list, output, editor and conflict-aware save are the event Reports section's
+(§8.7). Organization reports have no edit leases and no live updates.
+**Context:** Templates need what the Stats section counts and what an event report reads (a
+camper's answers, lodging, payments) together, so building each event's graph and reusing the
+Stats figures means one count everywhere and nothing new to learn. Leases and the live feed are
+kept per event (`EditLease` belongs to one); a stale save is still caught by the version check.
+"Revenue" is taken as money received, which the payments say plainly; what was billed is in each
+event's invoices for a template that wants it.
+**Alternatives:** An `organization` on `Report` with its `event` made optional — every report
+path (leases, the live feed, export, legacy rendering) assumes an event. A flat list of every
+event's campers, as one big event — templates would lose which event each record is from.
+Revenue as invoiced totals — invoices are cancelled and reissued, and handling fees are added.
+
 ## Appendix A — Backend / API Dependencies
 
 What this (frontend) spec assumes from the Django backend. Per the project's API-editing rule,
@@ -7879,8 +7932,9 @@ must be coordinated with the backend. Grouped by status.
   with `publish` and `agreements`, and `privacyPolicy` in the register config, with the shapes
   in §5 (§4, §6, §7, §8.1; DR-145).
 - **Multi-event reports:** `/api/organizations/{id}/multi-event/` — `events` (list, and PATCH
-  one), `campers`, `suggestions`, `link`, `unlink`, `dismiss` and `stats` — and the camper's
-  read-only `person`, with the shapes in §5 (§8.12; DR-177 to DR-180).
+  one), `campers`, `suggestions`, `link`, `unlink`, `dismiss`, `stats`, and `templates/describe`
+  and `templates/preview` — `/api/organization-reports/` with its `render`, and the camper's
+  read-only `person`, with the shapes in §5 (§8.12; DR-177 to DR-181).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Record versions:** `version` on every record, `ETag` on detail responses, and the

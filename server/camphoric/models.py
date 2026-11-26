@@ -939,6 +939,34 @@ class PersonMatchDismissal(TimeStampedModel):
         ]
 
 
+class OrganizationReport(TimeStampedModel):
+    '''
+    A multi-event report of an organization (SPEC §8.12, DR-181): a server
+    Jinja template over the organization's included events and the people
+    linked across them, rather than one event's data.
+    - Is owned by one Organization
+    - Has a title, and may have a category and a description, as Report does
+    - Is deleted outright, as Report is
+    '''
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='reports')
+    title = models.CharField(max_length=255)
+    category = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="groups related reports in the report list (blank: uncategorised)")
+    description = models.TextField(
+        blank=True, default='', help_text="what the report shows and who it's for")
+    output = models.CharField(
+        max_length=4,
+        choices=ReportOutputType.choices,
+        default=ReportOutputType.CSV,
+    )
+    template = models.TextField(blank=True, default='', help_text="Jinja template")
+
+    def __str__(self):
+        return f'Organization report #{self.id} ({self.title})'
+
+
 class CustomChargeType(TimeStampedModel):
     '''
     A kind of charge (or credit) a registrar can add to a camper or a
