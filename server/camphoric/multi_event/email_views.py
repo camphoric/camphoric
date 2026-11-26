@@ -42,7 +42,7 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
             return email.SAVED
         if not data['account']:
             return None  # the server's default mailer
-        if not isinstance(data['account'], int):
+        if isinstance(data['account'], bool) or not isinstance(data['account'], int):
             raise ValidationError({'account': 'Give an email account’s id.'})
         account = get_object_or_404(models.EmailAccount, id=data['account'])
         contracts.check_record(request, account)

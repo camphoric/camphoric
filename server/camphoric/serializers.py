@@ -53,6 +53,18 @@ class ModelSerializer(BaseModelSerializer):
         return extra_kwargs
 
 
+def own_account_errors(request, field, account, organization_id):
+    '''
+    A sending account must be one of the record's organization's: the errors
+    if it isn't. An account whose organization's terms the user has yet to
+    agree to is that 403 first (DR-145), as any other reference is.
+    '''
+    if account is None or account.organization_id == organization_id:
+        return {}
+    contracts.check_related(request, {field: account})
+    return {field: ['Choose one of the organization’s email accounts.']}
+
+
 class OrganizationSerializer(ModelSerializer):
     class Meta:
         model = models.Organization
@@ -246,6 +258,13 @@ class EventSerializer(ModelSerializer):
         doesn't hold up other edits, or a fix made one field at a time.
         '''
         attrs = super().validate(attrs)
+        if 'email_account' in attrs or 'organization' in attrs:
+            account = attrs.get('email_account', getattr(self.instance, 'email_account', None))
+            organization = attrs.get('organization', getattr(self.instance, 'organization', None))
+            errors = own_account_errors(self.context.get('request'), 'email_account', account,
+                                        getattr(organization, 'pk', None))
+            if errors:
+                raise ValidationError(errors)
         if any(name in attrs for name in self.PRICING_INPUTS):
             stored = {name: getattr(self.instance, name, None) for name in self.PRICING_INPUTS}
             current = {**stored, **{name: attrs[name] for name in self.PRICING_INPUTS
@@ -367,6 +386,10 @@ class EmailTemplateSerializer(ModelSerializer):
             for name in ('purpose', 'event'):
                 if name in data and data[name] != getattr(instance, name):
                     errors[name] = ["A template's purpose and event can't be changed."]
+        event = data.get('event', getattr(instance, 'event', None))
+        if event is not None:
+            errors.update(own_account_errors(self.context.get('request'), 'account',
+                                             data.get('account'), event.organization_id))
         if errors:
             raise ValidationError(errors)
         return data

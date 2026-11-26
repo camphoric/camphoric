@@ -29,12 +29,27 @@ class BatchError(Exception):
     '''The batch can't be sent (or changed) as asked.'''
 
 
-def create_batch(template, *, recipient_keys, account=None, from_email='', reply_to='',
+# The template's own sender setting, for one the send dialog didn't give.
+SAVED = object()
+
+
+def _own_account(event, account):
+    '''The sending account, which must be one of the event's organization's.'''
+    if account is not None and account.organization_id != event.organization_id:
+        raise BatchError(f'The account “{account.name}” isn’t one of the organization’s.')
+    return account
+
+
+def create_batch(template, *, recipient_keys, account=SAVED, from_email=SAVED, reply_to=SAVED,
                  skip_already_sent=True, send_at=None, created_by=None, link_base=''):
     '''
     Record a send of `template` to the reviewed recipients and schedule it.
     `link_base` is where the site is reached from outside (templating.urls.
     public_base), for each copy's unsubscribe link.
+
+    `account`, `from_email` and `reply_to` are the send dialog's sender; each
+    left as SAVED is the template's. A blank one is the event's: its account
+    and confirmation address, and the account's default Reply-To.
     '''
     from camphoric.mail.tasks import expand_batch
 
@@ -54,8 +69,12 @@ def create_batch(template, *, recipient_keys, account=None, from_email='', reply
         body=template.body, recipient_source=template.recipient_source,
         address_expression=template.address_expression,
         name_expression=template.name_expression, recipient_list=template.recipient_list,
-        recipient_keys=keys, account=account or template.account or event.email_account,
-        from_email=from_email or template.sender, reply_to=reply_to or template.reply_to,
+        recipient_keys=keys,
+        account=_own_account(
+            event, (template.account if account is SAVED else account) or event.email_account),
+        from_email=(template.sender if from_email is SAVED
+                    else from_email or event.confirmation_email_from),
+        reply_to=template.reply_to if reply_to is SAVED else reply_to,
         skip_already_sent=skip_already_sent, send_at=send_at if later else None,
         created_by=created_by, link_base=link_base)
     task.enqueue(batch.id)
@@ -237,9 +256,10 @@ def send_test(template, *, to, recipient_key=None, subject=None, body=None, crea
         candidate_context(graph, criteria.kind, chosen))
     if not rendered.ok:
         return None, rendered, chosen
+    account = _own_account(event, template.account or event.email_account)
     message = outbox.enqueue(
         event=event, kind=models.EmailMessageKind.TEST, to=to,
         subject=f'[Test] {rendered.subject}', text=rendered.text, html=rendered.html,
-        from_email=template.sender, account=template.account or event.email_account,
+        from_email=template.sender, account=account,
         reply_to=template.reply_to or None, created_by=created_by)
     return message, rendered, chosen

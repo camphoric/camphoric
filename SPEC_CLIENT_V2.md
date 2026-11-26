@@ -2,7 +2,7 @@
 
 **Status:** Living specification for the client (`client/`), which the V2 rebuild became when the
 v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the decision history.
-**Last updated:** 2026-11-25
+**Last updated:** 2026-11-26
 
 > **Note:** this spec was written for the V2 rebuild, which has now replaced the v1 client. It
 > still carries the migration rationale (the "the current implementation used …" notes, which
@@ -600,8 +600,13 @@ Non-CRUD admin endpoints:
   - `POST /api/emailtemplates/{id}/send/` `{ recipient_keys, account?, from_email?, reply_to?,
     skip_already_sent? (default true), send_at? }` — send a `group` template to the reviewed
     recipients, now or at `send_at` (ISO 8601; later needs the email worker) → 202 with the
-    `EmailBatch`. A 400 `{ detail }` when no recipients are given or the template isn't a group
-    email. The copies are rendered when the batch is prepared: a recipient no longer in the data
+    `EmailBatch`. The sender fields given win over the template's, and blank is the event's:
+    `account` null is the event's account, `from_email` blank the event's confirmation address,
+    `reply_to` blank the account's default Reply-To (DR-47); a field left out is the template's.
+    `account` is an account's id (400 otherwise; 404 for no such account). A 400 `{ detail }`
+    when no recipients are given, the template isn't a group email, or the sending account isn't
+    one of the event's organization's (a template's or event's own account must be too; saving
+    another organization's is a 400 on that field). The copies are rendered when the batch is prepared: a recipient no longer in the data
     is skipped as `gone`, one that has unsubscribed since as `unsubscribed`, one the template
     already reached as `already_sent` (unless `skip_already_sent` is false), and a copy that
     can't be rendered is a `failed` message. The send records where the site is reached from
@@ -1230,8 +1235,9 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   is refused with a 400 `{ confirmation_page_template: ['Line N: message'] }`);
   `confirmation_template` (read-only: the id of the confirmation email's `EmailTemplate`, created
   with the event, §8.3), `invoice_template` (read-only: the id of the invoice email's
-  `EmailTemplate`, likewise; §8.3, §15, DR-96) and `confirmation_email_from` (the event's
-  sending address);
+  `EmailTemplate`, likewise; §8.3, §15, DR-96), `confirmation_email_from` (the event's
+  sending address) and `email_account` (the account it sends through, null: the server's default
+  mailer; one of its organization's, another's being a 400 on that field);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `payment_types` (the
   event's own offline payment types, a list of `{ value, label }`; §9.7, §15, DR-164) and
   read-only `payment_type_choices` (every type a payment can be recorded as, each
@@ -1282,9 +1288,10 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **EmailTemplate** (`/api/emailtemplates/`, filter `event`, `purpose`; §15, DR-45): `id`,
   `event`, `purpose` (`confirmation` | `invoice` | `invitation` | `group`), `name`, `subject` and `body`
   (Jinja; the body is markdown), `from_email` (blank: the event's `confirmation_email_from`),
-  `reply_to` (blank: the sending account's default), `account` (null: the event's account),
-  timestamps. Saving one whose subject or body doesn't parse is refused with a 400
-  `{ subject | body: ['Line N: message'] }`. Only `group` templates can be created or deleted
+  `reply_to` (blank: the sending account's default), `account` (null: the event's account; one
+  of the event's organization's), timestamps. Saving one whose subject or body doesn't parse is
+  refused with a 400 `{ subject | body: ['Line N: message'] }`, and one with another
+  organization's account with a 400 on `account`. Only `group` templates can be created or deleted
   (the confirmation, the invoice email and invitations come with their event and types; deleting
   one is a 409), and a
   template's `purpose` and `event` can't change. A `group` template also has its default
