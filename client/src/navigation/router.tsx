@@ -76,6 +76,22 @@ const EventAdminTemplateHelp = lazyRouteComponent(
   () => import('pages/admin/templateHelp'),
   'EventAdminTemplateHelp',
 );
+const MultiEventContainer = lazyRouteComponent(
+  () => import('navigation/MultiEventContainer'),
+  'MultiEventContainer',
+);
+const MultiEventEvents = lazyRouteComponent(
+  () => import('pages/admin/multiEvent'),
+  'MultiEventEvents',
+);
+const MultiEventPeople = lazyRouteComponent(
+  () => import('pages/admin/multiEvent'),
+  'MultiEventPeople',
+);
+const MultiEventStats = lazyRouteComponent(
+  () => import('pages/admin/multiEvent'),
+  'MultiEventStats',
+);
 
 const RegisterContainer = lazyRouteComponent(() => import('pages/register'), 'RegisterContainer');
 const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'RegistrationStep');
@@ -127,6 +143,12 @@ export interface AdminSearch {
   invoiceId?: string;
   paymentId?: string;
   refundBy?: string;
+  // Multi-event reports (SPEC §4, §8.12): the People tab, the selected person
+  // (or, for a record linked to no one, `camperId`), and the Stats series and tab.
+  peopleTab?: string;
+  personId?: string;
+  series?: string;
+  statsTab?: string;
   // Template Help (SPEC §4, §9.3).
   context?: string;
   helpTab?: string;
@@ -382,6 +404,51 @@ const eventAdminCatchAllRoute = createRoute({
   },
 });
 
+// --- Multi-event reports (SPEC §8.12) -------------------------------------------
+
+const multiEventRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'organization/$organizationId/multi-event',
+  validateSearch: validateAdminSearch,
+  component: MultiEventContainer,
+});
+
+// A bare or unknown subpath falls back to the first section (SPEC §4, §8.12).
+const multiEventIndexRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: '/',
+  beforeLoad: ({ params }) => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({ to: '/admin/organization/$organizationId/multi-event/events', params });
+  },
+});
+const multiEventEventsRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: 'events',
+  component: MultiEventEvents,
+});
+const multiEventPeopleRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: 'people',
+  component: MultiEventPeople,
+});
+const multiEventStatsRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: 'stats',
+  component: MultiEventStats,
+});
+const multiEventCatchAllRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: '$',
+  beforeLoad: ({ params }) => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({
+      to: '/admin/organization/$organizationId/multi-event/events',
+      params: { organizationId: params.organizationId },
+    });
+  },
+});
+
 // --- Assemble ------------------------------------------------------------------
 
 const routeTree = rootRoute.addChildren([
@@ -416,6 +483,13 @@ const routeTree = rootRoute.addChildren([
       templateHelpRoute,
       settingsRoute,
       eventAdminCatchAllRoute,
+    ]),
+    multiEventRoute.addChildren([
+      multiEventIndexRoute,
+      multiEventEventsRoute,
+      multiEventPeopleRoute,
+      multiEventStatsRoute,
+      multiEventCatchAllRoute,
     ]),
   ]),
 ]);

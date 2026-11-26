@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-176)
+- §15 — Decision Records (DR-1…DR-180)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -237,6 +237,15 @@ queries derive it from `window.location` rather than props, through the routing 
 
 - `/admin` and `/admin/organization/` — organization chooser.
 - `/admin/organization/:organizationId/event` — event chooser for the org.
+- `/admin/organization/:organizationId/multi-event/*` — the organization's multi-event reports
+  (§8.12), with the sections `events`, `people` and `stats`; a bare or unknown subpath redirects
+  to `…/events`. On `people`: `?peopleTab` — `suggestions`, or people (the default, left out of
+  the URL); `?personId` — the person whose record is open, or `?camperId` for a camper record
+  linked to no one; the people table's `?pplq`, `?pplsort`, `?pplpage`; and the suggested
+  matches' `?matchLevel` (`strong`, `likely` or `possible`; none for all) and `?matchpage`. On
+  `stats`: `?series` — the series shown (none for all the included events); `?statsTab` —
+  `people` (attendance), or events (the default); the attendance table's `?attq`, `?attsort`,
+  `?attpage`.
 - **Users** (§8.10), for Admins only, opens over whatever admin page is showing, as search
   params on that page's URL: `?overlay=users` — Users is open; `?userId` — the user being
   edited: an id, or `new` for a new one; `?historyUserId` — the user whose change history is
@@ -844,6 +853,46 @@ Non-CRUD admin endpoints:
   `code=<code>`, `/api/unsubscribe/<token>/`), any uuid, and any of the event's invitation codes
   standing on its own, in any case. A download is a read, so like any other it isn't recorded
   in the change history.
+- **Multi-event reports** (§8.12; §15, DR-177 to DR-180), under
+  `/api/organizations/{id}/multi-event/`; any role reads, Registrars and Admins write (403 for
+  Reporters), and the organization's contract gate applies (§6). 404 for no such organization.
+  - `GET …/events` → the organization's events in the event chooser's order (§8.1): `{ event,
+    name, start, end, registration_start, included, series }[]`; `series` is `''` for none.
+  - `PATCH …/events/{eventId}` `{ included?, series? }` → that row. `series` is trimmed with its
+    inner spaces collapsed, at most 100 characters (400 keyed by field); 404 for an event of
+    another organization. Leaving an event out keeps its series.
+  - `GET …/campers` → the live camper records (DR-55) of the included events, by id: `{ camper,
+    event, registration, person, name, first_name, last_name, age, email, registrant_email }[]`.
+    `person` is the person the record is linked to, or null (a link made in another
+    organization, before the record or its event moved here, counts as none); `name` is the camper's name as the
+    rest of the API gives it; `first_name`, `last_name`, `age` and `email` come from the camper's
+    attributes (null when absent or empty; a number becomes a string), and `registrant_email`
+    from its registration.
+  - `GET …/suggestions` → the suggested matches (DR-178), strongest first: `{ campers, people,
+    level, reasons, name }[]` — the records, oldest event first; the people already linked among
+    them; `level` `strong`, `likely` or `possible`; `reasons`, any of `same_name`,
+    `same_first_name`, `same_last_name`, `nickname`, `similar_first_name`, `similar_last_name`,
+    `same_email`, `same_registrant_email`; and the name on the newest record.
+  - `POST …/link` `{ campers: id[] }` → `{ person, campers }`: the records, and every record of
+    the people they belong to, are now one person (the lowest-numbered of those people, or a new
+    one), and `campers` is all its records. 400 keyed `campers` for fewer than two, for a record
+    that isn't a live record of an included event of this organization, or when two live records
+    of the result are in one event (the message names them and the event).
+  - `POST …/unlink` `{ campers: id[] }` → `{ person }`: the records leave their person. One
+    record is then linked to no one (`person` null); two or more stay together as a new person
+    (`person` its id). Either way they won't be suggested with the records left behind again, and
+    a person left with fewer than two records is dissolved. 400 keyed `campers` when a record
+    isn't linked or isn't a live record of an included event, when they're records of different
+    people, or when they're all of a person's records.
+  - `POST …/dismiss` `{ campers: id[] }` → 204: every two of these records not linked together
+    won't be suggested as a match again. 400 as for link.
+  - `GET …/stats?series=` → `{ series, events, people }` (DR-180): the included events' series
+    names; for each event in scope (one series, or every included event), oldest first, `{
+    event, name, series, date, year, campers, registrations, people, new, returning, previous }`,
+    `previous` being `{ event, name, people, returned }` for the event before it in its series, or
+    null; and for each person, most events first, `{ key, person, campers, name, events, attended,
+    first_event, last_event, longest_run }` — `key` is `person:<id>`, or `camper:<id>` for a record
+    linked to no one, and `longest_run` the most consecutive calendar years attended.
 - `GET /api/eventlist` — public list of events for the splash page: `[{ name, url, open,
   registration_start, registration_end, time_zone }]`, the window as ISO instants (or `null`)
   and the event's time zone to show them in. Events whose registration closed more than 3
@@ -1151,7 +1200,8 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
 - **Camper:** `id`, `attributes`, `admin_attributes`, `registration`, `lodging` (assigned),
   `lodging_requested`, `lodging_shared`/`lodging_shared_with`/`lodging_comments`,
   `server_pricing_results`, `sequence` (order within a registration), `stay` (array of ISO
-  date strings the camper is present), timestamps.
+  date strings the camper is present), `person` (the person it's linked to in multi-event
+  reports, or null; read-only here: it's set by linking, §8.12), timestamps.
 - **Report:** `id`, `event`, `title`, `category` (free text, at most 100 characters, trimmed; `''`
   for none; §15, DR-155), `description` (free text; may be `''`), `output` (`csv` | `md` | `txt` |
   `html` | `hbs`), `template`, `variables_schema`, `variables_source` (`client` | `server`; the
@@ -1936,7 +1986,8 @@ Then reads the payment-step payload's `serverPricingResults.total`:
   *Way back*). Events are listed by open date (`registration_start`), newest first, with the
   events that have no open date yet (ones being set up) at the top; events with the same open
   date, or none, are listed by name, ignoring case. The events API returns them in this order
-  and the chooser shows them as returned (§15, DR-156).
+  and the chooser shows them as returned (§15, DR-156). It also leads to the organization's
+  multi-event reports (§8.12).
 - Both show who's signed in, with their Camphoric permission group, and Sign out (§6).
 - Both show the server's version from `GET /api/version` beside the Camphoric title, in the place
   the Event Admin container shows the event's name (§8.2): `v` and the version (`v0.12.0`), or
@@ -2781,6 +2832,56 @@ invoices' asked (cancelled ones ask nothing), paid, due and overpaid; payments' 
 refunded and net. Their amounts and statuses are the API's invoice and payment fields, as the
 registration shows them. Filters, sort, search and page live in the URL (§4, §8.2). A row opens
 its registration, over the page (`?registrationId`).
+
+### 8.12 Multi-event reports
+
+An organization's data across several of its events, to follow people from year to year (§15,
+DR-177). It's an admin area of its own, reached from the event chooser (§8.1): it shows the
+organization's name, a way back to event selection, navigation among its sections indicating the
+current one, who's signed in with their permission group and Sign out (§6), and marks the area as
+read-only for a Reporter. Its sections are addressable at
+`…/organization/:organizationId/multi-event/<section>`, and the selections within them live in
+the URL (§4, §8.2). Any role views everything; choosing events, linking, unlinking and dismissing
+suggestions are for Registrars and Admins (§15, DR-51). Every change is recorded in the change
+history (§15, DR-53): a link or unlink in the camper's history, with who made it.
+
+- **Events.** The organization's events in the event chooser's order, each included or not, with
+  its series. Including or leaving out an event takes effect at once, and is the organization's:
+  saved on the server, the same for every organizer. A series is a name, trimmed with its inner
+  spaces collapsed; events with the same name are one series, and the names already in use are
+  offered. Leaving an event out keeps its series and its records' links, which count again when
+  it's included again.
+- **People.** Only live camper records (§15, DR-55) of the included events take part. A person is
+  two or more records from different events linked as one; a record linked to no one stands on
+  its own. The area lists both: each with the name on their newest record, how many events, the
+  most recent one, age, and email addresses; searchable by every name and address they're
+  recorded under, sortable and paged (§15, DR-19, DR-20). Events are in time order: by start,
+  else by opening, undated last.
+  - **Linking.** Two or more people or records are linked as one person, which merges people.
+    It's refused when two of them were at the same event (a person has one record per event),
+    which the area says before sending.
+  - **A person's record.** Their records by event, oldest first, each with its name, age, email
+    and registrant's email, and opening that camper in its event's admin
+    (`…/event/:eventId/campers?camperId=`). A record linked by mistake is unlinked; to undo a
+    mistaken merge, two or more records are split off together as another person. Records taken
+    out aren't suggested with the records left behind again, and a person left with one record
+    is no longer one. Two records of one event in a person (restoring a deleted record can do this)
+    are pointed out.
+  - **Suggested matches.** Records from different included events that are likely one person,
+    each with how strong the match is (strong, likely or possible) and why, strongest first,
+    shown by strength or all together (§15, DR-178). Accepting one links its records as one
+    person; saying they aren't the same person keeps them from being suggested together again.
+    Nothing is linked until accepted. Suggestions are worked out when they're looked at, not as
+    people register.
+- **Stats.** Across the included events, or one series (§15, DR-180):
+  - **Events side by side**, in time order: campers, registrations, people, how many were new
+    (at no earlier event shown) and returning, and how many of the people at the event before
+    it in its series came back to it (the count, out of how many, and the share); nothing for
+    the first event of a series, or when no one was at the one before.
+  - **Attendance:** each person's events attended, the first and most recent, and the most
+    consecutive calendar years they came. Selecting one opens their record in People.
+  - A record linked to no one counts as a person of its own, so a returning camper whose
+    records aren't linked yet counts as new; the area says so.
 
 ---
 
@@ -7657,6 +7758,95 @@ Give Voucher to every event — events that never used it would get a type they 
 Leave an event's own Cash type and skip the built-in for it — the same value would mean different
 things on different events, which DR-164's rule against reusing a built-in value exists to stop.
 
+### DR-177 — Multi-event reports: included events, and people as linked camper records
+**Decision:** An organization chooses which of its events take part in multi-event reports
+(§8.12), each with an optional series name; the choice is a row per event on the server
+(`MultiEventInclusion`: the event, whether it's included, its series), kept when the event is
+left out so its series comes back with it. A **person** belongs to an organization and holds no
+details of its own: it's what ties its camper records together, through a nullable `person` on
+the camper (cleared if the person goes). The link is set only by linking and unlinking in
+multi-event reports: it's read-only on the camper API, and setting it is neither an edit of the
+camper's details (no new `version`, DR-109) nor a reason to reprice. A person has at most one
+live record per event, which linking enforces, and at least two records; one left with fewer is
+dissolved. A person belongs to one organization: a link counts only among that organization's
+records, so a record (or its event) moved to another organization is linked to no one there, and
+linking it there takes it from its old person. Unlinking takes one record out, or splits two or
+more off together as a new person, which undoes a mistaken merge without losing the true matches
+among them. A suggestion an organizer turns down is kept as a pair of records, lower id first,
+that goes with either record. Inclusions, people, links and turned-down pairs are in the change
+history (DR-53). The API lives under `/api/organizations/{id}/multi-event/` (§5), behind the
+organization's contract gate (DR-145) by the id in its URL. Multi-event reports start with
+events, people and stats; organization-level report templates and email to past campers follow
+in later releases.
+**Context:** Organizers want to follow people across years: who keeps coming back, and who
+stopped (#1041). The camper model always meant to tie campers to multiple events. Keeping names
+and other details on the camper records alone leaves one source of truth for them.
+**Alternatives:** Inclusion as fields of the event — choosing would be an edit of the event,
+with a new version that refuses an organizer's open event settings (DR-109). A per-browser
+choice — organizers would see different sets. A link table — nothing a nullable key on the
+camper can't hold, at one record per event. Copying a name and email to the person — two sources
+that drift apart. A person for every record, linked or not — a record of its own for nothing.
+
+### DR-178 — Suggested matches from the fields every camp has
+**Decision:** The server suggests records that may be one person by comparing what every camper
+schema has: first and last name, the camper's own email and the registrant's email. Names are
+compared lower case, without accents or punctuation; emails ignoring case. Two records in the
+same event are never one person, nor are two whose ages (a number, or a bracket's first number)
+go down from an earlier event to a later one, nor two an organizer said aren't. Each pair is:
+**strong** — the same name and an email in common (either one's own email, or the registrant's
+of both); **likely** — the same name, or the same first name and the camper's own email in
+common (a changed last name); **possible** — a nickname of the first name (a list of common
+English nicknames) or a one-letter difference in either name, with the other the same, or the
+same first name and the same registrant's email. A person's records count together. Pairs are
+gathered into suggestions, strongest first, while every two records of a suggestion could be one
+person (no shared event, no falling age, no turned-down pair), whether or not they matched each
+other directly; a suggestion is as strong as its weakest pair and gives every reason found.
+Suggestions are worked out when they're looked at.
+**Context:** No camp asks for a birthdate, and age is a bracket ("26–49 years old"); every Lark
+schema has first and last name, and most have the camper's email. Registrants are households:
+siblings share a registrant's email and a last name, so a registrant's email alone, or a last
+name alone, is never a match. Grouping a returning camper's records into one suggestion saves
+accepting each year's pair in turn.
+**Alternatives:** A mapping per organization from its fields to identity (which field is the
+birthdate) — there's nothing more to map yet. Suggesting matches as people register — another
+step in registration for a list organizers can open when they want it. A list of pairs — a
+four-year camper would be six suggestions. A fuzzy-matching library — more matches, and more
+wrong ones, for names a short nickname list and a one-letter rule cover.
+
+### DR-179 — Privacy of linked records
+**Decision:** Linking records builds a history of each person over the years, many of them
+minors, so it's kept to what the organization already holds: links join the organization's own
+camper records, in its own events, and copy nothing from them. Who sees them is who sees those
+events' data: any role views (DR-50, DR-51), and only Registrars and Admins link or unlink. A link
+goes with its records: through the admin a record is only soft-deleted (DR-55), and keeps its
+link, out of sight until it's restored; a record removed for good (an event with registrations
+can't be deleted, DR-54, so only by a superuser outside the admin) takes its link with it, and a
+person left with one record is dissolved. Only completed registrations' campers take part, never drafts, so the
+retention of incomplete registrations (DR-139, #942) is untouched. An organization whose camps
+follow people across years, or will email past campers about future events, says so in its
+privacy policy (DR-145, DR-153); the wording is the organization's. Email to past campers, when
+it comes, is limited to the organization's own events and always carries a one-click unsubscribe.
+**Context:** #1041 asks for cross-year tracking, and for its privacy to be recorded alongside it.
+**Alternatives:** A separate permission to see linked people — permission groups are site-wide
+(DR-50), so it would add a role for one screen; it can come with per-organization permissions.
+Dropping a link when its record is soft-deleted — restoring the record would lose it.
+
+### DR-180 — Multi-event stats: who's counted, and what "came back" means
+**Decision:** The server works out the stats (§8.12). Someone counted is a linked person or a
+record linked to no one; an unlinked returning camper counts as new until linked, and the area
+says so. Events go in time order — their start, else their opening, undated last. "New" is
+someone at none of the earlier events shown (one series, or every included event); "came back"
+compares each event with the event before it in its series, events with no series being a series
+of their own. A person's longest run is the most consecutive calendar years they came, whatever
+the event.
+**Context:** An organization's events aren't all alike: Lark has a camp each summer and a campout
+each autumn, so the event before a camp is usually a campout, and retention from it says little.
+Series compare like with like; years make a run comparable across them.
+**Alternatives:** Working the stats out in the client — the same numbers will feed the
+organization's report templates later, from one place. Comparing each event with the one before
+it of any kind — a camp's returning rate would be its campout's. Counting only linked people —
+every event would look empty until linking was done.
+
 ## Appendix A — Backend / API Dependencies
 
 What this (frontend) spec assumes from the Django backend. Per the project's API-editing rule,
@@ -7686,6 +7876,9 @@ must be coordinated with the backend. Grouped by status.
   version's text), `/api/contracts/`
   with `publish` and `agreements`, and `privacyPolicy` in the register config, with the shapes
   in §5 (§4, §6, §7, §8.1; DR-145).
+- **Multi-event reports:** `/api/organizations/{id}/multi-event/` — `events` (list, and PATCH
+  one), `campers`, `suggestions`, `link`, `unlink`, `dismiss` and `stats` — and the camper's
+  read-only `person`, with the shapes in §5 (§8.12; DR-177 to DR-180).
 - **Deletes:** `GET /api/{entity}s/{id}/delete-preview/`, the 409 `{ detail }` when something
   keeps a delete from happening, and the delete rules, with the shapes in §5 (DR-54).
 - **Record versions:** `version` on every record, `ETag` on detail responses, and the

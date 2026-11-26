@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from camphoric import api_token_views, live_stream, oauth_views, views
+from camphoric.multi_event import views as multi_event_views
 from camphoric.templating import views as template_views
 
 router = DefaultRouter()
@@ -60,6 +61,23 @@ urlpatterns = [
     path('organizations/<int:organization_id>/contract/agree',
          views.OrganizationContractAgreeView.as_view()),
     path('organizations/<int:organization_id>/privacy-policy', views.PrivacyPolicyView.as_view()),
+    # Multi-event reports: an organization's data across its included events (SPEC §8.12).
+    path('organizations/<int:organization_id>/multi-event/events',
+         multi_event_views.EventsView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/events/<int:event_id>',
+         multi_event_views.EventView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/campers',
+         multi_event_views.CampersView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/suggestions',
+         multi_event_views.SuggestionsView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/link',
+         multi_event_views.LinkView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/unlink',
+         multi_event_views.UnlinkView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/dismiss',
+         multi_event_views.DismissView.as_view()),
+    path('organizations/<int:organization_id>/multi-event/stats',
+         multi_event_views.StatsView.as_view()),
     path('version', views.VersionView.as_view()),
     path('password-reset', views.PasswordResetRequestView.as_view()),
     path('password-reset/<str:uidb64>/<str:token>', views.PasswordResetView.as_view()),

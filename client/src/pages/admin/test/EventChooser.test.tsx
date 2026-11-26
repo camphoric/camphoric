@@ -19,20 +19,41 @@ vi.mock('store/entities', () => ({
 }));
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ organizationId: '1' }),
-  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+  // `params` isn't an attribute of the link.
+  Link: ({
+    to,
+    params: _params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params: unknown;
+    children: ReactNode;
+  }) => (
     <a href={to} {...props}>
       {children}
     </a>
   ),
 }));
 
+const MULTI_EVENT = 'Multi-event reports';
+
 describe('EventChooser', () => {
   it('lists the organization’s events in the order the API gives them', () => {
     renderWithProviders(<EventChooser />);
-    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
+    const events = screen.getAllByRole('link').filter((link) => link.textContent !== MULTI_EVENT);
+    expect(events.map((link) => link.textContent)).toEqual([
       'Lark Camp 2028',
       'Lark Camp 2027',
       'A Workshop 2026',
     ]);
+  });
+
+  it('leads to the organization’s multi-event reports (SPEC §8.12)', () => {
+    renderWithProviders(<EventChooser />);
+    expect(screen.getByRole('link', { name: MULTI_EVENT })).toHaveAttribute(
+      'href',
+      '/admin/organization/$organizationId/multi-event/events',
+    );
   });
 });

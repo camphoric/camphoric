@@ -178,6 +178,8 @@ export interface ApiCamper extends TimeStamped {
   sequence: number;
   /** ISO YYYY-MM-DD strings for each day the camper is present. */
   stay?: string[] | null;
+  /** The person this record is linked to in multi-event reports (§8.12); read-only. */
+  person?: number | null;
 }
 
 /** Whether a promo code's discount is worked out once, or for each camper (DR-67). */
@@ -1637,4 +1639,110 @@ export interface EmailTemplateTestResponse {
   message: ApiEmailMessage;
   rendered_for: AudienceRecipient;
   diagnostics: TemplateDiagnostic[];
+}
+
+// --- Multi-event reports (SPEC §8.12; §15 DR-177–DR-180) ------------------------
+
+/** GET /api/organizations/{id}/multi-event/events: one of the organization's events. */
+export interface ApiMultiEventEvent {
+  event: number;
+  name: string;
+  start: string | null;
+  end: string | null;
+  registration_start: string | null;
+  included: boolean;
+  /** Events with the same series name are compared with each other ('' for none). */
+  series: string;
+}
+
+/** PATCH /api/organizations/{id}/multi-event/events/{eventId}. */
+export interface MultiEventInclusionRequest {
+  included?: boolean;
+  series?: string;
+}
+
+/** GET /api/organizations/{id}/multi-event/campers: a live camper record of an included event. */
+export interface ApiMultiEventCamper {
+  camper: number;
+  event: number;
+  registration: number;
+  /** The person it's linked to, or null. */
+  person: number | null;
+  name: string;
+  first_name: string | null;
+  last_name: string | null;
+  age: string | null;
+  email: string | null;
+  registrant_email: string | null;
+}
+
+export type MatchLevel = 'strong' | 'likely' | 'possible';
+
+export type MatchReason =
+  | 'same_name'
+  | 'same_email'
+  | 'same_first_name'
+  | 'same_last_name'
+  | 'nickname'
+  | 'similar_first_name'
+  | 'similar_last_name'
+  | 'same_registrant_email';
+
+/** GET /api/organizations/{id}/multi-event/suggestions: records likely to be one person. */
+export interface ApiPersonSuggestion {
+  /** The camper records, oldest event first (a person's linked records among them). */
+  campers: number[];
+  /** The people already linked among them. */
+  people: number[];
+  level: MatchLevel;
+  reasons: MatchReason[];
+  /** The name on the newest record. */
+  name: string;
+}
+
+/** POST …/multi-event/link `{campers}` answers with the person they now are. */
+export interface ApiLinkResult {
+  person: number;
+  campers: number[];
+}
+
+/** One event's row in GET …/multi-event/stats. */
+export interface ApiMultiEventStatsEvent {
+  event: number;
+  name: string;
+  series: string;
+  date: string | null;
+  year: number | null;
+  campers: number;
+  registrations: number;
+  /** People: linked people, and unlinked records each counted alone. */
+  people: number;
+  new: number;
+  returning: number;
+  /** The event before it in its series, and how many of its people came to this one. */
+  previous: { event: number; name: string; people: number; returned: number } | null;
+}
+
+/** One person's row in GET …/multi-event/stats. */
+export interface ApiMultiEventStatsPerson {
+  /** `person:<id>`, or `camper:<id>` for a record linked to no one. */
+  key: string;
+  person: number | null;
+  campers: number[];
+  name: string;
+  /** The events attended, oldest first. */
+  events: number[];
+  attended: number;
+  first_event: number;
+  last_event: number;
+  /** The most consecutive calendar years attended. */
+  longest_run: number;
+}
+
+/** GET /api/organizations/{id}/multi-event/stats?series=. */
+export interface ApiMultiEventStats {
+  /** The included events' series names. */
+  series: string[];
+  events: ApiMultiEventStatsEvent[];
+  people: ApiMultiEventStatsPerson[];
 }
