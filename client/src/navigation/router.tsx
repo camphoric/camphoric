@@ -92,6 +92,10 @@ const MultiEventStats = lazyRouteComponent(
   () => import('pages/admin/multiEvent'),
   'MultiEventStats',
 );
+const MultiEventReports = lazyRouteComponent(
+  () => import('pages/admin/multiEvent'),
+  'MultiEventReports',
+);
 
 const RegisterContainer = lazyRouteComponent(() => import('pages/register'), 'RegisterContainer');
 const RegistrationStep = lazyRouteComponent(() => import('pages/register'), 'RegistrationStep');
@@ -437,6 +441,11 @@ const multiEventStatsRoute = createRoute({
   path: 'stats',
   component: MultiEventStats,
 });
+const multiEventReportsRoute = createRoute({
+  getParentRoute: () => multiEventRoute,
+  path: 'reports',
+  component: MultiEventReports,
+});
 const multiEventCatchAllRoute = createRoute({
   getParentRoute: () => multiEventRoute,
   path: '$',
@@ -489,6 +498,7 @@ const routeTree = rootRoute.addChildren([
       multiEventEventsRoute,
       multiEventPeopleRoute,
       multiEventStatsRoute,
+      multiEventReportsRoute,
       multiEventCatchAllRoute,
     ]),
   ]),

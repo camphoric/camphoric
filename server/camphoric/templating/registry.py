@@ -567,6 +567,74 @@ CONTEXTS = (
 
 CONTEXTS_BY_NAME = {c.name: c for c in CONTEXTS}
 
+# Multi-event reports (SPEC §8.12, DR-181): an organization's templates over its
+# included events. Kept apart from the event templates' types and contexts,
+# which an event's describe payload lists.
+ORGANIZATION_TYPES = (
+    TypeSpec('included_event', 'One included event: its own variables (as its reports '
+             'see them) and its figures across the included events.', (
+                 ID,
+                 F('name', 'string', "The event's name."),
+                 F('series', 'string', 'Its series; blank for none.'),
+                 F('date', 'date', 'When it was: its start, else when registration opened.',
+                   nullable=True),
+                 F('year', 'number', 'The year of its date.', nullable=True),
+                 EVENT,
+                 F('registrations', 'list<registration>', 'Completed registrations.'),
+                 F('campers', 'list<camper>', 'Campers of completed registrations.',
+                   '{{ included.campers | length }}'),
+                 F('payments', 'list<payment>', 'Payments on completed registrations.'),
+                 F('invoices', 'list<invoice>', 'Invoices of completed registrations.'),
+                 F('people', 'number', 'How many people were at it: each linked person '
+                   'once, and each record linked to no one on its own.'),
+                 F('new', 'number', 'People at none of the included events before it.'),
+                 F('returning', 'number', 'People at an included event before it.'),
+                 F('previous', 'included_event', 'The event before it in its series.',
+                   nullable=True),
+                 F('came_back', 'number', 'How many of the previous event\'s people are at '
+                   'this one.', nullable=True),
+                 F('received', 'money', 'Money received for it: payments less refunds.',
+                   '{{ included.received | money }}'),
+             ), var_class=values.IncludedEventVar),
+    TypeSpec('person', 'Someone across the included events: camper records linked as one '
+             'person, or a record linked to no one.', (
+                 F('id', 'string', 'Tells people apart: `person:` and the person\'s id, or '
+                   '`camper:` and the id of a record linked to no one.'),
+                 F('name', 'string', 'Their name on their most recent record.'),
+                 F('linked', 'bool', 'Whether their records are linked as one person.'),
+                 F('records', 'list<person_record>', 'Their records, oldest event first.',
+                   '{% for record in person.records %}{{ record.event.year }} {% endfor %}'),
+                 F('campers', 'list<camper>', 'Their camper records, oldest event first.'),
+                 F('events', 'list<included_event>', 'The events they were at, oldest first.'),
+                 F('attended', 'number', 'How many of the events they were at.'),
+                 F('first_event', 'included_event', 'The first of them.'),
+                 F('last_event', 'included_event', 'The most recent.'),
+                 F('longest_run', 'number', 'The most consecutive years they came.'),
+             ), var_class=values.PersonVar),
+    TypeSpec('person_record', 'One of a person\'s camper records, with its event.', (
+        F('id', 'number', 'The camper record\'s id.'),
+        F('event', 'included_event', 'The event it is in.'),
+        F('camper', 'camper', 'The camper record.', '{{ record.camper.attributes.first_name }}'),
+    ), var_class=values.PersonRecordVar),
+)
+
+ORGANIZATION_CONTEXTS = (
+    ContextSpec('multi_event_report', 'Multi-event reports', 'Multi-event reports see the '
+                'organization\'s included events, oldest first, or one series of them, and '
+                'the people across them.', (
+                    F('organization_name', 'string', 'The organization.'),
+                    F('series', 'string', 'The series the report is for; blank for every '
+                      'included event.'),
+                    F('events', 'list<included_event>', 'The included events, oldest first.',
+                      '{% for included in events %}{{ included.name }}: '
+                      '{{ included.people }}\n{% endfor %}'),
+                    F('people', 'list<person>', 'Everyone at them, those at the most events '
+                      'first.', '{% for person in people %}{{ person.name }}\n{% endfor %}'),
+                    F('today', 'date', "Today's date."),
+                    F('now', 'datetime', 'The current time.'),
+                )),
+)
+
 FILTERS = (
     FilterSpec('money', "money(symbol='$', places=2, commas=True)",
                'Format an amount as money. Blank stays blank.',

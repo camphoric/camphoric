@@ -9,6 +9,9 @@ it in its series; events with no series are a series of their own.
 '''
 
 from collections import Counter, defaultdict
+from decimal import Decimal
+
+from django.db.models import Sum
 
 from camphoric import models
 from camphoric.multi_event import people
@@ -33,7 +36,8 @@ def stats(organization, series=None):
     '''
     `{series, events, people}`: the included events' series names; for each
     event in scope (a series, or all), its totals, new and returning people,
-    and how many came back from the one before it in its series; and each
+    how many came back from the one before it in its series, and the money
+    received for it (as text, like the API's other amounts); and each
     person's attendance across them.
     '''
     all_events = people.included_events(organization)
@@ -41,6 +45,9 @@ def stats(organization, series=None):
     records = people.records(organization, events)
     registrations = Counter(
         models.Registration.objects.filter(event__in=events).values_list('event', flat=True))
+    # Payments less refunds (a refund is a negative payment), live ones only.
+    received = dict(models.Payment.objects.filter(registration__event__in=events)
+                    .values_list('registration__event').annotate(Sum('amount')))
 
     by_event = defaultdict(list)
     for record in records:
@@ -64,6 +71,7 @@ def stats(organization, series=None):
             'year': date.year if date else None,
             'campers': len(by_event[event.id]),
             'registrations': registrations.get(event.id, 0),
+            'received': str(received.get(event.id) or Decimal('0.00')),
             'people': len(here),
             'new': len(new),
             'returning': len(here) - len(new),

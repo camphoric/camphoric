@@ -78,6 +78,7 @@ ORGANIZATION_PATHS = {
     models.MultiEventInclusion: 'event__organization',
     models.Person: 'organization',
     models.PersonMatchDismissal: 'organization',
+    models.OrganizationReport: 'organization',
     models.Invoice: 'registration__event__organization',
     models.Payment: 'registration__event__organization',
     models.PricingOverride: 'registration__event__organization',
@@ -91,6 +92,7 @@ URL_KWARGS = {
     'organization_id': models.Organization,
     'event_id': models.Event,
     'report_id': models.Report,
+    'organization_report_id': models.OrganizationReport,
     'invitation_id': models.Invitation,
 }
 

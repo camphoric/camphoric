@@ -12,23 +12,28 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import type { ApiReport } from 'api-types';
 import { type ReactNode, useId, useState } from 'react';
 
-import { categoryKey, type ReportGroup } from './reportGroups';
+import { categoryKey, type ListedReport, type ReportGroup } from './reportGroups';
 
-export interface ReportListProps {
-  /** The event's reports, as `groupReports` groups them. */
-  groups: readonly ReportGroup[];
+export interface ReportListProps<R extends ListedReport = ApiReport> {
+  /** The reports, as `groupReports` groups them. */
+  groups: readonly ReportGroup<R>[];
   /** The report shown as selected, if any. */
   selectedId?: number;
-  onSelect: (report: ApiReport) => void;
+  onSelect: (report: R) => void;
   /** Shown at the end of a report's row (e.g. who is editing it). */
-  renderMarker?: (report: ApiReport) => ReactNode;
+  renderMarker?: (report: R) => ReactNode;
 }
 
 const UNCATEGORISED = 'Uncategorised';
 
 const reportCount = (count: number) => `${count} ${count === 1 ? 'report' : 'reports'}`;
 
-export function ReportList({ groups, selectedId, onSelect, renderMarker }: ReportListProps) {
+export function ReportList<R extends ListedReport = ApiReport>({
+  groups,
+  selectedId,
+  onSelect,
+  renderMarker,
+}: ReportListProps<R>) {
   const hasHeadings = groups.some((group) => group.category);
   const [collapsedKeys, setCollapsedKeys] = useState<ReadonlySet<string>>(new Set());
 
@@ -82,14 +87,17 @@ export function ReportList({ groups, selectedId, onSelect, renderMarker }: Repor
   );
 }
 
-interface ReportGroupSectionProps extends Omit<ReportListProps, 'groups'> {
-  group: ReportGroup;
+interface ReportGroupSectionProps<R extends ListedReport> extends Omit<
+  ReportListProps<R>,
+  'groups'
+> {
+  group: ReportGroup<R>;
   hasHeading: boolean;
   isExpanded: boolean;
   onToggle: () => void;
 }
 
-function ReportGroupSection({
+function ReportGroupSection<R extends ListedReport>({
   group,
   hasHeading,
   isExpanded,
@@ -97,7 +105,7 @@ function ReportGroupSection({
   selectedId,
   onSelect,
   renderMarker,
-}: ReportGroupSectionProps) {
+}: ReportGroupSectionProps<R>) {
   const listId = useId();
   const name = group.category || UNCATEGORISED;
   const count = group.reports.length;

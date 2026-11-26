@@ -170,9 +170,10 @@ describe('SuggestionList', () => {
 });
 
 describe('EventStatsTable', () => {
-  it('shows the events side by side with how many came back', () => {
+  it('shows the events side by side with the money received and how many came back', () => {
     renderWithProviders(<EventStatsTable rows={STATS_EVENTS} />);
     expect(screen.getByText('1 of 2 (50%) from Lark Camp 2023')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '$1,250.00' })).toBeInTheDocument();
     expect(retention(STATS_EVENTS[0])).toBe('—');
     const nobodyBefore = { event: 1, name: 'Lark Camp 2023', people: 0, returned: 0 };
     expect(retention({ ...STATS_EVENTS[1], previous: nobodyBefore })).toBe('—');

@@ -135,6 +135,9 @@ CustomChargeVar = _make_type('custom_charge')
 CustomChargeTypeVar = _make_type('custom_charge_type')
 InvitationVar = _make_type('invitation')
 RecipientVar = _make_type('recipient')
+IncludedEventVar = _make_type('included_event')
+PersonVar = _make_type('person')
+PersonRecordVar = _make_type('person_record')
 
 
 def freeze(value):

@@ -66,13 +66,15 @@ interface RenderedReportProps {
 }
 
 interface ReportOutputProps {
-  report: ApiReport;
+  /** An event's report, or an organization's (§8.12). */
+  report: Pick<ApiReport, 'title' | 'category' | 'output'>;
   data: ApiRenderedReport;
-  /** The event's name, for the download's file name; undefined until it loads. */
+  /** The event's name (or the organization's), for the download's file name; undefined until it loads. */
   eventName: string | undefined;
 }
 
-function ReportOutput({ report, data, eventName }: ReportOutputProps) {
+/** A rendered report: its problems, or its output with download and print. */
+export function ReportOutput({ report, data, eventName }: ReportOutputProps) {
   // Only the server-rendered formats reach here; Handlebars renders in the page.
   const format = report.output as PrintableOutput;
   const diagnostics = data.diagnostics ?? [];

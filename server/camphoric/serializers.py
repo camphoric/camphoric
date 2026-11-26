@@ -596,6 +596,24 @@ class PricingOverrideSerializer(ModelSerializer):
         return {**data, 'registration': registration}
 
 
+class OrganizationReportSerializer(ModelSerializer):
+    class Meta:
+        model = models.OrganizationReport
+        fields = '__all__'
+
+    def validate_output(self, value):
+        if value == models.ReportOutputType.HANDLEBARS:
+            raise ValidationError('Multi-event reports are Jinja templates rendered on the '
+                                  'server, not Handlebars.')
+        return value
+
+    def validate_organization(self, value):
+        # A report stays with the organization it was made for.
+        if self.instance is not None and value != self.instance.organization:
+            raise ValidationError("A report can't be moved to another organization.")
+        return value
+
+
 class ReportSerializer(ModelSerializer):
     class Meta:
         model = models.Report

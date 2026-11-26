@@ -602,6 +602,9 @@ class RouteWalkTests(APITestCase):
             models.Report: models.Report.objects.create(
                 event=event, title='Counts', output='txt', variables_source='server',
                 template='{{ campers | length }}'),
+            models.OrganizationReport: models.OrganizationReport.objects.create(
+                organization=cls.organization, title='Across years', output='txt',
+                template='{{ events | length }}'),
             models.Invitation: made.pending,
             models.Lodging: made.cabin_a,
             models.Camper: made.c1,
@@ -659,6 +662,7 @@ class RouteWalkTests(APITestCase):
         values = {
             'event_id': self.made.event.pk,
             'report_id': self.records[models.Report].pk,
+            'organization_report_id': self.records[models.OrganizationReport].pk,
             'invitation_id': self.made.pending.pk,
             'organization_id': self.organization.pk,
         }

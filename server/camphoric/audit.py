@@ -100,6 +100,7 @@ def register_models():
         models.CustomChargeType, models.CustomCharge, models.Deposit, models.PricingOverride,
         models.EmailTemplate, models.EmailUnsubscribe,
         models.MultiEventInclusion, models.Person, models.PersonMatchDismissal,
+        models.OrganizationReport,
     ):
         auditlog.register(model, exclude_fields=TIMESTAMPS)
     auditlog.register(models.UserAccount)
