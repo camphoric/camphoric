@@ -2,6 +2,7 @@
 
 import datetime
 from decimal import Decimal
+from unittest import mock
 
 from auditlog.models import LogEntry
 from rest_framework.test import APITestCase
@@ -9,6 +10,7 @@ from rest_framework.test import APITestCase
 from camphoric import models, roles
 from camphoric.multi_event import matching, people, reports, stats
 from camphoric.templating import registry
+from camphoric.templating.render import RenderLimits
 from camphoric.templating.values import TemplateObject
 from tests.factories import make_user
 
@@ -579,6 +581,19 @@ class OrganizationReportTests(MultiEventTestCase):
         refused = self.client.patch(f'/api/organization-reports/{self.report.id}/',
                                     {'title': 'Mine'}, format='json')
         self.assertEqual(refused.status_code, 403)
+
+    def test_an_event_left_out_while_rendering_is_still_rendered(self):
+        counted = stats.stats(self.organization)
+        people.set_inclusion(self.campout24, included=False)
+        with mock.patch.object(stats, 'stats', return_value=counted):
+            context = reports.report_context(self.organization)
+        self.assertEqual(len(context['events']), 4)
+
+    def test_gathering_the_data_counts_toward_the_time_limit(self):
+        result = reports.render(self.organization, self.TEMPLATE, 'csv',
+                                limits=RenderLimits(timeout_s=0, max_output_chars=1000))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.diagnostics[0].kind, 'timeout')
 
     def test_describes_its_variables(self):
         response = self.client.get(self.url('templates/describe'))

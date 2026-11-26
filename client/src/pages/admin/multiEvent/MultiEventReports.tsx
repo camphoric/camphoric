@@ -6,13 +6,14 @@
  * who can change data. Leaving a form with unsaved changes asks first.
  */
 
-import { Button, Card, Grid, Group, Select, Stack, Text, Title } from '@mantine/core';
+import { Alert, Button, Card, Grid, Group, Select, Stack, Text, Title } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import type { ApiOrganizationReport } from 'api-types';
 import { confirmDelete } from 'components/ConfirmDelete';
 import { RecordDeleted } from 'components/EditLease';
 import { InlineLoading } from 'components/Loading';
+import { requestErrorMessage } from 'components/TemplateEditor';
 import { CanEdit } from 'hooks/permissions';
 import { useKeptRecord } from 'hooks/useKeptRecord';
 import { useUnsavedChanges } from 'hooks/useUnsavedChanges';
@@ -39,6 +40,13 @@ function RenderedOrganizationReport({
   name: string | undefined;
 }) {
   const rendered = useRenderedOrganizationReport(report, series);
+  if (rendered.isError) {
+    return (
+      <Alert color="red" variant="light" title="Couldn’t render this report">
+        {requestErrorMessage(rendered.error)}
+      </Alert>
+    );
+  }
   if (!rendered.data) return <InlineLoading />;
   return <ReportOutput report={report} data={rendered.data} eventName={name} />;
 }

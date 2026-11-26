@@ -7890,7 +7890,9 @@ series, in time order: each event brings all of its own report variables (built 
 reports' are, §9.3) with its Stats figures, among them the money received (payments less
 refunds); and the people come from Stats, each with their records and the events they were at.
 The Reports page, list, output, editor and conflict-aware save are the event Reports section's
-(§8.7). Organization reports have no edit leases and no live updates.
+(§8.7). Gathering the events' variables counts toward the render's time limit (DR-111), checked
+after each event, so a render or preview over many years stops with a timeout rather than
+running on. Organization reports have no edit leases and no live updates.
 **Context:** Templates need what the Stats section counts and what an event report reads (a
 camper's answers, lodging, payments) together, so building each event's graph and reusing the
 Stats figures means one count everywhere and nothing new to learn. Leases and the live feed are
