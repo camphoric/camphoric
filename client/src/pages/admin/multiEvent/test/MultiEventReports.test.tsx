@@ -7,8 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MultiEventReports } from '../MultiEventReports';
 import { OrganizationReportForm } from '../OrganizationReportForm';
 
-const { reports, search, create, navigate, rendered, stats } = vi.hoisted(() => ({
+const { reports, search, create, navigate, rendered, stats, renderFails } = vi.hoisted(() => ({
   stats: { loaded: true },
+  renderFails: { value: false },
   reports: { list: [] as ApiOrganizationReport[] },
   search: { reportId: undefined as string | undefined, series: undefined as string | undefined },
   create: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock('store/multiEvent', () => ({
   }),
   useRenderedOrganizationReport: (report: ApiOrganizationReport, series?: string) => {
     rendered(report.id, series);
+    if (renderFails.value) return { isError: true, error: new Error('Server error') };
     return { data: { report: 'Event,People\nCamp 2025,40', error: null } as ApiRenderedReport };
   },
 }));
@@ -88,6 +90,7 @@ beforeEach(() => {
   navigate.mockClear();
   rendered.mockClear();
   stats.loaded = true;
+  renderFails.value = false;
 });
 
 describe('MultiEventReports', () => {
@@ -121,6 +124,14 @@ describe('MultiEventReports', () => {
     stats.loaded = false;
     setup();
     expect(rendered).not.toHaveBeenCalled();
+  });
+
+  it('says so when a report can’t be rendered', () => {
+    reports.list = [report(1, 'Retention')];
+    search.reportId = '1';
+    renderFails.value = true;
+    setup();
+    expect(screen.getByText('Couldn’t render this report')).toBeInTheDocument();
   });
 
   it('lets a Reporter read reports but not write them', () => {
