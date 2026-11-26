@@ -1514,6 +1514,9 @@ class EmailBatch(TimeStampedModel):
         max_length=16, choices=EmailRecipientSource.choices, blank=True, default='')
     # An organization's batch: the recipient rules it was sent with.
     filter = CustomJSONField(default=dict, blank=True)
+    # An organization's batch: each reviewed person's camper records, to find
+    # them again if their records are linked or unlinked before it's prepared.
+    recipient_campers = CustomJSONField(default=dict, blank=True)
     address_expression = models.TextField(blank=True, default='')
     name_expression = models.TextField(blank=True, default='')
     recipient_list = models.TextField(blank=True, default='')

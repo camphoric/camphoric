@@ -190,8 +190,8 @@ export function OrganizationEmailEditor({
       <Title order={4}>Recipients</Title>
       <Text size="sm" c="dimmed">
         People across the included events: each linked person once, and each record linked to no one
-        on its own. A person’s address is their newest record’s: the camper’s own email, else their
-        registrant’s.
+        on its own. A person’s address is their newest record’s that has one: the camper’s own
+        email, else their registrant’s.
       </Text>
       <RecipientFilterBuilder
         value={fields.filter}

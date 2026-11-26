@@ -64,7 +64,12 @@ class RecipientTests(MultiEventEmailTestCase):
         upcoming = make_event(self.organization, 'Camp 2026', 2026, included=False)
         # Bo has registered for 2026 under the same address, not yet linked.
         make_camper(upcoming, 'Bo', 'Ng', registrant_email='NG@x.org')
-        rule = {'field': 'person.registered', 'op': 'not_contains', 'value': 'Camp 2026'}
+        rule = {'field': 'person.registered', 'op': 'not_contains', 'value': str(upcoming.id)}
+        self.assertEqual(self.keys(self.recipients([rule])), [self.ann_key])
+        # Renaming the event, or making another of the same name, doesn't change the rule.
+        upcoming.name = 'Lark Camp 2026'
+        upcoming.save()
+        make_event(self.organization, 'Lark Camp 2026', 2026, included=False)
         self.assertEqual(self.keys(self.recipients([rule])), [self.ann_key])
 
     def test_registered_under_another_of_their_addresses(self):
@@ -73,13 +78,13 @@ class RecipientTests(MultiEventEmailTestCase):
         make_camper(upcoming, 'Ann', 'Lee', registrant_email='lees@x.org')
         # A sibling registered under Bo's family address doesn't make Bo registered.
         make_camper(upcoming, 'Di', 'Ng', registrant_email='ng@x.org')
-        rule = {'field': 'person.registered', 'op': 'not_contains', 'value': 'Camp 2026'}
+        rule = {'field': 'person.registered', 'op': 'not_contains', 'value': upcoming.id}
         self.assertEqual(self.keys(self.recipients([rule])), [f'camper:{self.bo.id}'])
 
     def test_events_with_the_same_name_are_told_apart(self):
         make_event(self.organization, 'Camp 2023', 2026, included=False)
         response = self.client.get(f'{base(self.organization.id)}/email/recipient-fields')
-        options = [o['value'] for o in
+        options = [o['label'] for o in
                    {f['key']: f for f in response.data}['person.registered']['options']]
         self.assertIn('Camp 2023 (2023)', options)
         self.assertIn('Camp 2023 (2026)', options)
@@ -117,7 +122,7 @@ class RecipientTests(MultiEventEmailTestCase):
         fields = {f['key']: f for f in response.data}
         self.assertEqual(fields['person.attended']['type'], 'number')
         self.assertIn('Camp 2023',
-                      [o['value'] for o in fields['person.events']['options']])
+                      [o['label'] for o in fields['person.events']['options']])
         self.assertIn('not_contains', rules.OPERATORS[fields['person.registered']['type']])
 
 
@@ -211,6 +216,30 @@ class SendTests(MultiEventEmailTestCase):
         saved = models.EmailBatch.objects.get(id=self.send(
             [self.ann_key], skip_already_sent=False).data['id'])
         self.assertEqual((saved.account, saved.reply_to), (ours, 'office@example.com'))
+
+    def test_linked_between_review_and_sending_still_gets_it(self):
+        bo25 = make_camper(self.camp25, 'Bo', 'Ng', registrant_email='ng@x.org')
+        keys = self.keys(self.recipients())
+        self.assertIn(f'camper:{self.bo.id}', keys)
+        start = timezone.now()
+        data = self.send(keys, send_at=(start + datetime.timedelta(hours=2)).isoformat()).data
+        person = people.link(self.organization, [self.bo.id, bo25.id])
+        with freeze_time(start + datetime.timedelta(hours=3)):
+            run_due_tasks()
+        batch = models.EmailBatch.objects.get(id=data['id'])
+        self.assertIn(f'person:{person.pk}',
+                      list(batch.messages.values_list('recipient_key', flat=True)))
+        self.assertEqual(batch.messages.count(), 2)  # Ann, and Bo once
+        self.assertNotIn('gone', [s['reason'] for s in batch.skipped])
+
+    def test_a_bad_account_is_refused(self):
+        self.assertEqual(self.send([self.ann_key], account='abc').status_code, 400)
+
+    def test_already_sent_only_counts_the_organizations_own_email(self):
+        theirs = models.OrganizationEmail.objects.create(
+            organization=self.other_organization, name='Theirs', from_email='x@example.com')
+        data = self.recipients(email=theirs.id)
+        self.assertFalse(any(r['already_sent'] for r in data['recipients']))
 
     def test_someone_unsubscribed_since_review_is_skipped(self):
         unsubscribe.unsubscribe_organization(self.organization, 'ann@example.com', source='link')

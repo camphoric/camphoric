@@ -3,7 +3,8 @@ An organization's email to past campers (SPEC §8.12, DR-182).
 
 Recipients are people across the included events (stats.py): each linked
 person once, and each record linked to no one on its own. A person's address is
-their newest record's: the camper's own email, else their registrant's. Rules
+their newest record's that has one: the camper's own email, else their
+registrant's. Rules
 (the group email rule builder's, DR-45) choose among them by each person's
 fields — their attendance, the events of the organization they're registered
 for, and their newest record's answers. Like group email, every candidate is a
@@ -47,6 +48,9 @@ class Entry:
     email: str
     camper: int
     registration: int
+    # All their camper records, to find them again if their records are linked
+    # or unlinked between review and sending.
+    campers: list
     # What the rules read (rules.lookup), as `person.*` and `latest.*`.
     context: dict
 
@@ -136,19 +140,21 @@ def entries(organization):
         years = [included[e]['year'] for e in row['events'] if included[e]['year']]
         result.append(Entry(
             key=row['key'], name=row['name'], email=address, camper=latest.id,
-            registration=latest.registration_id,
+            registration=latest.registration_id, campers=list(row['campers']),
             context={
                 'person': {
                     'name': row['name'],
                     'attended': row['attended'],
                     'longest_run': row['longest_run'],
                     'linked': row['person'] is not None,
-                    'events': [labels.get(e, included[e]['name']) for e in row['events']],
+                    # Events by id, so a rule outlasts a renamed event (the
+                    # rule builder shows their labels).
+                    'events': list(row['events']),
                     'series': sorted({included[e]['series'] for e in row['events']
                                       if included[e]['series']}),
                     'first_year': min(years) if years else None,
                     'last_year': max(years) if years else None,
-                    'registered': sorted(labels[e] for e in registered if e in labels),
+                    'registered': sorted(e for e in registered if e in labels),
                 },
                 'latest': {
                     'camper': {'attributes': latest.attributes or {},
@@ -171,19 +177,29 @@ def unsubscribed(organization):
     return set(own.values_list('email', flat=True)) | set(events.values_list('email', flat=True))
 
 
-def resolve(organization, filter_, *, only_keys=None):
+def resolve(organization, filter_, *, only_keys=None, reviewed_campers=None):
     '''
     Who the rules reach: a group email Resolution (recipients, skipped,
     diagnostics; `missing` with `only_keys`), and the entries by key. With
     `only_keys` — a send's reviewed recipients — the rules aren't applied again,
-    only who's still there and still reachable.
+    only who's still there and still reachable. A reviewed person whose key
+    changed since (their records linked or unlinked) is found again by their
+    camper records, `reviewed_campers` (key → camper ids).
     '''
     result_entries = {e.key: e for e in entries(organization)}
     collector = _Collector(unsubscribed(organization))
     if only_keys is not None:
-        wanted = list(dict.fromkeys(only_keys))
-        chosen = [result_entries[k] for k in wanted if k in result_entries]
-        collector.result.missing = [k for k in wanted if k not in result_entries]
+        key_of = {camper: e.key for e in result_entries.values() for camper in e.campers}
+        found, missing = [], []
+        for key in dict.fromkeys(only_keys):
+            now = [key] if key in result_entries else list(dict.fromkeys(
+                key_of[c] for c in (reviewed_campers or {}).get(key, ()) if c in key_of))
+            if now:
+                found += now
+            else:
+                missing.append(key)
+        chosen = [result_entries[k] for k in dict.fromkeys(found)]
+        collector.result.missing = missing
     else:
         predicate, problems = compile_rules(filter_)
         if problems:
@@ -199,19 +215,26 @@ def recipient_fields(organization):
     '''The fields people can be chosen by, for the rule builder.'''
     figures = stats.stats(organization)
     labels = event_labels(organization)
-    event_names = [labels.get(row['event'], row['name']) for row in figures['events']]
-    every_event = list(labels.values())
+    event_ids = [row['event'] for row in figures['events']]
+    every_event = list(labels)
+
+    def by_id(key, label, ids):
+        # Rules hold event ids, so they outlast a renamed event; the builder shows names.
+        entry = _field(key, label, 'Person', 'list')
+        entry['options'] = [{'value': event_id, 'label': labels[event_id]} for event_id in ids
+                            if event_id in labels]
+        return entry
+
     fields = [
         _field('person.name', 'Name', 'Person', 'string'),
         _field('person.attended', 'Included events attended', 'Person', 'number'),
-        _field('person.events', 'Included events', 'Person', 'list', event_names),
+        by_id('person.events', 'Included events', event_ids),
         _field('person.series', 'Series', 'Person', 'list', figures['series']),
         _field('person.first_year', 'First year', 'Person', 'number'),
         _field('person.last_year', 'Most recent year', 'Person', 'number'),
         _field('person.longest_run', 'Most consecutive years', 'Person', 'number'),
         _field('person.linked', 'Records linked', 'Person', 'boolean'),
-        _field('person.registered', 'Registered for (any event)', 'Person', 'list',
-               every_event),
+        by_id('person.registered', 'Registered for (any event)', every_event),
         _field('latest.registration.registrant_email', 'Registrant email', 'Latest record',
                'string'),
     ]
@@ -304,7 +327,9 @@ def create_batch(email, *, recipient_keys, account=SAVED, from_email='', reply_t
     task = expand_batch.using(run_after=send_at) if later else expand_batch
     if later and not task.get_backend().supports_defer:
         raise EmailError('Sending later needs the email worker (CAMPHORIC_EMAIL_QUEUE=worker).')
+    reviewed = {e.key: e.campers for e in entries(email.organization) if e.key in keys}
     batch = models.EmailBatch.objects.create(
+        recipient_campers=reviewed,
         organization=email.organization, organization_email=email, name=email.name,
         subject=email.subject, body=email.body, filter=email.filter, recipient_keys=keys,
         account=email.account if account is SAVED else account, from_email=sender,
@@ -342,7 +367,8 @@ def _copy(batch, variables, everyone, candidate):
 def expand(batch):
     '''Render and queue one copy per person of a claimed organization batch.'''
     organization = batch.organization
-    resolution, found = resolve(organization, batch.filter, only_keys=batch.recipient_keys)
+    resolution, found = resolve(organization, batch.filter, only_keys=batch.recipient_keys,
+                                reviewed_campers=batch.recipient_campers)
     key_of = {entry.camper: key for key, entry in found.items()}
     skipped = [{'key': key, 'label': key, 'reason': 'gone'} for key in resolution.missing]
     skipped += [{**asdict(s), 'key': key_of.get(s.camper, '')} for s in resolution.skipped]
