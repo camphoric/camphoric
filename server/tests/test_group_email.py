@@ -227,6 +227,61 @@ class SendTests(GroupEmailTestCase):
         self.send(keys[:1])
         self.assertEqual(mail.outbox[0].to, ['Kim <kim@example.com>'])
 
+    def test_the_send_dialogs_sender_wins(self):
+        event = self.event
+        ours = models.EmailAccount.objects.create(
+            organization=event.organization, name='Ours', host='smtp.example.com', port=587)
+        events = models.EmailAccount.objects.create(
+            organization=event.organization, name='Event', host='smtp.example.com', port=587)
+        event.email_account, event.confirmation_email_from = events, 'camp@example.com'
+        event.save()
+        self.template.account, self.template.reply_to = ours, 'office@example.com'
+        self.template.from_email = 'kim@example.com'
+        self.template.save()
+        key = f'camper:{self.made.c1.id}'
+
+        def batch(**fields):
+            data = self.send([key], skip_already_sent=False, **fields).data
+            return models.EmailBatch.objects.get(id=data['id'])
+
+        # Blank is the event's: its account and address, the account's Reply-To.
+        chosen = batch(account=None, from_email='', reply_to='')
+        self.assertEqual((chosen.account, chosen.from_email, chosen.reply_to),
+                         (events, 'camp@example.com', ''))
+        # Left out is the template's.
+        saved = batch()
+        self.assertEqual((saved.account, saved.from_email, saved.reply_to),
+                         (ours, 'kim@example.com', 'office@example.com'))
+        picked = batch(account=events.id, from_email='lee@example.com', reply_to='r@example.com')
+        self.assertEqual((picked.account, picked.from_email, picked.reply_to),
+                         (events, 'lee@example.com', 'r@example.com'))
+
+    def test_a_bad_account_is_refused(self):
+        key = f'camper:{self.made.c1.id}'
+        for account in ('3', True):
+            self.assertEqual(self.send([key], account=account).status_code, 400, account)
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='Theirs', host='smtp.example.com', port=587)
+        self.assertEqual(self.send([key], account=theirs.id).status_code, 400)
+        self.assertEqual(self.send([key], account=999999).status_code, 404)
+        # Nor can a template or event keep another organization's account.
+        response = self.client.patch(self.url(''), {'account': theirs.id, 'subject': '{{'},
+                                     format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(set(response.data), {'account', 'subject'})
+        response = self.client.patch(f'/api/events/{self.event.id}/',
+                                     {'email_account': theirs.id}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email_account', response.data)
+        # One saved before this was checked isn't sent through, nor tested with.
+        models.EmailTemplate.objects.filter(id=self.template.id).update(account=theirs)
+        self.assertEqual(self.send([key]).status_code, 400)
+        response = self.client.post(self.url('test/'), {}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.EmailBatch.objects.exists())
+        self.assertFalse(models.EmailMessage.objects.exists())
+
     def test_needs_recipients_and_a_group_template(self):
         self.assertEqual(self.send([]).status_code, 400)
         confirmation = self.event.confirmation_template

@@ -233,7 +233,8 @@ class SendTests(MultiEventEmailTestCase):
         self.assertNotIn('gone', [s['reason'] for s in batch.skipped])
 
     def test_a_bad_account_is_refused(self):
-        self.assertEqual(self.send([self.ann_key], account='abc').status_code, 400)
+        for account in ('abc', True):
+            self.assertEqual(self.send([self.ann_key], account=account).status_code, 400, account)
 
     def test_already_sent_only_counts_the_organizations_own_email(self):
         theirs = models.OrganizationEmail.objects.create(

@@ -444,14 +444,19 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
             send_at = parse_datetime(str(data['send_at']))
             if send_at is None:
                 raise ValidationError({'send_at': 'Give a date and time (ISO 8601).'})
-        account = None
-        if data.get('account'):
-            account = get_object_or_404(models.EmailAccount, id=data['account'])
-            contracts.check_record(request, account)
+        # A sender field the dialog left out is the template's; a blank one, the event's.
+        sender = {field: data.get(field) or '' for field in ('from_email', 'reply_to')
+                  if field in data}
+        if 'account' in data:
+            sender['account'] = None
+            if data['account']:
+                if isinstance(data['account'], bool) or not isinstance(data['account'], int):
+                    raise ValidationError({'account': 'Give an email account’s id.'})
+                sender['account'] = get_object_or_404(models.EmailAccount, id=data['account'])
+                contracts.check_record(request, sender['account'])
         try:
             batch = batches.create_batch(
-                template, recipient_keys=data.get('recipient_keys') or [], account=account,
-                from_email=data.get('from_email') or '', reply_to=data.get('reply_to') or '',
+                template, recipient_keys=data.get('recipient_keys') or [], **sender,
                 skip_already_sent=data.get('skip_already_sent', True) is not False,
                 send_at=send_at, created_by=request.user, link_base=public_base(request))
         except batches.BatchError as error:
