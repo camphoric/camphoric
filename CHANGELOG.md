@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.21.0](https://github.com/camphoric/camphoric/compare/v0.20.1...v0.21.0) (2026-11-27)
+
+
+### Features
+
+* **multi-event:** add organization report templates ([8e0d331](https://github.com/camphoric/camphoric/commit/8e0d331835f66b3d419efba73027412e0c505946)), closes [#1045](https://github.com/camphoric/camphoric/issues/1045) [#1041](https://github.com/camphoric/camphoric/issues/1041)
+* **multi-event:** email past campers ([b03e102](https://github.com/camphoric/camphoric/commit/b03e102f7f990fb04e7f0ab1b578b21c7880e9b8)), closes [#1046](https://github.com/camphoric/camphoric/issues/1046) [#1041](https://github.com/camphoric/camphoric/issues/1041)
+* **multi-event:** link campers across events and report attendance ([4ec8f8f](https://github.com/camphoric/camphoric/commit/4ec8f8f92a4f524a9d1eaf47375654db6550fc46)), closes [#1041](https://github.com/camphoric/camphoric/issues/1041)
+* **payments:** make Cash a built-in payment type in place of Voucher ([0f6929e](https://github.com/camphoric/camphoric/commit/0f6929e7e0b0ef984330021c1e15e5a6d35026ad)), closes [#1037](https://github.com/camphoric/camphoric/issues/1037)
+
+
+### Bug Fixes
+
+* **email:** keep email accounts with their organization ([3fd28eb](https://github.com/camphoric/camphoric/commit/3fd28eb1c1b0d98e21d4aa4286725a7f2fcf717a))
+* **email:** never send through another organization's account ([a0fdbf1](https://github.com/camphoric/camphoric/commit/a0fdbf163936045c91b07473f5cffd3a93a82bdb))
+* **email:** send a test from the sender the dialog shows ([464c6b3](https://github.com/camphoric/camphoric/commit/464c6b38fbc228f690f35ff25041501963b33ae9))
+* **email:** send group email from the sender the dialog shows ([239b6ed](https://github.com/camphoric/camphoric/commit/239b6edba89769e856fb4b2246b45cd49b06dd2a))
+* **multi-event:** bound and steady organization report renders ([2a85f9b](https://github.com/camphoric/camphoric/commit/2a85f9b42f7a7fd608a1ea9bbee01f57798da316)), closes [#1045](https://github.com/camphoric/camphoric/issues/1045)
+* **multi-event:** keep email rules and reviewed people steady ([aee77d2](https://github.com/camphoric/camphoric/commit/aee77d22dd9023880234798eed4bdb0573eb0a9c)), closes [#1046](https://github.com/camphoric/camphoric/issues/1046)
+* **multi-event:** keep series saves and links consistent ([56dccb7](https://github.com/camphoric/camphoric/commit/56dccb7bf03ccc5799a887419e4bb1d0a33ee5c7)), closes [#1041](https://github.com/camphoric/camphoric/issues/1041)
+* **payments:** version the rows the Cash migration changes ([857711d](https://github.com/camphoric/camphoric/commit/857711dd3568e23df6e7a1a794b3438fdff34f20)), closes [#1037](https://github.com/camphoric/camphoric/issues/1037)
+
 ## [0.20.1](https://github.com/camphoric/camphoric/compare/v0.20.0...v0.20.1) (2026-11-19)
 
 
