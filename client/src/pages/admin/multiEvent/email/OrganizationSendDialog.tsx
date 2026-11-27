@@ -97,7 +97,14 @@ export function OrganizationSendDialog({
 
   const sendTest = () =>
     test.mutate(
-      { emailId: email.id, ...(chosen[0] ? { recipient_key: chosen[0].key } : {}) },
+      {
+        emailId: email.id,
+        // From the sender chosen here, as the send would be.
+        account,
+        from_email: fromEmail.trim(),
+        reply_to: replyTo.trim(),
+        ...(chosen[0] ? { recipient_key: chosen[0].key } : {}),
+      },
       {
         onSuccess: (result) =>
           notifications.show({

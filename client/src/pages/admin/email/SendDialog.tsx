@@ -162,6 +162,10 @@ export function SendDialog({
     test.mutate(
       {
         templateId: template.id,
+        // From the sender chosen here, as the send would be.
+        account,
+        from_email: fromEmail.trim(),
+        reply_to: replyTo.trim(),
         // Any of the source's recipients, found by key (they may come from an ad-hoc filter).
         ...(first
           ? {

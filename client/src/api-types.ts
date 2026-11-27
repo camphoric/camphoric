@@ -1641,11 +1641,18 @@ export interface EmailSendRequest {
   send_at?: string | null;
 }
 
-export interface EmailTemplateTestRequest extends Partial<EmailAudience> {
+export interface EmailTemplateTestRequest extends Partial<EmailAudience>, EmailTestSender {
   to?: string;
   recipient_key?: string;
   subject?: string;
   body?: string;
+}
+
+/** The send dialog's sender, for a test sent as the send would be; left out: the saved one. */
+export interface EmailTestSender {
+  account?: number | null;
+  from_email?: string;
+  reply_to?: string;
 }
 
 export interface EmailTemplateTestResponse {
@@ -1680,7 +1687,7 @@ export interface ApiOrganizationUnsubscribe {
   version: number;
 }
 
-export interface OrganizationEmailTestRequest {
+export interface OrganizationEmailTestRequest extends EmailTestSender {
   to?: string;
   recipient_key?: string;
   subject?: string;

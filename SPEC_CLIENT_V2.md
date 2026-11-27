@@ -611,10 +611,11 @@ Non-CRUD admin endpoints:
     already reached as `already_sent` (unless `skip_already_sent` is false), and a copy that
     can't be rendered is a `failed` message. The send records where the site is reached from
     outside (`CAMPHORIC_PUBLIC_URL`, else the request's host) for the copies' unsubscribe links.
-  - `POST /api/emailtemplates/{id}/test/` `{ to?, recipient_key?, subject?, body?, …audience }`
-    — queue one copy, `[Test]` before the subject, rendered for `recipient_key` (else the first
-    recipient), to `to` (default: the signed-in admin); unsaved `subject` / `body` / audience
-    fields may be given → 202 `{ message, rendered_for, diagnostics }`; 400 `{ detail,
+  - `POST /api/emailtemplates/{id}/test/` `{ to?, recipient_key?, subject?, body?, …audience,
+    account?, from_email?, reply_to? }` — queue one copy, `[Test]` before the subject, rendered
+    for `recipient_key` (else the first recipient), to `to` (default: the signed-in admin), from
+    the sender given as a send's is (left out: the template's); unsaved `subject` / `body` /
+    audience fields may be given → 202 `{ message, rendered_for, diagnostics }`; 400 `{ detail,
     diagnostics }` when it can't be rendered or there's no recipient.
   - `POST /api/emailtemplates/{id}/duplicate/` — a copy of a `group` template, named
     “… (copy)” → 201 with it.
@@ -945,8 +946,9 @@ Non-CRUD admin endpoints:
     for a later send with no worker. `account` and `reply_to` given (null: the server's default
     mailer; blank: the account's default Reply-To) win over the email's; left out, the email's
     are used.
-  - `POST /api/organization-emails/{id}/test/` `{ to?, recipient_key?, subject?, body?, filter? }`
-    → 202 `{ message, rendered_for, diagnostics }`, as a group email's test.
+  - `POST /api/organization-emails/{id}/test/` `{ to?, recipient_key?, subject?, body?, filter?,
+    account?, from_email?, reply_to? }` → 202 `{ message, rendered_for, diagnostics }`, as a
+    group email's test, from the sender given as a send's is (left out: the email's).
   - `POST /api/organization-emails/{id}/duplicate/` → 201 with the copy.
 - **Organization unsubscribes** (`/api/organization-unsubscribes/`, filter `organization`; §15,
   DR-182): list, add (source `admin`) and remove, as an event's (`/api/emailunsubscribes/`).
@@ -2742,7 +2744,8 @@ shows any problem on its field.
   defaults, as in the editor).
 - **When** — now, or later at a chosen date and time, which must be in the future.
 - **Test** — sends one copy, rendered for the first chosen recipient (or the template's first
-  recipient), to the admin, with `[Test]` before the subject; nobody on the list is sent anything.
+  recipient), to the admin, from the sender chosen here, with `[Test]` before the subject; nobody
+  on the list is sent anything.
 
 Sending asks for confirmation, restating the template, how many it goes to, the from address and
 account, how many are skipped as already sent and how many were left out, and when it's sent. It
@@ -2997,8 +3000,8 @@ history (§15, DR-53): a link or unlink in the camper's history, with who made i
     (the same address goes once), or unsubscribed.
   - **Sending** reviews exactly who gets it, each with a checkbox, shows who's left out and why,
     can skip those it already reached, sets the sender, and sends now or at a chosen time (with
-    the email worker), after confirming what will happen. A test copy can be sent to the
-    organizer first. The list is checked again when the send is prepared, so someone who
+    the email worker), after confirming what will happen. A test copy, from the chosen
+    sender, can be sent to the organizer first. The list is checked again when the send is prepared, so someone who
     unsubscribed or was removed since is skipped, and a repeated send never sends twice — someone
     already sent it counts by person or by the address it went to, and someone whose records were
     linked or unlinked since review is found again by their records, so linking doesn't drop or

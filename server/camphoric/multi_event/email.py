@@ -307,22 +307,35 @@ def sent_to(organization_email_id, *, exclude_batch=None):
 SAVED = object()
 
 
+def sender(email, *, account=SAVED, from_email='', reply_to=SAVED):
+    '''
+    Who a send or test of `email` comes from: the send dialog's, else the
+    email's. The account and Reply-To are the email's unless given — an
+    account of None is the server's default mailer, and a blank Reply-To the
+    account's default; a blank From is the email's, as one is needed.
+    '''
+    from_email = from_email or email.from_email
+    if not from_email:
+        raise EmailError('Give the address the email is from.')
+    return {
+        'account': email.account if account is SAVED else account,
+        'from_email': from_email,
+        'reply_to': email.reply_to if reply_to is SAVED else reply_to,
+    }
+
+
 def create_batch(email, *, recipient_keys, account=SAVED, from_email='', reply_to=SAVED,
                  skip_already_sent=True, send_at=None, created_by=None, link_base=''):
     '''
-    Record a send of `email` to the reviewed people and schedule it (as
-    batches.create_batch). The account and Reply-To are the email's unless
-    given — an account of None is the server's default mailer, and a blank
-    Reply-To the account's default.
+    Record a send of `email` to the reviewed people, from `sender`, and
+    schedule it (as batches.create_batch).
     '''
     from camphoric.mail.tasks import expand_batch
 
     keys = list(dict.fromkeys(k for k in recipient_keys if isinstance(k, str) and k))
     if not keys:
         raise EmailError('Choose at least one recipient.')
-    sender = from_email or email.from_email
-    if not sender:
-        raise EmailError('Give the address the email is from.')
+    sent_by = sender(email, account=account, from_email=from_email, reply_to=reply_to)
     later = send_at is not None and send_at > timezone.now()
     task = expand_batch.using(run_after=send_at) if later else expand_batch
     if later and not task.get_backend().supports_defer:
@@ -332,9 +345,7 @@ def create_batch(email, *, recipient_keys, account=SAVED, from_email='', reply_t
         recipient_campers=reviewed,
         organization=email.organization, organization_email=email, name=email.name,
         subject=email.subject, body=email.body, filter=email.filter, recipient_keys=keys,
-        account=email.account if account is SAVED else account, from_email=sender,
-        reply_to=email.reply_to if reply_to is SAVED else reply_to,
-        skip_already_sent=skip_already_sent,
+        **sent_by, skip_already_sent=skip_already_sent,
         send_at=send_at if later else None, created_by=created_by, link_base=link_base)
     task.enqueue(batch.id)
     batch.refresh_from_db()
@@ -416,11 +427,12 @@ def expand(batch):
 
 
 def send_test(email, *, to, recipient_key=None, subject=None, body=None, filter_=None,
-              created_by=None):
+              created_by=None, account=SAVED, from_email='', reply_to=SAVED):
     '''
     Queue one copy of `email` (or its unsaved subject, body and rules), rendered
     for a person — `recipient_key`, else the first the rules reach — to `to`,
-    marked [Test]. Returns (message or None, rendered, candidate).
+    marked [Test], from `sender` (the dialog's, as a send would be). Returns
+    (message or None, rendered, candidate).
     '''
     organization = email.organization
     resolution, _ = resolve(organization, email.filter if filter_ is None else filter_)
@@ -441,11 +453,10 @@ def send_test(email, *, to, recipient_key=None, subject=None, body=None, filter_
         email_context(variables, person, recipient(chosen.email, chosen.name)))
     if not rendered.ok:
         return None, rendered, chosen
-    if not email.from_email:
-        raise EmailError('Give the address the email is from.')
+    sent_by = sender(email, account=account, from_email=from_email, reply_to=reply_to)
     message = outbox.enqueue(
         event=None, organization=organization, kind=models.EmailMessageKind.TEST, to=to,
         subject=f'[Test] {rendered.subject}', text=rendered.text, html=rendered.html,
-        from_email=email.from_email, account=email.account, reply_to=email.reply_to or None,
-        created_by=created_by)
+        from_email=sent_by['from_email'], account=sent_by['account'],
+        reply_to=sent_by['reply_to'] or None, created_by=created_by)
     return message, rendered, chosen

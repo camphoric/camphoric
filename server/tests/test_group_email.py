@@ -256,6 +256,32 @@ class SendTests(GroupEmailTestCase):
         self.assertEqual((picked.account, picked.from_email, picked.reply_to),
                          (events, 'lee@example.com', 'r@example.com'))
 
+    def test_a_test_comes_from_the_dialogs_sender(self):
+        ours = models.EmailAccount.objects.create(
+            organization=self.event.organization, name='Ours', host='smtp.example.com', port=587)
+        self.template.account, self.template.reply_to = ours, 'office@example.com'
+        self.template.save()
+
+        def test(**fields):
+            response = self.client.post(self.url('test/'), fields, format='json')
+            self.assertEqual(response.status_code, 202, response.data)
+            return models.EmailMessage.objects.get(id=response.data['message']['id'])
+
+        saved = test()
+        self.assertEqual((saved.account, saved.reply_to), (ours, 'office@example.com'))
+        chosen = test(account=None, from_email='lee@example.com', reply_to='')
+        self.assertEqual((chosen.account, chosen.from_email), (None, 'lee@example.com'))
+        self.assertNotEqual(chosen.reply_to, 'office@example.com')
+        self.event.confirmation_email_from = 'camp@example.com'
+        self.event.save()
+        self.assertEqual(test(from_email='').from_email, 'camp@example.com')
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='Theirs', host='smtp.example.com', port=587)
+        for account in (True, theirs.id):
+            self.assertEqual(self.client.post(self.url('test/'), {'account': account},
+                                              format='json').status_code, 400, account)
+
     def test_a_bad_account_is_refused(self):
         key = f'camper:{self.made.c1.id}'
         for account in ('3', True):

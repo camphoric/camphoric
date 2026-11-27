@@ -133,14 +133,19 @@ describe('SendDialog', () => {
     expect(screen.getByRole('button', { name: 'Schedule for 1 recipient' })).toBeDisabled();
   });
 
-  it('sends a test rendered for the first chosen recipient', async () => {
+  it('sends a test rendered for the first chosen recipient, from the chosen sender', async () => {
     const { user } = setup();
+    await user.type(screen.getByRole('textbox', { name: 'From' }), 'news@camp.org');
+    await user.type(screen.getByRole('textbox', { name: 'Reply-To' }), 'office@camp.org');
     await user.click(screen.getByRole('button', { name: 'Send a test to me' }));
     expect(test).toHaveBeenCalledWith(
       expect.objectContaining({
         templateId: 5,
         recipient_key: 'camper:3',
         include_incomplete: true,
+        account: null,
+        from_email: 'news@camp.org',
+        reply_to: 'office@camp.org',
       }),
       expect.anything(),
     );

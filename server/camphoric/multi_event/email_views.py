@@ -37,6 +37,14 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
     serializer_class = serializers.OrganizationEmailSerializer
     filterset_fields = ['organization']
 
+    def _sender(self, request, data, organization_email):
+        '''The send dialog's sender, as given (email.sender: else the email's).'''
+        sender = {'account': self._account(request, data, organization_email),
+                  'from_email': data.get('from_email') or ''}
+        if 'reply_to' in data:
+            sender['reply_to'] = data.get('reply_to') or ''
+        return sender
+
     def _account(self, request, data, organization_email):
         if 'account' not in data:
             return email.SAVED
@@ -74,9 +82,7 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
         try:
             batch = email.create_batch(
                 organization_email, recipient_keys=data.get('recipient_keys') or [],
-                account=self._account(request, data, organization_email),
-                from_email=data.get('from_email') or '',
-                reply_to=(data.get('reply_to') or '') if 'reply_to' in data else email.SAVED,
+                **self._sender(request, data, organization_email),
                 skip_already_sent=data.get('skip_already_sent', True) is not False,
                 send_at=send_at, created_by=request.user, link_base=public_base(request))
         except email.EmailError as error:
@@ -88,8 +94,8 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
     def test(self, request, pk=None):
         '''
         Queue one copy, marked [Test], rendered for a person (`recipient_key`,
-        else the first), to `to` (default: you). Unsaved `subject`, `body` and
-        `filter` may be given.
+        else the first), to `to` (default: you), from the sender given as a
+        send's is. Unsaved `subject`, `body` and `filter` may be given.
         '''
         organization_email = self.get_object()
         data = _body(request)
@@ -100,7 +106,8 @@ class OrganizationEmailViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewS
             message, rendered, chosen = email.send_test(
                 organization_email, to=to, recipient_key=data.get('recipient_key'),
                 subject=data.get('subject'), body=data.get('body'),
-                filter_=data.get('filter'), created_by=request.user)
+                filter_=data.get('filter'), created_by=request.user,
+                **self._sender(request, data, organization_email))
         except email.EmailError as error:
             return Response({'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST)
         if message is None:

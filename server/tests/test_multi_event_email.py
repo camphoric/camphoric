@@ -232,6 +232,24 @@ class SendTests(MultiEventEmailTestCase):
         self.assertEqual(batch.messages.count(), 2)  # Ann, and Bo once
         self.assertNotIn('gone', [s['reason'] for s in batch.skipped])
 
+    def test_a_test_comes_from_the_dialogs_sender(self):
+        ours = models.EmailAccount.objects.create(
+            organization=self.organization, name='Ours', host='smtp.example.com', port=587)
+        self.email.account, self.email.reply_to = ours, 'office@example.com'
+        self.email.save()
+
+        def test(**fields):
+            response = self.client.post(f'/api/organization-emails/{self.email.id}/test/',
+                                        fields, format='json')
+            self.assertEqual(response.status_code, 202, response.data)
+            return models.EmailMessage.objects.get(id=response.data['message']['id'])
+
+        saved = test()
+        self.assertEqual((saved.account, saved.reply_to), (ours, 'office@example.com'))
+        chosen = test(account=None, from_email='lee@example.com', reply_to='')
+        self.assertEqual((chosen.account, chosen.from_email), (None, 'lee@example.com'))
+        self.assertNotEqual(chosen.reply_to, 'office@example.com')
+
     def test_a_bad_account_is_refused(self):
         for account in ('abc', True):
             self.assertEqual(self.send([self.ann_key], account=account).status_code, 400, account)
