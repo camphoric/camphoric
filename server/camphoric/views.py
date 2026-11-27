@@ -431,6 +431,23 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
         template.save()
         return Response(self.get_serializer(template).data, status=status.HTTP_201_CREATED)
 
+    @staticmethod
+    def sender(request, data):
+        '''
+        The send dialog's `account`, `from_email` and `reply_to`, as given
+        (batches.sender: one left out is the template's; a blank one, the event's).
+        '''
+        sender = {field: data.get(field) or '' for field in ('from_email', 'reply_to')
+                  if field in data}
+        if 'account' in data:
+            sender['account'] = None
+            if data['account']:
+                if isinstance(data['account'], bool) or not isinstance(data['account'], int):
+                    raise ValidationError({'account': 'Give an email account’s id.'})
+                sender['account'] = get_object_or_404(models.EmailAccount, id=data['account'])
+                contracts.check_record(request, sender['account'])
+        return sender
+
     @action(detail=True, methods=['post'])
     def send(self, request, pk=None):
         '''
@@ -444,19 +461,10 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
             send_at = parse_datetime(str(data['send_at']))
             if send_at is None:
                 raise ValidationError({'send_at': 'Give a date and time (ISO 8601).'})
-        # A sender field the dialog left out is the template's; a blank one, the event's.
-        sender = {field: data.get(field) or '' for field in ('from_email', 'reply_to')
-                  if field in data}
-        if 'account' in data:
-            sender['account'] = None
-            if data['account']:
-                if isinstance(data['account'], bool) or not isinstance(data['account'], int):
-                    raise ValidationError({'account': 'Give an email account’s id.'})
-                sender['account'] = get_object_or_404(models.EmailAccount, id=data['account'])
-                contracts.check_record(request, sender['account'])
         try:
             batch = batches.create_batch(
-                template, recipient_keys=data.get('recipient_keys') or [], **sender,
+                template, recipient_keys=data.get('recipient_keys') or [],
+                **self.sender(request, data),
                 skip_already_sent=data.get('skip_already_sent', True) is not False,
                 send_at=send_at, created_by=request.user, link_base=public_base(request))
         except batches.BatchError as error:
@@ -468,8 +476,8 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
     def test(self, request, pk=None):
         '''
         Queue one copy, marked [Test], rendered for a recipient (`recipient_key`,
-        else the first), to `to` (default: you). Unsaved `subject` / `body` and
-        audience fields may be given.
+        else the first), to `to` (default: you), from the sender given as a send's
+        is. Unsaved `subject` / `body` and audience fields may be given.
         '''
         template = self.group_template()
         data = request.data
@@ -483,7 +491,7 @@ class EmailTemplateViewSet(VersionCheckMixin, PlannedDeleteMixin, ModelViewSet):
             message, rendered, chosen = batches.send_test(
                 template, to=to, recipient_key=data.get('recipient_key'),
                 subject=data.get('subject'), body=data.get('body'), created_by=request.user,
-                criteria=criteria)
+                criteria=criteria, **self.sender(request, data))
         except batches.BatchError as error:
             return Response({'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST)
         if message is None:

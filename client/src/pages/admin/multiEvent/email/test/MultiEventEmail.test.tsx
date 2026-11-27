@@ -157,7 +157,16 @@ describe('OrganizationSendDialog', () => {
       />,
     );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Send a test to me' }));
-    expect(test).toHaveBeenCalledWith({ emailId: 9, recipient_key: 'person:1' }, expect.anything());
+    expect(test).toHaveBeenCalledWith(
+      {
+        emailId: 9,
+        account: null,
+        from_email: 'camp@example.com',
+        reply_to: '',
+        recipient_key: 'person:1',
+      },
+      expect.anything(),
+    );
   });
 
   it('lets a Reporter look but not send', () => {
