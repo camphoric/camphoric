@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.3.0...camphoric-event-import-spec-v1.4.0) (2026-11-27)
+
+
+### Features
+
+* **payments:** make Cash a built-in payment type in place of Voucher ([0f6929e](https://github.com/camphoric/camphoric/commit/0f6929e7e0b0ef984330021c1e15e5a6d35026ad)), closes [#1037](https://github.com/camphoric/camphoric/issues/1037)
+
+
+### Bug Fixes
+
+* **payments:** version the rows the Cash migration changes ([857711d](https://github.com/camphoric/camphoric/commit/857711dd3568e23df6e7a1a794b3438fdff34f20)), closes [#1037](https://github.com/camphoric/camphoric/issues/1037)
+
 ## [1.3.0](https://github.com/camphoric/camphoric/compare/camphoric-event-import-spec-v1.2.0...camphoric-event-import-spec-v1.3.0) (2026-11-18)
 
 
