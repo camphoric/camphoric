@@ -46,6 +46,19 @@ class ConfirmationTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         return response
 
+    def test_the_confirmation_never_goes_through_another_organizations_account(self):
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='Theirs', host='smtp.example.com', port=587)
+        # Saved before that was refused.
+        models.EmailTemplate.objects.filter(pk=self.event.confirmation_template_id).update(
+            account=theirs)
+        with self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            self.pay(self.start())
+        message = models.EmailMessage.objects.get()
+        self.assertIsNone(message.account)
+        self.assertEqual(message.status, Status.SENT)
+
     def test_the_confirmation_is_a_recorded_message(self):
         response = self.pay(self.start())
         self.assertFalse(response.data['emailError'])

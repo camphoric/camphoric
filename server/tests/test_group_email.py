@@ -355,6 +355,22 @@ class ScheduleAndCancelTests(GroupEmailTestCase):
             run_due_tasks()
         self.assertEqual(models.EmailBatch.objects.get(id=data['id']).messages.count(), 0)
 
+    def test_one_scheduled_through_another_organizations_account_is_moved_off_it(self):
+        start = timezone.now()
+        data = self.send([f'camper:{self.made.c1.id}'],
+                         send_at=(start + datetime.timedelta(hours=1)).isoformat()).data
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='Theirs', host='smtp.example.com', port=587)
+        # Scheduled before that was refused.
+        models.EmailBatch.objects.filter(id=data['id']).update(account=theirs)
+        with freeze_time(start + datetime.timedelta(hours=2)), \
+                self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            run_due_tasks()
+        batch = models.EmailBatch.objects.get(id=data['id'])
+        self.assertIsNone(batch.account)
+        self.assertEqual([m.account for m in batch.messages.all()], [None])
+
     @NO_WORKER
     def test_cancel_while_sending(self):
         # With no worker, expanding and delivery wait; run the expansion by hand.

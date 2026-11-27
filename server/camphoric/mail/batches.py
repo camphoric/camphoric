@@ -102,7 +102,8 @@ def expand(batch_id):
     if not claimed:
         return 'skipped'
     batch = models.EmailBatch.objects.select_related(
-        'event', 'organization', 'account').get(id=batch_id)
+        'event__email_account', 'organization', 'account').get(id=batch_id)
+    outbox.rehome_batch(batch)
     if batch.event_id is None:
         # An organization's email to past campers (SPEC §8.12, DR-182).
         from camphoric.multi_event import email
