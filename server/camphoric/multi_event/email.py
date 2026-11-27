@@ -317,8 +317,11 @@ def sender(email, *, account=SAVED, from_email='', reply_to=SAVED):
     from_email = from_email or email.from_email
     if not from_email:
         raise EmailError('Give the address the email is from.')
+    account = email.account if account is SAVED else account
+    if account is not None and account.organization_id != email.organization_id:
+        raise EmailError(f'The account “{account.name}” isn’t one of the organization’s.')
     return {
-        'account': email.account if account is SAVED else account,
+        'account': account,
         'from_email': from_email,
         'reply_to': email.reply_to if reply_to is SAVED else reply_to,
     }

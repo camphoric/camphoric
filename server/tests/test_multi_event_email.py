@@ -253,6 +253,16 @@ class SendTests(MultiEventEmailTestCase):
     def test_a_bad_account_is_refused(self):
         for account in ('abc', True):
             self.assertEqual(self.send([self.ann_key], account=account).status_code, 400, account)
+        # Nor one saved before another organization's was refused.
+        theirs = models.EmailAccount.objects.create(
+            organization=self.other_organization, name='Theirs', host='smtp.example.com',
+            port=587)
+        models.OrganizationEmail.objects.filter(pk=self.email.pk).update(account=theirs)
+        self.assertEqual(self.send([self.ann_key]).status_code, 400)
+        response = self.client.post(f'/api/organization-emails/{self.email.id}/test/', {},
+                                    format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(models.EmailBatch.objects.exists())
 
     def test_already_sent_only_counts_the_organizations_own_email(self):
         theirs = models.OrganizationEmail.objects.create(

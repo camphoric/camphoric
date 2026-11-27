@@ -91,6 +91,57 @@ class EnqueueTests(OutboxTestCase):
         self.assertEqual(sent.extra_headers['Message-ID'], message.smtp_message_id)
         self.assertTrue(message.smtp_message_id.endswith('@example.com>'))
 
+    def test_never_through_another_organizations_account(self):
+        # Saved before that was refused: the event's own account, else the default mailer.
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='theirs', host='smtp.example.com', port=587,
+            default_reply_to='them@example.com')
+        with self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            message = self.enqueue(account=theirs)
+        self.assertEqual(message.account, self.account)
+        self.assertEqual(message.reply_to, 'camp@example.com')
+        models.Event.objects.filter(pk=self.event.pk).update(email_account=theirs)
+        self.event.refresh_from_db()
+        with self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            self.assertIsNone(self.enqueue().account)
+        with self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            message = self.enqueue(event=None, organization=self.organization, account=theirs)
+        self.assertIsNone(message.account)
+        # Its own organization's account, and an account's own test, are untouched.
+        self.assertEqual(self.enqueue(account=self.account).account, self.account)
+        self.assertEqual(self.enqueue(event=None, account=theirs).account, theirs)
+
+    def test_one_queued_through_another_organizations_account_is_moved_off_it(self):
+        # Queued (or failed, and retried) before that was refused.
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='theirs', host='smtp.example.com', port=587,
+            default_reply_to='them@example.com')
+        stuck = self.waiting('pat@example.com', account=theirs, reply_to='them@example.com')
+        mine = self.waiting('lee@example.com')
+        with mock.patch('camphoric.mail.outbox.mailer_for',
+                        wraps=outbox.mailer_for) as mailer_for, \
+                self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            self.assertEqual(outbox.deliver(stuck.id), 'sent')
+        stuck.refresh_from_db()
+        self.assertEqual((stuck.account, stuck.reply_to), (self.account, 'camp@x.org'))
+        self.assertEqual([c.args[0] for c in mailer_for.call_args_list], [self.account])
+        self.assertEqual(self.statuses(mine), [Status.SENT])  # over the same connection
+
+    def test_another_organizations_connection_doesnt_send_one_moved_off_it(self):
+        other = models.Organization.objects.create(name='Other')
+        theirs = models.EmailAccount.objects.create(
+            organization=other, name='theirs', host='smtp.example.com', port=587)
+        their_event = models.Event.objects.create(organization=other, name='Theirs')
+        their_own = self.waiting('kim@example.com', event=their_event, account=theirs)
+        ours = self.waiting('pat@example.com', account=theirs)
+        with self.assertLogs('camphoric.mail.outbox', 'WARNING'):
+            self.assertEqual(outbox.deliver(their_own.id), 'sent')
+        ours.refresh_from_db()
+        self.assertEqual((ours.status, ours.account), (Status.QUEUED, self.account))
+        self.assertEqual(outbox.deliver(ours.id), 'sent')
+
     def test_reply_to_defaults(self):
         # Replies go to the From address unless the account or the caller says otherwise.
         self.assertEqual(self.enqueue().reply_to, 'camp@example.com')

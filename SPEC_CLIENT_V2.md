@@ -25,7 +25,7 @@ v1 client was retired (§15, DR-115) — see §15 (Decision Records) for the dec
 - §12 — Behaviors to Preserve (and Pitfalls to Improve in V2)
 - §13 — Open Questions and Decisions to Resolve
 - §14 — Future Feature: Plugin System
-- §15 — Decision Records (DR-1…DR-182)
+- §15 — Decision Records (DR-1…DR-183)
 - Appendix A — Backend / API Dependencies
 - Appendix B — Suggested Build Order
 
@@ -572,8 +572,9 @@ Non-CRUD admin endpoints:
   - `GET /api/events/{id}/email/queue` — what the event's email is doing now: `{ queued,
     sending, failed_last_day, next_attempt_at, worker: { required, alive, last_seen },
     account: null | { id, name, max_per_minute, max_per_day, sent_last_minute, sent_last_day,
-    paused_until } }`. `paused_until` is set when a sending limit is used up (the account's mail
-    waits until then); `worker.alive` is false when no worker has reported in for 2 minutes
+    paused_until } }`, the account the event's email actually goes through (null: the default
+    mailer, as for an event whose saved account is another organization's; §15, DR-183).
+    `paused_until` is set when a sending limit is used up (the account's mail waits until then); `worker.alive` is false when no worker has reported in for 2 minutes
     while `required`.
   - `POST /api/emailaccounts/{id}/test/` `{ to?, from_email? }` — queue a test message through
     the account (default `to`: the signed-in admin; default from: the account's username) →
@@ -606,7 +607,7 @@ Non-CRUD admin endpoints:
     `account` is an account's id (400 otherwise; 404 for no such account). A 400 `{ detail }`
     when no recipients are given, the template isn't a group email, or the sending account isn't
     one of the event's organization's (a template's or event's own account must be too; saving
-    another organization's is a 400 on that field). The copies are rendered when the batch is prepared: a recipient no longer in the data
+    another organization's is a 400 on that field; §15, DR-183). The copies are rendered when the batch is prepared: a recipient no longer in the data
     is skipped as `gone`, one that has unsubscribed since as `unsubscribed`, one the template
     already reached as `already_sent` (unless `skip_already_sent` is false), and a copy that
     can't be rendered is a `failed` message. The send records where the site is reached from
@@ -942,8 +943,9 @@ Non-CRUD admin endpoints:
   the field); `account` must be one of the organization's, and `organization` can't change.
   - `POST /api/organization-emails/{id}/send/` `{ recipient_keys, account?, from_email?,
     reply_to?, skip_already_sent?, send_at? }` → 202 with the send (an `EmailBatch` of the
-    organization), as a group email's send: 400 without recipients, without a From address, or
-    for a later send with no worker. `account` and `reply_to` given (null: the server's default
+    organization), as a group email's send: 400 without recipients, without a From address, for
+    a later send with no worker, or when the account (given, or the email's) is another
+    organization's (§15, DR-183). `account` and `reply_to` given (null: the server's default
     mailer; blank: the account's default Reply-To) win over the email's; left out, the email's
     are used.
   - `POST /api/organization-emails/{id}/test/` `{ to?, recipient_key?, subject?, body?, filter?,
@@ -1241,7 +1243,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   sending address) and `email_account` (the account it sends through, null: the server's default
   mailer; one of its organization's, another's being a 400 on that field; an event whose email
   templates use its organization's accounts can't be moved to another organization, a 400 on
-  `organization`);
+  `organization`; §15, DR-183);
   `paypal_enabled`, `paypal_client_id`, `epayment_handling` (percent); `payment_types` (the
   event's own offline payment types, a list of `{ value, label }`; §9.7, §15, DR-164) and
   read-only `payment_type_choices` (every type a payment can be recorded as, each
@@ -1340,7 +1342,7 @@ serializer change must be mirrored here. (Rationale: §15, DR-27.)
   changed, so it must be entered again). An update that changes `host`, `port`, `security` or
   `username` of an account with a stored password must give the password too, or it is a 400
   with an error on `password` (§15, DR-126). An account can't be moved to another organization
-  (a 400 on `organization`).
+  (a 400 on `organization`; §15, DR-183).
 - **EmailMessage:** `id`, `event?`, `organization?` (an organization's email to past campers, or
   its test; DR-182), `kind` (`confirmation` | `confirmation_report` | `page_report` |
   `payment_report` | `invitation` | `invoice` | `bulk` | `multi_event` | `test`), `registration?`,
@@ -2599,8 +2601,10 @@ field may be added later). Changes are saved together, via PATCH of
 `registration_error_messages` on the event.
 
 **Email** — the admin chooses the **account the event sends through** (confirmations,
-invitations and group email alike; or none, for the server's default mailer), and manages the
-organization's **email accounts** (§5): add and edit an account — its name, whether it sends
+invitations and group email alike; or none, for the server's default mailer), one of its
+organization's: email is never sent through another organization's account — one saved before
+that was refused is passed over for the event's own account, else the default mailer, with a
+warning in the server's log (§15, DR-183) — and manages the organization's **email accounts** (§5): add and edit an account — its name, whether it sends
 through a mail server (SMTP) or only to the server's log (for testing), the server, port and
 security (STARTTLS, SSL/TLS or none; changing the security moves a standard port along), the
 timeout, username and password, its sending limits (most messages a minute and a day; blank is no
@@ -8034,6 +8038,27 @@ the rule builder was wanted for its flexibility. Making `EmailTemplate` an organ
 it's built around an event (its purposes, sources, leases and the live feed). Including
 registrants as recipients — only campers are linked (DR-177). A special rule for minors'
 addresses — the registrant's address is already the fallback.
+
+### DR-183 — Email accounts stay with their organization
+
+**Decision:** An email only goes through one of its own organization's accounts: the event's
+organization's, or for an organization's email to past campers, that organization's. An event,
+an email template or an organization's email can't be given another organization's account; an
+account can't be moved to another organization; and an event can't be moved to another while its
+templates use its organization's accounts. A group send or test through another's is a 400. Any
+other email (a confirmation, an invoice, an invitation, a send already scheduled, or one already
+queued, or failed and retried) whose account is another organization's, saved before this was
+enforced, goes through the event's own account instead, else the server's default mailer — it is
+moved off that account when it's queued and again when it's delivered — and the server logs a
+warning. The email queue's status shows the account the event's email actually goes through.
+**Context:** An account holds an organization's mail-server credentials and sending limits.
+Templates and events once accepted any account, so a registrar could send one organization's
+email through another's account. A confirmation is sent as a registration completes, with no
+organizer there to choose another account, and a registrant should still get it.
+**Alternatives:** Refusing such an email (marking it failed) — the registrant would get no
+confirmation until an organizer noticed. Clearing those accounts with a data migration — it
+would change saved settings without anyone seeing; the fallback leaves them for an organizer to
+correct when next saved, which refuses them.
 
 ## Appendix A — Backend / API Dependencies
 

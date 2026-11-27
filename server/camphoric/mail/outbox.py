@@ -84,13 +84,16 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
 
     `account` defaults to the event's account (None: the default mailer); a
     message without an event (an account's test, an organization's email to
-    past campers) names its account. A blank
+    past campers) names its account. An account that isn't the event's (or
+    the organization's) organization's isn't sent through: the event's own
+    account is, else the default mailer (see own_account). A blank
     `reply_to` gets the default (see default_reply_to).
     A message that can't be sent (a bad address, a @dontsend.com address) is
     recorded as failed or cancelled rather than queued.
     '''
     if account is _EVENT_ACCOUNT:
         account = event.email_account if event else None
+    account = own_account(account, event=event, organization=organization)
     if not reply_to:
         reply_to = default_reply_to(account, from_email)
 
@@ -125,6 +128,38 @@ def enqueue(*, event, kind, to, subject, text, html='', from_email,
         raise
     wake(message)
     return message
+
+
+def own_account(account, *, event=None, organization=None, warn=True):
+    '''
+    The account to send through: `account`, if it's one of the sender's
+    organization's (the event's, else `organization`). Another organization's,
+    saved before that was refused, is never used: its credentials and limits
+    are theirs. The event's own account takes its place, else the default
+    mailer (None).
+    '''
+    owner = event.organization_id if event else getattr(organization, 'pk', None)
+    if account is None or owner is None or account.organization_id == owner:
+        return account
+    if warn:
+        logger.warning(f'email account {account.pk} belongs to organization '
+                       f'{account.organization_id}, not {owner}; not sending through it')
+    fallback = event.email_account if event else None
+    if fallback is not None and fallback.organization_id == owner:
+        return fallback
+    return None
+
+
+def rehome_batch(batch):
+    '''
+    Move a batch being prepared off another organization's account (one
+    scheduled before that was refused; see own_account), so it and its copies
+    name the account they go through.
+    '''
+    account = own_account(batch.account, event=batch.event, organization=batch.organization)
+    if account != batch.account:
+        batch.account = account
+        batch.save(update_fields=['account', 'updated_at'])
 
 
 def default_reply_to(account, from_email):
@@ -177,11 +212,13 @@ def deliver(message_id):
     the first: 'sent', 'retry', 'failed', 'throttled' or 'skipped' (not queued,
     or not due yet).
     '''
-    message = (models.EmailMessage.objects.select_related('account', 'invitation')
+    message = (models.EmailMessage.objects
+               .select_related('account', 'invitation', 'event__email_account', 'organization')
                .filter(id=message_id).first())
     if message is None or message.status != Status.QUEUED \
             or message.next_attempt_at > timezone.now():
         return 'skipped'
+    _rehome(message)
     outcome = _claim(message)
     if outcome:
         return outcome
@@ -202,6 +239,28 @@ def deliver(message_id):
         except Exception as error:
             logger.warning(f'closing the mail connection failed: {error}')
     return outcome
+
+
+def _rehome(message):
+    '''
+    Move a queued message off another organization's account (one queued, or
+    failed and retried, before that was refused; see own_account), and off
+    that account's default Reply-To. Returns whether it moved.
+    '''
+    account = own_account(message.account, event=message.event,
+                          organization=message.organization)
+    if account == message.account:
+        return False
+    old = message.account
+    fields = {'account': account}
+    if old.default_reply_to and message.reply_to == old.default_reply_to:
+        fields['reply_to'] = default_reply_to(account, message.from_email)
+    # Only while it's queued: another worker may have claimed it meanwhile.
+    models.EmailMessage.objects.filter(id=message.id, status=Status.QUEUED).update(
+        **fields, updated_at=timezone.now())
+    for name, value in fields.items():
+        setattr(message, name, value)
+    return True
 
 
 def _claim(message):
@@ -276,13 +335,17 @@ def _send_more(mailer, account_id):
         worker.still_working()
         if time.monotonic() - started > CHUNK_SECONDS:
             return
-        message = (models.EmailMessage.objects.select_related('account', 'invitation')
+        message = (models.EmailMessage.objects
+                   .select_related('account', 'invitation', 'event__email_account',
+                                   'organization')
                    .filter(account_id=account_id, status=Status.QUEUED,
                            next_attempt_at__lte=timezone.now())
                    .annotate(priority=_priority())
                    .order_by('-priority', 'next_attempt_at', 'id').first())
         if message is None:
             return
+        if _rehome(message):
+            continue  # Not this account's after all: its own wake-up sends it.
         outcome = _claim(message)
         if outcome == 'throttled':
             return
@@ -494,7 +557,7 @@ def queue_state(event):
         },
         'account': None,
     }
-    account = event.email_account
+    account = own_account(event.email_account, event=event, warn=False)
     if account:
         sent = models.EmailMessage.objects.filter(account=account, status=Status.SENT)
         state['account'] = {
